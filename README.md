@@ -55,7 +55,9 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | Entender um erro | [docs/guides/problemas-comuns.md](docs/guides/problemas-comuns.md) |
 | Saber se uma mudança em skill piorou o agente | [docs/guides/avaliacao-das-skills.md](docs/guides/avaliacao-das-skills.md) e a [avaliação cega](evals/README.md) |
 
-O agente (Claude Code) trabalha com quatro skills, uma por etapa, em [`.claude/skills/`](.claude/skills/): `onboard-product` (do Swagger e da carta ao perfil validado), `fix-reachability` (preflight, probe e ajuste das regras de dados até alcançar a API), `run-scan` (`stack up`, `run`, códigos de saída e parada segura) e `triage-findings` (anotar achados sem nunca apagar nem mudar severidade). Dois subagentes só de leitura ajudam: `spec-analyst` e `findings-triager`. Toda skill manda manter um diário de decisões. O agente age sobre o alvo **somente** por `hdast`; `.claude/settings.json` nega a ele `curl`, `wget`, `hdast cleanup`, leitura de `.env`, WebFetch e escrita em `cleanup/`, como conveniência: o escopo, a janela e a confirmação da limpeza são impostos pela CLI, em código testado.
+**Um pedido só.** Com o Claude Code aberto na raiz do repositório, a skill `test-product` conduz as quatro etapas abaixo em sequência (`Use a skill test-product no produto "<produto>"`, com o Swagger e a carta de autorização) e só para quando precisa de você: falta dado na carta, a alcançabilidade não chegou à meta, há achado alto para confirmar ou há dúvida de autorização, escopo ou janela. O resultado mais legível é `runs/<run_id>/report.html`, uma página única com o resumo, o que fazer agora, os achados agrupados pela causa, o que a varredura não cobriu e o tráfego recusado pela cerca de escopo. Passo a passo em [docs/guides/primeiro-uso.md](docs/guides/primeiro-uso.md).
+
+O agente (Claude Code) trabalha com quatro skills, uma por etapa, em [`.claude/skills/`](.claude/skills/): `onboard-product` (do Swagger e da carta ao perfil validado), `fix-reachability` (preflight, probe e ajuste das regras de dados até alcançar a API), `run-scan` (`stack up`, `run`, códigos de saída e parada segura) e `triage-findings` (anotar achados sem nunca apagar nem mudar severidade). A `test-product` não repete as regras das quatro: aponta para elas e para a CLI, e cita as travas da Parte B do `CLAUDE.md`. Dois subagentes só de leitura ajudam: `spec-analyst` e `findings-triager`. Toda skill manda manter um diário de decisões. O agente age sobre o alvo **somente** por `hdast`; `.claude/settings.json` nega a ele `curl`, `wget`, `hdast cleanup`, leitura de `.env`, WebFetch e escrita em `cleanup/`, como conveniência: o escopo, a janela e a confirmação da limpeza são impostos pela CLI, em código testado.
 
 ## Instalação e uso (o que funciona hoje)
 
@@ -79,7 +81,7 @@ uv run hdast cleanup vampi --run <run_id> --dry-run  # só se o perfil tiver cle
 uv run hdast stack down
 ```
 
-O `run` grava `runs/<run_id>/run.json`, `findings.json` e `report.md`. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
+O `run` grava `runs/<run_id>/run.json`, `findings.json`, `report.md` e `report.html`. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
 
 O segundo comando imprime em stdout um envelope JSON com `schema_version`, `ok` e o resultado do comando. O formato do envelope está em [docs/reference/cli.md](docs/reference/cli.md) e [docs/architecture.md](docs/architecture.md).
 

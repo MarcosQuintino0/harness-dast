@@ -46,7 +46,19 @@ O que as permissões **não** garantem (o formato de regras do Claude Code não 
 - O ambiente do terminal (as senhas das contas de teste) é herdado pelo processo do agente; as regras negam `printenv` e a leitura de `.env`, mas não impedem toda forma de ler uma variável.
 - As regras valem também para quem desenvolve o projeto neste repositório (por exemplo, WebFetch e `curl` ficam negados).
 
-## 5. Os prompts, um por etapa
+## 5. Os prompts
+
+**Atalho: um pedido só (skill `test-product`).** A skill conduz as quatro etapas abaixo em sequência e só para quando precisa de você: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas são as mesmas.
+
+```text
+Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
+O OpenAPI está em <caminho ou URL>. A carta de autorização está em <caminho>;
+use SOMENTE o que ela diz. É ambiente de teste com dados sintéticos e a
+autorização vale agora. Se faltar dado, pergunte. No fim, me entregue os achados
+altos para eu confirmar e o caminho do report.html.
+```
+
+Se preferir acompanhar etapa por etapa, ou retomar de uma etapa, use os prompts abaixo.
 
 Troque o que está entre `<>`. Cada etapa usa uma skill e deixa um diário de decisões.
 
@@ -93,6 +105,6 @@ suspeitas de falso positivo com o motivo e o que a varredura não cobre.
 
 ## 6. Depois da varredura
 
-- Leia `runs/<run_id>/report.md` e `findings.json` (comece por "O que este relatório não testou").
+- Abra `runs/<run_id>/report.html` no navegador (uma página só, sem internet, para ler e compartilhar; comece pelo resumo e por "O que fazer agora"). O mesmo conteúdo está em `report.md` e `findings.json` (comece por "O que este relatório não testou").
 - Para remover os dados de teste, siga [limpeza-de-dados.md](limpeza-de-dados.md): você roda, não o agente.
 - Problemas: [problemas-comuns.md](problemas-comuns.md). Parar tudo: `uv run hdast stop`.
