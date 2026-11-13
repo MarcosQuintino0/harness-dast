@@ -456,7 +456,26 @@ Todo valor sensível é uma referência, nunca o valor:
 password: { secret_ref: "env:AGENDA_USER_A_SENHA" }
 ```
 
-Só a forma `env:NOME` é aceita, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres. Um valor literal (senha, token) não casa com o formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`, desde o M3), nunca o agente. Valor ausente ou vazio na variável é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md).
+Duas formas são aceitas, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres:
+
+| Forma | De onde vem o valor | Quando usar |
+| --- | --- | --- |
+| `env:NOME` | Variável de ambiente `NOME` do terminal que roda o `hdast` | CI, contêiner, avaliação cega e quem prefere variável |
+| `keyring:NOME` | Cofre de credenciais do sistema operacional (Gerenciador de Credenciais do Windows, Keychain do macOS, Secret Service do Linux), sob o serviço `harness-dast` e o nome `NOME` | Uso diário de uma pessoa: grava-se uma vez e vale em todo terminal |
+
+```yaml
+password: { secret_ref: "keyring:AGENDA_USER_A_SENHA" }
+```
+
+Um valor literal (senha, token) não casa com nenhum formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`), nunca o agente. Valor ausente ou vazio é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md) e [ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md).
+
+Sobre `keyring:`:
+
+- **Quem grava é uma pessoa**, num terminal: `hdast secret set NOME` (prompt oculto; ver [cli.md](cli.md#hdast-secret)). O agente só cita o NOME e orienta a pessoa a rodar o comando.
+- Os dois formatos nunca se substituem: `keyring:NOME` não lê a variável `NOME` e `env:NOME` não lê o cofre. Sem cofre utilizável (contêiner, CI, Linux sem serviço de segredos) o erro é `SECRET_BACKEND_ERROR` com a dica de usar `env:NOME`.
+- Para não colidir entre produtos, comece o NOME pelo produto (`AGENDA_USER_A_SENHA`), como no `env:`. O cofre é por usuário do sistema e por máquina.
+- No Windows o valor guardado não passa de cerca de 1280 caracteres: serve para senha, não para um DSN muito longo (que pode seguir em `env:`).
+- Vale também para `cleanup.connection`, `cleanup.user` e `cleanup.password`.
 
 ## `cleanup`
 

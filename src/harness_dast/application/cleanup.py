@@ -292,7 +292,10 @@ class Cleanup:
         if value is None:
             raise ConfigError(
                 f"O segredo de {field_name} não está definido ou está vazio.",
-                hint="Defina a variável de ambiente indicada no target.yml e tente de novo.",
+                hint=(
+                    "Defina o segredo indicado no target.yml (variável de ambiente ou cofre, "
+                    "este gravado pela pessoa com hdast secret set) e tente de novo."
+                ),
             )
         self._vault.register(value)
         return value

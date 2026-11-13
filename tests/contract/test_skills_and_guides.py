@@ -203,6 +203,22 @@ def test_settings_allow_only_hdast_and_deny_the_dangerous_commands() -> None:
         assert rule in deny
 
 
+def test_settings_deny_the_agent_from_writing_or_removing_secrets_in_every_spelling() -> None:
+    deny = set(_permissions()["deny"])
+
+    for shell in ("Bash", "PowerShell"):
+        for sub in ("set", "delete"):
+            for prefix in ("uv run hdast", "uv run hdast --json", "hdast", "hdast --json"):
+                assert f"{shell}({prefix} secret {sub}:*)" in deny
+
+
+def test_settings_do_not_deny_listing_secrets_and_never_allow_set_or_delete() -> None:
+    permissions = _permissions()
+
+    assert not [rule for rule in permissions["deny"] if "secret list" in rule]
+    assert not [rule for rule in permissions["allow"] if "secret" in rule]
+
+
 def test_settings_deny_precedes_exception_for_env_example() -> None:
     deny = _permissions()["deny"]
 

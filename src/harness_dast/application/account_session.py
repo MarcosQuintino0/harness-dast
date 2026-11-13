@@ -127,8 +127,10 @@ class AccountSession:
                 raise PreflightError(
                     f"O segredo {self.alias}.{name} não está definido ou está vazio.",
                     hint=(
-                        f"Defina a variável de ambiente indicada em secret_ref de "
-                        f"auth.accounts ({self.alias}.{name}) antes de executar."
+                        f"Defina o segredo indicado em secret_ref de auth.accounts "
+                        f"({self.alias}.{name}): variável de ambiente (env:) ou, no cofre "
+                        "(keyring:), peça à pessoa para rodar hdast secret set. Faça isso "
+                        "antes de executar."
                     ),
                 )
             self._vault.register(value)

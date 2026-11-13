@@ -31,7 +31,7 @@ Confirme com a pessoa que a autorização e a janela valem **agora** e que o amb
 | `1` | Achado no limiar ou acima (não é erro da ferramenta) | Leia `findings.json` e siga para `triage-findings`. |
 | `2` | Configuração ou perfil inválido | Leia `error.message` e `hint`; corrija o perfil (`onboard-product`). |
 | `3` | Autorização vencida, janela fechada ou prazo esgotado | **Pare.** Só o dono renova. Se houve `scan.json`, o relatório saiu parcial. |
-| `4` | Preflight falhou: ZAP, segredo ausente ou login recusado | Leia o `hint`; peça à pessoa o segredo ou a pilha (`stack up`). Não insista em laço. |
+| `4` | Preflight falhou: ZAP, segredo ausente ou login recusado | Leia o `hint`; peça à pessoa o segredo (se for `keyring:`, que ela rode `hdast secret set NOME`; você não o roda) ou a pilha (`stack up`). Não insista em laço. |
 | `5` | ZAP ou Docker falhou | Rode `uv run hdast --json stack status`; avise a pessoa. Não reinicie em laço. |
 | `6` | O alvo parou de responder | **Pare** e avise; o alvo pode estar com problema. |
 | `7` | Limpeza falhou | Não é do `run`. Avise a pessoa. |

@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml>=6.0",
     "httpx>=0.28.1",
     "oracledb>=3.4",
+    "keyring>=25.7",
 ]
 
 [project.scripts]
@@ -154,7 +155,7 @@ forbidden_modules = [
 name = "domain nao importa dependencias externas alem de pydantic e stdlib"
 type = "forbidden"
 source_modules = ["harness_dast.domain"]
-forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore", "oracledb"]
+forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore", "oracledb", "keyring"]
 
 [[tool.importlinter.contracts]]
 name = "application so importa domain"

@@ -12,9 +12,9 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict
 
 from harness_dast.application.ports import Clock, ProfileRepository, ReferencedFile
+from harness_dast.application.secret_refs import profile_secret_refs
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.window import ExecutionWindow
 
 _DAY_NAMES = ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
@@ -192,28 +192,16 @@ def _placeholder_issues(profile: ProductProfile) -> list[ReadinessIssue]:
     return issues
 
 
-def _secret_refs(profile: ProductProfile) -> list[tuple[str, SecretRef]]:
-    found: list[tuple[str, SecretRef]] = []
-    for account in profile.auth.accounts:
-        for name in type(account).model_fields:
-            value = getattr(account, name)
-            if isinstance(value, SecretRef):
-                found.append((f"auth.accounts[{account.alias}].{name}", value))
-    if profile.cleanup is not None:
-        found.append(("cleanup.connection", profile.cleanup.connection))
-    return found
-
-
 def _secret_ref_issues(profile: ProductProfile) -> list[ReadinessIssue]:
     return [
         ReadinessIssue(
             code="PLACEHOLDER_SECRET_REF",
             field=field,
             message="A referência de segredo ainda tem nome de exemplo; "
-            "aponte para a variável de ambiente real.",
+            "aponte para o segredo real (variável de ambiente ou cofre).",
         )
-        for field, ref in _secret_refs(profile)
-        if ref.env_name.startswith(_PLACEHOLDER_SECRET_PREFIXES)
+        for field, ref in profile_secret_refs(profile)
+        if ref.name.startswith(_PLACEHOLDER_SECRET_PREFIXES)
     ]
 
 
