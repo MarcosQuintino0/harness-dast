@@ -300,7 +300,8 @@ def test_human_mode_shows_plan_on_stdout_and_no_token_anywhere(
 
 def test_help_lists_the_command_and_its_flags(capsys: pytest.CaptureFixture[str]) -> None:
     code = run_app(build_app(), ["cleanup", "--help"])
-    out = capsys.readouterr().out
+    # No CI o terminal é colorido e os códigos de cor ficam no meio do nome da opção.
+    out = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
 
     assert code == ExitCode.OK
     for flag in ("--run", "--dry-run", "--products-dir"):
