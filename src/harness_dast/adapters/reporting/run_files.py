@@ -46,6 +46,7 @@ KNOWN_FILES: Final = (
     EVIDENCE_FILE,
     FINDINGS_FILE,
     "report.md",
+    "report.html",
     TRIAGE_FILE,
 )
 MAX_FILE_BYTES: Final = 64 * 1024 * 1024

@@ -7,7 +7,11 @@ além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adap
 from pathlib import Path
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
-from harness_dast.adapters.reporting.sinks import JsonFindingsSink, MarkdownReportSink
+from harness_dast.adapters.reporting.sinks import (
+    HtmlReportSink,
+    JsonFindingsSink,
+    MarkdownReportSink,
+)
 from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
@@ -141,7 +145,11 @@ def build_report(products_dir: Path | None) -> Report:
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
         artifacts=FileRunArtifacts(runs_dir),
-        sinks=(JsonFindingsSink(runs_dir), MarkdownReportSink(runs_dir)),
+        sinks=(
+            JsonFindingsSink(runs_dir),
+            MarkdownReportSink(runs_dir),
+            HtmlReportSink(runs_dir),
+        ),
         clock=SystemClock(),
         harness_version=harness_version(),
     )

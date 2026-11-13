@@ -1,4 +1,4 @@
-"""Destinos do relatório: `findings.json` e `report.md` (implementam `ReportSink`).
+"""Destinos do relatório: `findings.json`, `report.md` e `report.html` (implementam `ReportSink`).
 
 Cada destino grava um arquivo na pasta da execução, de forma atômica. O conteúdo vem pronto do
 domínio (`FindingsReport` e `render_markdown`); aqui só se escolhe o formato e o arquivo.
@@ -9,12 +9,14 @@ from pathlib import Path
 from typing import Final
 
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.report_html import render_html
 from harness_dast.domain.report_markdown import render_markdown
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 FINDINGS_FILE: Final = "findings.json"
 REPORT_FILE: Final = "report.md"
+HTML_FILE: Final = "report.html"
 
 
 def _write_atomic(runs_dir: Path, run_id: str, name: str, text: str) -> str:
@@ -63,3 +65,19 @@ class MarkdownReportSink:
     def write(self, run_id: str, report: FindingsReport) -> str:
         """Grava o relatório em Markdown e devolve o nome do arquivo."""
         return _write_atomic(self._runs_dir, run_id, REPORT_FILE, render_markdown(report))
+
+
+class HtmlReportSink:
+    """Grava `report.html` (página única e autocontida, sem JavaScript)."""
+
+    def __init__(self, runs_dir: Path) -> None:
+        """Cria o destino.
+
+        Args:
+            runs_dir: Pasta das execuções.
+        """
+        self._runs_dir = runs_dir
+
+    def write(self, run_id: str, report: FindingsReport) -> str:
+        """Grava o relatório em HTML e devolve o nome do arquivo."""
+        return _write_atomic(self._runs_dir, run_id, HTML_FILE, render_html(report))
