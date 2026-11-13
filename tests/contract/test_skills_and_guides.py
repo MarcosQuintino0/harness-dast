@@ -307,3 +307,17 @@ def test_guides_start_with_doctor_and_mention_authz_and_the_wide_mode_rule(name:
     assert "hdast doctor" in text
     assert "--authz" in text
     assert "duas contas do mesmo papel" in text or "path_mode: wide" in text
+
+
+@pytest.mark.parametrize("command", ["doctor", "authz", "run --authz"])
+def test_settings_cover_the_v1_1_commands_with_the_same_hdast_rules_and_no_new_denial(
+    command: str,
+) -> None:
+    permissions = _permissions()
+    prefixes = [rule.removeprefix("Bash(").removesuffix(":*)") for rule in permissions["allow"]]
+    line = f"uv run hdast --json {command} produto"
+
+    assert any(line.startswith(prefix) for prefix in prefixes)
+    for rule in permissions["deny"]:
+        if rule.startswith("Bash(") and rule.endswith(":*)"):
+            assert not line.startswith(rule.removeprefix("Bash(").removesuffix(":*)"))
