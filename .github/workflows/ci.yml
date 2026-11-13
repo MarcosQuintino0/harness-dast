@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Análise estática
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run lint-imports
+      - run: uv run vulture
+
+  security:
+    name: Segurança
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      # Audita as versões travadas no uv.lock, não o ambiente do runner.
+      - run: uv export --locked --no-emit-project --format requirements-txt -o requirements-audit.txt
+      - run: uv run pip-audit --requirement requirements-audit.txt --no-deps --disable-pip
+
+  tests:
+    name: Testes unitários e de contrato
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/unit tests/contract --cov --cov-report=xml --cov-report=json
+      # Pisos por camada: domain 95% e application 85% (ramos). Ignora camada sem código.
+      - run: >-
+          uv run python .github/scripts/check_coverage_floors.py coverage.json
+          src/harness_dast/domain=95 src/harness_dast/application=85
+      - name: Cobertura do diff (mínimo 90%)
+        if: github.event_name == 'pull_request'
+        run: >-
+          uv run diff-cover coverage.xml
+          --compare-branch=origin/${{ github.base_ref }} --fail-under=90
+
+  integration:
+    name: Integração
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      # Código 5 do pytest = nenhum teste coletado; tolerado até haver testes de integração.
+      - run: |
+          set +e
+          uv run pytest -m integration
+          status=$?
+          if [ "$status" -ne 0 ] && [ "$status" -ne 5 ]; then exit "$status"; fi
