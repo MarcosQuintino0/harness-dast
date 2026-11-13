@@ -168,6 +168,67 @@ def test_denied_traffic_is_listed_by_reason_for_any_reason_text() -> None:
         assert f"<td>{reason}</td>" in page
 
 
+def test_page_shows_the_path_mode_the_partial_coverage_warning_and_the_detail_codes() -> None:
+    base = report([zap_alert("9")])
+    traffic = TrafficSummary(
+        enabled=True,
+        allowed=60,
+        denied=40,
+        denied_by_reason={"malformed_request": 30, "path_not_allowed": 10},
+        denied_by_detail={
+            "path_encoded_slash": 20,
+            "path_matrix_param": 10,
+            "path_not_allowed": 10,
+        },
+        path_shape_denied=30,
+        path_mode="strict",
+    )
+    page = render_html(
+        base.model_copy(update={"coverage": base.coverage.model_copy(update={"traffic": traffic})})
+    )
+
+    assert "Modo de leitura do caminho no proxy: <b>strict</b>" in page
+    assert (
+        "cobertura de injeção em segmento de caminho foi PARCIAL: 30 de 100 pedido(s) (30%)" in page
+    )
+    assert "<td>path_encoded_slash</td><td>20</td>" in page
+    assert "<td>path_matrix_param</td><td>10</td>" in page
+    assert "<td>path_not_allowed</td>" not in page.split("Forma do caminho")[1].split("</table>")[0]
+    assert "só o dono do produto pode autorizar" in page
+
+
+def test_wide_mode_page_warns_about_allowed_outside_allow_and_drops_the_strict_hint() -> None:
+    base = report([zap_alert("9")])
+    traffic = TrafficSummary(
+        enabled=True,
+        allowed=50,
+        denied=2,
+        denied_by_reason={"malformed_request": 2},
+        denied_by_detail={"path_dot_segment": 2},
+        path_shape_denied=2,
+        path_mode="wide",
+        allowed_outside_allow=7,
+    )
+    page = render_html(
+        base.model_copy(update={"coverage": base.coverage.model_copy(update={"traffic": traffic})})
+    )
+
+    assert "<b>wide</b>" in page
+    assert "7 pedido(s) liberados têm uma leitura do caminho fora de" in page
+    assert "só o dono do produto pode autorizar" not in page
+
+
+def test_clean_strict_traffic_has_no_partial_coverage_warning() -> None:
+    base = report([])
+    traffic = TrafficSummary(enabled=True, allowed=5, path_mode="strict")
+    page = render_html(
+        base.model_copy(update={"coverage": base.coverage.model_copy(update={"traffic": traffic})})
+    )
+
+    assert "PARCIAL" not in page
+    assert "<b>strict</b>" in page
+
+
 def test_traffic_not_measured_and_no_denials_are_stated_plainly() -> None:
     page = render_html(report([]))
     assert "Não medido" in page

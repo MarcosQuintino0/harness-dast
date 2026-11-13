@@ -46,7 +46,7 @@ expected:
       port: 8080
       paths: ["/api/**", "/v3/api-docs"]
       methods: [GET, POST, PUT, PATCH]
-  deny_paths: ["/api/notificacoes/**"]
+  deny_paths: ["/api/notificacoes/**", "/api/isca/**"]
   reference: LAB-CLINICA-PILOTO
   valid_until: "2027-12-31"
   windows: ["seg-dom 00:00-24:00 America/Sao_Paulo"]
@@ -112,7 +112,7 @@ flaws:
 
 forbidden:
   methods: [DELETE]
-  path_prefixes: ["/api/notificacoes"]
-  zero_counters: [notifications_sent]
+  path_prefixes: ["/api/notificacoes", "/api/isca"]
+  zero_counters: [notifications_sent, isca_calls]
 
 budget: { tokens: 3000000, duration_seconds: 7200 }

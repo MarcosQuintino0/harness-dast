@@ -22,6 +22,7 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_html_style import STYLE
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.traffic import TrafficSummary, path_shape_breakdown
 
 _LABEL: Final = {
     "high": "Alta",
@@ -250,10 +251,45 @@ def _traffic(report: FindingsReport) -> str:
     )
     limit = f"; limite do perfil {traffic.limit_rps:g} req/s" if traffic.limit_rps else ""
     return (
-        f'{head}{denied}<p class="muted">{traffic.allowed} pedido(s) liberados em '
+        f"{head}<p>Modo de leitura do caminho no proxy: <b>{h.text(traffic.path_mode, 20)}</b>.</p>"
+        f"{_path_coverage(traffic)}{denied}"
+        f'<p class="muted">{traffic.allowed} pedido(s) liberados em '
         f"{traffic.duration_seconds:g} s (média {traffic.average_rps:g} req/s, pico "
         f"{traffic.peak_rps} em 1 s{limit}).</p>"
     )
+
+
+def _path_coverage(traffic: TrafficSummary) -> str:
+    """Aviso de cobertura parcial de injeção em caminho e nota do modo amplo (igual ao `report.md`)."""
+    out = ""
+    if traffic.path_shape_denied:
+        total = traffic.allowed + traffic.denied
+        share = traffic.path_shape_denied / total * 100 if total else 0.0
+        rows = "".join(
+            f"<tr><td>{h.text(code, 120)}</td><td>{count}</td></tr>"
+            for code, count in sorted(path_shape_breakdown(traffic).items())
+        )
+        hint = (
+            " O perfil usa <code>scope.path_mode: strict</code>; só o dono do produto pode "
+            "autorizar <code>wide</code> na carta."
+            if traffic.path_mode == "strict"
+            else ""
+        )
+        out += (
+            '<div class="banner"><b>AVISO.</b> A cobertura de injeção em segmento de caminho foi '
+            f"PARCIAL: {traffic.path_shape_denied} de {total} pedido(s) ({share:.0f}%) foram "
+            "recusados pela forma do caminho. Os ataques que dependem dessas formas não chegaram "
+            f"ao alvo.{hint}</div>"
+            f"<table><tr><th>Forma do caminho (detalhe)</th><th>Pedidos</th></tr>{rows}</table>"
+        )
+    if traffic.allowed_outside_allow:
+        out += (
+            f'<div class="banner"><b>Atenção (modo amplo).</b> {traffic.allowed_outside_allow} '
+            "pedido(s) liberados têm uma leitura do caminho fora de <code>scope.allow</code> "
+            "(sem casar <code>deny_paths</code>); o servidor pode ter roteado esses pedidos para "
+            "outro caminho do mesmo host (risco aceito, ADR 0026).</div>"
+        )
+    return out
 
 
 def _comparison(report: FindingsReport) -> str:
