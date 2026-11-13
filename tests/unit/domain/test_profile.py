@@ -551,3 +551,22 @@ def test_ensure_runnable_opens_when_any_of_several_windows_is_open() -> None:
     )
 
     load(data).ensure_runnable(datetime(2026, 11, 14, 14, 0, tzinfo=UTC))  # sáb 11:00 em SP
+
+
+@pytest.mark.parametrize("host", ["clinica-piloto", "vampi", "localhost", "10.0.0.5"])
+def test_from_data_explains_allow_local_and_hints_the_fix_when_host_is_local(host: str) -> None:
+    error = error_for(mutated("scope.allow.0.host", host))
+
+    assert "scope.allow[0]" in error.message
+    assert "allow_local: true" in error.message
+    assert "vampi ou clinica-piloto" in error.message
+    assert error.hint is not None
+    assert "allow_local: true" in error.hint
+    assert "nome DNS completo" in error.hint
+
+
+def test_from_data_keeps_the_generic_hint_when_the_problem_is_not_allow_local() -> None:
+    error = error_for(removed("scope.allow.0.host"))
+
+    assert error.hint is not None
+    assert "allow_local" not in error.hint
