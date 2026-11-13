@@ -1,9 +1,10 @@
 """Caso de uso `preflight`: confere, sem varrer, se o ambiente está pronto para o `probe`.
 
 Cada verificação vira um item `PreflightCheck` (dado, não exceção): autorização, janela,
-segredos, ZAP, saúde do alvo, login e token CSRF de cada conta. Só perfil estruturalmente
-inválido é erro (`ConfigError`). Falha de autorização ou janela tem tipo `scope` (a CLI sai
-com 3); qualquer outra falha tem tipo `environment` (a CLI sai com 4).
+segredos, ZAP, saúde do alvo, preparação dos dados (`probe.setup_path`, opcional), login e
+token CSRF de cada conta. Só perfil estruturalmente inválido é erro (`ConfigError`). Falha de
+autorização ou janela tem tipo `scope` (a CLI sai com 3); qualquer outra falha tem tipo
+`environment` (a CLI sai com 4).
 
 Segredos: o relatório diz o apelido e o campo (`user_a.password`), nunca o valor. O NOME da
 variável de ambiente só aparece em `operator_detail`, que é excluído do JSON e mostrado
@@ -54,6 +55,7 @@ from harness_dast.domain.window import ensure_any_window_open
 from harness_dast.domain.zap_scope import TESTED_ZAP_PREFIX
 
 HEALTH_OPERATION_ID = "preflight.health"
+SETUP_OPERATION_ID = "preflight.setup"
 
 
 @dataclass
@@ -129,6 +131,9 @@ class Preflight:
             zap_check,
             self._health_check(profile, network, zap_ok=zap_check.ok),
         ]
+        setup = self._setup_check(profile, network, zap_ok=zap_check.ok)
+        if setup is not None:
+            checks.append(setup)
         for session, secret_check in zip(sessions, secret_checks, strict=True):
             checks.extend(self._account_checks(session, secrets_ok=secret_check.ok))
         ready = all(check.ok for check in checks)
@@ -236,33 +241,90 @@ class Preflight:
                 ok=False,
                 detail="Não executado: o ZAP, por onde o probe envia, não respondeu.",
             )
-        request = build_get_request(
-            base_url=profile.environment.base_url,
+        outcome = self._get(
+            profile,
+            network,
             path=profile.probe.health_path or "/",
             operation_id=HEALTH_OPERATION_ID,
+            check_id="target_health",
+            scope_hint="Declare probe.health_path em target.yml com um GET leve.",
+        )
+        if isinstance(outcome, PreflightCheck):
+            return outcome
+        if outcome >= 500:
+            detail = f"O alvo respondeu HTTP {outcome} (erro do servidor)."
+            return PreflightCheck(id="target_health", ok=False, detail=detail)
+        return PreflightCheck(
+            id="target_health", ok=True, detail=f"O alvo respondeu HTTP {outcome}."
+        )
+
+    def _setup_check(
+        self, profile: ProductProfile, network: _Network, *, zap_ok: bool
+    ) -> PreflightCheck | None:
+        """Chama `probe.setup_path` (GET idempotente que prepara os dados) antes dos logins.
+
+        Devolve `None` quando o perfil não declara o caminho: nada é chamado.
+        """
+        path = profile.probe.setup_path
+        if path is None:
+            return None
+        if not zap_ok:
+            return PreflightCheck(
+                id="target_setup",
+                ok=False,
+                detail="Não executado: o ZAP, por onde o probe envia, não respondeu.",
+            )
+        outcome = self._get(
+            profile,
+            network,
+            path=path,
+            operation_id=SETUP_OPERATION_ID,
+            check_id="target_setup",
+            scope_hint="Confira probe.setup_path em target.yml: o GET precisa estar no escopo.",
+        )
+        if isinstance(outcome, PreflightCheck):
+            return outcome
+        if outcome >= 400:
+            detail = (
+                f"O GET de preparação ({path}) respondeu HTTP {outcome}; os dados do alvo "
+                "podem não ter sido preparados. Confira probe.setup_path e o estado do alvo."
+            )
+            return PreflightCheck(id="target_setup", ok=False, detail=detail)
+        return PreflightCheck(
+            id="target_setup",
+            ok=True,
+            detail=f"Preparação dos dados: GET {path} respondeu HTTP {outcome}.",
+        )
+
+    def _get(
+        self,
+        profile: ProductProfile,
+        network: _Network,
+        *,
+        path: str,
+        operation_id: str,
+        check_id: str,
+        scope_hint: str,
+    ) -> int | PreflightCheck:
+        """Envia um GET pelo caminho guardado; devolve o status ou o item de falha."""
+        request = build_get_request(
+            base_url=profile.environment.base_url,
+            path=path,
+            operation_id=operation_id,
             account=None,
             route="zap",
         )
         try:
             sent = network.dispatcher.send(request, None)
         except ScopeViolation as error:
-            # Um GET de saúde fora do escopo é problema do perfil, não de janela ou autorização.
-            detail = f"{error.message} Declare probe.health_path em target.yml com um GET leve."
-            return PreflightCheck(id="target_health", ok=False, detail=detail)
+            # Um GET fora do escopo é problema do perfil, não de janela ou autorização.
+            return PreflightCheck(id=check_id, ok=False, detail=f"{error.message} {scope_hint}")
         except ExternalToolError as error:
-            return failure_check("target_health", error)
+            return failure_check(check_id, error)
         if sent.response is None:
             reason = sent.transport_error.message if sent.transport_error else "sem resposta"
-            return PreflightCheck(
-                id="target_health", ok=False, detail=f"O alvo não respondeu: {reason}"
-            )
-        status = sent.response.status
-        if status >= 500:
-            detail = f"O alvo respondeu HTTP {status} (erro do servidor)."
-            return PreflightCheck(id="target_health", ok=False, detail=detail)
-        return PreflightCheck(
-            id="target_health", ok=True, detail=f"O alvo respondeu HTTP {status}."
-        )
+            return PreflightCheck(id=check_id, ok=False, detail=f"O alvo não respondeu: {reason}")
+        return sent.response.status
 
     def _account_checks(self, session: AccountSession, *, secrets_ok: bool) -> list[PreflightCheck]:
         if not secrets_ok:

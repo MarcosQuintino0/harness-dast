@@ -279,6 +279,8 @@ class ProductProfile(ProfileModel):
             )
         if self.probe.health_path is not None:
             _ensure_in_scope(guard, "GET", base + self.probe.health_path, "probe.health_path")
+        if self.probe.setup_path is not None:
+            _ensure_in_scope(guard, "GET", base + self.probe.setup_path, "probe.setup_path")
         if not self.environment.verify_tls and not _is_local_base(self.environment.base_url):
             raise ValueError(
                 "environment.verify_tls: false só é aceito para host local "

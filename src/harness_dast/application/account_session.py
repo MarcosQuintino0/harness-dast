@@ -256,8 +256,9 @@ class AccountSession:
                 f"A resposta do login da conta {self.alias} não traz o token esperado.",
                 hint=(
                     "Confira auth.token_response_field e request_encoding no target.yml. Se o "
-                    "alvo responde 2xx sem token, a conta pode não existir ainda: se a carta dá "
-                    "um GET que recria os dados de exemplo, use-o em probe.health_path."
+                    "alvo responde 2xx sem token, a conta pode não existir ainda: se a carta "
+                    "autoriza um GET idempotente que recria os dados de exemplo, declare-o em "
+                    "probe.setup_path (o preflight e o run o chamam antes dos logins)."
                 ),
             ) from None
         if isinstance(token, int) or not token:
