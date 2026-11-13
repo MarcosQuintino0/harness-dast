@@ -20,17 +20,13 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.report_actions import next_steps
+from harness_dast.domain.report_html_authz import authz_cards, authz_section
 from harness_dast.domain.report_html_style import STYLE
+from harness_dast.domain.report_html_traffic import traffic_section
+from harness_dast.domain.report_labels import SEVERITY_LABEL, SEVERITY_ORDER
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_traffic import mode_line
 
-_LABEL: Final = {
-    "high": "Alta",
-    "medium": "Média",
-    "low": "Baixa",
-    "informational": "Informativa",
-    "unknown": "Desconhecida",
-}
-_ORDER: Final = tuple(_LABEL)
 _CSP: Final = (
     "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; "
     "form-action 'none'"
@@ -48,14 +44,15 @@ def _percent(value: float | None) -> str:
 def _cards(report: FindingsReport) -> str:
     cells = [
         f'<div class="card"><b class="sev-{name}">{report.summary.by_severity.get(name, 0)}</b>'
-        f"{_LABEL[name]}</div>"
-        for name in _ORDER
+        f"{SEVERITY_LABEL[name]}</div>"
+        for name in SEVERITY_ORDER
     ]
     cells.append(
         f'<div class="card"><b>{len(report.groups)}</b>causa(s) distintas</div>'
         f'<div class="card"><b>{report.summary.total}</b>achado(s) no total</div>'
     )
-    return f'<div class="cards">{"".join(cells)}</div>'
+    title = '<p class="muted">Varredura ativa do ZAP:</p>' if report.authz is not None else ""
+    return f'{title}<div class="cards">{"".join(cells)}</div>{authz_cards(report)}'
 
 
 def _summary(report: FindingsReport) -> str:
@@ -70,7 +67,8 @@ def _summary(report: FindingsReport) -> str:
     )
     return (
         "<h2>Resumo</h2>"
-        '<p class="muted">Gravidade e confiança são PROPOSTAS pelo ZAP; nada foi confirmado.</p>'
+        '<p class="muted">Gravidade e confiança são PROPOSTAS (pelo ZAP ou pelo código do teste '
+        "de autorização); nada foi confirmado.</p>"
         f"{_cards(report)}<ul>"
         f"<li>Rodou com a política {h.ident(policy.name)}: força {h.ident(policy.strength)}, "
         f"limiar {h.ident(policy.threshold)}, injeção em caminho "
@@ -84,8 +82,25 @@ def _summary(report: FindingsReport) -> str:
         f"({_percent(cov.reachability)}; {_percent(cov.reachability_all)} de todas). "
         f"{len(cov.not_tested)} operação(ões) ficaram sem varredura.</li>"
         f"<li>Estado: probe {h.ident(cov.probe_status)}, varredura {h.ident(cov.scan_status)}."
-        f"</li>{unreadable}</ul>"
+        f"</li>{_authz_bullet(report)}{_path_bullet(report)}{unreadable}</ul>"
     )
+
+
+def _authz_bullet(report: FindingsReport) -> str:
+    authz = report.authz
+    if authz is None:
+        return "<li>Autorização entre contas: não rodou (use hdast run --authz).</li>"
+    return (
+        f"<li>Autorização entre contas: estado {h.ident(authz.status)}, "
+        f"{len(authz.findings)} achado(s), {len(authz.not_tested)} item(ns) não testado(s).</li>"
+    )
+
+
+def _path_bullet(report: FindingsReport) -> str:
+    traffic = report.coverage.traffic
+    if not traffic.enabled:
+        return ""
+    return f"<li>{h.text(mode_line(traffic), 300)}</li>"
 
 
 def _steps(report: FindingsReport) -> str:
@@ -184,16 +199,19 @@ def _group(group: FindingGroup, by_id: dict[str, Finding]) -> str:
 
 def _findings(report: FindingsReport) -> str:
     if not report.findings:
+        own = " da varredura do ZAP" if report.authz is not None else ""
         return (
-            "<h2>Achados</h2><p>Nenhum achado. Isso NÃO prova que a API é segura: leia a "
+            f"<h2>Achados</h2><p>Nenhum achado{own}. Isso NÃO prova que a API é segura: leia a "
             "seção sobre o que a varredura não cobriu.</p>"
         )
     by_id = {item.finding_id: item for item in report.findings}
     out = ["<h2>Achados por gravidade</h2>"]
-    for name in _ORDER:
+    for name in SEVERITY_ORDER:
         groups = [item for item in report.groups if item.proposed_severity == name]
         if groups:
-            out.append(f"<h3>Gravidade {_LABEL[name].lower()} ({len(groups)} grupo(s))</h3>")
+            out.append(
+                f"<h3>Gravidade {SEVERITY_LABEL[name].lower()} ({len(groups)} grupo(s))</h3>"
+            )
             out += [_group(item, by_id) for item in groups]
     return "".join(out)
 
@@ -232,30 +250,6 @@ def _not_covered(report: FindingsReport) -> str:
     return f"<h2>O que a varredura NÃO cobriu</h2>{partial}<ul>{statements}</ul>{cut}{table}"
 
 
-def _traffic(report: FindingsReport) -> str:
-    traffic = report.coverage.traffic
-    head = "<h2>Tráfego recusado pela cerca de escopo</h2>"
-    if not traffic.enabled:
-        return head + "<p>Não medido: não havia auditoria do proxy de escopo nesta execução.</p>"
-    reasons = "".join(
-        f"<tr><td>{h.text(name, 120)}</td><td>{count}</td></tr>"
-        for name, count in sorted(traffic.denied_by_reason.items())
-    )
-    denied = (
-        f"<p><b>{traffic.denied}</b> pedido(s) do varredor foram recusados por estarem fora do "
-        "escopo da carta. Nenhum deles chegou ao alvo.</p>"
-        f"<table><tr><th>Motivo</th><th>Pedidos</th></tr>{reasons}</table>"
-        if traffic.denied
-        else "<p>Nenhum pedido foi recusado.</p>"
-    )
-    limit = f"; limite do perfil {traffic.limit_rps:g} req/s" if traffic.limit_rps else ""
-    return (
-        f'{head}{denied}<p class="muted">{traffic.allowed} pedido(s) liberados em '
-        f"{traffic.duration_seconds:g} s (média {traffic.average_rps:g} req/s, pico "
-        f"{traffic.peak_rps} em 1 s{limit}).</p>"
-    )
-
-
 def _comparison(report: FindingsReport) -> str:
     info = report.comparison
     if info is None:
@@ -282,8 +276,9 @@ def render_html(report: FindingsReport) -> str:
             _summary(report),
             _steps(report),
             _findings(report),
+            authz_section(report),
             _not_covered(report),
-            _traffic(report),
+            traffic_section(report),
             _comparison(report),
         )
     )

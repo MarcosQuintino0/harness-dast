@@ -128,7 +128,8 @@
       "unknown": 0
     },
     "occurrences": 12,
-    "alerts_unreadable": 0
+    "alerts_unreadable": 0,
+    "authz_by_severity": {}
   },
   "findings": [
     {

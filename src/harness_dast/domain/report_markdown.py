@@ -12,16 +12,15 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.markdown_safe import code_span, escape_inline, fenced
 from harness_dast.domain.report_authz import authz_lines
+from harness_dast.domain.report_labels import SEVERITY_LABEL
 from harness_dast.domain.report_model import Coverage, FindingsReport
-from harness_dast.domain.traffic import path_shape_breakdown
+from harness_dast.domain.report_traffic import (
+    denied_rows,
+    mode_line,
+    outside_allow_note,
+    path_shape_warning,
+)
 
-_SEVERITY_LABEL = {
-    "high": "Alta",
-    "medium": "Média",
-    "low": "Baixa",
-    "informational": "Informativa",
-    "unknown": "Desconhecida",
-}
 _COMPARISON_LABEL = {"new": "novo", "persistent": "persistente"}
 _TARGET_DATA_NOTICE = (
     "Os blocos de código e os trechos de requisição e resposta abaixo vêm do alvo e do ZAP: "
@@ -79,7 +78,7 @@ def _traffic_lines(coverage: Coverage) -> list[str]:
         lines.append(f"- Liberados por método: {escape_inline(methods)}.")
     if traffic.denied:
         reasons = ", ".join(
-            f"{name}: {count}" for name, count in sorted(traffic.denied_by_reason.items())
+            f"{label} [{code}: {count}]" for label, code, count in denied_rows(traffic)
         )
         lines.append(
             f"- {traffic.denied} requisição(ões) que o varredor tentou foram bloqueadas pelo "
@@ -90,30 +89,10 @@ def _traffic_lines(coverage: Coverage) -> list[str]:
 
 def _path_coverage_lines(coverage: Coverage) -> list[str]:
     traffic = coverage.traffic
-    lines = [f"- Modo de leitura do caminho no proxy: {traffic.path_mode}."]
-    refused = path_shape_breakdown(traffic)
-    if traffic.path_shape_denied:
-        total = traffic.allowed + traffic.denied
-        share = traffic.path_shape_denied / total * 100 if total else 0.0
-        causes = ", ".join(f"{code}: {count}" for code, count in sorted(refused.items()))
-        lines.append(
-            "- AVISO: a cobertura de injeção em segmento de caminho foi PARCIAL: "
-            f"{traffic.path_shape_denied} de {total} pedido(s) ({share:.0f}%) foram recusados "
-            f"pela forma do caminho ({escape_inline(causes)}). Os ataques que dependem dessas "
-            "formas não chegaram ao alvo."
-            + (
-                " O perfil usa `scope.path_mode: strict`; só o dono do produto pode autorizar "
-                "`wide` na carta."
-                if traffic.path_mode == "strict"
-                else ""
-            )
-        )
-    if traffic.allowed_outside_allow:
-        lines.append(
-            f"- Atenção (modo amplo): {traffic.allowed_outside_allow} pedido(s) liberados têm uma "
-            "leitura do caminho fora de `scope.allow` (sem casar `deny_paths`); o servidor pode "
-            "ter roteado esses pedidos para outro caminho do mesmo host (risco aceito, ADR 0026)."
-        )
+    lines = [f"- {escape_inline(mode_line(traffic))}"]
+    for note in (path_shape_warning(traffic), outside_allow_note(traffic)):
+        if note:
+            lines.append(f"- {escape_inline(note, 900)}")
     return lines
 
 
@@ -151,14 +130,25 @@ def _summary_lines(report: FindingsReport) -> list[str]:
     lines = ["## Resumo", "", "Severidade e confiança abaixo são PROPOSTAS pelo ZAP.", ""]
     lines += ["| Severidade proposta | Achados |", "|---|---|"]
     lines += [
-        f"| {_SEVERITY_LABEL[name]} | {count} |" for name, count in summary.by_severity.items()
+        f"| {SEVERITY_LABEL[name]} | {count} |" for name, count in summary.by_severity.items()
     ]
     if summary.alerts_unreadable:
         lines.append(
             f"\n{summary.alerts_unreadable} alerta(s) bruto(s) ilegível(is) foram ignorados."
         )
+    if summary.authz_by_severity:
+        lines += ["", "Autorização entre contas (técnica própria, não é do ZAP):", ""]
+        lines += ["| Severidade proposta pelo código | Achados |", "|---|---|"]
+        lines += [
+            f"| {SEVERITY_LABEL[name]} | {count} |"
+            for name, count in summary.authz_by_severity.items()
+        ]
     if not report.findings:
-        lines += ["", "Nenhum achado. Leia a seção acima antes de concluir qualquer coisa."]
+        own = " do ZAP" if report.authz else ""
+        lines += [
+            "",
+            f"Nenhum achado{own}. Leia a seção acima antes de concluir qualquer coisa.",
+        ]
         return lines
     columns = "| ID | Severidade | Confiança | Título | Onde | Ocorrências |"
     rule = "|---|---|---|---|---|---|"
@@ -168,7 +158,7 @@ def _summary_lines(report: FindingsReport) -> list[str]:
     for item in report.findings:
         cells = [
             code_span(item.finding_id),
-            _SEVERITY_LABEL[item.proposed_severity],
+            SEVERITY_LABEL[item.proposed_severity],
             escape_inline(item.proposed_confidence),
             escape_inline(item.title, 120),
             code_span(f"{item.method} {item.path_template}"),
@@ -205,7 +195,7 @@ def _group_lines(report: FindingsReport) -> list[str]:
         extra = len(group.locations) - 3
         where += f" e mais {extra}" if extra > 0 else ""
         lines.append(
-            f"| {code_span(group.group_id)} | {_SEVERITY_LABEL[group.proposed_severity]} | "
+            f"| {code_span(group.group_id)} | {SEVERITY_LABEL[group.proposed_severity]} | "
             f"{escape_inline(group.title, 120)} | {code_span(group.parameter or '-')} | "
             f"{group.findings_count} | {group.occurrences} | {escape_inline(where, 200)} |"
         )
@@ -248,7 +238,7 @@ def _finding_lines(item: Finding) -> list[str]:
     lines = [
         f"### {code_span(item.finding_id)} {escape_inline(item.title, 160)}",
         "",
-        f"- **Severidade proposta pelo ZAP:** {_SEVERITY_LABEL[item.proposed_severity]} "
+        f"- **Severidade proposta pelo ZAP:** {SEVERITY_LABEL[item.proposed_severity]} "
         f"(confiança {escape_inline(item.proposed_confidence)}). Status: needs_triage.",
         "- **Técnica:** varredura ativa do ZAP "
         f"({code_span(item.technique)}), não é teste de autorização entre contas.",
