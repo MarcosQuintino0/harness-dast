@@ -92,9 +92,10 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | `report.md` | O relatório, para quem corrige |
 | `findings.json` | O mesmo, estruturado |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
+| `authz.json` | Só com `hdast run --authz` (ou `hdast authz`): teste de autorização entre contas. Veja [authz.md](../reference/authz.md) |
 | `audit.jsonl` | Trilha de cada requisição da CLI |
 
-No `report.md`, **comece pela seção "O que este relatório não testou"**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
+No `report.md`, **comece pela seção "O que este relatório não testou"**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. O estágio opcional `--authz` cobre parte disso (precisa de duas contas do mesmo papel no perfil) e diz o que não pôde testar. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
 
 ## 9. Encerrar
 

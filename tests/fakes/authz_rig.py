@@ -118,7 +118,7 @@ class Clinic:
     def _me(self, request: HttpRequest, alias: str) -> HttpResponse:
         if request.method == "PUT":
             body = json.loads(request.body or b"{}")
-            if self.reject_extra_fields and set(body) - {"nome"}:
+            if self.reject_extra_fields and set(body) - {"nome", "role"}:
                 return reply(400, {"code": "CORPO_INVALIDO"})
             self.nome[alias] = str(body.get("nome", self.nome[alias]))
             if self.mass and "role" in body:
@@ -147,7 +147,7 @@ def clinic_spec() -> ApiSpec:
                 "atualizarPerfil",
                 "put",
                 "/api/me",
-                body={"nome": STR},
+                body={"nome": STR, "role": Schema(type="string", enum=("paciente", "admin"))},
                 required=("nome",),
                 produces=me,
             ),

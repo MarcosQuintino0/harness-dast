@@ -25,7 +25,7 @@ from harness_dast.domain.authz_result import (
 )
 from harness_dast.domain.authz_sensitive import classify_field_name
 from harness_dast.domain.finding import normalize_path_template
-from harness_dast.domain.zap_alert import SEVERITY_RANK, Severity
+from harness_dast.domain.zap_alert import Severity
 
 TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
     "authz_horizontal": "Acesso horizontal entre contas do mesmo papel (BOLA/IDOR)",
@@ -51,11 +51,6 @@ def severity_for_fields(paths: tuple[str, ...]) -> Severity:
         if classify_field_name(name) in {"secret", "personal"}:
             return "high"
     return "medium"
-
-
-def worst_severity(severities: tuple[Severity, ...]) -> Severity | None:
-    """Maior severidade da lista, ou `None` se vazia."""
-    return max(severities, key=lambda item: SEVERITY_RANK[item], default=None)
 
 
 def authz_fingerprint(

@@ -9,7 +9,6 @@ from harness_dast.domain.authz_findings import (
     horizontal_finding,
     mass_assignment_finding,
     vertical_finding,
-    worst_severity,
 )
 from harness_dast.domain.authz_result import AuthzResult
 
@@ -162,11 +161,6 @@ def test_the_fingerprint_does_not_collide_across_field_boundaries() -> None:
     two = authz_fingerprint(**base, fields=("a", "bc"))  # type: ignore[arg-type]
 
     assert one != two
-
-
-def test_worst_severity() -> None:
-    assert worst_severity(()) is None
-    assert worst_severity(("low", "high", "medium")) == "high"
 
 
 def test_every_technique_has_a_label() -> None:

@@ -14,11 +14,12 @@ FALSE_ALARM_STEP = 0.25
 
 
 def read_findings(trace: Path) -> list[dict[str, Any]]:
-    """Achados de todas as execucoes, sem repetir fingerprint."""
+    """Achados de todas as execucoes (do ZAP e do estagio authz), sem repetir fingerprint."""
     seen: dict[str, dict[str, Any]] = {}
     for file in sorted((trace / "runs").glob("*/findings.json")):
         data = json.loads(file.read_text(encoding="utf-8"))
-        for finding in data.get("findings", []):
+        authz = data.get("authz") or {}
+        for finding in [*data.get("findings", []), *authz.get("findings", [])]:
             seen.setdefault(str(finding.get("fingerprint", id(finding))), finding)
     return list(seen.values())
 
@@ -35,7 +36,9 @@ def matches(finding: dict[str, Any], matcher: Matcher) -> bool:
     if matcher.parameter and matcher.parameter.lower() != parameter:
         return False
     method = str(finding.get("method", "")).upper()
-    return not (matcher.method and matcher.method.upper() != method)
+    if matcher.method and matcher.method.upper() != method:
+        return False
+    return not (matcher.technique and matcher.technique != finding.get("technique"))
 
 
 def flaw_status(flaw: Flaw, findings: list[dict[str, Any]]) -> str:

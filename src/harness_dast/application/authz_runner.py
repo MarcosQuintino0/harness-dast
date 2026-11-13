@@ -350,13 +350,15 @@ class AuthzRunner:
     def _mass_one(self, task: MassTask, extra: MassAssignmentField, out: CheckResult) -> None:
         exchange = task.exchange
         original = _as_object(exchange.body)
-        if original is None or extra.name in original:
+        if original is None or _already_sent(original, extra):
             out.not_tested.append(
                 self._note(
                     "mass_assignment",
                     exchange,
-                    "field_in_body",
-                    f"O campo '{extra.name}' já faz parte do corpo do probe; não é extra.",
+                    "same_value_in_body",
+                    f"O probe já enviou '{extra.name}' com o valor de teste; não dá para "
+                    "distinguir. Fixe o campo do probe com uma regra em data-rules.yml ou "
+                    "declare outro valor em authz.mass_assignment_fields.",
                 )
             )
             return
@@ -523,6 +525,14 @@ def _summary(check: AuthzCheck, result: CheckResult) -> CheckSummary:
         findings=len(result.findings),
         message="Nenhuma operação pôde ser testada; veja not_tested." if skipped else None,
     )
+
+
+def _already_sent(original: dict[str, JsonValue], extra: MassAssignmentField) -> bool:
+    """O corpo do probe já leva o campo com EXATAMENTE o valor de teste (mesmo tipo)."""
+    if extra.name not in original:
+        return False
+    sent = original[extra.name]
+    return type(sent) is type(extra.value) and sent == extra.value
 
 
 def _as_object(text: str | None) -> dict[str, JsonValue] | None:

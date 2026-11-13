@@ -27,7 +27,7 @@ Ordem fixa, do que não escreve no alvo para o que escreve.
 | `horizontal` (BOLA, OWASP API1) | Cada `GET` com identificador no caminho: primeiro com a conta dona (linha de base) e depois com outra conta do MESMO papel | A outra conta recebe `2xx` com corpo equivalente (sem campos voláteis) | Alta |
 | `excessive_data` (API3) | Cada `GET` com sucesso (reaproveita a linha de base quando há) | A resposta traz campo que o esquema de resposta do OpenAPI não declara | Média; **alta** se o NOME do campo indica segredo (senha, hash, token...) ou dado pessoal (cpf, e-mail...) |
 | `vertical` (BFLA, API5) | Operações que uma regra EXPLÍCITA de `auth.account_map` atribui a um papel maior, com uma conta de cada papel menor (segundo `authz.role_order`) | `2xx`. Só `401` e `403` contam como negado; `400`, `404`, `409`, `422` e `5xx` são inconclusivos | Alta |
-| `mass_assignment` (API3) | Cada `PUT`/`PATCH` com corpo JSON provado pelo `probe`: o mesmo corpo mais UM campo extra de `authz.mass_assignment_fields` por pedido | Uma leitura seguinte (um `GET` do mesmo modelo de caminho, mesma conta; ou a própria resposta) mostra o valor injetado onde antes não estava. Cobre nome diferente (`role` entra, `papel` muda). Depois tenta restaurar o valor anterior | Alta |
+| `mass_assignment` (API3) | Cada `PUT`/`PATCH` com corpo JSON provado pelo `probe`: o mesmo corpo mais UM campo extra de `authz.mass_assignment_fields` por pedido (se o corpo já traz o campo, o valor é trocado pelo de teste) | Uma leitura seguinte (um `GET` do mesmo modelo de caminho, mesma conta; ou a própria resposta) mostra o valor injetado onde antes não estava. Cobre nome diferente (`role` entra, `papel` muda). Depois tenta restaurar o valor anterior | Alta |
 
 Tratamento de falso alarme e de resultado esperado: operação listada em `authz.public_operations` é ignorada (BOLA e BFLA); `401`, `403` e demais `4xx` da outra conta são o resultado esperado; `2xx` com corpo DIFERENTE não é achado (o recurso responde por quem pergunta); campos voláteis (`timestamp`, `requestId`, `traceId`, `date`, `etag`... e os de `authz.volatile_fields`) não entram na comparação; linha de base que não deu `2xx` agora vai para `not_tested`, não para "seguro"; `5xx` e falta de resposta também são `inconclusive`.
 
@@ -58,7 +58,7 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 | `no_response_schema` | O OpenAPI não declara o esquema da resposta de sucesso | Declare-o no OpenAPI |
 | `no_json_response` | A resposta de sucesso não é JSON | Nada |
 | `no_json_body` | O `probe` não guardou corpo JSON (objeto) para o `PUT`/`PATCH` | Nada |
-| `field_in_body` | O campo extra já faz parte do corpo do `probe` | Nada |
+| `same_value_in_body` | O `probe` já enviou o campo extra com o valor de teste (não dá para distinguir o efeito) | Fixe o campo do `probe` com uma regra em `data-rules.yml` ou declare outro valor em `authz.mass_assignment_fields` |
 
 ## Limites conhecidos (também em `limits` do `authz.json`)
 

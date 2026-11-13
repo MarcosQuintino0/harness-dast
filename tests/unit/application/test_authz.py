@@ -258,12 +258,35 @@ def test_does_not_accuse_when_the_extra_field_is_ignored() -> None:
 
 
 def test_a_target_that_rejects_unknown_fields_is_a_tested_negative() -> None:
-    rig = AuthzRig(Clinic(mass=True, reject_extra_fields=True))
+    rig = AuthzRig(Clinic(mass=False, reject_extra_fields=True))
 
     result = run_authz(rig, checks=("mass_assignment",))
 
     assert result.findings == ()
     assert check(result, "mass_assignment").tested == 4
+
+
+def test_a_field_the_probe_already_sent_with_the_test_value_is_not_tested() -> None:
+    rig = AuthzRig(
+        Clinic(mass=True),
+        authz={"mass_assignment_fields": [{"name": "role", "value": "paciente"}]},
+    )
+
+    result = run_authz(rig, checks=("mass_assignment",))
+
+    assert result.findings == ()
+    assert [n.reason for n in result.not_tested] == ["same_value_in_body"]
+    assert check(result, "mass_assignment").status == "skipped"
+
+
+def test_a_declared_field_that_the_probe_sent_with_another_value_is_overridden() -> None:
+    rig = AuthzRig(Clinic(mass=True))
+
+    result = run_authz(rig, checks=("mass_assignment",))
+
+    puts = [r for r in rig.target.requests if r.method == "PUT" and "authz" in r.operation_id]
+    assert any(b'"role":"admin"' in (r.body or b"") for r in puts)
+    assert [f.fields for f in result.findings] == [("role", "papel")]
 
 
 def test_only_the_declared_extra_fields_are_sent() -> None:

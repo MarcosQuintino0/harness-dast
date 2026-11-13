@@ -26,7 +26,7 @@ Triagem é **anotação consultiva**, feita por você e revisada por uma pessoa.
 
 - "Suspeita de falso positivo" é opinião a revisar, não veredito: o achado segue no relatório e na contagem.
 - Com `--compare`, `not_observed` significa "não observado nesta execução", **nunca "corrigido"** (a varredura pode ter sido cortada ou não ter repetido a operação; veja `operation_scanned_now`).
-- Relatório sem achados não prova que a API é segura. Falhas de autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados ficam fora do que a varredura ativa detecta (veja `not_tested_statements`); diga isso.
+- Relatório sem achados não prova que a API é segura. Falhas de autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados ficam fora do que a varredura ativa detecta; só o estágio `authz` (`hdast run --authz`) as cobre, e só nos limites de `authz.limits` e `authz.not_tested` (veja `not_tested_statements`); diga isso. Os achados de `authz` já trazem severidade do código: a triagem só anota, não muda.
 - A severidade e a confiança do relatório são **propostas**; a decisão final é humana.
 
 ## Se der X, faça Y

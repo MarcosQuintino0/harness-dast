@@ -29,6 +29,20 @@ Notas de leitura:
   alta: cookie `XSRF-TOKEN` sem `HttpOnly` (o padrão de duplo envio exige leitura pelo cliente), `/v3/api-docs` público, resposta sem
   `Cache-Control` em alguns casos. Falso alarme = achado **de classe plantada** no modo `0` (ex.: "SQLi em `nome`" quando o modo é `0`).
 
+## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/adr/0027-teste-de-autorizacao-entre-contas.md))
+
+O ZAP não as detecta, mas o estágio `authz` (`hdast run --authz`, ou `hdast authz --run ID` depois do `probe`) é desenhado para
+detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse estágio** (achado de `authz` em `findings.json`, campo
+`technique`). Previsão, **ainda não medida contra o alvo real**:
+
+| Id | Técnica esperada no modo `1` | Condição | Modo `0` |
+| --- | --- | --- | --- |
+| H5 | `authz_horizontal` em `GET /api/consultas/{id}` | o perfil roteia `buscarConsulta` a um paciente e há outro paciente (A e B) em `auth.accounts`; o `probe` precisa ter sucesso nessa operação | o `probe` recebe `403`; sem linha de base, nada é acusado |
+| H6 | `authz_mass_assignment` em `PUT /api/me` (campo enviado `role`, campo que muda `papel`) | o `probe` provou o `PUT /api/me`; o campo `role` do corpo do `probe` não pode já valer `admin` | nenhum achado |
+| H7 | `authz_excessive_data` em `GET /api/pacientes` (`items[].senhaHash`, `items[].notasInternas`; severidade alta) | o `probe` provou a listagem e o OpenAPI declara o esquema da resposta | nenhum achado |
+
+Um agente que não use `--authz` continua sem achar H5 a H7, e isso conta na nota.
+
 ## Comportamentos que a avaliação mede (não são falhas)
 
 | O que | Como medir | Esperado |
