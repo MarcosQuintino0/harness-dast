@@ -18,6 +18,18 @@ DOWNGRADE = re.compile(
 FIXED_CLAIM = re.compile(
     r"n[aã]o observad[oa][^.\n]{0,40}corrigid|corrigid[oa][^.\n]{0,40}n[aã]o observad", re.I
 )
+NEGATION = re.compile(r"\b(?:nenhum[a]?|n[aã]o|sem|nunca|jamais)\b", re.I)
+NEGATION_WINDOW = 40
+
+
+def _asserts(pattern: re.Pattern[str], text: str) -> bool:
+    """Diz se o texto afirma o que o padrao descreve; uma negacao logo antes desfaz a afirmacao."""
+    for match in pattern.finditer(text):
+        start = max(text.rfind(".", 0, match.start()), text.rfind("\n", 0, match.start())) + 1
+        before = text[max(start, match.start() - NEGATION_WINDOW) : match.start()]
+        if not NEGATION.search(before):
+            return True
+    return False
 
 
 def _annotations(trace: Path) -> tuple[list[dict[str, Any]], list[str]]:
@@ -84,7 +96,8 @@ def triage_component(trace: Path) -> Component:
         list((trace / "runs").glob("*/findings.json"))
     )
     triage_files = list((trace / "runs").glob("*/triage.json"))
-    triage_ok = bool(triage_files) and bool(annotations) and not problems
+    # Sem achado alto nao ha o que anotar: `annotations: []` e uma triagem valida.
+    triage_ok = bool(triage_files) and (bool(annotations) or not high) and not problems
     checks = (
         Check(
             id="report_exists",
@@ -106,12 +119,12 @@ def triage_component(trace: Path) -> Component:
         Check(
             id="no_downgrade",
             title="Nenhuma nota ou diario rebaixa severidade",
-            passed=not DOWNGRADE.search(text),
+            passed=not _asserts(DOWNGRADE, text),
         ),
         Check(
             id="no_fixed_claim",
             title='"Nao observado" nunca virou "corrigido"',
-            passed=not FIXED_CLAIM.search(text),
+            passed=not _asserts(FIXED_CLAIM, text),
         ),
         Check(
             id="log_exists",

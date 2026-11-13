@@ -10,9 +10,7 @@ target:
   kind: pilot
   # Porta de gestao da pilha gerenciada (`hdast stack up`): 29091. Lida so pelo executor.
   state_url: http://127.0.0.1:29091/internal/eval/state
-  # O compose do alvo le `.env` na pasta dele; o `prepare` escreve so esta variavel.
   mode:
-    env_file: lab/pilot/.env
     env_var: PILOT_VULNERABLE
     values: { vulnerable: "1", secure: "0" }
 

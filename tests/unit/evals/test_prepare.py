@@ -50,18 +50,38 @@ def test_prepare_writes_the_stub_dockerfile_and_the_briefing_without_flaw_terms(
 
 
 @pytest.mark.parametrize(("mode", "value"), [("vulnerable", "1"), ("secure", "0")])
-def test_prepare_seals_the_mode_outside_the_workspace_and_writes_it_for_the_compose(
+def test_prepare_seals_the_mode_outside_the_workspace_and_gives_it_only_to_the_agent_env(
     repo: Path, out: Path, mode: str, value: str
 ) -> None:
     dirs = make_round(repo, out, mode)
 
     sealed = json.loads((dirs.sealed / "mode.json").read_text(encoding="utf-8"))
+    env = json.loads((dirs.sealed / "agent-env.json").read_text(encoding="utf-8"))
     assert sealed["mode"] == mode
-    assert (dirs.workspace / "lab/mini/.env").read_text(
-        encoding="utf-8"
-    ) == f"MINI_VULNERABLE={value}\n"
+    assert env["MINI_VULNERABLE"] == value
+    assert not list(dirs.workspace.rglob(".env"))
+    assert not any(
+        "MINI_VULNERABLE" in p.read_text(encoding="utf-8", errors="ignore")
+        for p in dirs.workspace.rglob("*")
+        if p.is_file() and ".git" not in p.parts
+    )
     assert dirs.sealed not in dirs.workspace.parents
     assert not list(dirs.workspace.rglob("mode.json"))
+
+
+def test_prepare_denies_docker_and_env_inspection_in_the_workspace_settings_only(
+    repo: Path, out: Path
+) -> None:
+    write(repo / ".claude/settings.json", json.dumps({"permissions": {"deny": ["WebFetch"]}}))
+
+    dirs = make_round(repo, out)
+
+    deny = json.loads((dirs.workspace / ".claude/settings.json").read_text(encoding="utf-8"))[
+        "permissions"
+    ]["deny"]
+    assert {"WebFetch", "Bash(docker:*)", "Bash(env:*)"} <= set(deny)
+    original = json.loads((repo / ".claude/settings.json").read_text(encoding="utf-8"))
+    assert original["permissions"]["deny"] == ["WebFetch"]
 
 
 def test_random_mode_is_reproducible_by_seed_and_uses_both_modes() -> None:

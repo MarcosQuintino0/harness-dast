@@ -10,9 +10,7 @@ target:
   kind: vampi
   # O VAmPI nao tem porta de gestao: a conferencia do que chegou ao alvo vem da auditoria do proxy.
   state_url: null
-  # O compose da raiz le `.env` na raiz do repositorio.
   mode:
-    env_file: .env
     env_var: HDAST_VAMPI_VULNERABLE
     values: { vulnerable: "1", secure: "0" }
 
@@ -20,11 +18,12 @@ deliver:
   - { source: lab/vampi/openapi3.yml, dest: inputs/openapi3.yml }
 
 write_files: {}
-exclude: []
+# Resultados reais de varredura do VAmPI guardados como fixture: diriam quais alertas o ZAP levanta nele.
+exclude: [tests/fixtures/zap_real, tests/fixtures/zap_alerts]
 
+# O VAmPI e publico: o endpoint de depuracao esta no OpenAPI entregue e `ReDoS` aparece no codigo da
+# ferramenta, entao nao servem de termo. So o gabarito e o que o repositorio nao pode conter.
 leak_terms:
-  - /users/v1/_debug
-  - ReDoS
   - answer-keys
 
 authorization: authorization.md

@@ -7,7 +7,6 @@ target:
   kind: pilot
   state_url: null
   mode:
-    env_file: lab/mini/.env
     env_var: MINI_VULNERABLE
     values: { vulnerable: "1", secure: "0" }
 deliver:

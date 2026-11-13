@@ -36,9 +36,8 @@ class Flaw(Frozen):
 
 
 class ModeConfig(Frozen):
-    """Como o modo do alvo chega ao compose: arquivo `.env` do projeto compose do alvo."""
+    """Como o modo do alvo chega ao compose: variavel de ambiente do processo do agente."""
 
-    env_file: str
     env_var: str
     values: dict[str, str]
 
@@ -46,9 +45,9 @@ class ModeConfig(Frozen):
 class TargetConfig(Frozen):
     """Alvo de laboratorio do caso."""
 
-    kind: Literal["pilot", "vampi"]
+    kind: Literal["pilot", "vampi", "crapi"]
     state_url: str | None = None
-    mode: ModeConfig
+    mode: ModeConfig | None = None  # alvo sem modo (so vulneravel): crAPI
 
 
 class Deliver(Frozen):
@@ -104,6 +103,7 @@ class SecretsConfig(Frozen):
 
     generate: tuple[str, ...] = ()
     fixed: dict[str, str] = {}
+    password_prefix: str = ""  # alvo com politica de senha (crAPI exige simbolo e maiuscula)
 
 
 class Forbidden(Frozen):

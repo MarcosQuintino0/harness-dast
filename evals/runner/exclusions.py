@@ -26,6 +26,7 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion(".env", "segredos do coordenador"),
     Exclusion(".claude/settings.local.json", "permissoes locais do coordenador"),
     Exclusion("coverage.xml", "artefato de teste"),
+    Exclusion(".coverage", "artefato de teste"),
     Exclusion("evals", "gabaritos, casos e o proprio executor da avaliacao"),
     Exclusion("tests/unit/evals", "testes do executor: descrevem as falhas plantadas"),
     Exclusion(
@@ -53,6 +54,8 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("lab/pilot/product-profile", "perfil pronto: escrever o perfil e parte da prova"),
     Exclusion("lab/vampi/product-profile", "perfil pronto: escrever o perfil e parte da prova"),
     Exclusion("lab/vampi/openapi3.yml", "entregue em inputs/ pelo dono do produto"),
+    Exclusion("lab/crapi/product-profile", "perfil pronto: escrever o perfil e parte da prova"),
+    Exclusion("lab/crapi/openapi.json", "entregue em inputs/ pelo dono do produto"),
 )
 
 CACHE_NAMES = frozenset(

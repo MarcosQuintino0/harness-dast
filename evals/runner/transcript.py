@@ -1,4 +1,10 @@
-"""Leitura do transcript do agente (saida `stream-json` do Claude Code ou texto livre)."""
+"""Leitura do transcript do agente.
+
+Formatos aceitos: saida `stream-json` do Claude Code, arquivo `.output` de um subagente (JSONL do
+Claude Code, com eventos de telemetria misturados) e texto livre. Nos dois primeiros, so os eventos
+de conversa (`assistant` e `user`) contam; telemetria como `api-request` repete o contexto inteiro e
+contaria cada chamada varias vezes.
+"""
 
 import json
 from dataclasses import dataclass, field
@@ -8,6 +14,7 @@ from typing import Any
 SHELL_TOOLS = frozenset({"Bash", "PowerShell"})
 READ_TOOLS = frozenset({"Read", "Grep", "Glob"})
 WEB_TOOLS = frozenset({"WebFetch", "WebSearch"})
+CONVERSATION_TYPES = frozenset({"assistant", "user"})
 
 
 @dataclass(frozen=True)
@@ -84,12 +91,41 @@ def _parse_json_documents(raw: str) -> list[Any] | None:
     return documents
 
 
+def _is_conversation_event(document: Any) -> bool:
+    return (
+        isinstance(document, dict)
+        and document.get("type") in CONVERSATION_TYPES
+        and isinstance(document.get("message"), dict)
+    )
+
+
+def _conversation_only(documents: list[Any]) -> list[Any]:
+    """Se houver eventos de conversa, descarta o resto e os repetidos (mesmo `uuid`)."""
+    if not any(_is_conversation_event(document) for document in documents):
+        return documents
+    seen: set[str] = set()
+    kept: list[Any] = []
+    for document in documents:
+        if not _is_conversation_event(document):
+            continue
+        uuid = document.get("uuid")
+        if isinstance(uuid, str):
+            if uuid in seen:
+                continue
+            seen.add(uuid)
+        kept.append(document)
+    return kept
+
+
 def parse_transcript(raw: str) -> Transcript:
     """Interpreta o transcript. JSON ou JSONL com `tool_use` vira chamadas estruturadas."""
     documents = _parse_json_documents(raw)
     calls: list[ToolCall] = []
     if documents is not None:
-        _collect(documents, calls)
+        kept = _conversation_only(documents)
+        _collect(kept, calls)
+        if kept is not documents:
+            raw = "\n".join(json.dumps(document, ensure_ascii=False) for document in kept)
     return Transcript(calls=calls, raw=raw, structured=bool(calls))
 
 

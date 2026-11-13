@@ -53,8 +53,12 @@ def draw_secrets(case: Case) -> dict[str, str]:
     """Segredos da rodada: os fixos do laboratorio e os sorteados (so o sorteado e sigiloso)."""
     values = dict(case.secrets.fixed)
     for name in case.secrets.generate:
-        size = 8 if name.endswith(("USERNAME", "USER")) else 16
-        values[name] = ("lab_" if size == 8 else "") + secrets.token_hex(size)
+        if name.endswith("EMAIL"):
+            values[name] = f"lab.{secrets.token_hex(4)}@example.com"
+        elif name.endswith(("USERNAME", "USER")):
+            values[name] = "lab_" + secrets.token_hex(8)
+        else:
+            values[name] = case.secrets.password_prefix + secrets.token_hex(16)
     return values
 
 
@@ -84,12 +88,31 @@ def deliver_inputs(case: Case, source: Path, workspace: Path) -> None:
     (workspace / "products").mkdir(exist_ok=True)
 
 
-def write_mode_file(case: Case, workspace: Path, mode: str) -> None:
-    """Grava o modo no `.env` do projeto compose do alvo, de onde o compose o le."""
-    config = case.target.mode
-    target = workspace / config.env_file
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(f"{config.env_var}={config.values[mode]}\n", encoding="utf-8")
+EXTRA_DENY = (
+    "Bash(docker:*)",
+    "Bash(docker-compose:*)",
+    "Bash(env:*)",
+    "Bash(set:*)",
+    "PowerShell(docker:*)",
+    "PowerShell(docker-compose:*)",
+    "PowerShell(Get-ChildItem env:*)",
+    "PowerShell(Get-Item env:*)",
+    "PowerShell(gci env:*)",
+    "Read(//**/state/**)",
+    "Read(//**/sealed/**)",
+)
+"""Permissoes negadas so no workspace: fecham canais pelos quais o agente descobriria o modo
+(`docker inspect`, `env`) ou leria o estado da pilha. Nao mudam o repositorio original."""
+
+
+def harden_settings(workspace: Path) -> None:
+    """Acrescenta `EXTRA_DENY` ao `.claude/settings.json` da copia (antes da base do git)."""
+    path = workspace / ".claude" / "settings.json"
+    settings = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    deny = settings.setdefault("permissions", {}).setdefault("deny", [])
+    deny.extend(rule for rule in EXTRA_DENY if rule not in deny)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 
 
 def write_sealed(
@@ -104,8 +127,10 @@ def write_sealed(
         encoding="utf-8",
     )
     (dirs.sealed / "secrets.json").write_text(json.dumps(values, indent=2), encoding="utf-8")
+    mode_env = {case.target.mode.env_var: case.target.mode.values[mode]} if case.target.mode else {}
     env = {
         **values,
+        **mode_env,
         "HDAST_PRODUCTS_DIR": str((dirs.workspace / "products").resolve()),
         "HDAST_STATE_DIR": str(dirs.state.resolve()),
     }
@@ -134,7 +159,7 @@ def prepare(
     resolved = resolve_mode(case, mode, seed)
     excluded = copy_workspace(case, source, dirs.workspace)
     deliver_inputs(case, source, dirs.workspace)
-    write_mode_file(case, dirs.workspace, resolved)
+    harden_settings(dirs.workspace)
     briefing = build_briefing(case, read_authorization(case_name, case, cases_dir))
     (dirs.workspace / BRIEFING_NAME).write_text(briefing, encoding="utf-8")
     leaks = tuple(scan_leaks(dirs.workspace, case.leak_terms))

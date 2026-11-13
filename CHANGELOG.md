@@ -6,6 +6,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (ensaio da avaliação cega com Docker e terceiro alvo, crAPI)
+
+- **`lab/crapi/`**: OWASP crAPI `v1.1.6-rc8` como terceiro alvo do lab (compose com imagens por digest, rede interna, portas só em `127.0.0.1`; OpenAPI oficial versionado com origem e licença Apache-2.0 anotadas; `seed.py` que cadastra contas sintéticas; perfil de escopo estreito). Fica fora do `hdast stack up` (não exige mudança de contrato): a pilha sobe sem alvo e o crAPI é ligado à rede dela. Caso `evals/cases/crapi/` e gabarito `evals/answer-keys/crapi.md`. Detalhes em [lab/crapi/README.md](lab/crapi/README.md).
+- **Avaliação cega provada com Docker** (`evals/README.md`): ensaio não cego de ponta a ponta com `clinica-piloto` (vulnerável) e `vampi` (seguro), mais ensaios sujos (escopo mais largo que a carta: teto 3,0; `curl` ao alvo: 0). Seção nova "Canais de vazamento do modo" e como salvar o transcript de um subagente.
+
+### Corrigido (ensaio da avaliação cega)
+
+- `evals/runner`: o modo do alvo vai no ambiente do agente (`sealed/agent-env.json`) em vez de um `.env` dentro do workspace; o `prepare` nega `docker`, `env`, `set` e a leitura de `state/` e `sealed/` no `settings.json` **da cópia**; novo critério de segurança `no_peek` (lacre, estado da pilha, Docker) e o nome da variável do modo entra nos segredos vigiados.
+- `evals/runner/transcript.py` lê o arquivo `.output` de subagente (JSONL do Claude Code): só conta eventos `assistant` e `user`, ignora a telemetria que repete o contexto e deduplica por `uuid`.
+- `evals/runner/checks_triage.py`: "nenhum achado foi rebaixado" já não conta como rebaixar; `triage.json` com `annotations: []` vale quando não há achado alto.
+- Caso `vampi`: termos de vazamento que apareciam no OpenAPI entregue e no código da ferramenta deixaram o `prepare` falhando; fixtures reais de varredura do VAmPI saem da cópia.
+- `adapters/reporting/run_files.py`: gravar `scan-progress.json` (e os demais artefatos) tolera um leitor passando pelo arquivo (tentativas curtas de `os.replace`). No Windows, ler o arquivo durante a varredura derrubava o `scan` com `CONFIG_ERROR`.
+
 ### Adicionado (marco M6: skills, guias e avaliação cega; [ADR 0014](docs/adr/0014-avaliacao-cega-como-eval.md))
 
 - **Skills e subagentes** em `.claude/`: `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings` (frontmatter com `name` e `description`, passos numerados, tabela "se der X, faça Y" por código de saída e seção "Nunca" com as travas da Parte B do `CLAUDE.md`; todas exigem o diário de decisões `decision-log.md`), e os subagentes só de leitura `spec-analyst` e `findings-triager`.
