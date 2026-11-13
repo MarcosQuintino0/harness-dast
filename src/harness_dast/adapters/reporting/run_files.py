@@ -11,6 +11,7 @@ Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json` 
 
 import json
 import os
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Final, TypeVar
@@ -28,6 +29,8 @@ from harness_dast.domain.scan_result import ScanProgress, ScanResult
 
 SCAN_FILE: Final = "scan.json"
 PROGRESS_FILE: Final = "scan-progress.json"
+REPLACE_ATTEMPTS: Final = 6
+REPLACE_PAUSE_SECONDS: Final = 0.05
 ALERTS_FILE: Final = "alerts.raw.json"
 EVIDENCE_FILE: Final = "evidence.json"
 TRIAGE_FILE: Final = "triage.json"
@@ -194,12 +197,30 @@ class FileRunArtifacts:
         try:
             directory.mkdir(parents=True, exist_ok=True)
             temporary.write_text(text + "\n", encoding="utf-8", newline="\n")
-            os.replace(temporary, target)
+            _replace_with_retry(temporary, target)
         except OSError:
             raise ConfigError(
                 f"Não foi possível gravar {name} da execução.",
                 hint="Confira HDAST_RUNS_DIR, o espaço em disco e a permissão de escrita.",
             ) from None
+
+
+def _replace_with_retry(source: Path, target: Path) -> None:
+    """`os.replace` que tolera um leitor passando pelo arquivo.
+
+    No Windows, trocar um arquivo que outro processo tem aberto (`hdast stop`, a pessoa ou o
+    coordenador acompanhando `scan-progress.json`, antivírus) levanta `PermissionError`; sem isto
+    uma leitura de cortesia derrubava a varredura inteira. Tenta poucas vezes e só então desiste.
+    """
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_PAUSE_SECONDS * (attempt + 1))
+        else:
+            return
 
 
 def _corrupt(name: str, command: str) -> ConfigError:

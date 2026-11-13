@@ -1,6 +1,7 @@
 """Armazém de artefatos de `scan` e `report` em disco: leitura estrita e escrita atômica."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -168,3 +169,42 @@ def test_write_failure_is_a_config_error_with_a_hint(tmp_path: Path) -> None:
         store.write_scan(RUN_ID, scan_result([]))
 
     assert "HDAST_RUNS_DIR" in (info.value.hint or "")
+
+
+def test_write_survives_a_reader_holding_the_file_for_a_moment(
+    tmp_path: Path, store: FileRunArtifacts, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_replace = os.replace
+    refusals = {"left": 2}
+
+    def flaky_replace(source: Path, target: Path) -> None:
+        if refusals["left"] > 0:
+            refusals["left"] -= 1
+            raise PermissionError("arquivo em uso por outro processo")
+        real_replace(source, target)
+
+    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", flaky_replace)
+    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
+
+    store.write_progress(
+        RUN_ID,
+        ScanProgress(
+            run_id=RUN_ID, phase="scanning", status="running", index=1, total=2, updated_at="t"
+        ),
+    )
+
+    assert (run_dir(tmp_path) / "scan-progress.json").is_file()
+    assert refusals["left"] == 0
+
+
+def test_write_gives_up_with_a_config_error_when_the_file_stays_locked(
+    store: FileRunArtifacts, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def always_locked(source: Path, target: Path) -> None:
+        raise PermissionError("arquivo em uso por outro processo")
+
+    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", always_locked)
+    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
+
+    with pytest.raises(ConfigError):
+        store.write_alerts(RUN_ID, [])
