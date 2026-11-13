@@ -70,7 +70,7 @@ def report_command(
         ),
     ] = None,
 ) -> int:
-    """Transforma os alertas do scan em achados e grava findings.json e report.md."""
+    """Transforma os alertas do scan em achados e grava findings.json, report.md e report.html."""
     state = get_state(ctx)
     outcome = build_report(products_dir).execute(
         ReportRequest(product=product, run_id=run, compare=compare, fail_on=fail_on)

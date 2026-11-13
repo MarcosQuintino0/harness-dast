@@ -157,6 +157,35 @@ def _triage_cell(item: Finding) -> str:
     return escape_inline(flag + (item.triage.reason or item.triage.note), 160) or "-"
 
 
+def _group_lines(report: FindingsReport) -> list[str]:
+    if not report.groups:
+        return []
+    lines = [
+        "## Achados agrupados pela causa",
+        "",
+        "Visão a mais: nenhum achado some e nenhuma severidade muda. Achados com a mesma regra, "
+        "o mesmo parâmetro e a mesma severidade proposta ficam juntos.",
+        "",
+        "| Grupo | Severidade | Título | Parâmetro | Achados | Alertas | Onde (primeiros) |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for group in report.groups:
+        where = ", ".join(f"{loc.method} {loc.path_template}" for loc in group.locations[:3])
+        extra = len(group.locations) - 3
+        where += f" e mais {extra}" if extra > 0 else ""
+        lines.append(
+            f"| {code_span(group.group_id)} | {_SEVERITY_LABEL[group.proposed_severity]} | "
+            f"{escape_inline(group.title, 120)} | {code_span(group.parameter or '-')} | "
+            f"{group.findings_count} | {group.occurrences} | {escape_inline(where, 200)} |"
+        )
+    notes = [
+        f"- {code_span(group.group_id)}: {escape_inline(group.expected_note, 700)}"
+        for group in report.groups
+        if group.expected_note
+    ]
+    return [*lines, "", *notes] if notes else lines
+
+
 def _evidence_block(item: Finding) -> list[str]:
     proof = item.evidence
     if not proof.available:
@@ -252,6 +281,8 @@ def render_markdown(report: FindingsReport) -> str:
         *_coverage_lines(report.coverage, report.not_tested_statements),
         "",
         *_summary_lines(report),
+        "",
+        *_group_lines(report),
         "",
     ]
     if report.findings:

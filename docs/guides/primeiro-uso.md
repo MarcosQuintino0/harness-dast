@@ -89,12 +89,15 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | Arquivo | Para quê |
 | --- | --- |
 | `run.json` | Estágios, código de saída, tempos, achados por severidade |
-| `report.md` | O relatório, para quem corrige |
-| `findings.json` | O mesmo, estruturado |
+| `report.html` | O relatório numa página só (abra no navegador, funciona sem internet e em tema claro ou escuro): resumo, "o que fazer agora", achados por gravidade, o que não foi coberto, tráfego recusado |
+| `report.md` | O mesmo relatório em Markdown, para quem corrige |
+| `findings.json` | O mesmo, estruturado (cada achado e, em `groups`, os achados agrupados pela causa) |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
 | `audit.jsonl` | Trilha de cada requisição da CLI |
 
-No `report.md`, **comece pela seção "O que este relatório não testou"**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
+Os achados com a mesma regra e o mesmo parâmetro aparecem **agrupados pela causa** (por exemplo, o mesmo cookie sem `HttpOnly` em 26 caminhos vira um grupo com a lista de onde aparece); nenhum achado some e nenhuma gravidade muda. Alguns grupos trazem uma nota fixa explicando por que o padrão costuma ser esperado (o cookie de XSRF por duplo envio, que o JavaScript precisa ler).
+
+No `report.html` ou no `report.md`, **leia o que a varredura não testou**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
 
 ## 9. Encerrar
 
@@ -102,4 +105,18 @@ No `report.md`, **comece pela seção "O que este relatório não testou"**: aut
 uv run hdast --json stack down
 ```
 
-Depois, o próximo passo é o [cadastro de um produto](cadastrar-um-produto.md) com o Claude Code, ou repetir este guia com `uv run hdast stack up vampi --secure` para ver o modo seguro do laboratório.
+## 10. Um produto de verdade, com um pedido só
+
+Depois do laboratório, para testar um produto real com o Claude Code você não precisa fazer quatro pedidos: abra o `claude` na raiz do repositório e peça uma vez, entregando o Swagger e a carta de autorização:
+
+```text
+Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
+O OpenAPI está em <caminho>. A carta de autorização está em <caminho>.
+É ambiente de teste com dados sintéticos e a autorização vale agora.
+```
+
+A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
+
+## Próximos passos
+
+O próximo passo é o [cadastro de um produto](cadastrar-um-produto.md) com o Claude Code, ou repetir este guia com `uv run hdast stack up vampi --secure` para ver o modo seguro do laboratório.

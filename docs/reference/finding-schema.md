@@ -18,6 +18,7 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `findings.json` | `report` | Relatório estruturado (esta página) |
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
 | `report.md` | `report` | Relatório para quem corrige ([relatorio.md](relatorio.md)) |
+| `report.html` | `report` | O mesmo relatório numa página única, sem JavaScript nem recurso externo ([ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) |
 
 ## `findings.json`
 
@@ -33,6 +34,7 @@ Raiz (`FindingsReport`):
 | `not_tested_statements` | lista de texto | Afirmações fixas sobre o que não foi testado. Presentes em TODO relatório, inclusive sem achados |
 | `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable` |
 | `findings` | lista de `Finding` | Ordenada por severidade proposta, confiança, título e fingerprint |
+| `groups` | lista de `FindingGroup` | Visão agrupada pela causa provável (abaixo). Aditivo (ADR 0029): todo achado de `findings` está em exatamente um grupo; arquivos antigos sem o campo continuam válidos |
 | `not_observed` | lista | Com `--compare`: achados da base que não apareceram agora (abaixo) |
 | `comparison` | objeto ou `null` | `baseline_run_id`, `new`, `persistent`, `not_observed`, `notice` |
 | `triage_orphans` | lista de texto | Fingerprints de `triage.json` sem achado correspondente (ignorados) |
@@ -78,6 +80,22 @@ Raiz (`FindingsReport`):
 `evidence`: `available` (`false` quando a mensagem não foi guardada), `message_id`, `attack` (carga, redigida), `zap_evidence` (trecho apontado pelo ZAP), `request_header`, `request_body`, `response_header`, `response_body` e `truncated`.
 
 `not_observed[]`: `fingerprint`, `finding_id`, `title`, `proposed_severity`, `method`, `path_template` e `operation_scanned_now`. **"Não observado nesta execução" não é "corrigido"**: a operação pode não ter sido varrida agora (`operation_scanned_now: false`), a varredura pode ter sido cortada, o varredor pode não ter repetido o ataque.
+
+### `FindingGroup` (`groups[]`)
+
+Visão **a mais**: nenhum achado some, nenhuma severidade muda. Chave do grupo (versão 1 da regra): `alert_ref`, `input_vector`, `parameter` e `proposed_severity`, iguais. Regra em `domain/finding_group.py`.
+
+| Campo | Descrição |
+| --- | --- |
+| `group_id` | `G-` e 8 hexadecimais da chave; estável entre execuções, legível, não é identidade |
+| `title`, `plugin_id`, `alert_ref`, `parameter`, `input_vector`, `cwe` | Do achado mais bem classificado do grupo (a chave garante regra, vetor e parâmetro iguais) |
+| `proposed_severity` | Igual à de todos os membros |
+| `findings_count`, `occurrences` | Achados no grupo e soma dos alertas do ZAP deles |
+| `finding_ids` | Achados do grupo, na ordem de `findings` |
+| `locations` | `[{finding_id, method, path_template, operation_id, occurrences}]`: onde aparece |
+| `expected_note` | Nota fixa do código (texto nosso) quando o padrão costuma ser esperado, como o cookie de XSRF por duplo envio; `null` sem padrão. Não altera severidade nem tira o achado da lista |
+
+Ordem: severidade, tamanho (maior primeiro), título, `group_id`.
 
 ## Fingerprint (versão 1)
 
