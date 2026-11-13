@@ -6,9 +6,10 @@ from typing import Annotated
 import typer
 
 from harness_dast.application.preflight_report import PreflightReport
+from harness_dast.application.stage_errors import preflight_failure
 from harness_dast.cli.composition import build_preflight, open_network
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
-from harness_dast.domain.errors import ExitCode, HarnessError, PreflightError, ScopeViolation
+from harness_dast.domain.errors import ExitCode
 
 
 def _render(report: PreflightReport) -> str:
@@ -20,19 +21,6 @@ def _render(report: PreflightReport) -> str:
             lines.append(f"          {check.operator_detail}")
     lines.append("Pronto para o probe." if report.ready else "NÃO está pronto para o probe.")
     return "\n".join(lines)
-
-
-def failure_for(report: PreflightReport) -> HarnessError:
-    """Erro (e código de saída) de um preflight que não passou.
-
-    Falha de autorização ou janela é escopo (3); qualquer outra, preflight (4).
-    """
-    failed = report.first_failure()
-    message = f"Preflight não passou: {failed.id}." if failed else "Preflight não passou."
-    hint = failed.detail if failed else None
-    if failed is not None and failed.kind == "scope":
-        return ScopeViolation(message, hint=hint)
-    return PreflightError(message, hint=hint)
 
 
 def preflight_command(
@@ -59,7 +47,7 @@ def preflight_command(
         envelope = build_success(data, report.run_id)
         emit(envelope, json_mode=state.json_mode, human=_render(report))
         return int(ExitCode.OK)
-    error = failure_for(report)
+    error = preflight_failure(report)
     failure = build_failure_with_data(error, data, report.run_id)
     emit(failure, json_mode=state.json_mode, human=_render(report))
     return int(error.exit_code)

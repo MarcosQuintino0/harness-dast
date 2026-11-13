@@ -12,12 +12,16 @@ repositório e de `runs/`. Este módulo não imprime nem devolve segredos.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
     PILOT_API_PORT,
     PILOT_MANAGEMENT_PORT,
+    PILOT_ORACLE_ENV_FIXED,
+    PILOT_ORACLE_FILE,
+    PILOT_ORACLE_PROFILE,
     PILOT_PROJECT,
     LabTarget,
     lab_target_for,
@@ -32,6 +36,7 @@ from harness_dast.application.ports import (
     StackStateStore,
     ZapScanStopper,
 )
+from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack_models import (
     ComposeProject,
     ServiceStatus,
@@ -42,6 +47,7 @@ from harness_dast.application.stack_models import (
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.proxy_deadline import compute_policy_deadline
 from harness_dast.domain.run import RunId
+from harness_dast.domain.scan_result import ScanProgress
 
 MAIN_PROJECT = "hdast"
 BASE_SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
@@ -56,6 +62,8 @@ _KEY_BYTES = 24
 _PASSWORD_BYTES = 12
 _USERNAME_BYTES = 3
 _PLACEHOLDER = "unused"
+_FRESH_SECONDS = 120
+"""Andamento mais velho que isto é de um processo que morreu sem terminar."""
 
 
 @dataclass(frozen=True)
@@ -68,6 +76,8 @@ class StackUpRequest:
         token_ttl_seconds: Vida do token do alvo; `None` mantém o padrão.
         build: Reconstruir as imagens locais antes de subir.
         timeout_seconds: Prazo para os contêineres ficarem saudáveis.
+        oracle: Sobe também o Oracle Free do piloto (perfil `oracle`), com a porta do banco em
+            127.0.0.1 para a limpeza; só vale para a Clínica Piloto.
     """
 
     product: str
@@ -75,6 +85,7 @@ class StackUpRequest:
     token_ttl_seconds: int | None = None
     build: bool = False
     timeout_seconds: int = DEFAULT_UP_TIMEOUT_SECONDS
+    oracle: bool = False
 
 
 class StackManager:
@@ -92,6 +103,7 @@ class StackManager:
         states: StackStateStore,
         environ: Mapping[str, str],
         repo_root: Path,
+        running_scans: RunningScans | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -105,6 +117,7 @@ class StackManager:
             states: Estado persistido.
             environ: Ambiente da CLI (chave do ZAP, portas, credenciais já definidas).
             repo_root: Raiz do repositório (onde estão `compose.yaml` e `lab/`).
+            running_scans: Leitura do andamento das varreduras, para o `stop` dizer o que parou.
         """
         self._profiles = profiles
         self._clock = clock
@@ -115,6 +128,7 @@ class StackManager:
         self._states = states
         self._environ = environ
         self._root = repo_root
+        self._running_scans = running_scans
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -137,7 +151,8 @@ class StackManager:
         policy_file = self._policies.publish(profile, run_id, not_after, directories.policy_dir)
         zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
         proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
-        projects = self._projects(target)
+        oracle = self._oracle_requested(request, target)
+        projects = self._projects(target, oracle=oracle)
         state = StackState(
             product=profile.product,
             run_id=run_id.value,
@@ -150,7 +165,7 @@ class StackManager:
             policy_dir=directories.policy_dir,
             audit_dir=directories.audit_dir,
             projects=projects,
-            target_env=self._credentials(target),
+            target_env=self._credentials(target, oracle=oracle),
             target_urls=_target_urls(target),
         )
         # Gravado ANTES de subir: se a subida falhar no meio, `stack down` sabe o que derrubar.
@@ -212,6 +227,7 @@ class StackManager:
                 "Não sei onde está a política do proxy: não há pilha gerenciada.",
                 hint=f"Suba a pilha com hdast stack up ou defina {POLICY_DIR_ENV}.",
             )
+        running = self._fresh_scans()
         created = self._policies.trigger_kill(directory)
         stopped, reachable, message = _stop_zap(stopper)
         return StopReport(
@@ -221,6 +237,17 @@ class StackManager:
             zap_reachable=reachable,
             zap_scans_stopped=stopped,
             zap_message=message,
+            scans_running=running,
+        )
+
+    def _fresh_scans(self) -> tuple[ScanProgress, ...]:
+        if self._running_scans is None:
+            return ()
+        now = self._clock.now()
+        return tuple(
+            item
+            for item in self._running_scans.running()
+            if (now - datetime.fromisoformat(item.updated_at)).total_seconds() <= _FRESH_SECONDS
         )
 
     def _tear_down_previous(self) -> list[str]:
@@ -239,8 +266,17 @@ class StackManager:
         for project in reversed(state.projects):
             self._compose.down(project, env, timeout_seconds=DOWN_TIMEOUT_SECONDS)
 
-    def _credentials(self, target: LabTarget | None) -> dict[str, str]:
-        generated: dict[str, str] = {}
+    @staticmethod
+    def _oracle_requested(request: StackUpRequest, target: LabTarget | None) -> bool:
+        if request.oracle and target is not CLINICA_PILOTO:
+            raise ConfigError(
+                "--oracle só vale para a Clínica Piloto.",
+                hint="Use um perfil cujo base_url aponte para clinica-piloto.",
+            )
+        return request.oracle
+
+    def _credentials(self, target: LabTarget | None, *, oracle: bool) -> dict[str, str]:
+        generated: dict[str, str] = self._oracle_credentials() if oracle else {}
         for name in target.credential_env if target else ():
             if self._environ.get(name):
                 continue
@@ -250,7 +286,27 @@ class StackManager:
                 generated[name] = self._random.token_hex(_PASSWORD_BYTES)
         return generated
 
-    def _projects(self, target: LabTarget | None) -> tuple[ComposeProject, ...]:
+    def _oracle_credentials(self) -> dict[str, str]:
+        # O prefixo satisfaz a política de senha do Oracle; os valores só existem no estado local.
+        def password() -> str:
+            return "Aa1_" + self._random.token_hex(_PASSWORD_BYTES)
+
+        db_password = self._environ.get("PILOT_ORACLE_PASSWORD") or password()
+        generated = {
+            "PILOT_ORACLE_PASSWORD": db_password,
+            "PILOT_DB_PASSWORD": db_password,
+            "PILOT_ORACLE_CLEANUP_PASSWORD": password(),
+            **PILOT_ORACLE_ENV_FIXED,
+        }
+        # O que a pessoa já definiu no ambiente vence, exceto a senha do banco do piloto, que
+        # precisa ser igual à do Oracle.
+        return {
+            name: value
+            for name, value in generated.items()
+            if name == "PILOT_DB_PASSWORD" or not self._environ.get(name)
+        }
+
+    def _projects(self, target: LabTarget | None, *, oracle: bool) -> tuple[ComposeProject, ...]:
         services = BASE_SERVICES + (target.main_services if target else ())
         main = ComposeProject(
             name=MAIN_PROJECT,
@@ -264,7 +320,8 @@ class StackManager:
         attached = ComposeProject(
             name=PILOT_PROJECT,
             workdir=str(self._root / target.attached_workdir),
-            files=target.attached_files,
+            files=target.attached_files + ((PILOT_ORACLE_FILE,) if oracle else ()),
+            profiles=(PILOT_ORACLE_PROFILE,) if oracle else (),
         )
         return (main, attached)
 

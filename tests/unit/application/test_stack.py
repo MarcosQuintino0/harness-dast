@@ -1,10 +1,13 @@
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
 from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.scan_result import ScanProgress
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.runtime import FixedEntropy, ManualClock
@@ -35,7 +38,12 @@ def lab_profile(product: str, host: str, port: int) -> ProductProfile:
 
 
 class Rig:
-    def __init__(self, tmp_path: Path, environ: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        environ: dict[str, str] | None = None,
+        running_scans: RunningScans | None = None,
+    ) -> None:
         self.profiles = InMemoryProfileRepository()
         self.profiles.add(valid_profile("demo"))
         self.profiles.add(lab_profile("vampi", "vampi", 5000))
@@ -54,6 +62,7 @@ class Rig:
             states=self.states,
             environ=self.environ,
             repo_root=tmp_path / "repo",
+            running_scans=running_scans,
         )
 
 
@@ -212,6 +221,64 @@ def test_stop_para_as_varreduras_e_repetir_nao_falha(tmp_path: Path) -> None:
 
     assert first.zap_scans_stopped == 3
     assert (first.kill_created, second.kill_created) == (True, False)
+
+
+class _Scans:
+    def __init__(self, *items: ScanProgress) -> None:
+        self._items = items
+
+    def running(self) -> tuple[ScanProgress, ...]:
+        return self._items
+
+
+def _progress(updated_at: str, run_id: str = "r1") -> ScanProgress:
+    return ScanProgress(
+        run_id=run_id,
+        phase="scanning",
+        status="running",
+        index=3,
+        total=10,
+        operation_id="buscar",
+        progress=40,
+        updated_at=updated_at,
+    )
+
+
+def test_stop_informa_a_varredura_em_andamento_e_ignora_andamento_velho(tmp_path: Path) -> None:
+    now = ManualClock().now()
+    fresh = _progress((now - timedelta(seconds=5)).isoformat(), "novo")
+    stale = _progress((now - timedelta(hours=2)).isoformat(), "velho")
+    rig = Rig(tmp_path, running_scans=_Scans(fresh, stale))
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    report = rig.manager.stop(FakeStopper(running=1), None)
+
+    assert [item.run_id for item in report.scans_running] == ["novo"]
+    assert report.scans_running[0].operation_id == "buscar"
+
+
+def test_up_com_oracle_sobe_o_perfil_oracle_e_gera_as_credenciais_do_banco(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto", oracle=True))
+
+    state = rig.states.state
+    assert state is not None
+    attached = state.projects[1]
+    assert attached.profiles == ("oracle",)
+    assert "compose.oracle-port.yaml" in attached.files
+    env = state.target_env
+    assert env["PILOT_DB_PASSWORD"] == env["PILOT_ORACLE_PASSWORD"]
+    assert env["PILOT_ORACLE_CLEANUP_CONNECTION"].startswith("127.0.0.1:")
+    assert env["PILOT_ORACLE_CLEANUP_USER"] == "HDAST_LIMPEZA"
+    assert env["PILOT_ORACLE_CLEANUP_PASSWORD"] != env["PILOT_ORACLE_PASSWORD"]
+
+
+def test_up_com_oracle_em_outro_alvo_falha_com_orientacao(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+
+    with pytest.raises(ConfigError, match="Clínica Piloto"):
+        rig.manager.up(StackUpRequest(product="vampi", oracle=True))
 
 
 def test_stop_sem_pilha_usa_a_pasta_informada_ou_falha_com_orientacao(tmp_path: Path) -> None:

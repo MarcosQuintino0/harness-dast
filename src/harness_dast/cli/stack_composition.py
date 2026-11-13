@@ -12,7 +12,10 @@ from pathlib import Path
 from pydantic import SecretStr
 
 from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
+from harness_dast.adapters.reporting.run_files import FileRunArtifacts
+from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
+from harness_dast.adapters.scope_proxy.kill_switch import FileKillSwitch
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.stack_state import FileStackStateStore, default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
@@ -86,6 +89,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         states=open_state_store(),
         environ=os.environ,
         repo_root=default_repo_root(),
+        running_scans=FileRunArtifacts(settings.runs_dir),
     )
 
 
@@ -94,6 +98,26 @@ def open_zap_stopper() -> ZapApiClient:
     settings = load_effective_settings()
     key = settings.zap_api_key.get_secret_value() if settings.zap_api_key else None
     return ZapApiClient(settings.zap_base_url, key, timeout_seconds=STOP_ZAP_TIMEOUT_SECONDS)
+
+
+def open_kill_switch() -> FileKillSwitch:
+    """Leitura da trava de emergência da pilha gerenciada (ou de `HDAST_SCOPE_POLICY_DIR`).
+
+    Raises:
+        ConfigError: Arquivo de estado inválido.
+    """
+    state = open_state_store().load()
+    return FileKillSwitch(state.policy_dir if state is not None else policy_dir_from_environment())
+
+
+def open_proxy_audit() -> FileProxyAudit | None:
+    """Leitura da auditoria do proxy da pilha gerenciada; `None` sem pilha.
+
+    Raises:
+        ConfigError: Arquivo de estado inválido.
+    """
+    state = open_state_store().load()
+    return None if state is None else FileProxyAudit(state.audit_dir / "audit.jsonl")
 
 
 def policy_dir_from_environment() -> Path | None:

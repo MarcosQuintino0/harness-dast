@@ -7,7 +7,7 @@ só então chega ao `TargetClient`, que por sua vez só aceita `ApprovedRequest`
 
 from datetime import datetime, timedelta
 
-from harness_dast.application.ports import Clock, RunStore, Sleeper, TargetClient
+from harness_dast.application.ports import Clock, KillSwitch, RunStore, Sleeper, TargetClient
 from harness_dast.domain.audit import decision_entry, result_entry
 from harness_dast.domain.errors import HarnessError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
@@ -20,6 +20,10 @@ class WindowClosed(ScopeViolation):
     """A autorização venceu ou a janela de execução fechou durante a execução."""
 
 
+class KillSwitchEngaged(WindowClosed):
+    """A trava de emergência (`hdast stop`) foi acionada durante a execução."""
+
+
 class DeadlineReached(ScopeViolation):
     """O tempo máximo da execução (`limits.max_duration_minutes`) acabou."""
 
@@ -27,7 +31,13 @@ class DeadlineReached(ScopeViolation):
 class RunGate:
     """Confere, antes de cada requisição, autorização, janela e prazo da execução."""
 
-    def __init__(self, profile: ProductProfile, clock: Clock, started_at: datetime) -> None:
+    def __init__(
+        self,
+        profile: ProductProfile,
+        clock: Clock,
+        started_at: datetime,
+        kill_switch: KillSwitch | None = None,
+    ) -> None:
         """Cria o portão.
 
         Args:
@@ -35,8 +45,10 @@ class RunGate:
             clock: Relógio injetado.
             started_at: Instante de início; o prazo é este instante mais
                 `limits.max_duration_minutes`.
+            kill_switch: Trava de emergência a consultar; `None` não consulta.
         """
         self._profile = profile
+        self._kill_switch = kill_switch
         self._clock = clock
         self._deadline = started_at + timedelta(minutes=profile.limits.max_duration_minutes)
 
@@ -44,9 +56,15 @@ class RunGate:
         """Garante que a execução ainda pode enviar requisições.
 
         Raises:
+            KillSwitchEngaged: A trava de emergência foi acionada.
             DeadlineReached: O prazo acabou.
             WindowClosed: A autorização venceu ou nenhuma janela está aberta.
         """
+        if self._kill_switch is not None and self._kill_switch.engaged():
+            raise KillSwitchEngaged(
+                "A trava de emergência (hdast stop) foi acionada.",
+                hint="Recrie a pilha com hdast stack up para voltar a enviar requisições.",
+            )
         now = self._clock.now()
         if now >= self._deadline:
             raise DeadlineReached(

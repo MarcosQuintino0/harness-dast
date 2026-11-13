@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from harness_dast.domain.scan_result import ScanProgress
+
 STATE_SCHEMA_VERSION = 1
 
 
@@ -161,6 +163,8 @@ class StopReport(BaseModel):
         zap_reachable: Se a API do ZAP respondeu.
         zap_scans_stopped: Varreduras do ZAP que estavam em andamento e foram paradas.
         zap_message: Por que o ZAP não pôde ser alcançado, quando for o caso.
+        scans_running: Varreduras do `hdast scan`/`run` que estavam andando (lidas de
+            `scan-progress.json`, atualizado há pouco) quando a trava foi acionada.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -171,3 +175,4 @@ class StopReport(BaseModel):
     zap_reachable: bool
     zap_scans_stopped: int = 0
     zap_message: str | None = None
+    scans_running: tuple[ScanProgress, ...] = ()

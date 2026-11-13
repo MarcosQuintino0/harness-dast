@@ -12,6 +12,18 @@ PILOT_PROJECT = "hdast-pilotrun"
 
 PILOT_API_PORT = 28080
 PILOT_MANAGEMENT_PORT = 29091
+PILOT_ORACLE_PORT = 21521
+"""Porta do Oracle no host (127.0.0.1), publicada só com `stack up --oracle`, para a limpeza."""
+
+PILOT_ORACLE_FILE = "compose.oracle-port.yaml"
+PILOT_ORACLE_PROFILE = "oracle"
+PILOT_ORACLE_ENV_FIXED = {
+    "PILOT_DB_URL": "jdbc:oracle:thin:@//oracle:1521/FREEPDB1",
+    "PILOT_DB_USER": "clinica",
+    "PILOT_ORACLE_CLEANUP_CONNECTION": f"127.0.0.1:{PILOT_ORACLE_PORT}/FREEPDB1",
+    "PILOT_ORACLE_CLEANUP_USER": "HDAST_LIMPEZA",
+}
+"""Variáveis sem segredo do modo Oracle: banco do piloto e destino/usuário da limpeza."""
 
 
 @dataclass(frozen=True)

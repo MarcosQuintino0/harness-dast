@@ -18,6 +18,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
     EntropySource,
+    KillSwitch,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -114,6 +115,8 @@ class Probe:
         value_sources: ValueSourceFactory,
         harness_version: str,
         token_cache: TokenCache | None = None,
+        login_budget: LoginBudget | None = None,
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -133,6 +136,8 @@ class Probe:
         self._value_sources = value_sources
         self._harness_version = harness_version
         self._token_cache = token_cache
+        self._login_budget = login_budget
+        self._kill_switch = kill_switch
 
     def execute(self, request: ProbeRequest) -> ProbeResult:
         """Executa o `probe`.
@@ -233,12 +238,12 @@ class Probe:
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._client,
-            gate=RunGate(profile, self._clock, run.started),
+            gate=RunGate(profile, self._clock, run.started, self._kill_switch),
             limiter=RateLimiter(profile.limits.requests_per_second, self._clock, self._sleeper),
             trail=trail,
             clock=self._clock,
         )
-        budget = LoginBudget(profile.login_limit, self._clock, self._sleeper)
+        budget = self._login_budget or LoginBudget(profile.login_limit, self._clock, self._sleeper)
         dispatcher = OperationDispatcher(
             sender,
             self._sleeper,

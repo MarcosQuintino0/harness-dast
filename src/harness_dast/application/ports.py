@@ -121,6 +121,14 @@ class Sleeper(Protocol):
         ...
 
 
+class KillSwitch(Protocol):
+    """Trava de emergência (`hdast stop`): uma vez acionada, nenhuma etapa envia mais nada."""
+
+    def engaged(self) -> bool:
+        """Diz se a trava foi acionada."""
+        ...
+
+
 class EntropySource(Protocol):
     """Aleatoriedade da execução (sufixo do identificador e semente dos geradores)."""
 

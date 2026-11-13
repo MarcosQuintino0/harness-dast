@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `cleanup`, `stack` e `stop` existem hoje. Todos os outros são desenho aprovado e **não funcionam**.
+`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -13,16 +13,56 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
-| `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra um ZAP falso, não contra o ZAP real ([roadmap](../roadmap.md)) |
-| `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra um ZAP falso, não contra o ZAP real. Referência: [scan.md](scan.md) |
+| `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
+| `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json` e `report.md`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`, `--confirm TOKEN` |
-| `hdast run` | Encadeia preflight, probe, scan e report sem interação | Sim | Planejado (M5) |
+| `hdast run <produto>` | Encadeia preflight, probe, scan e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
+
+## `hdast run`
+
+```bash
+uv run hdast --json run meu-produto
+uv run hdast run meu-produto --skip-scan --seed 7              # só preflight + probe (laço das regras de dados)
+uv run hdast run meu-produto --fail-on high --compare <run_id>  # gate de severidade e comparação
+uv run hdast run meu-produto --max-minutes 20
+```
+
+Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan` e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
+
+| Flag | Efeito |
+| --- | --- |
+| `--seed N` | Semente dos geradores do `probe` |
+| `--skip-scan` | Para depois do `probe`; `scan` e `report` ficam `skipped` |
+| `--fail-on {none,low,medium,high}` | Limiar do `report` (sobrepõe `scan.fail_on`); achado no limiar ou acima sai com `1` |
+| `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
+| `--max-minutes N` | Reduz o prazo da varredura (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
+| `--products-dir` | Pasta de produtos |
+
+Nunca roda `hdast cleanup`: a saída final mostra o comando exato (`hdast cleanup <produto> --run <run_id> --dry-run`), quando o perfil tem `cleanup`, para uma pessoa rodar e confirmar.
+
+`Ctrl+C` e `hdast stop` (em outro terminal) encerram sem exceção: a varredura em curso é parada em até 2 s, as regras do Replacer são removidas, os artefatos parciais e o `run.json` são gravados e a saída é `130` (`status: interrupted`; com `hdast stop`, também `stop_requested: true`).
+
+### `run.json` (e `data` do envelope)
+
+Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data` do envelope é o mesmo conteúdo, com `ok: true` (saídas `0` e `1`) ou `ok: false` e `error` (demais).
+
+| Campo | Descrição |
+| --- | --- |
+| `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
+| `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
+| `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
+| `options` | `seed`, `skip_scan`, `fail_on`, `compare`, `max_minutes` efetivos |
+| `stages` | Sempre os quatro, em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
+| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`...) |
+| `findings_by_severity` | Achados por severidade proposta (só se o `report` rodou) |
+| `stop_requested` | A trava de emergência estava acionada |
+| `cleanup_command` | Comando de limpeza a rodar por uma pessoa, ou `null` |
 
 ## Uso
 
@@ -44,7 +84,7 @@ uv run hdast --json stop                                                # trava 
 uv run hdast --json stack down
 ```
 
-`stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
+`stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 
@@ -61,7 +101,7 @@ uv run hdast --json stack down
 | `target_urls` | mapa | `api` e `management` do alvo piloto |
 | `warnings` | lista de textos | Avisos |
 
-`stop` cria o arquivo `KILL` na pasta da política (a da pilha gerenciada, ou `HDAST_SCOPE_POLICY_DIR`) **antes** de falar com o ZAP e depois pede ao ZAP `ascan/stopAllScans`; ZAP inacessível não é erro (`zap_reachable: false`). `data`: `kill_file`, `kill_created`, `stack_managed`, `zap_reachable`, `zap_scans_stopped`, `zap_message`. O proxy nega todo pedido novo e a trava só se desfaz recriando a pilha (`stack up`). Sem pilha e sem `HDAST_SCOPE_POLICY_DIR`, sai com `2`. `stop` não derruba contêineres: use `stack down`.
+`stop` lê os `scan-progress.json` com `status: running` atualizados há até 120 s (`data.scans_running`: execução, operação, posição e percentual do que estava rodando), cria o arquivo `KILL` na pasta da política (a da pilha gerenciada, ou `HDAST_SCOPE_POLICY_DIR`) **antes** de falar com o ZAP e depois pede ao ZAP `ascan/stopAllScans`; ZAP inacessível não é erro (`zap_reachable: false`). `data`: `kill_file`, `kill_created`, `stack_managed`, `zap_reachable`, `zap_scans_stopped`, `zap_message`. O proxy nega todo pedido novo e a trava só se desfaz recriando a pilha (`stack up`). Sem pilha e sem `HDAST_SCOPE_POLICY_DIR`, sai com `2`. `stop` não derruba contêineres: use `stack down`.
 
 Como os comandos seguintes obtêm a chave, a URL do ZAP, o proxy de login e as senhas do alvo: do ambiente `HDAST_*` quando definido; senão do `stack.json` em `HDAST_STATE_DIR` (veja [env-vars.md](env-vars.md)).
 

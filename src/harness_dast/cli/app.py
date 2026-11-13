@@ -20,6 +20,7 @@ from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
+from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
@@ -69,6 +70,7 @@ def build_app() -> typer.Typer:
     app.command("probe")(probe_command)
     app.command("scan")(scan_command)
     app.command("report")(report_command)
+    app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
     app.command("stop")(stop_command)
@@ -133,8 +135,9 @@ def _dispatch(app: typer.Typer, argv: list[str], state: CliState) -> int:
     result = app(args=argv, standalone_mode=False, obj=state)
     # Fora do modo standalone o click NÃO propaga KeyboardInterrupt: ele o captura e
     # devolve 130 como valor de retorno. Sem este teste a interrupção viraria sucesso (0).
-    if result == ExitCode.INTERRUPTED:
+    if result == ExitCode.INTERRUPTED and not state.result_emitted:
         raise UserInterrupt("Execução interrompida pela pessoa usuária.")
+    # `hdast run` encerra com 130 de propósito (Ctrl+C ou `hdast stop`) e já emitiu o envelope.
     # Um comando que termina com resultado e erro (preflight não pronto, probe interrompido)
     # devolve o próprio código de saída; os demais devolvem `None`.
     return int(result) if isinstance(result, int) else int(ExitCode.OK)

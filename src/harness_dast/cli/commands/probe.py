@@ -6,32 +6,11 @@ from typing import Annotated
 import typer
 
 from harness_dast.application.probe import ProbeRequest
+from harness_dast.application.stage_errors import probe_stop_error
 from harness_dast.cli.composition import build_probe, open_network
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
-from harness_dast.domain.errors import (
-    ExitCode,
-    ExternalToolError,
-    HarnessError,
-    ScopeViolation,
-    TargetError,
-)
+from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.probe_result import ProbeResult
-
-
-def stop_error(result: ProbeResult) -> HarnessError | None:
-    """Traduz a parada antecipada do `probe` no erro (e código de saída) correspondente.
-
-    Janela fechada e prazo esgotado são escopo (3); falha do proxy do ZAP é ferramenta
-    externa (5); alvo sem resposta é alvo (6). `completed` não é erro.
-    """
-    message = result.stop_message or "O probe parou antes do fim."
-    if result.status in {"stopped_window", "stopped_deadline"}:
-        return ScopeViolation(message, hint="O resultado parcial está em data e em probe.json.")
-    if result.status == "stopped_zap":
-        return ExternalToolError(message, hint="Confira o ZAP e rode o probe de novo.")
-    if result.status == "stopped_target_unresponsive":
-        return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o probe.")
-    return None
 
 
 def _percent(value: float | None) -> str:
@@ -110,7 +89,7 @@ def probe_command(
         network.close()
     run_id = None if result.dry_run else result.run_id
     data = result.model_dump(mode="json")
-    error = stop_error(result)
+    error = probe_stop_error(result)
     if error is None:
         emit(build_success(data, run_id), json_mode=state.json_mode, human=_render(result))
         return int(ExitCode.OK)

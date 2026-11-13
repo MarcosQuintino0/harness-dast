@@ -49,6 +49,8 @@ class CliState:
 
     json_mode: bool = False
     secrets: SecretRegistry = field(default_factory=SecretRegistry)
+    result_emitted: bool = False
+    """O comando já escreveu o envelope do próprio desfecho (inclusive 130 deliberado)."""
 
 
 def get_state(ctx: typer.Context) -> CliState:

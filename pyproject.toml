@@ -108,6 +108,8 @@ markers = [
     "integration: adaptador contra a dependência real (ZAP, servidor HTTP); exige Docker",
     "contract: envelope JSON, códigos de saída e contratos de portas",
     "e2e: hdast run contra o lab; exige Docker",
+    "lab_fast: nivel RAPIDO da integracao (poucos endpoints, pilha reaproveitada); exige Docker",
+    "lab_full: nivel COMPLETO da integracao (todos os endpoints, politica padrao); exige Docker",
 ]
 # O -m padrão deixa de fora o que exige Docker. Passar -m na linha de comando
 # substitui este valor (ex.: pytest -m integration).

@@ -22,6 +22,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
     EntropySource,
+    KillSwitch,
     ProfileRepository,
     RunStore,
     SecretProvider,
@@ -78,6 +79,8 @@ class Preflight:
         entropy: EntropySource,
         harness_version: str,
         token_cache: TokenCache | None = None,
+        login_budget: LoginBudget | None = None,
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
@@ -95,6 +98,8 @@ class Preflight:
         self._entropy = entropy
         self._harness_version = harness_version
         self._token_cache = token_cache
+        self._login_budget = login_budget
+        self._kill_switch = kill_switch
 
     def execute(self, product: str) -> PreflightReport:
         """Roda as verificações.
@@ -169,7 +174,7 @@ class Preflight:
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._client,
-            gate=RunGate(profile, self._clock, started),
+            gate=RunGate(profile, self._clock, started, self._kill_switch),
             limiter=RateLimiter(profile.limits.requests_per_second, self._clock, self._sleeper),
             trail=AuditTrail(self._store, run_id.value, self._clock),
             clock=self._clock,
@@ -178,7 +183,8 @@ class Preflight:
             sender,
             self._sleeper,
             profile.auth.csrf,
-            login_budget=LoginBudget(profile.login_limit, self._clock, self._sleeper),
+            login_budget=self._login_budget
+            or LoginBudget(profile.login_limit, self._clock, self._sleeper),
             login_path=profile.login_path,
             token_expired=profile.token_expired_signal,
             error_codes=profile.probe.error_codes,

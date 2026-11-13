@@ -44,9 +44,14 @@ def _render_stop(report: StopReport) -> str:
         if report.zap_reachable
         else f"ZAP inacessível ({report.zap_message}); só a trava do proxy foi acionada"
     )
+    running = "".join(
+        f"\n  parou: {item.operation_id or '-'} ({item.index}/{item.total}, {item.progress}%), "
+        f"execução {item.run_id}"
+        for item in report.scans_running
+    )
     return (
         f"Trava de emergência acionada: {report.kill_file} ({created}). {zap}.\n"
-        "O proxy nega todo pedido novo até ser recriado (hdast stack up)."
+        "O proxy nega todo pedido novo até ser recriado (hdast stack up)." + running
     )
 
 
@@ -67,6 +72,14 @@ def up_command(
     ] = None,
     build: Annotated[
         bool, typer.Option("--build", help="Reconstrói as imagens locais antes de subir.")
+    ] = False,
+    oracle: Annotated[
+        bool,
+        typer.Option(
+            "--oracle",
+            help="Clínica Piloto com Oracle Free (porta do banco em 127.0.0.1:21521) para a "
+            "limpeza; leva cerca de 80 s a mais.",
+        ),
     ] = False,
     timeout: Annotated[
         int,
@@ -90,6 +103,7 @@ def up_command(
         token_ttl_seconds=token_ttl,
         build=build,
         timeout_seconds=timeout,
+        oracle=oracle,
     )
     report = build_stack_manager(products_dir).up(request)
     state = get_state(ctx)
