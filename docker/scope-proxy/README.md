@@ -87,7 +87,8 @@ mensagem `RECUSANDO INICIAR` no log). Não existe política padrão e nunca há 
 | `run_id` | Formato de `RunId` (`AAAA-MM-DDTHH-MM-SSZ-<produto>-<hex>`). Vai em toda linha de auditoria. |
 | `scope` | **Mesmo formato do `scope` do perfil**: `allow` (host exato sem curinga, `scheme`, `port`, `paths`, `methods`, `allow_local`) e `deny_paths`. Validado pelos modelos do domínio. |
 | `limits` | Os `limits` do perfil. O proxy usa `requests_per_second` (teto 50) e `max_duration_minutes` (teto 480). |
-| `not_after` | Texto ISO 8601 **com fuso**. Depois dele tudo é negado. O prazo efetivo é o menor entre `not_after` e (início do proxy + `max_duration_minutes`). |
+| `not_after` | Texto ISO 8601 **com fuso**. Depois dele tudo é negado. É a validade da pilha, não o prazo de uma varredura. O prazo efetivo é o menor entre `not_after` e (início do proxy + `stack_minutes`). |
+| `stack_minutes` | Opcional, 1 a 540. Validade da pilha em minutos desde a partida do proxy. Ausente, vale `max_duration_minutes` (política escrita à mão mantém a cerca antiga). A CLI grava a duração máxima do perfil mais 60 minutos de folga; o prazo de cada execução (`limits.max_duration_minutes`) é imposto pela CLI, contado do início dela. |
 | `tls_verify_upstream` | Padrão `true`: o certificado do destino é verificado. `false` só é aceito se **toda** regra tiver `allow_local: true`. |
 | `max_queued_requests` | 1 a 1000 (padrão 100): quantos pedidos podem esperar pela taxa. |
 
@@ -98,7 +99,7 @@ contêiner (e isso zera a fila, a taxa e o prazo de duração).
 **Geração:** `hdast stack up <produto>` gera este arquivo por execução (`adapters/scope_proxy/generate.py`) a partir de `scope` e
 `limits` do perfil, numa pasta por execução (`<HDAST_STATE_DIR>/stacks/<run_id>/policy`, passada ao compose como
 `HDAST_SCOPE_POLICY_DIR`). O escopo e os limites são **iguais** aos do perfil, nunca mais largos; `not_after` é o menor entre a
-duração máxima, o fim da autorização e o fechamento da janela; `tls_verify_upstream` só é `false` quando o perfil desliga a
+duração máxima mais a folga do ajuste do `probe`, o fim da autorização e o fechamento da janela; `tls_verify_upstream` só é `false` quando o perfil desliga a
 verificação E toda regra é local. A CLI relê o arquivo com o validador abaixo antes de gravar. Quem opera o lab à mão ainda pode
 escrever o arquivo.
 

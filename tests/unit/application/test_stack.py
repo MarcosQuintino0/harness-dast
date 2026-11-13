@@ -7,6 +7,7 @@ from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
 from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.scan_result import ScanProgress
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
@@ -292,3 +293,15 @@ def test_stop_sem_pilha_usa_a_pasta_informada_ou_falha_com_orientacao(tmp_path: 
     assert (folder / "KILL").exists()
     with pytest.raises(ConfigError, match="política"):
         rig.manager.stop(FakeStopper(), None)
+
+
+def test_up_da_validade_a_pilha_com_folga_sobre_a_duracao_da_execucao(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    profile = rig.profiles.load("demo")
+
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    _, not_after, _ = rig.policies.published[0]
+    started = ManualClock().now()
+    assert not_after > started + timedelta(minutes=profile.limits.max_duration_minutes)
+    assert not_after <= started + timedelta(minutes=stack_validity_minutes(profile))
