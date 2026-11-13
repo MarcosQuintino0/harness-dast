@@ -124,6 +124,23 @@ A consistência entre `base_url` e o escopo é conferida ao montar o perfil. O c
 
 #### Quais hosts exigem `allow_local: true`
 
+O erro mais comum de quem começa: o alvo do laboratório tem nome de contêiner Docker sem ponto (`clinica-piloto`, `vampi`), e isso conta como host **local**. A mensagem do perfil diz `scope.allow[0]: este host conta como local e exige allow_local: true nesta regra`. A correção, no laboratório:
+
+```yaml
+environment:
+  base_url: http://vampi:5000
+scope:
+  allow:
+    - host: vampi
+      scheme: http          # o alvo do laboratório não tem TLS
+      port: 5000
+      allow_local: true     # obrigatório para nome sem ponto, localhost e IP
+      paths: ["/**"]
+      methods: [GET, POST]
+```
+
+Em um ambiente real de teste, o oposto: use o nome DNS completo (`meu-produto.hml.exemplo.com.br`, com ponto) e **não** escreva `allow_local`. A regra não muda; só a mensagem e a dica ficaram mais claras.
+
 `allow_local` existe para o laboratório local, onde o alvo roda em contêiner Docker. Esses hosts são o caminho clássico de SSRF (requisição forjada do lado do servidor, usada para alcançar a rede interna), por isso são recusados a menos que a regra os declare.
 
 Exigem `allow_local: true`:
@@ -332,12 +349,14 @@ auth:
 | Campo | Tipo | Regra |
 | --- | --- | --- |
 | `success.json_field_absent_or_not_equal` | `{field, value}` | Sucesso além do código HTTP: uma resposta 2xx só conta como sucesso se o campo (caminho pontuado, `status` ou `data.result`) estiver ausente OU tiver valor diferente do de FALHA informado em `value` (texto, inteiro ou booleano; o tipo importa: `1` não é `true`). Sem o bloco, vale 2xx. Existe porque há alvos que respondem 200 com `{"status":"fail"}` (spike do M0) |
-| `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow`. O `preflight` chama este GET **antes** dos logins: se a carta autoriza um GET idempotente que recria os dados de exemplo do ambiente (as contas de teste incluídas), aponte `health_path` para ele, porque nenhum outro comando chama o alvo antes de logar |
+| `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow`. A varredura também o usa como GET de saúde entre as varreduras |
+| `setup_path` | texto | Caminho literal de um GET **idempotente** que prepara os dados do alvo antes dos logins (por exemplo, recria as contas de exemplo de um ambiente recém-subido). O `preflight` o chama uma vez, depois do `target_health` e antes dos logins; o `run` herda, porque começa pelo `preflight`. Passa pelo mesmo `ScopeGuard`, pelo limitador de taxa e pela auditoria dos outros envios, e precisa estar em `scope.allow` (método `GET`, fora de `deny_paths`). Só use se a carta de autorização permitir esse GET; ausente, nada é chamado. `probe` sozinho não o chama (rode o `preflight` antes). Resposta 4xx ou 5xx reprova a verificação `target_setup`. Antes existia só o truque de apontar `health_path` para esse GET; ele continua funcionando, mas `setup_path` é o jeito explícito |
 | `error_codes` | `{field, outcomes}` | Classificação exata pelo código de erro do corpo JSON (veja abaixo). Sem ele, a classificação usa só o status HTTP |
 
 ```yaml
 probe:
   health_path: /api/saude
+  setup_path: /api/dados-de-exemplo   # opcional: GET idempotente que prepara o alvo antes dos logins
   success:
     json_field_absent_or_not_equal: { field: status, value: fail }
 ```
