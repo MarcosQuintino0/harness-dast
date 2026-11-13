@@ -12,7 +12,6 @@ from harness_dast.adapters.reporting.sinks import (
     JsonFindingsSink,
     MarkdownReportSink,
 )
-from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
@@ -34,8 +33,8 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
+from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
-    layered_environ,
     load_effective_settings,
     open_kill_switch,
     open_proxy_audit,
@@ -92,7 +91,7 @@ def build_scan(
         profiles=FileProfileRepository(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         client=net.network.client,
         zap=net.network.zap,

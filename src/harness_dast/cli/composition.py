@@ -18,7 +18,6 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
-from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.product_scaffolder import (
@@ -36,12 +35,13 @@ from harness_dast.application.doctor import Doctor
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import KillSwitch, OperatorPrompt
+from harness_dast.application.ports import KillSwitch, OperatorPrompt, SecretPrompt
 from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
+from harness_dast.application.secret_admin import SecretAdmin
 from harness_dast.application.validate_profile import ValidateProfile
+from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
-    layered_environ,
     load_effective_settings,
     open_kill_switch,
     open_state_store,
@@ -178,7 +178,7 @@ def build_preflight(
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Preflight(
         profiles=FileProfileRepository(root),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
         zap=network.zap,
@@ -206,7 +206,7 @@ def build_probe(
         profiles=FileProfileRepository(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
         zap=network.zap,
@@ -233,12 +233,24 @@ def build_cleanup(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),
         runs=FileCleanupRuns(load_settings().runs_dir),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         executor=OracleCleanupExecutor(),
         prompt=prompt,
         tokens=SecretsTokenSource(),
         clock=SystemClock(),
+    )
+
+
+def build_secret_admin(
+    products_dir: Path | None, secrets: SecretRegistry, prompt: SecretPrompt
+) -> SecretAdmin:
+    """Monta o caso de uso `hdast secret` (sem rede: só o perfil e o cofre do sistema)."""
+    return SecretAdmin(
+        profiles=FileProfileRepository(products_dir_or_default(products_dir)),
+        store=build_credential_store(),
+        prompt=prompt,
+        vault=secrets,
     )
 
 
@@ -255,7 +267,7 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
         host=SystemHost(os.environ),
         profiles=profiles,
         validator=ValidateProfile(profiles, clock),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         states=open_state_store(),
         clock=clock,

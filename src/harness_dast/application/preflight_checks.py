@@ -9,7 +9,7 @@ from datetime import datetime
 
 from harness_dast.application.ports import SecretProvider, SecretVault
 from harness_dast.application.preflight_report import CheckKind, PreflightCheck
-from harness_dast.domain.errors import HarnessError, ScopeViolation
+from harness_dast.domain.errors import HarnessError, ScopeViolation, SecretBackendError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.window import ensure_any_window_open
@@ -84,21 +84,33 @@ def secret_presence_check(
     só vai em `operator_detail`, que não entra no JSON. Os valores lidos são registrados no
     `vault` para mascaramento.
     """
-    resolved = [(name, ref, secrets.resolve(ref)) for name, ref in fields]
+    check_id = f"secrets:{alias}"
+    try:
+        resolved = [(name, ref, secrets.resolve(ref)) for name, ref in fields]
+    except SecretBackendError as error:
+        return failure_check(check_id, error)
     for _, _, value in resolved:
         if value:
             vault.register(value)
     missing = [(name, ref) for name, ref, value in resolved if not value]
-    check_id = f"secrets:{alias}"
     if not missing:
         return PreflightCheck(
             id=check_id, ok=True, detail="Todos os segredos da conta estão definidos."
         )
     names = ", ".join(f"{alias}.{name}" for name, _ in missing)
-    variables = ", ".join(ref.env_name for _, ref in missing)
+    steps = [_how_to_define(ref) for _, ref in missing]
     return PreflightCheck(
         id=check_id,
         ok=False,
-        detail=f"Segredo ausente ou vazio: {names}. Defina a variável indicada em secret_ref.",
-        operator_detail=f"Variáveis de ambiente a definir: {variables}.",
+        detail=(
+            f"Segredo ausente ou vazio: {names}. Defina o que o secret_ref indica: variável de "
+            "ambiente (env:) ou cofre (keyring:, gravado pela pessoa com hdast secret set)."
+        ),
+        operator_detail=" ".join(steps),
     )
+
+
+def _how_to_define(ref: SecretRef) -> str:
+    if ref.kind == "keyring":
+        return f"Cofre: rode, num terminal, `hdast secret set {ref.name}` (pede o valor oculto)."
+    return f"Variável de ambiente a definir: {ref.name}."

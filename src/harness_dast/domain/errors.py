@@ -95,6 +95,16 @@ class PreflightError(HarnessError):
     exit_code = ExitCode.PREFLIGHT
 
 
+class SecretBackendError(HarnessError):
+    """O cofre de credenciais do sistema não está utilizável (ADR 0030).
+
+    Nunca cai em silêncio para outro lugar (variável de ambiente, arquivo).
+    """
+
+    code = "SECRET_BACKEND_ERROR"
+    exit_code = ExitCode.PREFLIGHT
+
+
 class ExternalToolError(HarnessError):
     """Ferramenta externa (por exemplo o ZAP) indisponível ou com resposta inválida."""
 

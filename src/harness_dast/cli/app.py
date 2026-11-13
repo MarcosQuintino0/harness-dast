@@ -24,6 +24,7 @@ from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
+from harness_dast.cli.commands.secret import build_secret_app
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.version import version_command
@@ -77,6 +78,7 @@ def build_app() -> typer.Typer:
     app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
+    app.add_typer(build_secret_app(), name="secret")
     app.command("stop")(stop_command)
     return app
 
