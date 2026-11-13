@@ -1,0 +1,98 @@
+# Clinica Piloto: alvo de treino local do harness-dast. SOFTWARE INTENCIONALMENTE VULNERAVEL.
+# Só para localhost. As portas são publicadas SOMENTE em 127.0.0.1.
+#
+# Subir (H2 em modo Oracle, sobe em segundos):
+#   cp .env.example .env   # e trocar todos os CHANGE_ME
+#   docker compose --env-file .env up -d --build --wait
+# Parar: docker compose --env-file .env down
+# Perfil Oracle: veja README.md ("Oracle").
+# Ligar à rede interna do lab principal: veja compose.lab-net.yaml.
+#
+# Mesmo estilo de endurecimento do compose.yaml da raiz: não-root, cap_drop ALL,
+# no-new-privileges, rootfs somente leitura + tmpfs, restart "no", healthcheck, limite de memória.
+
+name: hdast-pilot
+
+services:
+  pilot:
+    image: hdast-clinica-piloto:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "10001:10001"
+    environment:
+      # Sem valor padrão de propósito: falha com mensagem clara se faltar (senhas nunca ficam no repositório).
+      PILOT_ADMIN_USERNAME: "${PILOT_ADMIN_USERNAME:?Defina PILOT_ADMIN_USERNAME (copie .env.example para .env)}"
+      PILOT_ADMIN_PASSWORD: "${PILOT_ADMIN_PASSWORD:?Defina PILOT_ADMIN_PASSWORD (copie .env.example para .env)}"
+      PILOT_MEDICO_USERNAME: "${PILOT_MEDICO_USERNAME:?Defina PILOT_MEDICO_USERNAME (copie .env.example para .env)}"
+      PILOT_MEDICO_PASSWORD: "${PILOT_MEDICO_PASSWORD:?Defina PILOT_MEDICO_PASSWORD (copie .env.example para .env)}"
+      PILOT_PACIENTE_A_USERNAME: "${PILOT_PACIENTE_A_USERNAME:?Defina PILOT_PACIENTE_A_USERNAME (copie .env.example para .env)}"
+      PILOT_PACIENTE_A_PASSWORD: "${PILOT_PACIENTE_A_PASSWORD:?Defina PILOT_PACIENTE_A_PASSWORD (copie .env.example para .env)}"
+      PILOT_PACIENTE_B_USERNAME: "${PILOT_PACIENTE_B_USERNAME:?Defina PILOT_PACIENTE_B_USERNAME (copie .env.example para .env)}"
+      PILOT_PACIENTE_B_PASSWORD: "${PILOT_PACIENTE_B_PASSWORD:?Defina PILOT_PACIENTE_B_PASSWORD (copie .env.example para .env)}"
+      PILOT_VULNERABLE: "${PILOT_VULNERABLE:-1}"
+      PILOT_JWT_TTL_SECONDS: "${PILOT_JWT_TTL_SECONDS:-300}"
+      PILOT_LOGIN_MAX_PER_MINUTE: "${PILOT_LOGIN_MAX_PER_MINUTE:-5}"
+      PILOT_XSRF_ENFORCED: "${PILOT_XSRF_ENFORCED:-1}"
+      # Banco: H2 em memória (modo Oracle) por padrão. Com o perfil oracle, o README manda trocar estas três.
+      PILOT_DB_URL: "${PILOT_DB_URL:-jdbc:h2:mem:clinica;MODE=Oracle;DATABASE_TO_LOWER=FALSE;DB_CLOSE_DELAY=-1}"
+      PILOT_DB_USER: "${PILOT_DB_USER:-clinica}"
+      PILOT_DB_PASSWORD: "${PILOT_DB_PASSWORD:-}"
+    ports:
+      # Somente loopback do host, para inspeção manual e para o runner de avaliação ler o estado.
+      - "127.0.0.1:${PILOT_HOST_PORT:-18080}:8080"        # API (e /v3/api-docs)
+      - "127.0.0.1:${PILOT_MGMT_HOST_PORT:-19091}:9091"   # /internal/eval/* (fora do OpenAPI e do escopo da ferramenta)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/saude"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 15s
+    networks:
+      pilot_net:
+        aliases:
+          - clinica-piloto
+    depends_on:
+      oracle:
+        condition: service_healthy
+        required: false      # só espera o Oracle quando o perfil "oracle" está ativo
+    # --- endurecimento
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=0700,size=128m
+    mem_limit: 768m
+    pids_limit: 256
+
+  # Opcional (perfil "oracle"): Oracle Database Free. Sem porta publicada: só o "pilot" o alcança.
+  oracle:
+    profiles: ["oracle"]
+    # Fonte: https://hub.docker.com/r/gvenzl/oracle-free (imagem comunitária mantida; Oracle Database Free 23ai)
+    # Alternativa oficial: container-registry.oracle.com/database/free (bem maior). Digest do índice, lido no pull.
+    image: gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093
+    environment:
+      ORACLE_PASSWORD: "${PILOT_ORACLE_PASSWORD:?Defina PILOT_ORACLE_PASSWORD (copie .env.example para .env)}"
+      APP_USER: clinica
+      APP_USER_PASSWORD: "${PILOT_ORACLE_PASSWORD:?Defina PILOT_ORACLE_PASSWORD (copie .env.example para .env)}"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - pilot_net
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    # Sem read_only: o Oracle grava arquivos de dados, controle e redo no sistema de arquivos do contêiner
+    # (descartados no "down"). Única exceção ao endurecimento acima.
+    mem_limit: 2g
+    pids_limit: 1024
+
+# Rede do alvo. É uma rede bridge comum para poder publicar as portas em 127.0.0.1.
+# Para conviver com o lab principal, veja compose.lab-net.yaml (junta o serviço à rede interna do lab).
+networks:
+  pilot_net: {}

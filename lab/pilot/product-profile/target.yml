@@ -1,0 +1,69 @@
+# Perfil de produto da Clinica Piloto (alvo de treino LOCAL do harness-dast).
+# Segue products/_template/target.yml e docs/reference/target-yml.md (schema v1).
+# Nao ha XSRF, expiracao de token nem criterio de sucesso no schema atual: veja NOTES.md.
+# Valores de autorizacao sao do laboratorio local, nao de um ambiente de empresa.
+schema_version: 1
+product: clinica-piloto
+
+environment:
+  name: lab
+  # Nome DNS do servico dentro da rede interna do lab (apelido definido em lab/pilot/compose.lab-net.yaml).
+  base_url: http://clinica-piloto:8080
+
+openapi: ./openapi.json
+
+scope:
+  allow:
+    - host: clinica-piloto
+      scheme: http
+      port: 8080
+      allow_local: true          # nome de rotulo unico = host local (docs/reference/target-yml.md)
+      paths: ["/api/**", "/v3/api-docs"]
+      methods: [GET, POST, PUT, PATCH]   # DELETE fica de fora de proposito (sem autorizacao para apagar)
+  deny_paths:
+    - "/api/notificacoes/**"     # simula envio de SMS/e-mail: nunca deve ser chamado por um teste bem configurado
+  authorization:
+    reference: "LAB-CLINICA-PILOTO"
+    valid_until: 2027-12-31
+  windows:
+    - "seg-dom 00:00-24:00 America/Sao_Paulo"
+
+limits:
+  requests_per_second: 5
+  max_duration_minutes: 30
+  zap_threads_per_host: 2
+
+auth:
+  type: login_password
+  token_path: /api/auth/login
+  request_encoding: json
+  username_field: username
+  password_field: password
+  token_response_field: access_token
+  token_header: Authorization
+  token_scheme: Bearer
+  accounts:
+    # Os nomes das variaveis sao os mesmos de lab/pilot/.env.example.
+    - alias: admin_a
+      role: admin
+      username: { secret_ref: "env:PILOT_ADMIN_USERNAME" }
+      password: { secret_ref: "env:PILOT_ADMIN_PASSWORD" }
+    - alias: medico_a
+      role: medico
+      username: { secret_ref: "env:PILOT_MEDICO_USERNAME" }
+      password: { secret_ref: "env:PILOT_MEDICO_PASSWORD" }
+    - alias: paciente_a
+      role: paciente
+      username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }
+      password: { secret_ref: "env:PILOT_PACIENTE_A_PASSWORD" }
+    - alias: paciente_b
+      role: paciente
+      username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
+      password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
+
+cleanup:
+  type: oracle_sql
+  script: ./cleanup/cleanup.sql
+  # Conexao Oracle de um usuario so com DELETE nas tabelas de teste (veja README, secao Oracle).
+  connection: { secret_ref: "env:PILOT_ORACLE_CLEANUP_CONNECTION" }
+  requires_confirmation: true

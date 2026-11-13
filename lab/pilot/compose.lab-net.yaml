@@ -1,0 +1,25 @@
+# Junta a Clinica Piloto à rede INTERNA do lab principal (compose.yaml da raiz, projeto "hdast").
+# Nessa rede só o egress-proxy a alcança, e é por ele que o ZAP chega ao alvo: http://clinica-piloto:8080
+#
+# A rede esperada é a que o compose da raiz cria: projeto "hdast" + rede "lab_net" = "hdast_lab_net".
+# Suba o lab da raiz ANTES (para a rede existir). Se o nome do projeto raiz mudar, ajuste "name" abaixo.
+#
+#   docker compose --env-file .env -f compose.yaml -f compose.lab-net.yaml up -d --wait
+#
+# Efeito: o serviço "pilot" fica em duas redes: pilot_net (portas em 127.0.0.1) e hdast_lab_net (interna,
+# com o apelido DNS "clinica-piloto"). Falta ainda liberar "clinica-piloto:8080" na lista do egress-proxy
+# (docker/egress-proxy/policy), o que cabe ao orquestrador, não a este arquivo.
+services:
+  pilot:
+    networks:
+      pilot_net:
+        aliases:
+          - clinica-piloto
+      lab_net:
+        aliases:
+          - clinica-piloto
+
+networks:
+  lab_net:
+    external: true
+    name: hdast_lab_net

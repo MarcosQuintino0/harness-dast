@@ -1,0 +1,35 @@
+# Regras de dados da Clinica Piloto (schema v1, docs/reference/data-rules-yml.md). Dados sinteticos.
+schema_version: 1
+rules:
+  - match: { field: cpf }
+    generator: br.cpf
+    unique: true
+  - match: { field: email }
+    generator: email
+    args: { domain: "teste.exemplo.com.br" }
+    unique: true
+  - match: { operation: criarConvenio, field: codigo }
+    generator: numeric
+    args: { digits: 8 }
+    unique: true
+  # Nascimento precisa estar no passado (o valor implicito de "date" seria hoje).
+  - match: { field: dataNascimento }
+    generator: date
+    args: { min_offset_days: -20000, max_offset_days: -7000 }
+  # Consulta precisa estar no futuro.
+  - match: { field: dataHora }
+    generator: datetime
+    args: { min_offset_days: 30, max_offset_days: 365 }
+  - match: { operation: criarConsulta, field: valor }
+    generator: number
+    args: { min: 50, max: 500, decimals: 2 }
+  # Ids de semente (constantes) para o que o schema de encadeamento da V1 nao alcanca (veja NOTES.md).
+  - match: { operation: criarConsulta, field: pacienteId }
+    generator: constant
+    args: { value: 1 }
+  - match: { operation: criarConsulta, field: medicoId }
+    generator: constant
+    args: { value: 1 }
+  - match: { operation: criarReceita, field: consultaId }
+    generator: constant
+    args: { value: 1 }

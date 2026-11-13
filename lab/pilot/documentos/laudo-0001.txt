@@ -1,0 +1,2 @@
+Laudo FICTICIO 0001
+Paciente Exemplo A. Exame de rotina sem alteracoes. Documento de treino, sem valor clinico.

@@ -1,0 +1,13 @@
+# Encadeamento da Clinica Piloto (schema v1, limite de UM nivel: docs/reference/flows-yml.md).
+# O fluxo real e convenio -> paciente -> consulta -> receita (3 niveis): a V1 so expressa o primeiro elo
+# de cada vez. Veja NOTES.md.
+schema_version: 1
+bindings:
+  - produces: { operation: criarConvenio, field: id }
+    consumed_by:
+      - { operation: criarPaciente, field: convenioId }
+      - { operation: buscarConvenio, param: id }
+      - { operation: atualizarConvenio, param: id }
+  - produces: { operation: criarMedico, field: id }
+    consumed_by:
+      - { operation: buscarMedico, param: id }
