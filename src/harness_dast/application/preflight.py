@@ -33,10 +33,11 @@ from harness_dast.application.ports import (
     ZapControl,
 )
 from harness_dast.application.preflight_checks import (
+    authorization_window_checks,
     failure_check,
     not_run_checks,
     run_step,
-    scope_check,
+    secret_presence_check,
 )
 from harness_dast.application.preflight_report import PreflightCheck, PreflightReport
 from harness_dast.application.run_support import (
@@ -51,7 +52,6 @@ from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_encoding import build_get_request
 from harness_dast.domain.run import RunId
-from harness_dast.domain.window import ensure_any_window_open
 from harness_dast.domain.zap_scope import TESTED_ZAP_PREFIX
 
 HEALTH_OPERATION_ID = "preflight.health"
@@ -116,7 +116,7 @@ class Preflight:
             ConfigError: Perfil estruturalmente inválido.
         """
         profile = self._profiles.load(product)
-        scope_checks = self._scope_checks(profile)
+        scope_checks = authorization_window_checks(profile, self._clock.now())
         if not all(check.ok for check in scope_checks):
             return PreflightReport(
                 product=product, ready=False, checks=(*scope_checks, *not_run_checks())
@@ -145,19 +145,6 @@ class Preflight:
             run_id=network.run_id.value,
             zap_version=zap_version,
         )
-
-    def _scope_checks(self, profile: ProductProfile) -> tuple[PreflightCheck, ...]:
-        authorization = scope_check(
-            "authorization",
-            lambda: profile.scope.authorization.ensure_valid(self._clock.now()),
-            "A autorização formal vale agora.",
-        )
-        window = scope_check(
-            "window",
-            lambda: ensure_any_window_open(profile.scope.windows, self._clock.now()),
-            "Há uma janela de execução aberta agora.",
-        )
-        return (authorization, window)
 
     def _zap_check(self) -> tuple[PreflightCheck, str | None]:
         try:
@@ -211,25 +198,8 @@ class Preflight:
         )
 
     def _secret_check(self, session: AccountSession) -> PreflightCheck:
-        resolved = [
-            (name, ref, self._secrets.resolve(ref)) for name, ref in session.secret_fields()
-        ]
-        for _, _, value in resolved:
-            if value:
-                self._vault.register(value)
-        missing = [(name, ref) for name, ref, value in resolved if not value]
-        check_id = f"secrets:{session.alias}"
-        if not missing:
-            return PreflightCheck(
-                id=check_id, ok=True, detail="Todos os segredos da conta estão definidos."
-            )
-        fields = ", ".join(f"{session.alias}.{name}" for name, _ in missing)
-        names = ", ".join(ref.env_name for _, ref in missing)
-        return PreflightCheck(
-            id=check_id,
-            ok=False,
-            detail=f"Segredo ausente ou vazio: {fields}. Defina a variável indicada em secret_ref.",
-            operator_detail=f"Variáveis de ambiente a definir: {names}.",
+        return secret_presence_check(
+            session.alias, session.secret_fields(), self._secrets, self._vault
         )
 
     def _health_check(
