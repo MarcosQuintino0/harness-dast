@@ -28,7 +28,7 @@ class CaminhoControllerTest {
 
     private static CaminhoController controller(boolean vulnerable) {
         var props = new dev.hdast.pilot.config.PilotProperties(vulnerable, 300, 5, true, 9091, "documentos", false, null);
-        return new CaminhoController(null, null, new dev.hdast.pilot.config.Hardening(props));
+        return new CaminhoController(null, null, new dev.hdast.pilot.config.Hardening(props), null);
     }
 
     @Test

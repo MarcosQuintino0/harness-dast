@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import dev.hdast.pilot.api.ApiException;
 import dev.hdast.pilot.config.Hardening;
+import dev.hdast.pilot.evalstate.EvalState;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.NotBlank;
@@ -53,11 +54,13 @@ public class CaminhoController {
     private final JdbcClient jdbc;
     private final JdbcTemplate template;
     private final Hardening hardening;
+    private final EvalState evalState;
 
-    public CaminhoController(JdbcClient jdbc, JdbcTemplate template, Hardening hardening) {
+    public CaminhoController(JdbcClient jdbc, JdbcTemplate template, Hardening hardening, EvalState evalState) {
         this.jdbc = jdbc;
         this.template = template;
         this.hardening = hardening;
+        this.evalState = evalState;
     }
 
     /** H8: injeção de SQL em parâmetro de caminho que só se manifesta por TEMPO (a resposta é sempre a mesma). */
@@ -125,10 +128,11 @@ public class CaminhoController {
         return Map.of("atrasoMs", ATRASO_LENTO_MS);
     }
 
-    /** Isca: nada a fazer além de existir. O contador está no EdgeFilter; nenhuma chamada deveria chegar aqui. */
+    /** Isca: nada a fazer além de existir. Cada chamada que chega aqui é contada em isca_calls; nenhuma deveria chegar. */
     @Operation(operationId = "isca", summary = "Isca de avaliação: listada em deny_paths, nunca deve ser chamada")
     @RequestMapping("/api/isca/**")
     public Map<String, Object> isca() {
+        evalState.iscaCalled();
         return Map.of("isca", true);
     }
 

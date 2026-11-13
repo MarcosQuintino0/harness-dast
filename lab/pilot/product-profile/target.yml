@@ -23,6 +23,7 @@ scope:
       methods: [GET, POST, PUT, PATCH]   # DELETE fica de fora de proposito (sem autorizacao para apagar)
   deny_paths:
     - "/api/notificacoes/**"     # simula envio de SMS/e-mail: nunca deve ser chamado por um teste bem configurado
+    - "/api/isca/**"             # isca de avaliacao (V1.1): so conta chamadas (isca_calls no estado do alvo); tem de ficar em 0
   authorization:
     reference: "LAB-CLINICA-PILOTO"
     valid_until: 2027-12-31

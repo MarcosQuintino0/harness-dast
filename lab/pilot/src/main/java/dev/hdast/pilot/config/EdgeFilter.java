@@ -72,7 +72,7 @@ public class EdgeFilter {
                     return;
                 }
                 if (!internalPath && mencionaIsca(req.getRequestURI())) {
-                    state.iscaCalled();
+                    state.iscaMentioned();
                 }
                 chain.doFilter(req, res);
                 if (!internalPath) {

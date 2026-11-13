@@ -127,11 +127,12 @@ class WeaknessesVulnerableModeTest extends ApiTestBase {
     }
 
     @Test
-    void isca_contaQualquerRequisicaoQueMencioneOCaminhoDela() throws Exception {
+    void isca_separaChamadasQueChegaramDeMencoes() throws Exception {
         String token = login(ADMIN);
         assertThat(get(token, "/api/isca/x").status()).isEqualTo(200);
-        assertThat(get(null, "/api/isca/y").status()).isEqualTo(401); // sem token também conta: chegou ao alvo
-        assertThat(state.snapshot(true).get("isca_calls")).isEqualTo(2L);
+        assertThat(get(null, "/api/isca/y").status()).isEqualTo(401); // sem token: não chega ao método, só é mencionada
+        assertThat(state.snapshot(true).get("isca_calls")).isEqualTo(1L);
+        assertThat(state.snapshot(true).get("isca_mentions")).isEqualTo(2L);
     }
 
 }
