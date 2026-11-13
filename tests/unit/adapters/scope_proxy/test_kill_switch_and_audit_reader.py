@@ -54,3 +54,14 @@ def test_audit_reader_raises_config_error_on_malformed_lines(tmp_path: Path, con
 
     with pytest.raises(ConfigError, match="ilegível"):
         FileProxyAudit(path).rows()
+
+
+def test_kill_switch_counts_as_engaged_when_the_file_system_denies_access(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def denied(self: Path) -> bool:
+        raise PermissionError("acesso negado")
+
+    monkeypatch.setattr(Path, "exists", denied)
+
+    assert FileKillSwitch(tmp_path).engaged() is True

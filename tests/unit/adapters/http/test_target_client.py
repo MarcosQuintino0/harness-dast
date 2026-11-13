@@ -310,3 +310,18 @@ def test_tls_is_verified_by_default_and_can_be_relaxed_only_by_setting(
         assert relaxed.send(https_request(server.base_url)).body == b"seguro"
         pinned = make_client(zap_ca_file=Path(certificate[0]), proxy=server.base_url)
         assert pinned._zap is not pinned._auth
+
+
+def test_a_session_cookie_is_never_sent_to_another_origin_of_the_same_account() -> None:
+    def setter(r: Received) -> Reply:
+        return Reply(200, b"", [("Set-Cookie", "SESSION=segredo; Path=/")])
+
+    with serve(setter) as origin_a, serve(lambda r: Reply(200, b"")) as origin_b:
+        client = make_client()
+        client.send(approved(f"{origin_a.base_url}/set", account="user_a"))
+        client.send(approved(f"{origin_a.base_url}/again", account="user_a"))
+        client.send(approved(f"{origin_b.base_url}/other", account="user_a"))
+
+    assert origin_a.requests[1].headers["cookie"] == "SESSION=segredo"
+    assert "cookie" not in origin_b.requests[0].headers
+    assert client.cookie_value("user_a", "SESSION") == "segredo"

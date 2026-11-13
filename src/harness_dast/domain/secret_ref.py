@@ -8,6 +8,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+RESERVED_PREFIX = "HDAST_"
 _SECRET_REF = re.compile(r"env:[A-Z][A-Z0-9_]{0,127}")
 
 
@@ -25,7 +26,8 @@ class ProfileModel(BaseModel):
 class SecretRef(ProfileModel):
     """Referência a um segredo, no formato `{secret_ref: "env:NOME"}`.
 
-    Só a forma `env:NOME` é aceita, com NOME em maiúsculas, dígitos e `_`. Um valor
+    Só a forma `env:NOME` é aceita, com NOME em maiúsculas, dígitos e `_`, e sem o prefixo
+    `HDAST_` (variáveis do próprio harness, como a chave da API do ZAP). Um valor
     literal (senha, token) não tem como passar: não casa com o formato, e a mensagem de
     erro NÃO repete o que foi informado.
 
@@ -43,6 +45,12 @@ class SecretRef(ProfileModel):
             raise ValueError(
                 "referência de segredo inválida; use o formato env:NOME, com NOME em "
                 "maiúsculas, dígitos e '_' (o valor do segredo nunca vai no perfil)"
+            )
+        if value.removeprefix("env:").startswith(RESERVED_PREFIX):
+            raise ValueError(
+                f"variáveis {RESERVED_PREFIX}* são do próprio harness (chave do ZAP, pastas, "
+                "proxy) e não podem ser segredo de um produto; use um nome do produto, "
+                "como MEU_PRODUTO_USER_A_SENHA"
             )
         return value
 

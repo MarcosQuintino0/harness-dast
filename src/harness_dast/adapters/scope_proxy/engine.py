@@ -7,6 +7,7 @@ toda recusa e toda requisição liberada geram um registro de auditoria. O que n
 não fala HTTP nem dorme; quem chama executa a espera devolvida por `reserve_slot`.
 """
 
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -161,10 +162,15 @@ class ScopeProxyEngine:
         )
 
 
+_HOST_HEADER = re.compile(r"(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._-]+)(?::[0-9]{1,5})?")
+
+
 def _host_header_matches(host_header: str | None, url: str) -> bool:
     # O destino real é o da URL. Se o cabeçalho Host apontar para outro nome, um servidor
     # atrás de proxy reverso roteia pelo cabeçalho e a requisição sairia do escopo.
-    if not host_header:
+    # Só `host[:porta]` é um Host válido; `host/x`, `host?x` e `host#...` seriam lidos como URL por
+    # esta função, mas um servidor os interpretaria de outro jeito.
+    if not host_header or _HOST_HEADER.fullmatch(host_header) is None:
         return False
     try:
         target = normalize_request("GET", url)

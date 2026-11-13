@@ -14,7 +14,7 @@ módulo é puro.
 from collections.abc import Iterator
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, StrictBool, model_validator
 
 from harness_dast.domain.api_model import ApiSpec, Operation, safe_identifier
 from harness_dast.domain.api_schema import ApiModel, Schema, flatten_schema
@@ -78,7 +78,7 @@ class DataRule(ApiModel):
     match: RuleMatch
     generator: str = Field(min_length=1, max_length=40)
     args: dict[str, object] = Field(default_factory=dict)
-    unique: bool = False
+    unique: StrictBool = False
 
     @model_validator(mode="after")
     def validate_generator(self) -> Self:

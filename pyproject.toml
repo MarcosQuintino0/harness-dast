@@ -251,6 +251,8 @@ ignore_names = [
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",
+    # Token do `--dry-run`: a CLI não o lê mais (ADR 0025); só os testes do caso de uso.
+    "confirmation_token",
     "confirmation_method",
     "failed_statement",
     "failed_table",

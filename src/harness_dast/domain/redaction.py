@@ -40,7 +40,8 @@ _LONG_TOKEN = re.compile(r"(?<![A-Za-z0-9])(?=[A-Za-z0-9_+/=-]*\d)[A-Za-z0-9_+/=
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b.?")
 _PAIR = re.compile(
     r"(?i)(\b(?:[\w-]*(?:password|passwd|senha|pwd|secret|token|apikey|api[_-]key|csrf|xsrf|"
-    r"authorization|credential|session)[\w-]*)\b[\"']?\s*[:=]\s*[\"']?)([^&\s\"',;}\]]+)"
+    r"authorization|credential|session)[\w-]*)\b[\"']?\s*[:=]\s*[\"']?)"
+    r"((?:(?:Bearer|Basic|Token|Digest|Negotiate)\s+)?)([^&\s\"',;}\]]+)"
 )
 _SENSITIVE_KEY_PARTS: Final = (
     "password",
@@ -114,7 +115,8 @@ def _is_sensitive_name(name: str) -> bool:
 def redact_text(text: str, mask: Masker) -> str:
     """Troca segredos registrados e padrões conhecidos em texto livre (sem cortar)."""
     value = mask(text)
-    value = _PAIR.sub(lambda m: m.group(1) + MASK, value)
+    # O esquema (`Bearer`, `Basic`...) fica; o que é trocado é a credencial que vem depois dele.
+    value = _PAIR.sub(lambda m: m.group(1) + m.group(2) + MASK, value)
     value = _SCHEME_TOKEN.sub(lambda m: f"{m.group(1)} {MASK}", value)
     for pattern in (_JWT, _EMAIL, _CPF, _LONG_TOKEN):
         value = pattern.sub(MASK, value)

@@ -33,6 +33,11 @@ def _percent(value: float | None) -> str:
 
 def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
     lines = ["## O que este relatório não testou", ""]
+    if coverage.partial:
+        lines += [
+            "- **RELATÓRIO PARCIAL:** a execução parou antes do fim; só o que foi coletado até "
+            "ali está aqui, e o que não foi varrido não deve ser lido como seguro.",
+        ]
     lines += [f"- {escape_inline(item, 600)}" for item in statements]
     lines += [
         "",

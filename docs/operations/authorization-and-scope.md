@@ -33,8 +33,8 @@ Três camadas independentes, cada uma cobrindo a falha da outra:
 
 | Camada | O que faz | Status |
 | --- | --- | --- |
-| 1. `ScopeGuard` no domínio | Valida toda requisição e todo plano de varredura | Parcial: o guarda existe e é testado; nenhum comando o chama ainda |
-| 2. ZAP em modo protegido | Contexto do ZAP restrito aos mesmos hosts e caminhos | Planejado (M4) |
+| 1. `ScopeGuard` no domínio | Valida toda requisição e todo plano de varredura | Implementado: `preflight`, `probe`, `scan` e o proxy de escopo o chamam em toda requisição |
+| 2. ZAP em modo protegido | Contexto do ZAP restrito aos mesmos hosts e caminhos | Implementado (M4): o contexto por execução (`domain/zap_scope.py`) |
 | 3. Rede interna do Docker e proxy de saída com lista de hosts | O contêiner do ZAP só sai pelo proxy | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura não provado; alvo corporativo em IP privado não confirmado. Obrigatória antes de qualquer execução contra ambiente da empresa; opcional contra o lab |
 
 As permissões do Claude Code (negar `curl`, negar leitura de `.env`) reduzem acidentes, mas não são isolamento.

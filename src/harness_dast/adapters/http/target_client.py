@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from time import perf_counter
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -67,7 +68,8 @@ class HttpxTargetClient:
         self._settings = settings
         self._zap = self._build_client(settings.zap_proxy_url, self._zap_verify(settings))
         self._auth = self._build_client(settings.auth_proxy_url, settings.verify_tls)
-        self._cookies: dict[str, dict[str, str]] = {}
+        # conta -> origem (`host:porta`) -> cookies: o cookie de sessão nunca vai a outro host.
+        self._cookies: dict[str, dict[str, dict[str, str]]] = {}
 
     @staticmethod
     def _zap_verify(settings: TargetClientSettings) -> bool | ssl.SSLContext:
@@ -98,8 +100,11 @@ class HttpxTargetClient:
         self._auth.close()
 
     def cookie_value(self, account: str, name: str) -> str | None:
-        """Valor do cookie `name` guardado para a conta, ou `None`."""
-        return self._cookies.get(account, {}).get(name)
+        """Valor do cookie `name` guardado para a conta (da origem mais recente), ou `None`."""
+        for jar in reversed(list(self._cookies.get(account, {}).values())):
+            if name in jar:
+                return jar[name]
+        return None
 
     def send(self, approved: ApprovedRequest) -> HttpResponse:
         """Envia a requisição aprovada (veja o docstring do módulo para as garantias).
@@ -120,11 +125,11 @@ class HttpxTargetClient:
             with client.stream(
                 request.method,
                 request.url,
-                headers=self._headers(request.account, request.headers),
+                headers=self._headers(request.account, _origin(request.url), request.headers),
                 content=request.body,
             ) as response:
                 body, truncated = self._read_capped(response)
-                self._store_cookies(request.account, response)
+                self._store_cookies(request.account, _origin(request.url), response)
                 elapsed = int((perf_counter() - started) * 1000)
                 return self._to_response(response, body, truncated, elapsed)
         except httpx.TimeoutException:
@@ -143,11 +148,11 @@ class HttpxTargetClient:
             raise _unreachable() from None
 
     def _headers(
-        self, account: str | None, headers: tuple[tuple[str, str], ...]
+        self, account: str | None, origin: str, headers: tuple[tuple[str, str], ...]
     ) -> list[tuple[str, str]]:
         merged = [(name, value) for name, value in headers if name.lower() != "cookie"]
         explicit = [value for name, value in headers if name.lower() == "cookie"]
-        jar = self._cookies.get(account, {}) if account is not None else {}
+        jar = self._cookies.get(account, {}).get(origin, {}) if account is not None else {}
         pairs = [f"{name}={value}" for name, value in jar.items()]
         cookie = "; ".join([*pairs, *explicit])
         if cookie:
@@ -166,10 +171,10 @@ class HttpxTargetClient:
             chunks.append(chunk)
         return b"".join(chunks), False
 
-    def _store_cookies(self, account: str | None, response: httpx.Response) -> None:
+    def _store_cookies(self, account: str | None, origin: str, response: httpx.Response) -> None:
         if account is None:
             return
-        jar = self._cookies.setdefault(account, {})
+        jar = self._cookies.setdefault(account, {}).setdefault(origin, {})
         for raw in response.headers.get_list("set-cookie"):
             parsed: SimpleCookie = SimpleCookie()
             try:
@@ -195,6 +200,11 @@ class HttpxTargetClient:
             body_truncated=truncated,
             elapsed_ms=elapsed_ms,
         )
+
+
+def _origin(url: str) -> str:
+    """`host:porta` da URL em minúsculas: a chave do jar de cookies."""
+    return urlsplit(url).netloc.rpartition("@")[2].lower()
 
 
 def _proxy_error() -> ExternalToolError:

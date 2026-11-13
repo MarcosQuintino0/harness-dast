@@ -458,3 +458,66 @@ def test_rule_cap_never_exceeds_the_run_deadline() -> None:
 
     assert applied.max_rule_minutes == 1
     assert applied.max_scan_minutes == 1
+
+
+def _candidates(spec: list[tuple[str, str, str]]) -> list[str]:
+    """Roda `select_candidates` sobre (id, método, conta) e devolve os ids na ordem do plano."""
+    from harness_dast.domain.probe_plan import PlannedOperation
+
+    ops = [operation(op_id, method, f"/{op_id}") for op_id, method, _ in spec]
+    accounts = {op_id: account for op_id, _, account in spec}
+    sent = {
+        op.operation_id: last_sent(
+            [
+                audit_result(
+                    i, op.operation_id, op.method, op.path, 200, account=accounts[op.operation_id]
+                )
+            ]
+        )[op.operation_id]
+        for i, op in enumerate(ops, start=1)
+    }
+    planned = {
+        op.operation_id: PlannedOperation(
+            operation_id=op.operation_id, method=op.method, path=op.path, decision="send"
+        )
+        for op in ops
+    }
+    config = ScanConfig(mutating_methods=("PUT", "PATCH"))
+    candidates, _ = select_candidates(ops, planned, sent, login_path=None, config=config)
+    return [c.result.operation_id for c in candidates]
+
+
+def test_writes_are_spread_through_the_reads_so_a_short_deadline_covers_both() -> None:
+    order = _candidates(
+        [(f"r{n}", "GET", "a") for n in range(6)] + [("w1", "POST", "a"), ("w2", "PUT", "a")]
+    )
+
+    assert order == ["r0", "r1", "r2", "w1", "r3", "r4", "r5", "w2"]
+
+
+def test_write_order_runs_post_before_put_and_patch_inside_the_interleaving() -> None:
+    order = _candidates(
+        [("p", "PATCH", "a"), ("r1", "GET", "a"), ("q", "POST", "a"), ("r2", "GET", "a")]
+    )
+
+    assert order == ["r1", "q", "r2", "p"]  # POST (posto 1) antes de PATCH (posto 2)
+
+
+def test_all_writes_still_run_when_there_are_more_writes_than_reads() -> None:
+    order = _candidates(
+        [("r1", "GET", "a"), ("w1", "POST", "a"), ("w2", "POST", "a"), ("w3", "POST", "a")]
+    )
+
+    assert order == ["r1", "w1", "w2", "w3"]
+
+
+def test_interleaving_is_deterministic_and_keeps_accounts_grouped() -> None:
+    spec = [
+        ("r1", "GET", "b"),
+        ("w1", "POST", "a"),
+        ("r2", "GET", "a"),
+        ("w2", "POST", "b"),
+    ]
+
+    assert _candidates(spec) == _candidates(list(spec))
+    assert _candidates(spec) == ["r1", "w2", "r2", "w1"]

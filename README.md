@@ -107,7 +107,7 @@ A tabela de status por componente, mantida em um único lugar, está em [docs/ro
 | [docs/architecture.md](docs/architecture.md) | Visão geral, dois planos, camadas, erros, logs, configuração, contrato da CLI, diagramas |
 | [docs/roadmap.md](docs/roadmap.md) | Marcos M0 a M7, tabela de status, itens em aberto, candidatos a V2 |
 | [docs/testing.md](docs/testing.md) | Níveis de teste, dublês, cobertura, casos obrigatórios do ScopeGuard, análise de mutação, avaliação cega (planejada) |
-| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0024) |
+| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0025) |
 | [docs/modules/](docs/modules/domain.md) | Uma página por pacote: `domain`, `application`, `adapters`, `cli`, `config`, `observability` |
 | [docs/reference/cli.md](docs/reference/cli.md) | Comandos da CLI |
 | [docs/reference/exit-codes.md](docs/reference/exit-codes.md) | Códigos de saída |

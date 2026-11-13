@@ -1,8 +1,9 @@
 """Comando `hdast cleanup`: apaga o lixo de UMA execução, com confirmação de uma pessoa.
 
-O único comando que apaga dados de propósito. Quem confirma é sempre uma pessoa: digitando o
-nome do produto no terminal, ou passando o token que um `--dry-run` anterior mostrou no STDERR.
-O token nunca vai ao stdout nem ao JSON. O agente de IA não deve rodar este comando.
+O único comando que apaga dados de propósito. Só uma pessoa, num terminal interativo, confirma:
+ela DIGITA o nome do produto no prompt. Não existe flag, arquivo nem variável de ambiente que
+confirme no lugar dela; sem terminal (stdin e stderr) a limpeza de verdade é recusada. O
+`--dry-run` não apaga nada, roda sem terminal e não emite token. Ver ADR 0025.
 """
 
 import sys
@@ -66,19 +67,6 @@ class TerminalPrompt:
         return str(answer).strip() == plan.product
 
 
-def _announce_token(report: CleanupReport) -> None:
-    """Escreve o token no stderr de quem operou; ele nunca entra no envelope."""
-    if report.confirmation_token is None:
-        return
-    typer.echo(
-        f"Token de confirmação (uso único, vale até {report.token_expires_at}):\n"
-        f"  {report.confirmation_token}\n"
-        f"Para apagar de verdade: hdast cleanup {report.product} --run {report.run_id} "
-        "--confirm <token>",
-        err=True,
-    )
-
-
 # Passa de 40 linhas porque quase todas são a declaração das opções do Typer.
 def cleanup_command(
     ctx: typer.Context,
@@ -88,17 +76,9 @@ def cleanup_command(
         bool,
         typer.Option(
             "--dry-run",
-            help="Executa os comandos, mostra as contagens e DESFAZ tudo; emite o token.",
+            help="Executa os comandos, mostra as contagens e DESFAZ tudo (não exige terminal).",
         ),
     ] = False,
-    confirm: Annotated[
-        str | None,
-        typer.Option(
-            "--confirm",
-            help="Token de um --dry-run anterior (uso sem terminal). Quem confirma é uma pessoa.",
-            show_default=False,
-        ),
-    ] = None,
     products_dir: Annotated[
         Path | None,
         typer.Option(
@@ -108,18 +88,17 @@ def cleanup_command(
         ),
     ] = None,
 ) -> int:
-    """Apaga, em uma transação confirmada por uma pessoa, o lixo de uma execução."""
+    """Apaga o lixo de uma execução; só uma pessoa, digitando no terminal, confirma."""
     state = get_state(ctx)
     use_case = build_cleanup(products_dir, state.secrets, TerminalPrompt())
     request = CleanupRequest(
         product=product,
         run_id=run,
         dry_run=dry_run,
-        confirm_token=confirm,
+        confirm_token=None,
         interactive=_is_interactive(),
     )
     report = use_case.execute(request)
-    _announce_token(report)
     emit(
         build_success(report.model_dump(mode="json"), report.run_id),
         json_mode=state.json_mode,

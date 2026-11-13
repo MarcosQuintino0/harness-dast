@@ -11,6 +11,7 @@ import re
 import sys
 from collections.abc import Callable, MutableMapping
 from typing import TextIO, cast
+from urllib.parse import quote, quote_plus
 
 import structlog
 from structlog.typing import EventDict, WrappedLogger
@@ -42,6 +43,25 @@ _JWT = re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
 _CPF = re.compile(r"(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)")
 
 
+def _encoded_forms(value: str) -> set[str]:
+    """Formas percent-encoded do segredo (`quote`, `quote_plus`, com `%2f` e `%2F`).
+
+    Um segredo enviado em formulário ou URL aparece assim (`S3nh%40%2Fforte`) e a forma literal
+    não o encontraria. Só entram as formas que diferem do literal.
+    """
+    forms: set[str] = set()
+    for encoded in (
+        quote(value),
+        quote(value, safe=""),
+        quote_plus(value),
+        quote_plus(value, safe=""),
+    ):
+        forms.add(encoded)
+        forms.add(re.sub(r"%[0-9A-F]{2}", lambda m: m.group(0).lower(), encoded))
+    forms.discard(value)
+    return forms
+
+
 class SecretRegistry:
     """Conjunto de valores secretos conhecidos em tempo de execução, mascarados onde aparecerem."""
 
@@ -57,6 +77,7 @@ class SecretRegistry:
         """
         if value:
             self._values.add(value)
+            self._values.update(_encoded_forms(value))
 
     def mask(self, text: str) -> str:
         """Substitui por `***` toda ocorrência de segredo registrado.

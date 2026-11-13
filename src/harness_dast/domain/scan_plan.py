@@ -205,7 +205,8 @@ def select_candidates(
     """Aplica as regras que não dependem do ZAP.
 
     Returns:
-        Os candidatos (na ordem: leituras, `POST`, depois `PUT`/`PATCH`) e as operações puladas.
+        Os candidatos (por conta; em cada conta, leituras e escritas intercaladas, ver `_ordered`)
+        e as operações puladas.
     """
     outcomes = {item.operation_id: item.outcome for item in probe_operations}
     allowed = frozenset({"success"}) | (include_outcomes & EXTRA_OUTCOMES)
@@ -234,19 +235,45 @@ def select_candidates(
 
 
 def _ordered(candidates: list[Candidate]) -> tuple[Candidate, ...]:
-    """Agrupa por conta (uma troca de token por conta) e, em cada conta, leituras primeiro."""
+    """Agrupa por conta (uma troca de token por conta) e intercala leituras e escritas.
+
+    Dentro da conta, as leituras mantêm a ordem do probe e as escritas vão de `POST` a
+    `PUT`/`PATCH`. A escrita entra depois de cada bloco de leituras (ver `_interleave`), para que
+    um prazo curto cubra as duas classes em vez de gastar tudo nas leituras.
+    """
     first_seen: dict[str | None, int] = {}
     for item in candidates:
         first_seen.setdefault(item.sent.account, len(first_seen))
-    return tuple(
-        sorted(
-            candidates,
-            key=lambda item: (
-                first_seen[item.sent.account],
-                _METHOD_RANK.get(item.result.method, 0),
-            ),
+    ordered: list[Candidate] = []
+    for account in first_seen:
+        mine = [item for item in candidates if item.sent.account == account]
+        reads = [item for item in mine if item.result.method not in _METHOD_RANK]
+        writes = sorted(
+            (item for item in mine if item.result.method in _METHOD_RANK),
+            key=lambda item: _METHOD_RANK[item.result.method],
         )
-    )
+        ordered.extend(_interleave(reads, writes))
+    return tuple(ordered)
+
+
+def _interleave(reads: list[Candidate], writes: list[Candidate]) -> list[Candidate]:
+    """Uma escrita depois de cada bloco de `len(reads) // len(writes)` leituras (no mínimo 1).
+
+    Determinístico: começa por leitura (a classe menos arriscada) e, acabado um dos lados, o
+    outro segue na sua ordem.
+    """
+    if not writes:
+        return reads
+    block = max(1, len(reads) // len(writes))
+    result: list[Candidate] = []
+    read_at = write_at = 0
+    while read_at < len(reads) or write_at < len(writes):
+        result.extend(reads[read_at : read_at + block])
+        read_at += block
+        if write_at < len(writes):
+            result.append(writes[write_at])
+            write_at += 1
+    return result
 
 
 def _pick(sent: SentRequest, learned: Sequence[LearnedRequest]) -> LearnedRequest | None:

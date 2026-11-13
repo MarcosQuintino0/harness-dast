@@ -16,7 +16,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json` e `report.md`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
-| `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`, `--confirm TOKEN` |
+| `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast run <produto>` | Encadeia preflight, probe, scan e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
@@ -39,10 +39,14 @@ Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergen
 | --- | --- |
 | `--seed N` | Semente dos geradores do `probe` |
 | `--skip-scan` | Para depois do `probe`; `scan` e `report` ficam `skipped` |
-| `--fail-on {none,low,medium,high}` | Limiar do `report` (sobrepõe `scan.fail_on`); achado no limiar ou acima sai com `1` |
+| `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
-| `--max-minutes N` | Reduz o prazo da varredura (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
+| `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
 | `--products-dir` | Pasta de produtos |
+
+**Prazo único.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira**: o `run` calcula um só prazo absoluto no início do `probe` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem.
+
+**Parada do `scan` não perde o relatório.** Se o `scan` parar antes do fim (prazo, janela, login, ZAP ou alvo) e tiver gravado `scan.json`, o `report` roda mesmo assim sobre o que foi coletado (`coverage.partial: true` e aviso no topo de `report.md`) e a saída final continua sendo a do estágio que parou (por exemplo `3` no prazo). Com Ctrl+C ou `hdast stop` (`130`) o `report` não roda. Com a trava acionada, só vira `130` o erro que a própria trava causou; um erro de outra origem mantém o código dele e `stop_requested: true` registra a trava.
 
 Nunca roda `hdast cleanup`: a saída final mostra o comando exato (`hdast cleanup <produto> --run <run_id> --dry-run`), quando o perfil tem `cleanup`, para uma pessoa rodar e confirmar.
 
@@ -79,10 +83,13 @@ A saída (JSON e texto) é sempre UTF-8, qualquer que seja a página de código 
 ```bash
 uv run hdast --json stack up vampi --products-dir ./meus-produtos      # sobe a pilha para o perfil
 uv run hdast --json stack up clinica-piloto --secure --token-ttl 20     # alvo piloto em modo seguro, token de 20 s
+uv run hdast --json stack up vampi --vulnerable --build                # modo vulnerável do laboratório e imagens reconstruídas
 uv run hdast --json stack status
 uv run hdast --json stop                                                # trava de emergência
 uv run hdast --json stack down
 ```
+
+Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de laboratório (sem nenhuma, vale o padrão dele); `--token-ttl` fixa a vida do token do alvo em segundos; `--build` reconstrói as imagens locais antes de subir (necessário depois de mudar `docker/` ou o alvo); `--oracle` e `--timeout` estão abaixo; `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
 
 `stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
@@ -285,7 +292,6 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 ```bash
 uv run hdast cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a --dry-run
 uv run hdast cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a
-uv run hdast --json cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a --confirm hdc-...
 ```
 
 Apaga, em uma transação confirmada por uma pessoa, o lixo que uma execução deixou no banco Oracle de testes, com o SQL escrito por uma pessoa do time do produto. **O agente de IA não roda este comando.** Guia do operador, passo a passo e o que o portão de SQL garante: [operations/cleanup.md](../operations/cleanup.md); decisão: [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md).
@@ -293,15 +299,14 @@ Apaga, em uma transação confirmada por uma pessoa, o lixo que uma execução d
 | Flag | Efeito |
 | --- | --- |
 | `--run ID` | (obrigatória) A execução a limpar. Precisa existir em `HDAST_RUNS_DIR`, ser do produto e já ter terminado |
-| `--dry-run` | Roda os comandos, mostra as contagens e DESFAZ tudo (`ROLLBACK`, sempre). Emite o token de `--confirm` no **stderr** |
-| `--confirm TOKEN` | Execução sem terminal: token de um `--dry-run` anterior da mesma execução (10 minutos, uso único, amarrado ao script e ao total de linhas visto) |
+| `--dry-run` | Roda os comandos, mostra as contagens e DESFAZ tudo (`ROLLBACK`, sempre). Não apaga nada, não exige terminal e **não emite token** |
 | `--products-dir DIR` | Pasta de produtos (sobrepõe `HDAST_PRODUCTS_DIR`) |
 
-Sem `--dry-run` nem `--confirm`, só roda com terminal interativo: a pessoa vê o plano e digita o nome do produto. Sem terminal, o comando se recusa (saída `2`). Autorização vencida é `3`; a janela de execução não é exigida.
+Sem `--dry-run`, só roda com terminal interativo (entrada e saída de erro): a pessoa vê o plano e **digita** o nome do produto. Não há flag, arquivo nem variável de ambiente que confirme no lugar dela; sem terminal, o comando se recusa (saída `2`). Autorização vencida é `3`; a janela de execução não é exigida.
 
-`data`: `run_id`, `product`, `status` (`dry_run`, `committed` ou `declined`), `script_sha256`, `statement_count`, `tables`, `statements` (`{index, table, rows}`), `total_rows`, `max_rows`, `confirmation_method` (`none`, `interactive`, `token`), `committed`, `rolled_back`, `started_at`, `finished_at`, `duration_ms`, `token_expires_at` (só no `--dry-run`). **Nunca** traz o token, valores de variáveis de ligação nem credenciais. Falha de banco, teto de linhas (`cleanup.max_rows`) excedido ou erro ao conectar: `error.code = CLEANUP_FAILED`, saída `7`, mensagem com o índice do comando e a tabela, tudo desfeito.
+`data`: `run_id`, `product`, `status` (`dry_run`, `committed` ou `declined`), `script_sha256`, `statement_count`, `tables`, `statements` (`{index, table, rows}`), `total_rows`, `max_rows`, `confirmation_method` (`none`, `interactive`; `token` só para quem usa o caso de uso em processo), `committed`, `rolled_back`, `started_at`, `finished_at`, `duration_ms`, `token_expires_at` (campo reservado, sem uso pela CLI). **Nunca** traz token, valores de variáveis de ligação nem credenciais. Falha de banco, teto de linhas (`cleanup.max_rows`) excedido ou erro ao conectar: `error.code = CLEANUP_FAILED`, saída `7`, mensagem com o índice do comando e a tabela, tudo desfeito.
 
-**Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/`: `cleanup.json` (o mesmo `data`), `cleanup-audit.jsonl` (linhas `started` e `finished`) e `cleanup-confirmation.json` (só o hash do token).
+**Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/`: `cleanup.json` (o mesmo `data`), `cleanup-audit.jsonl` (linhas `started` e `finished`, também numa exceção inesperada) e `cleanup-confirmation.json` (resíduo: só o hash de um token que a CLI não expõe).
 
 ## Envelope JSON
 
@@ -331,7 +336,7 @@ Exemplo de sucesso:
 
 O valor de `version` acima é ilustrativo; ele vem do pacote instalado.
 
-Exemplo de falha (ilustrativo; o cenário de escopo ainda não existe em código):
+Exemplo de falha (ilustrativo; `preflight`, `probe`, `scan` e o proxy de escopo aplicam o `ScopeGuard` e produzem este envelope):
 
 ```json
 {
@@ -365,7 +370,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 
 Os códigos 6 e 7 e o 130 vieram da rodada de correção de 2026-11-13 (achados A-06 e A-19), registrada no [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). Até então `TargetError` e `CleanupError` usavam o 5, que o desenho reserva à falha de ferramenta externa.
 
-`CONFIG_ERROR` e `INTERNAL` vêm de qualquer comando. Com `spec inspect`, `preflight` e `probe` passam a ser produzidos também `SCOPE_VIOLATION` (3), `PREFLIGHT_FAILED` (4), `EXTERNAL_TOOL_ERROR` (5) e `TARGET_ERROR` (6); em `preflight` e `probe` o envelope de falha pode trazer `data` com o resultado parcial. `CLEANUP_FAILED` ainda não é alcançado por nenhum comando.
+`CONFIG_ERROR` e `INTERNAL` vêm de qualquer comando. Com `spec inspect`, `preflight` e `probe` passam a ser produzidos também `SCOPE_VIOLATION` (3), `PREFLIGHT_FAILED` (4), `EXTERNAL_TOOL_ERROR` (5) e `TARGET_ERROR` (6); em `preflight` e `probe` o envelope de falha pode trazer `data` com o resultado parcial. `hdast cleanup` produz `CLEANUP_FAILED` (saída `7`) e `hdast run` produz o código do estágio que falhou.
 
 ## Regras do contrato
 

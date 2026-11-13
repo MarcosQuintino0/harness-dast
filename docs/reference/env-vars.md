@@ -13,6 +13,7 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | `HDAST_PRODUCTS_DIR` | `products` | Pasta com os perfis de produto. Perfis reais ficam fora deste repositório e são apontados por esta variável (P-01) |
 | `HDAST_STATE_DIR` | `%LOCALAPPDATA%/hdast` (Windows) ou `~/.local/state/hdast` | Pasta do estado da pilha gerenciada (`stack.json` com a chave do ZAP e as senhas descartáveis do alvo, modo 0600; políticas e auditorias por pilha em `stacks/`). Fora do repositório e de `runs/` |
 | `HDAST_SCOPE_POLICY_DIR` | (sem valor) | Pasta da política do proxy. O `stack up` define a dele; sem pilha gerenciada, `hdast stop` usa esta variável para achar onde criar o `KILL` |
+| `HDAST_AUDIT_DIR` | (definida pelo `stack up`) | Pasta onde o proxy de escopo grava a auditoria (`audit.jsonl`, uma linha por decisão, sem valores de consulta). O `stack up` a define para o contêiner a partir do estado da pilha; só mexa nela fora do `stack up` se montar o compose à mão |
 | `HDAST_ZAP_HOST_PORT` / `HDAST_PROXY_HOST_PORT` | `8080` / `3128` | Portas em `127.0.0.1` do ZAP e do proxy de escopo (ponte `proxy-gateway`) no host; lidas pelo `stack up` e pelo compose |
 | `HDAST_LOG_LEVEL` | `INFO` | Nível mínimo de log: `DEBUG`, `INFO`, `WARNING` ou `ERROR` |
 
@@ -22,7 +23,8 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 
 | Variável | Lida pelo código hoje? |
 | --- | --- |
-| Todas | Sim (settings da ferramenta). `preflight` e `probe` usam o ZAP, `runs/` e os proxies; `products/` é usada desde o M2 |
+| `HDAST_ZAP_BASE_URL`, `HDAST_ZAP_API_KEY`, `HDAST_ZAP_PROXY_URL`, `HDAST_AUTH_PROXY_URL`, `HDAST_ZAP_CA_FILE`, `HDAST_RUNS_DIR`, `HDAST_PRODUCTS_DIR`, `HDAST_LOG_LEVEL` | Sim, pelos settings da ferramenta (`config/settings.py`) |
+| `HDAST_STATE_DIR`, `HDAST_SCOPE_POLICY_DIR`, `HDAST_AUDIT_DIR`, `HDAST_ZAP_HOST_PORT`, `HDAST_PROXY_HOST_PORT` | Sim, mas fora dos settings: o `stack up`, o `stop` e o compose as leem direto (`application/stack.py`, `adapters/storage/stack_state.py`) |
 
 ## Precedência com a pilha gerenciada
 

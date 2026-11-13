@@ -20,6 +20,9 @@ O script usa **somente** estas variáveis, sempre como variável de ligação (`
 
 Regras que o analisador impõe antes de abrir a conexão:
 
+- A condição de amarração compara uma **coluna** da tabela com uma variável: pseudo-colunas e funções sem argumento (`SYSDATE`, `SYSTIMESTAMP`, `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `LOCALTIMESTAMP`, `ROWNUM`, `USER`...) e literais não valem.
+- Faixa (`>=`, `>`) só contra `:run_start`; `:run_id`, `:run_tag` e `:account_N` (texto) só com `=`, `IN` ou `LIKE`.
+
 - Qualquer outro nome (inclusive `:account_0`, `:account_N+1` para `N` contas e variáveis posicionais como `:1`) é recusado.
 - Os nomes são sem diferença de maiúsculas.
 - Os **valores** nunca saem em tela, log, trilha de auditoria nem relatório: só os nomes. Os nomes dos usuários são segredos de conta.

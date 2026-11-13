@@ -43,6 +43,7 @@ Raiz (`FindingsReport`):
 | --- | --- |
 | `operations_total`, `operations_sent`, `probe_successes`, `reachability`, `reachability_all`, `probe_status` | Números do `probe` (mesma definição de [cli.md](cli.md#hdast-probe)) |
 | `scan_status`, `scan_stop_message` | Estado final do `scan` e a explicação da parada |
+| `partial` | `true` quando o `probe` ou o `scan` pararam antes do fim (prazo, janela, login, ZAP ou alvo): o relatório cobre só o que foi coletado e o que não foi varrido não deve ser lido como seguro. Aditivo (ADR 0025) |
 | `scans_run` | Varreduras executadas |
 | `truncated_scans` | `[{operation_id, outcome, progress}]` das varreduras que não chegaram a 100% (`truncated` = corte do ZAP, `stopped` = parada nossa, `refused` = o ZAP não iniciou) |
 | `not_tested` | `[{operation_id, method, path, reason, message}]` de toda operação sem varredura. `reason` vem do `scan` (`not_success`, `delete`, `login`, `denied`, `scope`, `mutating`, `not_learned`, `not_planned`, `not_selected`, `not_run`) ou do `probe` (`probe_<classe>`) |
@@ -60,7 +61,7 @@ Raiz (`FindingsReport`):
 | `title` | texto | Nome do alerta (texto simples, cortado) |
 | `plugin_id`, `alert_ref` | texto | Regra do ZAP (`40018`; `alert_ref` inclui sub-regra, como `40014-2`) |
 | `classification` | objeto | `cwe`, `wasc` (inteiros ou `null`) e `owasp_api_2023` (ou `null`) |
-| `proposed_severity` | texto | `high`, `medium`, `low`, `informational` ou `unknown`. **Proposta do ZAP**; a CLI nunca a altera |
+| `proposed_severity` | texto | `high`, `medium`, `low`, `informational` ou `unknown`. **Proposta do ZAP**; a CLI nunca a altera. `unknown` aciona qualquer `--fail-on` diferente de `none` |
 | `proposed_confidence` | texto | `high`, `medium`, `low`, `confirmed`, `false_positive` ou `unknown`. Proposta do ZAP |
 | `operation_id` | texto ou `null` | Operação do `probe` de onde o ataque partiu |
 | `method`, `path_template` | texto | Método e modelo de caminho da requisição **aprendida** (`{}` no lugar de parâmetros) |
@@ -88,6 +89,7 @@ sha256( "hdast-finding-v1" , produto , MÉTODO , modelo-de-caminho , vetor , par
 - **Método e modelo de caminho vêm da requisição aprendida**, resolvida pelo `sourceMessageId` do alerta, e nunca da URL atacada (que o ZAP muda a cada ataque). Sem `sourceMessageId` conhecido, vale a atribuição à varredura que gerou o alerta, depois o casamento único do caminho com um modelo do `probe`; sem nenhum dos dois o achado fica `unresolved`, com um modelo aproximado (segmentos com cara de id viram `{}`), e **continua sendo achado**.
 - O modelo de caminho é normalizado: sem consulta, sem barras repetidas ou final, `{qualquer-nome}` vira `{}`. Renomear um parâmetro no OpenAPI não muda o achado.
 - Vetor em minúsculas; método em maiúsculas.
+- Se algum ingrediente contém o separador U+001F (dado do ZAP), o hash usa uma forma com o tamanho de cada parte, que começa com U+001E e nunca coincide com a forma simples; sem o separador o valor é o de sempre (ADR 0025).
 - **Fora do fingerprint, de propósito:** carga (`attack`), host, ids concretos, `messageId`, id do alerta, severidade e confiança.
 - Mudar um ingrediente ou a normalização invalida o histórico: suba `FINGERPRINT_VERSION` e escreva um ADR. `report --compare` recusa execuções de versões diferentes.
 - O prefixo de papéis de conta para o teste de autorização (V2) ainda não faz parte do fingerprint v1; entrará numa versão nova.

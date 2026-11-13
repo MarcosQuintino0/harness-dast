@@ -460,3 +460,59 @@ def test_error_messages_never_echo_literal_values() -> None:
     message = refused("DELETE FROM PEDIDO WHERE X = 'senha-secreta-123' AND NOME = :foo;")
 
     assert "senha-secreta-123" not in message
+
+
+# ------------------------------------------- amarração por coluna real (ADR 0025)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "USER = :account_1",
+        "ROWNUM >= :run_start",
+        "UID = :run_id",
+        "SESSIONTIMEZONE = :run_tag",
+        "SYS_GUID = :run_id",
+        "T.SYSDATE >= :run_start",
+    ],
+)
+def test_refuses_an_anchor_that_does_not_depend_on_the_row(condition: str) -> None:
+    refused(f"DELETE FROM PEDIDO WHERE {condition};")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "NOME >= :run_tag",
+        "RUN_ID > :run_id",
+        "CREATED_BY >= :account_1",
+        "NOME >= :run_start || 'x'",
+    ],
+)
+def test_refuses_a_range_anchor_against_anything_but_run_start(condition: str) -> None:
+    refused(f"DELETE FROM PEDIDO WHERE {condition};")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "CREATED_AT >= :run_start",
+        "CREATED_AT > :run_start",
+        "RUN_TAG = :run_tag",
+        "RUN_TAG LIKE '%' || :run_tag || '%'",
+        "P.CREATED_BY IN (:account_1)",
+    ],
+)
+def test_still_accepts_a_real_column_anchored_to_the_run(condition: str) -> None:
+    assert parse(f"DELETE FROM PEDIDO P WHERE {condition};").statements
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "RUN_ID = :run_id AND ID IN (SELECT SEQ.NEXTVAL FROM DUAL)",
+        "RUN_ID = :run_id AND ID = SEQ.CURRVAL",
+    ],
+)
+def test_refuses_sequence_pseudo_columns_because_nextval_has_a_side_effect(condition: str) -> None:
+    refused(f"DELETE FROM PEDIDO WHERE {condition};")

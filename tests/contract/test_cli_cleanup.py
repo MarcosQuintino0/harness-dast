@@ -1,4 +1,4 @@
-"""Contrato de `hdast cleanup`: envelope, códigos de saída e o token fora do JSON.
+"""Contrato de `hdast cleanup`: envelope, códigos de saída e confirmação só por pessoa (ADR 0025).
 
 O arquivo de perfil, o script, o manifesto e a pasta de execuções são REAIS (em `tmp_path`); só o
 banco é um falso, injetado no lugar do executor Oracle na montagem da CLI.
@@ -85,19 +85,13 @@ def invoke(
     return code, captured.out, captured.err
 
 
-def token_from(err: str) -> str:
-    match = TOKEN_PATTERN.search(err)
-    assert match, "o token deveria aparecer no stderr do --dry-run"
-    return match.group(0)
-
-
 def assert_no_secrets(*texts: str) -> None:
     for text in texts:
         for secret in SECRET_VALUES:
             assert secret not in text
 
 
-def test_dry_run_returns_the_envelope_and_prints_the_token_only_on_stderr(
+def test_dry_run_returns_the_envelope_and_never_prints_a_token(
     capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
 ) -> None:
     code, out, err = invoke(capsys, workspace, "--dry-run")
@@ -114,10 +108,10 @@ def test_dry_run_returns_the_envelope_and_prints_the_token_only_on_stderr(
         (1, "ITEM", 3),
         (2, "PEDIDO", 2),
     ]
-    token = token_from(err)
-    assert token not in out
+    assert not TOKEN_PATTERN.search(out + err)  # nenhum token em lugar nenhum: nada a repassar
     assert "confirmation_token" not in out
     assert "token" not in set(data)
+    assert "--confirm" not in err
     assert database.commits == 0
     assert_no_secrets(out, err)
 
@@ -125,42 +119,29 @@ def test_dry_run_returns_the_envelope_and_prints_the_token_only_on_stderr(
 def test_cleanup_json_and_audit_are_written_without_token_or_secrets(
     capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
 ) -> None:
-    _, _, err = invoke(capsys, workspace, "--dry-run")
+    invoke(capsys, workspace, "--dry-run")
 
     folder = workspace / "runs" / RUN_ID
     record = (folder / "cleanup.json").read_text(encoding="utf-8")
     audit = (folder / "cleanup-audit.jsonl").read_text(encoding="utf-8")
-    confirmation = (folder / "cleanup-confirmation.json").read_text(encoding="utf-8")
     assert json.loads(record)["status"] == "dry_run"
     assert [json.loads(line)["event"] for line in audit.splitlines()] == ["started", "finished"]
-    for text in (record, audit, confirmation):
-        assert token_from(err) not in text
+    for text in (record, audit):
+        assert not TOKEN_PATTERN.search(text)
         assert_no_secrets(text)
 
 
-def test_confirm_with_the_token_commits_once_and_the_token_dies(
+def test_confirm_flag_no_longer_exists_so_no_token_can_be_passed(
     capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
 ) -> None:
-    _, _, err = invoke(capsys, workspace, "--dry-run")
-    token = token_from(err)
+    code, _, _ = invoke(capsys, workspace, "--confirm", "hdc-qualquer-coisa-aaaaaaaaaaaaaaaaaaaa")
 
-    code, out, _ = invoke(capsys, workspace, "--confirm", token)
-    again, again_out, _ = invoke(capsys, workspace, "--confirm", token)
-
-    assert code == ExitCode.OK
-    data = json.loads(out)["data"]
-    assert (data["status"], data["committed"], data["confirmation_method"]) == (
-        "committed",
-        True,
-        "token",
-    )
-    assert token not in out
-    assert database.commits == 1
-    assert (again, json.loads(again_out)["error"]["code"]) == (ExitCode.USAGE, "CONFIG_ERROR")
-    assert database.commits == 1
+    assert code == ExitCode.USAGE
+    assert database.opened == []
+    assert database.commits == 0
 
 
-def test_without_terminal_and_without_token_it_refuses_with_usage_error_and_no_connection(
+def test_without_a_terminal_real_cleanup_is_refused_and_the_message_teaches_no_shortcut(
     capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
 ) -> None:
     code, out, _ = invoke(capsys, workspace)
@@ -169,8 +150,22 @@ def test_without_terminal_and_without_token_it_refuses_with_usage_error_and_no_c
     assert code == ExitCode.USAGE
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "CONFIG_ERROR"
-    assert "--dry-run" in envelope["error"]["hint"]
+    text = (envelope["error"]["message"] + " " + (envelope["error"]["hint"] or "")).lower()
+    assert "pessoa" in text
+    assert "terminal interativo" in text
+    for shortcut in ("--dry-run", "--confirm", "token"):
+        assert shortcut not in text
     assert database.opened == []
+
+
+def test_dry_run_does_not_need_a_terminal_but_still_deletes_nothing(
+    capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
+) -> None:
+    code, out, _ = invoke(capsys, workspace, "--dry-run")
+
+    assert code == ExitCode.OK
+    assert json.loads(out)["data"]["committed"] is False
+    assert database.commits == 0
 
 
 def interactive(monkeypatch: pytest.MonkeyPatch, typed: str) -> None:
@@ -290,7 +285,7 @@ def test_expired_authorization_exits_3(
     assert database.opened == []
 
 
-def test_human_mode_shows_plan_on_stdout_and_token_on_stderr(
+def test_human_mode_shows_plan_on_stdout_and_no_token_anywhere(
     capsys: pytest.CaptureFixture[str], workspace: Path, database: FakeDatabase
 ) -> None:
     code, out, err = invoke(capsys, workspace, "--dry-run", json_mode=False)
@@ -299,9 +294,8 @@ def test_human_mode_shows_plan_on_stdout_and_token_on_stderr(
     assert "SIMULAÇÃO" in out
     assert "Total: 5 linha(s)" in out
     assert "Script SHA-256:" in out
-    token = token_from(err)
-    assert token not in out
-    assert "--confirm <token>" in err
+    assert not TOKEN_PATTERN.search(out + err)
+    assert "--confirm" not in out + err
 
 
 def test_help_lists_the_command_and_its_flags(capsys: pytest.CaptureFixture[str]) -> None:
@@ -309,5 +303,6 @@ def test_help_lists_the_command_and_its_flags(capsys: pytest.CaptureFixture[str]
     out = capsys.readouterr().out
 
     assert code == ExitCode.OK
-    for flag in ("--run", "--dry-run", "--confirm", "--products-dir"):
+    for flag in ("--run", "--dry-run", "--products-dir"):
         assert flag in out
+    assert "--confirm" not in out

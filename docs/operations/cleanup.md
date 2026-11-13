@@ -1,6 +1,6 @@
 # Limpeza do ambiente de testes (`hdast cleanup`)
 
-Guia de quem opera. Decisão: [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), sobre o [ADR 0011](../adr/0011-limpeza-por-sql-oracle-com-python-oracledb.md). A referência dos campos do perfil está em [`target-yml.md`](../reference/target-yml.md); o contrato das variáveis do script, em `docs/reference/cleanup.md`.
+Guia de quem opera. Decisão: [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), sobre o [ADR 0011](../adr/0011-limpeza-por-sql-oracle-com-python-oracledb.md); a confirmação só por pessoa em terminal e a amarração por coluna real são do [ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md). A referência dos campos do perfil está em [`target-yml.md`](../reference/target-yml.md); o contrato das variáveis do script, em `docs/reference/cleanup.md`.
 
 > A limpeza é a única parte do `harness-dast` que apaga dados de propósito, em ambiente que outros times dividem. Por isso é lenta, explícita e **humana**. O agente de IA não roda este comando, não escreve nem altera o script (Parte B do `CLAUDE.md`): ele pode, no máximo, sugerir que você o rode.
 
@@ -79,35 +79,23 @@ Total: 8 linha(s) (teto do perfil: 500)
 Estado: SIMULAÇÃO: tudo foi desfeito (ROLLBACK), nada foi apagado
 ```
 
-E no **stderr** (só no seu terminal):
-
-```text
-Token de confirmação (uso único, vale até 2026-11-12T21:48:10+00:00):
-  hdc-hzWm8lgxYyfnZaOwLFnt8Q5gySzrqbEx
-Para apagar de verdade: hdast cleanup agenda --run 2026-11-12T21-04-11Z-agenda-7f3a --confirm <token>
-```
+A simulação **não emite token** e não precisa de terminal: ela não apaga nada. Quem apaga é o passo 4.
 
 Confira as contagens. Se algo não bate com o que o teste criou, **pare** e revise o script.
 
 ### 4. Confirme
 
-**Com terminal:** rode o comando sem `--dry-run`. A CLI executa de novo, mostra o plano e pede que você digite o nome do produto. Qualquer outra resposta (ou Enter) cancela com `ROLLBACK`.
+**Só em um terminal interativo, por uma pessoa.** Rode o comando sem `--dry-run`. A CLI executa de novo, mostra o plano e pede que você **digite** o nome do produto. Qualquer outra resposta (ou Enter) cancela com `ROLLBACK`.
 
 ```bash
 hdast cleanup agenda --run 2026-11-12T21-04-11Z-agenda-7f3a
 ```
 
-**Sem terminal (CI, tarefa agendada):** use o token do passo 3.
-
-```bash
-hdast cleanup agenda --run 2026-11-12T21-04-11Z-agenda-7f3a --confirm hdc-hzWm8lgxYyfnZaOwLFnt8Q5gySzrqbEx
-```
-
-O token vale 10 minutos, **uma vez**, e só para este produto, esta execução, **este script** (se o arquivo mudou depois do `--dry-run`, o token é recusado) e **este total de linhas** (se apareceram mais linhas a apagar, a limpeza desfaz e sai com 7). Um novo `--dry-run` invalida o token anterior.
+Não existe flag, arquivo nem variável de ambiente que confirme no lugar de quem digita, e não há exceção para CI nem para tarefa agendada: sem terminal interativo (entrada e saída de erro ligadas a um terminal), a limpeza de verdade **se recusa** (saída `2`). Se o seu fluxo precisa limpar sem pessoa, o ambiente de testes deve ser recriado (por exemplo, o banco descartável da pilha), não limpo por esta CLI.
 
 ## Em `--json`
 
-`data` traz `status` (`dry_run`, `committed`, `declined`), `statements` (índice, tabela e linhas por comando), `total_rows`, `max_rows`, `script_sha256`, `tables`, `confirmation_method` (`none`, `interactive`, `token`), `committed`, `rolled_back` e os tempos. **O token nunca está no JSON**, nem em `cleanup.json`, nem na auditoria: só no stderr. Os valores das variáveis de ligação e as credenciais também nunca aparecem.
+`data` traz `status` (`dry_run`, `committed`, `declined`), `statements` (índice, tabela e linhas por comando), `total_rows`, `max_rows`, `script_sha256`, `tables`, `confirmation_method` (`none`, `interactive`, `token`), `committed`, `rolled_back` e os tempos. `token_expires_at` é um campo reservado que a CLI não usa (veja o ADR 0025). Os valores das variáveis de ligação e as credenciais nunca aparecem.
 
 ## O que fica gravado
 
@@ -115,14 +103,14 @@ Em `runs/<run_id>/`:
 
 - `cleanup.json`: o relatório acima, atômico.
 - `cleanup-audit.jsonl`: só acréscimo; uma linha `started` (antes de conectar) e uma `finished` por tentativa. Um `started` sem `finished` indica processo morto no meio.
-- `cleanup-confirmation.json`: o token pendente (**só o SHA-256 dele**), renomeado para `cleanup-confirmation.used.json` quando gasto.
+- `cleanup-confirmation.json`: resíduo do mecanismo de token que a CLI não expõe mais (**só o SHA-256**); o `--dry-run` ainda o grava e nada o lê pela CLI.
 
 ## Códigos de saída
 
 | Código | Quando |
 | --- | --- |
 | `0` | `--dry-run` feito; limpeza confirmada; ou recusada pela pessoa (`status: declined`, nada apagado) |
-| `2` | Uso ou configuração: perfil sem os campos da limpeza, script recusado pelo portão, execução desconhecida ou em andamento, segredo ausente, sem terminal e sem `--confirm`, token inválido, vencido ou já usado |
+| `2` | Uso ou configuração: perfil sem os campos da limpeza, script recusado pelo portão, execução desconhecida ou em andamento, segredo ausente, sem terminal interativo (limpeza de verdade) |
 | `3` | Autorização do perfil vencida |
 | `7` | Falha na limpeza: erro do banco (a mensagem traz o **índice do comando**, a tabela e só o código `ORA-nnnnn`), teto de linhas excedido, falha ao conectar ou ao confirmar. Tudo foi desfeito, exceto uma falha *ao confirmar*, em que o estado é incerto: confira o banco |
 
@@ -132,16 +120,21 @@ Em `runs/<run_id>/`:
 
 **Recusa**, entre outros: `DELETE` sem `WHERE` (inclusive com o `WHERE` dentro de comentário), `WHERE 1 = 1` e comparações de constantes, `TRUNCATE`, `DROP`, `ALTER`, `CREATE`, `GRANT`, `MERGE`, `INSERT`, `UPDATE` (não suportado na V1), blocos PL/SQL (`BEGIN`, `DECLARE`, a barra `/`), `EXECUTE IMMEDIATE`, `COMMIT`, `ROLLBACK`, `SAVEPOINT` (a transação é da CLI), link de banco (`@`), `&variável`, identificadores entre aspas, texto ou comentário sem fechar, letras que imitam ASCII (cirílico, largura total), tabela fora de `allowed_tables` (também em subconsulta e `JOIN`), esquema não listado, variável fora do contrato e função que não seja de uma lista fechada e sem efeito colateral.
 
+**A amarração só vale se compara uma COLUNA da tabela com uma variável permitida** (ADR 0025). Pseudo-colunas e funções sem argumento que não dependem da linha (`SYSDATE`, `SYSTIMESTAMP`, `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `LOCALTIMESTAMP`, `ROWNUM`, `ROWID`, `LEVEL`, `USER`, `UID`, `SESSIONTIMEZONE`, `DBTIMEZONE`, `DUAL`...) e literais nunca contam: `SYSDATE >= :run_start` é verdadeira para toda linha e é recusada. Faixa (`>=`, `>`) só vale contra `:run_start` (data); as variáveis de texto (`:run_id`, `:run_tag`, `:account_N`) só com `=`, `IN` ou `LIKE`, porque comparar texto por ordem alfabética casaria quase toda linha. O que o portão não reconhece, recusa.
+
 **Não garante:**
 
 - Que a amarração faça sentido para as colunas do produto: `ID >= :run_start` passaria. Quem escreve e revisa o script é a pessoa do time do produto.
+- Funções de usuário sem parênteses (uma constante de pacote, `SEQ.NEXTVAL` numa subconsulta): o portão só enxerga função quando há `(`. O usuário de banco com só `SELECT` e `DELETE` é o que limita isso.
 - Nada sobre o que o banco faz por baixo: gatilhos (`TRIGGER`), visões, sinônimos, `ON DELETE CASCADE` e chaves estrangeiras podem apagar ou recusar além do que o script diz (o `max_rows` conta só as linhas dos próprios comandos).
 - Que o usuário de banco não tenha privilégios demais: o portão não os vê.
 - Que o ambiente seja de testes: confira o DSN do perfil.
 
-### Confirmação sem terminal: o limite honesto
+### Confirmação: o que a CLI impede e o que não impede
 
-O token só prova que **alguém, com acesso ao terminal onde o `--dry-run` rodou, viu o plano**. O agente de IA não pode produzi-lo sozinho porque ele nunca aparece no JSON nem em arquivo, mas **um agente com shell na sua máquina poderia rodar o próprio `--dry-run` e ler o stderr**. O controle é, portanto, **procedimental, mais os privilégios do banco**: (1) a regra de skill proíbe o agente de rodar `hdast cleanup`; (2) o usuário de banco tem só `SELECT` e `DELETE` nas tabelas de teste; (3) o ambiente é de testes, com dados sintéticos. Em CI, mantenha o `--dry-run` e o `--confirm` em etapas controladas por pessoas.
+A confirmação é **digitada** por uma pessoa num terminal interativo. Um agente que roda a CLI pela ferramenta de shell não tem terminal e a limpeza de verdade é recusada; a mensagem de recusa não ensina nenhum atalho, e o `--dry-run` (que o agente pode rodar) não produz nada que sirva para confirmar. Antes do ADR 0025 a confirmação "humana" era um token no stderr do `--dry-run`, que o próprio agente lia e repassava; isso acabou.
+
+Limite honesto: um agente com poder de abrir um pseudoterminal na sua máquina e digitar o nome do produto ainda cumpriria a confirmação. O que fecha isso é o que está fora da CLI: (1) a regra de skill e a permissão do Claude Code que negam `hdast cleanup` (M6, ainda não existem); (2) o usuário de banco com só `SELECT` e `DELETE` nas tabelas de teste; (3) o ambiente de testes, com dados sintéticos.
 
 ## Quando a limpeza recusa
 
@@ -150,11 +143,10 @@ O token só prova que **alguém, com acesso ao terminal onde o `--dry-run` rodou
 | "A limpeza exige campos que o perfil não tem: cleanup.user, ..." | Peça à pessoa dona do produto os valores e preencha o bloco `cleanup` (passo 1). |
 | "A tabela X não está em cleanup.allowed_tables" | Se X realmente deve ser limpa, a pessoa dona do produto a inclui na lista. Senão, corrija o script. |
 | "Comando N do script de limpeza recusado: DELETE sem WHERE" | Adicione o `WHERE` com a amarração. |
-| "o WHERE não tem uma condição de amarração" | Inclua, ligada por `AND` e fora de parênteses com `OR`, uma condição como `CREATED_AT >= :run_start` ou `CREATED_BY IN (:account_1, ...)`. |
+| "o WHERE não tem uma condição de amarração" | Inclua, ligada por `AND` e fora de parênteses com `OR`, uma condição entre uma COLUNA da tabela e uma variável, como `CREATED_AT >= :run_start` ou `CREATED_BY IN (:account_1, ...)`. Pseudo-coluna (`SYSDATE`), literal e faixa contra variável de texto não valem. |
 | "a variável de ligação :x não faz parte do contrato" | Use só `:run_start`, `:run_id`, `:run_tag` e `:account_1..N` (N = contas do perfil). |
 | "A execução ainda está em andamento" | Espere o `probe` terminar. Uma execução interrompida (sem `finished_at`) vale como terminada depois do prazo `limits.max_duration_minutes` dela. |
-| "Sem terminal interativo e sem --confirm" | Rode `--dry-run` e use o token, ou rode em um terminal. |
-| "O token de confirmação venceu / já foi usado / o script mudou" | Rode `--dry-run` de novo. |
+| "Sem terminal interativo: a limpeza de verdade não será executada" | Só uma pessoa, num terminal interativo, confirma digitando o nome do produto. |
 | "A limpeza apagaria N linhas, acima do teto" | Nada foi gravado. Confira o script e o banco; só aumente `max_rows` com a concordância da pessoa dona do produto. |
 | "Erro do banco ao executar o comando (ORA-02292)" | Há linhas filhas: ajuste a ordem do script (filhos antes dos pais). O banco não foi alterado. |
 | "Erro do banco ao conectar (ORA-01017 ...)" | Confira usuário, senha e DSN nas variáveis de ambiente. |

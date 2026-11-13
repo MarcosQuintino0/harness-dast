@@ -6,6 +6,7 @@ coincidem. Argumento é validado aqui, com tipo estrito (`true` não é `1`), se
 o valor recebido nas mensagens. Este módulo é puro.
 """
 
+import math
 from collections.abc import Mapping
 from typing import Literal, cast
 
@@ -256,7 +257,9 @@ def _check_kind(spec: ArgSpec, value: object) -> bool:
 def _is_scalar(value: object) -> bool:
     if isinstance(value, str):
         return len(value) <= MAX_ARG_TEXT
-    return value is None or isinstance(value, bool | int | float)
+    if isinstance(value, float):
+        return math.isfinite(value)  # NaN e infinito virariam JSON inválido no corpo enviado
+    return value is None or isinstance(value, bool | int)
 
 
 def _check_arg(generator: str, spec: ArgSpec, value: object) -> None:

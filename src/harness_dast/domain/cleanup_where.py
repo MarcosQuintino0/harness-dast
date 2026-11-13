@@ -18,7 +18,7 @@ _FORBIDDEN = {
     for word in _words(
         "DROP TRUNCATE ALTER CREATE GRANT REVOKE MERGE INSERT UPDATE DELETE EXECUTE EXEC IMMEDIATE "
         "BEGIN DECLARE COMMIT ROLLBACK SAVEPOINT CALL LOCK INTO FOR RETURNING PURGE FLASHBACK "
-        "TRUE FALSE"
+        "TRUE FALSE NEXTVAL CURRVAL"
     )
 }
 _FORBIDDEN_PREFIXES = ("DBMS_", "UTL_")
@@ -36,8 +36,17 @@ _NOT_ALIAS = _words(
     "INTERSECT CONNECT START HAVING AND OR FOR"
 )
 _NOT_COLUMN = _words("NOT EXISTS ANY ALL SOME NULL AND OR IN LIKE BETWEEN")
+# Pseudo-colunas e funções sem argumento do Oracle não dependem da linha: `SYSDATE >= :run_start`
+# é verdadeira para todas (um `WHERE 1 = 1` disfarçado) e nunca contam como "coluna".
+_NOT_COLUMN_ROW_INDEPENDENT = _words(
+    "SYSDATE SYSTIMESTAMP CURRENT_DATE CURRENT_TIMESTAMP LOCALTIMESTAMP ROWNUM ROWID LEVEL USER "
+    "UID SESSIONTIMEZONE DBTIMEZONE DUAL SYS_GUID SYSDATE_UTC CURRENT_USER SESSION_USER "
+    "CONNECT_BY_ROOT CONNECT_BY_ISLEAF CONNECT_BY_ISCYCLE ORA_ROWSCN VERSIONS_STARTTIME"
+)
+_RANGE_OPERATORS = frozenset({">=", ">"})
+_RANGE_BIND = "run_start"
 _COMPARISONS = frozenset({"=", "<>", "!=", "^=", "<", ">", "<=", ">="})
-_ANCHOR_OPERATORS = frozenset({"=", ">=", ">"})
+_ANCHOR_OPERATORS = frozenset({"=", *_RANGE_OPERATORS})
 _VALUE_KINDS = frozenset({TokenKind.BIND, TokenKind.STRING, TokenKind.NUMBER})
 
 
@@ -244,14 +253,29 @@ def _is_bind_list(tokens: list[Token]) -> bool:
     return binds_ok and commas_ok and len(inner) % 2 == 1
 
 
+def _is_run_start(tokens: list[Token]) -> bool:
+    return (
+        len(tokens) == 1
+        and tokens[0].kind is TokenKind.BIND
+        and (tokens[0].text[1:].lower() == _RANGE_BIND)
+    )
+
+
 def _is_anchor(conjunct: list[Token]) -> bool:
     named = read_qualified_name(conjunct, 0)
     if named is None:
         return False
     column, at = named
-    if column in _NOT_COLUMN or column.split(".")[-1] in _NOT_COLUMN or at >= len(conjunct):
+    base = column.split(".")[-1]
+    if base in _NOT_COLUMN or base in _NOT_COLUMN_ROW_INDEPENDENT or at >= len(conjunct):
+        return False
+    if at < len(conjunct) - 1 and conjunct[at].is_op("("):
         return False
     operator, rest = conjunct[at], conjunct[at + 1 :]
+    if operator.kind is TokenKind.OP and operator.text in _RANGE_OPERATORS:
+        # Só a data da execução delimita com faixa; texto (run_id, run_tag, conta) compara por
+        # ordem alfabética e casaria quase toda linha.
+        return _is_run_start(rest)
     if operator.kind is TokenKind.OP and operator.text in _ANCHOR_OPERATORS:
         return _is_value_expression(rest)
     if operator.is_word("LIKE"):

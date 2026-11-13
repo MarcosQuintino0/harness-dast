@@ -6,10 +6,13 @@ from datetime import timedelta
 from types import SimpleNamespace
 from typing import Literal, cast
 
+import pytest
+
 from harness_dast.application.preflight_report import PreflightCheck, PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run import RunPipeline, RunRequest, RunResult
+from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_result import ProbeResult
@@ -37,8 +40,8 @@ def _probe(status: str = "completed") -> ProbeResult:
     return cast(ProbeResult, SimpleNamespace(run_id=RUN_ID, status=status, stop_message=stop))
 
 
-def _scan(status: str = "completed") -> ScanResult:
-    stop = "parou" if status != "completed" else None
+def _scan(status: str = "completed", message: str = "parou") -> ScanResult:
+    stop = message if status != "completed" else None
     return cast(ScanResult, SimpleNamespace(run_id=RUN_ID, status=status, stop_message=stop))
 
 
@@ -53,12 +56,13 @@ def _outcome(*, exceeds: bool = False) -> ReportOutcome:
 @dataclass
 class Sink:
     summaries: dict[str, RunSummary] = field(default_factory=dict)
+    files: dict[str, str] = field(default_factory=lambda: {"probe.json": "probe.json"})
 
     def write_summary(self, run_id: str, summary: RunSummary) -> None:
         self.summaries[run_id] = summary
 
     def existing_files(self, run_id: str) -> dict[str, str]:
-        return {"probe.json": "probe.json"}
+        return dict(self.files)
 
 
 class Kill:
@@ -76,6 +80,7 @@ class Rig:
     sink: Sink = field(default_factory=Sink)
     calls: list[str] = field(default_factory=list)
     scan_requests: list[ScanRequest] = field(default_factory=list)
+    probe_requests: list[ProbeRequest] = field(default_factory=list)
     report_requests: list[ReportRequest] = field(default_factory=list)
     preflight: Callable[[], PreflightReport] = _preflight
     probe: Callable[[], ProbeResult] = _probe
@@ -95,6 +100,7 @@ class Rig:
         class _Probe:
             def execute(self, request: ProbeRequest) -> ProbeResult:
                 rig.calls.append("probe")
+                rig.probe_requests.append(request)
                 rig.clock.advance_to(rig.clock.now() + timedelta(seconds=90))
                 return rig.probe()
 
@@ -126,6 +132,10 @@ class Rig:
 
 def _stage_status(result: RunResult) -> dict[str, str]:
     return {stage.name: stage.status for stage in result.summary.stages}
+
+
+def summary_as_result(summary: RunSummary) -> RunResult:
+    return RunResult(summary, None)
 
 
 def test_run_chains_all_stages_and_writes_summary_when_everything_passes() -> None:
@@ -259,7 +269,7 @@ def test_run_kill_switch_during_scan_ends_with_exit_130_and_flags_the_stop() -> 
 
     def stopped_by_kill() -> ScanResult:
         rig.kill.on = True
-        return _scan("stopped_window")
+        return _scan("stopped_window", KILL_SWITCH_MESSAGE)
 
     rig.scan = stopped_by_kill
 
@@ -285,3 +295,92 @@ def test_run_summary_always_lists_the_four_stages_in_order() -> None:
     result = Rig().run()
 
     assert [s.name for s in result.summary.stages] == ["preflight", "probe", "scan", "report"]
+
+
+def test_run_gives_probe_and_scan_one_single_deadline_from_the_start_of_the_run() -> None:
+    rig = Rig()
+    started = rig.clock.now()
+    limit = valid_profile("demo").limits.max_duration_minutes
+
+    rig.run()
+
+    expected = started + timedelta(minutes=limit)
+    assert rig.probe_requests[0].deadline == expected
+    assert rig.scan_requests[0].deadline == expected  # o scan não recomeça a contagem
+
+
+def test_run_deadline_is_reduced_by_max_minutes_and_never_widened() -> None:
+    rig = Rig()
+    started = rig.clock.now()
+
+    rig.run(RunRequest(product="demo", max_minutes=5))
+
+    assert rig.scan_requests[0].deadline == started + timedelta(minutes=5)
+
+
+def test_run_still_reports_the_partial_scan_when_the_deadline_stops_it() -> None:
+    rig = Rig(scan=lambda: _scan("stopped_deadline"))
+    rig.sink.files["scan.json"] = "scan.json"
+
+    result = rig.run()
+
+    assert rig.calls == ["preflight", "probe", "scan", "report"]
+    assert result.summary.exit_code == 3  # continua sendo o código do estágio que parou
+    assert result.summary.status == "failed"
+    assert _stage_status(result)["scan"] == "failed"
+    assert _stage_status(result)["report"] == "ok"
+    assert result.summary.findings_by_severity == {"high": 1}
+
+
+def test_run_does_not_report_when_the_stopped_scan_left_no_scan_json() -> None:
+    rig = Rig(scan=lambda: _scan("stopped_deadline"))
+
+    result = rig.run()
+
+    assert "report" not in rig.calls
+    assert result.summary.exit_code == 3
+
+
+def test_run_keeps_the_scan_exit_code_when_the_partial_report_also_fails() -> None:
+    def failing() -> ReportOutcome:
+        raise ConfigError("sem alertas")
+
+    rig = Rig(scan=lambda: _scan("stopped_deadline"), report=failing)
+    rig.sink.files["scan.json"] = "scan.json"
+
+    result = rig.run()
+
+    assert result.summary.exit_code == 3
+    assert isinstance(result.error, ScopeViolation)
+    assert _stage_status(result)["report"] == "failed"
+
+
+def test_run_does_not_hide_a_genuine_error_behind_130_when_the_kill_switch_is_on() -> None:
+    rig = Rig()
+
+    def target_down() -> ScanResult:
+        rig.kill.on = True  # a trava foi acionada, mas não foi ela que parou o scan
+        return _scan("stopped_target_unresponsive", "alvo parou de responder")
+
+    rig.scan = target_down
+
+    result = rig.run()
+
+    assert result.summary.exit_code == 6
+    assert result.summary.status == "failed"
+    assert result.summary.stop_requested is True
+
+
+def test_run_writes_the_summary_and_reraises_when_a_stage_fails_unexpectedly() -> None:
+    def broken() -> ScanResult:
+        raise RuntimeError("bug")
+
+    rig = Rig(scan=broken)
+
+    with pytest.raises(RuntimeError):
+        rig.run()
+
+    summary = rig.sink.summaries[RUN_ID]
+    assert summary.status == "failed"
+    assert summary.exit_code == 10
+    assert _stage_status(summary_as_result(summary))["scan"] == "failed"

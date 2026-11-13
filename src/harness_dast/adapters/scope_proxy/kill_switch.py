@@ -17,5 +17,14 @@ class FileKillSwitch:
         self._flag = None if policy_dir is None else policy_dir / KILL_FLAG_NAME
 
     def engaged(self) -> bool:
-        """Se o arquivo `KILL` existe agora."""
-        return self._flag is not None and self._flag.exists()
+        """Se o arquivo `KILL` existe agora.
+
+        Falha fechada: se o sistema de arquivos nega o acesso ao arquivo (no Windows `exists()`
+        pode levantar `PermissionError`), a trava conta como acionada.
+        """
+        if self._flag is None:
+            return False
+        try:
+            return self._flag.exists()
+        except OSError:
+            return True

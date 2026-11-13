@@ -17,7 +17,7 @@ Roda a varredura ativa do ZAP sobre as requisições que um `probe` **da mesma e
 | `--only ID` | Varre só esta operação (repetível). Um `operation_id` que a execução não tem é erro de configuração (saída 2) |
 | `--include-outcome CLASSE` | Varre também operações que o `probe` classificou assim (repetível). Lista fechada: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error`. `success` é sempre incluído; `server_error`, `auth_error` e afins nunca |
 | `--dry-run` | Mostra o plano (`data.planned`, `data.skipped`). **Não** toca o ZAP nem o alvo, não resolve segredos, não grava arquivos |
-| `--max-minutes N` | Reduz o prazo total (nunca acima de `limits.max_duration_minutes`) |
+| `--max-minutes N` | Reduz o prazo total (nunca acima de `limits.max_duration_minutes`). No `hdast run` o prazo é um só para a execução inteira e é herdado do `run` |
 | `--threads N` | Reduz as threads por host (nunca acima de `limits.zap_threads_per_host`) |
 | `--account APELIDO` | Impõe uma conta a TODAS as varreduras. Sem a flag, cada requisição é varrida com a conta que a enviou no `probe` (`auth.account_map`) |
 | `--products-dir` | Pasta de produtos |
@@ -38,7 +38,7 @@ Decisão da CLI (`domain/scan_plan.py`), com o `ScopeGuard` sobre a **URL concre
 | `POST`, `GET`, `HEAD`, `OPTIONS` | Varridos (o `POST` cria dados sintéticos; o `cleanup` os apaga) |
 | Sem mensagem aprendida no ZAP | Pulada (`not_learned`) |
 
-Ordem: por conta; dentro da conta, leituras, depois `POST`, depois `PUT`/`PATCH`. Uma varredura do ZAP **por requisição aprendida** (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider). O ZAP não restringe método nem caminho do que o varredor GERA: isso é do proxy de escopo ([ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)); o `scan` só decide o que pede.
+Ordem ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md) muda a do ADR 0022): por conta; dentro da conta, **leituras e escritas intercaladas** de modo determinístico, para que um prazo curto cubra as duas classes em vez de gastar tudo nas leituras. As leituras mantêm a ordem do `probe`; as escritas vão de `POST` a `PUT`/`PATCH`; depois de cada bloco de `leituras // escritas` leituras (no mínimo 1) entra uma escrita, começando por uma leitura. Com 6 leituras e 2 escritas: `r r r w r r r w`. Uma varredura do ZAP **por requisição aprendida** (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider). O ZAP não restringe método nem caminho do que o varredor GERA: isso é do proxy de escopo ([ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)); o `scan` só decide o que pede.
 
 ## Política e limites (sempre explícitos)
 

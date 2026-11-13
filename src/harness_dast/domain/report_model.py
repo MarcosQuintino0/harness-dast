@@ -73,6 +73,8 @@ class Coverage(ApiModel):
         probe_successes: Operações com sucesso no probe.
         reachability: Sucessos sobre tentadas (ou `None`).
         reachability_all: Sucessos sobre todas (ou `None`).
+        partial: Se o probe ou o scan pararam antes do fim (prazo, janela, login, ZAP ou alvo): o
+            relatório cobre só o que foi coletado até ali.
         probe_status: Estado final do probe.
         scan_status: Estado final do scan.
         scan_stop_message: Explicação da parada do scan.
@@ -89,6 +91,7 @@ class Coverage(ApiModel):
     probe_successes: int
     reachability: float | None
     reachability_all: float | None
+    partial: bool = False
     probe_status: str
     scan_status: str
     scan_stop_message: str | None = None

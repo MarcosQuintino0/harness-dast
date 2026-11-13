@@ -21,6 +21,7 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -32,8 +33,12 @@ import oracledb
 import pytest
 import yaml
 
+from harness_dast.application.cleanup import CleanupReport, CleanupRequest
 from harness_dast.cli.app import build_app, run_app
+from harness_dast.cli.composition import build_cleanup
+from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ExitCode
+from harness_dast.observability.logging import SecretRegistry
 from tests.fakes.cleanup_ports import finished_manifest
 
 pytestmark = pytest.mark.integration
@@ -387,8 +392,57 @@ def hdast(
     return code, json.loads(captured.out), captured.err
 
 
-def token_in(err: str) -> str:
-    return next(line.strip() for line in err.splitlines() if line.strip().startswith("hdc-"))
+class TypedName:
+    """Dublê do terminal: a pessoa digita `typed` no prompt (só o nome do produto confirma)."""
+
+    def __init__(self, typed: str) -> None:
+        self.typed = typed
+
+    def confirm(self, plan: CleanupPlan) -> bool:
+        return self.typed.strip() == plan.product
+
+
+def confirm_as_person(workspace: Workspace, typed: str) -> CleanupReport:
+    """Roda o caso de uso em processo, com a pessoa (dublê) num terminal interativo.
+
+    A confirmação real exige terminal; o subprocesso do teste não tem, então este caminho exercita
+    o caso de uso diretamente, com o mesmo executor Oracle da CLI.
+    """
+    use_case = build_cleanup(workspace.products, SecretRegistry(), TypedName(typed))
+    return use_case.execute(
+        CleanupRequest(
+            product="clinica-piloto",
+            run_id=workspace.run_id,
+            dry_run=False,
+            confirm_token=None,
+            interactive=True,
+        )
+    )
+
+
+def cli_without_terminal(workspace: Workspace) -> subprocess.CompletedProcess[str]:
+    """`hdast cleanup` de verdade por subprocesso: sem TTY em stdin, a CLI tem de recusar."""
+    return subprocess.run(  # noqa: S603 - interpretador atual e módulo do próprio projeto
+        [
+            sys.executable,
+            "-m",
+            "harness_dast",
+            "--json",
+            "cleanup",
+            "clinica-piloto",
+            "--run",
+            workspace.run_id,
+            "--products-dir",
+            str(workspace.products),
+        ],
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+        check=False,
+    )
 
 
 def junk_rows(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
@@ -400,7 +454,7 @@ def junk_rows(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
 # ------------------------------------------------------------------ os testes
 
 
-def test_dry_run_then_confirm_removes_only_the_junk_and_keeps_the_seed(
+def test_dry_run_then_a_person_typing_the_product_removes_only_the_junk_and_keeps_the_seed(
     stack: Stack,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -425,21 +479,25 @@ def test_dry_run_then_confirm_removes_only_the_junk_and_keeps_the_seed(
         "CONVENIO": 1,
     }
     assert eval_state(stack) == with_junk  # o --dry-run desfez tudo
-    token = token_in(err)
-    assert token not in json.dumps(dry)
+    assert "hdc-" not in err + json.dumps(dry)  # a CLI não emite token nenhum
 
-    code, done, _ = hdast(capsys, workspace, "--confirm", token)
+    refused = cli_without_terminal(workspace)  # a CLI de verdade, sem TTY, nunca apaga
+    assert refused.returncode == ExitCode.USAGE, refused.stdout
+    assert "terminal interativo" in json.loads(refused.stdout)["error"]["message"]
+    assert eval_state(stack) == with_junk
 
-    assert code == ExitCode.OK, done
-    assert (done["data"]["status"], done["data"]["committed"]) == ("committed", True)
+    declined = confirm_as_person(workspace, "outro-nome")
+    assert (declined.status, declined.committed) == ("declined", False)
+    assert eval_state(stack) == with_junk
+
+    done = confirm_as_person(workspace, "clinica-piloto")
+
+    assert (done.status, done.committed) == ("committed", True)
     assert eval_state(stack) == seed  # volta exatamente ao estado de semente
     with_record = json.loads(
         (workspace.runs / workspace.run_id / "cleanup.json").read_text("utf-8")
     )
     assert with_record["total_rows"] == 5
-
-    code, _, _ = hdast(capsys, workspace, "--confirm", token)
-    assert code == ExitCode.USAGE  # o token é de uso único
 
 
 def test_a_failing_statement_in_the_middle_leaves_the_database_unchanged(

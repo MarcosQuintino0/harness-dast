@@ -14,6 +14,25 @@ from harness_dast.domain.secret_ref import ProfileModel
 Level = Literal["LOW", "MEDIUM", "HIGH"]
 FailOn = Literal["none", "low", "medium", "high"]
 MutatingMethod = Literal["PUT", "PATCH"]
+_STRICTNESS: dict[str, int] = {"none": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def effective_fail_on(from_profile: FailOn, requested: FailOn | None) -> FailOn:
+    """Limiar que vale: o pedido na linha de comando só endurece o do perfil, nunca afrouxa.
+
+    O perfil vem da autorização formal; uma flag (que um agente também passa) não pode silenciar
+    o código de saída 1 que o perfil exige. `--fail-on none` com um perfil `high` continua `high`.
+
+    Args:
+        from_profile: `scan.fail_on` do perfil.
+        requested: `--fail-on` da linha de comando, ou `None`.
+
+    Returns:
+        O mais rígido dos dois (`low` é mais rígido que `medium`, que é mais que `high`).
+    """
+    if requested is None:
+        return from_profile
+    return requested if _STRICTNESS[requested] > _STRICTNESS[from_profile] else from_profile
 
 
 class ScanConfig(ProfileModel):

@@ -3,7 +3,9 @@
 `hdast stack up clinica-piloto --oracle` sobe ZAP, proxy, piloto e Oracle; um humano (aqui, o
 teste) cria o usuário de banco só da limpeza com `lab/pilot/cleanup/create-cleanup-user.sql`;
 `hdast run` cria dados sintéticos (probe e varredura); `hdast cleanup --dry-run` mostra as
-contagens e o token (no stderr), e `--confirm` apaga. Critério: as contagens de linhas do
+contagens (sem token: a CLI não emite nenhum), a CLI via subprocesso (sem terminal) recusa
+apagar, e só uma pessoa digitando o nome do produto no terminal (aqui, um dublê do terminal no
+caso de uso em processo) apaga. Critério: as contagens de linhas do
 `/internal/eval/state` voltam EXATAMENTE à semente. O Oracle leva cerca de 80 s para subir e usa
 cerca de 1,7 GiB; ZAP e Oracle juntos cabem no Docker Desktop de 6,7 GiB desta máquina de lab.
 Nível rápido: `run --skip-scan` e uma varredura de duas escritas. Pulado sem Docker ou sem a
@@ -133,13 +135,15 @@ def test_run_then_cleanup_returns_the_row_counts_to_the_seed(oracle_cli: LabCli)
 
     dry = oracle_cli.run("cleanup", "clinica-piloto", "--run", run_id, "--dry-run")
     assert dry.code == 0, dry.stdout[-600:]
-    token = re.search(r"hdc-[\w-]+", dry.stderr)
-    assert token is not None
-    assert token.group(0) not in dry.stdout
+    assert re.search(r"hdc-[\w-]+", dry.stderr + dry.stdout) is None  # sem token em lugar nenhum
     assert _rows() == created  # o --dry-run desfez tudo
 
-    done = oracle_cli.run("cleanup", "clinica-piloto", "--run", run_id, "--confirm", token.group(0))
-    assert done.code == 0, done.stdout[-600:]
+    refused = oracle_cli.run("cleanup", "clinica-piloto", "--run", run_id)  # sem TTY
+    assert refused.code == 2, refused.stdout[-600:]
+    assert _rows() == created
+
+    done = oracle_cli.confirm_cleanup_as_person("clinica-piloto", run_id, "clinica-piloto")
+    assert (done.status, done.committed) == ("committed", True)
     assert _rows() == seed
     assert sampler.peaks
     record_metrics(
@@ -150,7 +154,11 @@ def test_run_then_cleanup_returns_the_row_counts_to_the_seed(oracle_cli: LabCli)
             "stages": [(x["name"], x["status"], x["duration_seconds"]) for x in summary["stages"]],
             "seed_rows": seed,
             "rows_after_run": created,
-            "cleanup": {k: done.data.get(k) for k in ("status", "total_rows", "committed")},
+            "cleanup": {
+                "status": done.status,
+                "total_rows": done.total_rows,
+                "committed": done.committed,
+            },
             "peak_memory_mib": {k: round(v) for k, v in sampler.peaks.items()},
         },
     )

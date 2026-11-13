@@ -94,6 +94,7 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
         probe_successes=summary.successes,
         reachability=summary.reachability,
         reachability_all=summary.reachability_all,
+        partial=probe.status != "completed" or scan.status != "completed",
         probe_status=probe.status,
         scan_status=scan.status,
         scan_stop_message=scan.stop_message,

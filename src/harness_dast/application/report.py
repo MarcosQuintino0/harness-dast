@@ -7,7 +7,8 @@ autorização: ler arquivos não envia nada ao alvo.
 
 Dono do código de saída 1: é o `report` (o `scan` só coleta). Com um limiar de severidade
 (`--fail-on` ou `scan.fail_on` do perfil), `exceeds_threshold` diz se há achado igual ou acima
-dele, contando TODOS os achados: a triagem do agente não retira nada da conta.
+dele, contando TODOS os achados: a triagem do agente não retira nada da conta. `--fail-on` só
+endurece o limiar do perfil (`effective_fail_on`); severidade desconhecida conta como acima.
 """
 
 from collections.abc import Sequence
@@ -21,7 +22,7 @@ from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.report_build import assemble_report
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
-from harness_dast.domain.scan_config import FailOn
+from harness_dast.domain.scan_config import FailOn, effective_fail_on
 from harness_dast.domain.triage import TriageFile, parse_triage
 from harness_dast.domain.zap_alert import SEVERITY_RANK
 
@@ -34,7 +35,8 @@ class ReportRequest:
         product: Produto.
         run_id: Execução com `probe.json`, `scan.json` e alertas.
         compare: Outra execução (com `findings.json`) para marcar novo, persistente e gone.
-        fail_on: Limiar que sobrepõe `scan.fail_on` do perfil; `None` usa o do perfil.
+        fail_on: Limiar pedido; só endurece `scan.fail_on` do perfil (nunca afrouxa);
+            `None` usa o do perfil.
     """
 
     product: str
@@ -111,7 +113,7 @@ class Report:
             csrf_header=csrf_header,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
-        threshold = request.fail_on or profile.scan.fail_on
+        threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
         return ReportOutcome(report, files, threshold, exceeds(report, threshold))
 
     def _baseline(self, other: str | None, run_id: str) -> FindingsReport | None:
@@ -131,11 +133,18 @@ class Report:
 
 
 def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
-    """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca)."""
+    """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca).
+
+    Severidade que a CLI não soube classificar (`unknown`: `Critical`, um ZAP em outro idioma,
+    vazio) conta como acima de qualquer limiar diferente de `none`: o gate falha fechado.
+    """
     if threshold == "none":
         return False
     floor = SEVERITY_RANK[threshold]
-    return any(SEVERITY_RANK[item.proposed_severity] >= floor for item in report.findings)
+    return any(
+        item.proposed_severity == "unknown" or SEVERITY_RANK[item.proposed_severity] >= floor
+        for item in report.findings
+    )
 
 
 def _placeholders(profile: ProductProfile) -> tuple[tuple[str, str] | None, str | None]:

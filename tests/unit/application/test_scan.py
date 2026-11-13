@@ -30,8 +30,8 @@ def test_scans_only_successful_safe_operations_one_scan_per_learned_request() ->
     result = rig.run_scan()
 
     assert result.status == "completed"
-    assert [e.operation_id for e in result.entries] == ["listar", "buscar", "criar", "atualizar"]
-    assert [s.method for s in rig.zap.started] == ["GET", "GET", "POST", "PUT"]
+    assert [e.operation_id for e in result.entries] == ["listar", "criar", "buscar", "atualizar"]
+    assert [s.method for s in rig.zap.started] == ["GET", "POST", "GET", "PUT"]
     skipped = {s.operation_id: s.reason for s in result.skipped}
     assert skipped == {
         "login": "login",
@@ -108,13 +108,14 @@ def test_put_runs_only_on_resources_created_by_the_run_or_with_profile_opt_in() 
     assert "atualizar" in [e.operation_id for e in opted_in.entries]
 
 
-def test_read_operations_run_before_writes_so_a_deadline_cuts_the_riskiest_last() -> None:
+def test_reads_and_writes_are_interleaved_so_a_short_deadline_covers_both() -> None:
     rig = ready()
 
     result = rig.run_scan()
 
     methods = [e.method for e in result.entries]
-    assert methods == sorted(methods, key=["GET", "POST", "PUT"].index)
+    assert methods == ["GET", "POST", "GET", "PUT"]
+    assert set(methods[:2]) == {"GET", "POST"}  # as duas classes cabem no primeiro par
 
 
 def test_only_narrows_the_selection() -> None:
@@ -204,7 +205,7 @@ def test_dry_run_shows_the_plan_and_touches_neither_zap_nor_target_nor_disk() ->
     result = rig.run_scan(dry_run=True)
 
     assert result.dry_run is True
-    assert [p.operation_id for p in result.planned] == ["listar", "buscar", "criar", "atualizar"]
+    assert [p.operation_id for p in result.planned] == ["listar", "criar", "buscar", "atualizar"]
     assert rig.zap.calls == calls_before
     assert len(rig.target.requests) == sent_before
     assert rig.artifacts.scans == {}

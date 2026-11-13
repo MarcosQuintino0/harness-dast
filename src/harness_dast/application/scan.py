@@ -91,6 +91,8 @@ class ScanRequest:
         threads: Reduz as threads por host (nunca acima de `limits.zap_threads_per_host`).
         account: Conta imposta a TODAS as varreduras; `None` usa a conta de cada operação no
             `probe`.
+        deadline: Prazo absoluto herdado do `run` encadeado (um só para a execução inteira);
+            só reduz o prazo do perfil, nunca o amplia.
     """
 
     product: str
@@ -101,6 +103,7 @@ class ScanRequest:
     max_minutes: int | None = None
     threads: int | None = None
     account: str | None = None
+    deadline: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,7 @@ class _Prepared:
     candidates: tuple[Candidate, ...]
     skipped: tuple[ScanSkip, ...]
     started: datetime
+    deadline: datetime
     policy: ScanPolicy
     zap_limits: ScanLimits
 
@@ -236,6 +240,8 @@ class Scan:
             only=request.only,
         )
         limits = _narrow(profile.limits, request)
+        own_deadline = started + timedelta(minutes=limits.max_duration_minutes)
+        deadline = own_deadline if request.deadline is None else min(own_deadline, request.deadline)
         pinned = profile.select_account(request.account).alias if request.account else None
         return _Prepared(
             profile=profile,
@@ -248,6 +254,7 @@ class Scan:
             candidates=candidates,
             skipped=skipped,
             started=started,
+            deadline=deadline,
             policy=build_policy(profile.scan),
             zap_limits=build_limits(limits, profile.scan),
         )
@@ -338,7 +345,9 @@ class Scan:
         run_id = request.run_id
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         limited = profile.model_copy(update={"limits": prep.limits})
-        gate = RunGate(limited, self._clock, prep.started, self._kill_switch)
+        gate = RunGate(
+            limited, self._clock, prep.started, self._kill_switch, deadline=prep.deadline
+        )
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._client,
@@ -408,7 +417,7 @@ class Scan:
             context_id=context,
             policy=prep.policy,
             limits=prep.zap_limits,
-            deadline=prep.started + timedelta(minutes=prep.limits.max_duration_minutes),
+            deadline=prep.deadline,
             base_url=prep.profile.environment.base_url,
         )
 

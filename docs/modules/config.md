@@ -7,7 +7,7 @@ Caminho: `src/harness_dast/config/`. Referências: [reference/env-vars.md](../re
 Carregar e validar a configuração que vem de fora, na partida.
 
 - **Settings da ferramenta**: variáveis `HDAST_*` lidas e validadas com pydantic-settings. Cobertas: endereço do ZAP, chave de API do ZAP, pasta de execuções, pasta de produtos e nível de log.
-- **Carregador de perfil**: lê `target.yml` e os arquivos de regras, em modo seguro, e os converte em modelos de `domain`. **Planejado** (segunda metade do M2); não existe.
+- **Carregador de perfil**: lê `target.yml` e os arquivos de regras, em modo seguro, e os converte em modelos de `domain`. Implementado (M2): `adapters/storage/profile_repository.py` e `adapters/storage/strict_yaml.py`.
 
 Precedência geral: flag, depois ambiente, depois perfil. Exceção deliberada: escopo e limites só podem ser reduzidos por flag, nunca ampliados.
 

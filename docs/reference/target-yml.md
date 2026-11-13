@@ -389,6 +389,8 @@ scan:
 
 ## Segredos: `secret_ref`
 
+Nomes `HDAST_*` são recusados: são variáveis do próprio harness (chave do ZAP, pastas, proxy) e um perfil escrito pelo agente poderia mandá-las ao alvo como senha. Use um nome do produto, como `AGENDA_USER_A_SENHA`.
+
 Todo valor sensível é uma referência, nunca o valor:
 
 ```yaml

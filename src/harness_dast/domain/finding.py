@@ -54,6 +54,9 @@ def generic_template(path: str) -> str:
     return normalize_path_template("/" + "/".join(segments))
 
 
+_SEPARATOR = "\x1f"
+
+
 def compute_fingerprint(
     *,
     product: str,
@@ -77,7 +80,14 @@ def compute_fingerprint(
         alert_ref.strip(),
         "" if cwe is None else str(cwe),
     )
-    return hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
+    if any(_SEPARATOR in part for part in parts):
+        # O separador aparece no dado (vem do ZAP): ("a\x1fb", "c") e ("a", "b\x1fc") colidiriam.
+        # Esta forma, com o tamanho de cada parte, é injetiva e começa com \x1e, que a forma
+        # simples nunca produz; assim o fingerprint de quem não tem o separador não muda.
+        payload = "\x1e" + "".join(f"{len(part)}:{part}" for part in parts)
+    else:
+        payload = _SEPARATOR.join(parts)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class Classification(ApiModel):

@@ -13,7 +13,7 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 | --- | --- |
 | `--run RUN_ID` | **Obrigatória.** Execução com `probe.json` e `scan.json` |
 | `--compare RUN_ID` | Marca os achados como `new` ou `persistent` e lista os `not_observed` (precisa de `findings.json` da outra execução, do mesmo produto e da mesma versão de fingerprint) |
-| `--fail-on LIMIAR` | `none`, `low`, `medium` ou `high`. Sai com `1` se houver achado com severidade proposta igual ou acima. Sobrepõe `scan.fail_on` do perfil (padrão `none`) |
+| `--fail-on LIMIAR` | `none`, `low`, `medium` ou `high`. Sai com `1` se houver achado com severidade proposta igual ou acima. **Só endurece** `scan.fail_on` do perfil (padrão `none`): `none` na flag não afrouxa um perfil `high` |
 | `--products-dir` | Pasta de produtos |
 
 ## Código de saída 1
@@ -22,7 +22,9 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 
 - `1` não é erro: o envelope traz `ok: true`, `data.exceeds_threshold: true` e o mesmo `data` de sempre.
 - Conta **todos** os achados na severidade **proposta pelo ZAP**, inclusive os anotados como "suspeita de falso positivo": a triagem do agente nunca retira nada da conta.
+- Severidade que a CLI não soube classificar (`unknown`: um `Critical` novo do ZAP, um ZAP em outro idioma, texto vazio) conta como acima de qualquer limiar diferente de `none`, e o relatório a mostra como "Desconhecida": o gate falha fechado.
 - Sem limiar (`none`, o padrão), a saída é `0` com ou sem achados.
+- Relatório de uma execução que parou antes do fim (`coverage.partial: true`) traz o aviso "RELATÓRIO PARCIAL" no topo da seção de cobertura.
 - Erros: `2` (execução sem `scan.json`, arquivo ilegível, `triage.json` inválido, comparação impossível, `--fail-on` desconhecido).
 
 ## `data`

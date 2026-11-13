@@ -10,7 +10,7 @@ Logs estruturados, redação de dados sensíveis e trilha de auditoria.
 | --- | --- | --- |
 | Logger estruturado (structlog) | Logs em JSON no `stderr`. Desenho: `run_id` em todas as linhas e cópia em `runs/RUN_ID/harness.log` | `stderr`: implementado (M1). `run_id` e arquivo: planejados (M5) |
 | Redator central | Processador do structlog que mascara por **nome de chave** (inclui `authorization`, `cookie`, `password`, `token`, `secret`, `api_key` e `senha`), por **segredo registrado** no `SecretRegistry`, por padrão de **JWT** e por **CPF** formatado. Cobre texto, dicionário, lista, tupla, conjunto, `bytes`, pares de cabeçalho `("Authorization", "...")`, exceções e objetos arbitrários (pelo texto que produzem) | Implementado (M1 e rodada de correção de 2026-11-13, achado A-15) |
-| Trilha de auditoria `audit.jsonl` | Só de acréscimo: uma linha por requisição enviada ao alvo, com método, URL, status, apelido da conta e componente de origem | Planejado, M3 |
+| Trilha de auditoria `audit.jsonl` | Só de acréscimo: uma linha por requisição enviada ao alvo, com método, URL, status, apelido da conta e componente de origem | Implementado (M3): `application/run_support.py` (`AuditTrail`) |
 
 O `manifest.json` de cada execução (versões do harness e do ZAP, hash do perfil e do Swagger, limites aplicados) é do pacote de execuções e chega no M5.
 

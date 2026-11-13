@@ -88,14 +88,17 @@ def test_severity_gate_counts_findings_at_or_above_the_threshold() -> None:
     assert [o.exceeds_threshold for o in (below, at, low, off)] == [False, True, True, False]
 
 
-def test_threshold_comes_from_the_profile_unless_the_flag_overrides_it() -> None:
+def test_threshold_comes_from_the_profile_and_the_flag_can_only_tighten_it() -> None:
     rig = scanned(agenda_profile(scan={"fail_on": "high"}))
 
     from_profile = rig.report().execute(request(rig))
-    overridden = rig.report().execute(request(rig, fail_on="none"))
+    relaxed = rig.report().execute(request(rig, fail_on="none"))
+    tightened = rig.report().execute(request(rig, fail_on="low"))
 
     assert (from_profile.threshold, from_profile.exceeds_threshold) == ("high", True)
-    assert (overridden.threshold, overridden.exceeds_threshold) == ("none", False)
+    # `--fail-on none` não afrouxa o perfil (flags só reduzem).
+    assert (relaxed.threshold, relaxed.exceeds_threshold) == ("high", True)
+    assert tightened.threshold == "low"
 
 
 def test_default_has_no_gate_so_findings_alone_never_change_the_exit_code() -> None:
@@ -174,10 +177,31 @@ def test_report_without_a_scan_or_for_another_product_is_a_config_error() -> Non
         done.report().execute(request(done))
 
 
-def test_exceeds_helper_treats_none_as_off_and_unknown_severity_as_lowest() -> None:
+def test_exceeds_helper_treats_none_as_off_and_unknown_severity_as_above_any_threshold() -> None:
     rig = scanned(risk="Weird")
     report = rig.report().execute(request(rig)).report
 
     assert report.findings[0].proposed_severity == "unknown"
     assert exceeds(report, "none") is False
-    assert exceeds(report, "low") is False
+    assert exceeds(report, "low") is True  # não soube classificar: o gate falha fechado
+    assert exceeds(report, "high") is True
+
+
+def test_report_marks_the_coverage_as_partial_when_the_scan_stopped_before_the_end() -> None:
+    rig = scanned()
+    run_id = rig.probe_result.run_id
+    stopped = rig.artifacts.scans[run_id].model_copy(
+        update={"status": "stopped_deadline", "stop_message": "O prazo acabou."}
+    )
+    rig.artifacts.scans[run_id] = stopped
+
+    outcome = rig.report().execute(request(rig))
+
+    assert outcome.report.coverage.partial is True
+    assert outcome.report.coverage.scan_status == "stopped_deadline"
+
+
+def test_report_is_not_partial_when_probe_and_scan_completed() -> None:
+    rig = scanned()
+
+    assert rig.report().execute(request(rig)).report.coverage.partial is False

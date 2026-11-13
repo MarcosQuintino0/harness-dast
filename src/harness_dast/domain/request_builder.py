@@ -32,12 +32,13 @@ from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import BoundValue, ResolvedBindings
 from harness_dast.domain.implicit_values import FieldNotGeneratable, implicit_draw
+from harness_dast.domain.routing_headers import is_routing_header
 from harness_dast.domain.schema_check import violations
 from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, validate_run_tag
 
 MAX_BUILD_DEPTH = 12
 MAX_ITEMS = 20
-_SKIPPED_HEADERS = frozenset({"authorization", "content-type", "accept"})
+_SKIPPED_HEADERS = frozenset({"authorization", "content-type", "accept", "cookie"})
 _LOCATIONS: tuple[RuleLocation, ...] = ("path", "query", "header", "cookie")
 _RULE_HINT = "Escreva uma regra em data-rules.yml para este campo."
 
@@ -221,6 +222,9 @@ class RequestBuilder:
         result: list[tuple[str, JsonValue]] = []
         for parameter in self._declared(operation, location):
             if location == "header" and parameter.name.lower() in _SKIPPED_HEADERS:
+                continue
+            if location == "header" and is_routing_header(parameter.name):
+                skipped.append(f"header.{parameter.name} (cabeçalho de roteamento: nunca enviado)")
                 continue
             ctx = _Ctx(
                 operation.operation_id,

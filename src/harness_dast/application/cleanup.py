@@ -7,7 +7,8 @@ A ordem é fixa e tudo que pode ser recusado é recusado ANTES de abrir qualquer
    NÃO é exigida: a limpeza não envia nada ao alvo e deixar lixo até a próxima janela é pior);
 2. o perfil tem tudo que a limpeza exige (usuário, senha, `allowed_tables`, `max_rows`);
 3. o script passa no portão (`domain.cleanup_gate`) e as variáveis do contrato são resolvidas;
-4. a forma de confirmar existe: `--dry-run`, `--confirm <token>` válido (gasto aqui) ou terminal;
+4. a forma de confirmar existe: `--dry-run`, terminal interativo (a pessoa digita o produto) ou,
+   só por este caso de uso (a CLI não o expõe, ADR 0025), um token válido (gasto aqui);
 5. só então conecta, abre UMA transação, roda os comandos, confere os tetos e decide:
    `--dry-run` sempre desfaz; sem confirmação da pessoa, desfaz; qualquer erro desfaz.
 
@@ -60,6 +61,7 @@ from harness_dast.domain.secret_ref import SecretRef
 
 CONNECT_TIMEOUT_SECONDS = 15
 CALL_TIMEOUT_SECONDS = 120
+_UNEXPECTED = "A limpeza parou por um erro inesperado (a transação foi desfeita)."
 _PROFILE_HINT = (
     "Complete o bloco cleanup do target.yml (veja docs/operations/cleanup.md): user e password "
     "(secret_ref), allowed_tables e max_rows."
@@ -92,7 +94,8 @@ class CleanupRequest:
         product: Produto.
         run_id: Execução a limpar.
         dry_run: Executa e SEMPRE desfaz; emite o token de confirmação.
-        confirm_token: Token de um `--dry-run` anterior (execução sem terminal).
+        confirm_token: Token de um `--dry-run` anterior. A CLI nunca o preenche (ADR 0025): só
+            quem usa o caso de uso em processo o tem.
         interactive: Se há uma pessoa em um terminal para confirmar digitando o produto.
     """
 
@@ -189,14 +192,22 @@ class Cleanup:
         self._audit(job, "started", started)
         attempt = _Attempt()
         session: CleanupSession | None = None
+        status: CleanupStatus | None = None
+        handled = False
         try:
             session = self._executor.open(job.connection)
             status = self._work(session, job, attempt)
         except CleanupError as error:
+            handled = True
             attempt.rolled_back = self._rollback(session)
             self._finish(job, attempt, "failed", started, error)
             raise
         finally:
+            if status is None and not handled:
+                # Exceção que não é do harness (driver, disco): a trilha não pode ficar com uma
+                # tentativa "started" sem "finished". Desfaz, registra, e a exceção segue.
+                attempt.rolled_back = self._rollback(session)
+                self._finish(job, attempt, "failed", started, CleanupError(_UNEXPECTED))
             if session is not None:
                 session.close()
         return self._finish(job, attempt, status, started, None)
@@ -318,10 +329,10 @@ class Cleanup:
         if request.interactive:
             return "interactive", None
         raise ConfigError(
-            "Sem terminal interativo e sem --confirm: a limpeza não será executada.",
+            "Sem terminal interativo: a limpeza de verdade não será executada.",
             hint=(
-                "Rode 'hdast cleanup <produto> --run <run_id> --dry-run', confira as contagens "
-                "e use o token mostrado no stderr em --confirm. Quem confirma é uma pessoa."
+                "Só uma pessoa, em um terminal interativo, confirma digitando o nome do produto. "
+                "Esta tarefa não é de agente: peça ao dono do produto."
             ),
         )
 

@@ -15,6 +15,7 @@ from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, Route
 from harness_dast.domain.request_builder import BuiltRequest
+from harness_dast.domain.routing_headers import is_routing_header
 
 LOGIN_OPERATION_ID = "auth.login"
 CSRF_OPERATION_ID = "auth.csrf"
@@ -83,7 +84,9 @@ def encode_built_request(
         ConfigError: Tipo de mídia do corpo não suportado.
     """
     payload, content_type = encode_body(built.body, built.body_media_type)
-    headers: list[tuple[str, str]] = list(built.headers.items())
+    headers: list[tuple[str, str]] = [
+        (name, value) for name, value in built.headers.items() if not is_routing_header(name)
+    ]
     if built.cookies:
         headers.append(("Cookie", "; ".join(f"{k}={v}" for k, v in built.cookies.items())))
     if content_type is not None:

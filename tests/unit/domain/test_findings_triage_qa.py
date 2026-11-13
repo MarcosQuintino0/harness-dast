@@ -435,7 +435,8 @@ HOSTILE = [
 def _rendered(**changes: object) -> str:
     from harness_dast.domain.report_markdown import render_markdown
 
-    return render_markdown(report_with(finding(FP_A, **changes)))
+    severity = str(changes.pop("severity", "high"))
+    return render_markdown(report_with(finding(FP_A, severity, **changes)))
 
 
 def _outside_code(text: str) -> str:

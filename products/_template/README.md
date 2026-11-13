@@ -3,7 +3,7 @@
 > **Schema em evolução (M2).** Os modelos do perfil já existem em
 > `src/harness_dast/domain/profile.py` e um teste de contrato garante que
 > `target.yml` é aceito por eles. O leitor de YAML e os comandos `hdast init`
-> e `hdast profile validate` ainda **não existem** (são planejados). Nomes e
+> e `hdast profile validate` existem desde o M2. Nomes e
 > campos podem mudar até o fim do M2.
 
 Um **perfil de produto** é a pasta que diz ao `hdast` o que pode ser testado

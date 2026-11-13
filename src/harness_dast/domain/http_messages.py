@@ -15,6 +15,8 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from harness_dast.domain.errors import ScopeViolation
+from harness_dast.domain.routing_headers import is_routing_header
 from harness_dast.domain.scope import OutboundRequest, ScopeGuard
 
 Route = Literal["zap", "auth"]
@@ -90,9 +92,16 @@ def approve(guard: ScopeGuard, request: HttpRequest) -> ApprovedRequest:
     """Confere a requisição no escopo e devolve a versão aprovada.
 
     Raises:
-        ScopeViolation: Se a requisição estiver fora do escopo ou em `deny_paths` (nada é
-            devolvido, então nada pode ser enviado).
+        ScopeViolation: Se a requisição estiver fora do escopo ou em `deny_paths`, ou se trouxer
+            cabeçalho de roteamento (`Host`, `Transfer-Encoding`...), que só o cliente HTTP
+            define (nada é devolvido, então nada pode ser enviado).
     """
+    for name, _value in request.headers:
+        if is_routing_header(name):
+            raise ScopeViolation(
+                f"o cabeçalho {name} controla o roteamento e não pode ser enviado.",
+                hint="Esse cabeçalho é definido só pelo cliente HTTP da ferramenta.",
+            )
     guard.ensure_allowed(OutboundRequest(method=request.method, url=request.url))
     return ApprovedRequest(request, _mint=_MINT)
 

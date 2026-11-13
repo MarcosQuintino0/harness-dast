@@ -32,3 +32,23 @@ def test_gate_passes_when_the_switch_is_off() -> None:
     gate = RunGate(valid_profile(), clock, clock.now(), _Kill(on=False))
 
     gate.check()
+
+
+def test_gate_deadline_inherited_from_the_run_can_only_shorten_the_profile_deadline() -> None:
+    from datetime import timedelta
+
+    from harness_dast.application.run_support import DeadlineReached
+
+    clock = FixedClock(utc(2026, 11, 13, 10))
+    profile = valid_profile()
+    own = clock.now() + timedelta(minutes=profile.limits.max_duration_minutes)
+    shorter = RunGate(
+        profile, clock, clock.now(), None, deadline=clock.now() + timedelta(minutes=2)
+    )
+    longer = RunGate(profile, clock, clock.now(), None, deadline=own + timedelta(hours=5))
+
+    clock.advance_to(clock.now() + timedelta(minutes=3))
+
+    with pytest.raises(DeadlineReached):
+        shorter.check()
+    longer.check()  # o prazo herdado não amplia o do perfil

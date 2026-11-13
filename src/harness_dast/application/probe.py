@@ -69,6 +69,8 @@ class ProbeRequest:
         include_delete: Permite `DELETE` sobre recursos criados nesta execução.
         account: Apelido imposto a TODAS as operações (reduz o roteamento do perfil a uma conta);
             `None` segue `auth.default_account` e `auth.account_map`.
+        deadline: Prazo absoluto herdado do `run` encadeado (um só para a execução inteira);
+            só reduz o prazo do perfil, nunca o amplia.
     """
 
     product: str
@@ -77,6 +79,7 @@ class ProbeRequest:
     dry_run: bool = False
     include_delete: bool = False
     account: str | None = None
+    deadline: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -238,7 +241,9 @@ class Probe:
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._client,
-            gate=RunGate(profile, self._clock, run.started, self._kill_switch),
+            gate=RunGate(
+                profile, self._clock, run.started, self._kill_switch, deadline=run.request.deadline
+            ),
             limiter=RateLimiter(profile.limits.requests_per_second, self._clock, self._sleeper),
             trail=trail,
             clock=self._clock,

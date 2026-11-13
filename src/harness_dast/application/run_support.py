@@ -20,6 +20,9 @@ class WindowClosed(ScopeViolation):
     """A autorização venceu ou a janela de execução fechou durante a execução."""
 
 
+KILL_SWITCH_MESSAGE = "A trava de emergência (hdast stop) foi acionada."
+
+
 class KillSwitchEngaged(WindowClosed):
     """A trava de emergência (`hdast stop`) foi acionada durante a execução."""
 
@@ -37,6 +40,7 @@ class RunGate:
         clock: Clock,
         started_at: datetime,
         kill_switch: KillSwitch | None = None,
+        deadline: datetime | None = None,
     ) -> None:
         """Cria o portão.
 
@@ -46,11 +50,14 @@ class RunGate:
             started_at: Instante de início; o prazo é este instante mais
                 `limits.max_duration_minutes`.
             kill_switch: Trava de emergência a consultar; `None` não consulta.
+            deadline: Prazo absoluto de uma execução maior (o `run` encadeado). Só reduz: vale o
+                menor entre ele e o do perfil.
         """
         self._profile = profile
         self._kill_switch = kill_switch
         self._clock = clock
-        self._deadline = started_at + timedelta(minutes=profile.limits.max_duration_minutes)
+        own = started_at + timedelta(minutes=profile.limits.max_duration_minutes)
+        self._deadline = own if deadline is None else min(own, deadline)
 
     def check(self) -> None:
         """Garante que a execução ainda pode enviar requisições.
@@ -62,7 +69,7 @@ class RunGate:
         """
         if self._kill_switch is not None and self._kill_switch.engaged():
             raise KillSwitchEngaged(
-                "A trava de emergência (hdast stop) foi acionada.",
+                KILL_SWITCH_MESSAGE,
                 hint="Recrie a pilha com hdast stack up para voltar a enviar requisições.",
             )
         now = self._clock.now()

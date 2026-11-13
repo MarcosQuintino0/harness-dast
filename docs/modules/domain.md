@@ -62,14 +62,7 @@ Módulos do `probe` (M3, [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-suc
 
 A referência campo a campo do perfil está em [../reference/target-yml.md](../reference/target-yml.md).
 
-### Planejados
-
-| Módulo | Conteúdo | Marco |
-| --- | --- | --- |
-| `run.py` (ampliação) | `RunManifest` | M5 |
-| `finding.py` | `Finding`, `Evidence`, `Severity`, `Fingerprint` | M4 |
-
-O desenho dos módulos planejados é ilustrativo até o marco correspondente. A distribuição por marco segue o [roadmap](../roadmap.md).
+Também existem, desde o M4 e o M5: `finding.py` (`Finding`, `compute_fingerprint`), `run.py` e `probe_result.py` (`RunManifest`), `routing_headers.py` (cabeçalhos que só o cliente HTTP define) e `scan_config.py` (`effective_fail_on`). A distribuição por marco segue o [roadmap](../roadmap.md).
 
 ## Pode importar
 

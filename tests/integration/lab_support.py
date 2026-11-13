@@ -15,9 +15,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import httpx
 import pytest
+
+from harness_dast.application.cleanup import CleanupReport, CleanupRequest
+from harness_dast.cli.composition import build_cleanup
+from harness_dast.domain.cleanup_plan import CleanupPlan
+from harness_dast.observability.logging import SecretRegistry
 
 REPO = Path(__file__).resolve().parents[2]
 PILOT_PROFILE = REPO / "lab" / "pilot" / "product-profile"
@@ -75,6 +81,18 @@ class CliResult:
         return found if isinstance(found, dict) else {}
 
 
+class TypedName:
+    """Dublê do terminal: a pessoa digita `typed` no prompt (só o nome do produto confirma)."""
+
+    def __init__(self, typed: str) -> None:
+        """Guarda o que a pessoa digitou."""
+        self.typed = typed
+
+    def confirm(self, plan: CleanupPlan) -> bool:
+        """Devolve `True` só se o digitado for exatamente o nome do produto."""
+        return self.typed.strip() == plan.product
+
+
 class LabCli:
     """Chama `python -m harness_dast --json ...` num ambiente isolado em pastas temporárias."""
 
@@ -107,11 +125,30 @@ class LabCli:
         env.update(extra_env)
         self.env = env
 
+    def confirm_cleanup_as_person(self, product: str, run_id: str, typed: str) -> CleanupReport:
+        """Roda o caso de uso `cleanup` EM PROCESSO com a pessoa (dublê) num terminal interativo.
+
+        A confirmação real exige terminal, que o subprocesso do teste não tem; por isso este
+        caminho usa o mesmo caso de uso e o mesmo executor da CLI, com o ambiente do laboratório.
+        """
+        with patch.dict(os.environ, self.env):
+            use_case = build_cleanup(self.products, SecretRegistry(), TypedName(typed))
+            return use_case.execute(
+                CleanupRequest(
+                    product=product,
+                    run_id=run_id,
+                    dry_run=False,
+                    confirm_token=None,
+                    interactive=True,
+                )
+            )
+
     def run(self, *args: str, timeout: int = CLI_TIMEOUT) -> CliResult:
         """Executa a CLI e devolve código, envelope e saídas."""
         done = subprocess.run(  # noqa: S603 - interpretador atual e módulo do próprio projeto
             [sys.executable, "-m", "harness_dast", "--json", *args],
             env=self.env,
+            stdin=subprocess.DEVNULL,  # nunca um terminal: o `cleanup` de verdade tem de recusar
             capture_output=True,
             text=True,
             encoding="utf-8",

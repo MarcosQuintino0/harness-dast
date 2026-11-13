@@ -1,14 +1,14 @@
-"""Autorização de uso único para executar a limpeza sem terminal (`--confirm <token>`).
+"""Autorização de uso único amarrada a um `--dry-run` (token), usada só pelo caso de uso.
 
-Fluxo: `hdast cleanup --dry-run` executa os comandos, desfaz tudo e emite um token que vai SÓ
-para o terminal de quem operou (stderr). O token se amarra ao produto, à execução, ao hash do
-script e ao total de linhas que a pessoa viu; vence em poucos minutos; vale uma vez.
+Fluxo: o `--dry-run` executa os comandos, desfaz tudo e produz um token. O token se amarra ao
+produto, à execução, ao hash do script e ao total de linhas que a pessoa viu; vence em poucos
+minutos; vale uma vez. Só o SHA-256 do token é guardado em disco (`ConfirmationRecord`).
 
-Só o SHA-256 do token é guardado em disco (`ConfirmationRecord`): ler o arquivo da execução não
-revela o token. LIMITE HONESTO: isto é controle procedimental. Quem tem acesso ao shell da pessoa
-(incluindo um agente) pode rodar o próprio `--dry-run` e ler o stderr. A proteção real é a
-combinação de: regra de skill que proíbe o agente de rodar `cleanup`, privilégios mínimos do
-usuário de banco e o portão do SQL. Este módulo é puro: relógio e token entram por parâmetro.
+A CLI NÃO expõe este caminho (ADR 0025): não escreve o token em lugar nenhum e não aceita
+`--confirm`. Quem apaga de verdade é uma pessoa que digita o nome do produto num terminal
+interativo. O token existiu para a confirmação sem terminal, que um agente conseguia completar
+sozinho; o módulo fica porque o caso de uso e seus testes o exercitam em processo. Este módulo é
+puro: relógio e token entram por parâmetro.
 """
 
 import hashlib
@@ -21,7 +21,7 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.window import ensure_aware
 
 CONFIRMATION_TTL = timedelta(minutes=10)
-_HINT = "Rode 'hdast cleanup <produto> --run <run_id> --dry-run' e use o token mostrado no stderr."
+_HINT = "Faça um novo --dry-run para obter outro token."
 
 
 class ConfirmationRecord(BaseModel):

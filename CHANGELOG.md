@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Corrigido (parecer de QA M2 a M5; [resposta](docs/reviews/2026-11-13-qa-m2-m5-resposta.md), [ADR 0025](docs/adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md))
+
+- **Limpeza (contrato muda):** a confirmação só vale digitada por uma pessoa num terminal interativo; `hdast cleanup` sem `--dry-run` recusa sem TTY (saída 2) com mensagem que não ensina atalho; a flag `--confirm TOKEN` foi removida e o `--dry-run` não emite mais token. O portão de SQL só aceita como amarração uma coluna real contra uma variável permitida (recusa `SYSDATE >= :run_start`, pseudo-colunas e literais) e faixa só contra `:run_start` (Q-01, Q-03, Q-07). A limpeza grava `finished` e `cleanup.json` também em exceção inesperada (Q-10).
+- Parâmetro `in: header` de roteamento do OpenAPI (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Upgrade`, `TE`, `Expect`, `Proxy-*`, `X-Forwarded-*`...) nunca é enviado; `approve()` também recusa (Q-02).
+- Redação cobre segredo percent-encoded (`quote`, `quote_plus`) e mascara a credencial de `Authorization: Bearer|Basic ...` em texto livre (Q-04, Q-05). `secret_ref` recusa `HDAST_*` (Q-06).
+- `run`: `run.json` também em exceção inesperada (Q-08); um prazo único para a execução inteira, herdado por `probe` e `scan` (Q-16); o `scan` parado por prazo ou outra causa não impede o `report` (parcial, `coverage.partial`), e o código de saída continua o do estágio que parou; a trava de emergência só vira 130 quando foi ela a causa; `FileKillSwitch` falha fechado.
+- `report`: severidade desconhecida conta como acima de qualquer limiar diferente de `none` (Q-09); `--fail-on` só endurece o limiar do perfil (nunca afrouxa).
+- Plano de varredura: leituras e escritas intercaladas de modo determinístico (um prazo curto cobre as duas classes); substitui a ordem do ADR 0022.
+- Fingerprint sem colisão quando o dado contém o separador interno, sem mudar o fingerprint das entradas sem ele (Q-15); `Host` do cliente no proxy só como `host[:porta]` (Q-12); inteiro gigante no YAML vira `ConfigError` (Q-13); `constant` com `NaN`/infinito e `unique` não booleano são recusados (Q-14); cookie de sessão por origem (Q-17).
+- Documentação: dez frases desatualizadas corrigidas; `stack up --build`, `--vulnerable` e `HDAST_AUDIT_DIR` documentados (Q-11).
+
 ### Adicionado (marco M5, `hdast run`, trava de emergência e verificação no ZAP real)
 
 - Comando `hdast run <produto>` (`--seed`, `--skip-scan`, `--fail-on`, `--compare`, `--max-minutes`): `preflight`, `probe`, `scan` e `report` em UM processo (cache de tokens e orçamento de login compartilhados), para no primeiro estágio que falha com o código dele, nunca roda a limpeza (mostra o comando) e sempre grava `run.json` (`domain/run_summary.py`). Ctrl+C e `hdast stop` encerram com saída 130. Caso de uso `RunPipeline` em `application/run.py`; tradução do estado das etapas em `application/stage_errors.py` ([ADR 0024](docs/adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)).

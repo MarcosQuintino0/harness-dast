@@ -125,6 +125,12 @@ def parse_yaml_document(text: str, document: str) -> dict[str, object]:
         ) from None
     except (yaml.YAMLError, RecursionError) as error:
         raise _syntax_error(error, document) from None
+    except ValueError:
+        # Inteiro com mais de 4300 dígitos: o Python recusa converter e o PyYAML não captura.
+        raise ConfigError(
+            f"O {document} tem um número grande demais.",
+            hint="Use números de tamanho razoável; textos longos vão entre aspas.",
+        ) from None
     if loaded is None:
         raise ConfigError(
             f"O {document} está vazio.",

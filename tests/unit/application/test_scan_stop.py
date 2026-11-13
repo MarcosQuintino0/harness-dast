@@ -45,11 +45,11 @@ def test_window_closing_mid_scan_stops_the_scan_and_keeps_partial_results() -> N
     result = rig.run_scan()
 
     assert result.status == "stopped_window"
-    assert [e.operation_id for e in result.entries] == ["listar", "buscar"]
+    assert [e.operation_id for e in result.entries] == ["listar", "criar"]
     assert [e.outcome for e in result.entries] == ["completed", "stopped"]
     assert rig.zap.was_stopped("1") is True
     pending = {s.operation_id: s.reason for s in result.skipped}
-    assert pending["criar"] == "not_run"
+    assert pending["buscar"] == "not_run"
     assert rig.artifacts.scans[result.run_id] == result
     assert rig.zap.installed == {}
 

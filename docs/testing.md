@@ -103,7 +103,7 @@ A "janela fechada no meio da execução" depende de quem executa (a conferência
 - **Imagem do ZAP:** atualizar a imagem é uma mudança como outra qualquer, em pull request próprio, com integração e ponta a ponta.
 - **Defeito corrigido:** chega com o teste que o reproduzia.
 
-Todos os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e são planejados a partir do M3 e M4; não existem hoje.
+Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e existem em `tests/integration/` (níveis `lab_fast` e `lab_full`, fora do `uv run pytest` padrão).
 
 ## Avaliação das skills
 

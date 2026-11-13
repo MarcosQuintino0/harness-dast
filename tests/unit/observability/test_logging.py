@@ -181,3 +181,29 @@ def test_logs_go_to_the_current_stderr_when_it_is_replaced_after_configuration(
     structlog.get_logger().info("evento")
 
     assert "evento" in second.getvalue()
+
+
+@pytest.mark.parametrize("encode", ["quote", "quote_safe_empty", "quote_plus"])
+def test_registered_secret_is_masked_in_its_percent_encoded_forms(encode: str) -> None:
+    from urllib.parse import quote, quote_plus
+
+    secret = "S3nh@/forte! com espaço"  # noqa: S105 - segredo de teste
+    registry = SecretRegistry()
+    registry.register(secret)
+    encoded = {
+        "quote": quote(secret),
+        "quote_safe_empty": quote(secret, safe=""),
+        "quote_plus": quote_plus(secret),
+    }[encode]
+
+    masked = registry.mask(f"login=maria&pw={encoded}&x=1")
+
+    assert "forte" not in masked
+    assert masked == f"login=maria&pw={MASK}&x=1"
+
+
+def test_registered_secret_is_masked_when_the_percent_encoding_uses_lowercase_hex() -> None:
+    registry = SecretRegistry()
+    registry.register("a@b/c")
+
+    assert registry.mask("v=a%40b%2fc") == f"v={MASK}"

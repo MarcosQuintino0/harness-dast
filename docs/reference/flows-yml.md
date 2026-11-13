@@ -2,7 +2,7 @@
 
 Esta página descreve o schema v1 **como implementado** em `src/harness_dast/domain/flow.py`. Decisões: [ADR 0006](../adr/0006-regras-de-dados-declarativas.md) e [ADR 0016](../adr/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md); vários níveis (grafo sem ciclos) desde o [ADR 0021](../adr/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md).
 
-> **O que existe e o que não existe.** Existem o modelo validado (`FlowSpec.from_data(dados)`), a conferência contra o OpenAPI, a ordenação e a extração de valores de respostas. **Não existe** comando `hdast` que leia este arquivo nem que execute as chamadas: a fiação vem depois. Um teste valida o `products/_template/flows.yml`.
+> **O que existe e o que não existe.** Existem o modelo validado (`FlowSpec.from_data(dados)`), a conferência contra o OpenAPI, a ordenação e a extração de valores de respostas. `hdast probe` lê este arquivo nem que execute as chamadas: a fiação vem depois. Um teste valida o `products/_template/flows.yml`.
 
 ## Para que serve
 

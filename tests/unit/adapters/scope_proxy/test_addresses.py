@@ -75,3 +75,31 @@ def test_check_addresses_recusa_lista_vazia_como_falha_de_dns() -> None:
 
     assert verdict.allowed is False
     assert verdict.reason is Reason.DNS_FAILURE
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "64:ff9b::a9fe:a9fe",  # NAT64 para 169.254.169.254 (metadados da nuvem)
+        "64:ff9b::7f00:1",  # NAT64 para 127.0.0.1
+        "64:ff9b::a00:1",  # NAT64 para 10.0.0.1
+        "64:ff9b:1::1",  # NAT64 de uso local
+    ],
+)
+def test_check_addresses_recusa_nat64_que_aponta_para_endereco_interno(address: str) -> None:
+    # O Python 3.13 (a imagem do proxy) trata 64:ff9b::/96 como global; a regra tem de valer
+    # em qualquer versão.
+    assert check_addresses([address], allow_local=False).allowed is False
+
+
+@pytest.mark.parametrize("address", ["64:ff9b::a9fe:a9fe", "64:ff9b:1::1"])
+def test_check_addresses_nunca_libera_metadados_nem_nat64_local_nem_com_allow_local(
+    address: str,
+) -> None:
+    assert check_addresses([address], allow_local=True).allowed is False
+
+
+def test_check_addresses_permite_nat64_que_aponta_para_endereco_publico() -> None:
+    assert (
+        check_addresses(["64:ff9b::5db8:d822"], allow_local=False).allowed is True
+    )  # 93.184.216.34

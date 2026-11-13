@@ -32,7 +32,9 @@ def _render(summary: RunSummary) -> str:
         lines.append(
             "Os dados de teste criados continuam no alvo. Para limpar, uma pessoa deve rodar:"
         )
-        lines.append(f"  {summary.cleanup_command}   (depois confirme com --confirm TOKEN)")
+        lines.append(
+            f"  {summary.cleanup_command}   (simulação; só uma pessoa, num terminal, apaga)"
+        )
     return "\n".join(lines)
 
 

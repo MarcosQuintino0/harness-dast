@@ -187,3 +187,13 @@ def test_report_states_how_many_scanner_requests_the_scope_proxy_blocked() -> No
 
 def test_report_says_traffic_was_not_measured_without_the_proxy_audit() -> None:
     assert "não medido" in render_markdown(report([]))
+
+
+def test_markdown_states_up_front_that_the_report_is_partial_when_the_run_stopped() -> None:
+    complete = report([zap_alert()])
+    partial = complete.model_copy(
+        update={"coverage": complete.coverage.model_copy(update={"partial": True})}
+    )
+
+    assert "RELATÓRIO PARCIAL" not in render_markdown(complete)
+    assert "RELATÓRIO PARCIAL" in render_markdown(partial)

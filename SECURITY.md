@@ -48,7 +48,7 @@ Flags de linha de comando só podem **reduzir** escopo e limites, nunca ampliar.
 - O usuário de banco da limpeza deve poder apagar **somente nas tabelas de teste**.
 - A CLI executa dentro de uma transação, mostra quantas linhas seriam apagadas e só confirma depois do aceite.
 - Os dados criados devem ser identificáveis: o gerador marca o que cria com o identificador da execução sempre que o campo permitir (o identificador, `RunId`, já existe no domínio).
-- Status: implementado (M5). `hdast cleanup` exige `--dry-run` e `--confirm TOKEN`, portão de SQL, tabelas permitidas e teto de linhas definidos pela pessoa dona do produto ([guia](docs/operations/cleanup.md)). O `hdast run` nunca a executa: só mostra o comando.
+- Status: implementado (M5). `hdast cleanup` só apaga com uma pessoa digitando o nome do produto num terminal interativo (sem flag, arquivo nem variável que confirme no lugar dela; [ADR 0025](docs/adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL (a amarração exige uma coluna real), tabelas permitidas e teto de linhas definidos pela pessoa dona do produto ([guia](docs/operations/cleanup.md)). O `hdast run` nunca a executa: só mostra o comando.
 
 ## Política de dados
 
