@@ -2,7 +2,6 @@
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -17,7 +16,7 @@ def link_directory(link: Path, target: Path) -> None:
     try:
         os.symlink(target, link, target_is_directory=True)
     except OSError:
-        if sys.platform != "win32":
+        if not _is_windows():
             pytest.skip("sem permissão para criar link simbólico neste ambiente")
         result = subprocess.run(  # noqa: S603 - comando fixo, caminhos vindos do tmp_path
             ["cmd", "/c", "mklink", "/J", str(link), str(target)],  # noqa: S607
@@ -26,3 +25,8 @@ def link_directory(link: Path, target: Path) -> None:
         )
         if result.returncode != 0:
             pytest.skip("sem permissão para criar link ou junção neste ambiente")
+
+
+def _is_windows() -> bool:
+    # Em função para o mypy não dar o ramo da outra plataforma como inalcançável.
+    return os.name == "nt"

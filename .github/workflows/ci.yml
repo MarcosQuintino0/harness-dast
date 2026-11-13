@@ -1,6 +1,7 @@
 name: ci
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
@@ -64,6 +65,10 @@ jobs:
 
   integration:
     name: Integração
+    # Os testes de integração sobem ZAP, proxy e os alvos do laboratório e exigem as imagens já
+    # construídas; rodam na máquina de quem desenvolve (`-m lab_fast`, `-m lab_full`). No CI ficam
+    # só sob disparo manual, e a subida das imagens aqui ainda não foi provada (docs/roadmap.md).
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
