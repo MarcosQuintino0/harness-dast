@@ -1,0 +1,311 @@
+"""Plano da varredura: o que vira varredura do ZAP e por que o resto não.
+
+A CLI decide, nunca o ZAP (o spike do M0 mostrou que o ZAP não exclui por método e que o
+varredor inventa caminhos). O plano usa só o que o `probe` da MESMA execução provou:
+
+- só operações com `success` (e, por flag, outras classes de uma lista fechada);
+- `ScopeGuard` sobre a URL concreta aprendida: fora do escopo ou em `deny_paths`, nunca;
+- `DELETE`, nunca; o login (`auth.token_path`), nunca (centenas de senhas ruins bloqueariam a
+  conta);
+- cada requisição é varrida com a CONTA que a enviou no `probe` (o token certo por varredura);
+- `PUT`/`PATCH` só sobre recurso criado nesta execução (a operação consome um valor de
+  `flows.yml` cujo produtor teve sucesso) ou quando o perfil liga `scan.mutating_methods`;
+- sem mensagem aprendida no ZAP, nada a varrer.
+
+O ZAP não restringe método: a camada de rede (proxy de escopo, ADR 0017) é quem impõe o que o
+varredor gera; este plano só decide o que SE PEDE. Este módulo é puro.
+"""
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import Final, Literal
+from urllib.parse import urlsplit
+
+from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.probe_plan import PlannedOperation
+from harness_dast.domain.probe_result import OperationResult
+from harness_dast.domain.scan_config import ScanConfig
+from harness_dast.domain.scope import OutboundRequest, ScopeGuard
+from harness_dast.domain.zap_messages import LearnedRequest
+
+SkipReason = Literal[
+    "not_success",
+    "scope",
+    "denied",
+    "delete",
+    "login",
+    "mutating",
+    "not_learned",
+    "not_planned",
+    "not_selected",
+    "not_run",
+]
+
+EXTRA_OUTCOMES: Final = frozenset(
+    {"logical_failure", "validation_error", "conflict", "not_found", "client_error"}
+)
+"""Classes além de `success` que `--include-outcome` aceita (a requisição existe no ZAP)."""
+
+_METHOD_RANK: Final = {"PUT": 2, "PATCH": 2, "POST": 1}
+
+
+class ScanSkip(ApiModel):
+    """Operação que NÃO será varrida.
+
+    Attributes:
+        operation_id: Operação.
+        method: Método HTTP.
+        path: Modelo de caminho.
+        reason: Motivo curto e estável.
+        message: Explicação em português.
+    """
+
+    operation_id: str
+    method: str
+    path: str
+    reason: SkipReason
+    message: str
+
+
+class LearnedRef(ApiModel):
+    """Liga uma operação à mensagem aprendida no ZAP (resolve `sourceMessageId` depois).
+
+    Attributes:
+        operation_id: Operação.
+        message_id: Mensagem do ZAP.
+    """
+
+    operation_id: str
+    message_id: int
+
+
+class SentRequest(ApiModel):
+    """Última requisição de uma operação que passou pelo ZAP, segundo a auditoria.
+
+    Attributes:
+        method: Método.
+        path: Caminho concreto (sem consulta).
+        status: Código HTTP do resultado.
+        account: Conta que enviou a requisição no `probe`, ou `None`.
+    """
+
+    method: str
+    path: str
+    status: int | None
+    account: str | None = None
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """Operação que passou nas regras que não dependem do ZAP."""
+
+    result: OperationResult
+    sent: SentRequest
+
+
+@dataclass(frozen=True)
+class ScanTarget:
+    """Uma varredura a executar. `url` e `body` ficam só em memória."""
+
+    operation_id: str
+    method: str
+    path: str
+    message_id: int
+    url: str = field(repr=False)
+    body: str | None = field(repr=False)
+    account: str | None = None
+
+
+@dataclass(frozen=True)
+class ScanPlan:
+    """O plano: o que varrer, o que pular e as mensagens aprendidas de cada operação."""
+
+    targets: tuple[ScanTarget, ...]
+    skipped: tuple[ScanSkip, ...]
+    learned: tuple[LearnedRef, ...]
+
+
+def last_sent(audit: Sequence[AuditEntry]) -> dict[str, SentRequest]:
+    """Última requisição de cada operação enviada pela rota do ZAP (linha `result` da auditoria)."""
+    found: dict[str, SentRequest] = {}
+    for entry in audit:
+        if entry.phase == "result" and entry.route == "zap" and entry.status is not None:
+            found[entry.operation_id] = SentRequest(
+                method=entry.method, path=entry.path, status=entry.status, account=entry.account
+            )
+    return found
+
+
+def _skip(result: OperationResult, reason: SkipReason, message: str) -> ScanSkip:
+    return ScanSkip(
+        operation_id=result.operation_id,
+        method=result.method,
+        path=result.path,
+        reason=reason,
+        message=message,
+    )
+
+
+def _created_by_run(planned: PlannedOperation, outcomes: Mapping[str, str]) -> bool:
+    return bool(planned.depends_on) and all(
+        outcomes.get(name) == "success" for name in planned.depends_on
+    )
+
+
+def _decide(
+    result: OperationResult,
+    planned: PlannedOperation | None,
+    *,
+    outcomes: Mapping[str, str],
+    login_path: str | None,
+    config: ScanConfig,
+    allowed_outcomes: frozenset[str],
+) -> tuple[SkipReason, str] | None:
+    if planned is None:
+        return "not_planned", "A operação não existe mais no OpenAPI atual; refaça o probe."
+    if result.outcome not in allowed_outcomes:
+        return "not_success", "O probe não teve sucesso nesta operação; não há requisição válida."
+    if result.method == "DELETE":
+        return "delete", "DELETE nunca é varrido: o varredor apagaria dados de verdade."
+    if login_path is not None and result.method == "POST" and result.path == login_path:
+        return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
+    if planned.decision == "skipped_denied":
+        return "denied", "O caminho está em scope.deny_paths."
+    if planned.decision != "send":
+        return "scope", "A operação está fora de scope.allow."
+    if result.method in {"PUT", "PATCH"} and not _may_mutate(result, planned, outcomes, config):
+        return (
+            "mutating",
+            f"{result.method} só é varrido sobre recurso criado nesta execução "
+            "(flows.yml) ou com scan.mutating_methods no perfil.",
+        )
+    return None
+
+
+def _may_mutate(
+    result: OperationResult,
+    planned: PlannedOperation,
+    outcomes: Mapping[str, str],
+    config: ScanConfig,
+) -> bool:
+    return result.method in config.mutating_methods or _created_by_run(planned, outcomes)
+
+
+def select_candidates(
+    probe_operations: Sequence[OperationResult],
+    planned: Mapping[str, PlannedOperation],
+    sent: Mapping[str, SentRequest],
+    *,
+    login_path: str | None,
+    config: ScanConfig,
+    include_outcomes: frozenset[str] = frozenset(),
+    only: tuple[str, ...] = (),
+) -> tuple[tuple[Candidate, ...], tuple[ScanSkip, ...]]:
+    """Aplica as regras que não dependem do ZAP.
+
+    Returns:
+        Os candidatos (na ordem: leituras, `POST`, depois `PUT`/`PATCH`) e as operações puladas.
+    """
+    outcomes = {item.operation_id: item.outcome for item in probe_operations}
+    allowed = frozenset({"success"}) | (include_outcomes & EXTRA_OUTCOMES)
+    candidates: list[Candidate] = []
+    skipped: list[ScanSkip] = []
+    for result in probe_operations:
+        if only and result.operation_id not in only:
+            skipped.append(_skip(result, "not_selected", "Fora da seleção de --only."))
+            continue
+        verdict = _decide(
+            result,
+            planned.get(result.operation_id),
+            outcomes=outcomes,
+            login_path=login_path,
+            config=config,
+            allowed_outcomes=allowed,
+        )
+        request = sent.get(result.operation_id)
+        if verdict is None and request is None:
+            verdict = ("not_learned", "A auditoria não registra a requisição desta operação.")
+        if verdict is not None:
+            skipped.append(_skip(result, *verdict))
+        elif request is not None:
+            candidates.append(Candidate(result, request))
+    return _ordered(candidates), tuple(skipped)
+
+
+def _ordered(candidates: list[Candidate]) -> tuple[Candidate, ...]:
+    """Agrupa por conta (uma troca de token por conta) e, em cada conta, leituras primeiro."""
+    first_seen: dict[str | None, int] = {}
+    for item in candidates:
+        first_seen.setdefault(item.sent.account, len(first_seen))
+    return tuple(
+        sorted(
+            candidates,
+            key=lambda item: (
+                first_seen[item.sent.account],
+                _METHOD_RANK.get(item.result.method, 0),
+            ),
+        )
+    )
+
+
+def _pick(sent: SentRequest, learned: Sequence[LearnedRequest]) -> LearnedRequest | None:
+    matches = [
+        item
+        for item in learned
+        if item.method == sent.method
+        and urlsplit(item.url).path == sent.path
+        and (sent.status is None or item.status in {None, sent.status})
+    ]
+    return max(matches, key=lambda item: item.message_id, default=None)
+
+
+def learned_refs(
+    sent: Mapping[str, SentRequest], learned: Sequence[LearnedRequest]
+) -> tuple[LearnedRef, ...]:
+    """Mensagem aprendida de TODA operação enviada (inclusive as que não serão varridas).
+
+    Os alertas passivos do ZAP citam essas mensagens em `sourceMessageId`.
+    """
+    refs: list[LearnedRef] = []
+    for operation_id, request in sent.items():
+        found = _pick(request, learned)
+        if found is not None:
+            refs.append(LearnedRef(operation_id=operation_id, message_id=found.message_id))
+    return tuple(refs)
+
+
+def resolve_targets(
+    candidates: Sequence[Candidate],
+    sent: Mapping[str, SentRequest],
+    learned: Sequence[LearnedRequest],
+    guard: ScopeGuard,
+) -> ScanPlan:
+    """Liga cada candidato à mensagem aprendida e confere o escopo da URL concreta."""
+    targets: list[ScanTarget] = []
+    skipped: list[ScanSkip] = []
+    for candidate in candidates:
+        result = candidate.result
+        found = _pick(candidate.sent, learned)
+        if found is None:
+            skipped.append(
+                _skip(result, "not_learned", "O ZAP não tem a requisição desta operação.")
+            )
+            continue
+        decision = guard.evaluate(OutboundRequest(method=found.method, url=found.url))
+        if decision.verdict != "allowed":
+            reason: SkipReason = "denied" if decision.verdict == "denied_path" else "scope"
+            skipped.append(_skip(result, reason, "A URL concreta aprendida está fora do escopo."))
+            continue
+        targets.append(
+            ScanTarget(
+                operation_id=result.operation_id,
+                method=found.method,
+                path=result.path,
+                message_id=found.message_id,
+                url=found.url,
+                body=found.body,
+                account=candidate.sent.account,
+            )
+        )
+    return ScanPlan(tuple(targets), tuple(skipped), learned_refs(sent, learned))
