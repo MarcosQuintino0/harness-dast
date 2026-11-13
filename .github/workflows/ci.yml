@@ -30,6 +30,11 @@ jobs:
   security:
     name: Segurança
     runs-on: ubuntu-latest
+    # O gitleaks lista os commits do pull request pela API; sem esta leitura ele falha com
+    # "Resource not accessible by integration" em evento pull_request.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7.0.1
         with:
