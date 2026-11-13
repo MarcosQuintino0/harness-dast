@@ -1,0 +1,273 @@
+<title>Detector ou inspetor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: uma coluna larga de leitura; cada bloco é uma figura grande com poucas palavras ao lado ou embaixo. */
+:root {
+  --bg: #eef3f6;
+  --surface: #ffffff;
+  --ink: #12303d;
+  --muted: #4d6875;
+  --line: #c9d7de;
+  --teal: #0b7285;
+  --teal-soft: #d6ecf0;
+  --amber: #b25e00;
+  --amber-soft: #fdebcc;
+  --red: #b3261e;
+  --red-soft: #fbe0dd;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1c23; --surface: #152a33; --ink: #e6f0f3; --muted: #9db4bf; --line: #2c4651;
+    --teal: #5cc8da; --teal-soft: #17414b; --amber: #f2b45a; --amber-soft: #47330f;
+    --red: #ff8a80; --red-soft: #4a1f1c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1c23; --surface: #152a33; --ink: #e6f0f3; --muted: #9db4bf; --line: #2c4651;
+  --teal: #5cc8da; --teal-soft: #17414b; --amber: #f2b45a; --amber-soft: #47330f;
+  --red: #ff8a80; --red-soft: #4a1f1c; color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 1.0625rem; line-height: 1.55;
+}
+.page {
+  max-width: 60rem; margin: 0 auto;
+  padding-block: 2.5rem 4rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 3.5rem;
+}
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); font-weight: 700; }
+h2 { font-size: clamp(1.5rem, 3.6vw, 2rem); font-weight: 700; }
+h3 { font-size: 1.2rem; font-weight: 700; }
+p { margin: 0; max-width: 65ch; }
+.lede { font-size: 1.2rem; color: var(--muted); }
+.term { color: var(--muted); font-size: 0.95em; }
+section { display: flex; flex-direction: column; gap: 1.25rem; }
+.kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal); }
+
+/* duas cenas */
+.scenes { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1.25rem; }
+.scene { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.scene svg { width: 100%; height: auto; display: block; }
+.tag { align-self: flex-start; font-size: 0.8rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 999px; }
+.tag.now { background: var(--amber-soft); color: var(--amber); }
+.tag.new { background: var(--teal-soft); color: var(--teal); }
+.scene ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+
+/* svg tokens */
+.s-ink { fill: var(--ink); } .s-muted { fill: var(--muted); } .s-line { stroke: var(--line); fill: none; }
+.s-wall { stroke: var(--ink); fill: none; stroke-width: 3; stroke-linecap: round; }
+.s-room { fill: var(--bg); } .s-teal { fill: var(--teal); } .s-teal-soft { fill: var(--teal-soft); }
+.s-amber { fill: var(--amber); } .s-amber-soft { fill: var(--amber-soft); }
+.s-red { fill: var(--red); } .s-red-soft { fill: var(--red-soft); }
+.s-surface { fill: var(--surface); }
+.s-beep { stroke: var(--amber); fill: none; stroke-width: 3; stroke-linecap: round; }
+svg text { font-family: var(--body); font-weight: 600; }
+
+/* fluxo */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; counter-reset: step; }
+.flow li { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1rem; display: flex; flex-direction: column; gap: 0.4rem; position: relative; min-width: 0; counter-increment: step; }
+.flow li::before { content: counter(step); font-family: var(--display); font-weight: 700; font-size: 1.6rem; color: var(--teal); line-height: 1; }
+.flow li:not(:last-child)::after { content: "→"; position: absolute; right: -0.72rem; top: 1rem; font-size: 1.1rem; color: var(--muted); z-index: 1; }
+.flow strong { font-family: var(--display); font-size: 1.05rem; }
+.flow span { font-size: 0.92rem; color: var(--muted); }
+@media (max-width: 760px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow li:not(:last-child)::after { content: "↓"; right: auto; left: 1.2rem; top: auto; bottom: -1.15rem; }
+}
+
+/* exemplo */
+.example { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.25rem; align-items: center; }
+.example > div { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.verdict { padding: 0.7rem 0.9rem; border-radius: 10px; font-size: 0.98rem; }
+.verdict.miss { background: var(--amber-soft); }
+.verdict.hit { background: var(--teal-soft); }
+.verdict b { font-family: var(--display); }
+
+/* comparação */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+thead th { font-family: var(--display); font-size: 1.05rem; }
+thead th:nth-child(2) { color: var(--amber); }
+thead th:nth-child(3) { color: var(--teal); }
+tbody th { font-weight: 600; width: 30%; }
+td { color: var(--ink); font-size: 0.98rem; }
+
+/* quatro respostas */
+.answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.5rem 2rem; }
+.answers > div { display: flex; flex-direction: column; gap: 0.5rem; border-top: 3px solid var(--teal); padding-top: 0.9rem; min-width: 0; }
+.answers > div.risk { border-top-color: var(--red); }
+.answers ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.note { font-size: 0.92rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1.25rem; }
+</style>
+
+<main class="page">
+
+  <header>
+    <section>
+      <span class="kicker">Proposta de teste de segurança, explicada sem jargão</span>
+      <h1>Detector de metais ou inspetor?</h1>
+      <p class="lede">Nossos sistemas têm muitas “portas” por onde aplicativos e parceiros pedem e enviam dados <span class="term">(o nome técnico é API)</span>. A cada nova versão, queremos saber se alguma porta abre para quem não devia, antes que alguém de fora descubra.</p>
+    </section>
+  </header>
+
+  <section>
+    <h2>Duas formas de vigiar as portas</h2>
+    <div class="scenes">
+      <div class="scene">
+        <span class="tag now">Hoje</span>
+        <svg viewBox="0 0 320 190" role="img" aria-label="Um detector de metais apitando várias vezes">
+          <line x1="20" y1="170" x2="300" y2="170" class="s-wall"/>
+          <rect x="118" y="50" width="14" height="120" rx="4" class="s-ink"/>
+          <rect x="188" y="50" width="14" height="120" rx="4" class="s-ink"/>
+          <rect x="112" y="38" width="96" height="18" rx="6" class="s-ink"/>
+          <circle cx="160" cy="47" r="5" class="s-amber"/>
+          <path d="M92 70 q-14 14 0 28" class="s-beep"/><path d="M78 60 q-24 24 0 48" class="s-beep"/>
+          <path d="M228 70 q14 14 0 28" class="s-beep"/><path d="M242 60 q24 24 0 48" class="s-beep"/>
+          <text x="30" y="40" font-size="15" class="s-amber">bip!</text>
+          <text x="250" y="34" font-size="15" class="s-amber">bip!</text>
+          <text x="22" y="140" font-size="15" class="s-amber">bip!</text>
+          <text x="262" y="140" font-size="15" class="s-amber">bip!</text>
+          <text x="144" y="24" font-size="15" class="s-amber">bip!</text>
+        </svg>
+        <h3>O detector de metais</h3>
+        <p>Um programa gratuito <span class="term">(chamado ZAP)</span> dispara milhares de testes prontos em todas as portas.</p>
+        <ul>
+          <li>Rápido e barato.</li>
+          <li>Apita muito, inclusive por nada.</li>
+          <li>Não sabe quem pode entrar em cada sala.</li>
+        </ul>
+      </div>
+
+      <div class="scene">
+        <span class="tag new">Proposta</span>
+        <svg viewBox="0 0 320 190" role="img" aria-label="Um inspetor com a planta do prédio marca uma única sala com problema confirmado">
+          <rect x="30" y="24" width="260" height="146" rx="4" class="s-room"/>
+          <rect x="30" y="24" width="260" height="146" rx="4" class="s-wall"/>
+          <rect x="204" y="98" width="85" height="71" class="s-red-soft"/>
+          <line x1="117" y1="24" x2="117" y2="170" class="s-wall"/>
+          <line x1="203" y1="24" x2="203" y2="170" class="s-wall"/>
+          <line x1="30" y1="97" x2="290" y2="97" class="s-wall"/>
+          <text x="48" y="66" font-size="13" class="s-muted">Agenda</text>
+          <text x="134" y="66" font-size="13" class="s-muted">Cadastro</text>
+          <text x="222" y="66" font-size="13" class="s-muted">Receitas</text>
+          <text x="48" y="140" font-size="13" class="s-muted">Login</text>
+          <text x="134" y="140" font-size="13" class="s-muted">Pagamento</text>
+          <text x="222" y="126" font-size="13" class="s-red">Exames</text>
+          <circle cx="262" cy="148" r="13" class="s-red"/>
+          <path d="M255 148 l5 5 l9 -10" stroke="var(--surface)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="96" cy="50" r="6" class="s-teal"/><circle cx="182" cy="50" r="6" class="s-teal"/><circle cx="268" cy="50" r="6" class="s-teal"/>
+          <circle cx="96" cy="124" r="6" class="s-teal"/><circle cx="182" cy="124" r="6" class="s-teal"/>
+        </svg>
+        <h3>O inspetor</h3>
+        <p>Um programa de inteligência artificial <span class="term">(um “agente”: lê, planeja e decide o próximo passo sozinho)</span> que usa o detector, mas pensa antes.</p>
+        <ul>
+          <li>Lê a planta do prédio.</li>
+          <li>Tem crachás de teste de pessoas diferentes.</li>
+          <li>Só avisa depois de confirmar o problema.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Como o inspetor trabalha</h2>
+    <ol class="flow">
+      <li><strong>Recebe a planta</strong><span>Um documento que lista todas as portas do sistema (chamado Swagger).</span></li>
+      <li><strong>Estuda o prédio</strong><span>Entende como se entra, quais salas existem e de quem é cada coisa.</span></li>
+      <li><strong>Testa as portas</strong><span>Usa o detector de metais e também tenta entrar com crachás diferentes.</span></li>
+      <li><strong>Confere de novo</strong><span>Repete o teste. Se o problema não se repetir, não vai para o relatório.</span></li>
+      <li><strong>Entrega o relatório</strong><span>Com a prova de cada problema, para o time corrigir.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Um exemplo que o detector não vê</h2>
+    <div class="example">
+      <div>
+        <svg viewBox="0 0 300 150" role="img" aria-label="Ana usa o próprio crachá e abre o exame de Bruno">
+          <circle cx="50" cy="52" r="20" class="s-teal"/>
+          <rect x="24" y="78" width="52" height="46" rx="12" class="s-teal"/>
+          <text x="35" y="144" font-size="14" class="s-ink">Ana</text>
+          <path d="M92 86 H178" stroke="var(--muted)" stroke-width="3" stroke-dasharray="6 6" fill="none"/>
+          <path d="M172 78 l12 8 l-12 8" stroke="var(--muted)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="196" y="30" width="80" height="100" rx="8" class="s-red-soft"/>
+          <rect x="196" y="30" width="80" height="100" rx="8" stroke="var(--red)" stroke-width="2.5" fill="none"/>
+          <text x="208" y="56" font-size="13" class="s-red">Exame</text>
+          <text x="208" y="74" font-size="13" class="s-red">do Bruno</text>
+          <rect x="208" y="88" width="56" height="6" rx="3" class="s-red"/>
+          <rect x="208" y="102" width="40" height="6" rx="3" class="s-red"/>
+        </svg>
+      </div>
+      <div>
+        <p>A paciente Ana entra com a própria senha e pede o exame número 101, que é dela. E se ela pedir o 102, que é do Bruno?</p>
+        <p class="verdict miss"><b>Detector:</b> a porta abriu normalmente, nada a apitar. Ele não sabe de quem é o exame.</p>
+        <p class="verdict hit"><b>Inspetor:</b> sabe que o 102 é do Bruno, tenta com o crachá da Ana e, se abrir, registra a prova.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Lado a lado</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col"></th><th scope="col">Só o detector</th><th scope="col">Detector + inspetor</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Sabe de quem é cada dado?</th><td>Não.</td><td>Em parte. Precisa de contas de teste de pessoas diferentes e de alguém dizer quais são as regras.</td></tr>
+          <tr><th scope="row">Passa da recepção?</th><td>Muitas vezes trava em cadastros recusados, porque preenche tudo com valores genéricos.</td><td>Lê a resposta, ajusta os dados e tenta chegar mais fundo.</td></tr>
+          <tr><th scope="row">Alarmes falsos</th><td>Muitos. Alguém precisa separar o que é real.</td><td>Menos, desde que cada alerta seja reconferido. Sem isso, muitos também.</td></tr>
+          <tr><th scope="row">Custo por rodada</th><td>Praticamente zero.</td><td>De alguns a dezenas de dólares por produto (estimativa).</td></tr>
+          <tr><th scope="row">Tempo</th><td>Minutos.</td><td>Horas.</td></tr>
+          <tr><th scope="row">Resultado é sempre igual?</th><td>Sim.</td><td>Não. Duas rodadas iguais podem achar coisas diferentes.</td></tr>
+          <tr><th scope="row">Substitui o especialista humano?</th><td>Não.</td><td>Não.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Em poucas frases</h2>
+    <div class="answers">
+      <div>
+        <h3>O que é</h3>
+        <p>Uma ferramenta interna que, a cada nova versão de um produto, procura portas mal trancadas no ambiente de testes e entrega um relatório com provas.</p>
+      </div>
+      <div>
+        <h3>Por que importa</h3>
+        <p>Lidamos com dados de saúde. O erro mais grave nesse tipo de sistema é uma pessoa ver o dado de outra, e é o erro que o detector sozinho não enxerga.</p>
+      </div>
+      <div>
+        <h3>O que muda na prática</h3>
+        <p>Cada nova versão passa por uma checagem automática, em vez de esperar o teste anual feito por especialistas, que continua necessário. Cada problema corrigido vira um teste fixo, para não voltar.</p>
+      </div>
+      <div class="risk">
+        <h3>Riscos e cuidados</h3>
+        <ul>
+          <li><b>A IA erra.</b> Por isso tudo é reconferido e revisado por uma pessoa.</li>
+          <li><b>Pode mexer onde não deve.</b> Por isso roda só no ambiente de testes, com lista fechada de endereços e horário combinado.</li>
+          <li><b>Dados sensíveis.</b> Só dados fictícios. Nenhum dado real de paciente vai para a IA.</li>
+          <li><b>Custo.</b> Cada rodada tem um teto de gasto.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que a pesquisa concluiu</h2>
+    <p>Vale a pena, com uma condição: começar pela parte simples. Boa parte do que se espera do inspetor já pode ser feita por ferramentas gratuitas sem inteligência artificial, bem configuradas. O plano é montar primeiro essa base, medir quanto o inspetor acha a mais e só então decidir se ele continua.</p>
+    <p>Muitos dos números que mostram o inspetor ganhando vêm de empresas que vendem esse tipo de produto. Por isso a medição precisa ser nossa.</p>
+  </section>
+
+  <p class="note">Isto ainda é uma proposta. A pesquisa completa, com fontes e números, está no relatório técnico que acompanha esta página.</p>
+
+</main>
