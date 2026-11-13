@@ -1,0 +1,5 @@
+# Serviços INTERNOS explicitamente permitidos, mesmo resolvendo para IP privado.
+# Padrão: apenas o alvo do lab (serviço "vampi" na rede interna do compose).
+# Nunca coloque aqui um host de produto real: ambiente de empresa é roteável
+# e entra em allowlist.txt, onde a checagem de faixa privada continua valendo.
+vampi

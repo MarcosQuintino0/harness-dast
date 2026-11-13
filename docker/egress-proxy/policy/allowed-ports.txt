@@ -1,0 +1,6 @@
+# Portas de destino permitidas (valem para HTTP e para CONNECT).
+# 5000 = VAmPI no lab. 80 e 443 = hosts do escopo de um produto real.
+# O harness pode reduzir esta lista por execução, nunca ampliar.
+80
+443
+5000
