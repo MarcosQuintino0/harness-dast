@@ -227,7 +227,7 @@ class AuthzRig(Rig):
     ) -> None:
         self.clinic = clinic or Clinic()
         profile = profile or ProductProfile.from_data(clinic_profile_data(**(authz or {})))
-        super().__init__(profile=profile, spec=clinic_spec(), handler=self.clinic, env=ENV)
+        super().__init__(profile=profile, spec=clinic_spec(), handler=self.clinic, env=dict(ENV))
         self.artifacts = InMemoryRunArtifacts(self.store)
 
     def run_probe(self) -> ProbeResult:
