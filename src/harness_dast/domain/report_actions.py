@@ -17,6 +17,37 @@ def _count_groups(report: FindingsReport, severity: str) -> tuple[int, int]:
     return len(groups), sum(item.findings_count for item in groups)
 
 
+def _authz_steps(report: FindingsReport) -> list[str]:
+    authz = report.authz
+    if authz is None:
+        return []
+    steps: list[str] = []
+    counts = report.summary.authz_by_severity
+    if authz.status != "completed":
+        steps.append(
+            "O teste de autorização entre contas parou antes do fim: o que ele não comparou NÃO "
+            "deve ser lido como seguro. Veja o estado e a parada na seção de autorização."
+        )
+    if counts.get("high"):
+        steps.append(
+            f"Confirme os {counts['high']} achado(s) de autorização entre contas de gravidade "
+            "ALTA (acesso a dado de outra conta, função de papel maior ou campo que não devia "
+            "ser aceito): cada um diz a técnica, as contas e a operação. A severidade vem da "
+            "regra do código, não é um veredito."
+        )
+    rest = sum(counts.get(name, 0) for name in ("medium", "low", "informational", "unknown"))
+    if rest:
+        steps.append(f"Leia também os {rest} achado(s) de autorização de gravidade menor.")
+    if authz.not_tested:
+        steps.append(
+            f"O teste de autorização não pôde testar {len(authz.not_tested)} item(ns) (por "
+            "exemplo, falta de uma segunda conta do mesmo papel ou de authz.role_order no "
+            "perfil). Leia a tabela de motivos: a ausência de achado nesses itens não prova "
+            "nada."
+        )
+    return steps
+
+
 def next_steps(report: FindingsReport) -> tuple[str, ...]:
     """Lista, em ordem de importância, o que a pessoa deve fazer ao ler este relatório."""
     steps: list[str] = []
@@ -40,6 +71,7 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
             f"{unknown_groups} grupo(s) têm gravidade desconhecida: leia-os com atenção, a "
             "ferramenta não soube classificá-los."
         )
+    steps += _authz_steps(report)
     other_groups = sum(_count_groups(report, name)[0] for name in ("medium", "low"))
     if other_groups:
         steps.append(f"Planeje a correção dos {other_groups} grupo(s) de gravidade média e baixa.")
@@ -61,7 +93,7 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
             f"Só {reach:.0%} das operações do OpenAPI foram alcançadas pelo probe. Ajuste as "
             "regras de dados do perfil e repita, para a varredura cobrir mais."
         )
-    if not report.findings:
+    if not report.findings and not (report.authz and report.authz.findings):
         steps.append("Nenhum achado não é prova de segurança: leia o que a varredura não cobriu.")
     steps.append(
         "Registre a triagem (o que é falso positivo, o que é real) e gere o relatório de novo."

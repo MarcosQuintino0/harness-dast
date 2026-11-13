@@ -115,16 +115,22 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
     )
 
 
-def _summary(findings: Sequence[Finding], unreadable: int) -> FindingsSummary:
-    counts = Counter(item.proposed_severity for item in findings)
+_SEVERITIES = ("high", "medium", "low", "informational", "unknown")
+
+
+def _summary(
+    findings: Sequence[Finding], unreadable: int, authz: AuthzResult | None
+) -> FindingsSummary:
+    counts: Counter[str] = Counter(item.proposed_severity for item in findings)
+    own: Counter[str] = Counter(
+        item.proposed_severity for item in (authz.findings if authz else ())
+    )
     return FindingsSummary(
         total=len(findings),
-        by_severity={
-            name: counts.get(name, 0)
-            for name in ("high", "medium", "low", "informational", "unknown")
-        },
+        by_severity={name: counts.get(name, 0) for name in _SEVERITIES},
         occurrences=sum(item.occurrences for item in findings),
         alerts_unreadable=unreadable,
+        authz_by_severity=({name: own.get(name, 0) for name in _SEVERITIES} if authz else {}),
     )
 
 
@@ -172,7 +178,7 @@ def assemble_report(
         generated_at=generated_at,
         harness_version=harness_version,
         coverage=_coverage(probe, scan),
-        summary=_summary(findings, unreadable),
+        summary=_summary(findings, unreadable, authz),
         findings=findings,
         groups=group_findings(findings),
         not_observed=gone,

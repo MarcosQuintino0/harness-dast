@@ -8,26 +8,8 @@ campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módu
 from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.markdown_safe import code_span, escape_inline
+from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL
 
-_SEVERITY_LABEL = {
-    "high": "Alta",
-    "medium": "Média",
-    "low": "Baixa",
-    "informational": "Informativa",
-    "unknown": "Desconhecida",
-}
-_CHECK_LABEL = {
-    "horizontal": "Acesso horizontal (BOLA)",
-    "excessive_data": "Dado a mais (exposição excessiva)",
-    "vertical": "Acesso vertical (BFLA)",
-    "mass_assignment": "Campo a mais (atribuição em massa)",
-}
-_STATUS_LABEL = {
-    "completed": "concluída",
-    "partial": "parcial",
-    "skipped": "nada pôde ser testado",
-    "disabled": "não rodou",
-}
 _MAX_NOT_TESTED = 40
 
 
@@ -42,7 +24,7 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
         "",
         f"- **Técnica:** {escape_inline(TECHNIQUE_LABEL[item.technique])} "
         f"({code_span(item.technique)}), teste de autorização entre contas; não é achado do ZAP.",
-        f"- **Severidade proposta pelo código:** {_SEVERITY_LABEL[item.proposed_severity]}. "
+        f"- **Severidade proposta pelo código:** {SEVERITY_LABEL[item.proposed_severity]}. "
         "Status: needs_triage.",
         f"- **Onde:** {code_span(f'{item.method} {item.path_template}')}, operação "
         f"{code_span(item.operation_id)}, {accounts}.",
@@ -80,7 +62,7 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         "|---|---|---|---|---|",
     ]
     lines += [
-        f"| {_CHECK_LABEL[row.check]} | {_STATUS_LABEL[row.status]} | {row.candidates} | "
+        f"| {CHECK_LABEL[row.check]} | {CHECK_STATUS_LABEL[row.status]} | {row.candidates} | "
         f"{row.tested} | {row.findings} |"
         for row in authz.checks
     ]
@@ -104,7 +86,7 @@ def _not_tested_lines(authz: AuthzResult) -> list[str]:
     for item in authz.not_tested[:_MAX_NOT_TESTED]:
         where = code_span(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
         lines.append(
-            f"| {_CHECK_LABEL[item.check]} | {where} | {code_span(item.reason)} | "
+            f"| {CHECK_LABEL[item.check]} | {where} | {code_span(item.reason)} | "
             f"{escape_inline(item.message, 200)} |"
         )
     hidden = len(authz.not_tested) - _MAX_NOT_TESTED

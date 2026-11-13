@@ -329,11 +329,12 @@ def test_product_adds_profile_authorization_window_and_secret_checks(tmp_path: P
     report = Setup(tmp_path).doctor.execute("agenda")
 
     assert report.product == "agenda"
-    assert [c.id for c in report.checks][-4:] == [
+    assert [c.id for c in report.checks][-5:] == [
         "profile",
         "authorization",
         "window",
         "secrets:user_a",
+        "authz_peers",  # o perfil de teste tem uma conta só: aviso, não reprovação
     ]
     assert report.ready is True
 
@@ -503,3 +504,69 @@ def test_doctor_never_touches_the_target_or_docker_more_than_to_read(tmp_path: P
 
     # 1 consulta de versão + 1 por imagem: leitura pura (o falso não tem como "subir" nada).
     assert setup.host.docker_calls == 1 + len(setup.host.images)
+
+
+# ------------------------------------------------- avisos que olham o perfil (V1.1)
+
+
+def two_accounts_data() -> dict[str, Any]:
+    data = profile_data()
+    second = {**data["auth"]["accounts"][0], "alias": "user_b"}
+    second["username"] = {"secret_ref": "env:ACME_USER_B_LOGIN"}
+    second["password"] = {"secret_ref": "env:ACME_USER_B_SENHA"}
+    data["auth"]["accounts"].append(second)
+    return data
+
+
+def test_warns_when_the_profile_has_no_two_accounts_of_the_same_role(tmp_path: Path) -> None:
+    check = by_id(Setup(tmp_path).doctor.execute("agenda"))["authz_peers"]
+
+    assert check.status == "warn"
+    assert "duas contas do mesmo papel" in check.detail
+    assert "hdast run --authz" in check.detail
+
+
+def test_no_peer_warning_when_two_accounts_share_a_role(tmp_path: Path) -> None:
+    profile = ProductProfile.from_data(two_accounts_data())
+    setup = Setup(tmp_path, profile=profile)
+
+    assert "authz_peers" not in by_id(setup.doctor.execute("agenda"))
+
+
+def test_two_accounts_of_different_roles_still_warn(tmp_path: Path) -> None:
+    data = two_accounts_data()
+    data["auth"]["accounts"][1]["role"] = "admin"
+    setup = Setup(tmp_path, profile=ProductProfile.from_data(data))
+
+    assert by_id(setup.doctor.execute("agenda"))["authz_peers"].status == "warn"
+
+
+def test_warns_about_wide_path_mode_without_failing(tmp_path: Path) -> None:
+    data = profile_data()
+    data["scope"]["path_mode"] = "wide"
+    setup = Setup(tmp_path, profile=ProductProfile.from_data(data))
+
+    report = setup.doctor.execute("agenda")
+
+    check = by_id(report)["path_mode"]
+    assert check.status == "warn"
+    assert "deny_paths COMPLETO" in check.detail
+    assert "1 caminho(s) listado(s)" in check.detail
+    assert report.ready is True
+
+
+def test_no_path_mode_warning_in_the_default_strict_mode(tmp_path: Path) -> None:
+    assert "path_mode" not in by_id(Setup(tmp_path).doctor.execute("agenda"))
+
+
+def test_the_new_warnings_never_suggest_widening_scope_limits_or_window(tmp_path: Path) -> None:
+    data = two_accounts_data()
+    data["scope"]["path_mode"] = "wide"
+    data["auth"]["accounts"][1]["role"] = "admin"
+    setup = Setup(tmp_path, profile=ProductProfile.from_data(data))
+    report = setup.doctor.execute("agenda")
+
+    text = " ".join(by_id(report)[name].detail for name in ("path_mode", "authz_peers"))
+
+    for word in ("amplie", "aumente", "estenda", "libere"):
+        assert word not in text.lower()

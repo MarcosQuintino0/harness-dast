@@ -154,12 +154,13 @@ def test_report_warns_that_path_injection_coverage_was_partial() -> None:
     text = _text(_traffic())
 
     assert "cobertura de injeção em segmento de caminho foi PARCIAL" in text
-    assert "50 de 100 pedido(s) (50%)" in text
+    assert r"50 de 100 pedido\(s\) \(50%\)" in text
     assert r"path\_encoded\_slash: 30" in text
     assert r"path\_matrix\_param: 20" in text
     assert "url_not_ascii" not in text  # forma da URL, não do caminho
     assert "Modo de leitura do caminho no proxy: strict" in text
-    assert "só o dono do produto pode autorizar `wide` na carta" in text
+    assert "só o dono do produto pode autorizar wide na carta" in text
+    assert r"barra codificada no caminho \(%2f\)" in text  # nome humano ao lado do código
 
 
 def test_report_has_no_partial_coverage_warning_when_no_path_was_refused() -> None:
@@ -173,9 +174,10 @@ def test_report_in_wide_mode_states_the_mode_and_counts_releases_outside_allow()
     text = _text(_traffic(path_mode="wide", allowed_outside_allow=7))
 
     assert "Modo de leitura do caminho no proxy: wide" in text
-    assert "7 pedido(s) liberados têm uma leitura do caminho fora de `scope.allow`" in text
+    assert r"7 pedido\(s\) liberados têm uma leitura do caminho fora de scope.allow" in text
+    assert "modo amplo, autorizado na carta" in text
     assert "só o dono do produto" not in text
 
 
 def test_report_strict_mode_does_not_mention_releases_outside_allow() -> None:
-    assert "fora de `scope.allow`" not in _text(_traffic())
+    assert "fora de scope.allow" not in _text(_traffic())

@@ -38,6 +38,8 @@ Você propõe; a CLI valida. Tudo que decide escopo, limite ou janela já está 
 | `DATA_RULES_MISMATCH`, `FLOWS_MISMATCH`, `ACCOUNT_MAP_MISMATCH` | Nome de operação, parâmetro ou campo inexistente: confira o `operationId` no resumo. |
 | A carta não diz o modo de leitura de caminhos, ou marca "estrito" | Deixe `scope.path_mode` fora do `target.yml` (vale `strict`) ou escreva `strict`. Nunca escreva `wide` por conta própria. |
 | A carta marca o modo amplo | Copie `scope.path_mode: wide` exatamente como a carta diz e registre no diário a linha da carta. Se a pessoa só disser "a cerca está recusando demais" ou o relatório avisar cobertura parcial de caminho, **não mude o modo**: avise que só o dono do produto pode autorizá-lo na carta. |
+| A carta não traz a hierarquia de papéis nem as operações públicas, e a pessoa quer o teste entre contas | Não escreva o bloco `authz` por palpite (valem os padrões): `role_order` e `public_operations` vêm do dono do produto. Escritas em `authz.vertical_methods` só se a pessoa mandar. O bloco só ajusta o que o `authz` repete; nada nele amplia escopo (ADR 0027). |
+| A pessoa diz que existe um GET que prepara os dados do ambiente | Só então escreva `probe.setup_path` com esse caminho, que já precisa estar em `scope.allow` e fora de `deny_paths`. Sem a indicação, não escreva. |
 | O escopo parece curto demais | **Pare** e peça ao dono do produto. Não amplie. |
 
 ## Diário de decisões

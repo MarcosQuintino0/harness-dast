@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
+`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz` e o que os ADRs 0026 a 0029 acrescentam existem como código e testes e **ainda não foram verificados em laboratório** (veja a seção V1.1 do [roadmap](../roadmap.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -139,6 +139,8 @@ Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`
 | `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |
 | `authorization`, `window` | Com produto: mesma regra do `preflight` | `fail` (tipo `scope`) |
 | `secrets:<apelido>` | Com produto: as variáveis de `secret_ref` de cada conta estão definidas (o nome da variável só aparece no texto, nunca no JSON) | `fail` |
+| `path_mode` | Com produto: só aparece se o perfil tem `scope.path_mode: wide` | `warn`: o modo amplo só é seguro com `deny_paths` completo e só vale se a carta o autoriza |
+| `authz_peers` | Com produto: nenhum papel tem duas contas em `auth.accounts` | `warn`: o teste de autorização horizontal (`run --authz`, `authz`) não poderá comparar contas; sem `--authz` nada muda |
 
 Cada reprovação traz em `detail`, numa linha, o que houve e o que fazer. `ready` é `true` quando nada reprovou (avisos não contam).
 

@@ -5,6 +5,9 @@ pilha atual) e, se receber um produto, o perfil (estrutura, pendências do model
 janela e presença das variáveis de segredo). Nunca envia requisição ao alvo, nunca sobe
 contêiner e nunca mostra o valor de um segredo: só diz se a variável existe.
 
+Dois avisos olham só o perfil (`doctor_checks`): o modo amplo de caminho e a falta de duas contas
+do mesmo papel para o `authz`.
+
 Cada conferência vira um `DoctorCheck` (dado, não exceção). `fail` impede começar; `warn` é
 algo a saber (imagem que será baixada, `uv` fora do PATH). A autorização e a janela usam a mesma
 regra do `preflight` (`preflight_checks`), e os segredos também.
@@ -16,6 +19,7 @@ from pathlib import Path
 from typing import Protocol
 
 from harness_dast.application.account_session import account_secret_fields
+from harness_dast.application.doctor_checks import authz_peer_checks, wide_mode_checks
 from harness_dast.application.doctor_report import (
     DoctorCheck,
     DoctorKind,
@@ -317,6 +321,8 @@ class Doctor:
             for check in authorization_window_checks(profile, self._clock.now())
         )
         checks.extend(self._secret_checks(profile))
+        checks.extend(wide_mode_checks(profile))
+        checks.extend(authz_peer_checks(profile))
         return checks, profile
 
     def _profile_check(self, product: str) -> DoctorCheck:

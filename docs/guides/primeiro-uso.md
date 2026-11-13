@@ -29,6 +29,14 @@ Saída esperada do último comando (a versão pode mudar):
 {"schema_version":1,"ok":true,"data":{"version":"0.1.0"}}
 ```
 
+## 2b. Primeiro passo: o `doctor`
+
+```powershell
+uv run hdast doctor
+```
+
+Confere Python, `uv`, Docker, imagens e as portas 8080 e 3128, sem tocar nenhum alvo e sem subir nada. Esperado: "Tudo pronto para começar." (aviso de imagem ausente é normal na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo. Mais adiante, `hdast doctor vampi` confere também o perfil (veja 4b).
+
 ## 3. Copiar o perfil do laboratório
 
 O perfil do VAmPI vem pronto em `lab/vampi/product-profile/`. A pasta do produto precisa ter o nome do produto (`vampi`).
@@ -59,7 +67,7 @@ $env:VAMPI_ADMIN_USERNAME  = "admin";  $env:VAMPI_ADMIN_PASSWORD  = "pass1"
 uv run hdast doctor vampi
 ```
 
-O `doctor` não toca o alvo nem sobe nada: confere Python, `uv`, Docker, imagens, as portas 8080 e 3128, o perfil, a autorização, a janela e se as variáveis das contas estão definidas (só diz se existem, nunca o valor). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
+O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do passo 2b e mais o perfil, a autorização, a janela e se as variáveis das contas estão definidas (só diz se existem, nunca o valor). Dois **avisos** (não reprovam) olham o perfil: `scope.path_mode: wide` (o modo amplo só é seguro com `deny_paths` completo) e a falta de duas contas do mesmo papel (sem elas, o teste de autorização horizontal não consegue comparar contas). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
 
 ## 5. Subir a pilha
 
@@ -88,7 +96,7 @@ O `preflight` confere autorização, janela, segredos, ZAP, saúde do alvo e log
 uv run hdast run vampi
 ```
 
-Leva cerca de 15 minutos. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
+Leva cerca de 15 minutos. Opcional: `uv run hdast run vampi --authz` inclui, depois da varredura, o teste de autorização entre contas (acesso a dado de outra conta, função de papel maior, campo a mais, dado a mais). Use quando o perfil tiver **duas contas do mesmo papel** (o VAmPI tem `user_a` e `user_b`); ele manda requisições a mais e escreve no alvo, então só com o dono do ambiente de acordo, e não combina com `--skip-scan`. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
 
 ## 8. Ler o resultado
 

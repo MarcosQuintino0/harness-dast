@@ -6,6 +6,41 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### V1.1, ADR 0026: a cerca diz por que recusou e ganha o modo amplo de caminho
+
+Tudo isto é código e testes; a prova em laboratório contra o proxy e o ZAP reais ainda não foi feita (outra pessoa a mede agora).
+
+- Cada recusa do escopo carrega um código estável (`ScopeReason`: `path_encoded_slash`, `path_matrix_param`, `deny_path`...). O campo `reason` do proxy continua sendo `malformed_request` para recusa por forma; o código granular vai em `detail` na auditoria e em `scan.json` `traffic.denied_by_detail`. O caminho na auditoria sobe de 120 para 2048 caracteres.
+- `scan.json` e `findings.json` ganham, de forma aditiva, `traffic.denied_by_detail`, `path_shape_denied`, `allowed_outside_allow` e `path_mode`.
+- Perfil: `scope.path_mode: strict | wide` (padrão `strict`). O modo amplo só vale no proxy de escopo, só se a carta do dono do produto o autorizar, e nenhuma flag o liga. Risco aceito: um pedido liberado pode alcançar outro caminho do mesmo host que `scope.allow` não lista; por isso `deny_paths` precisa ser completo.
+- Relatórios (`report.md` e `report.html`): modo de leitura do caminho, aviso de cobertura parcial de injeção em caminho (quantos pedidos, quantos por cento e por quê), contagem de liberados com leitura fora de `scope.allow` e nome legível para cada código de recusa, com o código ao lado.
+
+### V1.1, ADR 0027: teste de autorização entre contas
+
+- Comando `hdast authz <produto> --run ID` (`--check`, `--dry-run`) e estágio `authz` do `run` (`--authz`, desligado por padrão): repete, com outras contas, os pedidos que o `probe` provou. Quatro verificações: acesso horizontal (BOLA), dado a mais, acesso vertical (BFLA) e campo a mais (atribuição em massa). Sem ZAP, pelo mesmo caminho de envio do `probe` (escopo, taxa, janela, prazo, auditoria).
+- O `probe` passa a gravar `exchanges.json`; o estágio grava `authz.json`. Bloco opcional `authz` no `target.yml`. `run.json` passa a ter cinco estágios.
+- `findings.json` ganha a seção `authz`, `technique` em cada achado e `summary.authz_by_severity`. O `--fail-on` conta os achados dos dois tipos. O que o estágio não pôde testar vai em `not_tested`, nunca para "seguro".
+- Ainda não verificado contra a Clínica Piloto real. Limites: só leituras no BOLA, achados fora do `--compare` e da triagem.
+
+### V1.1, ADR 0028: facilitar o uso
+
+- Comando `hdast doctor [produto]`: confere Python, `uv`, Docker, imagens, portas e validade da pilha e, com produto, perfil, autorização, janela e segredos, sem tocar o alvo. Avisa (sem reprovar) de `scope.path_mode: wide` e de perfil sem duas contas do mesmo papel.
+- Perfil: `probe.setup_path` (GET idempotente que prepara os dados antes dos logins). `allow_local` ganha mensagem e dica claras. `hdast init` deixa de criar `cleanup/` (use `--with-cleanup`).
+- A validade da pilha ganha 60 minutos de folga e fica separada do prazo da execução, que continua limitado por `limits.max_duration_minutes`.
+
+### V1.1, ADR 0029: relatório agrupado, página HTML e skill de um pedido só
+
+- `findings.json` e o envelope do `report` ganham `groups` (achados com a mesma causa provável); nenhum achado some e nenhuma severidade muda. Nota fixa para o cookie de XSRF sem `HttpOnly`.
+- Novo arquivo `report.html`: página única, sem JavaScript e sem recurso externo, com resumo, o que fazer agora, achados por gravidade, o que não foi coberto e o tráfego recusado. Todo texto do alvo é escapado e redigido.
+- Nova skill `test-product`: conduz cadastro, alcançabilidade, varredura e triagem num pedido só e para quando precisa da pessoa.
+
+### Adicionado e corrigido (costuras entre as quatro entregas da V1.1)
+
+- `report.html` mostra os achados de autorização entre contas, com a técnica de cada um, o que o estágio não pôde testar e os limites; o resumo e o "o que fazer agora" os contam. `summary.authz_by_severity` (previsto no ADR 0027) passa a existir. Os achados de `authz` não entram em `groups` (adendo do ADR 0029).
+- `report.md` e `report.html` usam as mesmas frases sobre a cerca (`report_traffic.py`) e os mesmos rótulos (`report_labels.py`, `scope_labels.py`).
+- `hdast doctor` ganha os dois avisos do perfil. As mensagens dizem que o `report` precisa do `scan.json` e que `run --authz` não roda com `--skip-scan`. Skills e guias começam pelo `doctor` e explicam quando usar `--authz` e que `path_mode: wide` só entra se a carta disser.
+- Documentos de referência (`cli.md`, `exit-codes.md`, `finding-schema.md`, `relatorio.md`, `scan.md`), roadmap e `CLAUDE.md` alinhados.
+
 ### Adicionado (primeira avaliação cega)
 
 - **Cinco rodadas cegas** com agente novo ([docs/reviews/2026-11-13-rodadas-cegas.md](docs/reviews/2026-11-13-rodadas-cegas.md)): Clínica Piloto 9,53 e 10,0; VAmPI 4,5 e, depois da correção, 10,0; crAPI 8,17. Nenhuma violação de segurança.

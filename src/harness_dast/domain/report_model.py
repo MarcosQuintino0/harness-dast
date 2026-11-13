@@ -124,12 +124,16 @@ class FindingsSummary(ApiModel):
         by_severity: Contagem pela severidade proposta pelo ZAP.
         occurrences: Alertas do ZAP reunidos nos achados.
         alerts_unreadable: Alertas brutos ilegíveis (ignorados e contados).
+        authz_by_severity: Achados do estágio de autorização entre contas por severidade
+            (aditivo, ADR 0027); vazio quando o estágio não rodou. NÃO entra em `total` nem em
+            `by_severity`, que seguem sendo só do ZAP.
     """
 
     total: int
     by_severity: dict[str, int]
     occurrences: int
     alerts_unreadable: int = 0
+    authz_by_severity: dict[str, int] = Field(default_factory=dict)
 
 
 class GoneFinding(ApiModel):

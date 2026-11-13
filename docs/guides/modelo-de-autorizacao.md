@@ -49,6 +49,10 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Apelido | Papel | Nome da variável de ambiente do usuário | da senha
    (a carta traz os NOMES das variáveis; as senhas são entregues por canal
    seguro direto a quem opera e nunca ao agente)
+   Para o teste de autorização entre contas (`hdast run --authz`), liste ao
+   menos DUAS contas do MESMO papel; sem elas esse teste não compara contas.
+   Esse teste manda requisições a mais e escreve no alvo (atribuição em massa):
+   autorize só se o ambiente aguentar.
 
 7. Limpeza dos dados criados
    [ ] Não haverá limpeza automática (ambiente descartável ou recriado)
