@@ -103,6 +103,8 @@ Duas formas de lançar:
   Get-Content "<...>\tasks\<outroAgentId>.output" | Add-Content "$out\transcript.jsonl"
   ```
 
+  **Atenção (visto na primeira rodada cega, 2026-11-13):** o arquivo `tasks\<agentId>.output` pode ficar **vazio** depois que o subagente termina. A conversa completa fica em `%USERPROFILE%\.claude\projects\<projeto>\<sessão>\subagentsgent-<agentId>.jsonl`, no mesmo formato; copie de lá. Confira que o `score.md` diz "Transcript: estruturado": com arquivo vazio as verificações de comando saem `n/a` e a nota fica mais alta do que deveria.
+
   Verificado contra um `.output` real de 213 linhas e 55 chamadas de ferramenta: o parser contou 55 (sem o filtro, as cópias de telemetria somavam 6 chamadas repetidas e o texto bruto triplicava).
 - **Não interativo** (a forma que carrega o ambiente sem truque; **não testada** aqui porque gasta modelo): `claude -p "<prompt>" --output-format stream-json --verbose --permission-mode acceptEdits > $out\transcript.jsonl`, dentro do workspace. O `settings.json` do workspace vale: as regras de negação vencem o modo.
 
