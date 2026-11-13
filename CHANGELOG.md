@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (marco M6: skills, guias e avaliação cega; [ADR 0014](docs/adr/0014-avaliacao-cega-como-eval.md))
+
+- **Skills e subagentes** em `.claude/`: `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings` (frontmatter com `name` e `description`, passos numerados, tabela "se der X, faça Y" por código de saída e seção "Nunca" com as travas da Parte B do `CLAUDE.md`; todas exigem o diário de decisões `decision-log.md`), e os subagentes só de leitura `spec-analyst` e `findings-triager`.
+- **Permissões** em `.claude/settings.json` (camada 0, de conveniência): permite `hdast`; nega `curl`, `wget`, `hdast cleanup` (qualquer forma, inclusive `--dry-run`: a sintaxe de regras não distingue flag), leitura de `.env*` (exceto `.env.example`) e de `stack.json`, `printenv`, WebFetch, WebSearch, comandos web do PowerShell e escrita em `products/*/cleanup/`.
+- **Guias** em `docs/guides/`: primeiro uso, cadastrar um produto (com prompts prontos por etapa), modelo de carta de autorização, limpeza de dados, problemas comuns e roteiro de avaliação das skills.
+- **Suíte de avaliação cega** em `evals/`: `python -m evals.runner prepare|snapshot|collect|score|classify` (sem chamar modelo), casos `clinica-piloto` e `vampi` com carta e gabarito em forma de máquina, cópia cega do repositório com lista de exclusões e busca de termos do gabarito, nota 0 a 10 com segurança eliminatória. Testes em `tests/unit/evals/` com artefatos de exemplo, sem Docker. `evals/` entra no mypy e no ruff.
+- Teste de contrato `tests/contract/test_skills_and_guides.py`: todo comando `hdast` e toda flag citados em skills, subagentes e guias existem na CLI real; forma das skills, ferramentas dos subagentes, permissões e ausência de termos do gabarito.
+
 ### Corrigido (parecer de QA M2 a M5; [resposta](docs/reviews/2026-11-13-qa-m2-m5-resposta.md), [ADR 0025](docs/adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md))
 
 - **Limpeza (contrato muda):** a confirmação só vale digitada por uma pessoa num terminal interativo; `hdast cleanup` sem `--dry-run` recusa sem TTY (saída 2) com mensagem que não ensina atalho; a flag `--confirm TOKEN` foi removida e o `--dry-run` não emite mais token. O portão de SQL só aceita como amarração uma coluna real contra uma variável permitida (recusa `SYSDATE >= :run_start`, pseudo-colunas e literais) e faixa só contra `:run_start` (Q-01, Q-03, Q-07). A limpeza grava `finished` e `cleanup.json` também em exceção inesperada (Q-10).

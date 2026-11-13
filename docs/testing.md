@@ -107,11 +107,11 @@ Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e exi
 
 ## Avaliação das skills
 
-Roteiro manual, antes de release e ao mudar uma skill: partindo de um Swagger do lab, o agente chega a um perfil válido e à alcançabilidade esperada. Planejado (M6). A avaliação cega, abaixo, complementa o roteiro com repetição e nota automática.
+Roteiro manual, antes de release e ao mudar uma skill: partindo de um Swagger do lab, o agente chega a um perfil válido e à alcançabilidade esperada. Escrito em [guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md) (M6). A avaliação cega, abaixo, complementa o roteiro com repetição e nota automática.
 
 ## Avaliação cega (evals)
 
-> **Planejado (M6). Nada desta seção existe.** Decisão e alternativas: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md).
+> **Implementado como código e testes (M6); a primeira rodada contra o lab ainda não foi feita.** O executor, os casos, a regra de nota e o passo a passo estão em [../evals/README.md](../evals/README.md); o executor é testado em `tests/unit/evals/` com artefatos de exemplo, sem Docker. Decisão e alternativas: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md).
 
 Uma **eval** é um teste automático de um sistema de IA: um caso com entrada e resposta esperada, rodado várias vezes, com nota calculada por regra. Ao fim da V1, a ferramenta é avaliada por agentes de teste **cegos**.
 
@@ -174,7 +174,7 @@ Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram p
 - Na revisão de 2026-11-13 eram cerca de 1,7 mil testes, sem Docker nem rede. Esse número envelhece; a fonte é o próprio diretório `tests/`.
 - Desde o M3: falsos com comportamento em `tests/fakes/` (`probe_ports.py`, `rig.py`, `runtime.py`) para os casos de uso `spec inspect`, `preflight` e `probe`; servidor HTTP real em 127.0.0.1 (`tests/fakes/local_server.py`) para o cliente do alvo, as duas estratégias de autenticação com CSRF e o cliente da API do ZAP (contra um ZAP falso com as formas de resposta do spike); contratos dos três comandos em `tests/contract/test_cli_probe_commands.py`; e a afirmação central do projeto como regressão (`tests/unit/application/test_probe_vampi.py`: alcançabilidade com regras acima da sem regras, sobre o OpenAPI real do VAmPI).
 - Desde o M4/M5: `tests/integration/` roda a CLI como processo contra o lab real. `test_lab_vampi.py` e `test_lab_pilot.py` (alcançabilidade do `probe`, XSRF, contas, vencimento do token), `test_lab_run.py` (`hdast run` completo: VAmPI vulnerável e seguro com comparação, Clínica Piloto vulnerável e seguro, trava de emergência durante a varredura; afirma só o que é robusto e **mede** o que o ZAP achou, sem ajustar ao gabarito) e `test_cleanup_oracle.py` e `test_run_cleanup_oracle.py` (limpeza contra um Oracle Free real, a segunda depois de um `hdast run`). Apoio em `lab_support.py` e `run_support.py`. Cada chamada tem prazo; sem Docker (ou sem a imagem do Oracle) o teste é pulado.
-- Não existe: a suíte de evals (M6).
+- Desde o M6: `tests/unit/evals/` (executor da avaliação cega, com artefatos de exemplo) e `tests/contract/test_skills_and_guides.py` (comandos e flags citados em skills, subagentes e guias existem na CLI real; permissões e forma das skills).
 - Mutação à mão no M3 (cada mutante quebrou ao menos um teste): `approve` sem `ensure_allowed`; `deny_paths` sem pular; janela sem rechecagem; prazo sem checagem; trecho de resposta sem redação; token não registrado no redator; cabeçalho CSRF em todos os métodos; `DELETE` sem pular; novo login sem teto; redirecionamento seguido; decisão de auditoria gravada depois do envio.
 
 A suíte `*_qa.py` nasceu com 29 testes que demonstravam defeitos; eles guiaram a [rodada de correção](reviews/2026-11-13-qa-m1-m2-resposta.md).

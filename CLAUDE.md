@@ -2,7 +2,7 @@
 
 Regras para qualquer agente de IA neste repositório. Idioma: documentação, comentários e mensagens ao usuário em português; identificadores de código e nomes de arquivo e comando em inglês.
 
-Estado: M1 (fundação) e primeira metade do M2 (domínio). Existem o esqueleto do pacote `harness_dast`, as ferramentas, o CI, a hierarquia de erros, o envelope JSON, `hdast version` e a camada de domínio de escopo e perfil (`ScopeGuard`, janelas, sobrescritas, `RunId`, modelos do perfil), sem nenhum comando que a use. **O único comando é `hdast version`.** Não existem: carregador de YAML do perfil, casos de uso e portas em `application`, adaptadores, skills em `.claude/` nem integração com o ZAP. Não trate comando ou recurso planejado como existente. Estado por item: `docs/roadmap.md`.
+Estado: M1 a M5 entregues e verificados contra o ZAP 2.17 real, e M6 (skills, permissões, guias e suíte de avaliação cega) entregue como código e testes. Comandos que existem: `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` (`up`, `down`, `status`) e `stop`. Existem também as skills e os subagentes em `.claude/`, as permissões em `.claude/settings.json` (camada 0, de conveniência; a trava de verdade é o código da CLI), os guias em `docs/guides/` e a suíte de avaliação cega em `evals/` (a primeira rodada contra o lab ainda não foi feita). Não existem: o piloto em um produto real (M7), teste de autorização entre contas, outros motores além do ZAP e outros bancos na limpeza além do Oracle. Não trate comando ou recurso planejado como existente. Estado por item: `docs/roadmap.md`.
 
 ## Parte A. Ao DESENVOLVER o projeto
 

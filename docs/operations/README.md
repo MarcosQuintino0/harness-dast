@@ -1,6 +1,6 @@
 # Operação
 
-Guias para quem usa o `harness-dast` contra um produto. Os comandos do fluxo completo existem; os guias passo a passo de onboarding e de uso com o agente são do M6. Este índice lista o que existe e o que está planejado. Nenhum guia fictício é mantido aqui.
+Guias para quem usa o `harness-dast` contra um produto. Os comandos do fluxo completo existem e os guias passo a passo (primeiro uso, cadastro com o agente, limpeza, problemas comuns) estão em [../guides/](../guides/primeiro-uso.md). Este índice lista o que existe. Nenhum guia fictício é mantido aqui.
 
 Antes de qualquer uso, leia o aviso de uso autorizado no [README](../../README.md) e a [política de segurança](../../SECURITY.md).
 
@@ -10,8 +10,8 @@ Antes de qualquer uso, leia o aviso de uso autorizado no [README](../../README.m
 | --- | --- | --- |
 | [authorization-and-scope.md](authorization-and-scope.md) | O que a autorização formal precisa conter e como vira `scope`, `limits` e `authorization` no perfil | Escrito (a validação é aplicada por `preflight`, `probe`, `scan` e `run`) |
 | [threat-model.md](threat-model.md) | Cenários de abuso e mitigação de cada um | Escrito (mitigações em parte no domínio e no `compose.yaml`; o resto planejado) |
-| Cadastrar um produto (onboarding) | Do Swagger ao perfil validado | Planejado (M6) |
-| Rodar uma varredura | `hdast run` (ou `preflight`, `probe`, `scan` e `report` um a um): [reference/cli.md](../reference/cli.md#hdast-run), [reference/scan.md](../reference/scan.md), [reference/relatorio.md](../reference/relatorio.md) | Referência escrita; guia de onboarding planejado (M6) |
+| [../guides/cadastrar-um-produto.md](../guides/cadastrar-um-produto.md) | Cadastrar um produto: carta de autorização, perfil, segredos e prompts por etapa para o agente | Escrito (M6) |
+| Rodar uma varredura | `hdast run` (ou `preflight`, `probe`, `scan` e `report` um a um): [reference/cli.md](../reference/cli.md#hdast-run), [reference/scan.md](../reference/scan.md), [reference/relatorio.md](../reference/relatorio.md); passo a passo em [../guides/primeiro-uso.md](../guides/primeiro-uso.md) | Escrito (M6) |
 | [cleanup.md](cleanup.md) | Rodar `hdast cleanup` com confirmação humana | Escrito |
 | O que fazer se algo sair errado | `hdast stop` (trava de emergência), `hdast stack down`, regras `hdast-` sobrando no Replacer: [reference/cli.md](../reference/cli.md#hdast-stack-e-hdast-stop) e [reference/scan.md](../reference/scan.md#parada-prazo-e-saúde-do-alvo) | Referência escrita; guia planejado (M6) |
 

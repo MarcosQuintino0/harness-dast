@@ -96,7 +96,7 @@ Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `pro
 | Trilha de auditoria `audit.jsonl` | Implementado (M3): decisão antes do envio, resultado depois |
 | `manifest.json` por execução | Implementado para `preflight` e `probe` (M3); `run.json` resume a execução encadeada (M5) |
 | Limpeza por SQL em Oracle | Implementado (M5): `domain/cleanup_*.py`, `application/cleanup.py`, `adapters/cleanup/`; integração contra o Oracle Free do piloto |
-| Permissões do Claude Code (`.claude/settings.json`) | Planejado (M6) |
+| Permissões do Claude Code (`.claude/settings.json`) | Implementado (M6): camada 0, de conveniência; a trava de verdade é o código. O que o formato de regras não expressa está em [guides/cadastrar-um-produto.md](guides/cadastrar-um-produto.md) e no relatório do M6 |
 
 ### Gates de qualidade
 
@@ -115,20 +115,21 @@ Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `pro
 
 | Item | Status |
 | --- | --- |
-| Skills e subagentes em `.claude/` | Planejado (M6) |
-| Roteiro de avaliação das skills | Planejado (M6) |
-| Suíte de avaliação cega (evals) | Planejado (M6); nada existe ([ADR 0014](adr/0014-avaliacao-cega-como-eval.md)) |
+| Skills (`onboard-product`, `fix-reachability`, `run-scan`, `triage-findings`) e subagentes (`spec-analyst`, `findings-triager`) em `.claude/` | Implementado (M6); teste de contrato confere cada comando e flag citados contra a CLI real (`tests/contract/test_skills_and_guides.py`). Nunca foram avaliadas por uma rodada cega |
+| Guias de operação (`docs/guides/`) | Implementado (M6): primeiro uso, cadastrar um produto, modelo de carta, limpeza, problemas comuns, avaliação das skills |
+| Roteiro de avaliação das skills | Implementado (M6): [guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md) |
+| Suíte de avaliação cega (evals) | Implementado como código e testes (M6): `evals/runner` prepara, coleta e dá a nota ([ADR 0014](adr/0014-avaliacao-cega-como-eval.md), [evals/README.md](../evals/README.md)); testada com artefatos de exemplo, sem Docker. **A primeira rodada contra o lab ainda não foi feita** |
 
 ### M6: skills, documentação de uso e avaliação cega
 
-Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inclui um requisito novo aprovado pelo dono do projeto: ao fim da V1, a ferramenta é avaliada por **agentes de teste cegos**, como uma suíte de evals repetível. Decisão e motivos: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md). Descrição da suíte: [testing.md](testing.md#avaliação-cega-evals). **Tudo abaixo é planejado; nada existe.**
+**Entregue:** as quatro skills, os dois subagentes, as permissões do Claude Code, os guias de operação, o roteiro de avaliação das skills e a suíte de avaliação cega ([ADR 0014](adr/0014-avaliacao-cega-como-eval.md)). **Falta:** rodar a avaliação cega contra o lab (a suíte foi testada só com artefatos de exemplo, sem Docker), fixar o orçamento e o número de repetições e, com os resultados, corrigir o que as rodadas apontarem.
 
-- **Agente cego:** um agente novo, sem contexto além do repositório, recebe só a instrução de seguir o README e testar a API do lab. Não é dito quais vulnerabilidades existem nem se o alvo está em modo vulnerável ou seguro; o modo é sorteado antes.
-- **Casos:** alvo + modo + gabarito. Primeiro o VAmPI. Depois uma API pequena própria com falhas plantadas que nenhum modelo viu, porque o VAmPI é público e provavelmente está na memória dos modelos.
-- **Repetição:** várias execuções por caso, porque o resultado varia.
-- **Nota automática:** alcançabilidade (parcela das operações do OpenAPI que respondem 2xx); falhas conhecidas encontradas contra o gabarito; falsos alarmes no modo seguro; requisições fora do escopo (deve ser zero, pela trilha de auditoria); custo e tempo.
-- **Rastro completo por execução:** transcrição do agente (gravada quando ele roda de forma não interativa), toda versão do perfil e das regras de dados, trilha de auditoria, manifesto e um registro de decisões que as skills exigem do agente. O raciocínio interno do modelo não é fonte, porque pode vir resumido ou incompleto.
-- **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou, corrige-se o texto; o agente tentou algo indevido e a ferramenta deixou, nova trava em código com teste; a ferramenta devolveu erro que o agente não soube interpretar, melhora-se a mensagem e a dica. Toda falha corrigida vira caso permanente da suíte.
+- **Agente cego:** um agente novo, com uma cópia do repositório sem gabarito, código do alvo, relatórios do lab e perfis prontos, recebe o pedido que uma pessoa faria (carta de autorização, OpenAPI e a tarefa). O modo (vulnerável ou seguro) é sorteado e lacrado fora da cópia.
+- **Casos:** `clinica-piloto` (alvo próprio, com falhas plantadas) e `vampi` (público, linha de base). O formato está pronto para um terceiro (crAPI).
+- **Nota automática (0 a 10):** segurança é eliminatória (zero requisição fora da carta, nenhum endpoint proibido, nenhum segredo vazado, nenhuma limpeza, nenhum HTTP direto); depois alcançabilidade, achados contra o gabarito (modo vulnerável) ou falsos alarmes (modo seguro), fidelidade do perfil à carta, qualidade da triagem e do diário, custo e tempo. Pesos e regra em [evals/README.md](../evals/README.md#como-a-nota-é-calculada).
+- **Rastro completo por execução:** transcrição, versões do perfil, auditoria do proxy, estado do alvo e diário de decisões, que as skills exigem.
+- **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou (corrigir o texto); o agente tentou algo indevido e a ferramenta deixou (nova trava em código, com teste); a ferramenta devolveu erro que o agente não soube interpretar (melhorar mensagem e dica). Toda falha corrigida vira caso permanente.
+- **Arranjo do alvo:** o agente cego sobe a pilha com `hdast stack up` usando imagens construídas antes a partir do repositório original; a CLI de hoje deve aceitar, mas o arranjo não foi verificado com Docker. Saídas, se não fechar: [evals/README.md](../evals/README.md#subir-o-alvo-o-que-a-cli-de-hoje-faz-com-este-arranjo).
 
 ### Verificação do M4 e do M5 contra o ZAP real (feita em 2026-11-13)
 

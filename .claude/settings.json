@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run hdast:*)",
+      "Bash(hdast:*)"
+    ],
+    "deny": [
+      "Read(**/.env*)",
+      "Read(!.env.example)",
+      "Read(//**/hdast/stack.json)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(printenv:*)",
+      "Bash(uv run hdast cleanup:*)",
+      "Bash(uv run hdast --json cleanup:*)",
+      "Bash(hdast cleanup:*)",
+      "Bash(hdast --json cleanup:*)",
+      "PowerShell(Invoke-WebRequest:*)",
+      "PowerShell(Invoke-RestMethod:*)",
+      "PowerShell(curl:*)",
+      "PowerShell(uv run hdast cleanup:*)",
+      "PowerShell(uv run hdast --json cleanup:*)",
+      "PowerShell(hdast cleanup:*)",
+      "PowerShell(hdast --json cleanup:*)",
+      "WebFetch",
+      "WebSearch",
+      "Edit(products/*/cleanup/**)"
+    ]
+  }
+}
