@@ -91,7 +91,7 @@ def test_doctor_with_product_checks_profile_authorization_window_and_secrets(
     ids = [c["id"] for c in envelope["data"]["checks"]]
     assert code == ExitCode.OK
     assert envelope["data"]["product"] == "demo"
-    assert ids[-3:] == ["authorization", "window", "secrets:user_a"]
+    assert ids[-4:] == ["authorization", "window", "secrets:user_a", "authz_peers"]
     assert "profile" in ids
 
 
