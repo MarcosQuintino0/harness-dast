@@ -333,4 +333,6 @@ def test_stop_during_scan_ends_the_run_cleanly_within_seconds(kill_run: dict[str
     summary = kill_run["run_json"]
     assert summary["status"] == "interrupted"
     assert summary["stop_requested"] is True
-    assert summary["stages"][3]["status"] == "not_run"
+    # Desde o ADR 0025 o relatório sai mesmo com a varredura interrompida, sobre o que foi
+    # coletado e sem tráfego novo ao alvo; a saída continua 130.
+    assert summary["stages"][3]["status"] == "ok"
