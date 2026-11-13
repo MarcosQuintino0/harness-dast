@@ -262,21 +262,25 @@ def kill_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
         progress = _wait_for_scanning(cli, process)
         started = time.time()
         stop = cli.run("stop")
+        # A trava só existe quando o comando `stop` termina (o processo leva 1 a 2 s para iniciar no
+        # Windows); medir a partir do disparo contaria como "depois do stop" o que passou antes.
+        engaged = time.time()
         stdout, stderr = process.communicate(timeout=120)
         exited = time.time()
         audit = proxy_audit(cli)
         history = ZapHistory(cli.state_file())
         allowed_after = [
-            r for r in audit if r["decision"] == "allow" and parse_ts(r["ts"]) > started + 1
+            r for r in audit if r["decision"] == "allow" and parse_ts(r["ts"]) > engaged + 1
         ]
         run_dirs = sorted(cli.runs.iterdir())
         outcome = {
             "returncode": process.returncode,
             "stop_code": stop.code,
             "exit_seconds": exited - started,
+            "stop_command_seconds": engaged - started,
             "allowed_after_stop": len(allowed_after),
             "last_allowed_offset": max(
-                (parse_ts(r["ts"]) - started for r in allowed_after), default=0.0
+                (parse_ts(r["ts"]) - engaged for r in allowed_after), default=0.0
             ),
             "rules_left": [r for r in history.replacer_descriptions() if r.startswith("hdast-")],
             "progress": progress,
