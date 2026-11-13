@@ -151,6 +151,15 @@ def test_skip_scan_also_skips_the_authz_stage() -> None:
 
     assert rig.calls == ["preflight", "probe"]
     assert _status(result)["authz"] == "skipped"
+    message = result.summary.stages[3].message or ""
+    assert "--skip-scan" in message
+    assert "hdast authz PRODUTO --run RUN_ID" in message
+
+
+def test_skip_scan_without_authz_keeps_the_short_skip_message() -> None:
+    result = Rig().run(RunRequest(product="demo", skip_scan=True))
+
+    assert result.summary.stages[3].message == "Pedido com --skip-scan."
 
 
 def test_a_stopped_authz_still_produces_the_report_and_keeps_its_own_exit_code() -> None:

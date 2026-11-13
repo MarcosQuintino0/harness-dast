@@ -41,6 +41,11 @@ FINDINGS_FILE: Final = "findings.json"
 SUMMARY_FILE: Final = "run.json"
 EXCHANGES_FILE: Final = "exchanges.json"
 AUTHZ_FILE: Final = "authz.json"
+_SCAN_MISSING_HINT: Final = (
+    "O report precisa do scan.json (mesmo com authz.json). Uma execução só com probe, ou com "
+    "'run --skip-scan', não o tem. Rode 'hdast scan PRODUTO --run RUN_ID' ou 'hdast run PRODUTO' "
+    "sem --skip-scan, e confira o run_id e HDAST_RUNS_DIR."
+)
 KNOWN_FILES: Final = (
     "manifest.json",
     "audit.jsonl",
@@ -82,7 +87,7 @@ class FileRunArtifacts:
 
     def read_scan(self, run_id: str) -> ScanResult:
         """Lê `scan.json`."""
-        return self._model(run_id, SCAN_FILE, ScanResult, "o scan")
+        return self._model(run_id, SCAN_FILE, ScanResult, "o scan", missing_hint=_SCAN_MISSING_HINT)
 
     def read_findings(self, run_id: str) -> FindingsReport:
         """Lê `findings.json` de outra execução."""
@@ -185,7 +190,9 @@ class FileRunArtifacts:
     def _directory(self, run_id: str) -> Path:
         return self._runs_dir / require_run_id(run_id)
 
-    def _read_text(self, run_id: str, name: str, command: str) -> str:
+    def _read_text(
+        self, run_id: str, name: str, command: str, missing_hint: str | None = None
+    ) -> str:
         path = self._directory(run_id) / name
         try:
             if path.stat().st_size > MAX_FILE_BYTES:
@@ -194,21 +201,31 @@ class FileRunArtifacts:
         except FileNotFoundError:
             raise ConfigError(
                 f"A execução não tem {name}.",
-                hint=f"Rode {command} nesta execução (ou confira o run_id e HDAST_RUNS_DIR).",
+                hint=missing_hint
+                or f"Rode {command} nesta execução (ou confira o run_id e HDAST_RUNS_DIR).",
             ) from None
         except (OSError, UnicodeDecodeError):
             raise _corrupt(name, command) from None
 
-    def _json(self, run_id: str, name: str, command: str) -> object:
+    def _json(
+        self, run_id: str, name: str, command: str, missing_hint: str | None = None
+    ) -> object:
         try:
-            parsed: object = json.loads(self._read_text(run_id, name, command))
+            parsed: object = json.loads(self._read_text(run_id, name, command, missing_hint))
         except (ValueError, RecursionError):
             raise _corrupt(name, command) from None
         return parsed
 
-    def _model(self, run_id: str, name: str, model: type[_M], command: str) -> _M:
+    def _model(
+        self,
+        run_id: str,
+        name: str,
+        model: type[_M],
+        command: str,
+        missing_hint: str | None = None,
+    ) -> _M:
         try:
-            return model.model_validate(self._json(run_id, name, command))
+            return model.model_validate(self._json(run_id, name, command, missing_hint))
         except ValidationError:
             raise _corrupt(name, command) from None
 

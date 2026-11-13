@@ -71,7 +71,8 @@ def run_command(
         typer.Option(
             "--authz",
             help="Inclui o teste de autorização entre contas (depois do scan): repete pedidos "
-            "do probe com outras contas. Manda requisições a mais e escreve no alvo.",
+            "do probe com outras contas. Manda requisições a mais e escreve no alvo. Não roda "
+            "com --skip-scan (o estágio vem depois do scan).",
         ),
     ] = False,
     fail_on: Annotated[

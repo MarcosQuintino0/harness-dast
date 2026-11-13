@@ -231,7 +231,15 @@ class RunPipeline:
                 name="scan", status="skipped", message="Pedido com --skip-scan."
             )
             progress.records["authz"] = StageRecord(
-                name="authz", status="skipped", message="Pedido com --skip-scan."
+                name="authz",
+                status="skipped",
+                message=(
+                    "Pedido com --skip-scan: o authz roda depois do scan e não foi executado. "
+                    "Tire --skip-scan, ou rode 'hdast authz PRODUTO --run RUN_ID' sobre este "
+                    "probe."
+                    if request.authz
+                    else "Pedido com --skip-scan."
+                ),
             )
             progress.records["report"] = StageRecord(
                 name="report", status="skipped", message="Sem varredura não há o que reportar."
