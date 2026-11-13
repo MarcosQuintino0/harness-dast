@@ -1,8 +1,9 @@
 # 0018. `probe` com httpx, CSRF, critério de sucesso e trilha de execução
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-13
 - **Origem:** M3 (`spec inspect`, `preflight`, `probe`); spike do M0 (Q1, Q2, Q3, Q5, Q7); detalha os ADR [0007](0007-zap-alimentado-por-requisicoes-validas.md), [0009](0009-segredos-por-referencia.md) e [0010](0010-contrato-json-da-cli-e-codigos-de-saida.md)
+- **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto
 

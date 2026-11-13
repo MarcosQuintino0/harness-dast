@@ -12,8 +12,11 @@ restrito. Decisão: AD-13.
    de IA nunca escreve, altera nem executa esse script. Ele pode, no máximo,
    sugerir rodar `hdast cleanup`.
 2. **O usuário de banco só pode apagar nas tabelas de teste.** Crie um usuário
-   dedicado, sem permissão em tabelas de outros times e sem `DROP`, `TRUNCATE`
-   ou DDL. A conexão entra no `target.yml` apenas como `secret_ref: "env:NOME"`.
+   dedicado (`SELECT` e `DELETE` só nas tabelas de `allowed_tables`), sem permissão
+   em tabelas de outros times e sem `DROP`, `TRUNCATE` ou DDL. DSN, usuário e senha
+   entram no `target.yml` como três `secret_ref: "env:NOME"` (`connection`, `user`,
+   `password`); `allowed_tables` e `max_rows` são obrigatórios para rodar. Exemplo
+   real: `lab/pilot/cleanup/create-cleanup-user.sql`.
 3. **Os comandos se restringem a dados criados pelas contas de teste ou pela
    execução.** Filtre sempre pela conta (`criado_por`) e, quando o campo
    existir, pelo tempo de início da execução (`:run_start`) ou pela etiqueta dos

@@ -22,12 +22,14 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0014](0014-avaliacao-cega-como-eval.md) | Avaliação cega como suíte de evals | Aceito (implementação no M6) | 2026-11-13 | Requisito do dono do projeto |
 | [0015](0015-portas-do-perfil-e-carregador-de-yaml.md) | Portas do perfil e carregador de YAML endurecido | Aceito | 2026-11-13 | M2 (segunda metade); detalha 0004, 0005 e 0012 |
 | [0016](0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md) | Leitor de OpenAPI próprio, subconjunto seguro de `pattern` e esquema de unicidade | Aceito | 2026-11-13 | M3; detalha 0006 e 0007; P-12 |
-| [0017](0017-proxy-de-escopo-com-scopeguard.md) | Proxy de escopo com ScopeGuard | Proposto | 2026-11-13 | Spike M0 (Q4, Q6, Q7); QA A-08, A-18; detalha o 0008 |
-| [0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md) | `probe` com httpx, CSRF, critério de sucesso e trilha de execução | Proposto | 2026-11-13 | M3; spike M0 (Q1 a Q3, Q5, Q7); detalha os 0007, 0009 e 0010 |
-| [0019](0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md) | Pilha gerenciada, política do proxy por execução e login pelo proxy de escopo | Proposto | 2026-11-13 | Integração do `probe` com o ZAP real; detalha 0008, 0017 e 0018 |
-| [0020](0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md) | Limpeza: portão de SQL, confirmação humana e teto de linhas | Proposto | 2026-11-13 | M5 (`hdast cleanup`); detalha os 0009, 0010 e 0011 |
-| [0021](0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md) | Esquema aditivo do perfil para o alvo piloto | Proposto | 2026-11-13 | Verificação do `probe` na Clínica Piloto; substitui a seção 4 do 0016 (um nível) |
-| [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) | `scan` e `report`: varredura por requisição aprendida, achado com fingerprint e triagem separada | Proposto | 2026-11-13 | M4; spike M0 (Q3 a Q7); detalha 0001, 0008, 0009, 0010, 0017 e 0018 |
+| [0017](0017-proxy-de-escopo-com-scopeguard.md) | Proxy de escopo com ScopeGuard | Aceito \| 2026-11-13 | Spike M0 (Q4, Q6, Q7); QA A-08, A-18; detalha o 0008 |
+| [0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md) | `probe` com httpx, CSRF, critério de sucesso e trilha de execução | Aceito \| 2026-11-13 | M3; spike M0 (Q1 a Q3, Q5, Q7); detalha os 0007, 0009 e 0010 |
+| [0019](0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md) | Pilha gerenciada, política do proxy por execução e login pelo proxy de escopo | Aceito \| 2026-11-13 | Integração do `probe` com o ZAP real; detalha 0008, 0017 e 0018 |
+| [0020](0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md) | Limpeza: portão de SQL, confirmação humana e teto de linhas | Aceito \| 2026-11-13 | M5 (`hdast cleanup`); detalha os 0009, 0010 e 0011 |
+| [0021](0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md) | Esquema aditivo do perfil para o alvo piloto | Aceito \| 2026-11-13 | Verificação do `probe` na Clínica Piloto; substitui a seção 4 do 0016 (um nível) |
+| [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) | `scan` e `report`: varredura por requisição aprendida, achado com fingerprint e triagem separada | Aceito \| 2026-11-13 | M4; spike M0 (Q3 a Q7); detalha 0001, 0008, 0009, 0010, 0017 e 0018 |
+| [0023](0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) | Verificação do `scan` no ZAP real: CSRF durante a varredura, tráfego medido no proxy e regras desligadas | Aceito | 2026-11-13 | Verificação de M4 contra o ZAP 2.17 real; corrige pontos do 0022 |
+| [0024](0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md) | `hdast run`: etapas encadeadas, `run.json`, trava de emergência e Oracle na pilha | Aceito | 2026-11-13 | M5; detalha 0010, 0019, 0020 e 0022 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

@@ -4,17 +4,9 @@ Ferramenta interna para testes de segurança de APIs **autorizados**. Um agente 
 
 Princípio central: **o agente propõe, a CLI executa.** O agente nunca fala HTTP com o alvo, nunca vê segredo e nunca decide escopo. Veja [ADR 0001](docs/adr/0001-dois-planos-agente-propoe-cli-executa.md).
 
-> **Estado atual: M1 (fundação) entregue na árvore de trabalho e primeira metade do M2 (domínio).** Nada foi commitado ainda.
+> **Estado atual: o fluxo completo funciona.** `preflight`, `probe`, `scan`, `report`, `cleanup`, `run` (que encadeia os quatro primeiros), `stack` e `stop` estão implementados e foram verificados contra o **ZAP 2.17 real**, o proxy de escopo real e dois alvos de laboratório (VAmPI e a Clínica Piloto, em modo vulnerável e seguro). O resultado medido, o que a V1 achou e o que **não** achou está em [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md). Nada foi commitado ainda.
 >
-> **Existe:**
-> - o esqueleto do pacote, as ferramentas de qualidade, o CI, o pre-commit (com gitleaks e commitizen) e a auditoria de dependências (pip-audit);
-> - a hierarquia de erros, o envelope JSON, os logs com redação e os comandos `hdast version`, `hdast init` (cria a pasta do produto a partir do modelo) e `hdast profile validate` (valida o `target.yml` e diz o que falta para poder executar; não toca nenhum alvo);
-> - o carregador do YAML do perfil, endurecido (sem âncoras, aliases, `<<`, chaves repetidas nem tags fora do esquema básico), e os primeiros casos de uso e portas de `application`;
-> - a camada de domínio de escopo e perfil: `ScopeGuard`, janelas de execução, validade da autorização, sobrescritas que só estreitam, identificador de execução, limites com tetos e modelos do perfil de produto, com testes;
-> - o `compose.yaml` (ZAP, proxy de saída e ponte) e o lab com o VAmPI, verificados em tempo de execução em 2026-11-13 ([lab/README.md](lab/README.md));
-> - o modelo de perfil em `products/_template/`.
->
-> **Não existe:** nenhum comando `hdast` além de `version`, `init` e `profile validate`; adaptador de OpenAPI, ZAP, HTTP, segredos, relatório ou limpeza; as skills do agente em `.claude/`; qualquer integração entre a CLI e o ZAP. Hoje a CLI **não faz nenhum teste de segurança**. O que está planejado é marcado como tal. Veja [docs/roadmap.md](docs/roadmap.md).
+> **Não existe ainda:** as skills do agente em `.claude/` e as permissões do Claude Code (M6), a avaliação cega por agentes (M6) e o piloto em um produto real (M7). Um relatório sem achados **não** é prova de que a API é segura: autorização entre contas (BOLA/BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Estado por item: [docs/roadmap.md](docs/roadmap.md).
 
 ## O que é e o que não é
 
@@ -50,10 +42,10 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | --- | --- | --- |
 | Python 3.12 ou superior | Rodar a CLI | O uv pode instalar a versão certa. |
 | [uv](https://docs.astral.sh/uv/) | Ambiente virtual e dependências travadas | Equivale a Maven/Gradle para Python: resolve e trava versões. |
-| Docker Desktop | ZAP e laboratório de alvos vulneráveis (a CLI só usará o ZAP a partir do M4) | Windows com Docker Desktop é suportado desde o início. O lab sobe hoje, à mão, conforme [lab/README.md](lab/README.md). Não é necessário para os passos abaixo. |
+| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. |
 | Claude Code | Agente que usa as skills em `.claude/` | As skills chegam no M6. Não é necessário para os passos abaixo. |
 
-## Instalação e verificação (o que funciona hoje)
+## Instalação e uso (o que funciona hoje)
 
 Na raiz do repositório:
 
@@ -63,6 +55,19 @@ uv run hdast --json version
 uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir
 uv run hdast --json profile validate meu-produto --products-dir ./meus-produtos
 ```
+
+Para rodar o fluxo completo contra o lab (VAmPI; ~15 minutos com os limites do perfil de laboratório):
+
+```bash
+export HDAST_PRODUCTS_DIR=./meus-produtos          # com lab/vampi/product-profile e openapi3.yml copiados para meus-produtos/vampi
+# variáveis VAMPI_* do perfil: veja lab/README.md
+uv run hdast stack up vampi                         # ZAP, proxy de escopo e alvo
+uv run hdast --json run vampi                       # preflight, probe, scan e report num processo
+uv run hdast cleanup vampi --run <run_id> --dry-run  # só se o perfil tiver cleanup; uma pessoa confirma
+uv run hdast stack down
+```
+
+O `run` grava `runs/<run_id>/run.json`, `findings.json` e `report.md`. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
 
 O segundo comando imprime em stdout um envelope JSON com `schema_version`, `ok` e o resultado do comando. O formato do envelope está em [docs/reference/cli.md](docs/reference/cli.md) e [docs/architecture.md](docs/architecture.md).
 
@@ -76,20 +81,20 @@ uv run lint-imports
 uv run pytest
 ```
 
-Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em modo estrito; `lint-imports` (import-linter) quebra o build se uma camada importar o que não pode; `pytest` roda os testes. Hoje `uv run pytest` roda os testes unitários e de contrato (mais de 1,6 mil na revisão de 2026-11-13) e não precisa de Docker. O CI roda ainda `uv run vulture` (código sem uso), `gitleaks` e `pip-audit`. Veja [docs/testing.md](docs/testing.md).
+Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em modo estrito; `lint-imports` (import-linter) quebra o build se uma camada importar o que não pode; `pytest` roda os testes. `uv run pytest` roda os testes unitários e de contrato (milhares) e não precisa de Docker; `uv run pytest -m integration` roda a integração contra o ZAP e o lab reais (precisa de Docker e leva horas; veja [docs/testing.md](docs/testing.md)). O CI roda ainda `uv run vulture` (código sem uso), `gitleaks` e `pip-audit`. Veja [docs/testing.md](docs/testing.md).
 
-`--json` pode vir antes ou depois do comando. Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight` e `probe`; `scan`, `report`, `cleanup` e `run` **ainda não existem**. O `probe` foi verificado contra um ZAP falso, não contra o ZAP real (veja o [roadmap](docs/roadmap.md)). A tabela com o marco de cada um está em [docs/reference/cli.md](docs/reference/cli.md).
+`--json` pode vir antes ou depois do comando. A tabela com todos os comandos, flags e o marco de cada um está em [docs/reference/cli.md](docs/reference/cli.md).
 
 ## Status e roadmap
 
 | Marco | Tema | Status |
 | --- | --- | --- |
-| M0 | Decisões e spike descartável | Pendente (confirma o mecanismo de AD-07 e resolve P-08 e P-10) |
+| M0 | Decisões e spike descartável | Feito ([docs/spikes/](docs/spikes/2026-11-13-m0-zap.md)) |
 | M1 | Fundação: esqueleto, ferramentas, CI, ADRs, documentação, lab | Entregue na árvore de trabalho; falta o primeiro commit e o primeiro pull request |
-| M2 | Domínio, perfil e escopo | Em andamento: domínio feito; faltam carregador de YAML, `init`, `profile validate` e casos de uso |
-| M3 | OpenAPI, dados e alcançabilidade | Entregue na árvore de trabalho: `spec inspect`, `preflight` e `probe`, com CSRF, critério de sucesso e trilha de execução; falta a verificação contra o ZAP real |
-| M4 | Varredura e achados | Planejado |
-| M5 | Limpeza e execução completa | Planejado |
+| M2 | Domínio, perfil e escopo | Entregue |
+| M3 | OpenAPI, dados e alcançabilidade | Entregue e verificado contra o ZAP real |
+| M4 | Varredura e achados | Entregue e verificado contra o ZAP real |
+| M5 | Limpeza e execução completa (`cleanup`, `run`, `stop`) | Entregue; limpeza verificada contra um Oracle Free real |
 | M6 | Skills, documentação de uso e avaliação cega por agentes (evals) | Planejado |
 | M7 | Piloto em um produto real | Planejado |
 
@@ -102,16 +107,17 @@ A tabela de status por componente, mantida em um único lugar, está em [docs/ro
 | [docs/architecture.md](docs/architecture.md) | Visão geral, dois planos, camadas, erros, logs, configuração, contrato da CLI, diagramas |
 | [docs/roadmap.md](docs/roadmap.md) | Marcos M0 a M7, tabela de status, itens em aberto, candidatos a V2 |
 | [docs/testing.md](docs/testing.md) | Níveis de teste, dublês, cobertura, casos obrigatórios do ScopeGuard, análise de mutação, avaliação cega (planejada) |
-| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0014) |
+| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0024) |
 | [docs/modules/](docs/modules/domain.md) | Uma página por pacote: `domain`, `application`, `adapters`, `cli`, `config`, `observability` |
 | [docs/reference/cli.md](docs/reference/cli.md) | Comandos da CLI |
 | [docs/reference/exit-codes.md](docs/reference/exit-codes.md) | Códigos de saída |
 | [docs/reference/env-vars.md](docs/reference/env-vars.md) | Variáveis `HDAST_*` |
-| [docs/reference/target-yml.md](docs/reference/target-yml.md) | Schema v1 do perfil de produto, como implementado nos modelos (o carregador de YAML ainda não existe) |
-| [docs/reference/finding-schema.md](docs/reference/finding-schema.md) | Modelo de achado (planejado) |
+| [docs/reference/target-yml.md](docs/reference/target-yml.md) | Schema v1 do perfil de produto, como implementado nos modelos  |
+| [docs/reference/scan.md](docs/reference/scan.md), [relatorio.md](docs/reference/relatorio.md), [finding-schema.md](docs/reference/finding-schema.md) | `scan`, `report` (o nome do arquivo é `relatorio.md`, não `report.md`) e o modelo de achado |
+| [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md) | Relatório factual do lab: o que a V1 achou, o que perdeu e por quê |
 | [docs/operations/authorization-and-scope.md](docs/operations/authorization-and-scope.md) | O que a autorização formal precisa conter e como vira perfil |
 | [docs/operations/threat-model.md](docs/operations/threat-model.md) | Cenários de abuso e mitigações |
-| [docs/operations/README.md](docs/operations/README.md) | Índice dos guias de operação (a maioria planejada para o M6) |
+| [docs/operations/README.md](docs/operations/README.md) | Índice dos guias de operação, incluindo a [limpeza](docs/operations/cleanup.md) |
 | [docs/reviews/](docs/reviews/README.md) | Relatórios de revisão independente (registros datados) e a resposta a cada um |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, revisão, Definition of Done |
 | [SECURITY.md](SECURITY.md) | Política de uso, escopo, segredos, limpeza, como reportar falhas |

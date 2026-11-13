@@ -34,7 +34,7 @@ Negar `curl` e a leitura de `.env` nas permissões do Claude Code reduz acidente
 ## Riscos residuais conhecidos
 
 - A forma de entregar o token ao ZAP e de renová-lo em varreduras longas depende do spike do M0 (P-10).
-- O proxy de saída existe no `compose.yaml`, mas só foi provado com uma chamada `accessUrl` do ZAP; a varredura real pelo proxy não foi exercitada. Ele é condição para qualquer execução contra ambiente da empresa, e um alvo corporativo em IP privado provavelmente não passa pela regra atual (A-08, [docker/egress-proxy/README.md](../../docker/egress-proxy/README.md#ambiente-de-teste-corporativo-em-ip-privado)).
+- O proxy de saída existe no `compose.yaml`, mas só foi provado com uma chamada `accessUrl` do ZAP; a varredura real pelo proxy não foi exercitada. Ele é condição para qualquer execução contra ambiente da empresa, e um alvo corporativo em IP privado provavelmente não passa pela regra atual (A-08, [docker/egress-proxy/README.md](../../docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais)).
 - O `ScopeGuard` não resolve DNS, não confere cabeçalhos nem corpo e recusa a mais em alguns casos ([../reference/target-yml.md](../reference/target-yml.md#limitações-conhecidas)).
 - O fluxo de uma execução depende do mecanismo de `probe`, ainda a confirmar no spike ([ADR 0007](../adr/0007-zap-alimentado-por-requisicoes-validas.md)).
 

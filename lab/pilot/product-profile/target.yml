@@ -101,6 +101,13 @@ auth:
 cleanup:
   type: oracle_sql
   script: ./cleanup/cleanup.sql
-  # Conexao Oracle de um usuario so com DELETE nas tabelas de teste (veja README, secao Oracle).
+  # Oracle do lab (`hdast stack up clinica-piloto --oracle`): DSN sem usuario nem senha; o usuario de banco so da
+  # limpeza (lab/pilot/cleanup/create-cleanup-user.sql) tem apenas SELECT e DELETE nas cinco tabelas de teste.
   connection: { secret_ref: "env:PILOT_ORACLE_CLEANUP_CONNECTION" }
+  user: { secret_ref: "env:PILOT_ORACLE_CLEANUP_USER" }
+  password: { secret_ref: "env:PILOT_ORACLE_CLEANUP_PASSWORD" }
+  # Tabelas e teto vem da pessoa dona do produto (aqui, as do script e as ~centenas de linhas que um scan cria).
+  allowed_tables: [RECEITA, CONSULTA, PACIENTE, MEDICO, CONVENIO]
+  max_rows: 5000
+  db_schema: CLINICA
   requires_confirmation: true

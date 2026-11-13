@@ -202,6 +202,7 @@ def killable_stack(tmp_path: Path) -> Iterator[LabCli]:
 def test_stop_makes_subsequent_requests_fail_fast_and_is_audited(killable_stack: LabCli) -> None:
     cli = killable_stack
     assert cli.run("preflight", "vampi").code == 0
+    before = len(proxy_audit(cli))
 
     stopped = cli.run("stop")
     after = cli.run("preflight", "vampi", timeout=120)
@@ -210,9 +211,12 @@ def test_stop_makes_subsequent_requests_fail_fast_and_is_audited(killable_stack:
     assert stopped.data["kill_created"] is True
     assert after.code != 0
     assert after.data["ready"] is False
-    denied = [r for r in proxy_audit(cli) if r["decision"] == "deny"]
-    assert denied
-    assert {r["reason"] for r in denied} == {"kill_switch"}
+    # O `RunGate` da CLI já consulta a trava: nada chega ao proxy depois do `stop`. Se algo chegou
+    # (corrida entre o `stop` e a consulta), o proxy negou por `kill_switch`.
+    rows = proxy_audit(cli)[before:]
+    assert [r for r in rows if r["decision"] == "allow"] == []
+    assert {r["reason"] for r in rows if r["decision"] == "deny"} <= {"kill_switch"}
+    assert "trava de emergência" in after.stdout
 
 
 def urlpath(url: str) -> str:

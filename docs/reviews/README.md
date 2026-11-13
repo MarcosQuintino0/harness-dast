@@ -15,3 +15,4 @@ Nome dos arquivos: `AAAA-MM-DD-assunto.md` para o relatório e `AAAA-MM-DD-assun
 | Relatório | Resposta | Escopo | Parecer |
 | --- | --- | --- | --- |
 | [2026-11-13-qa-m1-m2.md](2026-11-13-qa-m1-m2.md) | [2026-11-13-qa-m1-m2-resposta.md](2026-11-13-qa-m1-m2-resposta.md) | M1 (fundação) e primeira metade do M2 (domínio) | Reprovado para fechar o M2 como estava; aprovado com ressalvas para o M1. 19 constatações (A-01 a A-19) |
+| [2026-11-13-e2e-lab.md](2026-11-13-e2e-lab.md) | (sem resposta: relatório factual de medição) | `scan`, `report`, `run`, `stop` e `cleanup` contra o ZAP 2.17 real, VAmPI e Clínica Piloto | Medições, defeitos corrigidos e o que a V1 não achou (H2, H5 a H7 e outras) |

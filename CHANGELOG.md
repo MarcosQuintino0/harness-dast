@@ -6,6 +6,30 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (marco M5, `hdast run`, trava de emergência e verificação no ZAP real)
+
+- Comando `hdast run <produto>` (`--seed`, `--skip-scan`, `--fail-on`, `--compare`, `--max-minutes`): `preflight`, `probe`, `scan` e `report` em UM processo (cache de tokens e orçamento de login compartilhados), para no primeiro estágio que falha com o código dele, nunca roda a limpeza (mostra o comando) e sempre grava `run.json` (`domain/run_summary.py`). Ctrl+C e `hdast stop` encerram com saída 130. Caso de uso `RunPipeline` em `application/run.py`; tradução do estado das etapas em `application/stage_errors.py` ([ADR 0024](docs/adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)).
+- Porta `KillSwitch` (`FileKillSwitch`): o `RunGate` consulta o arquivo `KILL` antes de cada envio e a cada consulta do `scan`; `hdast stop` passa a informar o que estava rodando (`scans_running`, lido de `scan-progress.json`).
+- `scan.json` e `findings.json` ganham `traffic`, lido da auditoria do proxy de escopo (liberados, negados por motivo, taxa média e de pico, limite do perfil); o `report.md` diz quantas tentativas fora do escopo o proxy barrou (porta `ProxyAudit`, [ADR 0023](docs/adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)).
+- `hdast stack up clinica-piloto --oracle`: Oracle Free do piloto pela pilha gerenciada, com a porta do banco só em `127.0.0.1:21521` e senhas geradas; `lab/pilot/cleanup/create-cleanup-user.sql` (usuário de limpeza com SELECT e DELETE nas cinco tabelas). O perfil do piloto e o modelo de produto ganham o bloco `cleanup` completo (`connection`, `user`, `password`, `allowed_tables`, `max_rows`, `db_schema`).
+- Testes de integração de ponta a ponta (`tests/integration/test_lab_run.py`, `test_run_cleanup_oracle.py`, `run_support.py`) e relatório factual do lab: [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md).
+
+### Corrigido (verificação do `scan` e do `report` contra o ZAP 2.17 real)
+
+- O `scan` e o `report` não usavam o estado da pilha gerenciada (chave e endereço do ZAP, senhas do alvo): `scan` falhava com "chave de API errada". Agora usam a mesma configuração efetiva do `probe`.
+- `ascan/action/disableScanners` recusava o pedido inteiro: o id 10095 (Backup File Disclosure) é regra passiva e não existe no varredor ativo. Removido da lista padrão; a política agora confere os ids que a imagem tem antes de desligar e cita os que faltam.
+- CSRF por cookie duplicado durante a varredura: a regra `REQ_HEADER_STR` não acrescentava o cookie `XSRF-TOKEN` ausente e cerca de 6% das escritas do varredor (as das regras PHP, CVE-2012-1823) saíam sem ele e eram recusadas com `XSRF_INVALIDO`. A regra do cookie agora é um `REQ_HEADER` sobre `Cookie` (acrescenta quando falta): 547 de 547 escritas medidas com o par igual e zero recusas.
+- `max_rule_minutes` podia passar do teto da execução; `--only` com `operation_id` desconhecido agora é erro de configuração em vez de plano vazio.
+- Ids de regras e formas de resposta do `ascan/*`, `context/*`, `core/view/message(s)`, `alert/view/alerts` e do Replacer conferidos contra o ZAP real (lista em [docs/reference/relatorio.md](docs/reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real)).
+- Mapeamento CWE para OWASP API Security Top 10 2023 conferido contra as páginas oficiais (nenhuma entrada errada; fontes no docstring de `domain/finding_taxonomy.py`).
+
+### Alterado
+
+- ADRs 0017 a 0022 passam a "Aceito" (o aceite veio depois da implementação e da verificação no lab). Novos: [0023](docs/adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) e [0024](docs/adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md).
+- Auxiliares da composição (`products_dir_or_default`, `harness_version`, `build_spec_loader`) deixaram de ser privados; nenhum módulo importa mais `_helper` de outro.
+- Perfis de laboratório: `max_duration_minutes` do VAmPI 30 (a varredura completa passa de 15 min).
+- README, SECURITY, docs de operação, testes, módulos e roadmap atualizados para o fluxo completo.
+
 ### Adicionado (marco M4, `hdast scan` e `hdast report`)
 
 - Comando `hdast scan <produto> --run <run_id>` (`--only`, `--include-outcome`, `--dry-run`, `--max-minutes`, `--threads`, `--account`): varre com o ZAP, uma varredura por requisição aprendida (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider), só as operações que o `probe` alcançou. Nunca `DELETE`, o login ou caminho negado; `PUT`/`PATCH` só sobre recurso criado na execução ou com `scan.mutating_methods`. Limites (`threadPerHost`, `delayInMs`, tetos de duração) e política (`hdast-scan`, força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regras destrutivas ou pesadas desligadas) fixados ANTES da primeira varredura; prazo total, janela e autorização conferidos a cada consulta; guarda de saúde do alvo (saída 6); corte do ZAP reconhecido por `progress < 100` e marcado `truncated`; token entregue pelo Replacer (renovação por adicionar-e-remover, uma conta por vez, CSRF por cookie duplicado, regras SEMPRE removidas, inclusive em erro e Ctrl+C). Artefatos `scan.json`, `scan-progress.json`, `alerts.raw.json` e `evidence.json`, todos redigidos. Referência: `docs/reference/scan.md` ([ADR 0022](docs/adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)).

@@ -70,31 +70,31 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Hoje existem `hdast version`, `hdast init`, `hdast profile validate`, `hdast spec inspect`, `hdast preflight` e `hdast probe`. Todos os demais são desenho e não funcionam.
+Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
 | `hdast version` | Implementado (M1) |
 | `hdast init`, `hdast profile validate` | Implementado (M2) |
-| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementado (M3); sem verificação contra o ZAP real (seção abaixo) |
-| `hdast scan`, `hdast report` | Implementado (M4); verificado contra um ZAP falso com as formas do spike, **não** contra o ZAP real ([ADR 0022](adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md); lista do que conferir em [reference/relatorio.md](reference/relatorio.md#o-que-ainda-precisa-ser-verificado-contra-o-zap-real)) |
+| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementado (M3); verificado contra o ZAP real (seção abaixo) |
+| `hdast scan`, `hdast report` | Implementado (M4); verificado contra o ZAP 2.17 real ([ADR 0022](adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0023](adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md); resultado dos 12 itens em [reference/relatorio.md](reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real)) |
 | `hdast cleanup` | Implementado (M5): `--dry-run`, `--confirm`, portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
-| `hdast run`, parada de emergência | Planejado (M5) |
+| `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as quatro etapas em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
 
 ### Controles de segurança
 
 | Controle | Status |
 | --- | --- |
 | Escopo, camada 1: `ScopeGuard` | Implementado (M3): `preflight` e `probe` só enviam `ApprovedRequest`, criado por `approve(guard, ...)`; mutação que remove a chamada quebra testes |
-| Escopo, camada 2: ZAP em modo protegido | Planejado (M4) |
-| Escopo, camada 3: rede interna e proxy de saída | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura pelo proxy não provado; caminho para ambiente de empresa em IP privado não confirmado (veja itens em aberto); obrigatório antes de execução contra ambiente da empresa (M7) |
+| Escopo, camada 2: ZAP em modo protegido | Implementado (M4): contexto por execução e `contextId` em toda varredura; verificado: o ZAP varre só o que o contexto cobre e o proxy barra o resto |
+| Escopo, camada 3: rede interna e proxy de saída | Implementado e exercitado no lab: varreduras ativas reais passam pelo proxy de escopo, que nega o que o varredor inventa fora do escopo (contado em `scan.json`); caminho para ambiente de empresa em IP privado não confirmado (veja itens em aberto); obrigatório antes de execução contra ambiente da empresa (M7) |
 | Validação de autorização, validade e janela | Implementado (M3): conferida na partida e antes de CADA requisição do `preflight` e do `probe` (`RunGate`) |
-| Limites de carga fixados e tetos absolutos | Implementado: o `probe` impõe `requests_per_second` e `max_duration_minutes`; o `scan` fixa `threadPerHost`, `delayInMs` e os tetos de duração no ZAP ANTES da primeira varredura e confere o prazo total a cada consulta (M4; sem verificação no ZAP real) |
-| Sobrescritas que só reduzem | Parcial: `overrides.py` existe; as flags da CLI que o usarão, não |
+| Limites de carga fixados e tetos absolutos | Implementado: o `probe` impõe `requests_per_second` e `max_duration_minutes`; o `scan` fixa `threadPerHost`, `delayInMs` e os tetos de duração no ZAP ANTES da primeira varredura e confere o prazo total a cada consulta (M4); a taxa efetiva é medida na auditoria do proxy (`scan.json` `traffic`) e comparada com o limite no relatório do lab |
+| Sobrescritas que só reduzem | Implementado: `--max-minutes`, `--threads`, `--only`, `--fail-on`... só reduzem (`overrides.py`) |
 | Redação de logs (chaves, segredos registrados, JWT, CPF) | Implementado (M1) |
 | Formato e validação de `secret_ref` | Implementado (domínio); resolução por variável de ambiente e autenticação (login e chave de API, com CSRF): Implementado (M3) |
 | Trilha de auditoria `audit.jsonl` | Implementado (M3): decisão antes do envio, resultado depois |
-| `manifest.json` por execução | Implementado para `preflight` e `probe` (M3); o manifesto completo da varredura é do M5 |
+| `manifest.json` por execução | Implementado para `preflight` e `probe` (M3); `run.json` resume a execução encadeada (M5) |
 | Limpeza por SQL em Oracle | Implementado (M5): `domain/cleanup_*.py`, `application/cleanup.py`, `adapters/cleanup/`; integração contra o Oracle Free do piloto |
 | Permissões do Claude Code (`.claude/settings.json`) | Planejado (M6) |
 
@@ -107,7 +107,7 @@ Hoje existem `hdast version`, `hdast init`, `hdast profile validate`, `hdast spe
 | gitleaks (pre-commit e CI), pip-audit (CI, sobre o `uv.lock`), commitizen (pre-commit) | Implementado |
 | Verificador de links da documentação | Planejado (ainda não está no CI) |
 | Referência da CLI e do schema gerada do código, verificada no CI | Planejado (a partir da segunda metade do M2) |
-| Testes de integração e ponta a ponta | Adaptadores `http` e `zap` testados contra servidor HTTP local real e ZAP falso (rodam no pytest padrão). Integração com ZAP e lab reais: Planejada; o CI tolera "nenhum teste de integração" por enquanto |
+| Testes de integração e ponta a ponta | Implementado: `tests/integration/` roda a CLI contra o ZAP, o proxy e os alvos do lab reais (manual, exige Docker; [testing.md](testing.md)). Adaptadores `http` e `zap` também têm testes rápidos contra servidor local e ZAP falso com as formas reais. O CI não roda a integração |
 | Testes unitários e de contrato | Implementado (veja [testing.md](testing.md#o-que-existe-hoje)) |
 | Análise de mutação | Feita uma vez, à mão, na revisão de QA; não é um gate |
 
@@ -130,6 +130,10 @@ Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inc
 - **Rastro completo por execução:** transcrição do agente (gravada quando ele roda de forma não interativa), toda versão do perfil e das regras de dados, trilha de auditoria, manifesto e um registro de decisões que as skills exigem do agente. O raciocínio interno do modelo não é fonte, porque pode vir resumido ou incompleto.
 - **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou, corrige-se o texto; o agente tentou algo indevido e a ferramenta deixou, nova trava em código com teste; a ferramenta devolveu erro que o agente não soube interpretar, melhora-se a mensagem e a dica. Toda falha corrigida vira caso permanente da suíte.
 
+### Verificação do M4 e do M5 contra o ZAP real (feita em 2026-11-13)
+
+O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e os dois alvos do lab; os 12 itens deixados pela autora do `scan` foram conferidos um a um (**PASS**, **FIXED** ou **não verificável**) em [reference/relatorio.md](reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real), e os números, em [reviews/2026-11-13-e2e-lab.md](reviews/2026-11-13-e2e-lab.md). Defeitos achados e corrigidos: `scan`/`report` ignoravam o estado da pilha; o id 10095 não existe no varredor ativo e derrubava `disableScanners`; a trava de emergência era lida como "alvo parado"; `--only` desconhecido gerava plano vazio.
+
 ### Verificação do M3 contra o ZAP real (feita em 2026-11-13)
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
@@ -143,11 +147,11 @@ Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inc
 | P-09 | Quem é o segundo revisor humano dos módulos críticos | Não nomeado; recomendação: alguém do time de segurança. O escopo já tem código, então a pendência pesa desde agora | M2 |
 | P-10 | Entrega e renovação do token no ZAP; execução do plano de varredura | Testar duas abordagens no spike e registrar em ADR | M0 |
 | P-14 | Licença do projeto e reaproveitamento de código do Strix (Apache-2.0) | Indefinida; não há `LICENSE`. Inspirar-se na estrutura; copiar código só com atribuição e depois de definir a licença | M1 |
-| A-08 | O proxy de saída nega faixas privadas para a lista geral; um ambiente de teste de empresa em IP privado provavelmente não passa | Não confirmado contra um alvo real em IP privado. Caminho e riscos em [docker/egress-proxy/README.md](../docker/egress-proxy/README.md#ambiente-de-teste-corporativo-em-ip-privado). Decisão por ADR | M7 |
+| A-08 | O proxy de saída nega faixas privadas para a lista geral; um ambiente de teste de empresa em IP privado provavelmente não passa | Não confirmado contra um alvo real em IP privado. Caminho e riscos em [docker/egress-proxy/README.md](../docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais). Decisão por ADR | M7 |
 | A-16 | Ações do GitHub Actions fixadas por tag, não por SHA de commit; decidir se o CI também roda em `windows-latest` (o uso é local no Windows); `cancel-in-progress` também na `main`; sem `timeout-minutes`; exigência de `GITLEAKS_LICENSE` em repositório de organização não verificada | Aberto, sem mudança nesta rodada | Antes do primeiro pull request real |
 | A-18 | `compose.yaml` sem limites de recursos (`pids_limit`, `mem_limit`, `cpus`); `docker compose ps` e `down` exigem a chave do ZAP por causa da interpolação obrigatória; `forbidden_ranges` do Squid sem `::ffff:0:0/96` e `64:ff9b::/96` | Aberto, sem mudança nesta rodada | M4 |
 | Chave do ZAP | A chave da API do ZAP fica visível em `docker logs` e `docker inspect` do contêiner `zap` (o ZAP registra `api.key` ao iniciar) | Aberto. Passar a chave por outro meio antes de qualquer ambiente da empresa | Antes do M7 |
-| Tráfego real pelo proxy | Só uma chamada `accessUrl` do ZAP foi exercitada pelo proxy de saída; spider e varredura ativa não foram provados | Aberto; cobrir com teste de integração | M4 |
+| Tráfego real pelo proxy | Varredura ativa real pelo proxy de escopo provada no lab (VAmPI e piloto) | Fechado em 2026-11-13; o proxy de SAÍDA (Squid) com a varredura ativa segue sem prova própria | M7 |
 | A-17 (parte) | `vulture` ainda silencia nomes por `ignore_names` no projeto todo (agora agrupados e comentados), o que pode esconder código sem chamador; `normalize_request` passa de 40 linhas | Parte aberta; reavaliar quando os casos de uso passarem a chamar o domínio e as entradas poderem sair da lista. A outra parte (import-linter não impedia dependência externa no `domain`) foi corrigida com um contrato novo | Fim do M2 |
 | Retenção de `runs/` | Prazo de retenção de evidências | Não definido | Não fixado no desenho |
 | Canal de reporte de vulnerabilidade | Habilitar o Private vulnerability reporting no GitHub | A confirmar pelo dono | M1 |

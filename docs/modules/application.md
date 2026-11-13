@@ -65,4 +65,20 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 | `session_pool.py` | `SessionPool`: abre cada conta usada uma vez e não repete uma abertura que falhou |
 | `preview.py` | Prévia do `--dry-run`: nomes de campos e geradores, nunca valores |
 
-As portas `Scanner`, `ReportSink` e `CleanupHook` **ainda não existem** (M4 e M5).
+Implementado no M4 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `scan_ports.py` | Portas do `scan`/`report`/`run`: `ScanControl` (API de varredura do ZAP), `RunArtifacts` (arquivos da execução), `ReportSink`, `ProxyAudit` (auditoria do proxy), `RunningScans` (andamento, para `hdast stop`) e `RunSummarySink` (`run.json`). Separadas de `ports.py` só por tamanho; a regra é a mesma |
+| `scan.py`, `scan_runner.py`, `scan_collect.py`, `scan_health.py`, `scan_tokens.py` | `Scan`: plano, política e limites no ZAP, laço de uma varredura por requisição aprendida, coleta de alertas e evidência redigidos, guarda de saúde do alvo, entrega do token ao Replacer |
+| `report.py` | `Report`: achados, `findings.json` e `report.md`, comparação e código `1` |
+
+Implementado no M5 ([ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `cleanup.py` | `Cleanup`: portão de SQL, transação, contagens, teto de linhas e confirmação humana |
+| `stack.py`, `stack_models.py`, `lab_targets.py` | `StackManager`: `up` (inclui `--oracle`), `status`, `down` e `stop` (trava de emergência, com o que estava rodando) |
+| `run.py` | `RunPipeline`: `preflight`, `probe`, `scan` e `report` num processo, parada no primeiro estágio que falha, `run.json`, interrupção por Ctrl+C ou `hdast stop` (saída 130) |
+| `stage_errors.py` | Tradução do estado final de cada etapa no erro e código de saída, usada pelos comandos soltos e pelo `run` |
+| `run_support.py` (ampliado) | `RunGate` também consulta a porta `KillSwitch` (`KillSwitchEngaged`) |

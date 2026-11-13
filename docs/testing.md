@@ -8,9 +8,9 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 | --- | --- | --- | --- | --- |
 | Unitário | Regras de `domain`, `config`, `observability` e `cli`. Inclui testes baseados em propriedades (hypothesis) para escopo, caminhos, janelas e sobrescritas. Casos de uso com portas falsas virão com a camada `application` | Nenhuma | A cada commit e no CI | **Existe.** `tests/unit/` espelha `src/`. Cobre todo o domínio de escopo e perfil |
 | Suíte de QA independente (`*_qa.py`) | Testes escritos por um revisor que não escreveu o código, a partir da especificação: ataques de parser differential, propriedades com oráculo próprio, limites, redação de logs. Convivem com os unitários | Nenhuma | A cada commit e no CI | **Existe** (revisão de 2026-11-13; veja abaixo) |
-| Integração | Cada adaptador contra a coisa real: ZAP em contêiner, servidor HTTP local, arquivos em pasta temporária | Docker | Em todo pull request | Planejado (M3 em diante). O marcador `integration` existe; o CI tolera zero testes |
+| Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release (não roda no pull request) | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seção abaixo |
 | Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** Existem `tests/contract/test_cli_envelope.py` e `test_cli_contract_qa.py` (envelope, códigos de saída, `--json`). Contrato dos adaptadores e do schema por arquivo: planejados |
-| Ponta a ponta | `hdast run` contra o VAmPI do lab: alcançabilidade mínima, achado conhecido presente, zero requisição fora do escopo, limpeza executada | Docker, lab | Toda noite e antes de release | Planejado (M5) |
+| Ponta a ponta | `hdast run` contra o VAmPI e a Clínica Piloto do lab: achado conhecido presente, zero requisição fora do escopo, nenhum segredo nos artefatos, regras removidas, trava de emergência e limpeza no Oracle | Docker, lab | Antes de release | **Existe**, dentro de `tests/integration/test_lab_run.py` e `test_cleanup_oracle.py`; não há marcador `e2e` separado |
 | Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Planejado (M6) |
 | Avaliação cega (evals) | Agentes de teste sem contexto seguem o README contra o lab, com nota automática e rastro completo (seção abaixo) | Claude Code, Docker, lab | Ao fim da V1 e a cada mudança de skill, mensagem de erro ou trava | Planejado (M6); nada existe |
 
@@ -18,13 +18,24 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 
 ```bash
 uv run pytest                  # só os testes que não exigem Docker
-uv run pytest -m integration   # exige Docker (planejado)
-uv run pytest -m e2e           # exige Docker e o lab (planejado)
+uv run pytest -m integration   # exige Docker; horas (cada varredura leva 12 a 30 min)
+uv run pytest -m integration tests/integration/test_lab_vampi.py   # só alcançabilidade (minutos)
+uv run pytest -m lab_fast                 # nível RÁPIDO (ciclo conserta-e-roda): poucos endpoints, uma pilha por grupo
+HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full   # nível COMPLETO: todos os endpoints, política padrão, vulnerável e seguro; grava as medidas
 ```
 
 Por padrão, `pytest` exclui os marcadores `integration` e `e2e` (configurado em `pyproject.toml`). Os marcadores `integration`, `contract` e `e2e` existem. Passar `-m` na linha de comando substitui o filtro padrão.
 
 Antes de abrir um pull request, rode os cinco comandos de qualidade listados em [CONTRIBUTING.md](../CONTRIBUTING.md#ambiente-local).
+
+### Dois níveis de integração contra o lab
+
+| Nível | Marcador | O que roda | Para quê |
+| --- | --- | --- | --- |
+| Rápido | `lab_fast` (e `integration`) | `test_lab_fast.py`: sonda e varre 2 operações do piloto (uma escrita com XSRF, uma leitura com parâmetro, escolhidas pelo mecanismo e não por falha plantada) e confere XSRF em toda escrita do varredor, token em toda requisição, zero segredo nos artefatos, regras do Replacer removidas e as negações do proxy contadas; uma varredura do VAmPI a 5 req/s prova que o limitador de taxa segura (média ate 5,25 e pico até 6 req/s na auditoria do proxy); parada de emergência durante o `run`; limpeza no Oracle depois de `run` mais uma varredura de duas escritas | Ciclo conserta-e-roda e rodadas que não dão nota |
+| Completo | `lab_full` (e `integration`) | `test_lab_run.py`: `hdast run` com todos os endpoints, política padrão do ZAP, VAmPI e piloto em modo vulnerável e seguro, comparação entre execuções | Comparação com o gabarito; uma vez por alvo e modo, no fim |
+
+O nível rápido NÃO valida: cobertura de todas as operações, a política padrão sobre o alvo inteiro, a comparação com o gabarito e o comportamento de varreduras longas (renovação de token, prazo, saúde do alvo sob carga). Escolher regras ou endpoints olhando o gabarito das falhas plantadas é proibido no nível completo. Os testes de alcançabilidade (`test_lab_vampi.py`, `test_lab_pilot.py`) e `test_cleanup_oracle.py` só levam `integration`.
 
 ## Dublês: quando usar e quando evitar
 
@@ -162,7 +173,8 @@ Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram p
 - `tests/unit/test_coverage_floors_script.py`: testa o script de pisos de cobertura do CI.
 - Na revisão de 2026-11-13 eram cerca de 1,7 mil testes, sem Docker nem rede. Esse número envelhece; a fonte é o próprio diretório `tests/`.
 - Desde o M3: falsos com comportamento em `tests/fakes/` (`probe_ports.py`, `rig.py`, `runtime.py`) para os casos de uso `spec inspect`, `preflight` e `probe`; servidor HTTP real em 127.0.0.1 (`tests/fakes/local_server.py`) para o cliente do alvo, as duas estratégias de autenticação com CSRF e o cliente da API do ZAP (contra um ZAP falso com as formas de resposta do spike); contratos dos três comandos em `tests/contract/test_cli_probe_commands.py`; e a afirmação central do projeto como regressão (`tests/unit/application/test_probe_vampi.py`: alcançabilidade com regras acima da sem regras, sobre o OpenAPI real do VAmPI).
-- Não existem: testes de integração contra o ZAP e o lab reais, ponta a ponta e a suíte de evals.
+- Desde o M4/M5: `tests/integration/` roda a CLI como processo contra o lab real. `test_lab_vampi.py` e `test_lab_pilot.py` (alcançabilidade do `probe`, XSRF, contas, vencimento do token), `test_lab_run.py` (`hdast run` completo: VAmPI vulnerável e seguro com comparação, Clínica Piloto vulnerável e seguro, trava de emergência durante a varredura; afirma só o que é robusto e **mede** o que o ZAP achou, sem ajustar ao gabarito) e `test_cleanup_oracle.py` e `test_run_cleanup_oracle.py` (limpeza contra um Oracle Free real, a segunda depois de um `hdast run`). Apoio em `lab_support.py` e `run_support.py`. Cada chamada tem prazo; sem Docker (ou sem a imagem do Oracle) o teste é pulado.
+- Não existe: a suíte de evals (M6).
 - Mutação à mão no M3 (cada mutante quebrou ao menos um teste): `approve` sem `ensure_allowed`; `deny_paths` sem pular; janela sem rechecagem; prazo sem checagem; trecho de resposta sem redação; token não registrado no redator; cabeçalho CSRF em todos os métodos; `DELETE` sem pular; novo login sem teto; redirecionamento seguido; decisão de auditoria gravada depois do envio.
 
 A suíte `*_qa.py` nasceu com 29 testes que demonstravam defeitos; eles guiaram a [rodada de correção](reviews/2026-11-13-qa-m1-m2-resposta.md).

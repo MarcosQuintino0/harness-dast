@@ -251,6 +251,19 @@ esperado e o `cleanup.sql` foi executado no Oracle com sqlplus. Medidas: tempo a
 76 s com a imagem já baixada (o pull foi de cerca de 1,3 GB); imagem de 6,46 GB em disco; uso de memória de cerca de 1,7 GiB (limite do
 compose: 2 GiB). A aplicação sobre Oracle usou cerca de 200 MiB. O contêiner do Oracle roda sem `read_only` (grava arquivos de dados).
 
+### Limpeza depois de um `hdast run` (Oracle pela pilha gerenciada)
+
+```bash
+hdast stack up clinica-piloto --oracle        # sobe ZAP, proxy, piloto e Oracle (~80 s a mais); banco em 127.0.0.1:21521
+# crie o usuario de banco da limpeza (humano, como SYSTEM): lab/pilot/cleanup/create-cleanup-user.sql
+hdast run clinica-piloto
+hdast cleanup clinica-piloto --run <run_id> --dry-run     # mostra as contagens; imprime o token de confirmacao
+hdast cleanup clinica-piloto --run <run_id> --confirm <token>
+```
+
+A pilha gera `PILOT_ORACLE_PASSWORD`, `PILOT_DB_*` e `PILOT_ORACLE_CLEANUP_PASSWORD` (so no estado local) e fixa
+`PILOT_ORACLE_CLEANUP_CONNECTION` e `PILOT_ORACLE_CLEANUP_USER`; variaveis ja definidas no ambiente vencem.
+
 ## Ligar ao lab principal
 
 `compose.lab-net.yaml` junta o serviço à rede **interna** `hdast_lab_net` do `compose.yaml` da raiz, com o apelido DNS

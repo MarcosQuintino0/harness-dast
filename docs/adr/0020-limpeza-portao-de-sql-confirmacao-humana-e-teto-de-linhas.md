@@ -1,8 +1,9 @@
 # 0020. Limpeza: portão de SQL, confirmação humana e teto de linhas
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-13
 - **Origem:** M5 (`hdast cleanup`); detalha os ADR [0009](0009-segredos-por-referencia.md), [0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) e [0011](0011-limpeza-por-sql-oracle-com-python-oracledb.md)
+- **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto
 

@@ -30,7 +30,7 @@ scope:
 
 limits:
   requests_per_second: 5
-  max_duration_minutes: 15
+  max_duration_minutes: 30
   zap_threads_per_host: 2
 
 probe:

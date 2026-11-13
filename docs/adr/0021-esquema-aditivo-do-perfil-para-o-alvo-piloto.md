@@ -1,8 +1,9 @@
 # 0021. Esquema aditivo do perfil para o alvo piloto: vários níveis, conta por operação, orçamento de login, token vencido e códigos de erro
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-13
 - **Origem:** Verificação do `probe` contra a Clínica Piloto real (`lab/pilot/product-profile/NOTES.md`); substitui a seção 4 do [ADR 0016](0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md) e a limitação de um nível do [ADR 0006](0006-regras-de-dados-declarativas.md) (pendência P-12); detalha o [ADR 0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)
+- **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto
 

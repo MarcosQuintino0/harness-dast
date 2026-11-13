@@ -177,6 +177,13 @@ auth:
 cleanup:
   type: oracle_sql                    # único tipo da V1
   script: ./cleanup/cleanup.sql       # crie a partir de cleanup.sql.example
-  # Conexão de um usuário de banco que só pode apagar nas tabelas de teste.
-  connection: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA" }
+  # DSN do Oracle de TESTES (host:porta/serviço), sem usuário nem senha.
+  connection: { secret_ref: "env:MEU_PRODUTO_ORACLE_DSN" }
+  # Usuário de banco SÓ da limpeza (SELECT e DELETE nas tabelas abaixo, nada mais) e sua senha.
+  user: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA_USUARIO" }
+  password: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA_SENHA" }
+  # Valores definidos pela pessoa dona do produto, nunca pelo agente. Sem eles a limpeza não roda.
+  allowed_tables: [PEDIDO_ITEM, PEDIDO]   # as únicas tabelas que o script pode tocar
+  max_rows: 500                           # teto de linhas apagadas no total
+  # db_schema: MEU_ESQUEMA                # opcional: dono das tabelas, se não for o usuário da limpeza
   requires_confirmation: true         # obrigatório; `false` é recusado

@@ -58,7 +58,7 @@ porta do host) e exige o parâmetro `apikey`.
 `hdast stack up <produto>` faz, num comando, o que a seção anterior faz à mão: gera a política do proxy **a partir do perfil**
 (nunca mais larga), sorteia a chave do ZAP, sobe tudo recriando os contêineres e grava o estado (chave, endereços, senhas
 descartáveis) em `HDAST_STATE_DIR` (`%LOCALAPPDATA%/hdast` no Windows, `~/.local/state/hdast` no Linux), fora do repositório.
-Os comandos seguintes (`preflight`, `probe`, `stop`) leem esse arquivo para o que o ambiente não define. Decisão: [ADR 0019](../docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md).
+Os comandos seguintes (`preflight`, `probe`, `scan`, `report`, `run`, `stop`) leem esse arquivo para o que o ambiente não define. Decisão: [ADR 0019](../docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md).
 
 O perfil do produto fica numa pasta de produtos (`HDAST_PRODUCTS_DIR` ou `--products-dir`), com o nome da pasta igual ao campo
 `product`. O alvo anexado é reconhecido pelo host de `environment.base_url` (`vampi` ou `clinica-piloto`).
@@ -75,6 +75,7 @@ export VAMPI_USER_A_USERNAME=name1 VAMPI_USER_A_PASSWORD=pass1 VAMPI_USER_B_USER
 uv run hdast --json stack up vampi                           # ~40 s; --secure liga o modo seguro; --token-ttl 20 encurta o token
 uv run hdast --json preflight vampi                          # o health_path /createdb repopula o banco; rode antes de cada probe
 uv run hdast --json probe vampi --include-delete             # 14 de 14 operações (alcançabilidade 1.0)
+uv run hdast --json run vampi                                # preflight + probe + scan + report num processo (~15 min); grava run.json
 uv run hdast --json stack status                             # audit_file = trilha do proxy; kill_switch
 uv run hdast --json stack down
 ```
@@ -95,8 +96,9 @@ tudo, `user_b` (dono de `name2`) os `PUT` de e-mail e senha, e `admin_a` o `DELE
 pedidos ao scope-proxy; ele nega por padrão tudo que a política da execução não autoriza (host, porta, caminho, método, taxa, prazo e
 `KILL`), então o alcance é o mesmo do ZAP. Não dá acesso ao ZAP, à rede do lab nem ao Docker.
 
-**Parada de emergência**: `uv run hdast stop` cria o `KILL` da pilha e para as varreduras do ZAP (funciona com o ZAP fora do ar);
-depois disso o proxy nega todo pedido novo até `hdast stack up` recriar a pilha.
+**Testes de integração do lab** (exigem Docker): `uv run pytest -m lab_fast` (nível rápido, poucos endpoints) e `uv run pytest -m lab_full` (todos os endpoints, vulnerável e seguro, com comparação ao gabarito); detalhes em [../docs/testing.md](../docs/testing.md#dois-níveis-de-integração-contra-o-lab). Os perfis de lab usam limites modestos (5 req/s, 2 threads).
+
+**Parada de emergência**: `uv run hdast stop` (de outro terminal) lê o que estava rodando, cria o `KILL` da pilha e para as varreduras do ZAP (funciona com o ZAP fora do ar); um `hdast run` ou `scan` em andamento percebe a trava em até 2 s, remove as regras do Replacer e sai (130 no `run`). Depois disso o proxy nega todo pedido novo até `hdast stack up` recriar a pilha.
 
 **Auditoria**: o proxy grava `audit.jsonl` em `<estado>/stacks/<run_id>/audit/` (caminho em `stack status`); a CLI grava a dela em
 `runs/<run_id>/audit.jsonl`. Cada pilha tem pastas próprias, então a trilha de uma execução não se mistura com a de outra.

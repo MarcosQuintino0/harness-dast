@@ -60,4 +60,14 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 | `openapi/spec_loader.py` | `SpecLoader` | `FileSpecLoader`: delega a `load_spec` com o caminho já conferido |
 | `system_runtime.py` | `Sleeper`, `EntropySource` | `SystemSleeper`, `SystemEntropy` |
 
-Os testes dos adaptadores `http` e `zap` rodam contra um servidor HTTP real em 127.0.0.1 (o ZAP é um falso com as formas de resposta do spike); contra o ZAP real, não. O `system_clock.py` fica na raiz de `adapters/` por não ser uma tecnologia de armazenamento nem pertencer a outro subpacote.
+Implementado no M4 e M5 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
+
+| Módulo | Porta | Conteúdo |
+| --- | --- | --- |
+| `zap/scan_client.py` | `ScanControl` | `ZapScanClient`: opções, política (lê as regras antes e depois de desligar), `ascan/*`, mensagens, alertas e regras do Replacer, nas formas do ZAP 2.17 real |
+| `reporting/run_files.py`, `reporting/sinks.py` | `RunArtifacts`, `RunningScans`, `RunSummarySink`, `ReportSink` | `FileRunArtifacts` (`scan.json`, `scan-progress.json`, alertas, evidência, `run.json`), `JsonFindingsSink`, `MarkdownReportSink` |
+| `scope_proxy/audit_reader.py`, `scope_proxy/kill_switch.py` | `ProxyAudit`, `KillSwitch` | `FileProxyAudit` (lê o `audit.jsonl` do proxy) e `FileKillSwitch` (arquivo `KILL`) |
+| `cleanup/` | `CleanupExecutor` e afins | Executor Oracle (python-oracledb, modo thin), script, tokens e arquivos da execução |
+| `docker/compose.py` | `ComposeRunner` | `DockerComposeCli`: sobe, consulta e derruba a pilha, sem shell e com prazo |
+
+Os testes dos adaptadores `http` e `zap` rodam contra um servidor HTTP real em 127.0.0.1 (o ZAP é um falso com as formas de resposta **conferidas contra o ZAP 2.17 real**); a CLI inteira contra o ZAP real é coberta por `tests/integration/`. O `system_clock.py` fica na raiz de `adapters/` por não ser uma tecnologia de armazenamento nem pertencer a outro subpacote.

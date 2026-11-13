@@ -1,8 +1,9 @@
 # 0022. `scan` e `report`: varredura por requisição aprendida, achado com fingerprint e triagem separada
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-13
 - **Origem:** M4; spike do M0 (Q3, Q4, Q5, Q6, Q7); detalha os ADRs [0001](0001-dois-planos-agente-propoe-cli-executa.md), [0008](0008-escopo-em-tres-camadas.md), [0009](0009-segredos-por-referencia.md), [0010](0010-contrato-json-da-cli-e-codigos-de-saida.md), [0017](0017-proxy-de-escopo-com-scopeguard.md) e [0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)
+- **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto
 
@@ -44,5 +45,5 @@ Vamos:
 - Rodar o `scan` exige o ZAP e a sessão do `probe` ainda vivos; se o ZAP reiniciou, é preciso refazer o `probe`.
 - O token trafega na consulta de `replacer/action/addRule` (a API do ZAP é chamada por GET, como no spike), em laço local.
 - Cada varredura roda uma conta por vez; trocar de conta custa um login (dentro do orçamento de login).
-- Os ids das regras desligadas, os nomes dos parâmetros `setOption*`, a regra de cookie do CSRF, a tabela CWE para OWASP e o formato exato de `ascan/view/scans` vêm da documentação e da memória do spike, **não de um ZAP real nesta rodada**. A lista do que conferir está no relatório da rodada (M4) e em [../reference/relatorio.md](../reference/relatorio.md#o-que-ainda-precisa-ser-verificado-contra-o-zap-real).
+- Os ids das regras desligadas, os nomes dos parâmetros `setOption*`, a regra de cookie do CSRF, a tabela CWE para OWASP e o formato exato de `ascan/view/scans` vêm da documentação e da memória do spike, **não de um ZAP real nesta rodada**. A lista do que conferir está no relatório da rodada (M4) e em [../reference/relatorio.md](../reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real).
 - Mudança no fingerprint, em `findings.json`, `scan.json`, `triage.json` ou nos códigos de saída exige ADR novo.

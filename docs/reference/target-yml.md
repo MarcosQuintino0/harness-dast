@@ -138,7 +138,7 @@ Regras adicionais:
 - `allow_local: true` num host **público** (que tem ponto e não termina nesses sufixos) é erro: `allow_local só se aplica a host local`.
 - IP literal precisa ser loopback ou privado. IP público literal é recusado sempre (`use o nome DNS do host`).
 - Sempre recusados, com ou sem `allow_local`: endereços de metadados da nuvem (`169.254.169.254`, `fd00:ec2::254`, `metadata.google.internal`, `metadata`, `instance-data`), IP link-local, não especificado, multicast e reservado (exceto `::1`), IPv6 que embute IPv4 (mapeado, 6to4, Teredo), identificador de zona IPv6 (`%eth0`) e IPv4 em forma não canônica (decimal único, hexadecimal, octal, abreviado).
-- Um ambiente de empresa em IP privado **não** entra por `allow_local`. O perfil de produto real usa o nome DNS do ambiente. Veja o limite correspondente do proxy de saída em [../../docker/egress-proxy/README.md](../../docker/egress-proxy/README.md#ambiente-de-teste-corporativo-em-ip-privado).
+- Um ambiente de empresa em IP privado **não** entra por `allow_local`. O perfil de produto real usa o nome DNS do ambiente. Veja o limite correspondente do proxy de saída em [../../docker/egress-proxy/README.md](../../docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais).
 
 ### Padrões de caminho (`paths`, `deny_paths`)
 

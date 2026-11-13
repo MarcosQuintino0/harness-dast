@@ -1,8 +1,9 @@
 # 0019. Pilha gerenciada, política do proxy por execução e login pelo proxy de escopo
 
-- **Status:** Proposto
+- **Status:** Aceito
 - **Data:** 2026-11-13
 - **Origem:** Integração do `probe` com o ZAP real e o proxy de escopo; detalha os ADRs 0008, 0017 e 0018
+- **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto
 

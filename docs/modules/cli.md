@@ -10,7 +10,7 @@ Ser a entrada do programa. Lê argumentos, monta as dependências, chama o caso 
 | --- | --- |
 | `app.py` | Aplicação Typer, ponto de entrada `hdast` e o **tratador único de erros**, que converte `HarnessError` em envelope JSON e código de saída |
 | `commands/` | Um módulo por comando; só traduz argumentos |
-| `composition.py` | Único lugar que instancia adaptadores concretos (montagem manual, sem contêiner de injeção) |
+| `composition.py`, `scan_composition.py`, `stack_composition.py` | Únicos lugares que instanciam adaptadores concretos (montagem manual, sem contêiner de injeção). `composition.py`: init, validate, inspect, preflight, probe e cleanup, além das funções públicas `products_dir_or_default`, `harness_version` e `build_spec_loader` e de `SharedServices`; `scan_composition.py`: `scan`, `report` e `run` (`build_run_pipeline`); `stack_composition.py`: a pilha, o estado, a trava (`open_kill_switch`) e a auditoria do proxy. Nenhum módulo importa o auxiliar privado de outro |
 | `output.py` | Único lugar onde `print` é permitido: envelope JSON, saída humana e códigos de saída |
 
 ## Pode importar
@@ -34,4 +34,4 @@ Tudo do projeto.
 | `composition.py` | Implementado (M2): `build_init_product` e `build_validate_profile` ligam as portas aos adaptadores reais |
 | Saída em UTF-8 | `main()` reconfigura stdout e stderr para UTF-8, para as mensagens acentuadas não quebrarem em página de código antiga |
 | `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementados (M3), em `commands/spec.py`, `commands/preflight.py` e `commands/probe.py`. `preflight` e `probe` devolvem o próprio código de saída e, ao terminar em falha, um envelope com `ok: false`, `error` e `data` (`build_failure_with_data`); `_dispatch` repassa o inteiro devolvido pelo comando |
-| Demais comandos | Planejados; **não existem**. Veja [../reference/cli.md](../reference/cli.md) |
+| `hdast scan`, `report`, `cleanup`, `stack`, `stop`, `run` | Implementados (M4, M5), em `commands/`. `run` monta as quatro etapas sobre a mesma rede, cache de tokens e orçamento de login (`build_run_pipeline`) e devolve o `exit_code` do `run.json`. A tradução do estado final de cada etapa em erro mora em `application/stage_errors.py`. Veja [../reference/cli.md](../reference/cli.md) |

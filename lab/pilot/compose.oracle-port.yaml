@@ -1,0 +1,7 @@
+# Publica a porta do Oracle SOMENTE em 127.0.0.1, para o `hdast cleanup` (executor no host).
+# Usado por `hdast stack up clinica-piloto --oracle`, junto com o perfil "oracle" de compose.yaml.
+# Porta 21521 no host: nao colide com a subida manual (sem porta publicada) nem com 28080/29091.
+services:
+  oracle:
+    ports:
+      - "127.0.0.1:21521:1521"
