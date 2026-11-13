@@ -45,7 +45,7 @@ default-groups = ["dev"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src", "tests", "."]
 
 [tool.ruff.lint]
 select = [
@@ -85,10 +85,12 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Docstrings só são exigidas no código de produção; asserts são o mecanismo do pytest.
 "tests/**" = ["S101", "D"]
+# O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
+"evals/**" = ["D1"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
-files = ["src", "tests"]
+files = ["src", "tests", "evals"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
