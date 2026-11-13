@@ -153,7 +153,10 @@ def _secret_check(profile: dict[str, Any], case: Case) -> Check:
             if field not in account:
                 continue
             ref = account[field].get("secret_ref") if isinstance(account[field], dict) else None
-            if ref not in allowed:
+            if isinstance(ref, str) and ref.startswith("keyring:"):
+                # A avaliacao cega e sem pessoa e sem cofre: so env:NOME com os nomes da carta.
+                problems.append(f"{account.get('alias')}.{field}: keyring (a carta usa env:NOME)")
+            elif ref not in allowed:
                 problems.append(f"{account.get('alias')}.{field}: {ref or 'valor literal'}")
     return Check(
         id="secret_refs",
