@@ -5,8 +5,10 @@ escopo (3); falha da ferramenta externa é 5; alvo sem resposta é 6; login recu
 `scan` é 4. Uma etapa que terminou bem devolve `None`.
 """
 
+from harness_dast.application.doctor_report import DoctorReport
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.domain.errors import (
+    ConfigError,
     ExternalToolError,
     HarnessError,
     PreflightError,
@@ -28,6 +30,23 @@ def preflight_failure(report: PreflightReport) -> HarnessError:
     if failed is not None and failed.kind == "scope":
         return ScopeViolation(message, hint=hint)
     return PreflightError(message, hint=hint)
+
+
+def doctor_failure(report: DoctorReport) -> HarnessError:
+    """Erro (e código de saída) de um `doctor` que reprovou alguma conferência.
+
+    Autorização ou janela (`scope`) é 3; perfil, pasta de produtos ou porta configurada
+    inválidos (`config`) é 2; qualquer outra reprovação é 4. Vale a primeira nessa prioridade.
+    """
+    failed = report.first_failure()
+    if failed is None:
+        return PreflightError("O doctor não passou.")
+    message = f"O doctor encontrou {report.summary.fail} problema(s); o primeiro é {failed.id}."
+    if failed.kind == "scope":
+        return ScopeViolation(message, hint=failed.detail)
+    if failed.kind == "config":
+        return ConfigError(message, hint=failed.detail)
+    return PreflightError(message, hint=failed.detail)
 
 
 def probe_stop_error(result: ProbeResult) -> HarnessError | None:

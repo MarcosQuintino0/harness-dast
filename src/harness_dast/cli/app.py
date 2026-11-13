@@ -15,6 +15,7 @@ import typer
 from typer.exceptions import TyperException
 
 from harness_dast.cli.commands.cleanup import cleanup_command
+from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
@@ -63,6 +64,7 @@ def build_app() -> typer.Typer:
         configure_logging(settings.log_level, state.secrets)
 
     app.command("version")(version_command)
+    app.command("doctor")(doctor_command)
     app.command("init")(init_command)
     app.add_typer(build_profile_app(), name="profile")
     app.add_typer(build_spec_app(), name="spec")
