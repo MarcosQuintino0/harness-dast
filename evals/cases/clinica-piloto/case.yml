@@ -57,6 +57,7 @@ expected:
     - { alias: paciente_a, role: paciente, username_env: PILOT_PACIENTE_A_USERNAME, password_env: PILOT_PACIENTE_A_PASSWORD }
     - { alias: paciente_b, role: paciente, username_env: PILOT_PACIENTE_B_USERNAME, password_env: PILOT_PACIENTE_B_PASSWORD }
   cleanup: absent
+  path_mode: strict
 
 # Usuarios e senhas sao sorteados por rodada (o executor os grava em sealed/ e o coordenador os poe
 # no ambiente do agente); a pilha entrega ao alvo os mesmos valores.
