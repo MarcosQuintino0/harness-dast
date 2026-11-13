@@ -78,7 +78,9 @@ auth:
   account_map:
     - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
     - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita] }
-    - { account: paciente_a, operations: [obterPerfil, atualizarPerfil] }
+    # buscarConsulta e do paciente A de proposito: o teste de autorizacao entre contas (authz) repete esse pedido
+    # com o paciente B (mesmo papel). No modo seguro o probe recebe 403 aqui (a consulta e de outro paciente).
+    - { account: paciente_a, operations: [obterPerfil, atualizarPerfil, buscarConsulta] }
   accounts:
     # Os nomes das variaveis sao os mesmos de lab/pilot/.env.example.
     - alias: admin_a
@@ -97,6 +99,11 @@ auth:
       role: paciente
       username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
       password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
+
+# Teste de autorizacao entre contas (hdast authz / hdast run --authz; docs/reference/authz.md). Sem operacoes publicas
+# neste alvo; os papeis do menor para o maior privilegio habilitam o acesso vertical.
+authz:
+  role_order: [paciente, medico, admin]
 
 cleanup:
   type: oracle_sql

@@ -32,6 +32,7 @@ SUMMARY_KEYS = {
     "stages",
     "artifacts",
     "findings_by_severity",
+    "authz_findings_by_severity",
     "stop_requested",
     "cleanup_command",
 }
@@ -39,7 +40,7 @@ RUN_ID = "2026-11-13T10-00-00Z-demo-aaaa"
 
 
 def _summary(status: RunStatus, code: int, *, stop: bool = False) -> RunSummary:
-    names = ("preflight", "probe", "scan", "report")
+    names = ("preflight", "probe", "scan", "authz", "report")
     return RunSummary(
         product="demo",
         run_id=RUN_ID,
@@ -111,6 +112,7 @@ def test_run_envelope_data_is_the_run_summary_and_exit_code_follows_it(
         "preflight",
         "probe",
         "scan",
+        "authz",
         "report",
     ]
     if error is not None:

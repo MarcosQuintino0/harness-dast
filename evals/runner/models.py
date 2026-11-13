@@ -18,6 +18,7 @@ class Matcher(Frozen):
     path_contains: str | None = None
     parameter: str | None = None
     method: str | None = None
+    technique: str | None = None  # `authz_horizontal`, `zap_active_scan`... (ADR 0027)
 
 
 class Flaw(Frozen):

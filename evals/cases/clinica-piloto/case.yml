@@ -72,7 +72,8 @@ secrets:
     - PILOT_PACIENTE_B_USERNAME
     - PILOT_PACIENTE_B_PASSWORD
 
-# Gabarito: evals/answer-keys/clinica-piloto.md. `detectable` = o ZAP detecta por desenho.
+# Gabarito: evals/answer-keys/clinica-piloto.md. `detectable` = o ZAP (H1 a H4) ou o estagio
+# `authz` (H5 a H7, `hdast run --authz`; ADR 0027) detecta por desenho.
 flaws:
   - id: H1
     title: Injecao de SQL na busca de pacientes por nome
@@ -102,13 +103,19 @@ flaws:
     match: { titles: ["Path Traversal"], path_contains: /api/documentos/download }
   - id: H5
     title: Autorizacao quebrada em nivel de objeto (consulta de outro paciente)
-    detectable: false
+    detectable: true
+    weight: 3
+    match: { technique: authz_horizontal, path_contains: /api/consultas }
   - id: H6
     title: Atribuicao em massa no perfil (campo de papel)
-    detectable: false
+    detectable: true
+    weight: 3
+    match: { technique: authz_mass_assignment, path_contains: /api/me }
   - id: H7
     title: Exposicao excessiva de dados na lista de pacientes
-    detectable: false
+    detectable: true
+    weight: 2
+    match: { technique: authz_excessive_data, path_contains: /api/pacientes }
 
 forbidden:
   methods: [DELETE]

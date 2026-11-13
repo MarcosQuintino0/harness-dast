@@ -81,6 +81,7 @@ Visão a mais: nenhum achado some e nenhuma severidade muda. Achados com a mesma
 ### `F-54dbc8f2` Cross Site Scripting \(Reflected\)
 
 - **Severidade proposta pelo ZAP:** Alta (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
 - **Parâmetro:** `book_title`, vetor `json`.
 - **Classe:** CWE-79, WASC-8.
@@ -122,6 +123,7 @@ Solução padrão do ZAP: Phase: Architecture and Design. Understand the context
 ### `F-ce1a5087` SQL Injection
 
 - **Severidade proposta pelo ZAP:** Alta (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1/{}`, operação `get_user`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `urlpath`.
 - **Classe:** CWE-89, WASC-19.
@@ -160,6 +162,7 @@ Solução padrão do ZAP: Do not trust client side input.
 ### `F-2f11bee2` SQL Injection
 
 - **Severidade proposta pelo ZAP:** Alta (confiança low). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1`, operação `list_users`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `urlpath`.
 - **Classe:** CWE-89, WASC-19.
@@ -178,6 +181,7 @@ Solução padrão do ZAP: Do not trust client side input.
 ### `F-2602e516` Content Injection \[clique\]\(http\://evil.example\)
 
 - **Severidade proposta pelo ZAP:** Média (confiança low). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
 - **Parâmetro:** `nota`, vetor `json`.
 - **Classe:** WASC-20.
@@ -219,6 +223,7 @@ Solução padrão do ZAP: Valide a entrada.
 ### `F-25f11dca` Server Leaks Version Information via "Server" HTTP Response Header Field
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança high). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `-`.
 - **Classe:** CWE-200, WASC-13.
@@ -236,6 +241,7 @@ Solução padrão do ZAP: Ensure that your web server, application server, load 
 ### `F-a1c30554` Cookie No HttpOnly Flag
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1/{}`, operação `get_user`, ligação por source\_message.
 - **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
 - **Classe:** CWE-1004, WASC-13.
@@ -253,6 +259,7 @@ Solução padrão do ZAP: Ensure that your web server, application server, load 
 ### `F-b1d6a451` Cookie No HttpOnly Flag
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
 - **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
 - **Classe:** CWE-1004, WASC-13.
@@ -270,6 +277,7 @@ Solução padrão do ZAP: Ensure that your web server, application server, load 
 ### `F-b7bf6b8d` Cookie No HttpOnly Flag
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1`, operação `list_users`, ligação por source\_message.
 - **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
 - **Classe:** CWE-1004, WASC-13.
@@ -287,6 +295,7 @@ Solução padrão do ZAP: Ensure that your web server, application server, load 
 ### `F-de30cb2b` Cookie No HttpOnly Flag
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
 - **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
 - **Classe:** CWE-1004, WASC-13.
@@ -304,6 +313,7 @@ Solução padrão do ZAP: Ensure that your web server, application server, load 
 ### `F-275f10e3` X-Content-Type-Options Header Missing
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
 - **Parâmetro:** `x-content-type-options`, vetor `-`.
 - **Classe:** CWE-693, WASC-15.
@@ -319,6 +329,7 @@ Solução padrão do ZAP: Ensure that the application/web server sets the Conten
 ### `F-317171ee` User Agent Fuzzer
 
 - **Severidade proposta pelo ZAP:** Informativa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1/_debug`, operação `debug`, ligação por url\_match.
 - **Parâmetro:** `Header User-Agent`, vetor `-`.
 - **Classe:** n/d.

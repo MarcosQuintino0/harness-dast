@@ -9,6 +9,7 @@ from collections.abc import Mapping, Sequence
 
 from pydantic import ValidationError
 
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
@@ -16,6 +17,8 @@ from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import (
+    NOT_TESTED_STATEMENTS,
+    NOT_TESTED_WITH_AUTHZ,
     ComparisonInfo,
     Coverage,
     FindingsReport,
@@ -137,6 +140,7 @@ def assemble_report(
     harness_version: str,
     auth_header: tuple[str, str] | None,
     csrf_header: str | None,
+    authz: AuthzResult | None = None,
 ) -> FindingsReport:
     """Monta o relatório completo.
 
@@ -174,4 +178,6 @@ def assemble_report(
         not_observed=gone,
         comparison=comparison,
         triage_orphans=orphans,
+        authz=authz,
+        not_tested_statements=NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ,
     )

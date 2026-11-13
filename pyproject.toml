@@ -250,6 +250,11 @@ ignore_names = [
     "untrusted_target_data",
     "zap_context_id",
     "updated_at",
+    # Teste de autorização (ADR 0027): campos de authz.json e exchanges.json lidos só pela
+    # serialização do pydantic, pelos testes e pelo agente.
+    "baseline_status",
+    "observed_status",
+    "omitted_fields",
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",

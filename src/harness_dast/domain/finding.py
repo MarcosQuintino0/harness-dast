@@ -168,6 +168,8 @@ class Finding(ApiModel):
         description: Descrição padrão do ZAP, em texto simples.
         solution: Solução padrão do ZAP, em texto simples.
         reproduce_curl: `curl` com marcadores no lugar dos segredos, ou `None`.
+        technique: Técnica que produziu o achado; aqui sempre `zap_active_scan`. Os achados
+            de autorização entre contas ficam em `FindingsReport.authz` (ADR 0027).
         status: Sempre `needs_triage`: a CLI não decide se é verdadeiro.
         comparison: `new` ou `persistent` com `--compare`; `None` sem comparação.
         triage: Anotação do agente, se houver.
@@ -193,6 +195,7 @@ class Finding(ApiModel):
     description: str = ""
     solution: str = ""
     reproduce_curl: str | None = None
+    technique: Literal["zap_active_scan"] = "zap_active_scan"
     status: Literal["needs_triage"] = "needs_triage"
     comparison: Comparison | None = None
     triage: TriageNote | None = None

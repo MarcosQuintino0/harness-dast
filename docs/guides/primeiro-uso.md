@@ -101,11 +101,14 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | `report.md` | O mesmo relatório em Markdown, para quem corrige |
 | `findings.json` | O mesmo, estruturado (cada achado e, em `groups`, os achados agrupados pela causa) |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
+| `authz.json` | Só com `hdast run --authz` (ou `hdast authz`): teste de autorização entre contas. Veja [authz.md](../reference/authz.md) |
 | `audit.jsonl` | Trilha de cada requisição da CLI |
 
 Os achados com a mesma regra e o mesmo parâmetro aparecem **agrupados pela causa** (por exemplo, o mesmo cookie sem `HttpOnly` em 26 caminhos vira um grupo com a lista de onde aparece); nenhum achado some e nenhuma gravidade muda. Alguns grupos trazem uma nota fixa explicando por que o padrão costuma ser esperado (o cookie de XSRF por duplo envio, que o JavaScript precisa ler).
 
 No `report.html` ou no `report.md`, **leia o que a varredura não testou**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
+
+Com `hdast run --authz`, parte dessas lacunas (acesso entre contas, campo a mais e dado a mais) passa a ser testada por um estágio próprio: veja [authz.md](../reference/authz.md).
 
 ## 9. Encerrar
 

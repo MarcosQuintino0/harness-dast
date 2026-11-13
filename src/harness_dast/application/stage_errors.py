@@ -7,6 +7,7 @@ escopo (3); falha da ferramenta externa é 5; alvo sem resposta é 6; login recu
 
 from harness_dast.application.doctor_report import DoctorReport
 from harness_dast.application.preflight_report import PreflightReport
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
@@ -73,4 +74,20 @@ def scan_stop_error(result: ScanResult) -> HarnessError | None:
         return ExternalToolError(message, hint=hint)
     if result.status == "stopped_target_unresponsive":
         return TargetError(message, hint=hint)
+    return None
+
+
+def authz_stop_error(result: AuthzResult) -> HarnessError | None:
+    """Erro correspondente à parada antecipada do `authz`, ou `None` se completou.
+
+    Achado de autorização NÃO é erro: é dado (o `report` é o dono do código 1).
+    """
+    message = result.stop_message or "O authz parou antes do fim."
+    hint = "O resultado parcial está em data e em authz.json."
+    if result.status in {"stopped_window", "stopped_deadline"}:
+        return ScopeViolation(message, hint=hint)
+    if result.status == "stopped_zap":
+        return ExternalToolError(message, hint="Confira o ZAP e rode o authz de novo.")
+    if result.status == "stopped_target_unresponsive":
+        return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o authz.")
     return None

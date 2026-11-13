@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.markdown_safe import code_span, escape_inline, fenced
+from harness_dast.domain.report_authz import authz_lines
 from harness_dast.domain.report_model import Coverage, FindingsReport
 from harness_dast.domain.traffic import path_shape_breakdown
 
@@ -249,6 +250,8 @@ def _finding_lines(item: Finding) -> list[str]:
         "",
         f"- **Severidade proposta pelo ZAP:** {_SEVERITY_LABEL[item.proposed_severity]} "
         f"(confiança {escape_inline(item.proposed_confidence)}). Status: needs_triage.",
+        "- **Técnica:** varredura ativa do ZAP "
+        f"({code_span(item.technique)}), não é teste de autorização entre contas.",
         f"- **Onde:** {code_span(f'{item.method} {item.path_template}')}"
         + (f", operação {code_span(item.operation_id)}" if item.operation_id else "")
         + f", ligação por {escape_inline(item.attribution)}.",
@@ -319,6 +322,9 @@ def render_markdown(report: FindingsReport) -> str:
         lines += ["## Achados", ""]
         for item in report.findings:
             lines += [*_finding_lines(item), ""]
+    own = authz_lines(report.authz)
+    if own:
+        lines += [*own, ""]
     lines += [*_comparison_lines(report), ""]
     if report.triage_orphans:
         lines.append(

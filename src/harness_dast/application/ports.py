@@ -27,6 +27,7 @@ from harness_dast.domain.cleanup_plan import CleanupAuditLine, CleanupPlan, Clea
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import ValueSource
@@ -300,6 +301,14 @@ class RunStore(Protocol):
 
     def write_probe(self, run_id: str, result: ProbeResult) -> None:
         """Grava `probe.json` de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def write_exchanges(self, run_id: str, log: ExchangeLog) -> None:
+        """Grava `exchanges.json` (pedidos com sucesso, sem segredo) de forma atômica.
 
         Raises:
             ConfigError: Falha de escrita.
