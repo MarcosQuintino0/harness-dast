@@ -100,8 +100,11 @@ class ProfileRepository(Protocol):
 class ProductScaffolder(Protocol):
     """Criador da pasta de um produto novo a partir do modelo."""
 
-    def scaffold(self, product: str) -> ScaffoldedProduct:
+    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
         """Cria a pasta do produto com os arquivos do modelo.
+
+        Por padrão a subpasta `cleanup/` do modelo NÃO é copiada: a limpeza de dados é opcional
+        e o script é de autoria humana. `with_cleanup=True` a copia (README e exemplo).
 
         Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
         produtos; em caso de falha no meio da cópia, não deixa pasta parcial.

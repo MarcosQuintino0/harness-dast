@@ -83,6 +83,41 @@ def test_init_returns_success_envelope_when_product_is_new(
     assert (tmp_path / "demo" / "target.yml").is_file()
 
 
+def test_init_does_not_create_cleanup_folder_by_default(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, envelope = _run_json(capsys, "init", "demo", "--products-dir", str(tmp_path))
+
+    assert code == ExitCode.OK
+    assert not (tmp_path / "demo" / "cleanup").exists()
+    assert not any(name.startswith("cleanup/") for name in envelope["data"]["files"])
+
+
+def test_init_creates_cleanup_folder_when_with_cleanup_is_given(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, envelope = _run_json(
+        capsys, "init", "demo", "--products-dir", str(tmp_path), "--with-cleanup"
+    )
+
+    assert code == ExitCode.OK
+    assert set(envelope["data"]) == {"product", "directory", "files"}
+    assert "cleanup/README.md" in envelope["data"]["files"]
+    assert (tmp_path / "demo" / "cleanup" / "cleanup.sql.example").is_file()
+
+
+def test_init_human_output_says_whether_the_cleanup_folder_exists(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, plain, _ = _run(capsys, "init", "a", "--products-dir", str(tmp_path))
+    _, with_cleanup, _ = _run(
+        capsys, "init", "b", "--products-dir", str(tmp_path), "--with-cleanup"
+    )
+
+    assert "--with-cleanup" in plain
+    assert "foi criada" in with_cleanup
+
+
 def test_init_accepts_json_flag_after_the_subcommand(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
