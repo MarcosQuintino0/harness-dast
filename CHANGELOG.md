@@ -8,7 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Adicionado (ensaio da avaliação cega com Docker e terceiro alvo, crAPI)
 
-- **`lab/crapi/`**: OWASP crAPI `v1.1.6-rc8` como terceiro alvo do lab (compose com imagens por digest, rede interna, portas só em `127.0.0.1`; OpenAPI oficial versionado com origem e licença Apache-2.0 anotadas; `seed.py` que cadastra contas sintéticas; perfil de escopo estreito). Fica fora do `hdast stack up` (não exige mudança de contrato): a pilha sobe sem alvo e o crAPI é ligado à rede dela. Caso `evals/cases/crapi/` e gabarito `evals/answer-keys/crapi.md`. Detalhes em [lab/crapi/README.md](lab/crapi/README.md).
+- **`lab/crapi/`**: OWASP crAPI `v1.1.6-rc8` como terceiro alvo do lab (compose com imagens por digest, rede interna, portas só em `127.0.0.1`; OpenAPI oficial versionado com origem e licença Apache-2.0 anotadas; `seed.py` que cadastra contas sintéticas; perfil de escopo estreito). Fica fora do `hdast stack up` (não exige mudança de contrato): a pilha sobe sem alvo e o crAPI é ligado à rede dela. Caso `evals/cases/crapi/` e o gabarito dele. Detalhes em [lab/crapi/README.md](lab/crapi/README.md).
 - **Avaliação cega provada com Docker** (`evals/README.md`): ensaio não cego de ponta a ponta com `clinica-piloto` (vulnerável) e `vampi` (seguro), mais ensaios sujos (escopo mais largo que a carta: teto 3,0; `curl` ao alvo: 0). Seção nova "Canais de vazamento do modo" e como salvar o transcript de um subagente.
 
 ### Corrigido (ensaio da avaliação cega)

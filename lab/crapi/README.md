@@ -2,8 +2,7 @@
 
 O [OWASP crAPI](https://github.com/OWASP/crAPI) (Completely Ridiculous API) é uma API deliberadamente vulnerável, de código aberto, com
 microsserviços (identity em Java, community em Go, workshop em Python), MongoDB, PostgreSQL e um MailHog. Aqui ele serve de **terceiro
-alvo** do lab e do caso de avaliação [`evals/cases/crapi`](../../evals/cases/crapi/case.yml) (gabarito em
-[`evals/answer-keys/crapi.md`](../../evals/answer-keys/crapi.md)).
+alvo** do lab e do caso de avaliação [`evals/cases/crapi`](../../evals/cases/crapi/case.yml).
 
 > **Nunca exponha o crAPI além do localhost.** É vulnerável de propósito (SQL, NoSQL, SSRF, JWT fraco, BOLA). Este compose publica só duas
 > portas, ambas em `127.0.0.1` (a API em `28888` e a interface do e-mail em `28025`), e os serviços ficam numa rede **interna** do Docker
