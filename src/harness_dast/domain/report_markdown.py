@@ -12,6 +12,7 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.markdown_safe import code_span, escape_inline, fenced
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.traffic import path_shape_breakdown
 
 _SEVERITY_LABEL = {
     "high": "Alta",
@@ -82,6 +83,35 @@ def _traffic_lines(coverage: Coverage) -> list[str]:
         lines.append(
             f"- {traffic.denied} requisição(ões) que o varredor tentou foram bloqueadas pelo "
             f"escopo ({escape_inline(reasons)})."
+        )
+    return lines + _path_coverage_lines(coverage)
+
+
+def _path_coverage_lines(coverage: Coverage) -> list[str]:
+    traffic = coverage.traffic
+    lines = [f"- Modo de leitura do caminho no proxy: {traffic.path_mode}."]
+    refused = path_shape_breakdown(traffic)
+    if traffic.path_shape_denied:
+        total = traffic.allowed + traffic.denied
+        share = traffic.path_shape_denied / total * 100 if total else 0.0
+        causes = ", ".join(f"{code}: {count}" for code, count in sorted(refused.items()))
+        lines.append(
+            "- AVISO: a cobertura de injeção em segmento de caminho foi PARCIAL: "
+            f"{traffic.path_shape_denied} de {total} pedido(s) ({share:.0f}%) foram recusados "
+            f"pela forma do caminho ({escape_inline(causes)}). Os ataques que dependem dessas "
+            "formas não chegaram ao alvo."
+            + (
+                " O perfil usa `scope.path_mode: strict`; só o dono do produto pode autorizar "
+                "`wide` na carta."
+                if traffic.path_mode == "strict"
+                else ""
+            )
+        )
+    if traffic.allowed_outside_allow:
+        lines.append(
+            f"- Atenção (modo amplo): {traffic.allowed_outside_allow} pedido(s) liberados têm uma "
+            "leitura do caminho fora de `scope.allow` (sem casar `deny_paths`); o servidor pode "
+            "ter roteado esses pedidos para outro caminho do mesmo host (risco aceito, ADR 0026)."
         )
     return lines
 

@@ -21,7 +21,7 @@ from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
 from harness_dast.domain.run import SLUG_PATTERN, RunLimits
 from harness_dast.domain.scan_config import ScanConfig
-from harness_dast.domain.scope import OutboundRequest, Scope, ScopeGuard
+from harness_dast.domain.scope import OutboundRequest, PathMode, Scope, ScopeGuard
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
 from harness_dast.domain.urlnorm import normalize_request
 from harness_dast.domain.window import (
@@ -110,11 +110,16 @@ class ProfileScope(Scope):
 
     Attributes:
         authorization: Referência e validade da autorização formal.
+        path_mode: `strict` (padrão) ou `wide`. `wide` só vale para o proxy de escopo e precisa
+            estar na carta de autorização (ADR 0026): afrouxa a liberação de caminhos
+            ambíguos e mantém a negação paranoica. Nenhuma flag o liga; `probe`, `preflight`
+            e o plano da CLI continuam estritos.
         windows: Janelas de execução (forma compacta no YAML); ao menos uma. A execução é
             permitida quando QUALQUER uma está aberta.
     """
 
     authorization: Authorization
+    path_mode: PathMode = "strict"
     windows: tuple[ExecutionWindow, ...] = Field(min_length=1, max_length=20)
 
     @field_validator("windows", mode="before")

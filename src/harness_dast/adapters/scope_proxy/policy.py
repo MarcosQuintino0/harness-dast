@@ -25,7 +25,7 @@ from pydantic import (
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.run import RunId, RunLimits
-from harness_dast.domain.scope import Scope
+from harness_dast.domain.scope import PathMode, Scope
 
 SCHEMA_VERSION = 1
 """Versão do schema do arquivo; mudar o formato exige novo número e ADR."""
@@ -45,6 +45,8 @@ class ProxyPolicy(BaseModel):
         run_id: Identificador da execução (formato de `RunId`), gravado em toda linha de auditoria.
         scope: Mesmo formato do `scope` do perfil: regras `allow` e `deny_paths`.
         limits: Limites da execução; o proxy usa `requests_per_second` e `max_duration_minutes`.
+        path_mode: Modo de leitura do caminho (`strict` ou `wide`; ADR 0026). Ausente vale
+            `strict`. O modo vem do perfil e a CLI nunca o liga por flag.
         not_after: Prazo absoluto, com fuso; depois dele o proxy nega tudo.
         tls_verify_upstream: Verificar o certificado do servidor de destino (padrão `true`).
             `false` só é aceito se TODA regra tiver `allow_local: true` (laboratório).
@@ -57,6 +59,7 @@ class ProxyPolicy(BaseModel):
     run_id: str
     scope: Scope
     limits: RunLimits
+    path_mode: PathMode = "strict"
     not_after: AwareDatetime
     tls_verify_upstream: StrictBool = True
     max_queued_requests: StrictInt = Field(default=100, ge=1, le=1000)
