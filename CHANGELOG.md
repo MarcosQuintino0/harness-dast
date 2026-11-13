@@ -19,6 +19,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - `compose.yaml` com ZAP, proxy de saída (Squid, nega por padrão) e ponte do ZAP em loopback; `lab/` com o VAmPI (perfil `lab`) e seu OpenAPI. Subida e isolamento verificados em tempo de execução em 2026-11-13 (Docker Desktop 29.7.2, Windows 11).
 - `products/_template/` com o modelo de perfil de produto.
 
+### Adicionado (marco M2, segunda metade: perfil, `init` e `profile validate`)
+
+- `application/ports.py` (`Clock`, `ProfileRepository`, `ProductScaffolder`) e os casos de uso `ValidateProfile` e `InitProduct` ([ADR 0015](docs/adr/0015-portas-do-perfil-e-carregador-de-yaml.md)).
+- `adapters/storage/`: leitor de YAML endurecido (recusa âncora, alias, chave `<<`, chave repetida ou não textual, tag fora do esquema básico, aninhamento excessivo e arquivo acima de 256 KiB; mensagens só com linha e coluna), repositório de perfis em arquivos (nome de produto como slug, caminho resolvido dentro de `products_dir`, arquivos referenciados dentro da pasta do produto), criador de pasta de produto a partir de `products/_template` e `adapters/system_clock.py`.
+- Comandos `hdast init <produto>` e `hdast profile validate <produto>`, com `--products-dir` (sobrepõe `HDAST_PRODUCTS_DIR`) e envelope JSON; `cli/composition.py`.
+- `tests/fakes/` com relógio, repositório de perfis e criador de produtos em memória.
+- Saída da CLI forçada a UTF-8 em `main()`, para que mensagens com acento não derrubem o comando em página de código antiga.
+
 ### Adicionado (marco M2, primeira metade: domínio do perfil e do escopo)
 
 - `domain/host.py` e `domain/urlnorm.py`: host e URL de saída em forma canônica, com falha fechada para qualquer ambiguidade.

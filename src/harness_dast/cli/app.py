@@ -5,6 +5,7 @@
 vira `INTERNAL` (saída 10), sem traceback no stdout (o detalhe vai ao log, em stderr).
 """
 
+import io
 import sys
 from collections.abc import Sequence
 from typing import Annotated
@@ -13,6 +14,8 @@ import structlog
 import typer
 from typer.exceptions import TyperException
 
+from harness_dast.cli.commands.init import init_command
+from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.version import version_command
 from harness_dast.cli.output import CliState, build_failure, emit, get_state
 from harness_dast.config.settings import load_settings
@@ -52,6 +55,8 @@ def build_app() -> typer.Typer:
         configure_logging(settings.log_level, state.secrets)
 
     app.command("version")(version_command)
+    app.command("init")(init_command)
+    app.add_typer(build_profile_app(), name="profile")
     return app
 
 
@@ -124,4 +129,9 @@ def main() -> int:
     Returns:
         Código de saída do processo.
     """
+    # As mensagens têm acentos; sem isto, um stdout redirecionado em página de código
+    # antiga (cp1252, ASCII) quebraria a saída com UnicodeEncodeError, e o JSON deve ser UTF-8.
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
     return run_app(build_app())

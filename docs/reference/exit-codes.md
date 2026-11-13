@@ -6,7 +6,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). Os
 | --- | --- | --- | --- | --- |
 | `0` | `OK` | Sucesso | Nenhum | Implementado (M1). Também `hdast` sem argumentos (mostra a ajuda) |
 | `1` | `FINDINGS` | Achados acima do limiar configurado | Não é erro; é resultado de `scan`, `report` ou `run` | Planejado (M4) |
-| `2` | `USAGE` | Erro de uso ou de configuração | `ConfigError` (`CONFIG_ERROR`) | Implementado (M1) |
+| `2` | `USAGE` | Erro de uso ou de configuração | `ConfigError` (`CONFIG_ERROR`) | Implementado (M1). `hdast init` e `hdast profile validate` o produzem para nome, pasta, YAML ou perfil inválidos (M2). Perfil válido porém ainda não executável sai com `0`, com `runnable: false` no `data` |
 | `3` | `SCOPE` | Violação de escopo ou janela fechada | `ScopeViolation` (`SCOPE_VIOLATION`) | Erro e `ScopeGuard` existem no domínio; nenhum comando os produz ainda (a partir do M2, segunda metade) |
 | `4` | `PREFLIGHT` | Preflight falhou (ambiente ou login) | `PreflightError` (`PREFLIGHT_FAILED`) | Erro definido no M1; produzido a partir do M3 |
 | `5` | `EXTERNAL_TOOL` | Falha de ferramenta externa (ZAP, Docker) | `ExternalToolError` (`EXTERNAL_TOOL_ERROR`) | Erro definido; produzido a partir do M3 e M4 |

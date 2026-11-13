@@ -8,12 +8,13 @@ Princípio central: **o agente propõe, a CLI executa.** O agente nunca fala HTT
 >
 > **Existe:**
 > - o esqueleto do pacote, as ferramentas de qualidade, o CI, o pre-commit (com gitleaks e commitizen) e a auditoria de dependências (pip-audit);
-> - a hierarquia de erros, o envelope JSON, os logs com redação e o único comando, `hdast version`;
+> - a hierarquia de erros, o envelope JSON, os logs com redação e os comandos `hdast version`, `hdast init` (cria a pasta do produto a partir do modelo) e `hdast profile validate` (valida o `target.yml` e diz o que falta para poder executar; não toca nenhum alvo);
+> - o carregador do YAML do perfil, endurecido (sem âncoras, aliases, `<<`, chaves repetidas nem tags fora do esquema básico), e os primeiros casos de uso e portas de `application`;
 > - a camada de domínio de escopo e perfil: `ScopeGuard`, janelas de execução, validade da autorização, sobrescritas que só estreitam, identificador de execução, limites com tetos e modelos do perfil de produto, com testes;
 > - o `compose.yaml` (ZAP, proxy de saída e ponte) e o lab com o VAmPI, verificados em tempo de execução em 2026-11-13 ([lab/README.md](lab/README.md));
 > - o modelo de perfil em `products/_template/`.
 >
-> **Não existe:** nenhum comando `hdast` além de `version`; o carregador do YAML do perfil; os casos de uso (`application`) e as portas; qualquer adaptador; as skills do agente em `.claude/`; qualquer integração entre a CLI e o ZAP. Hoje a CLI **não faz nenhum teste de segurança**. O que está planejado é marcado como tal. Veja [docs/roadmap.md](docs/roadmap.md).
+> **Não existe:** nenhum comando `hdast` além de `version`, `init` e `profile validate`; adaptador de OpenAPI, ZAP, HTTP, segredos, relatório ou limpeza; as skills do agente em `.claude/`; qualquer integração entre a CLI e o ZAP. Hoje a CLI **não faz nenhum teste de segurança**. O que está planejado é marcado como tal. Veja [docs/roadmap.md](docs/roadmap.md).
 
 ## O que é e o que não é
 
@@ -59,6 +60,8 @@ Na raiz do repositório:
 ```bash
 uv sync
 uv run hdast --json version
+uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir
+uv run hdast --json profile validate meu-produto --products-dir ./meus-produtos
 ```
 
 O segundo comando imprime em stdout um envelope JSON com `schema_version`, `ok` e o resultado do comando. O formato do envelope está em [docs/reference/cli.md](docs/reference/cli.md) e [docs/architecture.md](docs/architecture.md).

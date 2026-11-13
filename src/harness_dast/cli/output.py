@@ -109,7 +109,7 @@ def _render_human_failure(envelope: Envelope) -> str:
     return text
 
 
-def emit(envelope: Envelope, *, json_mode: bool) -> None:
+def emit(envelope: Envelope, *, json_mode: bool, human: str | None = None) -> None:
     """Escreve o resultado no destino correto.
 
     Com `json_mode`, o envelope (sucesso ou falha) vai a stdout como uma linha JSON.
@@ -118,10 +118,12 @@ def emit(envelope: Envelope, *, json_mode: bool) -> None:
     Args:
         envelope: Resultado a emitir.
         json_mode: Se `True`, emite JSON.
+        human: Texto legível do sucesso para o modo humano; sem ele, lista `campo: valor`.
     """
     if json_mode:
         sys.stdout.write(envelope.model_dump_json(exclude_none=True) + "\n")
     elif envelope.ok:
-        sys.stdout.write(_render_human_success(envelope) + "\n")
+        text = human if human is not None else _render_human_success(envelope)
+        sys.stdout.write(text + "\n")
     else:
         sys.stderr.write(_render_human_failure(envelope) + "\n")

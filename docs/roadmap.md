@@ -8,7 +8,7 @@ Fonte: documento de fundação técnica aprovado em 2026-11-13. O tamanho de cad
 | --- | --- | --- | --- |
 | M0 Decisões e spike | Spike descartável: ZAP em Docker no Windows, requisições válidas pelo proxy, token no ZAP, conexão com o Oracle de testes, skill chamando um comando, medição de bloqueios | AD-07, P-08 e P-10 resolvidos e registrados. Nenhum código do spike é aproveitado | Pequeno |
 | M1 Fundação | Esqueleto do repositório, ferramentas, pre-commit, CI com todos os gates, ADRs, `CLAUDE.md`, lab com VAmPI | Um pull request trivial passa por todos os gates. Uma importação proibida quebra o CI. **Estado: entregue na árvore de trabalho; faltam o primeiro commit e o primeiro pull request real** | Pequeno |
-| M2 Domínio, perfil e escopo | `init` e `profile validate`. Modelos de domínio, `ScopeGuard`, carregador de perfil, erros e envelope JSON | Casos obrigatórios do `ScopeGuard` verdes. Perfil inválido é recusado com mensagem acionável. **Estado: a metade de domínio existe (modelos, `ScopeGuard`, janelas, sobrescritas); faltam o carregador de YAML, `init`, `profile validate` e os primeiros casos de uso** | Médio |
+| M2 Domínio, perfil e escopo | `init` e `profile validate`. Modelos de domínio, `ScopeGuard`, carregador de perfil, erros e envelope JSON | Casos obrigatórios do `ScopeGuard` verdes. Perfil inválido é recusado com mensagem acionável. **Estado: entregue na árvore de trabalho: domínio (modelos, `ScopeGuard`, janelas, sobrescritas), carregador de YAML endurecido, `hdast init` e `hdast profile validate`, com os primeiros casos de uso e portas** | Médio |
 | M3 OpenAPI, dados e alcançabilidade | `spec inspect`, `preflight`, `probe`. Catálogo de geradores, autenticação do piloto, encadeamento de um nível, trilha de auditoria | No VAmPI, a alcançabilidade com regras fica acima da do import cru, e o número é reportado | Grande |
 | M4 Varredura e achados | `scan` e `report`. Adaptador do ZAP, limites fixos, modelo de achado, fingerprint, relatório em JSON e Markdown | O achado conhecido do VAmPI aparece com evidência redigida. O modo seguro não gera achado de severidade alta | Grande |
 | M5 Limpeza e execução completa | `cleanup`, `run`, parada de emergência, manifesto da execução | Teste de ponta a ponta verde no lab, com zero requisição fora do escopo na auditoria | Médio |
@@ -33,7 +33,7 @@ Estado refletido: repositório em 2026-11-13, depois da revisão de QA ([docs/re
 | --- | --- | --- |
 | Pacote `harness_dast` em layout `src/`, com pacotes `domain`, `application`, `adapters`, `cli`, `config`, `observability` | `src/harness_dast/` | Implementado (M1) |
 | Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | Apenas esqueleto vazio; conteúdo em M3 a M5 |
-| `application` (casos de uso e portas) | `src/harness_dast/application/` | Apenas esqueleto vazio; casos de uso a partir da segunda metade do M2 |
+| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` implementados (M2); os demais casos de uso entram a partir do M3 |
 | Hierarquia de erros `HarnessError` e mapeamento para códigos de saída | `domain/errors.py` | Implementado (M1) |
 | Envelope JSON com `schema_version` e saída humana | `cli/output.py` | Implementado (M1) |
 | Tratador único de erros | `cli/app.py` | Implementado (M1) |
@@ -64,17 +64,18 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 | Referência a segredo `env:NOME` e base dos modelos do perfil | `secret_ref.py` | Implementado |
 | Autenticação: `login_password` e `api_key` | `auth.py` | Implementado |
 | `ProductProfile`, `Environment`, `CleanupConfig` e tradução de erros para `ConfigError` | `profile.py`, `profile_errors.py` | Implementado |
-| Carregador de YAML do perfil | adaptador ou `config/` | Planejado (M2, segunda metade) |
-| Casos de uso e portas de `application` | `application/` | Planejado (M2 em diante) |
+| Carregador de YAML do perfil (recusa âncora, alias, `<<`, chave repetida, tag fora do esquema básico, arquivo grande, caminho que sai da pasta) | `adapters/storage/strict_yaml.py`, `profile_repository.py`, `product_paths.py` | Implementado (M2) |
+| Criador de pasta de produto a partir de `products/_template` | `adapters/storage/product_scaffolder.py` | Implementado (M2) |
+| Portas `Clock`, `ProfileRepository`, `ProductScaffolder` e casos de uso `ValidateProfile` e `InitProduct` | `application/` | Implementado (M2); [ADR 0015](adr/0015-portas-do-perfil-e-carregador-de-yaml.md) |
 
 ### Comandos da CLI
 
-Hoje **só `hdast version` existe**. Todos os demais são desenho e não funcionam.
+Hoje existem `hdast version`, `hdast init` e `hdast profile validate`. Todos os demais são desenho e não funcionam.
 
 | Comando | Status |
 | --- | --- |
 | `hdast version` | Implementado (M1) |
-| `hdast init`, `hdast profile validate` | Planejado (M2, segunda metade) |
+| `hdast init`, `hdast profile validate` | Implementado (M2) |
 | `hdast spec inspect`, `hdast preflight`, `hdast probe` | Planejado (M3) |
 | `hdast scan`, `hdast report` | Planejado (M4) |
 | `hdast cleanup`, `hdast run`, parada de emergência | Planejado (M5) |

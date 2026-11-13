@@ -41,4 +41,12 @@ Somente `domain` (e a biblioteca padrão).
 
 ## Status
 
-Os casos de uso e as portas são planejados a partir do M2 (veja a [tabela de status](../roadmap.md#tabela-de-status)). O pacote existe como esqueleto na fundação do M1.
+Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml.md)):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `ports.py` | `Clock`, `ProfileRepository` (`load`, `missing_files`) e `ProductScaffolder` (`scaffold`), mais os modelos `ReferencedFile` e `ScaffoldedProduct` usados nas assinaturas |
+| `validate_profile.py` | `ValidateProfile`: carrega o perfil e devolve `ProfileReport` (resumo sem segredos, `runnable` e `issues`). Validade estrutural é erro (`ConfigError`); prontidão para executar é dado. Detecta os valores de exemplo do modelo (hosts `exemplo.com.br`, referência `SEC-0000`, segredos `MEU_PRODUTO_*`), arquivos referenciados ausentes, autorização vencida e janela fechada |
+| `init_product.py` | `InitProduct`: cria a pasta do produto pela porta `ProductScaffolder` |
+
+Os demais casos de uso e portas previstos acima entram a partir do M3. As portas `Scanner`, `TargetClient`, `SpecLoader`, `SecretProvider`, `ReportSink`, `CleanupHook` e `RunStore` **ainda não existem**.
