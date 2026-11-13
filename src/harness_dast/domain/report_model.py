@@ -11,6 +11,7 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
+from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
 from harness_dast.domain.traffic import TrafficSummary
 
@@ -174,7 +175,9 @@ class FindingsReport(ApiModel):
         coverage: Cobertura e limites.
         not_tested_statements: Afirmações fixas sobre o que não foi testado.
         summary: Totais.
-        findings: Achados.
+        findings: Achados (todos, sem agrupar).
+        groups: Visão agrupada pela causa provável; cada achado está em exatamente um grupo
+            (aditivo, ADR 0029).
         not_observed: Achados da base não observados (só com `--compare`).
         comparison: Resumo da comparação, ou `None`.
         triage_orphans: Fingerprints da triagem que não existem.
@@ -190,6 +193,7 @@ class FindingsReport(ApiModel):
     not_tested_statements: tuple[str, ...] = NOT_TESTED_STATEMENTS
     summary: FindingsSummary
     findings: tuple[Finding, ...] = ()
+    groups: tuple[FindingGroup, ...] = ()
     not_observed: tuple[GoneFinding, ...] = ()
     comparison: ComparisonInfo | None = None
     triage_orphans: tuple[str, ...] = Field(default=())
@@ -244,6 +248,7 @@ class ReportDigest(ApiModel):
         coverage: Cobertura, limites e o que não foi testado.
         not_tested_statements: Afirmações fixas de honestidade.
         findings: Resumo dos achados.
+        groups: Grupos de achados com a mesma causa provável.
         not_observed: Achados da base não observados (com `--compare`).
         comparison: Resumo da comparação.
         triage_orphans: Fingerprints de triagem sem achado.
@@ -258,6 +263,7 @@ class ReportDigest(ApiModel):
     coverage: Coverage
     not_tested_statements: tuple[str, ...]
     findings: tuple[FindingDigest, ...]
+    groups: tuple[FindingGroup, ...]
     not_observed: tuple[GoneFinding, ...]
     comparison: ComparisonInfo | None
     triage_orphans: tuple[str, ...]
@@ -297,6 +303,7 @@ def build_digest(
             )
             for item in report.findings
         ),
+        groups=report.groups,
         not_observed=report.not_observed,
         comparison=report.comparison,
         triage_orphans=report.triage_orphans,

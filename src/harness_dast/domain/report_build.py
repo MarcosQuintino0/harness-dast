@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
+from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import (
@@ -169,6 +170,7 @@ def assemble_report(
         coverage=_coverage(probe, scan),
         summary=_summary(findings, unreadable),
         findings=findings,
+        groups=group_findings(findings),
         not_observed=gone,
         comparison=comparison,
         triage_orphans=orphans,

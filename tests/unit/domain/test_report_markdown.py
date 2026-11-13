@@ -197,3 +197,24 @@ def test_markdown_states_up_front_that_the_report_is_partial_when_the_run_stoppe
 
     assert "RELATÓRIO PARCIAL" not in render_markdown(complete)
     assert "RELATÓRIO PARCIAL" in render_markdown(partial)
+
+
+def test_grouped_view_lists_groups_with_counts_and_keeps_every_finding() -> None:
+    alerts = [zap_alert("8"), zap_alert("9", sourceMessageId="4")]
+
+    text = render_markdown(report(alerts))
+
+    assert "## Achados agrupados pela causa" in text
+    assert text.index("## Achados agrupados pela causa") < text.index("## Achados\n")
+    assert "nenhum achado some e nenhuma severidade muda" in text
+    assert text.count("### `F-") == len(report(alerts).findings)
+
+
+def test_grouped_view_is_absent_without_findings_and_escapes_hostile_titles() -> None:
+    assert "agrupados" not in render_markdown(report([]))
+
+    text = render_markdown(report([zap_alert("9", alert=HOSTILE_TITLE)]))
+
+    grouped = text.split("## Achados agrupados pela causa")[1].split("## Achados\n")[0]
+    assert "<script>" not in grouped
+    assert "](http://evil" not in grouped
