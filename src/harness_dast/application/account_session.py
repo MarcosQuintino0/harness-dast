@@ -254,7 +254,11 @@ class AccountSession:
         except TargetError:
             raise PreflightError(
                 f"A resposta do login da conta {self.alias} não traz o token esperado.",
-                hint="Confira auth.token_response_field e request_encoding no target.yml.",
+                hint=(
+                    "Confira auth.token_response_field e request_encoding no target.yml. Se o "
+                    "alvo responde 2xx sem token, a conta pode não existir ainda: se a carta dá "
+                    "um GET que recria os dados de exemplo, use-o em probe.health_path."
+                ),
             ) from None
         if isinstance(token, int) or not token:
             raise PreflightError(

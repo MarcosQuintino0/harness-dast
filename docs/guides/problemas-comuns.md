@@ -37,6 +37,7 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | `zap` falha ou "chave de API errada" | ZAP fora do ar ou chave diferente da pilha | `stack up` de novo; não misture pilha antiga com variáveis `HDAST_ZAP_*` de outra |
 | `target_health` falha | Alvo fora do ar ou `probe.health_path` errado | Suba o alvo; confira o caminho no perfil |
 | `login:<apelido>` falha | Usuário ou senha errados, ou limite de logins por minuto | Confira a conta; espere um minuto; declare `auth.login_limit` se o alvo limita |
+| `login:<apelido>` diz "não traz o token esperado" e o alvo respondeu 200 | Campo do token errado, ou a conta ainda não existe no banco (ambiente recém-subido, sem dados de exemplo) | Confira `auth.token_response_field`. Se a carta autoriza um GET que recria os dados de exemplo, use-o em `probe.health_path`: o `preflight` o chama antes dos logins. Não chame o alvo por fora da CLI |
 | `csrf:<apelido>` falha | Rota ou nomes de cookie e cabeçalho do CSRF errados | Confira o bloco `auth.csrf` com a documentação do produto |
 | "O comando docker não foi encontrado" | Docker fora do PATH | Instale ou abra o Docker Desktop |
 | "O Docker não terminou de subir o projeto..." | Docker Desktop lento ou travado | Confira `docker ps`; rode `stack up` de novo (`--timeout N` aumenta o prazo) |
