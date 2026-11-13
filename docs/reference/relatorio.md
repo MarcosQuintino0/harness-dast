@@ -39,6 +39,7 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 | `findings` | Resumo de cada achado (`finding_id`, `fingerprint`, `title`, severidade e confiança propostas, operação, método, modelo de caminho, parâmetro, ocorrências, CWE, categoria OWASP, `comparison`, `suspected_false_positive`). **A evidência não vai no envelope**: está em `findings.json` e `report.md`, para o agente não carregar dado do alvo sem precisar |
 | `groups` | Achados agrupados pela causa provável (mesma regra, vetor, parâmetro e severidade), com contagem, onde aparece e, quando há, a nota de padrão esperado ([finding-schema.md](finding-schema.md#findinggroup-groups)) |
 | `not_observed`, `comparison`, `triage_orphans` | Comparação e triagem |
+| `authz` | Resultado do teste de autorização entre contas (o mesmo conteúdo de `authz.json`), ou `null` se o estágio não rodou. Os achados dele não entram em `findings` nem em `groups` ([authz.md](authz.md)) |
 
 ## O que o relatório diz sobre honestidade
 

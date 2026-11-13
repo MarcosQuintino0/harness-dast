@@ -304,6 +304,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "adapters/scope_proxy/generate.py",
         "adapters/scope_proxy/policy.py",
         "adapters/scope_proxy/engine.py",
+        "application/doctor_checks.py",  # só lê o modo para avisar; não monta guarda
         "application/scan.py",
         "domain/profile.py",
         "domain/report_traffic.py",

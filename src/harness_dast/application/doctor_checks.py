@@ -10,7 +10,7 @@ from harness_dast.application.doctor_report import DoctorCheck
 from harness_dast.domain.profile import ProductProfile
 
 
-def path_mode_checks(profile: ProductProfile) -> list[DoctorCheck]:
+def wide_mode_checks(profile: ProductProfile) -> list[DoctorCheck]:
     """Avisa quando o perfil usa `scope.path_mode: wide` (ADR 0026).
 
     O modo amplo deixa passar formas ambíguas de caminho; só é tão seguro quanto `deny_paths`.
