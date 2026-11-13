@@ -1,0 +1,44 @@
+# Pacote `application`
+
+Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
+
+## Responsabilidade
+
+Orquestrar um caso de uso por arquivo e declarar em `ports.py` as portas de que precisa. O caso de uso recebe as portas no construtor e usa o `domain` para decidir.
+
+Portas previstas no desenho aprovado:
+
+| Porta | Adaptador na V1 | Por que é porta |
+| --- | --- | --- |
+| `Scanner` | ZAP | Outros motores na V2; casos de uso testados com motor falso |
+| `TargetClient` | `httpx` via proxy do ZAP | Ponto único onde o escopo é imposto; dublê nos testes |
+| `SpecLoader` | Leitor de OpenAPI 3 | Swagger 2 e outras fontes depois |
+| `SecretProvider` | Variáveis de ambiente | Cofre de segredos no CI depois |
+| `ReportSink` | JSON e Markdown | SARIF, DefectDojo e Jira depois |
+| `CleanupHook` | Script SQL do produto | Limpeza por API ou SQL conforme o produto |
+| `RunStore` | Sistema de arquivos | Dublê em memória nos testes |
+| `Clock` | Relógio do sistema | Janela de execução testável sem esperar |
+
+Casos de uso previstos: `inspect_spec`, `preflight`, `probe_reachability`, `run_scan`, `build_report`, `cleanup`, `run_pipeline`.
+
+## Pode importar
+
+Somente `domain` (e a biblioteca padrão).
+
+## Nunca deve
+
+- Importar `adapters`, `cli` ou bibliotecas de terceiros de I/O.
+- Importar `config` ou `observability` (o contrato do import-linter em `pyproject.toml` proíbe). Configuração e logger chegam aos casos de uso pelo construtor, via `cli`; como exatamente o logger chega ainda não está definido no desenho.
+- Importar outro caso de uso. O que é comum desce para o `domain`.
+- Decidir escopo, unicidade, severidade ou fingerprint: isso é do `domain`.
+- Deixar passar exceção de terceiros. Os adaptadores traduzem na fronteira; o caso de uso só vê `HarnessError`.
+
+## Convenções
+
+- Porta é um `typing.Protocol`, declarada por quem a consome. Porta nova exige ADR.
+- Docstring de porta descreve o contrato: o que garante, o que levanta, o que não faz.
+- Piso de cobertura de ramos: 85% (veja [../testing.md](../testing.md)).
+
+## Status
+
+Os casos de uso e as portas são planejados a partir do M2 (veja a [tabela de status](../roadmap.md#tabela-de-status)). O pacote existe como esqueleto na fundação do M1.

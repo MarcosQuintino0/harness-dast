@@ -1,0 +1,179 @@
+# Roadmap da V1
+
+Fonte: documento de fundação técnica aprovado em 2026-11-13. O tamanho de cada marco é uma estimativa relativa, sem base em dados publicados. Cada marco termina com algo demonstrável e um critério objetivo.
+
+## Marcos
+
+| Marco | Entrega | Pronto quando | Tamanho |
+| --- | --- | --- | --- |
+| M0 Decisões e spike | Spike descartável: ZAP em Docker no Windows, requisições válidas pelo proxy, token no ZAP, conexão com o Oracle de testes, skill chamando um comando, medição de bloqueios | AD-07, P-08 e P-10 resolvidos e registrados. Nenhum código do spike é aproveitado | Pequeno |
+| M1 Fundação | Esqueleto do repositório, ferramentas, pre-commit, CI com todos os gates, ADRs, `CLAUDE.md`, lab com VAmPI | Um pull request trivial passa por todos os gates. Uma importação proibida quebra o CI. **Estado: entregue na árvore de trabalho; faltam o primeiro commit e o primeiro pull request real** | Pequeno |
+| M2 Domínio, perfil e escopo | `init` e `profile validate`. Modelos de domínio, `ScopeGuard`, carregador de perfil, erros e envelope JSON | Casos obrigatórios do `ScopeGuard` verdes. Perfil inválido é recusado com mensagem acionável. **Estado: a metade de domínio existe (modelos, `ScopeGuard`, janelas, sobrescritas); faltam o carregador de YAML, `init`, `profile validate` e os primeiros casos de uso** | Médio |
+| M3 OpenAPI, dados e alcançabilidade | `spec inspect`, `preflight`, `probe`. Catálogo de geradores, autenticação do piloto, encadeamento de um nível, trilha de auditoria | No VAmPI, a alcançabilidade com regras fica acima da do import cru, e o número é reportado | Grande |
+| M4 Varredura e achados | `scan` e `report`. Adaptador do ZAP, limites fixos, modelo de achado, fingerprint, relatório em JSON e Markdown | O achado conhecido do VAmPI aparece com evidência redigida. O modo seguro não gera achado de severidade alta | Grande |
+| M5 Limpeza e execução completa | `cleanup`, `run`, parada de emergência, manifesto da execução | Teste de ponta a ponta verde no lab, com zero requisição fora do escopo na auditoria | Médio |
+| M6 Skills, documentação de uso e avaliação cega | As quatro skills, os dois subagentes, permissões, guias de operação, roteiro de avaliação das skills e **suíte de avaliação cega (evals)**, [ADR 0014](adr/0014-avaliacao-cega-como-eval.md) | Uma pessoa que nunca viu o projeto cadastra o lab e roda uma varredura seguindo só o README, e agentes cegos repetem isso com nota automática: zero requisição fora do escopo, alcançabilidade e achados medidos contra o gabarito (veja [M6](#m6-skills-documentação-de-uso-e-avaliação-cega)) | Médio |
+| M7 Piloto em um produto real | Proxy de saída, autorização formal, perfil do produto piloto, comparação ZAP cru contra ZAP configurado | Execução sem incidente, alcançabilidade medida e apresentada à liderança. É o ponto de decidir se a V2 acontece | Médio |
+
+Observação: a ordem M0 antes de M1 é a do desenho. Nesta entrega o M1 foi iniciado antes do spike do M0, que continua pendente. O M1 não depende do resultado do spike; o M2 em diante depende. A primeira metade do M2 (domínio) foi feita antes do spike por não depender dele.
+
+As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings`; os subagentes são `spec-analyst` e `findings-triager`.
+
+## Tabela de status
+
+**Esta é a única tabela de status do projeto.** Quando um componente muda de estado, atualize só esta tabela e o `CHANGELOG.md`. Os demais documentos apontam para cá.
+
+Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
+
+Estado refletido: repositório em 2026-11-13, depois da revisão de QA ([docs/reviews/](reviews/README.md)). Nada está commitado ainda (branch `chore/m1-fundacao`). Na revisão, `ruff`, `mypy`, `lint-imports` e `vulture` estavam verdes e o `pytest` falhava só nos 29 testes que demonstravam defeitos; a rodada de correção está em [reviews/2026-11-13-qa-m1-m2-resposta.md](reviews/2026-11-13-qa-m1-m2-resposta.md).
+
+### Fundação (M1)
+
+| Componente | Onde | Status |
+| --- | --- | --- |
+| Pacote `harness_dast` em layout `src/`, com pacotes `domain`, `application`, `adapters`, `cli`, `config`, `observability` | `src/harness_dast/` | Implementado (M1) |
+| Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | Apenas esqueleto vazio; conteúdo em M3 a M5 |
+| `application` (casos de uso e portas) | `src/harness_dast/application/` | Apenas esqueleto vazio; casos de uso a partir da segunda metade do M2 |
+| Hierarquia de erros `HarnessError` e mapeamento para códigos de saída | `domain/errors.py` | Implementado (M1) |
+| Envelope JSON com `schema_version` e saída humana | `cli/output.py` | Implementado (M1) |
+| Tratador único de erros | `cli/app.py` | Implementado (M1) |
+| Comando `hdast version` | `cli/commands/version.py` | Implementado (M1) |
+| Settings da ferramenta (`HDAST_*`) | `config/settings.py` | Implementado (M1) |
+| Logger estruturado com redação (structlog) | `observability/logging.py` | Implementado (M1) |
+| Configuração de ruff, mypy estrito, pytest, import-linter e vulture | `pyproject.toml` | Implementado (M1) |
+| pre-commit (ruff, gitleaks, commitizen, mypy, import-linter) | `.pre-commit-config.yaml` | Implementado (M1); hooks não instalados na máquina da revisão |
+| CI com gates (estática, segurança, testes, integração) | `.github/workflows/ci.yml` | Implementado (M1); ainda não rodou num pull request real, porque nada foi commitado |
+| `compose.yaml` (ZAP, proxy de saída, ponte do ZAP) e `lab/` (VAmPI) | raiz, `docker/`, `lab/` | Implementado (M1); subida e isolamento verificados em tempo de execução em 2026-11-13 (veja [lab/README.md](../lab/README.md)) |
+| `products/_template/` (modelo de perfil) | `products/` | Implementado (M1); `target.yml` validado por teste contra o modelo de domínio |
+| Documentação, ADRs 0001 a 0014 | `docs/`, raiz | Implementado |
+| `LICENSE` | | Não existe de propósito: licença indefinida (P-14) |
+
+### Domínio do perfil e do escopo (primeira metade do M2)
+
+Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários (incluindo propriedades com hypothesis) e a suíte de QA `*_qa.py`. Nenhum comando `hdast` usa esses módulos ainda. Contrato de cada módulo: [modules/domain.md](modules/domain.md).
+
+| Componente | Módulo | Status |
+| --- | --- | --- |
+| Host canônico (IDNA, IP sem ambiguidade, metadados da nuvem) | `host.py` | Implementado |
+| Normalização de URL de saída (falha fechada, incluindo `;`, ponto e espaço finais) | `urlnorm.py` | Implementado |
+| Padrões de caminho (`*`, `**`), casamento e cobertura | `pathpattern.py` | Implementado |
+| `ScopeRule`, `Scope`, `ScopeGuard` (camada 1 do escopo) | `scope.py` | Implementado |
+| Janelas de execução (gramática compacta, fuso IANA) e validade da autorização | `window.py` | Implementado |
+| Sobrescritas que só estreitam escopo e limites | `overrides.py` | Implementado |
+| `RunId` e `RunLimits` com tetos absolutos | `run.py` | Implementado (`RunManifest` fica para o M5) |
+| Referência a segredo `env:NOME` e base dos modelos do perfil | `secret_ref.py` | Implementado |
+| Autenticação: `login_password` e `api_key` | `auth.py` | Implementado |
+| `ProductProfile`, `Environment`, `CleanupConfig` e tradução de erros para `ConfigError` | `profile.py`, `profile_errors.py` | Implementado |
+| Carregador de YAML do perfil | adaptador ou `config/` | Planejado (M2, segunda metade) |
+| Casos de uso e portas de `application` | `application/` | Planejado (M2 em diante) |
+
+### Comandos da CLI
+
+Hoje **só `hdast version` existe**. Todos os demais são desenho e não funcionam.
+
+| Comando | Status |
+| --- | --- |
+| `hdast version` | Implementado (M1) |
+| `hdast init`, `hdast profile validate` | Planejado (M2, segunda metade) |
+| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Planejado (M3) |
+| `hdast scan`, `hdast report` | Planejado (M4) |
+| `hdast cleanup`, `hdast run`, parada de emergência | Planejado (M5) |
+
+### Controles de segurança
+
+| Controle | Status |
+| --- | --- |
+| Escopo, camada 1: `ScopeGuard` | Parcial: o guarda existe no domínio e é testado; nenhum comando o chama ainda |
+| Escopo, camada 2: ZAP em modo protegido | Planejado (M4) |
+| Escopo, camada 3: rede interna e proxy de saída | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura pelo proxy não provado; caminho para ambiente de empresa em IP privado não confirmado (veja itens em aberto); obrigatório antes de execução contra ambiente da empresa (M7) |
+| Validação de autorização, validade e janela | Parcial: lógica no domínio (`window.py`, `ProductProfile.ensure_runnable`); nenhum comando a aplica ainda |
+| Limites de carga fixados e tetos absolutos | Parcial: modelo e tetos em `run.py`; a imposição na varredura é do M4 |
+| Sobrescritas que só reduzem | Parcial: `overrides.py` existe; as flags da CLI que o usarão, não |
+| Redação de logs (chaves, segredos registrados, JWT, CPF) | Implementado (M1) |
+| Formato e validação de `secret_ref` | Implementado (domínio); resolução do valor e autenticação: Planejado (M3) |
+| Trilha de auditoria `audit.jsonl` | Planejado (M3) |
+| `manifest.json` por execução | Planejado (M5) |
+| Limpeza por SQL em Oracle | Planejado (M5); só o bloco `cleanup` do perfil é validado |
+| Permissões do Claude Code (`.claude/settings.json`) | Planejado (M6) |
+
+### Gates de qualidade
+
+| Gate | Status |
+| --- | --- |
+| ruff (lint e formato), mypy estrito, import-linter, vulture, pytest | Implementado: configurados em `pyproject.toml` e executados no CI |
+| Pisos de cobertura por camada (`check_coverage_floors.py`) e diff-cover | Implementado no CI. Camada sem código (hoje `application`) é ignorada com aviso; prefixo inexistente ou camada com código e nada medido falham (achado A-05 corrigido; veja a [resposta](reviews/2026-11-13-qa-m1-m2-resposta.md)) |
+| gitleaks (pre-commit e CI), pip-audit (CI, sobre o `uv.lock`), commitizen (pre-commit) | Implementado |
+| Verificador de links da documentação | Planejado (ainda não está no CI) |
+| Referência da CLI e do schema gerada do código, verificada no CI | Planejado (a partir da segunda metade do M2) |
+| Testes de integração e ponta a ponta | Planejados (M3 em diante); o CI tolera "nenhum teste de integração" por enquanto |
+| Testes unitários e de contrato | Implementado (veja [testing.md](testing.md#o-que-existe-hoje)) |
+| Análise de mutação | Feita uma vez, à mão, na revisão de QA; não é um gate |
+
+### Agente
+
+| Item | Status |
+| --- | --- |
+| Skills e subagentes em `.claude/` | Planejado (M6) |
+| Roteiro de avaliação das skills | Planejado (M6) |
+| Suíte de avaliação cega (evals) | Planejado (M6); nada existe ([ADR 0014](adr/0014-avaliacao-cega-como-eval.md)) |
+
+### M6: skills, documentação de uso e avaliação cega
+
+Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inclui um requisito novo aprovado pelo dono do projeto: ao fim da V1, a ferramenta é avaliada por **agentes de teste cegos**, como uma suíte de evals repetível. Decisão e motivos: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md). Descrição da suíte: [testing.md](testing.md#avaliação-cega-evals). **Tudo abaixo é planejado; nada existe.**
+
+- **Agente cego:** um agente novo, sem contexto além do repositório, recebe só a instrução de seguir o README e testar a API do lab. Não é dito quais vulnerabilidades existem nem se o alvo está em modo vulnerável ou seguro; o modo é sorteado antes.
+- **Casos:** alvo + modo + gabarito. Primeiro o VAmPI. Depois uma API pequena própria com falhas plantadas que nenhum modelo viu, porque o VAmPI é público e provavelmente está na memória dos modelos.
+- **Repetição:** várias execuções por caso, porque o resultado varia.
+- **Nota automática:** alcançabilidade (parcela das operações do OpenAPI que respondem 2xx); falhas conhecidas encontradas contra o gabarito; falsos alarmes no modo seguro; requisições fora do escopo (deve ser zero, pela trilha de auditoria); custo e tempo.
+- **Rastro completo por execução:** transcrição do agente (gravada quando ele roda de forma não interativa), toda versão do perfil e das regras de dados, trilha de auditoria, manifesto e um registro de decisões que as skills exigem do agente. O raciocínio interno do modelo não é fonte, porque pode vir resumido ou incompleto.
+- **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou, corrige-se o texto; o agente tentou algo indevido e a ferramenta deixou, nova trava em código com teste; a ferramenta devolveu erro que o agente não soube interpretar, melhora-se a mensagem e a dica. Toda falha corrigida vira caso permanente da suíte.
+
+## Itens em aberto
+
+| Id | Tema | Situação | Decidir até |
+| --- | --- | --- | --- |
+| Spike | Confirmar o mecanismo do `probe` (AD-07), como o token chega ao ZAP e é renovado, como o plano de varredura é executado, conexão com o Oracle de testes | Não executado (M0 pendente) | M0 |
+| P-08 | Plano do Claude Code na empresa, contrato de dados e bloqueios dos classificadores de segurança | Medir a taxa de bloqueio no spike; considerar o programa de verificação do provedor só se atrapalhar | M0 |
+| P-09 | Quem é o segundo revisor humano dos módulos críticos | Não nomeado; recomendação: alguém do time de segurança. O escopo já tem código, então a pendência pesa desde agora | M2 |
+| P-10 | Entrega e renovação do token no ZAP; execução do plano de varredura | Testar duas abordagens no spike e registrar em ADR | M0 |
+| P-14 | Licença do projeto e reaproveitamento de código do Strix (Apache-2.0) | Indefinida; não há `LICENSE`. Inspirar-se na estrutura; copiar código só com atribuição e depois de definir a licença | M1 |
+| A-08 | O proxy de saída nega faixas privadas para a lista geral; um ambiente de teste de empresa em IP privado provavelmente não passa | Não confirmado contra um alvo real em IP privado. Caminho e riscos em [docker/egress-proxy/README.md](../docker/egress-proxy/README.md#ambiente-de-teste-corporativo-em-ip-privado). Decisão por ADR | M7 |
+| A-16 | Ações do GitHub Actions fixadas por tag, não por SHA de commit; decidir se o CI também roda em `windows-latest` (o uso é local no Windows); `cancel-in-progress` também na `main`; sem `timeout-minutes`; exigência de `GITLEAKS_LICENSE` em repositório de organização não verificada | Aberto, sem mudança nesta rodada | Antes do primeiro pull request real |
+| A-18 | `compose.yaml` sem limites de recursos (`pids_limit`, `mem_limit`, `cpus`); `docker compose ps` e `down` exigem a chave do ZAP por causa da interpolação obrigatória; `forbidden_ranges` do Squid sem `::ffff:0:0/96` e `64:ff9b::/96` | Aberto, sem mudança nesta rodada | M4 |
+| Chave do ZAP | A chave da API do ZAP fica visível em `docker logs` e `docker inspect` do contêiner `zap` (o ZAP registra `api.key` ao iniciar) | Aberto. Passar a chave por outro meio antes de qualquer ambiente da empresa | Antes do M7 |
+| Tráfego real pelo proxy | Só uma chamada `accessUrl` do ZAP foi exercitada pelo proxy de saída; spider e varredura ativa não foram provados | Aberto; cobrir com teste de integração | M4 |
+| A-17 (parte) | `vulture` ainda silencia nomes por `ignore_names` no projeto todo (agora agrupados e comentados), o que pode esconder código sem chamador; `normalize_request` passa de 40 linhas | Parte aberta; reavaliar quando os casos de uso passarem a chamar o domínio e as entradas poderem sair da lista. A outra parte (import-linter não impedia dependência externa no `domain`) foi corrigida com um contrato novo | Fim do M2 |
+| Retenção de `runs/` | Prazo de retenção de evidências | Não definido | Não fixado no desenho |
+| Canal de reporte de vulnerabilidade | Habilitar o Private vulnerability reporting no GitHub | A confirmar pelo dono | M1 |
+| Calibração de cobertura | Pisos de cobertura por camada | Valores iniciais definidos; calibrar | Fim do M2 |
+| Fingerprint | Formato e versão do fingerprint do achado | Não definido | M4 |
+| Orçamento das evals | Custo máximo por rodada da avaliação cega e número de repetições por caso | Não definido | M6 |
+
+Decididas e registradas: P-01 (perfis fora do repositório), P-02 (regras declarativas), P-03 (proxy de saída antes de ambiente da empresa), P-04 (dois tipos de autenticação; nomes `login_password` e `api_key` no [ADR 0013](adr/0013-schema-v1-do-perfil-de-produto.md)), P-05 (SQL Oracle), P-06 (idiomas), P-07 (mypy estrito), P-11 (Windows com Docker Desktop), P-12 (encadeamento de um nível), P-13 (`hdast` e `harness_dast`). Fechados nesta rodada: a gramática de `scope.windows` e os valores de `auth.type` ([reference/target-yml.md](reference/target-yml.md)), e os códigos de saída e valores de `error.code` da V1 ([reference/cli.md](reference/cli.md#valores-de-errorcode)); novos valores entram por marco.
+
+## Candidatos a V2
+
+Nada abaixo está planejado nem prometido. São direções que a V1 já deixa preparadas.
+
+| Candidato | Por quê | O que a V1 deixa pronto |
+| --- | --- | --- |
+| Teste de autorização entre contas (BOLA, escalada de privilégio) | É a V2 recomendada. Novo caso de uso que repete requisições com outra conta e compara | Várias contas com papel no perfil; `TargetClient` por apelido; fingerprint com papéis |
+| Outros motores (nuclei, Schemathesis) | Novo pacote em `adapters/`, registro na montagem, mapeamento de alertas | Porta `Scanner` e suíte de contrato reutilizável |
+| nmap | Mesmo caminho de um motor novo, mas **baixa prioridade**: contra uma URL na nuvem ele mostra o balanceador, não a aplicação | Possível pela porta `Scanner` |
+| Execução no CI a cada release | Job que chama `hdast run --json` | Modo não interativo, códigos de saída, segredos por porta |
+| Comparação entre releases | Comparar fingerprints entre execuções; diff do Swagger para priorizar | Fingerprint estável e manifesto por execução |
+| Jira, DefectDojo, SARIF | Novos `ReportSink` | Modelo próprio de achado, independente do ZAP |
+| Outro agente ou execução sem agente | Novas instruções apontando para os mesmos comandos | Lógica na CLI; skills finas |
+| Servidor MCP | Nova entrada ao lado da `cli`, sobre os mesmos casos de uso | Casos de uso independentes da forma de entrada |
+| Outros bancos na limpeza | Hoje só Oracle | Porta `CleanupHook` |
+
+Decidir se a V2 acontece é o resultado esperado do M7.
+
+## Decisões da V1 que podem limitar o futuro
+
+- ZAP como único ponto de tráfego: motores que abrem conexão própria precisarão passar pelo proxy de saída.
+- Execuções em arquivos locais: histórico entre máquinas exigirá armazenamento compartilhado (porta `RunStore`).
+- Regras de dados declarativas: fluxos muito específicos podem não caber.
+- Dependência do Claude Code, mitigada pelo [ADR 0001](adr/0001-dois-planos-agente-propoe-cli-executa.md).
+- Formato do fingerprint: mudar depois invalida o histórico.
+- Schema do perfil: vira contrato com cada produto cadastrado; evolui só por adição.
