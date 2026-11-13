@@ -19,6 +19,7 @@ Quando houver captura real do ZAP (teste de integração contra o lab), troque `
 | `evidence.json` | Mensagens de evidência, já redigidas |
 | `findings.golden.json` | Saída esperada de `findings.json` |
 | `report.golden.md` | Saída esperada de `report.md` |
+| `report.golden.html` | Saída esperada de `report.html` (também serve de exemplo para revisão: abra no navegador) |
 
 Regravar as saídas esperadas depois de uma mudança intencional no relatório:
 

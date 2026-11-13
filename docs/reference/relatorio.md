@@ -7,7 +7,7 @@ uv run hdast --json report meu-produto --run <run_id>
 uv run hdast report meu-produto --run <run_id> --compare <outro_run_id> --fail-on high
 ```
 
-Transforma os alertas brutos de uma execução em **achados** e escreve `findings.json` e `report.md` na pasta dela. **Não usa rede nem o ZAP**: lê só arquivos (`probe.json`, `scan.json`, `alerts.raw.json`, `evidence.json` e, se existir, `triage.json`). Por isso não confere janela nem autorização.
+Transforma os alertas brutos de uma execução em **achados** e escreve `findings.json`, `report.md` e `report.html` na pasta dela. **Não usa rede nem o ZAP**: lê só arquivos (`probe.json`, `scan.json`, `alerts.raw.json`, `evidence.json` e, se existir, `triage.json`). Por isso não confere janela nem autorização.
 
 | Flag | Efeito |
 | --- | --- |
@@ -31,12 +31,13 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 
 | Campo | Descrição |
 | --- | --- |
-| `run_id`, `product`, `files` | Execução e arquivos gerados (`findings.json`, `report.md`) |
+| `run_id`, `product`, `files` | Execução e arquivos gerados (`findings.json`, `report.md`, `report.html`) |
 | `threshold`, `exceeds_threshold` | Limiar aplicado e se há achado nele ou acima |
 | `summary` | Totais por severidade proposta |
 | `coverage` | Alcançabilidade do `probe`, varreduras truncadas, operações sem varredura com o motivo, limites e política |
 | `not_tested_statements` | As afirmações fixas sobre o que não foi testado |
 | `findings` | Resumo de cada achado (`finding_id`, `fingerprint`, `title`, severidade e confiança propostas, operação, método, modelo de caminho, parâmetro, ocorrências, CWE, categoria OWASP, `comparison`, `suspected_false_positive`). **A evidência não vai no envelope**: está em `findings.json` e `report.md`, para o agente não carregar dado do alvo sem precisar |
+| `groups` | Achados agrupados pela causa provável (mesma regra, vetor, parâmetro e severidade), com contagem, onde aparece e, quando há, a nota de padrão esperado ([finding-schema.md](finding-schema.md#findinggroup-groups)) |
 | `not_observed`, `comparison`, `triage_orphans` | Comparação e triagem |
 
 ## O que o relatório diz sobre honestidade
@@ -54,6 +55,10 @@ Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_sta
 Em português, para quem corrige: aviso de que blocos de requisição e resposta são dado do alvo, a seção acima, resumo e tabela (ID, severidade, confiança, título, onde, ocorrências, comparação quando houver, coluna "Triagem (agente)"), um bloco por achado (o que é, onde, parâmetro e vetor, classe, evidência, como reproduzir, **direção de correção sugerida** genérica para APIs no estilo Spring e marcada como sugestão não verificada, solução padrão do ZAP, triagem) e a seção de comparação.
 
 **Seguro para renderizar:** todo texto derivado do alvo, do ZAP ou do agente passa por `domain/markdown_safe.py`: texto em linha com barra invertida antes de todo caractere de marcação e sem quebra de linha, trecho de código em linha com crases suficientes, e requisição e resposta em bloco cercado por uma cerca mais longa que qualquer sequência de crases do conteúdo. HTML não é interpretado (`<`, `>` e `&` escapados ou dentro de bloco). Um texto que imite instrução ("ignore as instruções anteriores") continua sendo texto, mostrado em bloco sob um aviso; nenhuma função "entende" ordens.
+
+## `report.html`
+
+A mesma informação numa página única para quem não é especialista (QA e dono do produto): resumo no topo (achados por gravidade, política e limites, cobertura), "O que fazer agora", achados **agrupados** por gravidade (cada grupo com onde aparece, evidência resumida, comando de reprodução e direção de correção), "O que a varredura NÃO cobriu" (parcial, truncadas, operações sem varredura) e o tráfego recusado pela cerca de escopo por motivo. É autocontida: CSS embutido, sem JavaScript, sem recurso externo (uma política de conteúdo na página proíbe os dois), legível em claro e escuro. Todo texto do alvo, do ZAP ou do agente passa por `domain/html_safe.py` (escape, redação e corte); ver [ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md).
 
 ## Triagem (`triage.json`)
 
