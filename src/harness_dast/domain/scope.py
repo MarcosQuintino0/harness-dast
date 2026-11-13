@@ -26,6 +26,7 @@ from pydantic import (
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.host import ParsedHost, parse_host
 from harness_dast.domain.pathpattern import format_pattern, matches, parse_pattern
+from harness_dast.domain.scope_reason import ScopeReason
 from harness_dast.domain.urlnorm import (
     KNOWN_METHODS,
     NormalizedRequest,
@@ -159,6 +160,11 @@ class OutboundRequest(BaseModel):
     url: str
 
 
+PathMode = Literal["strict", "wide"]
+"""Modo de leitura do caminho no proxy de escopo. `strict` (padrão) recusa todo caminho ambíguo;
+`wide` libera mais formas e, em troca, nega se QUALQUER leitura do caminho casar com
+`deny_paths` (ver ADR 0026 e `wide_guard`). Só o proxy de escopo lê este valor."""
+
 ScopeVerdict = Literal["allowed", "denied_path", "outside_scope"]
 """Resultado de `ScopeGuard.evaluate`: permitida, negada por `deny_paths` ou fora do escopo."""
 
@@ -195,7 +201,10 @@ class _CompiledRule:
         )
 
     def matches_path(self, request: NormalizedRequest) -> bool:
-        return any(matches(pattern, request.segments) for pattern in self.paths)
+        return any(
+            matches(pattern, request.segments, wildcard_matches_empty=False)
+            for pattern in self.paths
+        )
 
 
 class ScopeGuard:
@@ -240,7 +249,7 @@ class ScopeGuard:
         """
         normalized = normalize_request(request.method, request.url)
         self._ensure_not_denied(normalized)
-        self._ensure_covered(normalized)
+        self.ensure_covered(normalized)
 
     def evaluate(self, request: OutboundRequest) -> ScopeDecision:
         """Decide como `ensure_allowed`, mas devolve a decisão em vez de levantar.
@@ -258,7 +267,7 @@ class ScopeGuard:
         except ScopeViolation as error:
             return ScopeDecision(verdict="denied_path", reason=error.message)
         try:
-            self._ensure_covered(normalized)
+            self.ensure_covered(normalized)
         except ScopeViolation as error:
             return ScopeDecision(verdict="outside_scope", reason=error.message)
         return ScopeDecision(verdict="allowed")
@@ -298,6 +307,7 @@ class ScopeGuard:
             raise ScopeViolation(
                 "O caminho da requisição está em scope.deny_paths.",
                 hint="Caminhos negados nunca são enviados; remova o caso do plano.",
+                reason=ScopeReason.DENY_PATH,
             )
 
     def _ensure_origin(self, request: NormalizedRequest) -> list[_CompiledRule]:
@@ -308,22 +318,44 @@ class ScopeGuard:
             raise ScopeViolation(
                 f"Esquema ou porta de {request.origin} não são os permitidos para este host.",
                 hint="A porta deve ser a padrão do esquema, salvo se a regra declarar `port`.",
+                reason=ScopeReason.ORIGIN_NOT_ALLOWED,
             )
         raise ScopeViolation(
-            f"O host {request.host.text} não está em scope.allow.", hint=_SCOPE_HINT
+            f"O host {request.host.text} não está em scope.allow.",
+            hint=_SCOPE_HINT,
+            reason=ScopeReason.HOST_NOT_ALLOWED,
         )
 
-    def _ensure_covered(self, request: NormalizedRequest) -> None:
+    def covers_path(self, request: NormalizedRequest) -> bool:
+        """Diz se origem e caminho (não o método) estão cobertos por alguma regra de `allow`.
+
+        Nunca levanta. Serve ao modo amplo do proxy para marcar leituras do caminho que
+        saem de `allow`; a decisão de liberar continua sendo de `ensure_covered`.
+        """
+        origin_rules = [rule for rule in self._rules if rule.matches_origin(request)]
+        return any(rule.matches_path(request) for rule in origin_rules)
+
+    def ensure_covered(self, request: NormalizedRequest) -> None:
+        """Garante que origem, caminho e método estão cobertos por uma regra de `allow`.
+
+        Não confere `deny_paths`. Recebe a requisição já normalizada (estrita) ou montada pelo
+        modo amplo com a leitura literal do caminho.
+
+        Raises:
+            ScopeViolation: Se nenhuma regra cobrir origem, caminho e método (com `reason`).
+        """
         origin_rules = self._ensure_origin(request)
         path_rules = [rule for rule in origin_rules if rule.matches_path(request)]
         if not path_rules:
             raise ScopeViolation(
                 f"O caminho da requisição não está coberto por scope.allow em {request.host.text}.",
                 hint=_SCOPE_HINT,
+                reason=ScopeReason.PATH_NOT_ALLOWED,
             )
         if not any(request.method in rule.methods for rule in path_rules):
             raise ScopeViolation(
                 f"O método {request.method} não é permitido para este caminho em "
                 f"{request.host.text}.",
                 hint=_SCOPE_HINT,
+                reason=ScopeReason.METHOD_NOT_ALLOWED,
             )
