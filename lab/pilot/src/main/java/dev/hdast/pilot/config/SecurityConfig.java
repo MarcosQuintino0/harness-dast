@@ -59,6 +59,7 @@ public class SecurityConfig {
         if (props.vulnerable()) {
             firewall.setAllowUrlEncodedSlash(true);
             firewall.setAllowSemicolon(true);
+            firewall.setAllowUrlEncodedPercent(true); // com passthrough o %2f segue no caminho decodificado
         }
         return firewall;
     }
