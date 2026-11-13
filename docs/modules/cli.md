@@ -33,4 +33,5 @@ Tudo do projeto.
 | `hdast init <produto>` e `hdast profile validate <produto>` | Implementados (M2), em `commands/init.py` e `commands/profile.py`; ambos aceitam `--products-dir` (sobrepõe `HDAST_PRODUCTS_DIR`). A saída humana é um resumo em português; o JSON é `ProfileReport` / `ScaffoldedProduct` em `data` |
 | `composition.py` | Implementado (M2): `build_init_product` e `build_validate_profile` ligam as portas aos adaptadores reais |
 | Saída em UTF-8 | `main()` reconfigura stdout e stderr para UTF-8, para as mensagens acentuadas não quebrarem em página de código antiga |
+| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementados (M3), em `commands/spec.py`, `commands/preflight.py` e `commands/probe.py`. `preflight` e `probe` devolvem o próprio código de saída e, ao terminar em falha, um envelope com `ok: false`, `error` e `data` (`build_failure_with_data`); `_dispatch` repassa o inteiro devolvido pelo comando |
 | Demais comandos | Planejados; **não existem**. Veja [../reference/cli.md](../reference/cli.md) |

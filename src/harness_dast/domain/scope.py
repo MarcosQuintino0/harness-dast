@@ -159,6 +159,25 @@ class OutboundRequest(BaseModel):
     url: str
 
 
+ScopeVerdict = Literal["allowed", "denied_path", "outside_scope"]
+"""Resultado de `ScopeGuard.evaluate`: permitida, negada por `deny_paths` ou fora do escopo."""
+
+
+class ScopeDecision(BaseModel):
+    """Decisão do guarda como dado, para quem precisa saber POR QUE uma requisição não passa.
+
+    Attributes:
+        verdict: `allowed`, `denied_path` (casou `deny_paths`) ou `outside_scope` (qualquer
+            outra recusa: host, porta, caminho, método ou URL malformada).
+        reason: Mensagem da recusa (sem caminho nem consulta); `None` quando permitida.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    verdict: ScopeVerdict
+    reason: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class _CompiledRule:
     host: ParsedHost
@@ -222,6 +241,27 @@ class ScopeGuard:
         normalized = normalize_request(request.method, request.url)
         self._ensure_not_denied(normalized)
         self._ensure_covered(normalized)
+
+    def evaluate(self, request: OutboundRequest) -> ScopeDecision:
+        """Decide como `ensure_allowed`, mas devolve a decisão em vez de levantar.
+
+        Serve ao planejamento (o agente precisa saber se uma operação nunca será enviada e
+        por quê). Não substitui `ensure_allowed` antes de um envio: quem envia continua
+        chamando `ensure_allowed` (via `approve`).
+        """
+        try:
+            normalized = normalize_request(request.method, request.url)
+        except ScopeViolation as error:
+            return ScopeDecision(verdict="outside_scope", reason=error.message)
+        try:
+            self._ensure_not_denied(normalized)
+        except ScopeViolation as error:
+            return ScopeDecision(verdict="denied_path", reason=error.message)
+        try:
+            self._ensure_covered(normalized)
+        except ScopeViolation as error:
+            return ScopeDecision(verdict="outside_scope", reason=error.message)
+        return ScopeDecision(verdict="allowed")
 
     def ensure_redirect_allowed(
         self, *, request: OutboundRequest, location: str, method: str

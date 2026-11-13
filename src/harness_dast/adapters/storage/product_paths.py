@@ -89,3 +89,28 @@ def product_dir_path(products_dir: Path, product: str) -> Path:
             hint="Remova o link simbólico; a pasta do produto deve ficar dentro de products_dir.",
         )
     return resolved
+
+
+def resolve_product_file(products_dir: Path, product: str, relative: str) -> Path:
+    """Resolve um arquivo do produto e garante que ele fica DENTRO da pasta do produto.
+
+    Não exige que o arquivo exista. O caminho `relative` já foi validado como relativo e sem
+    `..` pelo perfil; aqui se confere o resultado final, que pode sair por link simbólico.
+
+    Raises:
+        ConfigError: Nome de produto inválido, pasta inexistente ou caminho que sai da pasta.
+    """
+    directory = product_dir_path(products_dir, product)
+    try:
+        resolved = (directory / relative).resolve()
+    except (OSError, RuntimeError):
+        raise ConfigError(
+            "Não foi possível resolver o caminho de um arquivo do produto.",
+            hint="Confira se há link simbólico quebrado ou circular.",
+        ) from None
+    if not resolved.is_relative_to(directory):
+        raise ConfigError(
+            "Um arquivo do produto aponta para fora da pasta do produto.",
+            hint="Mantenha os arquivos do produto dentro da pasta dele (sem links para fora).",
+        )
+    return resolved

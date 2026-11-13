@@ -1,0 +1,9 @@
+# Dependências da imagem do proxy de escopo (NÃO são dependências da CLI).
+# Regerar o requirements.txt (com hashes) depois de qualquer mudança aqui:
+#   uv pip compile requirements.in --python-version 3.13 \
+#     --python-platform x86_64-manylinux_2_28 --generate-hashes -o requirements.txt
+# mitmproxy 12.3.1: publicado em 2026-10-25 no PyPI (https://pypi.org/project/mitmproxy/12.3.1/).
+# pydantic e tzdata acompanham as versões do uv.lock do projeto, que o domínio exige.
+mitmproxy==12.3.1
+pydantic==2.14.3
+tzdata==2026.6

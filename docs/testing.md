@@ -70,7 +70,7 @@ A verificação automática existe no CI (`.github/scripts/check_coverage_floors
 
 ## Casos obrigatórios do ScopeGuard
 
-O `ScopeGuard` (**implementado no domínio**, `domain/scope.py`; nenhum comando o chama ainda) é o componente de maior risco do projeto e recebe tratamento à parte. Ele valida toda requisição contra a lista permitida e falha fechado. Os casos abaixo são obrigatórios; todos têm teste em `tests/unit/domain/` (`test_scope.py`, `test_scope_qa.py`, `test_urlnorm*.py`, `test_host.py`, `test_pathpattern*.py`, `test_window*.py`).
+O `ScopeGuard` (**implementado no domínio**, `domain/scope.py`; chamado por `preflight` e `probe` via `approve`) é o componente de maior risco do projeto e recebe tratamento à parte. Ele valida toda requisição contra a lista permitida e falha fechado. Os casos abaixo são obrigatórios; todos têm teste em `tests/unit/domain/` (`test_scope.py`, `test_scope_qa.py`, `test_urlnorm*.py`, `test_host.py`, `test_pathpattern*.py`, `test_window*.py`).
 
 - Redirecionamento para host fora da lista.
 - Host com usuário embutido (`permitido.com@outro.com`).
@@ -161,6 +161,8 @@ Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram p
 - `tests/contract/`: `test_cli_envelope.py` e `test_cli_contract_qa.py`.
 - `tests/unit/test_coverage_floors_script.py`: testa o script de pisos de cobertura do CI.
 - Na revisão de 2026-11-13 eram cerca de 1,7 mil testes, sem Docker nem rede. Esse número envelhece; a fonte é o próprio diretório `tests/`.
-- Não existem: testes de integração, ponta a ponta, falsos em `tests/fakes/` (não há casos de uso ainda) nem a suíte de evals.
+- Desde o M3: falsos com comportamento em `tests/fakes/` (`probe_ports.py`, `rig.py`, `runtime.py`) para os casos de uso `spec inspect`, `preflight` e `probe`; servidor HTTP real em 127.0.0.1 (`tests/fakes/local_server.py`) para o cliente do alvo, as duas estratégias de autenticação com CSRF e o cliente da API do ZAP (contra um ZAP falso com as formas de resposta do spike); contratos dos três comandos em `tests/contract/test_cli_probe_commands.py`; e a afirmação central do projeto como regressão (`tests/unit/application/test_probe_vampi.py`: alcançabilidade com regras acima da sem regras, sobre o OpenAPI real do VAmPI).
+- Não existem: testes de integração contra o ZAP e o lab reais, ponta a ponta e a suíte de evals.
+- Mutação à mão no M3 (cada mutante quebrou ao menos um teste): `approve` sem `ensure_allowed`; `deny_paths` sem pular; janela sem rechecagem; prazo sem checagem; trecho de resposta sem redação; token não registrado no redator; cabeçalho CSRF em todos os métodos; `DELETE` sem pular; novo login sem teto; redirecionamento seguido; decisão de auditoria gravada depois do envio.
 
 A suíte `*_qa.py` nasceu com 29 testes que demonstravam defeitos; eles guiaram a [rodada de correção](reviews/2026-11-13-qa-m1-m2-resposta.md).

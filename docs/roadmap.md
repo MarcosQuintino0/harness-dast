@@ -32,8 +32,8 @@ Estado refletido: repositório em 2026-11-13, depois da revisão de QA ([docs/re
 | Componente | Onde | Status |
 | --- | --- | --- |
 | Pacote `harness_dast` em layout `src/`, com pacotes `domain`, `application`, `adapters`, `cli`, `config`, `observability` | `src/harness_dast/` | Implementado (M1) |
-| Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | Apenas esqueleto vazio; conteúdo em M3 a M5 |
-| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` implementados (M2); os demais casos de uso entram a partir do M3 |
+| Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | `openapi`, `datagen`, `storage`, `http`, `zap` e `secrets` implementados (M3); `reporting` e `cleanup` ainda esqueleto (M4, M5) |
+| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` (M2); `inspect_spec.py`, `preflight.py` e `probe.py` (M3). `run_scan`, `build_report`, `cleanup` e `run_pipeline` entram em M4 e M5 |
 | Hierarquia de erros `HarnessError` e mapeamento para códigos de saída | `domain/errors.py` | Implementado (M1) |
 | Envelope JSON com `schema_version` e saída humana | `cli/output.py` | Implementado (M1) |
 | Tratador único de erros | `cli/app.py` | Implementado (M1) |
@@ -70,13 +70,13 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Hoje existem `hdast version`, `hdast init` e `hdast profile validate`. Todos os demais são desenho e não funcionam.
+Hoje existem `hdast version`, `hdast init`, `hdast profile validate`, `hdast spec inspect`, `hdast preflight` e `hdast probe`. Todos os demais são desenho e não funcionam.
 
 | Comando | Status |
 | --- | --- |
 | `hdast version` | Implementado (M1) |
 | `hdast init`, `hdast profile validate` | Implementado (M2) |
-| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Planejado (M3) |
+| `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementado (M3); sem verificação contra o ZAP real (seção abaixo) |
 | `hdast scan`, `hdast report` | Planejado (M4) |
 | `hdast cleanup`, `hdast run`, parada de emergência | Planejado (M5) |
 
@@ -84,16 +84,16 @@ Hoje existem `hdast version`, `hdast init` e `hdast profile validate`. Todos os 
 
 | Controle | Status |
 | --- | --- |
-| Escopo, camada 1: `ScopeGuard` | Parcial: o guarda existe no domínio e é testado; nenhum comando o chama ainda |
+| Escopo, camada 1: `ScopeGuard` | Implementado (M3): `preflight` e `probe` só enviam `ApprovedRequest`, criado por `approve(guard, ...)`; mutação que remove a chamada quebra testes |
 | Escopo, camada 2: ZAP em modo protegido | Planejado (M4) |
 | Escopo, camada 3: rede interna e proxy de saída | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura pelo proxy não provado; caminho para ambiente de empresa em IP privado não confirmado (veja itens em aberto); obrigatório antes de execução contra ambiente da empresa (M7) |
-| Validação de autorização, validade e janela | Parcial: lógica no domínio (`window.py`, `ProductProfile.ensure_runnable`); nenhum comando a aplica ainda |
-| Limites de carga fixados e tetos absolutos | Parcial: modelo e tetos em `run.py`; a imposição na varredura é do M4 |
+| Validação de autorização, validade e janela | Implementado (M3): conferida na partida e antes de CADA requisição do `preflight` e do `probe` (`RunGate`) |
+| Limites de carga fixados e tetos absolutos | Parcial: o `probe` impõe `requests_per_second` (balde de fichas) e `max_duration_minutes`; `zap_threads_per_host` e a imposição na varredura são do M4 |
 | Sobrescritas que só reduzem | Parcial: `overrides.py` existe; as flags da CLI que o usarão, não |
 | Redação de logs (chaves, segredos registrados, JWT, CPF) | Implementado (M1) |
-| Formato e validação de `secret_ref` | Implementado (domínio); resolução do valor e autenticação: Planejado (M3) |
-| Trilha de auditoria `audit.jsonl` | Planejado (M3) |
-| `manifest.json` por execução | Planejado (M5) |
+| Formato e validação de `secret_ref` | Implementado (domínio); resolução por variável de ambiente e autenticação (login e chave de API, com CSRF): Implementado (M3) |
+| Trilha de auditoria `audit.jsonl` | Implementado (M3): decisão antes do envio, resultado depois |
+| `manifest.json` por execução | Implementado para `preflight` e `probe` (M3); o manifesto completo da varredura é do M5 |
 | Limpeza por SQL em Oracle | Planejado (M5); só o bloco `cleanup` do perfil é validado |
 | Permissões do Claude Code (`.claude/settings.json`) | Planejado (M6) |
 
@@ -106,7 +106,7 @@ Hoje existem `hdast version`, `hdast init` e `hdast profile validate`. Todos os 
 | gitleaks (pre-commit e CI), pip-audit (CI, sobre o `uv.lock`), commitizen (pre-commit) | Implementado |
 | Verificador de links da documentação | Planejado (ainda não está no CI) |
 | Referência da CLI e do schema gerada do código, verificada no CI | Planejado (a partir da segunda metade do M2) |
-| Testes de integração e ponta a ponta | Planejados (M3 em diante); o CI tolera "nenhum teste de integração" por enquanto |
+| Testes de integração e ponta a ponta | Adaptadores `http` e `zap` testados contra servidor HTTP local real e ZAP falso (rodam no pytest padrão). Integração com ZAP e lab reais: Planejada; o CI tolera "nenhum teste de integração" por enquanto |
 | Testes unitários e de contrato | Implementado (veja [testing.md](testing.md#o-que-existe-hoje)) |
 | Análise de mutação | Feita uma vez, à mão, na revisão de QA; não é um gate |
 
@@ -128,6 +128,10 @@ Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inc
 - **Nota automática:** alcançabilidade (parcela das operações do OpenAPI que respondem 2xx); falhas conhecidas encontradas contra o gabarito; falsos alarmes no modo seguro; requisições fora do escopo (deve ser zero, pela trilha de auditoria); custo e tempo.
 - **Rastro completo por execução:** transcrição do agente (gravada quando ele roda de forma não interativa), toda versão do perfil e das regras de dados, trilha de auditoria, manifesto e um registro de decisões que as skills exigem do agente. O raciocínio interno do modelo não é fonte, porque pode vir resumido ou incompleto.
 - **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou, corrige-se o texto; o agente tentou algo indevido e a ferramenta deixou, nova trava em código com teste; a ferramenta devolveu erro que o agente não soube interpretar, melhora-se a mensagem e a dica. Toda falha corrigida vira caso permanente da suíte.
+
+### Verificação do M3 contra o ZAP real (pendente)
+
+O `probe` foi testado com um ZAP falso (formas de resposta do spike) e um alvo em processo. **Não verificado contra o ZAP 2.17.0 real nem contra um alvo real:** nomes e formatos das chamadas `core/action/newSession`, `context/action/newContext`/`includeInContext`/`excludeFromContext` e `replacer/*` (copiados do spike, não reexecutados); que requisições enviadas pelo proxy com a rota `zap` aparecem no histórico do ZAP com o contexto novo; HTTPS pelo proxy do ZAP (exige `HDAST_ZAP_CA_FILE`, não exercitado); comportamento com um proxy de saída em `HDAST_AUTH_PROXY_URL`; cookie XSRF de um Spring Security real; a heurística de 403 de CSRF contra respostas reais. Fechar com testes `integration` quando o `compose.yaml` do lab estabilizar.
 
 ## Itens em aberto
 

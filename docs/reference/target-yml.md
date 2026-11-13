@@ -2,11 +2,7 @@
 
 Esta página descreve o schema v1 **como implementado** nos modelos de `src/harness_dast/domain/` (`profile.py`, `scope.py`, `auth.py`, `window.py`, `run.py`, `secret_ref.py`). Decisões: [ADR 0005](../adr/0005-perfil-de-produto-versionado.md) e [ADR 0013](../adr/0013-schema-v1-do-perfil-de-produto.md).
 
-> **O que existe e o que não existe.**
->
-> - **Existe:** os modelos validados e imutáveis. `ProductProfile.from_data(dados)` recebe um dicionário Python e devolve o perfil ou levanta `ConfigError`.
-> - **Não existe:** o carregador de YAML (a leitura do arquivo e a conversão em dicionário), o comando `hdast profile validate` e o comando `hdast init`. Hoje nenhum comando `hdast` lê um `target.yml`. A validação só é exercida pelos testes. Um teste valida o `products/_template/target.yml` com o PyYAML.
-> - `data-rules.yml` e `flows.yml` ainda não têm modelo no código. Os trechos deles no fim desta página são desenho ilustrativo (M3).
+> **O que existe.** Os modelos validados e imutáveis (`ProductProfile.from_data`), o carregador de YAML endurecido, `hdast init`, `hdast profile validate` e, desde o M3, `hdast spec inspect`, `hdast preflight` e `hdast probe`, que usam o perfil. `data-rules.yml` e `flows.yml` têm modelo e referência próprios ([data-rules-yml.md](data-rules-yml.md), [flows-yml.md](flows-yml.md)). Um teste valida o `products/_template/target.yml` contra os modelos.
 
 Mudar o formato do perfil muda um contrato público: exige subir `schema_version` e escrever um ADR.
 
@@ -17,8 +13,8 @@ Cada produto tem uma pasta (por padrão em `products/PRODUTO/`, ou onde `HDAST_P
 | Arquivo | Conteúdo | Quem escreve | Modelo no código |
 | --- | --- | --- | --- |
 | `target.yml` | Ambiente, escopo, autorização, janelas, limites, autenticação, limpeza | O agente, a partir da autorização formal informada pelo usuário. A CLI valida | Existe (esta página) |
-| `data-rules.yml` | Regras declarativas de geração de dados ([ADR 0006](../adr/0006-regras-de-dados-declarativas.md)) | O agente | Não existe (M3) |
-| `flows.yml` | Encadeamento entre chamadas, de um nível na V1 | O agente | Não existe (M3) |
+| `data-rules.yml` | Regras declarativas de geração de dados ([ADR 0006](../adr/0006-regras-de-dados-declarativas.md)) | O agente | `domain/datagen.py` |
+| `flows.yml` | Encadeamento entre chamadas, de um nível na V1 | O agente | `domain/flow.py` |
 | Hook de limpeza | Script SQL de limpeza ([ADR 0011](../adr/0011-limpeza-por-sql-oracle-com-python-oracledb.md)) | **Uma pessoa** do time do produto. O agente nunca escreve nem altera | Só o caminho é validado |
 
 O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste repositório (P-01). O perfil não contém segredos: só referências (`secret_ref`).
@@ -85,6 +81,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `limits` | bloco | Sim | Veja abaixo. Sem valores padrão: o perfil precisa fixar todos |
 | `auth` | bloco | Sim | Um dos dois tipos |
 | `cleanup` | bloco | Não | Padrão: ausente |
+| `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -96,6 +93,7 @@ Aceita só caminho relativo à pasta do produto. É recusado: vazio; mais de 260
 | --- | --- | --- |
 | `name` | texto | Minúsculas, dígitos, `-` e `_`; começa com letra ou dígito; até 32 caracteres |
 | `base_url` | texto | URL `http` ou `https` absoluta, sem `?` nem `#`. Passa pela mesma normalização do `ScopeGuard`. Host, esquema e porta precisam ser cobertos por alguma regra de `scope.allow` |
+| `verify_tls` | booleano (padrão `true`) | Verificação do certificado TLS do alvo. `false` só é aceito para host local (regra com `allow_local: true`); em ambiente real, instale a CA no sistema |
 
 A consistência entre `base_url` e o escopo é conferida ao montar o perfil. O caminho e o método não são conferidos para a `base_url`, só a origem.
 
@@ -244,7 +242,40 @@ Chave fixa enviada num cabeçalho.
 | `header_name` | texto | Cabeçalho que leva a chave (`X-API-Key`). Mesmas regras de `token_header` |
 | `accounts[]` | lista | Contas com `alias`, `role` e `api_key` como `secret_ref` |
 
-Como o token ou a chave chega ao ZAP e é renovado em varreduras longas depende do spike do M0 (P-10). O perfil aceita várias contas com papel, embora a V1 use só uma, para não mudar o schema quando o teste de autorização entre contas chegar na V2.
+O `probe` (M3) obtém o token ele mesmo (a CLI resolve os segredos, faz o login e envia o token nas requisições). Como o token chega ao ZAP e é renovado em varreduras longas é do M4 (P-10; o spike recomendou o Replacer). O perfil aceita várias contas com papel, embora a V1 use só uma, para não mudar o schema quando o teste de autorização entre contas chegar na V2.
+
+### `auth.csrf` (opcional, nos dois tipos)
+
+Para alvos com proteção XSRF/CSRF por cookie duplicado (Spring Security `CookieCsrfTokenRepository`). O cliente busca o token com um GET, guarda o cookie por conta, envia cookie e cabeçalho nos métodos listados e, ao receber um 403 que parece rejeição de CSRF, busca o token de novo UMA vez. Com `login_password`, o token é buscado antes do login (o POST do login também o exige) e de novo depois dele.
+
+| Campo | Tipo | Padrão | Regra |
+| --- | --- | --- | --- |
+| `fetch_path` | texto | (obrigatório) | Caminho literal de um GET que faz o alvo emitir o cookie. Precisa estar coberto por `scope.allow` com GET e fora de `deny_paths` (validado como o login) |
+| `cookie_name` | texto | `XSRF-TOKEN` | Cookie que carrega o token |
+| `header_name` | texto | `X-XSRF-TOKEN` | Cabeçalho que repete o valor. Mesmas regras de `token_header` |
+| `methods` | lista | `[DELETE, PATCH, POST, PUT]` | Métodos que exigem o cabeçalho; ordenados e sem repetição |
+
+```yaml
+auth:
+  type: login_password
+  # ...
+  csrf:
+    fetch_path: /api/csrf
+```
+
+## `probe` (opcional)
+
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `success.json_field_absent_or_not_equal` | `{field, value}` | Sucesso além do código HTTP: uma resposta 2xx só conta como sucesso se o campo (caminho pontuado, `status` ou `data.result`) estiver ausente OU tiver valor diferente do de FALHA informado em `value` (texto, inteiro ou booleano; o tipo importa: `1` não é `true`). Sem o bloco, vale 2xx. Existe porque há alvos que respondem 200 com `{"status":"fail"}` (spike do M0) |
+| `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow` |
+
+```yaml
+probe:
+  health_path: /api/saude
+  success:
+    json_field_absent_or_not_equal: { field: status, value: fail }
+```
 
 ## Segredos: `secret_ref`
 
@@ -254,7 +285,7 @@ Todo valor sensível é uma referência, nunca o valor:
 password: { secret_ref: "env:AGENDA_USER_A_SENHA" }
 ```
 
-Só a forma `env:NOME` é aceita, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres. Um valor literal (senha, token) não casa com o formato e é recusado sem ser citado na mensagem. Quem resolve o valor é um adaptador futuro (M3), nunca o agente. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md).
+Só a forma `env:NOME` é aceita, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres. Um valor literal (senha, token) não casa com o formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`, desde o M3), nunca o agente. Valor ausente ou vazio na variável é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md).
 
 ## `cleanup`
 
@@ -292,35 +323,10 @@ A consulta (`?a=b`) e o fragmento (`#x`) são descartados da decisão de escopo 
 - **Mensagens de recusa não repetem o caminho** da requisição (achado A-09): ele pode conter um token. Elas citam o host canônico, o método e a origem; a dica diz o que verificar em `scope.allow`.
 - O guarda é puro: não envia nada e não decide janela nem autorização (isso é de `ProductProfile.ensure_runnable`).
 
-## Regras de leitura (previstas para o carregador, M2)
+## Regras de leitura
 
-Planejado: o YAML será carregado em modo seguro, com limite de tamanho e de profundidade, e o erro do perfil inválido será o `CONFIG_ERROR` descrito acima. O agente não pode ampliar `scope`, `limits` nem `authorization`: esses valores vêm da autorização formal informada pelo usuário. Flags só reduzem (`domain/overrides.py`).
+O YAML é carregado em modo seguro, com limite de tamanho (256 KiB) e de profundidade, e o perfil inválido sai como o `CONFIG_ERROR` descrito acima. O agente não pode ampliar `scope`, `limits` nem `authorization`: esses valores vêm da autorização formal informada pelo usuário. Flags só reduzem (`domain/overrides.py`).
 
-## `data-rules.yml` e `flows.yml` (ilustrativo, M3)
+## `data-rules.yml` e `flows.yml`
 
-Sem modelo no código. O desenho aprovado:
-
-```yaml
-# products/agenda/data-rules.yml
-schema_version: 1
-rules:
-  - match: { field: cpf }
-    generator: br.cpf
-    unique: true
-  - match: { operation: criarConvenio, field: codigo }
-    generator: numeric
-    args: { digits: 8 }
-    unique: true
-```
-
-```yaml
-# products/agenda/flows.yml
-schema_version: 1
-bindings:
-  - produces: { operation: criarPaciente, field: id }
-    consumed_by:
-      - { operation: buscarPaciente, param: pacienteId }
-      - { operation: criarConsulta, field: pacienteId }
-```
-
-Na V1, o encadeamento cobre só dependências diretas de um nível (P-12). O catálogo de geradores chega no M3.
+Veja [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md). Na V1, o encadeamento cobre só dependências diretas de um nível (P-12).

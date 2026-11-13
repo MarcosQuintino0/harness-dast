@@ -6,6 +6,27 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (marco M3, `spec inspect`, `preflight` e `probe`)
+
+- Comandos `hdast spec inspect <produto>` (resumo do OpenAPI e verificações cruzadas; `--budget`), `hdast preflight <produto>` (lista de verificações como dado) e `hdast probe <produto>` (`--seed`, `--only`, `--dry-run`, `--include-delete`, `--account`), com envelope JSON, códigos de saída 3 a 6 e resultado parcial em `data` quando terminam em falha ([ADR 0018](docs/adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)).
+- Dependência de runtime `httpx` 0.28.1 (BSD-3-Clause), usada no cliente do alvo e no cliente da API do ZAP; proibida no `domain` pelo import-linter.
+- Schema v1 do perfil, aditivo e opcional: `auth.csrf` (`fetch_path`, `cookie_name`, `header_name`, `methods`), `probe.success.json_field_absent_or_not_equal`, `probe.health_path` e `environment.verify_tls`.
+- Invariante de envio: `ApprovedRequest` só é criado por `approve(guard, request)`; o cliente HTTP só aceita esse tipo. Redirecionamentos não são seguidos, o tempo e o tamanho da resposta são limitados e TLS é verificado por padrão.
+- Classificação de resultado por operação (18 classes), alcançabilidade (tentadas e todas), ritmo por balde de fichas, prazo, janela conferida antes de cada requisição, novo login após 401, espera de 429, renovação de CSRF e parada com o alvo sem resposta.
+- Trecho de resposta do alvo neutralizado (300 caracteres, sem ANSI nem bidi, valores sensíveis redigidos) sob `untrusted_target_data`.
+- Trilha em `runs/<run_id>/`: `manifest.json`, `audit.jsonl` (decisão antes do envio, resultado depois) e `probe.json`.
+- Higiene do ZAP: versão, sessão nova por execução, contexto restrito ao escopo e remoção de regras do Replacer com prefixo `hdast-`.
+- Portas `Sleeper`, `EntropySource`, `ValueSourceFactory`, `SpecLoader`, `ProductDocuments`, `SecretProvider`, `SecretVault`, `TargetClient`, `ZapControl` e `RunStore`; adaptadores `adapters/http`, `adapters/zap`, `adapters/secrets`, `adapters/storage/run_store.py`, `product_documents.py`, `adapters/openapi/spec_loader.py` e `adapters/system_runtime.py`.
+- Variáveis `HDAST_ZAP_PROXY_URL`, `HDAST_AUTH_PROXY_URL` e `HDAST_ZAP_CA_FILE`.
+- Testes: unitários com falsos para os três casos de uso, adaptadores contra servidor HTTP local real, ZAP falso com as formas do spike, contratos dos três comandos e o teste de regressão da afirmação central (alcançabilidade com regras acima da sem regras, sobre o OpenAPI do VAmPI).
+
+### Alterado (M3)
+
+- `ScopeGuard.evaluate` devolve a decisão como dado (`allowed`, `denied_path`, `outside_scope`); `ensure_allowed` não mudou.
+- O leitor de YAML endurecido aceita o nome do arquivo (`parse_yaml_document`) para as mensagens de `data-rules.yml` e `flows.yml`.
+- `--budget` do resumo da API ganhou teto (`MAX_BUDGET_CHARS`).
+- Entradas do `ignore_names` do vulture que passaram a ter chamador de produção foram removidas.
+
 ### Adicionado (marco M1, fundação)
 
 - Documentação técnica: `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md` e este changelog; `docs/architecture.md`, `docs/roadmap.md` (tabela única de status), `docs/testing.md`; `docs/modules/`, `docs/reference/` e `docs/operations/`.

@@ -84,20 +84,28 @@ class _StrictLoader(yaml.SafeLoader):
         return SafeConstructor.construct_mapping(self, node, deep=deep)
 
 
-def _syntax_error(error: Exception) -> ConfigError:
+def _syntax_error(error: Exception, document: str) -> ConfigError:
     mark = getattr(error, "problem_mark", None)
     where = f" (linha {mark.line + 1}, coluna {mark.column + 1})" if mark is not None else ""
     return ConfigError(
-        f"O target.yml não é um YAML válido{where}.",
+        f"O {document} não é um YAML válido{where}.",
         hint="Corrija a sintaxe nesse ponto; use um editor com validação de YAML.",
     )
 
 
 def parse_profile_yaml(text: str) -> dict[str, object]:
-    """Interpreta o texto de um perfil como mapa, recusando YAML perigoso.
+    """Interpreta o texto do `target.yml` como mapa (veja `parse_yaml_document`)."""
+    return parse_yaml_document(text, "target.yml")
+
+
+def parse_yaml_document(text: str, document: str) -> dict[str, object]:
+    """Interpreta o texto de um arquivo do produto como mapa, recusando YAML perigoso.
+
+    Vale para `target.yml`, `data-rules.yml` e `flows.yml`.
 
     Args:
         text: Conteúdo do arquivo, já decodificado.
+        document: Nome do arquivo, só para as mensagens de erro.
 
     Returns:
         O mapa da raiz do documento.
@@ -111,19 +119,20 @@ def parse_profile_yaml(text: str) -> dict[str, object]:
         loaded = yaml.load(text, Loader=_StrictLoader)  # noqa: S506 - Loader derivado de SafeLoader
     except _Rejected as rejected:
         raise ConfigError(
-            f"O target.yml usa uma construção proibida: {rejected.reason} "
+            f"O {document} usa uma construção proibida: {rejected.reason} "
             f"(linha {rejected.line}, coluna {rejected.column}).",
             hint=_HINT,
         ) from None
     except (yaml.YAMLError, RecursionError) as error:
-        raise _syntax_error(error) from None
+        raise _syntax_error(error, document) from None
     if loaded is None:
         raise ConfigError(
-            "O target.yml está vazio.", hint="Preencha-o a partir de products/_template/target.yml."
+            f"O {document} está vazio.",
+            hint=f"Preencha-o a partir de products/_template/{document}.",
         )
     if not isinstance(loaded, dict):
         raise ConfigError(
-            "A raiz do target.yml deve ser um mapa de campos (chave: valor).",
-            hint="Veja products/_template/target.yml.",
+            f"A raiz do {document} deve ser um mapa de campos (chave: valor).",
+            hint=f"Veja products/_template/{document}.",
         )
     return loaded

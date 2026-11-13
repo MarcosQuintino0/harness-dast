@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     Attributes:
         zap_base_url: URL base da API do ZAP (http ou https, com host).
         zap_api_key: Chave da API do ZAP, quando habilitada.
+        zap_proxy_url: URL do proxy do ZAP pelo qual o `probe` envia as requisições; sem valor,
+            usa `zap_base_url` (o ZAP serve API e proxy na mesma porta).
+        auth_proxy_url: Proxy da rota de login e token CSRF; sem valor, sai direto. Use quando
+            o alvo só é alcançável por um proxy de saída, mas a senha não deve passar pelo ZAP.
+        zap_ca_file: Certificado (PEM) da CA do ZAP, para alvos HTTPS pela rota do ZAP.
         runs_dir: Diretório onde cada execução grava seus arquivos.
         products_dir: Diretório com os perfis de produto.
         log_level: Nível mínimo de log.
@@ -25,18 +30,28 @@ class Settings(BaseSettings):
 
     zap_base_url: str = "http://127.0.0.1:8080"
     zap_api_key: SecretStr | None = None
+    zap_proxy_url: str | None = None
+    auth_proxy_url: str | None = None
+    zap_ca_file: Path | None = None
     runs_dir: Path = Path("runs")
     products_dir: Path = Path("products")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    @field_validator("zap_base_url")
+    @field_validator("zap_base_url", "zap_proxy_url", "auth_proxy_url")
     @classmethod
-    def validate_zap_base_url(cls, value: str) -> str:
+    def validate_http_url(cls, value: str | None) -> str | None:
         """Exige URL http(s) com host, para que `file://` e afins nunca cheguem ao cliente."""
+        if value is None:
+            return value
         parts = urlsplit(value)
         if parts.scheme not in {"http", "https"} or not parts.hostname:
             raise ValueError("deve ser uma URL http ou https com host")
         return value
+
+    @property
+    def effective_zap_proxy_url(self) -> str:
+        """Proxy do ZAP efetivo: `zap_proxy_url` ou, na falta dele, `zap_base_url`."""
+        return self.zap_proxy_url or self.zap_base_url
 
 
 def load_settings() -> Settings:

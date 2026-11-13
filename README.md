@@ -78,7 +78,7 @@ uv run pytest
 
 Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em modo estrito; `lint-imports` (import-linter) quebra o build se uma camada importar o que não pode; `pytest` roda os testes. Hoje `uv run pytest` roda os testes unitários e de contrato (mais de 1,6 mil na revisão de 2026-11-13) e não precisa de Docker. O CI roda ainda `uv run vulture` (código sem uso), `gitleaks` e `pip-audit`. Veja [docs/testing.md](docs/testing.md).
 
-`--json` pode vir antes ou depois do comando. Os demais comandos (`init`, `spec inspect`, `profile validate`, `preflight`, `probe`, `scan`, `report`, `cleanup`, `run`) **ainda não existem**. A tabela com o marco de cada um está em [docs/reference/cli.md](docs/reference/cli.md).
+`--json` pode vir antes ou depois do comando. Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight` e `probe`; `scan`, `report`, `cleanup` e `run` **ainda não existem**. O `probe` foi verificado contra um ZAP falso, não contra o ZAP real (veja o [roadmap](docs/roadmap.md)). A tabela com o marco de cada um está em [docs/reference/cli.md](docs/reference/cli.md).
 
 ## Status e roadmap
 
@@ -87,7 +87,7 @@ Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em
 | M0 | Decisões e spike descartável | Pendente (confirma o mecanismo de AD-07 e resolve P-08 e P-10) |
 | M1 | Fundação: esqueleto, ferramentas, CI, ADRs, documentação, lab | Entregue na árvore de trabalho; falta o primeiro commit e o primeiro pull request |
 | M2 | Domínio, perfil e escopo | Em andamento: domínio feito; faltam carregador de YAML, `init`, `profile validate` e casos de uso |
-| M3 | OpenAPI, dados e alcançabilidade | Planejado |
+| M3 | OpenAPI, dados e alcançabilidade | Entregue na árvore de trabalho: `spec inspect`, `preflight` e `probe`, com CSRF, critério de sucesso e trilha de execução; falta a verificação contra o ZAP real |
 | M4 | Varredura e achados | Planejado |
 | M5 | Limpeza e execução completa | Planejado |
 | M6 | Skills, documentação de uso e avaliação cega por agentes (evals) | Planejado |

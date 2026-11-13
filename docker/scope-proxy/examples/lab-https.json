@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-13T00-00-00Z-lab-0003",
+  "scope": {
+    "allow": [
+      {
+        "host": "vampi-tls",
+        "scheme": "https",
+        "port": 8443,
+        "allow_local": true,
+        "methods": ["GET", "POST"],
+        "paths": ["/users/**", "/books/**"]
+      }
+    ],
+    "deny_paths": ["/users/v1/_debug"]
+  },
+  "limits": {
+    "requests_per_second": 20,
+    "max_duration_minutes": 30,
+    "zap_threads_per_host": 2
+  },
+  "not_after": "2099-12-31T23:59:59Z",
+  "tls_verify_upstream": false
+}

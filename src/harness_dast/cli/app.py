@@ -15,7 +15,10 @@ import typer
 from typer.exceptions import TyperException
 
 from harness_dast.cli.commands.init import init_command
+from harness_dast.cli.commands.preflight import preflight_command
+from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
+from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.version import version_command
 from harness_dast.cli.output import CliState, build_failure, emit, get_state
 from harness_dast.config.settings import load_settings
@@ -57,6 +60,9 @@ def build_app() -> typer.Typer:
     app.command("version")(version_command)
     app.command("init")(init_command)
     app.add_typer(build_profile_app(), name="profile")
+    app.add_typer(build_spec_app(), name="spec")
+    app.command("preflight")(preflight_command)
+    app.command("probe")(probe_command)
     return app
 
 
@@ -120,7 +126,9 @@ def _dispatch(app: typer.Typer, argv: list[str], state: CliState) -> int:
     # devolve 130 como valor de retorno. Sem este teste a interrupção viraria sucesso (0).
     if result == ExitCode.INTERRUPTED:
         raise UserInterrupt("Execução interrompida pela pessoa usuária.")
-    return int(ExitCode.OK)
+    # Um comando que termina com resultado e erro (preflight não pronto, probe interrompido)
+    # devolve o próprio código de saída; os demais devolvem `None`.
+    return int(result) if isinstance(result, int) else int(ExitCode.OK)
 
 
 def main() -> int:

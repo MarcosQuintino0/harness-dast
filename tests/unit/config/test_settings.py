@@ -14,6 +14,9 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "HDAST_RUNS_DIR",
         "HDAST_PRODUCTS_DIR",
         "HDAST_LOG_LEVEL",
+        "HDAST_ZAP_PROXY_URL",
+        "HDAST_AUTH_PROXY_URL",
+        "HDAST_ZAP_CA_FILE",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -66,3 +69,40 @@ def test_unrelated_variables_are_ignored_when_present(monkeypatch: pytest.Monkey
     monkeypatch.setenv("HDAST_NAO_EXISTE", "x")
 
     assert load_settings().log_level == "INFO"
+
+
+def test_proxy_settings_default_to_the_zap_base_url_and_direct_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings()
+
+    assert settings.zap_proxy_url is None
+    assert settings.auth_proxy_url is None
+    assert settings.zap_ca_file is None
+    assert settings.effective_zap_proxy_url == settings.zap_base_url
+
+
+def test_proxy_settings_are_read_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HDAST_ZAP_PROXY_URL", "http://zap:8090")
+    monkeypatch.setenv("HDAST_AUTH_PROXY_URL", "http://egress:3128")
+    monkeypatch.setenv("HDAST_ZAP_CA_FILE", "zap-ca.pem")
+
+    settings = load_settings()
+
+    assert settings.effective_zap_proxy_url == "http://zap:8090"
+    assert settings.auth_proxy_url == "http://egress:3128"
+    assert settings.zap_ca_file == Path("zap-ca.pem")
+
+
+@pytest.mark.parametrize("name", ["HDAST_ZAP_PROXY_URL", "HDAST_AUTH_PROXY_URL"])
+@pytest.mark.parametrize("value", ["file:///etc/passwd", "socks5://x:1", "sem-esquema", "http://"])
+def test_proxy_urls_must_be_http_with_a_host(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(ConfigError) as info:
+        load_settings()
+
+    assert name in info.value.message
+    assert value not in info.value.message

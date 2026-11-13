@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=26.1",
     "tzdata>=2025.2",
     "pyyaml>=6.0",
+    "httpx>=0.28.1",
 ]
 
 [project.scripts]
@@ -148,7 +149,7 @@ forbidden_modules = [
 name = "domain nao importa dependencias externas alem de pydantic e stdlib"
 type = "forbidden"
 source_modules = ["harness_dast.domain"]
-forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata"]
+forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore"]
 
 [[tool.importlinter.contracts]]
 name = "application so importa domain"
@@ -189,6 +190,7 @@ modules = [
     "harness_dast.adapters.reporting",
     "harness_dast.adapters.cleanup",
     "harness_dast.adapters.storage",
+    "harness_dast.adapters.scope_proxy",
 ]
 
 # --------------------------------------------------------------- vulture
@@ -200,78 +202,55 @@ ignore_decorators = ["@field_validator", "@model_validator"]
 # O vulture compara por NOME simples (não há como qualificar por classe); cada grupo abaixo
 # existe por um motivo e deve perder a entrada quando ganhar um chamador de produção.
 ignore_names = [
+    # Proxy de escopo: chamados só por docker/scope-proxy/addon.py, que roda no contêiner com o
+    # mitmproxy e fica fora de `paths`; `ts` e `query_params` são campos lidos pelo pydantic.
+    "ScopeProxyEngine",
+    "check_connect",
+    "check_request",
+    "recheck_after_wait",
+    "reserve_slot",
+    "check_destination",
+    "log",
+    "ts",
+    "query_params",
+    "UPSTREAM_ERROR",
+    "RATE_QUEUE_FULL",
     # Convenção do pydantic, lida pela biblioteca.
     "model_config",
-    # Campos de modelos lidos por reflexão do pydantic e, depois, pelos adaptadores dos
-    # próximos marcos (resolução de segredos, login, limpeza, configuração do ZAP).
+    # Hook que o Python chama sozinho (ApprovedRequest proíbe subclasses).
+    "__init_subclass__",
+    # Campos de modelos que só a serialização do pydantic lê (envelope JSON, probe.json,
+    # manifest.json, audit.jsonl) ou que só os testes e o agente consomem.
     "schema_version",
-    "zap_base_url",
-    "zap_api_key",
-    "runs_dir",
-    "products_dir",
-    "role",
-    "username",
-    "password",
-    "api_key",
-    "header_name",
-    "request_encoding",
-    "username_field",
-    "password_field",
-    "token_response_field",
-    "token_header",
-    "token_scheme",
-    "openapi",
-    "cleanup",
-    "script",
-    "connection",
     "requires_confirmation",
-    # Contrato da hierarquia de erros e dos códigos de saída, definido na fundação.
-    "FINDINGS",
-    "PreflightError",
-    "ExternalToolError",
-    "TargetError",
-    "CleanupError",
-    # API do domínio ainda sem chamador de produção; a camada application (casos de uso de
-    # run, preflight e perfil) as consome na segunda metade do M2.
-    "ProductProfile",
-    "from_data",
-    "ensure_runnable",
-    "ensure_redirect_allowed",
-    "narrow_limits",
-    "narrow_scope",
-    "RunId",
-    "create",
-    "env_name",
-    "register",
-    # API do M3 (modelo da API, regras de dados, encadeamento, montagem de requisição e
-    # resumo para o agente) ainda sem chamador de produção; os casos de uso e a CLI a
-    # consomem na rodada de fiação do M3. Remover cada entrada quando ganhar chamador.
-    "FlowSpec",
-    "RequestBuilder",
-    "build",
-    "execution_order",
-    "resolve_bindings",
-    "validate_against",
-    "summarize",
-    "run_tag_from_run_id",
-    # Campos de modelos do M3 lidos por reflexão do pydantic e, depois, pelos casos de uso.
-    "body_media_type",
     "constraints",
-    "cookies",
     "field_name",
-    "headers",
     "id_synthesized",
     "more_inputs",
-    "omitted_operations",
-    "operation_count",
     "optional_inputs",
-    "query",
     "security_schemes",
-    "servers",
     "skipped_fields",
     "success_codes",
     "tags",
-    "id",
+    "by_outcome",
+    "excerpt",
+    "finished_at",
+    "header_names",
+    "needs_rule_unchecked",
+    "notice",
+    "query_names",
+    "redirect_in_scope",
+    "target_yml",
+    "untrusted_target_data",
+    "zap_context_id",
+    # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
+    # (`scan`, `report`, `cleanup`).
+    "FINDINGS",
+    "CleanupError",
+    # Sobrescritas que só estreitam (domain/overrides.py): ganham chamador quando a CLI
+    # aceitar flags de redução de escopo e limites (M4).
+    "narrow_limits",
+    "narrow_scope",
 ]
 
 # ------------------------------------------------------------ commitizen

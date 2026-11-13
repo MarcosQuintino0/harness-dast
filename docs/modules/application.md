@@ -49,4 +49,18 @@ Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml
 | `validate_profile.py` | `ValidateProfile`: carrega o perfil e devolve `ProfileReport` (resumo sem segredos, `runnable` e `issues`). Validade estrutural é erro (`ConfigError`); prontidão para executar é dado. Detecta os valores de exemplo do modelo (hosts `exemplo.com.br`, referência `SEC-0000`, segredos `MEU_PRODUTO_*`), arquivos referenciados ausentes, autorização vencida e janela fechada |
 | `init_product.py` | `InitProduct`: cria a pasta do produto pela porta `ProductScaffolder` |
 
-Os demais casos de uso e portas previstos acima entram a partir do M3. As portas `Scanner`, `TargetClient`, `SpecLoader`, `SecretProvider`, `ReportSink`, `CleanupHook` e `RunStore` **ainda não existem**.
+Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `ports.py` (ampliado) | `Sleeper`, `EntropySource`, `ValueSourceFactory`, `SpecLoader`, `ProductDocuments`, `SecretProvider`, `SecretVault`, `TargetClient` (só aceita `ApprovedRequest`), `ZapControl`, `RunStore` |
+| `inspect_spec.py`, `inspect_report.py` | `InspectSpec`: resumo e verificações cruzadas; modelos do resultado |
+| `preflight.py`, `preflight_report.py`, `preflight_checks.py` | `Preflight`: verificações como dado (`scope` x `environment`); modelos e auxiliares |
+| `probe.py` | `Probe`: orquestra leitura, plano, ZAP, sessão da conta, manifesto e resultado |
+| `probe_runner.py`, `runner_settings.py` | O laço do `probe`: um passo nomeado por situação (pular, montar, simular, enviar, classificar) e as paradas antecipadas |
+| `run_support.py` | `RunGate` (autorização, janela e prazo a cada requisição), `RateLimiter`, `AuditTrail` e `GuardedSender`, o único caminho de saída |
+| `dispatcher.py` | `OperationDispatcher`: envia e repete conforme `domain.retry.next_action` |
+| `account_session.py` | `AccountSession`: segredos, login (ou chave fixa), token CSRF; registra tudo no `SecretVault` |
+| `preview.py` | Prévia do `--dry-run`: nomes de campos e geradores, nunca valores |
+
+As portas `Scanner`, `ReportSink` e `CleanupHook` **ainda não existem** (M4 e M5).

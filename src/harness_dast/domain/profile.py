@@ -15,8 +15,9 @@ from typing import Literal, Self
 
 from pydantic import Field, StrictBool, ValidationError, field_validator, model_validator
 
-from harness_dast.domain.auth import AuthConfig, PasswordLoginAuth
+from harness_dast.domain.auth import Account, AuthConfig, PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError, ScopeViolation
+from harness_dast.domain.probe_config import ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
 from harness_dast.domain.run import SLUG_PATTERN, RunLimits
 from harness_dast.domain.scope import OutboundRequest, Scope, ScopeGuard
@@ -32,6 +33,17 @@ SUPPORTED_SCHEMA_VERSION = 1
 _ENV_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}")
 _PRODUCT = re.compile(SLUG_PATTERN)
 _PROFILE_HINT = "Corrija os campos indicados no perfil do produto (target.yml)."
+
+
+def _ensure_in_scope(guard: ScopeGuard, method: str, url: str, what: str) -> None:
+    try:
+        guard.ensure_allowed(OutboundRequest(method=method, url=url))
+    except ScopeViolation as error:
+        raise ValueError(f"{what} está fora do escopo: {error.message}") from None
+
+
+def _is_local_base(base_url: str) -> bool:
+    return normalize_request("GET", base_url).host.is_local
 
 
 def _validate_relative_path(value: str) -> str:
@@ -61,10 +73,13 @@ class Environment(ProfileModel):
         name: Nome curto do ambiente (ex.: `homolog`).
         base_url: URL base http(s), sem consulta nem fragmento; sua origem precisa ser
             coberta por `scope.allow`.
+        verify_tls: Se o certificado TLS do alvo é verificado (padrão `true`). Só pode ser
+            `false` quando o host de `base_url` é local (regra com `allow_local: true`).
     """
 
     name: str
     base_url: str
+    verify_tls: StrictBool = True
 
     @field_validator("name")
     @classmethod
@@ -165,6 +180,7 @@ class ProductProfile(ProfileModel):
         limits: Limites de carga.
         auth: Autenticação (um dos dois tipos da V1).
         cleanup: Limpeza, opcional.
+        probe: Critério de sucesso e caminho de saúde, opcional (aditivo na schema v1).
     """
 
     schema_version: Literal[1]
@@ -175,6 +191,7 @@ class ProductProfile(ProfileModel):
     limits: RunLimits
     auth: AuthConfig
     cleanup: CleanupConfig | None = None
+    probe: ProbeConfig = ProbeConfig()
 
     @field_validator("product")
     @classmethod
@@ -192,7 +209,7 @@ class ProductProfile(ProfileModel):
 
     @model_validator(mode="after")
     def validate_consistency(self) -> Self:
-        """Confere que o ambiente e o login estão dentro do escopo declarado."""
+        """Confere que ambiente, login, CSRF, saúde e TLS são coerentes com o escopo."""
         guard = self.guard()
         try:
             guard.ensure_origin_allowed(self.environment.base_url)
@@ -201,14 +218,22 @@ class ProductProfile(ProfileModel):
                 "o host de environment.base_url não é coberto por scope.allow; "
                 "inclua uma regra para ele (host, esquema e porta)"
             ) from None
+        base = self.environment.base_url.rstrip("/")
         if isinstance(self.auth, PasswordLoginAuth):
-            login = self.environment.base_url.rstrip("/") + self.auth.token_path
-            try:
-                guard.ensure_allowed(OutboundRequest(method="POST", url=login))
-            except ScopeViolation as error:
-                raise ValueError(
-                    f"o login (POST em auth.token_path) está fora do escopo: {error.message}"
-                ) from None
+            _ensure_in_scope(
+                guard, "POST", base + self.auth.token_path, "o login (auth.token_path)"
+            )
+        if self.auth.csrf is not None:
+            _ensure_in_scope(
+                guard, "GET", base + self.auth.csrf.fetch_path, "a busca do token CSRF"
+            )
+        if self.probe.health_path is not None:
+            _ensure_in_scope(guard, "GET", base + self.probe.health_path, "probe.health_path")
+        if not self.environment.verify_tls and not _is_local_base(self.environment.base_url):
+            raise ValueError(
+                "environment.verify_tls: false só é aceito para host local "
+                "(regra com allow_local: true); em ambiente real, instale a CA no sistema"
+            )
         return self
 
     @classmethod
@@ -230,6 +255,27 @@ class ProductProfile(ProfileModel):
     def guard(self) -> ScopeGuard:
         """Cria o `ScopeGuard` deste perfil."""
         return ScopeGuard(self.scope.to_scope())
+
+    def select_account(self, alias: str | None) -> Account:
+        """Escolhe a conta que envia as requisições.
+
+        Args:
+            alias: Apelido pedido, ou `None` para a primeira conta do perfil.
+
+        Raises:
+            ConfigError: Se o apelido não existe; a dica lista os apelidos válidos.
+        """
+        accounts: tuple[Account, ...] = self.auth.accounts
+        if alias is None:
+            return accounts[0]
+        for account in accounts:
+            if account.alias == alias:
+                return account
+        known = ", ".join(a.alias for a in accounts)
+        raise ConfigError(
+            "A conta pedida em --account não existe no perfil.",
+            hint=f"Use um dos apelidos de auth.accounts: {known}.",
+        )
 
     def ensure_runnable(self, now: datetime) -> None:
         """Garante autorização válida e janela aberta em `now`.

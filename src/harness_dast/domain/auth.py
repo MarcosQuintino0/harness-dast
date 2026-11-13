@@ -15,6 +15,7 @@ from pydantic import Field, field_validator, model_validator
 
 from harness_dast.domain.pathpattern import parse_pattern
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
+from harness_dast.domain.urlnorm import KNOWN_METHODS
 
 _ALIAS = re.compile(r"[a-z][a-z0-9_]{0,31}")
 _HEADER = re.compile(r"[A-Za-z0-9-]{1,64}")
@@ -24,7 +25,9 @@ _SCHEME = re.compile(r"[A-Za-z0-9._~+/-]{0,32}")
 # Cabeçalhos que o cliente HTTP controla; permitir que o perfil os defina abriria a porta
 # para desvio de roteamento (Host) e contrabando de requisição.
 _RESERVED_HEADERS = frozenset({"host", "content-length", "transfer-encoding", "connection"})
+_COOKIE_NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 _MAX_ACCOUNTS = 20
+CSRF_DEFAULT_METHODS = ("DELETE", "PATCH", "POST", "PUT")
 
 
 class Account(ProfileModel):
@@ -89,6 +92,61 @@ def _validated_header(value: str) -> str:
     return value
 
 
+def _validated_literal_path(value: str) -> str:
+    parse_pattern(value)
+    if "*" in value:
+        raise ValueError("o caminho deve ser literal, sem curingas")
+    return value
+
+
+class CsrfConfig(ProfileModel):
+    """Proteção XSRF/CSRF do alvo no estilo "cookie duplicado" (Spring `CookieCsrfTokenRepository`).
+
+    O cliente busca o token com um GET em `fetch_path`, guarda o cookie e, nos métodos
+    listados, repete o valor do cookie no cabeçalho. Vale para os dois tipos de autenticação.
+
+    Attributes:
+        fetch_path: Caminho literal de um GET que faz o alvo emitir o cookie. Precisa estar
+            coberto por `scope.allow` com o método GET e fora de `deny_paths`.
+        cookie_name: Cookie que carrega o token (padrão do Spring: `XSRF-TOKEN`).
+        header_name: Cabeçalho que repete o token (padrão do Spring: `X-XSRF-TOKEN`).
+        methods: Métodos que exigem o cabeçalho (padrão: POST, PUT, PATCH e DELETE).
+    """
+
+    fetch_path: str
+    cookie_name: str = "XSRF-TOKEN"
+    header_name: str = "X-XSRF-TOKEN"
+    methods: tuple[str, ...] = Field(default=CSRF_DEFAULT_METHODS, min_length=1)
+
+    @field_validator("fetch_path")
+    @classmethod
+    def validate_fetch_path(cls, value: str) -> str:
+        """Exige caminho literal começando com '/', sem curingas."""
+        return _validated_literal_path(value)
+
+    @field_validator("cookie_name")
+    @classmethod
+    def validate_cookie_name(cls, value: str) -> str:
+        """Confere o nome do cookie."""
+        if not _COOKIE_NAME.fullmatch(value):
+            raise ValueError("nome de cookie inválido")
+        return value
+
+    @field_validator("header_name")
+    @classmethod
+    def validate_csrf_header(cls, value: str) -> str:
+        """Confere o nome do cabeçalho."""
+        return _validated_header(value)
+
+    @field_validator("methods")
+    @classmethod
+    def validate_methods(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Aceita só métodos conhecidos, em maiúsculas; guarda ordenados e sem repetição."""
+        if not set(value) <= KNOWN_METHODS:
+            raise ValueError("método HTTP desconhecido ou fora de maiúsculas")
+        return tuple(sorted(set(value)))
+
+
 class PasswordLoginAuth(ProfileModel):
     """Login em endpoint que recebe usuário e senha e devolve um token.
 
@@ -104,6 +162,7 @@ class PasswordLoginAuth(ProfileModel):
             (`access_token` ou `data.token`).
         token_header: Cabeçalho em que o token é enviado nas requisições.
         token_scheme: Prefixo do valor do cabeçalho (`Bearer`); vazio envia só o token.
+        csrf: Proteção XSRF/CSRF do alvo, opcional.
     """
 
     type: Literal["login_password"]
@@ -115,15 +174,13 @@ class PasswordLoginAuth(ProfileModel):
     token_response_field: str = "access_token"  # noqa: S105 - nome do campo, não um segredo
     token_header: str = "Authorization"  # noqa: S105 - nome de cabeçalho, não um segredo
     token_scheme: str = "Bearer"  # noqa: S105 - esquema do cabeçalho, não um segredo
+    csrf: CsrfConfig | None = None
 
     @field_validator("token_path")
     @classmethod
     def validate_token_path(cls, value: str) -> str:
         """Exige caminho literal começando com '/', sem curingas."""
-        parse_pattern(value)
-        if "*" in value:
-            raise ValueError("token_path deve ser um caminho literal, sem curingas")
-        return value
+        return _validated_literal_path(value)
 
     @field_validator("username_field", "password_field")
     @classmethod
@@ -169,11 +226,13 @@ class ApiKeyAuth(ProfileModel):
         type: Sempre `api_key`.
         header_name: Cabeçalho que leva a chave (ex.: `X-API-Key`).
         accounts: Contas de teste, ao menos uma, com apelidos únicos.
+        csrf: Proteção XSRF/CSRF do alvo, opcional.
     """
 
     type: Literal["api_key"]
     header_name: str
     accounts: tuple[ApiKeyAccount, ...] = Field(min_length=1, max_length=_MAX_ACCOUNTS)
+    csrf: CsrfConfig | None = None
 
     @field_validator("header_name")
     @classmethod

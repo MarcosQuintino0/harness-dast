@@ -4,16 +4,16 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init` e `profile validate` existem hoje. Todos os outros são desenho aprovado e **não funcionam**.
+`version`, `init`, `profile validate`, `spec inspect`, `preflight` e `probe` existem hoje. Todos os outros são desenho aprovado e **não funcionam**.
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
 | `hdast version` | Mostra a versão instalada do harness | Não | Implementado (M1) |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
-| `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Hoje valida só o `target.yml`; `data-rules.yml` e `flows.yml` entram com o M3 |
-| `hdast spec inspect` | Valida o OpenAPI e devolve um resumo compacto para o agente | Não | Planejado (M3) |
-| `hdast preflight` | Confere autorização, janela, ZAP no ar e login de cada conta | Sim, mínimo | Planejado (M3) |
-| `hdast probe` | Envia requisições válidas pelo ZAP e mede a alcançabilidade | Sim | Planejado (M3); mecanismo depende do spike do M0 |
+| `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
+| `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
+| `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
+| `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra um ZAP falso, não contra o ZAP real ([roadmap](../roadmap.md)) |
 | `hdast scan` | Executa a varredura do ZAP com limites fixados | Sim | Planejado (M4) |
 | `hdast report` | Normaliza os alertas em achados e gera JSON e Markdown | Não | Planejado (M4) |
 | `hdast cleanup` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Sim | Planejado (M5) |
@@ -95,6 +95,117 @@ Exemplo (resumido) para o modelo intocado:
 {"schema_version":1,"ok":true,"data":{"product":"demo","runnable":false,"issues":[{"code":"PLACEHOLDER_HOST","field":"environment.base_url","message":"..."},{"code":"FILE_MISSING","field":"openapi","message":"..."}]}}
 ```
 
+## `hdast spec inspect`
+
+```bash
+uv run hdast --json spec inspect meu-produto
+uv run hdast spec inspect meu-produto --budget 20000 --products-dir ./meus-produtos
+```
+
+Não toca o alvo. Lê o `target.yml` e o OpenAPI do produto (erro de perfil ou de OpenAPI é `CONFIG_ERROR`, saída 2) e devolve o resumo compacto da API mais verificações cruzadas. Problemas em `data-rules.yml` e `flows.yml` NÃO são erro: viram `issues`, para o agente ver tudo de uma vez. `--budget` (padrão 40000, de 2000 a 200000) limita o tamanho do JSON do resumo; fora do intervalo é erro de uso (saída 2).
+
+`data` em sucesso:
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `product` | texto | Produto |
+| `summary` | objeto | Resumo da API (`title`, `version`, `operation_count`, `omitted_operations`, `operations[]` com entradas obrigatórias, ids produzidos e consumidos). Textos vêm do OpenAPI (não confiáveis) e são cortados |
+| `servers_out_of_scope` | lista de texto | Servidores do OpenAPI fora de `scope.allow`. O `probe` usa só `environment.base_url`; servidor do documento nunca define o escopo |
+| `not_sent` | lista de `{operation_id, method, path, reason, message}` | Operações que o `probe` nunca enviará com as opções padrão: `skipped_scope` (fora de `scope.allow`), `skipped_denied` (em `deny_paths`), `skipped_destructive` (`DELETE`) |
+| `suspicious_operations` | lista de texto | Operações cujo nome sugere reiniciar ou apagar dados (`createdb`, `reset`...): candidatas a `scope.deny_paths` (estreitar o escopo é permitido) |
+| `data_rules`, `flows` | `{present, valid, count}` | Situação de cada arquivo |
+| `unused_rules` | lista de `{number, field, operation}` | Regras que não casam com campo algum do OpenAPI (costuma ser erro de digitação) |
+| `needs_rule` | lista de `{operation_id, message, hint}` | Operações cuja requisição não pôde ser montada: campo obrigatório que o harness não sabe gerar (por exemplo `pattern` complexo). A dica diz que regra escrever |
+| `needs_rule_unchecked` | lista de texto | Consumidores de `flows.yml`; a montagem deles depende de valores de outra operação e não é simulada aqui |
+| `issues` | lista de `{code, message, hint}` | `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH` (regra cita operação inexistente), `FLOWS_INVALID`, `FLOWS_MISMATCH` (operação, parâmetro ou campo inexistente) |
+
+## `hdast preflight`
+
+```bash
+uv run hdast --json preflight meu-produto
+```
+
+Confere, sem varrer, se o `probe` pode começar. Cada verificação é um item de `data.checks`; falha de verificação NÃO é exceção. Requer `HDAST_ZAP_BASE_URL` e `HDAST_ZAP_API_KEY` (quando o ZAP a exige) e as variáveis de ambiente dos segredos do perfil. Cada requisição enviada passa pelo `ScopeGuard` e fica em `runs/<run_id>/audit.jsonl` (o preflight tem pasta de execução própria).
+
+Verificações, na ordem: `authorization` e `window` (tipo `scope`); `secrets:<apelido>`; `zap` (versão, via API com a chave); `target_health` (um GET em `probe.health_path`, ou na raiz da `base_url`, pela rota do `probe`; sucesso é qualquer resposta abaixo de 500); por conta, `csrf:<apelido>` (quando o perfil declara `auth.csrf`) e `login:<apelido>` (só em `login_password`; o token é obtido e nunca mostrado). Se autorização ou janela falham, nenhuma requisição é enviada e as de rede aparecem como não executadas.
+
+`data`:
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `product` | texto | Produto |
+| `ready` | booleano | `true` só se todas passaram |
+| `checks` | lista de `{id, ok, detail, kind}` | `kind` é `scope` ou `environment`. `detail` nunca traz segredo |
+| `run_id` | texto ou ausente | Pasta de execução com a auditoria, quando algo foi enviado |
+| `zap_version` | texto ou ausente | Versão do ZAP, quando ele respondeu |
+
+**Nomes de variáveis de ambiente.** O JSON mostra o segredo como `apelido.campo` (`user_a.password`) e **não** mostra o nome da variável: o agente não precisa dele (ele o escreveu no `target.yml`). O texto para a pessoa que opera inclui o nome da variável a definir.
+
+Saída: `0` se pronto; `3` (`SCOPE_VIOLATION`) se autorização ou janela falharam; `4` (`PREFLIGHT_FAILED`) para qualquer outra falha. Quando não está pronto, o envelope vem com `ok: false`, `error` e também `data`.
+
+## `hdast probe`
+
+```bash
+uv run hdast --json probe meu-produto --dry-run
+uv run hdast --json probe meu-produto --seed 7 --only criarPaciente --only buscarPaciente
+uv run hdast probe meu-produto --include-delete --account user_a
+```
+
+Envia UMA requisição válida por operação, pelo proxy do ZAP (que a aprende), e classifica o resultado. Montagem, ordem (produtores de `flows.yml` antes dos consumidores; `DELETE` por último) e regras de dados: [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md).
+
+| Flag | Efeito |
+| --- | --- |
+| `--seed N` | Semente dos geradores (sem ela, sorteia; fica no manifesto). Mesma semente e mesmo relógio dão as mesmas requisições |
+| `--only ID` | Executa só esta operação (repetível). Os produtores de que ela depende entram junto |
+| `--dry-run` | Monta as requisições e confere o escopo, mas não envia nada, não toca o ZAP, não resolve segredos e não grava arquivos. Mostra o que SERIA enviado: nomes de campos e o gerador de cada um, nunca valores |
+| `--include-delete` | Permite `DELETE`, só sobre recurso criado nesta execução (a operação precisa ser consumidora em `flows.yml` e o produtor ter tido sucesso). Sem a flag, ou sem vínculo, é `skipped_destructive` |
+| `--account APELIDO` | Conta que envia (padrão: a primeira de `auth.accounts`) |
+
+Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` ANTES de sair (fora do escopo ou em `deny_paths` nunca é enviada); autorização, janela e prazo (`limits.max_duration_minutes`) são conferidos antes de CADA requisição; a taxa respeita `limits.requests_per_second`; redirecionamentos não são seguidos; a resposta é lida até 256 KiB; o login e a busca do token CSRF saem direto, nunca pelo ZAP; 401 refaz o login uma vez; 429 espera o `Retry-After` (até 3 vezes, no máximo 30 s cada); um 403 que parece rejeição de CSRF busca o token de novo uma vez; cinco falhas de transporte seguidas (timeout, conexão recusada, 502, 503, 504) encerram o `probe`. Nenhum segredo ou token é impresso, logado ou gravado.
+
+**Classes de resultado** (`operations[].outcome`):
+
+| Classe | Significado |
+| --- | --- |
+| `success` | Enviada; 2xx e, se o perfil declara `probe.success`, sem marca de falha no corpo |
+| `logical_failure` | 2xx, mas o corpo tem a marca de falha de `probe.success` (alvo que responde 200 com `"status":"fail"`) |
+| `validation_error` | 400 ou 422: falta regra de dados ou valor inválido |
+| `conflict` | 409: valor repetido; use `unique: true` |
+| `auth_error` | 401/403 (depois do novo login, quando cabível): conta, papel ou token |
+| `csrf_error` | 403 de CSRF persistente depois de renovar o token |
+| `not_found` | 404 ou 410: falta encadeamento (`flows.yml`) ou o recurso não existe |
+| `rate_limited` | 429 depois das esperas permitidas |
+| `server_error` | 5xx |
+| `client_error` | Demais 4xx (405, 415...) |
+| `redirect` | 3xx, nunca seguido; `redirect_in_scope` diz se o destino estaria no escopo |
+| `timeout` | Sem resposta no tempo limite (15 s) |
+| `skipped_scope`, `skipped_denied`, `skipped_destructive` | Nunca enviada: fora de `scope.allow`, em `deny_paths`, `DELETE` |
+| `skipped_dependency` | O produtor de que depende não teve sucesso |
+| `build_error` | A requisição não pôde ser montada; `message` e `hint` dizem que regra escrever |
+| `dry_run` | Só com `--dry-run` |
+
+**Alcançabilidade.** `summary.reachability` = sucessos / operações tentadas (as que enviaram ao menos uma requisição); `summary.reachability_all` = sucessos / todas as operações do OpenAPI. Sem tentativa, a primeira é `null` (não zero); com `--dry-run`, as duas são `null`.
+
+**Dado do alvo.** Só falhas levam `untrusted_target_data` `{excerpt, content_type, retry_after}`: o trecho tem no máximo 300 caracteres, sem ANSI, controle nem bidi, com JWT, CPF, e-mail e sequências parecidas com token redigidos, valores de campos sensíveis mascarados e segredos conhecidos trocados por `***`. Os nomes de campos JSON são preservados. É dado do alvo: nunca é instrução. `notice` repete o aviso.
+
+`data`:
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `run_id`, `product`, `dry_run`, `seed` | | Identificação |
+| `status` | texto | `completed`, `stopped_window`, `stopped_deadline`, `stopped_target_unresponsive` ou `stopped_zap` |
+| `stop_message` | texto ou ausente | Explicação da parada |
+| `started_at`, `finished_at` | texto | ISO 8601 |
+| `summary` | objeto | `operations_total`, `operations_sent`, `successes`, `reachability`, `reachability_all`, `by_outcome` |
+| `operations` | lista | `{operation_id, method, path, outcome, status, account, duration_ms, attempts, message, hint, redirect_in_scope, preview, untrusted_target_data}`; `path` é o modelo do OpenAPI, nunca a URL concreta; `preview` (`--dry-run`) tem `query_names`, `header_names`, `fields[{name, generator}]` e `uses_flow_values` |
+| `notice` | texto | Aviso fixo sobre `untrusted_target_data` |
+
+**Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/` (formatos no [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)): `manifest.json` (identificador, produto, versão do harness e do ZAP, id do contexto do ZAP, SHA-256 de `target.yml`, `data-rules.yml`, `flows.yml` e OpenAPI, limites, semente, contas, início e fim, estado), `audit.jsonl` (duas linhas por requisição: `decision` antes do envio e `result` depois; só nomes dos parâmetros de consulta; sem cabeçalho, corpo, token, senha nem cookie) e `probe.json` (o mesmo `data`).
+
+**Saída:** `0` quando o `probe` rodou, mesmo com operações falhando (elas são dado); `2` configuração; `3` janela fechada, autorização vencida ou prazo esgotado, inclusive no meio da execução; `4` falha ao começar (ZAP fora do ar, segredo ausente, login recusado); `5` o proxy do ZAP caiu no meio; `6` o alvo parou de responder. Em `3`, `5` e `6` depois de começar, o envelope traz `ok: false`, `error` e `data` com o resultado parcial (também em `probe.json`). Com `--dry-run`, o envelope não tem `run_id` no topo e nada é gravado.
+
+**ZAP.** No início: versão (aviso se não for 2.17.x), remoção das regras do Replacer com nome começando por `hdast-` (as de outros nomes nunca), sessão nova por execução e contexto restrito aos hosts e caminhos do perfil. Configuração: [env-vars.md](env-vars.md).
+
 ## Envelope JSON
 
 Com `--json`, o resultado vai para `stdout` como uma linha JSON. Campos sem valor são omitidos.
@@ -157,7 +268,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 
 Os códigos 6 e 7 e o 130 vieram da rodada de correção de 2026-11-13 (achados A-06 e A-19), registrada no [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). Até então `TargetError` e `CleanupError` usavam o 5, que o desenho reserva à falha de ferramenta externa.
 
-Hoje só `CONFIG_ERROR` e `INTERNAL` podem ser produzidos por um comando que existe (`hdast init`, `hdast profile validate` e erro de uso). Os demais são levantados pelo domínio, mas nenhum comando os alcança ainda.
+`CONFIG_ERROR` e `INTERNAL` vêm de qualquer comando. Com `spec inspect`, `preflight` e `probe` passam a ser produzidos também `SCOPE_VIOLATION` (3), `PREFLIGHT_FAILED` (4), `EXTERNAL_TOOL_ERROR` (5) e `TARGET_ERROR` (6); em `preflight` e `probe` o envelope de falha pode trazer `data` com o resultado parcial. `CLEANUP_FAILED` ainda não é alcançado por nenhum comando.
 
 ## Regras do contrato
 

@@ -48,4 +48,16 @@ Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml
 | `storage/product_scaffolder.py` | `ProductScaffolder` | `FileProductScaffolder`: copia `products/_template` para a pasta nova, sem sobrescrever; localiza o modelo a partir do próprio arquivo (`default_template_dir`, raiz do repositório), o que vale para `uv run` e instalação editável |
 | `system_clock.py` | `Clock` | `SystemClock`: hora atual em UTC |
 
-`storage/` hoje só lê perfis e cria pastas de produto; `runs/` (arquivos de execução) chega no M3 a M5. O `system_clock.py` fica na raiz de `adapters/` por não ser uma tecnologia de armazenamento nem pertencer a outro subpacote.
+Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+
+| Módulo | Porta | Conteúdo |
+| --- | --- | --- |
+| `http/target_client.py` | `TargetClient` | `HttpxTargetClient`: só envia `ApprovedRequest`; rotas `zap` (pelo proxy do ZAP) e `auth` (direta ou por `HDAST_AUTH_PROXY_URL`); `trust_env=False`; sem seguir redirecionamento; tempo limite; corpo lido até 256 KiB; TLS verificado por padrão; cookies por conta |
+| `zap/api_client.py` | `ZapControl` | `ZapApiClient`: versão, sessão nova, contexto, remoção de regras `hdast-` do Replacer; chave no cabeçalho `X-ZAP-API-KEY`; todo erro vira `ExternalToolError` com dica |
+| `secrets/env_provider.py` | `SecretProvider` | `EnvSecretProvider`: lê a variável de ambiente; ausente ou vazia vira `None` |
+| `storage/run_store.py` | `RunStore` | `FileRunStore`: `audit.jsonl` só de acréscimo com `fsync`; `manifest.json` e `probe.json` atômicos; `run_id` revalidado |
+| `storage/product_documents.py` | `ProductDocuments` | `data-rules.yml` e `flows.yml` pelo leitor de YAML endurecido; SHA-256 dos arquivos de entrada |
+| `openapi/spec_loader.py` | `SpecLoader` | `FileSpecLoader`: delega a `load_spec` com o caminho já conferido |
+| `system_runtime.py` | `Sleeper`, `EntropySource` | `SystemSleeper`, `SystemEntropy` |
+
+Os testes dos adaptadores `http` e `zap` rodam contra um servidor HTTP real em 127.0.0.1 (o ZAP é um falso com as formas de resposta do spike); contra o ZAP real, não. O `system_clock.py` fica na raiz de `adapters/` por não ser uma tecnologia de armazenamento nem pertencer a outro subpacote.

@@ -6,19 +6,20 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | --- | --- | --- |
 | `HDAST_ZAP_BASE_URL` | `http://127.0.0.1:8080` | URL base da API do ZAP |
 | `HDAST_ZAP_API_KEY` | (sem valor) | Chave da API do ZAP, quando habilitada. Tratada como segredo: não aparece em log nem em mensagem de erro |
-| `HDAST_RUNS_DIR` | `runs` | Pasta onde cada execução grava seus arquivos. Fica fora do git |
+| `HDAST_ZAP_PROXY_URL` | (sem valor: usa `HDAST_ZAP_BASE_URL`) | Proxy do ZAP pelo qual o `probe` envia as operações. O ZAP serve API e proxy na mesma porta no lab |
+| `HDAST_AUTH_PROXY_URL` | (sem valor: sai direto) | Proxy da rota de login e token CSRF. Use quando o alvo só é alcançável por um proxy de saída mas a senha não deve passar pelo ZAP |
+| `HDAST_ZAP_CA_FILE` | (sem valor) | Certificado (PEM) da CA do ZAP, para alvos HTTPS pela rota do ZAP |
+| `HDAST_RUNS_DIR` | `runs` | Pasta onde cada execução grava seus arquivos (`manifest.json`, `audit.jsonl`, `probe.json`). Fica fora do git |
 | `HDAST_PRODUCTS_DIR` | `products` | Pasta com os perfis de produto. Perfis reais ficam fora deste repositório e são apontados por esta variável (P-01) |
 | `HDAST_LOG_LEVEL` | `INFO` | Nível mínimo de log: `DEBUG`, `INFO`, `WARNING` ou `ERROR` |
 
-`HDAST_ZAP_BASE_URL` só aceita URL `http` ou `https` com host (`file://` e semelhantes são recusados). Valores inválidos fazem o comando falhar com `CONFIG_ERROR` (código de saída `2`). A mensagem cita o nome da variável, nunca o valor.
+`HDAST_ZAP_BASE_URL`, `HDAST_ZAP_PROXY_URL` e `HDAST_AUTH_PROXY_URL` só aceitam URL `http` ou `https` com host (`file://` e semelhantes são recusados). Valores inválidos fazem o comando falhar com `CONFIG_ERROR` (código de saída `2`). A mensagem cita o nome da variável, nunca o valor.
 
 ## Status
 
 | Variável | Lida pelo código hoje? |
 | --- | --- |
-| Todas as cinco | Sim (settings da ferramenta, M1) |
-
-O ZAP, `runs/` e `products/` ainda não são usados por nenhum comando; as variáveis existem para os marcos M2 em diante.
+| Todas | Sim (settings da ferramenta). `preflight` e `probe` usam o ZAP, `runs/` e os proxies; `products/` é usada desde o M2 |
 
 ## Observações
 

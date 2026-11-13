@@ -22,6 +22,8 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0014](0014-avaliacao-cega-como-eval.md) | Avaliação cega como suíte de evals | Aceito (implementação no M6) | 2026-11-13 | Requisito do dono do projeto |
 | [0015](0015-portas-do-perfil-e-carregador-de-yaml.md) | Portas do perfil e carregador de YAML endurecido | Aceito | 2026-11-13 | M2 (segunda metade); detalha 0004, 0005 e 0012 |
 | [0016](0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md) | Leitor de OpenAPI próprio, subconjunto seguro de `pattern` e esquema de unicidade | Aceito | 2026-11-13 | M3; detalha 0006 e 0007; P-12 |
+| [0017](0017-proxy-de-escopo-com-scopeguard.md) | Proxy de escopo com ScopeGuard | Proposto | 2026-11-13 | Spike M0 (Q4, Q6, Q7); QA A-08, A-18; detalha o 0008 |
+| [0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md) | `probe` com httpx, CSRF, critério de sucesso e trilha de execução | Proposto | 2026-11-13 | M3; spike M0 (Q1 a Q3, Q5, Q7); detalha os 0007, 0009 e 0010 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

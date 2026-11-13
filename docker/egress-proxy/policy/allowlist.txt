@@ -1,8 +1,0 @@
-# Hosts PÚBLICOS permitidos (um por linha). Vazio de propósito por padrão: o lab
-# não precisa de nenhum host externo, então o padrão não permite nenhum.
-# O harness regenera este arquivo por execução a partir de scope.allow do
-# target.yml. Sintaxe Squid dstdomain:
-#   api.hml.exemplo.com.br   -> exatamente este nome
-#   .exemplo.com.br          -> o domínio e todos os subdomínios (evite)
-# Comentários começam com "#". Nome que resolva para faixa privada é negado
-# mesmo se estiver aqui (ver squid.conf, regra 4).

@@ -28,4 +28,4 @@ O contrato do import-linter em `pyproject.toml` proíbe `config` de importar `cl
 
 ## Status
 
-Settings da ferramenta: parte da fundação do M1. Carregador de perfil: **não existe**, planejado para a segunda metade do M2; os modelos que ele preencherá já existem em `domain/` ([../reference/target-yml.md](../reference/target-yml.md)) e a dependência de leitura de YAML (`pyyaml`) já está declarada ([ADR 0012](../adr/0012-dependencias-tzdata-e-pyyaml.md)). Veja a [tabela de status](../roadmap.md#tabela-de-status).
+Settings da ferramenta: parte da fundação do M1; o M3 acrescentou `zap_proxy_url`, `auth_proxy_url` e `zap_ca_file` (veja [../reference/env-vars.md](../reference/env-vars.md)). O carregador de perfil está em `adapters/storage` (M2); os modelos estão em `domain/` ([../reference/target-yml.md](../reference/target-yml.md)). Veja a [tabela de status](../roadmap.md#tabela-de-status).

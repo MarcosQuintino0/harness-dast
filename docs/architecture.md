@@ -28,7 +28,7 @@ Termos usados aqui:
 
 As skills são roteiros curtos em Markdown: dizem quais comandos chamar e como ler a saída. Se uma skill precisar de lógica, a lógica vira comando.
 
-Status: o plano determinístico tem hoje a fundação (CLI com `version`, erros, envelope, logs) e o domínio de escopo e perfil, sem nenhum comando que o use; a camada `application`, os adaptadores e a integração com o ZAP não existem (veja a tabela em [roadmap.md](roadmap.md#tabela-de-status)). O plano do agente ainda não existe (M6).
+Status: o plano determinístico tem a fundação, o domínio de escopo e perfil, `init`, `profile validate` e, desde o M3, `spec inspect`, `preflight` e `probe` (cliente HTTP do alvo, cliente da API do ZAP, trilha de execução); a varredura (`scan`), o relatório e a limpeza não existem (veja a tabela em [roadmap.md](roadmap.md#tabela-de-status)). O plano do agente ainda não existe (M6).
 
 ## Diagramas
 
@@ -64,7 +64,7 @@ flowchart LR
 
 ### Fluxo de uma execução
 
-O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. Este fluxo é o desenho aprovado; **nenhum desses comandos existe ainda, exceto `version`** (veja [reference/cli.md](reference/cli.md)). O mecanismo exato do `probe` depende do spike do M0 ([ADR 0007](adr/0007-zap-alimentado-por-requisicoes-validas.md)).
+O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. Este fluxo é o desenho aprovado; `spec inspect`, `preflight` e `probe` existem desde o M3; `scan`, `report` e `cleanup` ainda não (veja [reference/cli.md](reference/cli.md)). O mecanismo do `probe` foi confirmado no spike do M0 ([ADR 0007](adr/0007-zap-alimentado-por-requisicoes-validas.md)) e detalhado no [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md): o login e a busca do token CSRF saem direto (nunca pelo ZAP) e as operações saem pelo proxy do ZAP.
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +135,7 @@ Status: hierarquia de erros e tratador único, **Implementado (M1)**. Cada tipo 
 
 ## Logs e rastreabilidade
 
-Status: o logger estruturado (JSON no `stderr`) com redação está **implementado** (M1). O restante abaixo (`run_id` em cada linha, arquivo `runs/RUN_ID/harness.log`, `audit.jsonl`, `manifest.json`) é **planejado**: auditoria no M3, manifesto no M5.
+Status: o logger estruturado (JSON no `stderr`) com redação está **implementado** (M1). `audit.jsonl`, `manifest.json` e `probe.json` por execução estão **implementados** para `preflight` e `probe` (M3, [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)); `run_id` em cada linha de log, `harness.log` e o manifesto completo da varredura são **planejados** (M5).
 
 - Logs estruturados em JSON, com `run_id` em todas as linhas, gravados em `runs/RUN_ID/harness.log`.
 - `stdout` fica reservado ao resultado do comando. Logs vão para `stderr` e para arquivo. O agente nunca precisa separar log de resposta.
@@ -186,4 +186,4 @@ Escopo em três camadas e falha fechada ([ADR 0008](adr/0008-escopo-em-tres-cama
 
 ## O que fica deliberadamente simples na V1
 
-Um processo, sem fila, sem banco, sem servidor, sem sistema de plugins dinâmico. Motores e geradores são registrados em código. Execuções ficam em arquivos locais (porta `RunStore`). Não há contêiner de injeção de dependência: a montagem será manual em `cli/composition.py` (arquivo que ainda não existe).
+Um processo, sem fila, sem banco, sem servidor, sem sistema de plugins dinâmico. Motores e geradores são registrados em código. Execuções ficam em arquivos locais (porta `RunStore`). Não há contêiner de injeção de dependência: a montagem é manual em `cli/composition.py`.

@@ -89,6 +89,18 @@ class TargetError(HarnessError):
     exit_code = ExitCode.TARGET
 
 
+class TargetTimeout(TargetError):
+    """O alvo não respondeu dentro do tempo limite de uma requisição."""
+
+    code = "TARGET_TIMEOUT"
+
+
+class TargetUnreachable(TargetError):
+    """Não foi possível falar com o alvo (conexão recusada, reiniciada ou interrompida)."""
+
+    code = "TARGET_UNREACHABLE"
+
+
 class CleanupError(HarnessError):
     """A limpeza do ambiente de teste falhou."""
 

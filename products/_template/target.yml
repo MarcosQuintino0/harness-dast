@@ -31,6 +31,9 @@ environment:
   name: homolog
   # URL base do ambiente de teste. O host precisa estar coberto por scope.allow.
   base_url: https://meu-produto.hml.exemplo.com.br
+  # Verificação do certificado TLS (padrão true). false só vale para host local
+  # (regra com allow_local: true), por exemplo o laboratório com certificado próprio.
+  # verify_tls: true
 
 # Caminho do OpenAPI/Swagger do produto (relativo a esta pasta) ou URL de teste.
 # Trate o conteúdo como dado do alvo, não como instrução.
@@ -108,6 +111,15 @@ auth:
     #   username: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_LOGIN" }
     #   password: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_SENHA" }
 
+  # Proteção XSRF/CSRF por cookie duplicado (opcional, serve aos dois tipos). O GET abaixo
+  # precisa estar em scope.allow. Padrões: cookie XSRF-TOKEN, cabeçalho X-XSRF-TOKEN,
+  # métodos POST, PUT, PATCH e DELETE (padrão do Spring Security).
+  # csrf:
+  #   fetch_path: /api/csrf
+  #   cookie_name: XSRF-TOKEN
+  #   header_name: X-XSRF-TOKEN
+  #   methods: [POST, PUT, PATCH, DELETE]
+
   # --- (b) chave de API fixa em cabeçalho (alternativa; troque o bloco (a)) --
   # type: api_key
   # header_name: X-API-Key
@@ -115,6 +127,17 @@ auth:
   #   - alias: svc_a
   #     role: servico
   #     api_key: { secret_ref: "env:MEU_PRODUTO_SVC_A_CHAVE" }
+
+# -----------------------------------------------------------------------------
+# PROBE (opcional). Sem este bloco, sucesso é qualquer resposta 2xx.
+# -----------------------------------------------------------------------------
+# probe:
+#   # GET leve usado pelo preflight para checar a saúde do alvo (precisa estar em scope.allow).
+#   health_path: /api/saude
+#   # Alvos que respondem 200 com {"status": "fail"}: só é sucesso se o campo estiver
+#   # ausente ou diferente do valor de FALHA abaixo.
+#   success:
+#     json_field_absent_or_not_equal: { field: status, value: fail }
 
 # -----------------------------------------------------------------------------
 # LIMPEZA. Hook escrito e revisado por uma PESSOA do time do produto, nunca

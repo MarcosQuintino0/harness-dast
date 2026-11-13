@@ -94,6 +94,26 @@ def build_failure(error: HarnessError) -> Envelope:
     return Envelope(ok=False, error=info)
 
 
+def build_failure_with_data(
+    error: HarnessError, data: dict[str, JsonValue], run_id: str | None = None
+) -> Envelope:
+    """Monta o envelope de falha que ainda carrega o resultado parcial (`data`).
+
+    Serve a comandos que produzem dados mesmo quando terminam em falha (preflight que não
+    está pronto, probe interrompido): o agente lê `data` e `error` no mesmo envelope.
+
+    Args:
+        error: Erro que define o código de saída.
+        data: Resultado do comando.
+        run_id: Identificador da execução, quando houver.
+
+    Returns:
+        Envelope com `ok=False`, `data` e `error`.
+    """
+    info = ErrorInfo(code=error.code, message=error.message, hint=error.hint)
+    return Envelope(ok=False, run_id=run_id, data=data, error=info)
+
+
 def _render_human_success(envelope: Envelope) -> str:
     lines = [f"{key}: {value}" for key, value in (envelope.data or {}).items()]
     return "\n".join(lines)
@@ -113,7 +133,8 @@ def emit(envelope: Envelope, *, json_mode: bool, human: str | None = None) -> No
     """Escreve o resultado no destino correto.
 
     Com `json_mode`, o envelope (sucesso ou falha) vai a stdout como uma linha JSON.
-    Sem ele, sucesso vai a stdout em texto e falha a stderr.
+    Sem ele, sucesso vai a stdout em texto e falha a stderr; uma falha que traz `data`
+    (resultado parcial) escreve o resultado em stdout e o erro em stderr.
 
     Args:
         envelope: Resultado a emitir.
@@ -126,4 +147,7 @@ def emit(envelope: Envelope, *, json_mode: bool, human: str | None = None) -> No
         text = human if human is not None else _render_human_success(envelope)
         sys.stdout.write(text + "\n")
     else:
+        if envelope.data is not None:
+            text = human if human is not None else _render_human_success(envelope)
+            sys.stdout.write(text + "\n")
         sys.stderr.write(_render_human_failure(envelope) + "\n")

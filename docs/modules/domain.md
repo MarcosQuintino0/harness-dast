@@ -39,7 +39,25 @@ Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do
 | `flow.py` | `FlowSpec` (`flows.yml`): validação (um nível, sem ciclo), ordenação topológica, `extract_value` e `resolve_bindings` | M3 |
 | `versioned.py` | Validação comum de `schema_version: 1` e tradução de erros para `ConfigError` em arquivos como `data-rules.yml` e `flows.yml` | M3 |
 
-Referências: [data-rules.yml](../reference/data-rules-yml.md) e [flows.yml](../reference/flows-yml.md). Nenhum comando `hdast` chama estes módulos ainda; a fiação (casos de uso e CLI) vem na rodada seguinte.
+Referências: [data-rules.yml](../reference/data-rules-yml.md) e [flows.yml](../reference/flows-yml.md).
+
+Módulos do `probe` (M3, [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `http_messages.py` | `HttpRequest`, `HttpResponse` e a invariante de envio: `ApprovedRequest` só nasce em `approve(guard, request)` |
+| `request_encoding.py` | Codificação da requisição montada, do login e do GET simples em `HttpRequest` (JSON, formulário, texto) |
+| `outcome.py` | `Outcome` (18 classes), `classify_response`, `looks_like_csrf_rejection`, `parse_json_body` |
+| `retry.py` | `next_action` e `RetryState`: 401 (novo login, 1), 403 de CSRF (novo token, 1), 429 (espera, 3) |
+| `probe_policy.py` | Constantes (tempo limite, tetos de tentativas, limiar de alvo sem resposta), `parse_retry_after` e `TokenBucket` |
+| `probe_plan.py` | `plan_probe`: ordem, pulos por escopo, negação e `DELETE`; `looks_destructive` |
+| `probe_config.py` | Bloco `probe` do perfil: `JsonFieldRule`, `SuccessCriteria`, `ProbeConfig` |
+| `probe_result.py` | `OperationResult`, `ProbeResult`, `summarize_results` (alcançabilidade), `RunManifest` |
+| `audit.py` | `AuditEntry` e as linhas de decisão e de resultado |
+| `excerpt.py` | `sanitize_excerpt`: trecho curto e neutralizado do corpo de uma falha |
+| `zap_scope.py` | Expressões do contexto do ZAP e o prefixo `hdast-` das regras do Replacer |
+
+`scope.py` ganhou `ScopeGuard.evaluate` (decisão como dado) e `auth.py` o bloco `CsrfConfig`.
 
 A referência campo a campo do perfil está em [../reference/target-yml.md](../reference/target-yml.md).
 
@@ -71,4 +89,4 @@ Somente a biblioteca padrão e pydantic.
 
 ## Status
 
-Os módulos da tabela "Existem" estão implementados e testados (cobertura de `domain` de 100% na revisão de 2026-11-13), mas **nenhum comando `hdast` os chama ainda**: a camada `application` está vazia. Os módulos planejados não existem. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
+Os módulos da tabela "Existem" estão implementados e testados (cobertura de `domain` de 100%) e são usados por `init`, `profile validate`, `spec inspect`, `preflight` e `probe`. Os módulos planejados não existem. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
