@@ -11,6 +11,7 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.probe_config import ErrorCodes, JsonFieldRule
+from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.probe_result import OperationResult, ProbeStatus
 from harness_dast.domain.request_builder import RequestBuilder
@@ -64,8 +65,10 @@ class RunOutcome:
         results: Resultado por operação processada, na ordem de execução.
         status: `completed` ou o motivo da parada antecipada.
         stop_message: Explicação da parada antecipada.
+        exchanges: Pedidos com sucesso, repetíveis pelo teste de autorização (`exchanges.json`).
     """
 
     results: tuple[OperationResult, ...]
     status: ProbeStatus
     stop_message: str | None
+    exchanges: tuple[ExchangeRecord, ...] = ()

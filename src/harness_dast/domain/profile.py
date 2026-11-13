@@ -16,6 +16,7 @@ from typing import Literal, Self
 from pydantic import Field, StrictBool, StrictInt, ValidationError, field_validator, model_validator
 
 from harness_dast.domain.auth import Account, AuthConfig, LoginLimit, PasswordLoginAuth
+from harness_dast.domain.authz_config import AuthzConfig
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
@@ -230,6 +231,7 @@ class ProductProfile(ProfileModel):
         cleanup: Limpeza, opcional.
         probe: Critério de sucesso e caminho de saúde, opcional (aditivo na schema v1).
         scan: Política da varredura ativa e gate de severidade, opcional (aditivo na schema v1).
+        authz: Teste de autorização entre contas (ADR 0027), opcional (aditivo na schema v1).
     """
 
     schema_version: Literal[1]
@@ -242,6 +244,7 @@ class ProductProfile(ProfileModel):
     cleanup: CleanupConfig | None = None
     probe: ProbeConfig = ProbeConfig()
     scan: ScanConfig = ScanConfig()
+    authz: AuthzConfig = AuthzConfig()
 
     @field_validator("product")
     @classmethod

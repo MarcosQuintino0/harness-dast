@@ -25,6 +25,7 @@ from harness_dast.domain.excerpt import sanitize_excerpt
 from harness_dast.domain.flow import ResolvedBindings
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.outcome import Outcome, classify_response, parse_json_body
+from harness_dast.domain.probe_exchange import ExchangeRecord, build_exchange
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.probe_result import OperationResult, ProbeStatus, TargetData
@@ -45,6 +46,7 @@ class _State:
     results: list[OperationResult] = field(default_factory=list)
     producer_bodies: dict[str, JsonValue] = field(default_factory=dict)
     transport_failures: int = 0
+    exchanges: list[ExchangeRecord] = field(default_factory=list)
 
 
 class ProbeRunner:
@@ -81,10 +83,12 @@ class ProbeRunner:
             return self._stopped("stopped_deadline", error.message)
         except ExternalToolError as error:
             return self._stopped("stopped_zap", error.message)
-        return RunOutcome(tuple(self._state.results), "completed", None)
+        return RunOutcome(
+            tuple(self._state.results), "completed", None, tuple(self._state.exchanges)
+        )
 
     def _stopped(self, status: ProbeStatus, message: str) -> RunOutcome:
-        return RunOutcome(tuple(self._state.results), status, message)
+        return RunOutcome(tuple(self._state.results), status, message, tuple(self._state.exchanges))
 
     def _run_one(self, planned: PlannedOperation) -> OperationResult:
         if planned.decision != "send":
@@ -200,6 +204,8 @@ class ProbeRunner:
         )
         if outcome == "success" and planned.is_producer:
             self._state.producer_bodies[planned.operation_id] = parse_json_body(response)
+        if outcome == "success":
+            self._remember(planned, request, response)
         return self._result(
             planned,
             outcome,
@@ -210,6 +216,20 @@ class ProbeRunner:
             else None,
             **common,
         )
+
+    def _remember(
+        self, planned: PlannedOperation, request: HttpRequest, response: HttpResponse
+    ) -> None:
+        """Guarda o pedido com sucesso para o teste de autorização (ADR 0027)."""
+        record = build_exchange(
+            request=request,
+            path_template=planned.path,
+            status=response.status,
+            base_url=self._s.base_url,
+            mask=self._s.vault.mask,
+        )
+        if record is not None:
+            self._state.exchanges.append(record)
 
     def _excerpt(self, response: HttpResponse) -> TargetData:
         return TargetData(
