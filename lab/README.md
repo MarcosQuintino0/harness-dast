@@ -30,8 +30,8 @@ o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
 
-Fora deste marco: o crAPI (OWASP) pode ser acrescentado depois como segundo
-alvo do lab.
+O OWASP crAPI é o terceiro alvo do lab, **fora** do `hdast stack up`: veja
+[`crapi/README.md`](crapi/README.md).
 
 ## Subir e parar
 
