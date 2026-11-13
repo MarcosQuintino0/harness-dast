@@ -1,8 +1,10 @@
 import copy
 import io
 import json
+import sys
 from collections.abc import Mapping
 
+import pytest
 import structlog
 
 from harness_dast.observability.logging import (
@@ -164,3 +166,18 @@ def test_redact_value_masks_second_item_when_pair_has_sensitive_header_name() ->
 
 def test_redact_value_decodes_bytes_with_invalid_utf8_without_failing() -> None:
     assert redact_value(b"\xff\xfeok", SecretRegistry()) == "\ufffd\ufffdok"
+
+
+def test_logs_go_to_the_current_stderr_when_it_is_replaced_after_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", first)
+    configure_logging("INFO", SecretRegistry())
+    first.close()
+    second = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", second)
+
+    structlog.get_logger().info("evento")
+
+    assert "evento" in second.getvalue()

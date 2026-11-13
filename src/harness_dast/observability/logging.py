@@ -10,7 +10,7 @@ import logging
 import re
 import sys
 from collections.abc import Callable, MutableMapping
-from typing import TextIO
+from typing import TextIO, cast
 
 import structlog
 from structlog.typing import EventDict, WrappedLogger
@@ -157,14 +157,33 @@ def build_redactor(
     return redact
 
 
+class _CurrentStderr:
+    """Destino de log que procura o `sys.stderr` a cada escrita.
+
+    A configuração do structlog é global e vive mais que quem a criou. Guardar o objeto
+    `sys.stderr` do momento da configuração faz o log escrever num fluxo antigo, que pode já
+    estar fechado quando o stderr foi trocado depois (redirecionamento, captura em teste).
+    """
+
+    def write(self, text: str) -> int:
+        """Escreve no stderr vigente e devolve o total de caracteres escritos."""
+        return sys.stderr.write(text)
+
+    def flush(self) -> None:
+        """Descarrega o stderr vigente."""
+        sys.stderr.flush()
+
+
 def configure_logging(level: str, registry: SecretRegistry, stream: TextIO | None = None) -> None:
     """Configura o structlog para JSON no stderr com redação.
 
     Args:
         level: Nome do nível mínimo (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
         registry: Segredos conhecidos a mascarar.
-        stream: Destino dos logs; por padrão o stderr atual.
+        stream: Destino dos logs; por padrão o stderr vigente no momento de cada escrita.
     """
+    # O PrintLogger só usa `write` e `flush`; o cast evita herdar de uma classe de E/S.
+    target = stream if stream is not None else cast("TextIO", _CurrentStderr())
     structlog.configure(
         processors=[
             structlog.stdlib.add_log_level,
@@ -174,6 +193,6 @@ def configure_logging(level: str, registry: SecretRegistry, stream: TextIO | Non
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level)),
-        logger_factory=structlog.PrintLoggerFactory(file=stream or sys.stderr),
+        logger_factory=structlog.PrintLoggerFactory(file=target),
         cache_logger_on_first_use=False,
     )
