@@ -6,14 +6,25 @@ declarar uma regra de corpo pequena; sem ela, vale "2xx". Este módulo é puro.
 """
 
 import re
+from typing import Literal, Self
 
-from pydantic import StrictBool, StrictInt, StrictStr, field_validator
+from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.pathpattern import parse_pattern
 from harness_dast.domain.secret_ref import ProfileModel
 
 _DOTTED_PATH = re.compile(r"[A-Za-z0-9_-]{1,64}(?:\.[A-Za-z0-9_-]{1,64}){0,9}")
+
+
+def read_field(body: JsonValue, dotted: str) -> JsonValue:
+    """Valor no caminho pontuado, ou `None` se o corpo não é objeto ou falta algum segmento."""
+    current: JsonValue = body
+    for segment in dotted.split("."):
+        if not isinstance(current, dict) or segment not in current:
+            return None
+        current = current[segment]
+    return current
 
 
 class JsonFieldRule(ProfileModel):
@@ -41,12 +52,8 @@ class JsonFieldRule(ProfileModel):
         Campo ausente, corpo que não é objeto e valor diferente (inclusive de outro tipo)
         significam "não é falha".
         """
-        current: JsonValue = body
-        for segment in self.field.split("."):
-            if not isinstance(current, dict) or segment not in current:
-                return False
-            current = current[segment]
-        return type(current) is type(self.value) and current == self.value
+        found = read_field(body, self.field)
+        return type(found) is type(self.value) and found == self.value
 
 
 class SuccessCriteria(ProfileModel):
@@ -60,6 +67,75 @@ class SuccessCriteria(ProfileModel):
     json_field_absent_or_not_equal: JsonFieldRule | None = None
 
 
+ErrorOutcome = Literal[
+    "validation_error",
+    "conflict",
+    "auth_error",
+    "csrf_error",
+    "not_found",
+    "rate_limited",
+    "client_error",
+    "server_error",
+]
+"""Classes de resultado que `probe.error_codes` pode atribuir a um código de erro do alvo."""
+
+_ERROR_CODE = re.compile(r"[A-Za-z0-9_.:-]{1,64}")
+MAX_ERROR_CODES = 100
+
+
+class ErrorCodes(ProfileModel):
+    """Mapa de códigos de erro do corpo JSON do alvo para classes de resultado.
+
+    Com ele, o `probe` classifica pelo código declarado (exato) em vez de heurística por
+    status HTTP. Código ausente da resposta ou não declarado cai na heurística de sempre.
+
+    Attributes:
+        field: Caminho pontuado do campo com o código (`code`, `error.code`).
+        outcomes: Classe de resultado -> códigos. Um código só pode estar numa classe.
+    """
+
+    field: str
+    outcomes: dict[ErrorOutcome, tuple[str, ...]] = Field(min_length=1)
+
+    @field_validator("field")
+    @classmethod
+    def validate_field(cls, value: str) -> str:
+        """Confere o caminho pontuado."""
+        if not _DOTTED_PATH.fullmatch(value):
+            raise ValueError("caminho de campo inválido (ex.: code ou error.code)")
+        return value
+
+    @model_validator(mode="after")
+    def validate_codes(self) -> Self:
+        """Confere o formato dos códigos, a unicidade entre classes e o teto de quantidade."""
+        seen: set[str] = set()
+        for codes in self.outcomes.values():
+            for code in codes:
+                if not _ERROR_CODE.fullmatch(code):
+                    raise ValueError("código de erro inválido; use letras, dígitos e _ . : -")
+                if code in seen:
+                    raise ValueError("um código de erro só pode estar em uma classe de resultado")
+                seen.add(code)
+        if len(seen) > MAX_ERROR_CODES:
+            raise ValueError(f"no máximo {MAX_ERROR_CODES} códigos de erro")
+        return self
+
+    def outcome_for(self, body: JsonValue) -> ErrorOutcome | None:
+        """Classe declarada para o código presente no corpo, ou `None`.
+
+        Só texto e inteiro são códigos válidos; qualquer outra coisa (ausente, lista,
+        objeto) não classifica.
+        """
+        found = read_field(body, self.field)
+        if isinstance(found, bool) or not isinstance(found, str | int):
+            return None
+        code = str(found)
+        for outcome, codes in self.outcomes.items():
+            if code in codes:
+                return outcome
+        return None
+
+
 class ProbeConfig(ProfileModel):
     """Configuração opcional do `probe` e do `preflight`.
 
@@ -67,10 +143,12 @@ class ProbeConfig(ProfileModel):
         success: Critério de sucesso.
         health_path: Caminho literal de um GET leve usado pelo `preflight` para checar a saúde
             do alvo; ausente, usa a raiz da `base_url`. Precisa estar no escopo (GET).
+        error_codes: Classificação exata por código de erro do corpo, opcional.
     """
 
     success: SuccessCriteria = SuccessCriteria()
     health_path: str | None = None
+    error_codes: ErrorCodes | None = None
 
     @field_validator("health_path")
     @classmethod

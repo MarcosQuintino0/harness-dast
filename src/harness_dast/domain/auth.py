@@ -11,9 +11,11 @@ Toda credencial é um `SecretRef`.
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, StrictInt, field_validator, model_validator
 
+from harness_dast.domain.account_routing import AccountRouting
 from harness_dast.domain.pathpattern import parse_pattern
+from harness_dast.domain.probe_config import JsonFieldRule
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
 from harness_dast.domain.urlnorm import KNOWN_METHODS
 
@@ -27,6 +29,7 @@ _SCHEME = re.compile(r"[A-Za-z0-9._~+/-]{0,32}")
 _RESERVED_HEADERS = frozenset({"host", "content-length", "transfer-encoding", "connection"})
 _COOKIE_NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 _MAX_ACCOUNTS = 20
+MAX_LOGINS_PER_MINUTE = 60
 CSRF_DEFAULT_METHODS = ("DELETE", "PATCH", "POST", "PUT")
 
 
@@ -147,7 +150,18 @@ class CsrfConfig(ProfileModel):
         return tuple(sorted(set(value)))
 
 
-class PasswordLoginAuth(ProfileModel):
+class LoginLimit(ProfileModel):
+    """Taxa de login que o alvo tolera (e conta também as tentativas erradas).
+
+    Attributes:
+        max_per_minute: Máximo de requisições de login em qualquer janela de 60 segundos,
+            somando todas as contas, novos logins e repetições após 429.
+    """
+
+    max_per_minute: StrictInt = Field(ge=1, le=MAX_LOGINS_PER_MINUTE)
+
+
+class PasswordLoginAuth(AccountRouting):
     """Login em endpoint que recebe usuário e senha e devolve um token.
 
     Attributes:
@@ -163,6 +177,13 @@ class PasswordLoginAuth(ProfileModel):
         token_header: Cabeçalho em que o token é enviado nas requisições.
         token_scheme: Prefixo do valor do cabeçalho (`Bearer`); vazio envia só o token.
         csrf: Proteção XSRF/CSRF do alvo, opcional.
+        login_limit: Taxa de login tolerada pelo alvo, opcional. O `preflight` e o `probe`
+            nunca a excedem: esperam, e honram `Retry-After` de um 429 no login.
+        token_expired: Sinal de "token vencido" do alvo, opcional: campo e valor do corpo de um
+            401 (`code` = `TOKEN_EXPIRADO`). Com ele, só esse 401 provoca novo login; sem ele,
+            todo 401 o provoca. Em ambos os casos, no máximo uma vez por requisição.
+        default_account: Conta das operações sem regra em `account_map` (padrão: a primeira).
+        account_map: Regras que escolhem a conta por operação (veja `AccountRouting`).
     """
 
     type: Literal["login_password"]
@@ -175,6 +196,8 @@ class PasswordLoginAuth(ProfileModel):
     token_header: str = "Authorization"  # noqa: S105 - nome de cabeçalho, não um segredo
     token_scheme: str = "Bearer"  # noqa: S105 - esquema do cabeçalho, não um segredo
     csrf: CsrfConfig | None = None
+    login_limit: LoginLimit | None = None
+    token_expired: JsonFieldRule | None = None
 
     @field_validator("token_path")
     @classmethod
@@ -214,12 +237,13 @@ class PasswordLoginAuth(ProfileModel):
 
     @model_validator(mode="after")
     def validate_accounts(self) -> Self:
-        """Garante apelidos únicos."""
+        """Garante apelidos únicos e que o roteamento só cita contas existentes."""
         _ensure_unique_aliases(self.accounts)
+        self.ensure_known_accounts([account.alias for account in self.accounts])
         return self
 
 
-class ApiKeyAuth(ProfileModel):
+class ApiKeyAuth(AccountRouting):
     """Chave fixa de API enviada num cabeçalho com nome definido.
 
     Attributes:
@@ -227,6 +251,8 @@ class ApiKeyAuth(ProfileModel):
         header_name: Cabeçalho que leva a chave (ex.: `X-API-Key`).
         accounts: Contas de teste, ao menos uma, com apelidos únicos.
         csrf: Proteção XSRF/CSRF do alvo, opcional.
+        default_account: Conta das operações sem regra em `account_map` (padrão: a primeira).
+        account_map: Regras que escolhem a conta por operação (veja `AccountRouting`).
     """
 
     type: Literal["api_key"]
@@ -242,8 +268,9 @@ class ApiKeyAuth(ProfileModel):
 
     @model_validator(mode="after")
     def validate_accounts(self) -> Self:
-        """Garante apelidos únicos."""
+        """Garante apelidos únicos e que o roteamento só cita contas existentes."""
         _ensure_unique_aliases(self.accounts)
+        self.ensure_known_accounts([account.alias for account in self.accounts])
         return self
 
 

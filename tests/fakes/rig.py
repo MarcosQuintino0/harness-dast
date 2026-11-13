@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from harness_dast.adapters.datagen import GeneratorCatalogue
+from harness_dast.application.account_session import TokenCache
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
@@ -200,7 +201,7 @@ class Rig:
         self.profiles.add(self.profile, existing_files={"./openapi.json"})
         self.secrets = DictSecretProvider(ENV if env is None else env)
 
-    def probe(self) -> Probe:
+    def probe(self, token_cache: TokenCache | None = None) -> Probe:
         return Probe(
             profiles=self.profiles,
             specs=InMemorySpecs(self.spec),
@@ -215,9 +216,10 @@ class Rig:
             entropy=self.entropy,
             value_sources=GeneratorCatalogue,
             harness_version="0.0-test",
+            token_cache=token_cache,
         )
 
-    def preflight(self) -> Preflight:
+    def preflight(self, token_cache: TokenCache | None = None) -> Preflight:
         return Preflight(
             profiles=self.profiles,
             secrets=self.secrets,
@@ -229,6 +231,7 @@ class Rig:
             sleeper=self.clock,
             entropy=self.entropy,
             harness_version="0.0-test",
+            token_cache=token_cache,
         )
 
     def inspect(self) -> InspectSpec:

@@ -54,6 +54,36 @@ curl -X POST http://127.0.0.1:19091/internal/eval/reset
 curl http://127.0.0.1:19091/internal/eval/state     # contadores: notificações, requisições por rota, linhas por tabela
 ```
 
+## Operar pelo `hdast` (pilha gerenciada)
+
+Sequência exata para sondar a Clínica Piloto com o ZAP real e o proxy de escopo, sem `.env` e sem tocar a subida manual
+(`hdast-pilot`, que pode estar rodando com Oracle em outra janela):
+
+```bash
+mkdir -p /tmp/produtos && cp -r lab/pilot/product-profile /tmp/produtos/clinica-piloto   # a pasta tem o nome do produto
+export HDAST_PRODUCTS_DIR=/tmp/produtos
+uv run hdast --json stack up clinica-piloto                  # --secure (modo corrigido), --token-ttl 20 (expiração no meio), --build
+uv run hdast --json preflight clinica-piloto                 # contas e senhas descartáveis vêm do estado da pilha
+uv run hdast --json probe clinica-piloto
+curl -s http://127.0.0.1:29091/internal/eval/state           # contadores (notificações deve ser 0)
+uv run hdast --json stack down
+```
+
+O perfil usa `auth.csrf`, `auth.account_map` (admin cria convênio e médico; médico cria paciente, consulta e receita; paciente A lê o
+próprio perfil), `auth.login_limit` (5 por minuto), `auth.token_expired`, `probe.error_codes` e o encadeamento `convênio, paciente, consulta,
+receita`. Como o alvo aceita só 5 logins por minuto por origem e o `preflight` já gasta quatro, o `probe` logo em seguida espera o
+`Retry-After` do 429 (cerca de um minuto a mais); para o token vencer no meio da execução, suba com `--token-ttl 4`
+(e `PILOT_LOGIN_MAX_PER_MINUTE=60` no ambiente, com `max_per_minute: 60` no perfil, para não esperar). Testes de integração:
+`uv run pytest -m integration tests/integration/test_lab_pilot.py`.
+
+O `stack up` sobe o ZAP, o proxy de escopo e o alvo (projeto compose `hdast-pilotrun`, com
+`compose.yaml` + [`compose.lab-net.yaml`](compose.lab-net.yaml) desta pasta). O alvo fica na rede interna `hdast_lab_net`, alcançável
+só pelo proxy de escopo como `http://clinica-piloto:8080`; no host, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`
+(portas diferentes das da subida manual, 18080 e 19091). As contas são sorteadas a cada subida e guardadas no estado da CLI;
+defina `PILOT_ADMIN_USERNAME` etc. no ambiente para usar valores seus. Outras variáveis do alvo (`PILOT_LOGIN_MAX_PER_MINUTE`,
+`PILOT_XSRF_ENFORCED`) herdadas do ambiente chegam ao contêiner. O compose do piloto exige `PILOT_ORACLE_PASSWORD` mesmo sem o
+perfil `oracle`; a CLI passa um valor sem uso.
+
 ## Como um cliente precisa falar com ela
 
 ### 1. Login e vida do token

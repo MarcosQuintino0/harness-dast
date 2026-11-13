@@ -17,6 +17,13 @@ def _document(present: bool, valid: bool, count: int) -> str:
     return f"{count} item(ns), {'válido' if valid else 'COM PROBLEMAS'}"
 
 
+def _account_lines(result: SpecInspection) -> list[str]:
+    by_account: dict[str, list[str]] = {}
+    for item in result.operation_accounts:
+        by_account.setdefault(item.account, []).append(item.operation_id)
+    return [f"  conta {account}: {', '.join(names)}" for account, names in by_account.items()]
+
+
 def _render(result: SpecInspection) -> str:
     summary = result.summary
     rules, flows = result.data_rules, result.flows
@@ -34,6 +41,7 @@ def _render(result: SpecInspection) -> str:
     lines.extend(f"  regra sem campo: #{r.number} ({r.field})" for r in result.unused_rules)
     lines.extend(f"  precisa de regra: {n.operation_id}: {n.message}" for n in result.needs_rule)
     lines.extend(f"  [{i.code}] {i.message}" for i in result.issues)
+    lines.extend(_account_lines(result))
     if result.suspicious_operations:
         lines.append(
             "Operações que parecem destrutivas (considere scope.deny_paths): "

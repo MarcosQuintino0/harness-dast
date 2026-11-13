@@ -53,7 +53,7 @@ Para um campo sem regra, o harness usa, nesta ordem: o valor encadeado de `flows
 | Gerador | Onde a etiqueta e o contador entram |
 | --- | --- |
 | `alphanumeric`, `email`, `uri` | Texto `etiqueta` + contador de 4 dígitos hex (`7f3a0012`); campo curto corta a etiqueta pela direita, nunca o contador. Capacidade: 65 536 por execução |
-| `numeric`, `br.cpf`, `br.cnpj` (raiz), `br.cns`, `br.phone`, `br.cep` | Contador nos últimos `c` dígitos (a largura inteira se for até 4; senão metade, mínimo 4) e, no restante, `int(etiqueta, 16) mod 10^p`. Capacidade: `10^c` (10 000 para CPF e CNPJ) |
+| `numeric`, `br.cpf`, `br.cnpj` (raiz), `br.cns`, `br.phone`, `br.cep`, `br.crm` (número) | Contador nos últimos `c` dígitos (a largura inteira se for até 4; senão metade, mínimo 4) e, no restante, `int(etiqueta, 16) mod 10^p`. Capacidade: `10^c` (10 000 para CPF e CNPJ) |
 | `uuid` | Os 12 primeiros dígitos hex são a etiqueta (8, completada com zeros) e o contador (4) |
 | `integer` | Único na execução, mas **não** rastreável pela etiqueta |
 | `sequence` | Cresce a cada uso; **repete entre execuções** (use `numeric` se houver risco de 409 entre execuções) |
@@ -84,6 +84,7 @@ Catálogo **fechado**: só estes nomes valem. Argumentos desconhecidos, de tipo 
 | `br.cns` | `kind` (`definitive` ou `provisional`) | CNS de 15 dígitos válido (definitivo começa em 1 ou 2; provisório em 7, 8 ou 9) |
 | `br.phone` | `mobile` (`true`), `ddd` (sorteado entre os DDDs em uso), `formatted`, `country_code` | Celular (9 + 8 dígitos) ou fixo (2 a 5 + 7 dígitos). Pode coincidir com número real |
 | `br.cep` | `formatted` (`false`) | 8 dígitos, nunca `00000000`. Máscara `00000-000` |
+| `br.crm` | `digits` (7, de 4 a 8), `uf` (`SP`, uma das 27 siglas) | CRM sintético `NNNNNNN-UF`. Com `unique: true` os dígitos seguem a regra dos numéricos únicos; use 7 dígitos ou mais para o número não repetir entre execuções seguidas (com 5 só sobra 1 dígito para a etiqueta e a chance de colisão é de 10%) |
 
 Os algoritmos de CPF, CNPJ e CNS estão descritos, com a fonte, em `adapters/datagen/checkdigits.py`.
 

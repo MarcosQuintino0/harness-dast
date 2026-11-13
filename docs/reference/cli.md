@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init`, `profile validate`, `spec inspect`, `preflight` e `probe` existem hoje. Todos os outros são desenho aprovado e **não funcionam**.
+`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `cleanup`, `stack` e `stop` existem hoje. Todos os outros são desenho aprovado e **não funcionam**.
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -14,11 +14,13 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra um ZAP falso, não contra o ZAP real ([roadmap](../roadmap.md)) |
-| `hdast scan` | Executa a varredura do ZAP com limites fixados | Sim | Planejado (M4) |
-| `hdast report` | Normaliza os alertas em achados e gera JSON e Markdown | Não | Planejado (M4) |
-| `hdast cleanup` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Sim | Planejado (M5) |
+| `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra um ZAP falso, não contra o ZAP real. Referência: [scan.md](scan.md) |
+| `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json` e `report.md`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
+| `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`, `--confirm TOKEN` |
 | `hdast run` | Encadeia preflight, probe, scan e report sem interação | Sim | Planejado (M5) |
-| Comando de parada de emergência | Interrompe a varredura e derruba os contêineres | Sim | Planejado (M5). O nome do comando ainda não foi definido |
+| `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
+| `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
+| `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
 
@@ -31,6 +33,37 @@ uv run hdast --json version
 ```
 
 A saída (JSON e texto) é sempre UTF-8, qualquer que seja a página de código do terminal. `--json` pode vir **antes ou depois** do nome do comando: `hdast --json version` e `hdast version --json` fazem a mesma coisa. Mesmo um erro de uso (comando inexistente, opção desconhecida) sai como envelope JSON quando a flag está na linha. `hdast` sem argumentos mostra a ajuda e sai com `0`; com `--json` e sem comando, o resultado é um erro de uso em JSON (`CONFIG_ERROR`, saída 2), para não sujar o `stdout` com texto de ajuda. Ctrl+C encerra com o código `130` e `error.code` `INTERRUPTED`. (Antes da rodada de correção de 2026-11-13, `--json` depois do subcomando falhava em texto; achado A-03.)
+
+## `hdast stack` e `hdast stop`
+
+```bash
+uv run hdast --json stack up vampi --products-dir ./meus-produtos      # sobe a pilha para o perfil
+uv run hdast --json stack up clinica-piloto --secure --token-ttl 20     # alvo piloto em modo seguro, token de 20 s
+uv run hdast --json stack status
+uv run hdast --json stop                                                # trava de emergência
+uv run hdast --json stack down
+```
+
+`stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
+
+`data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `managed` | booleano | Há pilha gerenciada |
+| `running` | booleano | Todos os serviços em execução |
+| `product`, `run_id`, `lab_target` | texto | Produto, identificador da pilha (vai em toda linha de auditoria do proxy) e alvo anexado ou ausente |
+| `not_after` | texto ISO 8601 | Prazo da política |
+| `zap_url`, `auth_proxy_url` | texto | API e proxy do ZAP; proxy de escopo para login e CSRF |
+| `policy_file`, `audit_file`, `state_file` | texto | Caminhos locais |
+| `kill_switch` | booleano | Trava acionada |
+| `services` | lista | `{project, service, state, health}` |
+| `target_urls` | mapa | `api` e `management` do alvo piloto |
+| `warnings` | lista de textos | Avisos |
+
+`stop` cria o arquivo `KILL` na pasta da política (a da pilha gerenciada, ou `HDAST_SCOPE_POLICY_DIR`) **antes** de falar com o ZAP e depois pede ao ZAP `ascan/stopAllScans`; ZAP inacessível não é erro (`zap_reachable: false`). `data`: `kill_file`, `kill_created`, `stack_managed`, `zap_reachable`, `zap_scans_stopped`, `zap_message`. O proxy nega todo pedido novo e a trava só se desfaz recriando a pilha (`stack up`). Sem pilha e sem `HDAST_SCOPE_POLICY_DIR`, sai com `2`. `stop` não derruba contêineres: use `stack down`.
+
+Como os comandos seguintes obtêm a chave, a URL do ZAP, o proxy de login e as senhas do alvo: do ambiente `HDAST_*` quando definido; senão do `stack.json` em `HDAST_STATE_DIR` (veja [env-vars.md](env-vars.md)).
 
 ## `hdast init`
 
@@ -117,7 +150,8 @@ Não toca o alvo. Lê o `target.yml` e o OpenAPI do produto (erro de perfil ou d
 | `unused_rules` | lista de `{number, field, operation}` | Regras que não casam com campo algum do OpenAPI (costuma ser erro de digitação) |
 | `needs_rule` | lista de `{operation_id, message, hint}` | Operações cuja requisição não pôde ser montada: campo obrigatório que o harness não sabe gerar (por exemplo `pattern` complexo). A dica diz que regra escrever |
 | `needs_rule_unchecked` | lista de texto | Consumidores de `flows.yml`; a montagem deles depende de valores de outra operação e não é simulada aqui |
-| `issues` | lista de `{code, message, hint}` | `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH` (regra cita operação inexistente), `FLOWS_INVALID`, `FLOWS_MISMATCH` (operação, parâmetro ou campo inexistente) |
+| `issues` | lista de `{code, message, hint}` | `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH` (regra cita operação inexistente), `FLOWS_INVALID`, `FLOWS_MISMATCH` (operação, parâmetro ou campo inexistente), `ACCOUNT_MAP_MISMATCH` (`auth.account_map` cita operação inexistente) |
+| `operation_accounts` | lista de `{operation_id, account}` | A conta (apelido) que enviará cada operação que o `probe` envia, segundo `auth.default_account` e `auth.account_map` |
 
 ## `hdast preflight`
 
@@ -159,9 +193,9 @@ Envia UMA requisição válida por operação, pelo proxy do ZAP (que a aprende)
 | `--only ID` | Executa só esta operação (repetível). Os produtores de que ela depende entram junto |
 | `--dry-run` | Monta as requisições e confere o escopo, mas não envia nada, não toca o ZAP, não resolve segredos e não grava arquivos. Mostra o que SERIA enviado: nomes de campos e o gerador de cada um, nunca valores |
 | `--include-delete` | Permite `DELETE`, só sobre recurso criado nesta execução (a operação precisa ser consumidora em `flows.yml` e o produtor ter tido sucesso). Sem a flag, ou sem vínculo, é `skipped_destructive` |
-| `--account APELIDO` | Conta que envia (padrão: a primeira de `auth.accounts`) |
+| `--account APELIDO` | Impõe esta conta a TODAS as operações (reduz o roteamento do perfil a uma conta). Sem a flag, cada operação usa a conta de `auth.default_account` e `auth.account_map` (padrão: a primeira de `auth.accounts`). Apelido que não existe no perfil é erro de configuração |
 
-Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` ANTES de sair (fora do escopo ou em `deny_paths` nunca é enviada); autorização, janela e prazo (`limits.max_duration_minutes`) são conferidos antes de CADA requisição; a taxa respeita `limits.requests_per_second`; redirecionamentos não são seguidos; a resposta é lida até 256 KiB; o login e a busca do token CSRF saem direto, nunca pelo ZAP; 401 refaz o login uma vez; 429 espera o `Retry-After` (até 3 vezes, no máximo 30 s cada); um 403 que parece rejeição de CSRF busca o token de novo uma vez; cinco falhas de transporte seguidas (timeout, conexão recusada, 502, 503, 504) encerram o `probe`. Nenhum segredo ou token é impresso, logado ou gravado.
+Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` ANTES de sair (fora do escopo ou em `deny_paths` nunca é enviada); autorização, janela e prazo (`limits.max_duration_minutes`) são conferidos antes de CADA requisição; a taxa respeita `limits.requests_per_second`; redirecionamentos não são seguidos; a resposta é lida até 256 KiB; o login e a busca do token CSRF nunca passam pelo ZAP (saem direto ou por `HDAST_AUTH_PROXY_URL`, que a pilha gerenciada aponta para o proxy de escopo); cada conta usada faz um login por execução e todo login respeita `auth.login_limit` (espera, não falha); um 401 de token vencido (`auth.token_expired`, ou qualquer 401 sem esse bloco) refaz o login uma vez por requisição; 429 espera o `Retry-After` (até 3 vezes, no máximo 30 s cada); um 403 que parece rejeição de CSRF busca o token de novo uma vez; cinco falhas de transporte seguidas (timeout, conexão recusada, 502, 503, 504) encerram o `probe`. Nenhum segredo ou token é impresso, logado ou gravado.
 
 **Classes de resultado** (`operations[].outcome`):
 
@@ -169,8 +203,8 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | --- | --- |
 | `success` | Enviada; 2xx e, se o perfil declara `probe.success`, sem marca de falha no corpo |
 | `logical_failure` | 2xx, mas o corpo tem a marca de falha de `probe.success` (alvo que responde 200 com `"status":"fail"`) |
-| `validation_error` | 400 ou 422: falta regra de dados ou valor inválido |
-| `conflict` | 409: valor repetido; use `unique: true` |
+| `validation_error` | 400 ou 422 (ou código declarado em `probe.error_codes`): falta regra de dados ou valor inválido. O trecho traz `errors[].field` e `rule` |
+| `conflict` | 409 (ou código declarado): valor repetido; use `unique: true` |
 | `auth_error` | 401/403 (depois do novo login, quando cabível): conta, papel ou token |
 | `csrf_error` | 403 de CSRF persistente depois de renovar o token |
 | `not_found` | 404 ou 410: falta encadeamento (`flows.yml`) ou o recurso não existe |
@@ -205,6 +239,29 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 **Saída:** `0` quando o `probe` rodou, mesmo com operações falhando (elas são dado); `2` configuração; `3` janela fechada, autorização vencida ou prazo esgotado, inclusive no meio da execução; `4` falha ao começar (ZAP fora do ar, segredo ausente, login recusado); `5` o proxy do ZAP caiu no meio; `6` o alvo parou de responder. Em `3`, `5` e `6` depois de começar, o envelope traz `ok: false`, `error` e `data` com o resultado parcial (também em `probe.json`). Com `--dry-run`, o envelope não tem `run_id` no topo e nada é gravado.
 
 **ZAP.** No início: versão (aviso se não for 2.17.x), remoção das regras do Replacer com nome começando por `hdast-` (as de outros nomes nunca), sessão nova por execução e contexto restrito aos hosts e caminhos do perfil. Configuração: [env-vars.md](env-vars.md).
+
+## `hdast cleanup`
+
+```bash
+uv run hdast cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a --dry-run
+uv run hdast cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a
+uv run hdast --json cleanup meu-produto --run 2026-11-12T21-04-11Z-meu-produto-7f3a --confirm hdc-...
+```
+
+Apaga, em uma transação confirmada por uma pessoa, o lixo que uma execução deixou no banco Oracle de testes, com o SQL escrito por uma pessoa do time do produto. **O agente de IA não roda este comando.** Guia do operador, passo a passo e o que o portão de SQL garante: [operations/cleanup.md](../operations/cleanup.md); decisão: [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md).
+
+| Flag | Efeito |
+| --- | --- |
+| `--run ID` | (obrigatória) A execução a limpar. Precisa existir em `HDAST_RUNS_DIR`, ser do produto e já ter terminado |
+| `--dry-run` | Roda os comandos, mostra as contagens e DESFAZ tudo (`ROLLBACK`, sempre). Emite o token de `--confirm` no **stderr** |
+| `--confirm TOKEN` | Execução sem terminal: token de um `--dry-run` anterior da mesma execução (10 minutos, uso único, amarrado ao script e ao total de linhas visto) |
+| `--products-dir DIR` | Pasta de produtos (sobrepõe `HDAST_PRODUCTS_DIR`) |
+
+Sem `--dry-run` nem `--confirm`, só roda com terminal interativo: a pessoa vê o plano e digita o nome do produto. Sem terminal, o comando se recusa (saída `2`). Autorização vencida é `3`; a janela de execução não é exigida.
+
+`data`: `run_id`, `product`, `status` (`dry_run`, `committed` ou `declined`), `script_sha256`, `statement_count`, `tables`, `statements` (`{index, table, rows}`), `total_rows`, `max_rows`, `confirmation_method` (`none`, `interactive`, `token`), `committed`, `rolled_back`, `started_at`, `finished_at`, `duration_ms`, `token_expires_at` (só no `--dry-run`). **Nunca** traz o token, valores de variáveis de ligação nem credenciais. Falha de banco, teto de linhas (`cleanup.max_rows`) excedido ou erro ao conectar: `error.code = CLEANUP_FAILED`, saída `7`, mensagem com o índice do comando e a tabela, tudo desfeito.
+
+**Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/`: `cleanup.json` (o mesmo `data`), `cleanup-audit.jsonl` (linhas `started` e `finished`) e `cleanup-confirmation.json` (só o hash do token).
 
 ## Envelope JSON
 

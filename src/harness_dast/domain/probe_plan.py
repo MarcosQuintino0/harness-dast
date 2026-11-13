@@ -11,7 +11,8 @@ Regras (contrato):
   antes do envio.
 - `DELETE` é `skipped_destructive`, salvo com `include_delete` E quando a operação consome
   um valor de `flows.yml` (só se apaga o que foi criado nesta execução).
-- `only` seleciona operações e traz junto os produtores de que elas dependem.
+- `only` seleciona operações e traz junto os produtores de que elas dependem, em qualquer
+  nível da cadeia.
 
 Este módulo é puro.
 """
@@ -74,7 +75,13 @@ def _select(
     for name in only:
         spec.get_operation(name)
     wanted = set(only)
-    wanted.update(p for name in only for p in producers.get(name, ()))
+    pending = list(only)
+    while pending:
+        # Fecho transitivo: num encadeamento de vários níveis, o produtor do produtor também entra.
+        for producer in producers.get(pending.pop(), ()):
+            if producer not in wanted:
+                wanted.add(producer)
+                pending.append(producer)
     return [name for name in ids if name in wanted]
 
 

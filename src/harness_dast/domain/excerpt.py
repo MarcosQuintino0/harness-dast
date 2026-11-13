@@ -11,6 +11,10 @@ segredos. Este módulo reduz o risco por construção, sem tentar "entender" o t
 - em JSON, os NOMES dos campos são preservados e os valores de texto passam por redação:
   JWT, CPF (formatado ou 11 dígitos), e-mail, sequências longas parecidas com token e
   qualquer valor cujo campo tenha nome sensível (`password`, `token`, `secret`...);
+- a estrutura por campo dos erros de validação (`errors: [{field, rule, message}]`) é
+  preservada: quando o corpo passa do teto, primeiro caem as mensagens, depois os itens
+  excedentes, mas `field` e `rule` dos primeiros itens continuam no trecho, porque é com eles
+  que o agente escreve a regra de dados;
 - valores registrados como segredo da execução (`mask`) são trocados por `***` mesmo que
   tenham passado pelas regras acima.
 
@@ -107,6 +111,44 @@ def _sanitize_json(value: JsonValue, key: str, mask: Callable[[str], str], depth
     return MASK if _is_sensitive(key) and value is not None else value
 
 
+_FIT_ATTEMPTS: Final = (10, 8, 6, 4, 3, 2, 1)
+_SHORT_TEXT: Final = 40
+
+
+def _is_error_items(value: JsonValue) -> bool:
+    return (
+        isinstance(value, list)
+        and bool(value)
+        and all(isinstance(item, dict) and "field" in item for item in value)
+    )
+
+
+def _shrink_errors(value: dict[str, JsonValue], keep: int) -> dict[str, JsonValue]:
+    """Versão enxuta: textos curtos e, nas listas de erros, sem `message` e só `keep` itens."""
+    shrunk: dict[str, JsonValue] = {}
+    for name, item in value.items():
+        if isinstance(item, list) and _is_error_items(item):
+            shrunk[name] = [
+                {key: val for key, val in entry.items() if key != "message"}
+                for entry in item[:keep]
+                if isinstance(entry, dict)
+            ]
+        else:
+            shrunk[name] = _cut(item, _SHORT_TEXT) if isinstance(item, str) else item
+    return shrunk
+
+
+def _fit_error_structure(value: JsonValue) -> str | None:
+    """Menor encolhimento que cabe no teto mantendo `field`/`rule`; `None` se não aplicável."""
+    if not isinstance(value, dict) or not any(_is_error_items(item) for item in value.values()):
+        return None
+    for keep in _FIT_ATTEMPTS:
+        dumped = json.dumps(_shrink_errors(value, keep), ensure_ascii=False)
+        if len(dumped) <= EXCERPT_CAP:
+            return dumped
+    return None
+
+
 def sanitize_excerpt(body: bytes, mask: Callable[[str], str]) -> str:
     """Devolve um trecho seguro do corpo, com no máximo `EXCERPT_CAP` caracteres.
 
@@ -127,6 +169,9 @@ def sanitize_excerpt(body: bytes, mask: Callable[[str], str]) -> str:
         except (ValueError, RecursionError):
             parsed = None
         else:
-            dumped = json.dumps(_sanitize_json(parsed, "", mask, 0), ensure_ascii=False)
+            cleaned = _sanitize_json(parsed, "", mask, 0)
+            dumped = json.dumps(cleaned, ensure_ascii=False)
+            if len(dumped) > EXCERPT_CAP:
+                dumped = _fit_error_structure(cleaned) or dumped
             return _clean_text(dumped, mask, EXCERPT_CAP)
     return _clean_text(text, mask, EXCERPT_CAP)

@@ -1,5 +1,7 @@
 """Caso de uso `spec inspect`: resumo e verificações cruzadas para o agente."""
 
+from typing import Any
+
 import pytest
 
 from harness_dast.application.inspect_report import SpecInspection
@@ -8,6 +10,7 @@ from harness_dast.domain.api_schema import Schema
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import FlowSpec
+from harness_dast.domain.profile import ProductProfile
 from tests.fakes.probe_ports import InMemoryDocuments
 from tests.fakes.rig import STR, Rig, agenda_flows, agenda_profile, operation, profile_data
 from tests.unit.api_helpers import rule, rules_from
@@ -191,3 +194,36 @@ def test_profile_with_deny_path_makes_the_matching_operation_denied() -> None:
 
     denied = {n.operation_id for n in result.not_sent if n.reason == "skipped_denied"}
     assert {"listar", "criar", "buscar"} <= denied
+
+
+def _two_account_profile(**auth: Any) -> ProductProfile:
+    data = profile_data()
+    data["auth"]["accounts"].append(
+        {
+            "alias": "user_b",
+            "role": "outro",
+            "username": {"secret_ref": "env:ACME_USER_B_LOGIN"},
+            "password": {"secret_ref": "env:ACME_USER_B_SENHA"},
+        }
+    )
+    data["auth"].update(auth)
+    return ProductProfile.from_data(data)
+
+
+def test_it_reports_which_account_each_sent_operation_will_use() -> None:
+    profile = _two_account_profile(account_map=[{"account": "user_b", "operations": ["criar"]}])
+
+    result = inspect(Rig(profile=profile))
+
+    accounts = {item.operation_id: item.account for item in result.operation_accounts}
+    assert accounts["criar"] == "user_b"
+    assert accounts["listar"] == "user_a"
+    assert "admin" not in accounts
+
+
+def test_an_account_map_with_an_unknown_operation_becomes_an_issue() -> None:
+    profile = _two_account_profile(account_map=[{"account": "user_b", "operations": ["nada"]}])
+
+    result = inspect(Rig(profile=profile))
+
+    assert [issue.code for issue in result.issues] == ["ACCOUNT_MAP_MISMATCH"]

@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.probe_plan import (
     PlannedOperation,
     looks_destructive,
@@ -133,3 +134,27 @@ def test_destructive_looking_names_are_flagged(
     operation_id: str, path: str, expected: bool
 ) -> None:
     assert looks_destructive(operation(operation_id, "get", path)) is expected
+
+
+def test_only_brings_the_producers_of_producers_in_a_multi_level_chain() -> None:
+    profile = agenda_profile()
+    flows = FlowSpec.from_data(
+        {
+            "schema_version": 1,
+            "bindings": [
+                {
+                    "produces": {"operation": "listar", "field": "id"},
+                    "consumed_by": [{"operation": "criar", "param": "x"}],
+                },
+                {
+                    "produces": {"operation": "criar", "field": "id"},
+                    "consumed_by": [{"operation": "buscar", "param": "pacienteId"}],
+                },
+            ],
+        }
+    )
+
+    items = plan_probe(agenda_spec(), flows, profile.guard(), BASE, only=("buscar",))
+
+    assert [i.operation_id for i in items] == ["listar", "criar", "buscar"]
+    assert {i.operation_id: i.depends_on for i in items}["buscar"] == ("criar",)

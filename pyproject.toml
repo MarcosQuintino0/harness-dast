@@ -16,6 +16,7 @@ dependencies = [
     "tzdata>=2025.2",
     "pyyaml>=6.0",
     "httpx>=0.28.1",
+    "oracledb>=3.4",
 ]
 
 [project.scripts]
@@ -149,7 +150,7 @@ forbidden_modules = [
 name = "domain nao importa dependencias externas alem de pydantic e stdlib"
 type = "forbidden"
 source_modules = ["harness_dast.domain"]
-forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore"]
+forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore", "oracledb"]
 
 [[tool.importlinter.contracts]]
 name = "application so importa domain"
@@ -191,6 +192,7 @@ modules = [
     "harness_dast.adapters.cleanup",
     "harness_dast.adapters.storage",
     "harness_dast.adapters.scope_proxy",
+    "harness_dast.adapters.docker",
 ]
 
 # --------------------------------------------------------------- vulture
@@ -243,10 +245,20 @@ ignore_names = [
     "target_yml",
     "untrusted_target_data",
     "zap_context_id",
+    "updated_at",
+    # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
+    # que o código atribui em objetos do driver Oracle.
+    "statement_count",
+    "confirmation_method",
+    "failed_statement",
+    "failed_table",
+    "error_code",
+    "autocommit",
+    "call_timeout",
+    "stack_managed",
     # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
     # (`scan`, `report`, `cleanup`).
     "FINDINGS",
-    "CleanupError",
     # Sobrescritas que só estreitam (domain/overrides.py): ganham chamador quando a CLI
     # aceitar flags de redução de escopo e limites (M4).
     "narrow_limits",

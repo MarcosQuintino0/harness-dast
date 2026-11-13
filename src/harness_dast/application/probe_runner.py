@@ -8,6 +8,7 @@ antecipadas (janela, prazo, ZAP, alvo sem resposta) interrompem o laço e voltam
 
 from dataclasses import dataclass, field
 
+from harness_dast.application.account_session import AccountSession
 from harness_dast.application.dispatcher import OperationDispatcher, SendOutcome
 from harness_dast.application.preview import build_preview
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
@@ -110,7 +111,7 @@ class ProbeRunner:
             bindings = self._bindings(planned)
             built = self._s.builder.build(operation, bindings)
             request = encode_built_request(
-                built, base_url=self._s.base_url, account=self._s.account
+                built, base_url=self._s.base_url, account=self._s.account_for(planned)
             )
         except TargetError as error:
             return self._result(
@@ -150,7 +151,7 @@ class ProbeRunner:
             else prepared.request.model_copy(update={"account": None})
         )
         try:
-            sent = dispatcher.send(request, None if anonymous else self._s.session)
+            sent = dispatcher.send(request, None if anonymous else self._session_for(request))
         except (WindowClosed, DeadlineReached):
             raise
         except ScopeViolation as error:
@@ -165,6 +166,12 @@ class ProbeRunner:
             return self._result(planned, "auth_error", message=error.message, hint=error.hint)
         elapsed = int((self._s.clock.now() - started).total_seconds() * 1000)
         return self._classified(planned, request, sent, elapsed)
+
+    def _session_for(self, request: HttpRequest) -> AccountSession | None:
+        pool = self._s.sessions
+        if pool is None or request.account is None:
+            return None
+        return pool.get(request.account)
 
     def _classified(
         self, planned: PlannedOperation, request: HttpRequest, sent: SendOutcome, elapsed: int
@@ -189,6 +196,7 @@ class ProbeRunner:
             method=request.method,
             success_rule=self._s.success_rule,
             csrf=self._s.csrf,
+            error_codes=self._s.error_codes,
         )
         if outcome == "success" and planned.is_producer:
             self._state.producer_bodies[planned.operation_id] = parse_json_body(response)

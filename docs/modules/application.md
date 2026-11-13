@@ -60,7 +60,9 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 | `probe_runner.py`, `runner_settings.py` | O laço do `probe`: um passo nomeado por situação (pular, montar, simular, enviar, classificar) e as paradas antecipadas |
 | `run_support.py` | `RunGate` (autorização, janela e prazo a cada requisição), `RateLimiter`, `AuditTrail` e `GuardedSender`, o único caminho de saída |
 | `dispatcher.py` | `OperationDispatcher`: envia e repete conforme `domain.retry.next_action` |
-| `account_session.py` | `AccountSession`: segredos, login (ou chave fixa), token CSRF; registra tudo no `SecretVault` |
+| `account_session.py` | `AccountSession` e `TokenCache`: segredos, login (ou chave fixa, ou token do cache do processo), token CSRF; registra tudo no `SecretVault` |
+| `login_budget.py` | `LoginBudget`: janela deslizante de logins por minuto (`auth.login_limit`); `is_login_request` |
+| `session_pool.py` | `SessionPool`: abre cada conta usada uma vez e não repete uma abertura que falhou |
 | `preview.py` | Prévia do `--dry-run`: nomes de campos e geradores, nunca valores |
 
 As portas `Scanner`, `ReportSink` e `CleanupHook` **ainda não existem** (M4 e M5).

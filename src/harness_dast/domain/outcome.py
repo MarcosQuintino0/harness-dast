@@ -11,7 +11,7 @@ from typing import Final, Literal
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.http_messages import HttpResponse
-from harness_dast.domain.probe_config import JsonFieldRule
+from harness_dast.domain.probe_config import ErrorCodes, ErrorOutcome, JsonFieldRule
 
 Outcome = Literal[
     "success",
@@ -76,16 +76,37 @@ def parse_json_body(response: HttpResponse) -> JsonValue:
     return parsed
 
 
-def looks_like_csrf_rejection(response: HttpResponse, method: str, csrf: CsrfConfig | None) -> bool:
+def declared_error_outcome(
+    response: HttpResponse, error_codes: ErrorCodes | None
+) -> ErrorOutcome | None:
+    """Classe que o perfil declara para o código de erro da resposta, ou `None`.
+
+    Só vale para resposta de erro (4xx e 5xx): um 2xx nunca é reclassificado por código.
+    """
+    if error_codes is None or response.status < 400:
+        return None
+    return error_codes.outcome_for(parse_json_body(response))
+
+
+def looks_like_csrf_rejection(
+    response: HttpResponse,
+    method: str,
+    csrf: CsrfConfig | None,
+    error_codes: ErrorCodes | None = None,
+) -> bool:
     """Diz se um 403 parece rejeição de CSRF (e portanto vale renovar o token uma vez).
 
-    Só considera 403 num método que exige o token. Parece CSRF quando o corpo cita
-    `csrf`/`xsrf`, ou quando é o 403 "pelado" do Spring (corpo vazio, ou JSON só com
-    `timestamp/status/error/path` e sem `message`). Heurística: um 403 de autorização
-    também pode ser pelado; o custo é uma única repetição.
+    Só considera 403 num método que exige o token. Se o perfil declara `error_codes` e a
+    resposta traz um código declarado, a resposta é exata: é CSRF só se o código for da
+    classe `csrf_error`. Sem código declarado, vale a heurística: o corpo cita `csrf`/`xsrf`,
+    ou é o 403 "pelado" do Spring (corpo vazio, ou JSON só com `timestamp/status/error/path` e
+    sem `message`). Um 403 de autorização também pode ser pelado; o custo é uma repetição.
     """
     if csrf is None or response.status != 403 or method not in csrf.methods:
         return False
+    declared = declared_error_outcome(response, error_codes)
+    if declared is not None:
+        return declared == "csrf_error"
     text = response.body.decode("utf-8", errors="replace").lower()
     if any(word in text for word in _CSRF_WORDS):
         return True
@@ -101,6 +122,7 @@ def classify_response(
     method: str,
     success_rule: JsonFieldRule | None,
     csrf: CsrfConfig | None,
+    error_codes: ErrorCodes | None = None,
 ) -> Outcome:
     """Classifica uma resposta do alvo.
 
@@ -109,6 +131,7 @@ def classify_response(
         method: Método da requisição (decide se um 403 é de CSRF).
         success_rule: Regra de corpo do perfil (`probe.success`), ou `None` (vale 2xx).
         csrf: Configuração de CSRF do perfil, ou `None`.
+        error_codes: Mapa de códigos de erro do perfil (`probe.error_codes`), ou `None`.
     """
     status = response.status
     if _HTTP_OK_FIRST <= status <= _HTTP_OK_LAST:
@@ -117,6 +140,9 @@ def classify_response(
         return "success"
     if 300 <= status < 400:
         return "redirect"
+    declared = declared_error_outcome(response, error_codes)
+    if declared is not None:
+        return declared
     return _classify_error(response, method, csrf)
 
 

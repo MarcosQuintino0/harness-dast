@@ -1,6 +1,6 @@
 # Limpeza (cleanup)
 
-> Schema planejado para o marco M2. O comando `hdast cleanup` ainda não existe.
+> Contrato das variáveis de ligação: `docs/reference/cleanup.md`. Guia do operador: `docs/operations/cleanup.md`.
 
 A varredura cria dados no ambiente de teste do produto. A limpeza é o único
 ponto do sistema que **apaga dados de propósito**, por isso é o mais
@@ -16,10 +16,11 @@ restrito. Decisão: AD-13.
    ou DDL. A conexão entra no `target.yml` apenas como `secret_ref: "env:NOME"`.
 3. **Os comandos se restringem a dados criados pelas contas de teste ou pela
    execução.** Filtre sempre pela conta (`criado_por`) e, quando o campo
-   existir, pelo identificador da execução (`:run_id`), que o gerador de dados
-   marca nos registros que cria. Nunca um `DELETE` sem `WHERE`.
-4. **Use variáveis de ligação** (`:run_id`, `:test_account`). Sem concatenar
-   texto no SQL.
+   existir, pelo tempo de início da execução (`:run_start`) ou pela etiqueta dos
+   valores únicos (`:run_tag`). Nunca um `DELETE` sem `WHERE`.
+4. **Use só as variáveis de ligação do contrato**: `:run_start`, `:run_id`,
+   `:run_tag` e `:account_1` a `:account_N` (usuários das contas de teste, na
+   ordem de `auth.accounts`). Sem concatenar texto no SQL.
 5. **A CLI executa dentro de uma transação**, mostra quantas linhas cada
    comando apagaria e **pede confirmação a uma pessoa**. Sem confirmação (ou
    com `requires_confirmation: false`), nada é gravado: a transação sofre

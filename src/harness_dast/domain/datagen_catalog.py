@@ -21,6 +21,11 @@ BR_DDD_CODES = (
     *range(61, 70), 71, 73, 74, 75, 77, 79, *range(81, 90), *range(91, 100),
 )  # fmt: skip
 """Códigos de área (DDD) em uso no Brasil, segundo o plano de numeração da Anatel."""
+BR_UF_CODES = (
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR",
+    "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+)  # fmt: skip
+"""Siglas das 27 unidades da federação."""
 _MAX_LIST = 200
 MAX_ARG_TEXT = 1000
 """Tamanho máximo de um argumento de texto de gerador."""
@@ -196,6 +201,15 @@ CATALOG: tuple[GeneratorDef, ...] = (
         ),
         supports_unique=True,
         summary="Telefone brasileiro com DDD em uso.",
+    ),
+    GeneratorDef(
+        name="br.crm",
+        args=(
+            _int("digits", minimum=4, maximum=8, default=7),
+            ArgSpec(name="uf", kind="str", default="SP", choices=BR_UF_CODES),
+        ),
+        supports_unique=True,
+        summary="CRM sintético NNNNNNN-UF (com unique, o número não repete entre execuções).",
     ),
     GeneratorDef(
         name="br.cep", args=(_FORMATTED,), supports_unique=True, summary="CEP de 8 dígitos."

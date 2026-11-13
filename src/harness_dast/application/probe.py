@@ -12,8 +12,9 @@ operação NÃO são erros do comando. Só viram erro (código de saída) o que 
 from dataclasses import dataclass
 from datetime import datetime
 
-from harness_dast.application.account_session import AccountSession
+from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
     EntropySource,
@@ -37,8 +38,8 @@ from harness_dast.application.run_support import (
     RunGate,
 )
 from harness_dast.application.runner_settings import RunnerSettings, RunOutcome
+from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import ApiSpec
-from harness_dast.domain.auth import Account, PasswordLoginAuth
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ExternalToolError, HarnessError, PreflightError
 from harness_dast.domain.flow import FlowSpec
@@ -65,7 +66,8 @@ class ProbeRequest:
         only: Operações a executar (os produtores de `flows.yml` entram junto).
         dry_run: Monta e confere o escopo, mas não envia nada nem grava arquivos.
         include_delete: Permite `DELETE` sobre recursos criados nesta execução.
-        account: Apelido da conta que envia; `None` usa a primeira do perfil.
+        account: Apelido imposto a TODAS as operações (reduz o roteamento do perfil a uma conta);
+            `None` segue `auth.default_account` e `auth.account_map`.
     """
 
     product: str
@@ -82,7 +84,8 @@ class _Run:
     profile: ProductProfile
     spec: ApiSpec
     flows: FlowSpec | None
-    account: Account
+    pinned: str | None
+    accounts: tuple[str, ...]
     plan: tuple[PlannedOperation, ...]
     run_id: RunId
     seed: int
@@ -110,8 +113,12 @@ class Probe:
         entropy: EntropySource,
         value_sources: ValueSourceFactory,
         harness_version: str,
+        token_cache: TokenCache | None = None,
     ) -> None:
-        """Cria o caso de uso com todas as portas de que precisa."""
+        """Cria o caso de uso com todas as portas de que precisa.
+
+        `token_cache` é o cache de tokens do processo, compartilhado com o `preflight`.
+        """
         self._profiles = profiles
         self._specs = specs
         self._documents = documents
@@ -125,6 +132,7 @@ class Probe:
         self._entropy = entropy
         self._value_sources = value_sources
         self._harness_version = harness_version
+        self._token_cache = token_cache
 
     def execute(self, request: ProbeRequest) -> ProbeResult:
         """Executa o `probe`.
@@ -159,7 +167,8 @@ class Probe:
         rules.validate_against(spec)
         if flows is not None:
             flows.validate_against(spec)
-        account = profile.select_account(request.account)
+        pinned = profile.select_account(request.account).alias if request.account else None
+        profile.auth.ensure_operations_exist([op.operation_id for op in spec.operations])
         plan = plan_probe(
             spec,
             flows,
@@ -174,15 +183,27 @@ class Probe:
         )
         recorder = RecordingSource(self._value_sources(seed, started))
         builder = RequestBuilder(rules, recorder, run_tag_from_run_id(run_id.value))
+        accounts = _accounts_used(profile, plan, pinned)
         return _Run(
-            request, profile, spec, flows, account, plan, run_id, seed, started, builder, recorder
+            request,
+            profile,
+            spec,
+            flows,
+            pinned,
+            accounts,
+            plan,
+            run_id,
+            seed,
+            started,
+            builder,
+            recorder,
         )
 
     def _settings(
         self,
         run: _Run,
         dispatcher: OperationDispatcher | None,
-        session: AccountSession | None,
+        pool: SessionPool | None,
     ) -> RunnerSettings:
         profile = run.profile
         auth = profile.auth
@@ -193,14 +214,17 @@ class Probe:
             recorder=run.recorder,
             guard=profile.guard(),
             base_url=profile.environment.base_url,
-            account=run.account.alias,
+            account_for=lambda planned: profile.account_for(
+                planned.operation_id, planned.method, planned.path, pinned=run.pinned
+            ),
             success_rule=profile.probe.success.json_field_absent_or_not_equal,
             csrf=auth.csrf,
-            login_path=auth.token_path if isinstance(auth, PasswordLoginAuth) else None,
+            error_codes=profile.probe.error_codes,
+            login_path=profile.login_path,
             vault=self._vault,
             clock=self._clock,
             dispatcher=dispatcher,
-            session=session,
+            sessions=pool,
         )
 
     def _execute_live(self, run: _Run) -> ProbeResult:
@@ -214,29 +238,45 @@ class Probe:
             trail=trail,
             clock=self._clock,
         )
-        dispatcher = OperationDispatcher(sender, self._sleeper, profile.auth.csrf)
-        session = AccountSession(
-            account=run.account,
+        budget = LoginBudget(profile.login_limit, self._clock, self._sleeper)
+        dispatcher = OperationDispatcher(
+            sender,
+            self._sleeper,
+            profile.auth.csrf,
+            login_budget=budget,
+            login_path=profile.login_path,
+            token_expired=profile.token_expired_signal,
+            error_codes=profile.probe.error_codes,
+        )
+        pool = SessionPool(lambda alias: self._session(profile, alias, dispatcher))
+        zap_version, context_id = self._prepare_zap(run)
+        manifest = self._manifest(run, zap_version, context_id)
+        self._store.write_manifest(run.run_id.value, manifest)
+        try:
+            for alias in run.accounts:
+                pool.get(alias)
+        except HarnessError:
+            self._finish_manifest(run, manifest, "failed_start")
+            raise
+        outcome = ProbeRunner(self._settings(run, dispatcher, pool)).run(run.plan)
+        result = self._result(run, outcome)
+        self._store.write_probe(run.run_id.value, result)
+        self._finish_manifest(run, manifest, result.status)
+        return result
+
+    def _session(
+        self, profile: ProductProfile, alias: str, dispatcher: OperationDispatcher
+    ) -> AccountSession:
+        return AccountSession(
+            account=profile.select_account(alias),
             auth=profile.auth,
             base_url=profile.environment.base_url,
             secrets=self._secrets,
             vault=self._vault,
             client=self._client,
             dispatcher=dispatcher,
+            token_cache=self._token_cache,
         )
-        zap_version, context_id = self._prepare_zap(run)
-        manifest = self._manifest(run, zap_version, context_id)
-        self._store.write_manifest(run.run_id.value, manifest)
-        try:
-            session.open()
-        except HarnessError:
-            self._finish_manifest(run, manifest, "failed_start")
-            raise
-        outcome = ProbeRunner(self._settings(run, dispatcher, session)).run(run.plan)
-        result = self._result(run, outcome)
-        self._store.write_probe(run.run_id.value, result)
-        self._finish_manifest(run, manifest, result.status)
-        return result
 
     def _prepare_zap(self, run: _Run) -> tuple[str, int]:
         scope = run.profile.scope.to_scope()
@@ -266,7 +306,7 @@ class Probe:
             hashes=self._documents.hashes(run.request.product, run.profile),
             limits=run.profile.limits,
             seed=run.seed,
-            accounts=(run.account.alias,),
+            accounts=run.accounts,
             started_at=run.started.isoformat(),
         )
 
@@ -291,3 +331,23 @@ class Probe:
             ),
             operations=outcome.results,
         )
+
+
+def _accounts_used(
+    profile: ProductProfile, plan: tuple[PlannedOperation, ...], pinned: str | None
+) -> tuple[str, ...]:
+    """Apelidos das contas que enviarão operações do plano (sem repetição, na ordem de uso).
+
+    A operação de login do OpenAPI sai sem sessão, então não obriga nenhuma conta a logar.
+    """
+    used: list[str] = []
+    for planned in plan:
+        is_login = planned.method == "POST" and planned.path == profile.login_path
+        if planned.decision != "send" or is_login:
+            continue
+        alias = profile.account_for(
+            planned.operation_id, planned.method, planned.path, pinned=pinned
+        )
+        if alias not in used:
+            used.append(alias)
+    return tuple(used) or (pinned or profile.select_account(None).alias,)

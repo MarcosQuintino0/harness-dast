@@ -181,7 +181,9 @@ def test_spec_inspect_returns_the_summary_and_the_cross_checks(
         "needs_rule",
         "needs_rule_unchecked",
         "issues",
+        "operation_accounts",
     } == set(data)
+    assert {item["account"] for item in data["operation_accounts"]} == {"user_a"}
     assert data["summary"]["operation_count"] == 3
     assert [n["operation_id"] for n in data["not_sent"]] == ["admin"]
     assert data["not_sent"][0]["reason"] == "skipped_denied"

@@ -95,16 +95,19 @@ Campo desconhecido, chave repetida no JSON, `NaN`, tipo trocado (`"10"` no lugar
 formato, arquivo maior que 1 MiB: tudo é recusado. Não há recarga a quente: mudar a política exige reiniciar o
 contêiner (e isso zera a fila, a taxa e o prazo de duração).
 
-**Geração (planejado, não existe ainda):** a CLI gerará este arquivo por execução a partir de `scope`, `limits` e da
-janela do perfil, em uma pasta por execução (`HDAST_SCOPE_POLICY_DIR`), e só **reduz ou iguala** o que o perfil
-autoriza. Hoje o único gerador é a mão de quem opera o lab.
+**Geração:** `hdast stack up <produto>` gera este arquivo por execução (`adapters/scope_proxy/generate.py`) a partir de `scope` e
+`limits` do perfil, numa pasta por execução (`<HDAST_STATE_DIR>/stacks/<run_id>/policy`, passada ao compose como
+`HDAST_SCOPE_POLICY_DIR`). O escopo e os limites são **iguais** aos do perfil, nunca mais largos; `not_after` é o menor entre a
+duração máxima, o fim da autorização e o fechamento da janela; `tls_verify_upstream` só é `false` quando o perfil desliga a
+verificação E toda regra é local. A CLI relê o arquivo com o validador abaixo antes de gravar. Quem opera o lab à mão ainda pode
+escrever o arquivo.
 
 ## Trava de emergência (kill switch)
 
 Criar um arquivo chamado `KILL` **no diretório da política, no host**:
 
 ```bash
-touch docker/scope-proxy/policy/KILL          # ou: touch "$HDAST_SCOPE_POLICY_DIR/KILL"
+touch docker/scope-proxy/policy/KILL          # ou: touch "$HDAST_SCOPE_POLICY_DIR/KILL"; na pilha gerenciada: hdast stop
 ```
 
 A partir daí **todo** pedido novo é negado com `kill_switch` (medido: o primeiro pedido depois do `touch` já é
@@ -114,7 +117,7 @@ com bytes em voo não são cortadas.
 **A trava é permanente até reiniciar o proxy**: remover o arquivo **não** religa o tráfego (observado). Foi escolhido
 assim porque uma parada de emergência que se desfaz sozinha (arquivo apagado por engano, script de limpeza que passa
 removendo) reabriria a saída justamente quando alguém pediu para fechá-la. Para retomar: remova o arquivo e rode
-`docker compose restart scope-proxy`. A CLI acionará a trava criando esse arquivo; o diretório é somente leitura **dentro**
+`docker compose restart scope-proxy`. `hdast stop` aciona a trava criando esse arquivo; o diretório é somente leitura **dentro**
 do contêiner, mas o host o altera.
 
 ## Trilha de auditoria

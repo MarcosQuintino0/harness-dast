@@ -93,3 +93,11 @@ def gen_cep(env: Environment, request: ValueRequest) -> JsonValue:
     if cep == "0" * 8:
         cep = "1" + cep[1:]
     return f"{cep[:5]}-{cep[5:]}" if _flag(request, "formatted") else cep
+
+
+def gen_crm(env: Environment, request: ValueRequest) -> JsonValue:
+    """CRM sintético `NNNNNNN-UF`: `digits` dígitos (únicos por execução se `unique`) e a UF."""
+    width = request.args.get("digits")
+    uf = request.args.get("uf")
+    number = _digits(env, request, width if isinstance(width, int) else 7)
+    return f"{number}-{uf if isinstance(uf, str) else 'SP'}"

@@ -32,8 +32,8 @@ Estado refletido: repositório em 2026-11-13, depois da revisão de QA ([docs/re
 | Componente | Onde | Status |
 | --- | --- | --- |
 | Pacote `harness_dast` em layout `src/`, com pacotes `domain`, `application`, `adapters`, `cli`, `config`, `observability` | `src/harness_dast/` | Implementado (M1) |
-| Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | `openapi`, `datagen`, `storage`, `http`, `zap` e `secrets` implementados (M3); `reporting` e `cleanup` ainda esqueleto (M4, M5) |
-| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` (M2); `inspect_spec.py`, `preflight.py` e `probe.py` (M3). `run_scan`, `build_report`, `cleanup` e `run_pipeline` entram em M4 e M5 |
+| Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | `openapi`, `datagen`, `storage`, `http`, `zap` e `secrets` implementados (M3); `cleanup` implementado (M5); `reporting` implementado (M4: armazém de artefatos e destinos JSON e Markdown) |
+| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` (M2); `inspect_spec.py`, `preflight.py` e `probe.py` (M3). `cleanup.py` (M5); `scan.py` e `report.py` (M4); `run_pipeline` entra no M5 |
 | Hierarquia de erros `HarnessError` e mapeamento para códigos de saída | `domain/errors.py` | Implementado (M1) |
 | Envelope JSON com `schema_version` e saída humana | `cli/output.py` | Implementado (M1) |
 | Tratador único de erros | `cli/app.py` | Implementado (M1) |
@@ -77,8 +77,9 @@ Hoje existem `hdast version`, `hdast init`, `hdast profile validate`, `hdast spe
 | `hdast version` | Implementado (M1) |
 | `hdast init`, `hdast profile validate` | Implementado (M2) |
 | `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementado (M3); sem verificação contra o ZAP real (seção abaixo) |
-| `hdast scan`, `hdast report` | Planejado (M4) |
-| `hdast cleanup`, `hdast run`, parada de emergência | Planejado (M5) |
+| `hdast scan`, `hdast report` | Implementado (M4); verificado contra um ZAP falso com as formas do spike, **não** contra o ZAP real ([ADR 0022](adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md); lista do que conferir em [reference/relatorio.md](reference/relatorio.md#o-que-ainda-precisa-ser-verificado-contra-o-zap-real)) |
+| `hdast cleanup` | Implementado (M5): `--dry-run`, `--confirm`, portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
+| `hdast run`, parada de emergência | Planejado (M5) |
 
 ### Controles de segurança
 
@@ -88,13 +89,13 @@ Hoje existem `hdast version`, `hdast init`, `hdast profile validate`, `hdast spe
 | Escopo, camada 2: ZAP em modo protegido | Planejado (M4) |
 | Escopo, camada 3: rede interna e proxy de saída | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura pelo proxy não provado; caminho para ambiente de empresa em IP privado não confirmado (veja itens em aberto); obrigatório antes de execução contra ambiente da empresa (M7) |
 | Validação de autorização, validade e janela | Implementado (M3): conferida na partida e antes de CADA requisição do `preflight` e do `probe` (`RunGate`) |
-| Limites de carga fixados e tetos absolutos | Parcial: o `probe` impõe `requests_per_second` (balde de fichas) e `max_duration_minutes`; `zap_threads_per_host` e a imposição na varredura são do M4 |
+| Limites de carga fixados e tetos absolutos | Implementado: o `probe` impõe `requests_per_second` e `max_duration_minutes`; o `scan` fixa `threadPerHost`, `delayInMs` e os tetos de duração no ZAP ANTES da primeira varredura e confere o prazo total a cada consulta (M4; sem verificação no ZAP real) |
 | Sobrescritas que só reduzem | Parcial: `overrides.py` existe; as flags da CLI que o usarão, não |
 | Redação de logs (chaves, segredos registrados, JWT, CPF) | Implementado (M1) |
 | Formato e validação de `secret_ref` | Implementado (domínio); resolução por variável de ambiente e autenticação (login e chave de API, com CSRF): Implementado (M3) |
 | Trilha de auditoria `audit.jsonl` | Implementado (M3): decisão antes do envio, resultado depois |
 | `manifest.json` por execução | Implementado para `preflight` e `probe` (M3); o manifesto completo da varredura é do M5 |
-| Limpeza por SQL em Oracle | Planejado (M5); só o bloco `cleanup` do perfil é validado |
+| Limpeza por SQL em Oracle | Implementado (M5): `domain/cleanup_*.py`, `application/cleanup.py`, `adapters/cleanup/`; integração contra o Oracle Free do piloto |
 | Permissões do Claude Code (`.claude/settings.json`) | Planejado (M6) |
 
 ### Gates de qualidade
@@ -129,9 +130,9 @@ Além das skills, dos subagentes e das permissões da tabela de marcos, o M6 inc
 - **Rastro completo por execução:** transcrição do agente (gravada quando ele roda de forma não interativa), toda versão do perfil e das regras de dados, trilha de auditoria, manifesto e um registro de decisões que as skills exigem do agente. O raciocínio interno do modelo não é fonte, porque pode vir resumido ou incompleto.
 - **Triagem de falha, com destino fixo:** a documentação ou a skill não explicou, corrige-se o texto; o agente tentou algo indevido e a ferramenta deixou, nova trava em código com teste; a ferramenta devolveu erro que o agente não soube interpretar, melhora-se a mensagem e a dica. Toda falha corrigida vira caso permanente da suíte.
 
-### Verificação do M3 contra o ZAP real (pendente)
+### Verificação do M3 contra o ZAP real (feita em 2026-11-13)
 
-O `probe` foi testado com um ZAP falso (formas de resposta do spike) e um alvo em processo. **Não verificado contra o ZAP 2.17.0 real nem contra um alvo real:** nomes e formatos das chamadas `core/action/newSession`, `context/action/newContext`/`includeInContext`/`excludeFromContext` e `replacer/*` (copiados do spike, não reexecutados); que requisições enviadas pelo proxy com a rota `zap` aparecem no histórico do ZAP com o contexto novo; HTTPS pelo proxy do ZAP (exige `HDAST_ZAP_CA_FILE`, não exercitado); comportamento com um proxy de saída em `HDAST_AUTH_PROXY_URL`; cookie XSRF de um Spring Security real; a heurística de 403 de CSRF contra respostas reais. Fechar com testes `integration` quando o `compose.yaml` do lab estabilizar.
+`preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
 ## Itens em aberto
 
@@ -151,7 +152,7 @@ O `probe` foi testado com um ZAP falso (formas de resposta do spike) e um alvo e
 | Retenção de `runs/` | Prazo de retenção de evidências | Não definido | Não fixado no desenho |
 | Canal de reporte de vulnerabilidade | Habilitar o Private vulnerability reporting no GitHub | A confirmar pelo dono | M1 |
 | Calibração de cobertura | Pisos de cobertura por camada | Valores iniciais definidos; calibrar | Fim do M2 |
-| Fingerprint | Formato e versão do fingerprint do achado | Não definido | M4 |
+| Fingerprint | Formato e versão do fingerprint do achado | Definido na versão 1 ([finding-schema.md](reference/finding-schema.md#fingerprint-versão-1)) | M4 |
 | Orçamento das evals | Custo máximo por rodada da avaliação cega e número de repetições por caso | Não definido | M6 |
 
 Decididas e registradas: P-01 (perfis fora do repositório), P-02 (regras declarativas), P-03 (proxy de saída antes de ambiente da empresa), P-04 (dois tipos de autenticação; nomes `login_password` e `api_key` no [ADR 0013](adr/0013-schema-v1-do-perfil-de-produto.md)), P-05 (SQL Oracle), P-06 (idiomas), P-07 (mypy estrito), P-11 (Windows com Docker Desktop), P-12 (encadeamento de um nível), P-13 (`hdast` e `harness_dast`). Fechados nesta rodada: a gramática de `scope.windows` e os valores de `auth.type` ([reference/target-yml.md](reference/target-yml.md)), e os códigos de saída e valores de `error.code` da V1 ([reference/cli.md](reference/cli.md#valores-de-errorcode)); novos valores entram por marco.

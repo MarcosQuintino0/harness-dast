@@ -1,6 +1,7 @@
 # Perfil de produto da Clinica Piloto (alvo de treino LOCAL do harness-dast).
 # Segue products/_template/target.yml e docs/reference/target-yml.md (schema v1).
-# Nao ha XSRF, expiracao de token nem criterio de sucesso no schema atual: veja NOTES.md.
+# Usa os blocos opcionais do schema v1 (auth.csrf, auth.account_map, auth.login_limit, auth.token_expired,
+# probe.error_codes): cada um responde a um item de NOTES.md.
 # Valores de autorizacao sao do laboratorio local, nao de um ambiente de empresa.
 schema_version: 1
 product: clinica-piloto
@@ -33,6 +34,25 @@ limits:
   max_duration_minutes: 30
   zap_threads_per_host: 2
 
+probe:
+  health_path: /api/saude
+  # O HTTP ja diz a verdade neste alvo; a regra so protege contra um 2xx com envelope de erro.
+  success:
+    json_field_absent_or_not_equal: { field: code, value: ERRO_INTERNO }
+  # Classificacao exata pelo campo `code` do corpo de erro (README do alvo, secao 3). Os codigos de
+  # regra de estado (TRANSICAO_INVALIDA...) nao sao falha de dado nem do alvo: ficam em client_error.
+  error_codes:
+    field: code
+    outcomes:
+      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO]
+      conflict: [CONFLITO]
+      not_found: [NAO_ENCONTRADO, REFERENCIA_INEXISTENTE]
+      csrf_error: [XSRF_INVALIDO]
+      auth_error: [NAO_AUTENTICADO, TOKEN_INVALIDO, TOKEN_EXPIRADO, CREDENCIAIS_INVALIDAS, ACESSO_NEGADO]
+      rate_limited: [LIMITE_EXCEDIDO]
+      client_error: [TRANSICAO_INVALIDA, CONSULTA_CANCELADA, EM_USO]
+      server_error: [ERRO_INTERNO]
+
 auth:
   type: login_password
   token_path: /api/auth/login
@@ -42,6 +62,23 @@ auth:
   token_response_field: access_token
   token_header: Authorization
   token_scheme: Bearer
+  # Escritas exigem o par XSRF (cookie + cabecalho); o login e isento (README do alvo, secao 2).
+  csrf:
+    fetch_path: /api/csrf
+    cookie_name: XSRF-TOKEN
+    header_name: X-XSRF-TOKEN
+    methods: [POST, PUT, PATCH, DELETE]
+  # O alvo aceita 5 logins por minuto por origem e conta tambem os que falham.
+  login_limit:
+    max_per_minute: 5
+  # Token vencido: 401 com code = TOKEN_EXPIRADO (TOKEN_INVALIDO nao e vencimento).
+  token_expired: { field: code, value: TOKEN_EXPIRADO }
+  # Quem pode o que (README do alvo, tabela de endpoints). So aliases; o agente nunca ve credenciais.
+  default_account: admin_a
+  account_map:
+    - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
+    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita] }
+    - { account: paciente_a, operations: [obterPerfil, atualizarPerfil] }
   accounts:
     # Os nomes das variaveis sao os mesmos de lab/pilot/.env.example.
     - alias: admin_a

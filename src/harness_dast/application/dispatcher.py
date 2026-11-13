@@ -1,5 +1,8 @@
 """Envio de uma operação com as repetições permitidas (novo login, novo token CSRF, 429).
 
+Todo POST de login passa pelo orçamento de logins ANTES de sair, inclusive o novo login por
+token vencido e a repetição após 429.
+
 O despachante não decide NADA sobre as repetições: pergunta a `domain.retry.next_action`. Cada
 envio passa pelo `GuardedSender` (escopo, ritmo, janela, auditoria).
 """
@@ -7,11 +10,13 @@ envio passa pelo `GuardedSender` (escopo, ritmo, janela, auditoria).
 from dataclasses import dataclass
 from typing import Protocol
 
+from harness_dast.application.login_budget import LoginBudget, is_login_request
 from harness_dast.application.ports import Sleeper
 from harness_dast.application.run_support import GuardedSender
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.errors import TargetTimeout, TargetUnreachable
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.probe_config import ErrorCodes, JsonFieldRule
 from harness_dast.domain.probe_policy import parse_retry_after
 from harness_dast.domain.retry import RetryAction, RetryState, next_action
 
@@ -50,17 +55,35 @@ class SendOutcome:
 class OperationDispatcher:
     """Envia uma requisição e repete conforme `retry.next_action`."""
 
-    def __init__(self, sender: GuardedSender, sleeper: Sleeper, csrf: CsrfConfig | None) -> None:
+    def __init__(
+        self,
+        sender: GuardedSender,
+        sleeper: Sleeper,
+        csrf: CsrfConfig | None,
+        *,
+        login_budget: LoginBudget | None = None,
+        login_path: str | None = None,
+        token_expired: JsonFieldRule | None = None,
+        error_codes: ErrorCodes | None = None,
+    ) -> None:
         """Cria o despachante.
 
         Args:
             sender: Emissor protegido.
             sleeper: Espera injetada (429).
             csrf: Configuração de CSRF do perfil.
+            login_budget: Orçamento de logins; todo POST em `login_path` o consome.
+            login_path: Caminho do login do perfil, ou `None` (chave de API).
+            token_expired: Sinal de "token vencido" do perfil (`auth.token_expired`).
+            error_codes: Mapa de códigos de erro do perfil (`probe.error_codes`).
         """
         self._sender = sender
         self._sleeper = sleeper
         self._csrf = csrf
+        self._budget = login_budget
+        self._login_path = login_path
+        self._token_expired = token_expired
+        self._error_codes = error_codes
 
     def send(self, request: HttpRequest, session: SessionHooks | None) -> SendOutcome:
         """Envia `request`, acrescentando os cabeçalhos da sessão a cada tentativa.
@@ -74,6 +97,8 @@ class OperationDispatcher:
         attempts = 0
         while True:
             headers = request.headers + (session.request_headers(request.method) if session else ())
+            if self._budget is not None and is_login_request(request, self._login_path):
+                self._budget.acquire()
             try:
                 response = self._sender.send(request.model_copy(update={"headers": headers}))
             except (TargetTimeout, TargetUnreachable) as error:
@@ -85,6 +110,8 @@ class OperationDispatcher:
                 csrf=self._csrf,
                 can_reauth=session is not None,
                 state=state,
+                token_expired=self._token_expired,
+                error_codes=self._error_codes,
             )
             if action == "done":
                 return SendOutcome(response, None, attempts)

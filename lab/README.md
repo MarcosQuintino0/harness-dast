@@ -9,6 +9,8 @@ sem que nada real seja alvo. Definido em [`compose.yaml`](../compose.yaml).
 > ZAP, em `127.0.0.1`. Não altere para `0.0.0.0`, não use `--network host`, não
 > rode em servidor compartilhado ou com IP público.
 
+> **Operação por `hdast stack`:** verificada em 2026-11-13 com `stack up vampi` e `stack up clinica-piloto`, `stack status`, `stop` (com o ZAP parado) e `stack down`.
+
 > **Estado de verificação:** a subida e o isolamento foram executados em Docker Desktop 29.7.2 (Windows 11) em 2026-11-13; os comandos abaixo foram rodados e a saída esperada é a descrita. Detalhes e limites em "O que o isolamento garante e não garante".
 
 ## Componentes
@@ -17,6 +19,7 @@ sem que nada real seja alvo. Definido em [`compose.yaml`](../compose.yaml).
 |---|---|---|
 | `zap` | OWASP ZAP em modo daemon, API com chave | Só da rede interna do compose |
 | `zap-gateway` | Ponte TCP mínima que publica o ZAP em `127.0.0.1:8080` | Loopback do host |
+| `proxy-gateway` | Ponte TCP mínima (socat, destino fixo `scope-proxy:3128`) que publica o proxy de escopo em `127.0.0.1:3128`; é por onde o `hdast` envia login e token CSRF sem passar pelo ZAP | Loopback do host |
 | `scope-proxy` | Proxy de escopo (mitmproxy + `ScopeGuard`); decide cada requisição por host, porta, caminho e método; único com rota externa | Rede interna |
 | `vampi` (perfil `lab`) | Alvo vulnerável, porta 5000 | Só do `scope-proxy` |
 | `vampi-tls` (perfil `lab`) | Frente TLS do VAmPI (certificado autoassinado gerado ao iniciar), porta 8443, só para provar HTTPS | Só do `scope-proxy` |
@@ -49,6 +52,54 @@ docker compose --profile lab down
 Sem `HDAST_ZAP_API_KEY` o compose falha com mensagem explicando o que fazer. A interpolação obrigatória vale para qualquer subcomando do compose lido pelo `config`; por inferência, `ps` e `down` em um shell novo também pedem a chave (achado A-18 da revisão de QA, não executado): defina qualquer valor antes de derrubar o lab. Itens em aberto do lab (chave visível em `docker logs`) estão em [docs/roadmap.md](../docs/roadmap.md#itens-em-aberto).
 A API do ZAP fica em `http://127.0.0.1:8080` (`HDAST_ZAP_HOST_PORT` muda a
 porta do host) e exige o parâmetro `apikey`.
+
+## Operar o lab pelo `hdast` (caminho normal)
+
+`hdast stack up <produto>` faz, num comando, o que a seção anterior faz à mão: gera a política do proxy **a partir do perfil**
+(nunca mais larga), sorteia a chave do ZAP, sobe tudo recriando os contêineres e grava o estado (chave, endereços, senhas
+descartáveis) em `HDAST_STATE_DIR` (`%LOCALAPPDATA%/hdast` no Windows, `~/.local/state/hdast` no Linux), fora do repositório.
+Os comandos seguintes (`preflight`, `probe`, `stop`) leem esse arquivo para o que o ambiente não define. Decisão: [ADR 0019](../docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md).
+
+O perfil do produto fica numa pasta de produtos (`HDAST_PRODUCTS_DIR` ou `--products-dir`), com o nome da pasta igual ao campo
+`product`. O alvo anexado é reconhecido pelo host de `environment.base_url` (`vampi` ou `clinica-piloto`).
+
+**VAmPI** (perfil em [`lab/vampi/product-profile`](vampi/product-profile/target.yml), `base_url: http://vampi:5000`). Sequência exata,
+verificada com o ZAP 2.17 e o proxy de escopo reais (a pasta do produto leva o nome do produto e o OpenAPI vem de `lab/vampi`):
+
+```bash
+mkdir -p /tmp/produtos/vampi
+cp lab/vampi/product-profile/*.yml lab/vampi/openapi3.yml /tmp/produtos/vampi/
+export HDAST_PRODUCTS_DIR=/tmp/produtos
+# Usuários que o GET /createdb semeia (README do VAmPI); não são segredos reais, mas o perfil os lê por secret_ref.
+export VAMPI_USER_A_USERNAME=name1 VAMPI_USER_A_PASSWORD=pass1 VAMPI_USER_B_USERNAME=name2 VAMPI_USER_B_PASSWORD=pass2        VAMPI_ADMIN_USERNAME=admin VAMPI_ADMIN_PASSWORD=pass1
+uv run hdast --json stack up vampi                           # ~40 s; --secure liga o modo seguro; --token-ttl 20 encurta o token
+uv run hdast --json preflight vampi                          # o health_path /createdb repopula o banco; rode antes de cada probe
+uv run hdast --json probe vampi --include-delete             # 14 de 14 operações (alcançabilidade 1.0)
+uv run hdast --json stack status                             # audit_file = trilha do proxy; kill_switch
+uv run hdast --json stack down
+```
+
+`preflight` antes de cada `probe` não é cerimônia: o `probe` apaga um usuário (`--include-delete`, só o que a listagem desta
+execução devolveu) e troca e-mail e senha de `name2`, e o login das contas acontece antes do `GET /createdb` do plano. O
+`preflight` chama `/createdb` (é o `health_path` do perfil) e deixa o banco como a semente. Sem `--include-delete` o `DELETE` é
+`skipped_destructive` e fica de fora das operações tentadas. Contas por operação: `user_a` envia quase
+tudo, `user_b` (dono de `name2`) os `PUT` de e-mail e senha, e `admin_a` o `DELETE`.
+
+**Clínica Piloto** (alvo Spring Boot de `lab/pilot`, perfil em `lab/pilot/product-profile`): veja o passo a passo em
+[`lab/pilot/README.md`](pilot/README.md#operar-pelo-hdast-pilha-gerenciada). O `stack up clinica-piloto` sobe o alvo como projeto
+`hdast-pilotrun` (distinto do `hdast-pilot` da subida manual, portanto os dois convivem), ligado à rede `hdast_lab_net` pelo
+[`compose.lab-net.yaml`](pilot/compose.lab-net.yaml) com o apelido `clinica-piloto`.
+
+**Portas publicadas (todas só em `127.0.0.1`)**: `8080` ZAP (API e proxy; `HDAST_ZAP_HOST_PORT`), `3128` proxy de escopo
+(`HDAST_PROXY_HOST_PORT`), `28080` e `29091` API e gestão do piloto. A porta `3128` permite a qualquer processo desta máquina enviar
+pedidos ao scope-proxy; ele nega por padrão tudo que a política da execução não autoriza (host, porta, caminho, método, taxa, prazo e
+`KILL`), então o alcance é o mesmo do ZAP. Não dá acesso ao ZAP, à rede do lab nem ao Docker.
+
+**Parada de emergência**: `uv run hdast stop` cria o `KILL` da pilha e para as varreduras do ZAP (funciona com o ZAP fora do ar);
+depois disso o proxy nega todo pedido novo até `hdast stack up` recriar a pilha.
+
+**Auditoria**: o proxy grava `audit.jsonl` em `<estado>/stacks/<run_id>/audit/` (caminho em `stack status`); a CLI grava a dela em
+`runs/<run_id>/audit.jsonl`. Cada pilha tem pastas próprias, então a trilha de uma execução não se mistura com a de outra.
 
 ## Alternar o modo do VAmPI
 

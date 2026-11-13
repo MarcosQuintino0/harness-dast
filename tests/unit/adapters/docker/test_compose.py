@@ -1,0 +1,96 @@
+import subprocess
+from collections.abc import Mapping
+from pathlib import Path
+
+import pytest
+
+from harness_dast.adapters.docker.compose import CommandResult, DockerComposeCli
+from harness_dast.application.stack_models import ComposeProject
+from harness_dast.domain.errors import ExternalToolError
+
+PROJECT = ComposeProject(
+    name="hdast",
+    workdir=".",
+    files=("compose.yaml",),
+    profiles=("lab",),
+    services=("zap", "vampi"),
+)
+SECRET = "chave-zap-muito-secreta"  # noqa: S105
+
+
+class Recorder:
+    def __init__(self, result: CommandResult | Exception) -> None:
+        self.result = result
+        self.calls: list[tuple[list[str], dict[str, str], float]] = []
+
+    def __call__(
+        self, args: list[str], env: Mapping[str, str], cwd: Path, timeout: float
+    ) -> CommandResult:
+        self.calls.append((args, dict(env), timeout))
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def cli(runner: Recorder) -> DockerComposeCli:
+    return DockerComposeCli({"PATH": "", "OUTRA": "1"}, runner)
+
+
+@pytest.fixture(autouse=True)
+def fake_docker(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda *_a, **_k: "docker")
+
+
+def test_up_monta_o_comando_com_prazo_e_manda_o_segredo_so_no_ambiente() -> None:
+    runner = Recorder(CommandResult(0, "", ""))
+
+    cli(runner).up(PROJECT, {"HDAST_ZAP_API_KEY": SECRET}, build=True, timeout_seconds=100)
+
+    args, env, timeout = runner.calls[0]
+    assert args[:6] == ["docker", "compose", "-p", "hdast", "-f", "compose.yaml"]
+    assert args[-2:] == ["zap", "vampi"]
+    assert {"--wait", "--force-recreate", "--build", "--profile"} <= set(args)
+    assert SECRET not in " ".join(args)
+    assert env["HDAST_ZAP_API_KEY"] == SECRET
+    assert env["OUTRA"] == "1"
+    assert timeout > 100
+
+
+def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:
+    runner = Recorder(CommandResult(1, "", f"erro com {SECRET} dentro"))
+
+    with pytest.raises(ExternalToolError) as error:
+        cli(runner).down(PROJECT, {"HDAST_ZAP_API_KEY": SECRET}, timeout_seconds=10)
+
+    assert SECRET not in error.value.message
+    assert error.value.hint
+
+
+def test_prazo_estourado_vira_erro_de_ferramenta_com_orientacao() -> None:
+    runner = Recorder(subprocess.TimeoutExpired("docker", 10))
+
+    with pytest.raises(ExternalToolError, match="não terminou"):
+        cli(runner).up(PROJECT, {}, build=False, timeout_seconds=10)
+
+
+def test_docker_ausente_vira_erro_de_ferramenta(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda *_a, **_k: None)
+
+    with pytest.raises(ExternalToolError, match="não foi encontrado"):
+        cli(Recorder(CommandResult(0, "", ""))).status(PROJECT, {})
+
+
+def test_status_le_um_objeto_por_linha_e_tambem_lista_json() -> None:
+    line = '{"Service":"zap","State":"running","Health":"healthy"}'
+    per_line = cli(Recorder(CommandResult(0, line + "\n" + line, ""))).status(PROJECT, {})
+    as_list = cli(Recorder(CommandResult(0, f"[{line}]", ""))).status(PROJECT, {})
+
+    assert len(per_line) == 2
+    assert as_list[0].service == "zap"
+    assert as_list[0].health == "healthy"
+
+
+def test_status_vazio_e_saida_ilegivel() -> None:
+    assert cli(Recorder(CommandResult(0, "", ""))).status(PROJECT, {}) == ()
+    with pytest.raises(ExternalToolError, match="não é JSON"):
+        cli(Recorder(CommandResult(0, "isto nao e json", ""))).status(PROJECT, {})

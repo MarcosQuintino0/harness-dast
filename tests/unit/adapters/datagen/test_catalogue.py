@@ -287,6 +287,27 @@ def test_cep_forms_and_the_all_zero_guard() -> None:
     assert GeneratorCatalogue(1, NOW)(zero_tag) == "10000000"
 
 
+def test_crm_has_the_documented_shape_and_the_requested_uf() -> None:
+    assert re.fullmatch(r"\d{7}-SP", str(draw(1, "br.crm")))
+    assert re.fullmatch(r"\d{7}-RJ", str(draw(1, "br.crm", digits=7, uf="RJ")))
+
+
+def test_crm_unique_differs_between_two_runs_with_different_tags() -> None:
+    first = ValueRequest(
+        **{**request("br.crm", unique=True, digits=7).model_dump(), "run_tag": "a1b2"}
+    )
+    second = ValueRequest(
+        **{**request("br.crm", unique=True, digits=7).model_dump(), "run_tag": "c3d4"}
+    )
+
+    assert GeneratorCatalogue(1, NOW)(first) != GeneratorCatalogue(1, NOW)(second)
+
+
+def test_crm_rejects_an_unknown_uf() -> None:
+    with pytest.raises(ConfigError):
+        request("br.crm", uf="XX")
+
+
 def test_cpf_unique_never_returns_a_repeated_digit_number() -> None:
     zero_tag = ValueRequest(**{**request("br.cpf", unique=True).model_dump(), "run_tag": "0000"})
 
@@ -317,6 +338,8 @@ UNIQUE_CASES: list[tuple[str, dict[str, Any]]] = [
     ("br.phone", {}),
     ("br.phone", {"mobile": False}),
     ("br.cep", {}),
+    ("br.crm", {}),
+    ("br.crm", {"digits": 7, "uf": "RJ"}),
 ]
 
 

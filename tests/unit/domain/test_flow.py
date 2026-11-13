@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 
 from harness_dast.domain.api_model import (
@@ -10,7 +12,7 @@ from harness_dast.domain.api_model import (
 )
 from harness_dast.domain.api_schema import JsonValue, Schema
 from harness_dast.domain.errors import ConfigError, TargetError
-from harness_dast.domain.flow import FlowSpec, extract_value
+from harness_dast.domain.flow import MAX_FLOW_DEPTH, FlowSpec, extract_value
 from tests.unit.api_helpers import obj
 
 
@@ -137,15 +139,31 @@ def test_from_data_rejects_a_longer_cycle() -> None:
         )
 
 
-def test_from_data_rejects_a_chain_deeper_than_one_level() -> None:
-    with pytest.raises(ConfigError) as caught:
-        flows(
-            bind("criarA", "id", to("criarB", field="aId")),
-            bind("criarB", "id", to("buscarC", param="bId")),
-        )
+def test_from_data_accepts_a_multi_level_chain_and_orders_it() -> None:
+    spec = flows(
+        bind("convenio", "id", to("paciente", field="convenioId")),
+        bind("paciente", "id", to("consulta", field="pacienteId")),
+        bind("consulta", "id", to("receita", field="consultaId")),
+    )
 
-    assert "só um nível" in caught.value.message
-    assert "'criarB'" in caught.value.message
+    order = spec.execution_order(["receita", "consulta", "paciente", "convenio"])
+
+    assert order == ("convenio", "paciente", "consulta", "receita")
+
+
+def test_from_data_accepts_a_chain_of_exactly_the_maximum_depth() -> None:
+    names = [f"op{n}" for n in range(MAX_FLOW_DEPTH)]
+    pairs = [bind(a, "id", to(b, param="x")) for a, b in itertools.pairwise(names)]
+
+    assert len(flows(*pairs).bindings) == MAX_FLOW_DEPTH - 1
+
+
+def test_from_data_rejects_a_chain_deeper_than_the_maximum() -> None:
+    names = [f"op{n}" for n in range(MAX_FLOW_DEPTH + 1)]
+    pairs = [bind(a, "id", to(b, param="x")) for a, b in itertools.pairwise(names)]
+
+    with pytest.raises(ConfigError, match=f"máximo é {MAX_FLOW_DEPTH}"):
+        flows(*pairs)
 
 
 def test_from_data_accepts_a_diamond_shape_that_is_not_a_chain() -> None:

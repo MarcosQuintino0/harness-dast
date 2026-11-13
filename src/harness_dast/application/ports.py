@@ -5,19 +5,32 @@ Cada porta é um `typing.Protocol` declarado aqui por quem a consome. Os adaptad
 Nenhuma porta decide regra de negócio: elas só buscam e gravam.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
+from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, SecretStr
 
+from harness_dast.application.stack_models import (
+    ComposeProject,
+    ServiceStatus,
+    StackDirectories,
+    StackState,
+)
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.cleanup_binds import BindValue
+from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
+from harness_dast.domain.cleanup_gate import CleanupStatement
+from harness_dast.domain.cleanup_plan import CleanupAuditLine, CleanupPlan, CleanupRecord
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import ValueSource
+from harness_dast.domain.run import RunId
 from harness_dast.domain.secret_ref import SecretRef
 
 
@@ -280,4 +293,258 @@ class RunStore(Protocol):
         Raises:
             ConfigError: Falha de escrita.
         """
+        ...
+
+
+class ProxyPolicyStore(Protocol):
+    """Grava a política do proxy de escopo e aciona a trava de emergência."""
+
+    def publish(
+        self, profile: ProductProfile, run_id: RunId, not_after: datetime, directory: Path
+    ) -> Path:
+        """Gera `policy.json` a partir do perfil, valida e grava em `directory`.
+
+        Garante: escopo e limites iguais aos do perfil (nunca mais largos) e arquivo que o
+        validador do proxy aceita.
+
+        Raises:
+            ConfigError: Política inválida ou falha de escrita.
+        """
+        ...
+
+    def trigger_kill(self, directory: Path) -> bool:
+        """Cria o arquivo `KILL`; devolve `False` se ele já existia.
+
+        Raises:
+            ConfigError: Pasta inexistente ou falha ao criar o arquivo.
+        """
+        ...
+
+    def kill_active(self, directory: Path) -> bool:
+        """Diz se o arquivo `KILL` existe."""
+        ...
+
+
+class ComposeRunner(Protocol):
+    """Docker Compose. Toda chamada tem prazo e devolve falha como `ExternalToolError`."""
+
+    def up(
+        self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
+    ) -> None:
+        """Sobe o projeto recriando os contêineres e espera ficarem saudáveis.
+
+        Raises:
+            ExternalToolError: Docker ausente, daemon parado, falha do compose ou prazo.
+        """
+        ...
+
+    def down(self, project: ComposeProject, env: dict[str, str], *, timeout_seconds: int) -> None:
+        """Derruba o projeto e remove contêineres e redes dele.
+
+        Raises:
+            ExternalToolError: Docker ausente, daemon parado, falha do compose ou prazo.
+        """
+        ...
+
+    def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
+        """Lista os serviços do projeto (vazio se não há contêiner).
+
+        Raises:
+            ExternalToolError: Docker ausente, daemon parado ou saída ilegível.
+        """
+        ...
+
+
+class StackStateStore(Protocol):
+    """Estado da pilha gerenciada, guardado fora do repositório e de `runs/`."""
+
+    def load(self) -> StackState | None:
+        """Lê o estado; `None` quando não há pilha gerenciada.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def save(self, state: StackState) -> None:
+        """Grava o estado de forma atômica, legível só pela pessoa usuária.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def clear(self) -> None:
+        """Apaga o estado (não falha se não existe)."""
+        ...
+
+    def directories_for(self, run_id: str) -> StackDirectories:
+        """Cria e devolve as pastas de política e auditoria da pilha `run_id`.
+
+        Raises:
+            ConfigError: Falha ao criar as pastas.
+        """
+        ...
+
+    def location(self) -> Path:
+        """Caminho do arquivo de estado."""
+        ...
+
+
+class RandomSource(Protocol):
+    """Aleatoriedade criptográfica para segredos descartáveis."""
+
+    def token_hex(self, nbytes: int) -> str:
+        """Devolve `2 * nbytes` dígitos hexadecimais."""
+        ...
+
+
+class ZapScanStopper(Protocol):
+    """Parada das varreduras do ZAP (usada pela trava de emergência)."""
+
+    def stop_all_scans(self) -> int:
+        """Para todas as varreduras ativas e devolve quantas estavam em andamento.
+
+        Raises:
+            ExternalToolError: ZAP inacessível ou resposta inesperada.
+        """
+        ...
+
+
+class CleanupConnection(BaseModel):
+    """Como se conectar ao Oracle de testes. Nunca é registrado nem serializado.
+
+    Attributes:
+        dsn: DSN (`host:porta/serviço`).
+        user: Usuário de banco da limpeza.
+        password: Senha desse usuário (`SecretStr`: não aparece em repr nem em log).
+        db_schema: Esquema dono das tabelas, quando o usuário não é o dono.
+        connect_timeout_seconds: Tempo máximo para abrir a conexão.
+        call_timeout_seconds: Tempo máximo de cada comando no banco.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    dsn: str
+    user: str
+    password: SecretStr
+    db_schema: str | None = None
+    connect_timeout_seconds: int
+    call_timeout_seconds: int
+
+
+class CleanupSession(Protocol):
+    """Uma transação aberta no banco de testes. Nada vale até `commit`."""
+
+    def execute(self, statement: CleanupStatement, binds: Mapping[str, BindValue]) -> int:
+        """Executa um comando já aprovado pelo portão e devolve as linhas afetadas.
+
+        Raises:
+            CleanupError: Falha no banco. A mensagem traz só o código do erro, nunca os
+                valores de ligação nem as credenciais.
+        """
+        ...
+
+    def commit(self) -> None:
+        """Confirma a transação.
+
+        Raises:
+            CleanupError: Falha ao confirmar (o estado fica desconhecido; confira o banco).
+        """
+        ...
+
+    def rollback(self) -> None:
+        """Desfaz a transação. Pode ser chamado mais de uma vez."""
+        ...
+
+    def close(self) -> None:
+        """Encerra a conexão. Uma transação não confirmada é desfeita."""
+        ...
+
+
+class CleanupExecutor(Protocol):
+    """Abre a conexão com o banco de testes e inicia a transação da limpeza."""
+
+    def open(self, connection: CleanupConnection) -> CleanupSession:
+        """Conecta e inicia uma única transação (sem confirmação automática).
+
+        Raises:
+            CleanupError: Conexão recusada, credencial inválida ou tempo esgotado. A mensagem
+                traz só o código do erro.
+        """
+        ...
+
+
+class CleanupScripts(Protocol):
+    """Leitor do script de limpeza do produto (autoria humana; nunca é escrito pela CLI)."""
+
+    def read(self, product: str, profile: ProductProfile) -> bytes:
+        """Lê os bytes do script apontado por `profile.cleanup.script`.
+
+        Garante: o arquivo fica dentro da pasta do produto e no máximo `MAX_SCRIPT_BYTES + 1`
+        bytes são lidos (o portão confere o tamanho e recusa o excesso).
+
+        Raises:
+            ConfigError: Arquivo ausente, ilegível, grande demais ou fora da pasta do produto.
+        """
+        ...
+
+
+class CleanupRuns(Protocol):
+    """Arquivos de limpeza de uma execução (`runs/<run_id>/`)."""
+
+    def read_manifest(self, run_id: str) -> RunManifest | None:
+        """Lê `manifest.json`; `None` se a execução não existe.
+
+        Raises:
+            ConfigError: Manifesto ilegível ou inválido.
+        """
+        ...
+
+    def write_record(self, run_id: str, record: CleanupRecord) -> None:
+        """Grava `cleanup.json` de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def append_audit(self, run_id: str, line: CleanupAuditLine) -> None:
+        """Acrescenta uma linha a `cleanup-audit.jsonl` e a persiste antes de retornar.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def save_confirmation(self, run_id: str, record: ConfirmationRecord) -> None:
+        """Guarda o token emitido (só o hash), substituindo o anterior.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def load_confirmation(self, run_id: str) -> ConfirmationRecord | None:
+        """Lê o token pendente; `None` se não há."""
+        ...
+
+    def consume_confirmation(self, run_id: str) -> bool:
+        """Gasta o token pendente de forma atômica: só um chamador recebe `True`."""
+        ...
+
+
+class TokenSource(Protocol):
+    """Sorteia o token de confirmação (aleatoriedade criptográfica em produção)."""
+
+    def new_token(self) -> str:
+        """Devolve um token novo, imprevisível e com pelo menos 128 bits de entropia."""
+        ...
+
+
+class OperatorPrompt(Protocol):
+    """Confirmação interativa feita por uma pessoa diante do plano."""
+
+    def confirm(self, plan: CleanupPlan) -> bool:
+        """Mostra o plano e pergunta; `True` só se a pessoa confirmou digitando o produto."""
         ...

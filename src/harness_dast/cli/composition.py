@@ -4,10 +4,13 @@ Sem contêiner de injeção. Cada função devolve um caso de uso pronto, com as
 aos adaptadores reais.
 """
 
-import os
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from harness_dast.adapters.cleanup.oracle_executor import OracleCleanupExecutor
+from harness_dast.adapters.cleanup.run_files import FileCleanupRuns
+from harness_dast.adapters.cleanup.script_reader import FileCleanupScripts
+from harness_dast.adapters.cleanup.tokens import SecretsTokenSource
 from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
@@ -23,11 +26,15 @@ from harness_dast.adapters.storage.run_store import FileRunStore
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
+from harness_dast.application.account_session import TokenCache
+from harness_dast.application.cleanup import Cleanup
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
+from harness_dast.application.ports import OperatorPrompt
 from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.validate_profile import ValidateProfile
+from harness_dast.cli.stack_composition import layered_environ, load_effective_settings
 from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.probe_policy import REQUEST_TIMEOUT_SECONDS
 from harness_dast.observability.logging import SecretRegistry
@@ -102,6 +109,8 @@ class NetworkHandle:
         if api_key:
             secrets.register(api_key)
         self.zap = ZapApiClient(settings.zap_base_url, api_key)
+        # Um cache por processo: `preflight` e `probe` no mesmo processo reaproveitam o login.
+        self.token_cache = TokenCache()
         self.client = HttpxTargetClient(
             TargetClientSettings(
                 zap_proxy_url=settings.effective_zap_proxy_url,
@@ -126,7 +135,8 @@ def open_network(product: str, products_dir: Path | None, secrets: SecretRegistr
     """
     root = _products_dir(products_dir)
     profile = FileProfileRepository(root).load(product)
-    return NetworkHandle(load_settings(), secrets, verify_tls=profile.environment.verify_tls)
+    settings = load_effective_settings()
+    return NetworkHandle(settings, secrets, verify_tls=profile.environment.verify_tls)
 
 
 def build_preflight(
@@ -136,7 +146,7 @@ def build_preflight(
     root = _products_dir(products_dir)
     return Preflight(
         profiles=FileProfileRepository(root),
-        secrets=EnvSecretProvider(os.environ),
+        secrets=EnvSecretProvider(layered_environ()),
         vault=secrets,
         client=network.client,
         zap=network.zap,
@@ -145,6 +155,7 @@ def build_preflight(
         sleeper=SystemSleeper(),
         entropy=SystemEntropy(),
         harness_version=_harness_version(),
+        token_cache=network.token_cache,
     )
 
 
@@ -157,7 +168,7 @@ def build_probe(
         profiles=FileProfileRepository(root),
         specs=_spec_loader(root),
         documents=FileProductDocuments(root),
-        secrets=EnvSecretProvider(os.environ),
+        secrets=EnvSecretProvider(layered_environ()),
         vault=secrets,
         client=network.client,
         zap=network.zap,
@@ -167,4 +178,25 @@ def build_probe(
         entropy=SystemEntropy(),
         value_sources=GeneratorCatalogue,
         harness_version=_harness_version(),
+        token_cache=network.token_cache,
+    )
+
+
+def build_cleanup(
+    products_dir: Path | None, secrets: SecretRegistry, prompt: OperatorPrompt
+) -> Cleanup:
+    """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
+    root = _products_dir(products_dir)
+    return Cleanup(
+        profiles=FileProfileRepository(root),
+        scripts=FileCleanupScripts(
+            lambda product, relative: resolve_product_file(root, product, relative)
+        ),
+        runs=FileCleanupRuns(load_settings().runs_dir),
+        secrets=EnvSecretProvider(layered_environ()),
+        vault=secrets,
+        executor=OracleCleanupExecutor(),
+        prompt=prompt,
+        tokens=SecretsTokenSource(),
+        clock=SystemClock(),
     )

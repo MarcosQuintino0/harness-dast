@@ -14,11 +14,15 @@ import structlog
 import typer
 from typer.exceptions import TyperException
 
+from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
+from harness_dast.cli.commands.report import report_command
+from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.spec import build_spec_app
+from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.version import version_command
 from harness_dast.cli.output import CliState, build_failure, emit, get_state
 from harness_dast.config.settings import load_settings
@@ -63,6 +67,11 @@ def build_app() -> typer.Typer:
     app.add_typer(build_spec_app(), name="spec")
     app.command("preflight")(preflight_command)
     app.command("probe")(probe_command)
+    app.command("scan")(scan_command)
+    app.command("report")(report_command)
+    app.command("cleanup")(cleanup_command)
+    app.add_typer(build_stack_app(), name="stack")
+    app.command("stop")(stop_command)
     return app
 
 

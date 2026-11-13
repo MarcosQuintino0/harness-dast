@@ -36,7 +36,7 @@ Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do
 | `datagen.py` | `DataRules` (`data-rules.yml`): validação, precedência da regra mais específica, rejeição de regras ambíguas, conferência contra o OpenAPI | M3 |
 | `implicit_values.py` | Escolha do gerador implícito de um campo sem regra; `FieldNotGeneratable` quando o harness não sabe gerar sozinho | M3 |
 | `request_builder.py` | `RequestBuilder`: monta UMA requisição válida por operação (`BuiltRequest`) com valores de uma `ValueSource` injetada e confere tudo contra o esquema | M3 |
-| `flow.py` | `FlowSpec` (`flows.yml`): validação (um nível, sem ciclo), ordenação topológica, `extract_value` e `resolve_bindings` | M3 |
+| `flow.py` | `FlowSpec` (`flows.yml`): validação (vários níveis até `MAX_FLOW_DEPTH`, sem ciclo), ordenação topológica, `extract_value` e `resolve_bindings` | M3 |
 | `versioned.py` | Validação comum de `schema_version: 1` e tradução de erros para `ConfigError` em arquivos como `data-rules.yml` e `flows.yml` | M3 |
 
 Referências: [data-rules.yml](../reference/data-rules-yml.md) e [flows.yml](../reference/flows-yml.md).
@@ -48,10 +48,11 @@ Módulos do `probe` (M3, [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-suc
 | `http_messages.py` | `HttpRequest`, `HttpResponse` e a invariante de envio: `ApprovedRequest` só nasce em `approve(guard, request)` |
 | `request_encoding.py` | Codificação da requisição montada, do login e do GET simples em `HttpRequest` (JSON, formulário, texto) |
 | `outcome.py` | `Outcome` (18 classes), `classify_response`, `looks_like_csrf_rejection`, `parse_json_body` |
-| `retry.py` | `next_action` e `RetryState`: 401 (novo login, 1), 403 de CSRF (novo token, 1), 429 (espera, 3) |
+| `retry.py` | `next_action` e `RetryState`: 401 de token vencido (novo login, 1), 403 de CSRF (novo token, 1), 429 (espera, 3) |
+| `account_routing.py` | `AccountRule` e `AccountRouting`: `auth.default_account` e `auth.account_map` (conta por operação) |
 | `probe_policy.py` | Constantes (tempo limite, tetos de tentativas, limiar de alvo sem resposta), `parse_retry_after` e `TokenBucket` |
 | `probe_plan.py` | `plan_probe`: ordem, pulos por escopo, negação e `DELETE`; `looks_destructive` |
-| `probe_config.py` | Bloco `probe` do perfil: `JsonFieldRule`, `SuccessCriteria`, `ProbeConfig` |
+| `probe_config.py` | Bloco `probe` do perfil: `JsonFieldRule`, `SuccessCriteria`, `ErrorCodes`, `ProbeConfig` |
 | `probe_result.py` | `OperationResult`, `ProbeResult`, `summarize_results` (alcançabilidade), `RunManifest` |
 | `audit.py` | `AuditEntry` e as linhas de decisão e de resultado |
 | `excerpt.py` | `sanitize_excerpt`: trecho curto e neutralizado do corpo de uma falha |

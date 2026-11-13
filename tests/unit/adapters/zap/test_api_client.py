@@ -10,6 +10,7 @@ from harness_dast.domain.errors import ExternalToolError
 from tests.fakes.local_server import Received, Reply, free_port, serve
 
 API_KEY = "chave-zap-segredo-123"
+JSON_REFUSED_KEY = "chave-recusada-com-json"
 
 
 def ok(payload: object, status: int = 200) -> Reply:
@@ -20,32 +21,47 @@ def query(received: Received) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(urlsplit(received.target).query).items()}
 
 
+def real_rule(description: str) -> dict[str, str]:
+    """Regra do Replacer com todas as chaves que o ZAP 2.17 real devolve (valores como texto)."""
+    return {
+        "method": "",
+        "matchType": "REQ_HEADER",
+        "description": description,
+        "matchString": "Authorization",
+        "initiators": "",
+        "matchRegex": "false",
+        "replacement": "Bearer x",
+        "url": "",
+        "enabled": "true",
+    }
+
+
 class FakeZapServer:
-    """Respostas copiadas do spike: ZAP 2.17.0."""
+    """Formas de resposta medidas no ZAP 2.17.0 real (spike M0 e verificação de integração)."""
 
     def __init__(self) -> None:
-        self.rules = [
-            {"description": "hdast-auth"},
-            {"description": "hdast-x"},
-            {"description": "mine"},
-        ]
+        self.rules = [real_rule("hdast-auth"), real_rule("hdast-x"), real_rule("mine")]
         self.addon_missing = False
 
     def __call__(self, r: Received) -> Reply:
-        if r.headers.get("x-zap-api-key") != API_KEY:
+        if r.headers.get("x-zap-api-key") == JSON_REFUSED_KEY:
             return ok({"code": "bad_api_key", "message": "Bad API key"}, 400)
+        if r.headers.get("x-zap-api-key") != API_KEY:
+            # Medido no ZAP real: chave ausente ou errada fecha a conexão sem resposta.
+            return Reply(drop=True)
+        return self._route(r)
+
+    def _route(self, r: Received) -> Reply:
         route = r.path
-        if route == "/JSON/core/view/version/":
-            return ok({"version": "2.17.0"})
-        if route == "/JSON/core/action/newSession/":
-            return ok({"Result": "OK"})
-        if route == "/JSON/context/action/newContext/":
-            return ok({"contextId": "3"})
-        if route in {
-            "/JSON/context/action/includeInContext/",
-            "/JSON/context/action/excludeFromContext/",
-        }:
-            return ok({"Result": "OK"})
+        fixed = {
+            "/JSON/core/view/version/": {"version": "2.17.0"},
+            "/JSON/core/action/newSession/": {"Result": "OK"},
+            "/JSON/context/action/newContext/": {"contextId": "3"},
+            "/JSON/context/action/includeInContext/": {"Result": "OK"},
+            "/JSON/context/action/excludeFromContext/": {"Result": "OK"},
+        }
+        if route in fixed:
+            return ok(fixed[route])
         if route == "/JSON/replacer/view/rules/":
             if self.addon_missing:
                 return ok({"code": "no_implementor", "message": "No Implementor"}, 400)
@@ -54,7 +70,9 @@ class FakeZapServer:
             name = query(r)["description"]
             self.rules = [x for x in self.rules if x["description"] != name]
             return ok({"Result": "OK"})
-        return ok({"code": "bad_action", "message": "Bad Action"}, 400)
+        if route.startswith("/JSON/core/"):
+            return ok({"code": "bad_view", "message": "Bad View"}, 400)
+        return ok({"code": "no_implementor", "message": "No Implementor"}, 400)
 
 
 def client_for(server_url: str, key: str | None = API_KEY) -> ZapApiClient:
@@ -100,7 +118,7 @@ def test_only_rules_with_the_harness_prefix_are_removed() -> None:
         removed = client_for(server.base_url).remove_stale_rules("hdast-")
 
     assert removed == 2
-    assert zap.rules == [{"description": "mine"}]
+    assert [rule["description"] for rule in zap.rules] == ["mine"]
 
 
 def test_a_missing_replacer_addon_means_there_is_nothing_to_remove() -> None:
@@ -110,15 +128,26 @@ def test_a_missing_replacer_addon_means_there_is_nothing_to_remove() -> None:
         assert client_for(server.base_url).remove_stale_rules("hdast-") == 0
 
 
-def test_a_wrong_key_is_an_external_tool_error_with_a_hint_and_without_the_key() -> None:
+def test_a_wrong_key_closes_the_connection_and_the_error_points_at_the_key() -> None:
     with serve(FakeZapServer()) as server:
         client = client_for(server.base_url, key="outra-chave-qualquer")
         with pytest.raises(ExternalToolError) as info:
             client.version()
 
-    assert "bad_api_key" in info.value.message
+    assert "fechou a conexão" in info.value.message
     assert "HDAST_ZAP_API_KEY" in (info.value.hint or "")
     assert "outra-chave-qualquer" not in info.value.message + (info.value.hint or "")
+
+
+def test_a_key_refused_with_a_json_code_is_reported_by_its_code() -> None:
+    with serve(FakeZapServer()) as server:
+        client = client_for(server.base_url, key=JSON_REFUSED_KEY)
+        with pytest.raises(ExternalToolError) as info:
+            client.version()
+
+    assert "bad_api_key" in info.value.message
+    assert "HDAST_ZAP_API_KEY" in (info.value.hint or "")
+    assert JSON_REFUSED_KEY not in info.value.message + (info.value.hint or "")
 
 
 @pytest.mark.parametrize(

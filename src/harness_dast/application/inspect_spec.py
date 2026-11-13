@@ -17,6 +17,7 @@ from harness_dast.application.inspect_report import (
     InspectIssue,
     NeedsRule,
     NotSentOperation,
+    OperationAccount,
     SpecInspection,
     UnusedRule,
 )
@@ -33,6 +34,7 @@ from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.probe_plan import PlannedOperation, looks_destructive, plan_probe
+from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.scope import ScopeGuard
 
@@ -127,6 +129,11 @@ class InspectSpec:
             spec, usable_flows, guard, profile.environment.base_url, include_delete=False
         )
         needs, unchecked = self._build_check(spec, plan, rules if rules_ok else None, usable_flows)
+        _check_against(
+            lambda: profile.auth.ensure_operations_exist([o.operation_id for o in spec.operations]),
+            "ACCOUNT_MAP_MISMATCH",
+            issues,
+        )
         return SpecInspection(
             product=product,
             summary=summarize(spec, budget_chars),
@@ -151,6 +158,7 @@ class InspectSpec:
             needs_rule=needs,
             needs_rule_unchecked=unchecked,
             issues=tuple(issues),
+            operation_accounts=_operation_accounts(profile, plan),
         )
 
     def _rules(
@@ -198,6 +206,19 @@ class InspectSpec:
                     )
                 )
         return tuple(needs), tuple(sorted(consumers))
+
+
+def _operation_accounts(
+    profile: ProductProfile, plan: tuple[PlannedOperation, ...]
+) -> tuple[OperationAccount, ...]:
+    return tuple(
+        OperationAccount(
+            operation_id=item.operation_id,
+            account=profile.account_for(item.operation_id, item.method, item.path),
+        )
+        for item in plan
+        if item.decision == "send"
+    )
 
 
 def _failed(issues: list[InspectIssue], code: str) -> bool:

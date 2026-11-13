@@ -20,7 +20,7 @@ def test_catalog_contains_the_documented_generators() -> None:
     expected = {
         "numeric", "integer", "number", "boolean", "alphanumeric", "uuid", "email", "uri",
         "date", "datetime", "choice", "constant", "sequence",
-        "br.cpf", "br.cnpj", "br.cns", "br.phone", "br.cep",
+        "br.cpf", "br.cnpj", "br.cns", "br.phone", "br.cep", "br.crm",
     }  # fmt: skip
 
     assert set(generator_names()) == expected

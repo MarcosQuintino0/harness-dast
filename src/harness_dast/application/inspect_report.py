@@ -25,6 +25,20 @@ class NotSentOperation(BaseModel):
     message: str
 
 
+class OperationAccount(BaseModel):
+    """Conta que enviará uma operação (por `auth.default_account` e `auth.account_map`).
+
+    Attributes:
+        operation_id: Identificador da operação.
+        account: Apelido da conta (nunca usuário nem senha).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    operation_id: str
+    account: str
+
+
 class UnusedRule(BaseModel):
     """Regra de `data-rules.yml` que não casa com nenhum campo do OpenAPI.
 
@@ -61,7 +75,8 @@ class InspectIssue(BaseModel):
     """Problema encontrado em `data-rules.yml` ou `flows.yml`.
 
     Attributes:
-        code: `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH`, `FLOWS_INVALID` ou `FLOWS_MISMATCH`.
+        code: `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH`, `FLOWS_INVALID`, `FLOWS_MISMATCH` ou
+            `ACCOUNT_MAP_MISMATCH`.
         message: Descrição do problema (sem valores do arquivo).
         hint: O que corrigir.
     """
@@ -106,7 +121,8 @@ class SpecInspection(BaseModel):
         needs_rule: Operações que ainda precisam de regra (campo obrigatório não gerável).
         needs_rule_unchecked: Consumidores de `flows.yml`, cuja montagem depende de valores
             de outra operação e não foi simulada.
-        issues: Problemas nos arquivos de regras.
+        issues: Problemas nos arquivos de regras e no roteamento de contas.
+        operation_accounts: Conta que enviará cada operação que o `probe` envia, no plano.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -122,3 +138,4 @@ class SpecInspection(BaseModel):
     needs_rule: tuple[NeedsRule, ...]
     needs_rule_unchecked: tuple[str, ...]
     issues: tuple[InspectIssue, ...]
+    operation_accounts: tuple[OperationAccount, ...] = ()

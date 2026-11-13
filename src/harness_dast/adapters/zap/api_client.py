@@ -22,6 +22,7 @@ _MAX_RESPONSE_BYTES: Final = 1024 * 1024
 _CODE = re.compile(r"[a-z0-9_]{1,40}")
 _TIMEOUT_SECONDS: Final = 15.0
 _NO_ADDON: Final = "no_implementor"
+_ACTIVE_SCAN_STATES: Final = frozenset({"RUNNING", "PAUSED"})
 
 
 class _AddonMissing(ExternalToolError):
@@ -92,6 +93,20 @@ class ZapApiClient:
             )
         return int(context_id)
 
+    def stop_all_scans(self) -> int:
+        """Para todas as varreduras (`ascan/action/stopAllScans`); devolve quantas rodavam."""
+        listing = self._call("ascan", "view", "scans")
+        scans = listing.get("scans")
+        if not isinstance(scans, list):
+            raise _unexpected("ascan/view/scans")
+        running = sum(
+            1
+            for scan in scans
+            if isinstance(scan, dict) and scan.get("state") in _ACTIVE_SCAN_STATES
+        )
+        self._expect_ok(self._call("ascan", "action", "stopAllScans"))
+        return running
+
     def remove_stale_rules(self, prefix: str) -> int:
         """Remove as regras do Replacer cuja descrição começa com `prefix`."""
         try:
@@ -124,6 +139,13 @@ class ZapApiClient:
             raise ExternalToolError(
                 "O ZAP não respondeu dentro do tempo limite.",
                 hint="Confira se o ZAP está no ar e não está sobrecarregado.",
+            ) from None
+        except httpx.RemoteProtocolError:
+            # Medido no ZAP 2.17 real: chave ausente ou errada NÃO devolve o JSON `bad_api_key`;
+            # o ZAP fecha a conexão sem responder.
+            raise ExternalToolError(
+                "O ZAP fechou a conexão sem responder (é o que ele faz com chave de API errada).",
+                hint="Confira HDAST_ZAP_API_KEY (ou rode hdast stack up, que a gera e guarda).",
             ) from None
         except httpx.HTTPError:
             raise ExternalToolError(

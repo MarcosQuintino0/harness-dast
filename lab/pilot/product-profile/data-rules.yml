@@ -8,7 +8,7 @@ rules:
     generator: email
     args: { domain: "teste.exemplo.com.br" }
     unique: true
-  - match: { operation: criarConvenio, field: codigo }
+  - match: { field: codigo }
     generator: numeric
     args: { digits: 8 }
     unique: true
@@ -23,13 +23,16 @@ rules:
   - match: { operation: criarConsulta, field: valor }
     generator: number
     args: { min: 50, max: 500, decimals: 2 }
-  # Ids de semente (constantes) para o que o schema de encadeamento da V1 nao alcanca (veja NOTES.md).
-  - match: { operation: criarConsulta, field: pacienteId }
+  # CRM NNNNNNN-UF unico por execucao (7 digitos: o prefixo da etiqueta muda entre execucoes).
+  - match: { operation: criarMedico, field: crm }
+    generator: br.crm
+    args: { digits: 7, uf: SP }
+    unique: true
+  # Documento de semente (lab/pilot/documentos); o nome sorteado nao existiria (404).
+  - match: { operation: baixarDocumento, field: arquivo }
     generator: constant
-    args: { value: 1 }
-  - match: { operation: criarConsulta, field: medicoId }
+    args: { value: orientacoes-pos-consulta.txt }
+  # O implicito seria o primeiro valor do enum (AGENDADA), transicao que o alvo recusa (409).
+  - match: { operation: atualizarStatusConsulta, field: status }
     generator: constant
-    args: { value: 1 }
-  - match: { operation: criarReceita, field: consultaId }
-    generator: constant
-    args: { value: 1 }
+    args: { value: REALIZADA }

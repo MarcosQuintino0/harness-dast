@@ -14,7 +14,7 @@ Cada produto tem uma pasta (por padrão em `products/PRODUTO/`, ou onde `HDAST_P
 | --- | --- | --- | --- |
 | `target.yml` | Ambiente, escopo, autorização, janelas, limites, autenticação, limpeza | O agente, a partir da autorização formal informada pelo usuário. A CLI valida | Existe (esta página) |
 | `data-rules.yml` | Regras declarativas de geração de dados ([ADR 0006](../adr/0006-regras-de-dados-declarativas.md)) | O agente | `domain/datagen.py` |
-| `flows.yml` | Encadeamento entre chamadas, de um nível na V1 | O agente | `domain/flow.py` |
+| `flows.yml` | Encadeamento entre chamadas, em vários níveis (sem ciclo) | O agente | `domain/flow.py` |
 | Hook de limpeza | Script SQL de limpeza ([ADR 0011](../adr/0011-limpeza-por-sql-oracle-com-python-oracledb.md)) | **Uma pessoa** do time do produto. O agente nunca escreve nem altera | Só o caminho é validado |
 
 O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste repositório (P-01). O perfil não contém segredos: só referências (`secret_ref`).
@@ -63,7 +63,11 @@ auth:
 cleanup:
   type: oracle_sql
   script: ./cleanup/cleanup.sql
-  connection: { secret_ref: "env:AGENDA_ORACLE_LIMPEZA" }
+  connection: { secret_ref: "env:AGENDA_ORACLE_DSN" }
+  user: { secret_ref: "env:AGENDA_ORACLE_LIMPEZA_USUARIO" }
+  password: { secret_ref: "env:AGENDA_ORACLE_LIMPEZA_SENHA" }
+  allowed_tables: [AGENDA_CONSULTA, AGENDA_PACIENTE]
+  max_rows: 500
   requires_confirmation: true
 ```
 
@@ -82,6 +86,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `auth` | bloco | Sim | Um dos dois tipos |
 | `cleanup` | bloco | Não | Padrão: ausente |
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
+| `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -232,6 +237,10 @@ Usuário e senha enviados a um endpoint de login, que devolve um token. (Nome an
 | `token_response_field` | texto | `access_token` | Onde está o token na resposta JSON, em caminho pontuado (`access_token`, `data.token`) |
 | `token_header` | texto | `Authorization` | Cabeçalho em que o token é enviado. `[A-Za-z0-9-]`, de 1 a 64. Não pode ser `Host`, `Content-Length`, `Transfer-Encoding` nem `Connection` |
 | `token_scheme` | texto | `Bearer` | Prefixo do valor do cabeçalho. Vazio envia só o token. Até 32 caracteres de `[A-Za-z0-9._~+/-]` |
+| `csrf` | bloco | (ausente) | Proteção XSRF/CSRF (veja `auth.csrf`) |
+| `login_limit` | bloco | (ausente) | Taxa de login que o alvo tolera (veja `auth.login_limit`) |
+| `token_expired` | `{field, value}` | (ausente) | Sinal de "token vencido" (veja `auth.token_expired`) |
+| `default_account`, `account_map` | | (ausentes) | Conta por operação (veja `auth.account_map`) |
 
 ### `type: api_key`
 
@@ -242,7 +251,7 @@ Chave fixa enviada num cabeçalho.
 | `header_name` | texto | Cabeçalho que leva a chave (`X-API-Key`). Mesmas regras de `token_header` |
 | `accounts[]` | lista | Contas com `alias`, `role` e `api_key` como `secret_ref` |
 
-O `probe` (M3) obtém o token ele mesmo (a CLI resolve os segredos, faz o login e envia o token nas requisições). Como o token chega ao ZAP e é renovado em varreduras longas é do M4 (P-10; o spike recomendou o Replacer). O perfil aceita várias contas com papel, embora a V1 use só uma, para não mudar o schema quando o teste de autorização entre contas chegar na V2.
+O `probe` (M3) obtém o token ele mesmo (a CLI resolve os segredos, faz o login e envia o token nas requisições). No `scan` (M4) a CLI instala o token no Replacer do ZAP e o renova em varreduras longas ([scan.md](scan.md#token-replacer)). O perfil aceita várias contas com papel, embora a V1 use só uma, para não mudar o schema quando o teste de autorização entre contas chegar na V2.
 
 ### `auth.csrf` (opcional, nos dois tipos)
 
@@ -263,18 +272,119 @@ auth:
     fetch_path: /api/csrf
 ```
 
+### `auth.login_limit` (opcional, só `login_password`)
+
+Alvos reais limitam o login por origem e contam também as tentativas erradas (a Clínica Piloto aceita 5 por minuto). Estourar o limite trava as contas de teste. Com este bloco, o `preflight` e o `probe` nunca excedem a taxa declarada: antes de cada POST de login (primeiro login de uma conta, novo login por token vencido, repetição após 429 e a operação de login do OpenAPI) o orçamento espera até a janela deslizante de 60 s ter vaga.
+
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `max_per_minute` | inteiro | De 1 a 60. Soma todas as contas e todas as repetições do mesmo comando |
+
+Também valem sem o bloco: **um login por conta por execução** (o token é reaproveitado até vencer) e, num 429 do login, a espera pelo `Retry-After` (no máximo 30 s por vez, até 3 vezes). O orçamento é **por comando**: `preflight` e `probe` são processos separados e não sabem dos logins um do outro (o `hdast run`, futuro, compartilhará o cache de tokens do processo). Rodar o `probe` logo depois do `preflight` pode esbarrar no 429 do alvo, que o `Retry-After` resolve ao custo de esperar.
+
+```yaml
+auth:
+  login_limit:
+    max_per_minute: 5
+```
+
+### `auth.token_expired` (opcional, só `login_password`)
+
+Diz como o alvo avisa que o token venceu. O `probe` refaz o login **no máximo uma vez por requisição** (e o novo login conta no orçamento de `login_limit`).
+
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `field` | texto | Caminho pontuado no corpo JSON do 401 (`code`, `error.code`) |
+| `value` | texto, inteiro ou booleano | Valor que significa "vencido" (`TOKEN_EXPIRADO`). O tipo importa |
+
+Sem o bloco, **todo** 401 provoca um novo login. Com ele, só o 401 cujo corpo traz o campo com o valor declarado: um 401 `TOKEN_INVALIDO` ou `CREDENCIAIS_INVALIDAS` não gasta login.
+
+```yaml
+auth:
+  token_expired: { field: code, value: TOKEN_EXPIRADO }
+```
+
+### `auth.default_account` e `auth.account_map` (opcionais, nos dois tipos)
+
+Escolhem a conta que envia cada operação, para exercitar papéis (admin cria convênio; médico cria paciente; paciente vê o próprio perfil). **O agente só cita apelidos**: usuário e senha continuam em `secret_ref`.
+
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `default_account` | apelido | Conta das operações que nenhuma regra atende. Padrão: a primeira de `accounts` |
+| `account_map[]` | lista (até 100) | Regras avaliadas em ordem; **a primeira que casa vence** |
+| `account_map[].account` | apelido | Precisa existir em `accounts` (senão o perfil é recusado e a mensagem lista os apelidos válidos) |
+| `account_map[].operations` | lista de `operationId` | A regra casa com estas operações. Um `operationId` que não existe no OpenAPI é `CONFIG_ERROR` no `probe` e `ACCOUNT_MAP_MISMATCH` em `spec inspect` |
+| `account_map[].path` | padrão de caminho | A regra casa com operações cujo caminho casa com o padrão (mesma gramática de `scope.allow[].paths`; um `{marcador}` do OpenAPI vale como um segmento) |
+| `account_map[].methods` | lista de métodos | Só junto de `path`; restringe a regra a estes métodos |
+
+Uma regra precisa de `operations` ou de `path`; quando declara os dois, a operação precisa casar com **ambos** (e com `methods`, se houver). `hdast probe --account ALIAS` impõe essa conta a TODAS as operações (a flag só reduz o roteamento; nunca nomeia uma conta fora do perfil). `hdast spec inspect` devolve em `operation_accounts` a conta de cada operação que será enviada. O manifesto da execução (`accounts`) lista só as contas que o plano usa, e cada uma faz login uma vez, na partida.
+
+```yaml
+auth:
+  default_account: admin_a
+  account_map:
+    - { account: medico_a, operations: [criarPaciente, criarReceita] }
+    - { account: paciente_a, path: /api/me, methods: [GET, PUT] }
+```
+
 ## `probe` (opcional)
 
 | Campo | Tipo | Regra |
 | --- | --- | --- |
 | `success.json_field_absent_or_not_equal` | `{field, value}` | Sucesso além do código HTTP: uma resposta 2xx só conta como sucesso se o campo (caminho pontuado, `status` ou `data.result`) estiver ausente OU tiver valor diferente do de FALHA informado em `value` (texto, inteiro ou booleano; o tipo importa: `1` não é `true`). Sem o bloco, vale 2xx. Existe porque há alvos que respondem 200 com `{"status":"fail"}` (spike do M0) |
 | `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow` |
+| `error_codes` | `{field, outcomes}` | Classificação exata pelo código de erro do corpo JSON (veja abaixo). Sem ele, a classificação usa só o status HTTP |
 
 ```yaml
 probe:
   health_path: /api/saude
   success:
     json_field_absent_or_not_equal: { field: status, value: fail }
+```
+
+### `probe.error_codes`
+
+Alvos que devolvem um envelope de erro (`{"code": "...", "errors": [{"field", "rule"}]}`) permitem classificar a falha pelo **código**, sem adivinhar pelo status.
+
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `field` | texto | Caminho pontuado do campo do código no corpo (`code`, `error.code`) |
+| `outcomes` | mapa | Classe de resultado -> lista de códigos. Classes aceitas: `validation_error`, `conflict`, `auth_error`, `csrf_error`, `not_found`, `rate_limited`, `client_error`, `server_error`. Um código só pode estar numa classe; até 100 códigos; `[A-Za-z0-9_.:-]`, até 64 |
+
+Regras de uso: só respostas de erro (4xx e 5xx) são reclassificadas; o código só vale se for texto ou inteiro; código ausente ou não declarado cai na heurística por status. Um `csrf_error` declarado também decide se um 403 renova o token CSRF (exato, sem a heurística de corpo). Em `validation_error` e `conflict`, o `untrusted_target_data.excerpt` mantém a estrutura por campo (`errors[].field` e `rule`), que é o que o agente usa para escrever a regra de dados: o trecho continua limitado a 300 caracteres e redigido, e quando o corpo passa do teto caem primeiro as mensagens e depois os itens excedentes, nunca o `field` e o `rule` dos primeiros itens.
+
+```yaml
+probe:
+  error_codes:
+    field: code
+    outcomes:
+      validation_error: [VALIDACAO, CORPO_INVALIDO]
+      conflict: [CONFLITO]
+      csrf_error: [XSRF_INVALIDO]
+      client_error: [TRANSICAO_INVALIDA]   # regra de estado: nem dado nem alvo
+```
+
+## `scan` (opcional)
+
+Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema v1; [scan.md](scan.md), [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)). Tudo dentro de conjuntos fechados: nenhum campo reativa uma regra desligada por padrão, amplia métodos além do escopo ou remove um limite (os limites de carga continuam em `limits`, com tetos absolutos).
+
+| Campo | Tipo | Padrão | Regra |
+| --- | --- | --- | --- |
+| `strength` | `LOW`, `MEDIUM` ou `HIGH` | `LOW` | Força de ataque da política |
+| `threshold` | `LOW`, `MEDIUM` ou `HIGH` | `MEDIUM` | Limiar de alerta: só entram alertas com pelo menos esta confiança |
+| `url_path_injection` | booleano | `true` | Injeção em segmentos de caminho. Ligada porque, sem ela, a injeção de SQL em parâmetro de caminho passa batida (spike do M0) |
+| `mutating_methods` | lista de `PUT`/`PATCH` | vazia | Permite varrer `PUT`/`PATCH` sobre QUALQUER recurso. Sem isto, só sobre recurso criado na execução |
+| `disable_rules` | lista de ids (0 a 999999, até 100) | vazia | Regras ativas do ZAP a desligar ALÉM das desligadas por padrão |
+| `max_scan_minutes` | inteiro, 1 a 60 | 10 | Teto de cada varredura (uma por requisição aprendida) |
+| `max_rule_minutes` | inteiro, 1 a 10 | 2 | Teto de cada regra dentro de uma varredura |
+| `token_refresh_seconds` | inteiro, 10 a 3600 | 120 | Idade máxima do token no ZAP antes de renovar (nunca menos que `60 / auth.login_limit.max_per_minute`) |
+| `fail_on` | `none`, `low`, `medium` ou `high` | `none` | Severidade proposta a partir da qual `report` sai com código 1. `report --fail-on` sobrepõe |
+
+```yaml
+scan:
+  strength: LOW
+  threshold: MEDIUM
+  fail_on: high
 ```
 
 ## Segredos: `secret_ref`
@@ -295,8 +405,15 @@ Opcional. O bloco aponta para um SQL escrito e revisado por uma pessoa.
 | --- | --- | --- |
 | `type` | texto | Somente `oracle_sql` |
 | `script` | texto | Caminho relativo seguro |
-| `connection` | `secret_ref` | Conexão de um usuário de banco que só pode apagar nas tabelas de teste |
+| `connection` | `secret_ref` | DSN do Oracle de testes (`host:porta/serviço`), sem usuário nem senha |
 | `requires_confirmation` | booleano | Deve ser `true`. `false`, ausente ou texto são recusados: na V1 a confirmação humana não é opcional |
+| `user` | `secret_ref` | Usuário de banco só da limpeza (`SELECT` e `DELETE` nas tabelas de teste, nada mais). Obrigatório para a limpeza rodar |
+| `password` | `secret_ref` | Senha desse usuário. Obrigatório para a limpeza rodar |
+| `allowed_tables` | lista de texto | `TABELA` ou `ESQUEMA.TABELA`, de 1 a 100, guardadas em maiúsculas, sem aspas nem repetição. As únicas tabelas que o script pode apagar ou consultar. Obrigatório para a limpeza rodar |
+| `max_rows` | inteiro | De 1 a 1 000 000. Teto de linhas apagadas no total; passar disso desfaz tudo (saída 7). Obrigatório para a limpeza rodar |
+| `db_schema` | texto | Opcional. Identificador do esquema dono das tabelas, quando o usuário da limpeza não é o dono (a CLI faz `ALTER SESSION SET CURRENT_SCHEMA`) |
+
+`user`, `password`, `allowed_tables` e `max_rows` são aditivos na schema v1 e opcionais no perfil (um perfil antigo continua válido), mas `hdast cleanup` se recusa a rodar sem eles. Execução, confirmação e portão de SQL: [operations/cleanup.md](../operations/cleanup.md) e [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md).
 
 ## O que o `ScopeGuard` recusa
 
@@ -329,4 +446,4 @@ O YAML é carregado em modo seguro, com limite de tamanho (256 KiB) e de profund
 
 ## `data-rules.yml` e `flows.yml`
 
-Veja [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md). Na V1, o encadeamento cobre só dependências diretas de um nível (P-12).
+Veja [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md). O encadeamento aceita vários níveis, sem ciclos (ADR 0021).

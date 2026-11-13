@@ -1,0 +1,11 @@
+# Encadeamento do VAmPI (schema v1). O titulo do livro vem da listagem (os titulos de semente
+# sao sorteados a cada GET /createdb); o DELETE (so com --include-delete) apaga um usuario lido
+# da listagem desta mesma execucao.
+schema_version: 1
+bindings:
+  - produces: { operation: api_views.users.get_all_users, field: users.1.username }
+    consumed_by:
+      - { operation: api_views.users.delete_user, param: username }
+  - produces: { operation: api_views.books.get_all_books, field: Books.0.book_title }
+    consumed_by:
+      - { operation: api_views.books.get_by_title, param: book_title }

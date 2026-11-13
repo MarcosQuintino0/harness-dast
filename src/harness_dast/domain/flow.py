@@ -4,12 +4,12 @@ Um *binding* diz: a operação P PRODUZ um valor (campo da resposta) e as opera�
 o CONSOMEM (num parâmetro ou num campo do corpo). Exemplo: `criarPaciente` devolve `id`;
 `buscarPaciente` o usa no parâmetro `pacienteId`.
 
-**Um nível (V1, pendência P-12).** Uma operação pode ser produtora OU consumidora, nunca
-as duas. Em outras palavras: quem recebe um valor de outra operação não pode ser fonte de
-valor para uma terceira. Isso proíbe `A -> B -> C` (B consome de A e produz para C), qualquer
-ciclo (`A -> B -> A`, `A -> A`) e, por consequência, qualquer cadeia mais longa. Continua
-permitido: um produtor para vários consumidores, e um consumidor com vários produtores
-(`A1 -> B` e `A2 -> B`), desde que cada alvo (`B.param` ou `B.field`) tenha uma só fonte.
+**Vários níveis (DAG).** Uma operação pode consumir de uma e produzir para outra:
+`convenio -> paciente -> consulta -> receita` é aceito. O encadeamento é um grafo dirigido
+sem ciclos. Continuam recusados: ciclo (`A -> B -> A`) e auto-referência (`A -> A`) e uma
+cadeia mais funda que `MAX_FLOW_DEPTH` operações. Continua permitido um produtor para vários
+consumidores e um consumidor com vários produtores (`A1 -> B` e `A2 -> B`), desde que cada
+alvo (`B.param` ou `B.field`) tenha uma só fonte.
 
 Este módulo é puro: a resposta do produtor chega como dado já decodificado.
 """
@@ -34,6 +34,8 @@ from harness_dast.domain.versioned import validate_versioned
 _FLOWS_HINT = "Corrija os campos indicados no flows.yml do produto."
 MAX_BINDINGS = 200
 MAX_CONSUMERS = 50
+MAX_FLOW_DEPTH = 6
+"""Maior número de operações numa cadeia produtor -> consumidor (a V1 do pilot usa 4)."""
 _FIELD_PATH = r"^[^\s.]{1,100}(\.[^\s.]{1,100}){0,9}$"
 
 type BoundValue = str | int
@@ -143,6 +145,18 @@ def _find_cycle(edges: Mapping[str, tuple[str, ...]]) -> list[str] | None:
     return None
 
 
+def _longest_chain(edges: Mapping[str, tuple[str, ...]]) -> int:
+    """Número de operações do maior caminho; o grafo já não tem ciclo."""
+    memo: dict[str, int] = {}
+
+    def depth(node: str) -> int:
+        if node not in memo:
+            memo[node] = 1 + max((depth(nxt) for nxt in edges.get(node, ())), default=0)
+        return memo[node]
+
+    return max((depth(node) for node in edges), default=0)
+
+
 class FlowSpec(ApiModel):
     """O `flows.yml` completo, já validado em si mesmo.
 
@@ -156,7 +170,7 @@ class FlowSpec(ApiModel):
 
     @model_validator(mode="after")
     def validate_structure(self) -> Self:
-        """Rejeita alvo repetido, ciclo e encadeamento de mais de um nível."""
+        """Rejeita alvo repetido, ciclo (inclui auto-referência) e cadeia funda demais."""
         targets: set[tuple[str, str, str]] = set()
         for binding in self.bindings:
             for consumer in binding.consumed_by:
@@ -171,20 +185,14 @@ class FlowSpec(ApiModel):
         cycle = _find_cycle(edges)
         if cycle is not None:
             names = " -> ".join(safe_identifier(name) for name in cycle)
-            raise ValueError(f"ciclo entre operações: {names}; o encadeamento é de um nível")
-        middle = sorted(self._producers() & self._consumers())
-        if middle:
+            raise ValueError(f"ciclo entre operações: {names}; o encadeamento não pode ter ciclos")
+        depth = _longest_chain(edges)
+        if depth > MAX_FLOW_DEPTH:
             raise ValueError(
-                f"a operação {safe_identifier(middle[0])} consome valor de outra e também "
-                "produz valor para uma terceira; a V1 aceita só um nível (produtor -> consumidor)"
+                f"cadeia de {depth} operações; o máximo é {MAX_FLOW_DEPTH} "
+                "(divida o encadeamento ou use valores constantes)"
             )
         return self
-
-    def _producers(self) -> set[str]:
-        return {binding.produces.operation for binding in self.bindings}
-
-    def _consumers(self) -> set[str]:
-        return {c.operation for binding in self.bindings for c in binding.consumed_by}
 
     def _edges(self) -> dict[str, tuple[str, ...]]:
         edges: dict[str, list[str]] = {}

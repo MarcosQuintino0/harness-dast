@@ -1,0 +1,357 @@
+"""Casos de uso da pilha gerenciada: `stack up`, `stack status`, `stack down` e `stop`.
+
+`up` carrega o perfil, confere autorização e janela, gera a política do proxy a partir do
+perfil (nunca mais larga), grava o estado e sobe os contêineres recriando-os: o proxy só lê a
+política na partida, então cada `up` começa de um ZAP, um proxy e um alvo novos. `down`
+derruba tudo o que `up` subiu. `stop` é a trava de emergência: cria o `KILL` do proxy ANTES de
+falar com o ZAP, para funcionar mesmo com o ZAP fora do ar.
+
+O estado (chave do ZAP, senhas descartáveis do alvo) fica no `StackStateStore`, fora do
+repositório e de `runs/`. Este módulo não imprime nem devolve segredos.
+"""
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+from harness_dast.application.lab_targets import (
+    CLINICA_PILOTO,
+    PILOT_API_PORT,
+    PILOT_MANAGEMENT_PORT,
+    PILOT_PROJECT,
+    LabTarget,
+    lab_target_for,
+)
+from harness_dast.application.ports import (
+    Clock,
+    ComposeRunner,
+    EntropySource,
+    ProfileRepository,
+    ProxyPolicyStore,
+    RandomSource,
+    StackStateStore,
+    ZapScanStopper,
+)
+from harness_dast.application.stack_models import (
+    ComposeProject,
+    ServiceStatus,
+    StackReport,
+    StackState,
+    StopReport,
+)
+from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.proxy_deadline import compute_policy_deadline
+from harness_dast.domain.run import RunId
+
+MAIN_PROJECT = "hdast"
+BASE_SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
+DEFAULT_ZAP_PORT = "8080"
+DEFAULT_PROXY_PORT = "3128"
+DEFAULT_UP_TIMEOUT_SECONDS = 300
+DOWN_TIMEOUT_SECONDS = 120
+KEY_ENV = "HDAST_ZAP_API_KEY"
+POLICY_DIR_ENV = "HDAST_SCOPE_POLICY_DIR"
+AUDIT_DIR_ENV = "HDAST_AUDIT_DIR"
+_KEY_BYTES = 24
+_PASSWORD_BYTES = 12
+_USERNAME_BYTES = 3
+_PLACEHOLDER = "unused"
+
+
+@dataclass(frozen=True)
+class StackUpRequest:
+    """Pedido de `stack up`.
+
+    Attributes:
+        product: Produto cujo perfil define a política.
+        vulnerable: Modo vulnerável (`True`) ou seguro (`False`) do alvo; `None` mantém o padrão.
+        token_ttl_seconds: Vida do token do alvo; `None` mantém o padrão.
+        build: Reconstruir as imagens locais antes de subir.
+        timeout_seconds: Prazo para os contêineres ficarem saudáveis.
+    """
+
+    product: str
+    vulnerable: bool | None = None
+    token_ttl_seconds: int | None = None
+    build: bool = False
+    timeout_seconds: int = DEFAULT_UP_TIMEOUT_SECONDS
+
+
+class StackManager:
+    """Sobe, consulta e derruba a pilha, e aciona a trava de emergência."""
+
+    def __init__(
+        self,
+        *,
+        profiles: ProfileRepository,
+        clock: Clock,
+        entropy: EntropySource,
+        random: RandomSource,
+        policies: ProxyPolicyStore,
+        compose: ComposeRunner,
+        states: StackStateStore,
+        environ: Mapping[str, str],
+        repo_root: Path,
+    ) -> None:
+        """Cria o caso de uso.
+
+        Args:
+            profiles: Fonte dos perfis.
+            clock: Relógio injetado.
+            entropy: Sufixo do identificador da pilha.
+            random: Segredos descartáveis.
+            policies: Gravação da política e da trava.
+            compose: Docker Compose.
+            states: Estado persistido.
+            environ: Ambiente da CLI (chave do ZAP, portas, credenciais já definidas).
+            repo_root: Raiz do repositório (onde estão `compose.yaml` e `lab/`).
+        """
+        self._profiles = profiles
+        self._clock = clock
+        self._entropy = entropy
+        self._random = random
+        self._policies = policies
+        self._compose = compose
+        self._states = states
+        self._environ = environ
+        self._root = repo_root
+
+    def up(self, request: StackUpRequest) -> StackReport:
+        """Sobe a pilha para o produto.
+
+        Raises:
+            ConfigError: Perfil inválido ou falha ao gravar política ou estado.
+            ScopeViolation: Autorização vencida ou janela fechada.
+            ExternalToolError: Docker indisponível ou falha ao subir.
+        """
+        now = self._clock.now()
+        profile = self._profiles.load(request.product)
+        profile.ensure_runnable(now)
+        target = lab_target_for(profile.environment.base_url)
+        warnings = self._tear_down_previous()
+        run_id = RunId.create(
+            started_at=now, product=profile.product, suffix=self._entropy.hex_suffix()
+        )
+        not_after = compute_policy_deadline(profile, now)
+        directories = self._states.directories_for(run_id.value)
+        policy_file = self._policies.publish(profile, run_id, not_after, directories.policy_dir)
+        zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
+        proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
+        projects = self._projects(target)
+        state = StackState(
+            product=profile.product,
+            run_id=run_id.value,
+            started_at=now.isoformat(),
+            not_after=not_after.isoformat(),
+            lab_target=target.name if target else None,
+            zap_api_key=self._environ.get(KEY_ENV) or self._random.token_hex(_KEY_BYTES),
+            zap_url=f"http://127.0.0.1:{zap_port}",
+            auth_proxy_url=f"http://127.0.0.1:{proxy_port}",
+            policy_dir=directories.policy_dir,
+            audit_dir=directories.audit_dir,
+            projects=projects,
+            target_env=self._credentials(target),
+            target_urls=_target_urls(target),
+        )
+        # Gravado ANTES de subir: se a subida falhar no meio, `stack down` sabe o que derrubar.
+        self._states.save(state)
+        for project in projects:
+            env = self._up_env(
+                project, state, _target_options(target, request), (zap_port, proxy_port)
+            )
+            self._compose.up(
+                project, env, build=request.build, timeout_seconds=request.timeout_seconds
+            )
+        report = self._report(state, policy_file=policy_file)
+        return report.model_copy(update={"warnings": tuple(warnings)})
+
+    def status(self) -> StackReport:
+        """Descreve a pilha gerenciada (ou diz que não há).
+
+        Raises:
+            ConfigError: Arquivo de estado inválido.
+            ExternalToolError: Docker indisponível.
+        """
+        state = self._states.load()
+        if state is None:
+            return StackReport(managed=False, state_file=str(self._states.location()))
+        return self._report(state, policy_file=state.policy_dir / "policy.json")
+
+    def down(self) -> StackReport:
+        """Derruba a pilha e esquece o estado.
+
+        Raises:
+            ExternalToolError: Falha ao derrubar; o estado é mantido para nova tentativa.
+        """
+        state = self._states.load()
+        if state is None:
+            return StackReport(managed=False, state_file=str(self._states.location()))
+        self._remove_containers(state)
+        self._states.clear()
+        return StackReport(
+            managed=True,
+            running=False,
+            product=state.product,
+            run_id=state.run_id,
+            audit_file=str(state.audit_dir / "audit.jsonl"),
+            state_file=str(self._states.location()),
+        )
+
+    def stop(self, stopper: ZapScanStopper, policy_dir_override: Path | None) -> StopReport:
+        """Aciona a trava de emergência do proxy e para as varreduras do ZAP.
+
+        A trava vem primeiro e não depende do ZAP.
+
+        Raises:
+            ConfigError: Não há pasta de política conhecida ou o `KILL` não pôde ser criado.
+        """
+        state = self._states.load()
+        directory = state.policy_dir if state else policy_dir_override
+        if directory is None:
+            raise ConfigError(
+                "Não sei onde está a política do proxy: não há pilha gerenciada.",
+                hint=f"Suba a pilha com hdast stack up ou defina {POLICY_DIR_ENV}.",
+            )
+        created = self._policies.trigger_kill(directory)
+        stopped, reachable, message = _stop_zap(stopper)
+        return StopReport(
+            kill_file=str(directory / "KILL"),
+            kill_created=created,
+            stack_managed=state is not None,
+            zap_reachable=reachable,
+            zap_scans_stopped=stopped,
+            zap_message=message,
+        )
+
+    def _tear_down_previous(self) -> list[str]:
+        previous = self._states.load()
+        if previous is None:
+            return []
+        try:
+            self._remove_containers(previous)
+        except ExternalToolError as error:
+            return [f"A pilha anterior ({previous.product}) não foi derrubada: {error.message}"]
+        self._states.clear()
+        return [f"A pilha anterior ({previous.product}) foi derrubada antes de subir esta."]
+
+    def _remove_containers(self, state: StackState) -> None:
+        env = _common_env(state)
+        for project in reversed(state.projects):
+            self._compose.down(project, env, timeout_seconds=DOWN_TIMEOUT_SECONDS)
+
+    def _credentials(self, target: LabTarget | None) -> dict[str, str]:
+        generated: dict[str, str] = {}
+        for name in target.credential_env if target else ():
+            if self._environ.get(name):
+                continue
+            if name.endswith("USERNAME"):
+                generated[name] = f"lab_{self._random.token_hex(_USERNAME_BYTES)}"
+            else:
+                generated[name] = self._random.token_hex(_PASSWORD_BYTES)
+        return generated
+
+    def _projects(self, target: LabTarget | None) -> tuple[ComposeProject, ...]:
+        services = BASE_SERVICES + (target.main_services if target else ())
+        main = ComposeProject(
+            name=MAIN_PROJECT,
+            workdir=str(self._root),
+            files=("compose.yaml",),
+            profiles=target.main_profiles if target else (),
+            services=services,
+        )
+        if target is None or target.attached_workdir is None:
+            return (main,)
+        attached = ComposeProject(
+            name=PILOT_PROJECT,
+            workdir=str(self._root / target.attached_workdir),
+            files=target.attached_files,
+        )
+        return (main, attached)
+
+    def _up_env(
+        self,
+        project: ComposeProject,
+        state: StackState,
+        options: dict[str, str],
+        ports: tuple[str, str],
+    ) -> dict[str, str]:
+        if project.name == MAIN_PROJECT:
+            return {
+                KEY_ENV: state.zap_api_key,
+                POLICY_DIR_ENV: state.policy_dir.as_posix(),
+                AUDIT_DIR_ENV: state.audit_dir.as_posix(),
+                "HDAST_ZAP_HOST_PORT": ports[0],
+                "HDAST_PROXY_HOST_PORT": ports[1],
+                **(options if state.lab_target == "vampi" else {}),
+            }
+        return {
+            **{name: _PLACEHOLDER for name in CLINICA_PILOTO.inert_env},
+            **state.target_env,
+            "PILOT_HOST_PORT": str(PILOT_API_PORT),
+            "PILOT_MGMT_HOST_PORT": str(PILOT_MANAGEMENT_PORT),
+            **options,
+        }
+
+    def _report(self, state: StackState, *, policy_file: Path) -> StackReport:
+        env = _common_env(state)
+        services: list[ServiceStatus] = []
+        for project in state.projects:
+            services.extend(self._compose.status(project, env))
+        return StackReport(
+            managed=True,
+            running=bool(services) and all(item.state == "running" for item in services),
+            product=state.product,
+            run_id=state.run_id,
+            lab_target=state.lab_target,
+            not_after=state.not_after,
+            zap_url=state.zap_url,
+            auth_proxy_url=state.auth_proxy_url,
+            policy_file=str(policy_file),
+            audit_file=str(state.audit_dir / "audit.jsonl"),
+            kill_switch=self._policies.kill_active(state.policy_dir),
+            services=tuple(services),
+            target_urls=state.target_urls,
+            state_file=str(self._states.location()),
+        )
+
+
+def _target_options(target: LabTarget | None, request: StackUpRequest) -> dict[str, str]:
+    options: dict[str, str] = {}
+    if target is None:
+        return options
+    if request.vulnerable is not None:
+        options[target.vulnerable_env] = "1" if request.vulnerable else "0"
+    if request.token_ttl_seconds is not None:
+        options[target.ttl_env] = str(request.token_ttl_seconds)
+    return options
+
+
+def _target_urls(target: LabTarget | None) -> dict[str, str]:
+    if target is not CLINICA_PILOTO:
+        return {}
+    return {
+        "api": f"http://127.0.0.1:{PILOT_API_PORT}",
+        "management": f"http://127.0.0.1:{PILOT_MANAGEMENT_PORT}",
+    }
+
+
+def _common_env(state: StackState) -> dict[str, str]:
+    # `down` e `ps` precisam que o compose consiga interpolar as variáveis obrigatórias;
+    # os valores reais vêm do estado e, na falta deles (credenciais definidas pela pessoa),
+    # um valor qualquer basta porque nada é criado nem lido.
+    pilot = state.lab_target == CLINICA_PILOTO.name
+    names = CLINICA_PILOTO.credential_env + CLINICA_PILOTO.inert_env if pilot else ()
+    return {
+        **{name: _PLACEHOLDER for name in names},
+        **state.target_env,
+        KEY_ENV: state.zap_api_key,
+        POLICY_DIR_ENV: state.policy_dir.as_posix(),
+        AUDIT_DIR_ENV: state.audit_dir.as_posix(),
+    }
+
+
+def _stop_zap(stopper: ZapScanStopper) -> tuple[int, bool, str | None]:
+    try:
+        return stopper.stop_all_scans(), True, None
+    except ExternalToolError as error:
+        return 0, False, error.message

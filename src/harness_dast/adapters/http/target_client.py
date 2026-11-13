@@ -81,6 +81,12 @@ class HttpxTargetClient:
             proxy=proxy,
             verify=verify,
             timeout=timeout,
+            # Sem conexão reaproveitada. Medido contra o Spring Boot real atrás do ZAP e do proxy
+            # de escopo: a terceira requisição numa conexão persistente ficava pendurada até o
+            # tempo limite (o servidor encerra a conexão e o intermediário não percebe). O volume
+            # do harness é baixo (cinco requisições por segundo), então abrir uma conexão por
+            # requisição custa pouco.
+            limits=httpx.Limits(max_keepalive_connections=0),
             follow_redirects=False,
             trust_env=False,
             headers={"User-Agent": USER_AGENT},

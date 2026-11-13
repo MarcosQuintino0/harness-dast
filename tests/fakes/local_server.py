@@ -44,6 +44,7 @@ class Reply:
     body: bytes = b""
     headers: list[tuple[str, str]] = field(default_factory=list)
     delay: float = 0.0
+    drop: bool = False  # fecha a conexão sem responder (o ZAP real faz isso com chave errada)
 
 
 type Handler = Callable[[Received], Reply]
@@ -75,6 +76,9 @@ def _make_handler(handler: Handler, server: LocalServer) -> type[BaseHTTPRequest
             )
             server.requests.append(received)
             reply = handler(received)
+            if reply.drop:
+                self.close_connection = True
+                return
             if reply.delay:
                 threading.Event().wait(reply.delay)
             try:

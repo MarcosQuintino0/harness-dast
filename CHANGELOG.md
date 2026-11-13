@@ -6,6 +6,44 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (marco M4, `hdast scan` e `hdast report`)
+
+- Comando `hdast scan <produto> --run <run_id>` (`--only`, `--include-outcome`, `--dry-run`, `--max-minutes`, `--threads`, `--account`): varre com o ZAP, uma varredura por requisição aprendida (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider), só as operações que o `probe` alcançou. Nunca `DELETE`, o login ou caminho negado; `PUT`/`PATCH` só sobre recurso criado na execução ou com `scan.mutating_methods`. Limites (`threadPerHost`, `delayInMs`, tetos de duração) e política (`hdast-scan`, força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regras destrutivas ou pesadas desligadas) fixados ANTES da primeira varredura; prazo total, janela e autorização conferidos a cada consulta; guarda de saúde do alvo (saída 6); corte do ZAP reconhecido por `progress < 100` e marcado `truncated`; token entregue pelo Replacer (renovação por adicionar-e-remover, uma conta por vez, CSRF por cookie duplicado, regras SEMPRE removidas, inclusive em erro e Ctrl+C). Artefatos `scan.json`, `scan-progress.json`, `alerts.raw.json` e `evidence.json`, todos redigidos. Referência: `docs/reference/scan.md` ([ADR 0022](docs/adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)).
+- Comando `hdast report <produto> --run <run_id>` (`--compare`, `--fail-on`): sem rede, transforma os alertas em achados (`Finding` congelado, fingerprint SHA-256 versão 1 sobre produto, método, modelo de caminho da requisição aprendida resolvida por `sourceMessageId`, vetor, parâmetro, regra e CWE; deduplicação; severidade e confiança como propostas pelo ZAP; status `needs_triage`) e grava `findings.json` e `report.md` (português, escapado, com a seção fixa "O que este relatório não testou"). Triagem do agente em `triage.json` separado (não apaga nem reclassifica), comparação entre execuções (`new`, `persistent`, "não observado nesta execução", nunca "corrigido") e `curl` reproduzível com marcadores no lugar dos segredos. O `report` é o dono do código de saída `1`. Referência: `docs/reference/relatorio.md` e `docs/reference/finding-schema.md`.
+- Perfil, aditivo e opcional na schema v1: bloco `scan` (`strength`, `threshold`, `url_path_injection`, `mutating_methods`, `disable_rules`, `max_scan_minutes`, `max_rule_minutes`, `token_refresh_seconds`, `fail_on`).
+- Portas `ScanControl`, `RunArtifacts` e `ReportSink` (em `application/scan_ports.py`); adaptadores `adapters/zap/scan_client.py` e `adapters/reporting/`; módulos puros `domain/scan_*.py`, `redaction.py`, `finding*.py`, `triage.py`, `report_*.py` e `markdown_safe.py`. Sem dependência nova.
+- Testes: unitários com falsos para os dois casos de uso, ZAP falso em HTTP real com as formas do spike (`tests/fakes/zap_scan_server.py`), contratos dos dois comandos, arquivos de referência de `findings.json` e `report.md` a partir de fixtures reconstruídas do spike (`tests/fixtures/zap_alerts/`). **Não verificado contra o ZAP real**: a lista do que conferir está em `docs/reference/relatorio.md`.
+
+### Adicionado (marco M5, `hdast cleanup`)
+
+- Comando `hdast cleanup <produto> --run <run_id>` (`--dry-run`, `--confirm <token>`): executa o SQL de limpeza escrito por pessoa em UMA transação no Oracle de testes e só confirma depois do aceite humano (digitar o nome do produto, ou token de uso único emitido por um `--dry-run` anterior, no stderr, nunca no JSON). Código de saída `7` (`CLEANUP_FAILED`) passa a ser produzido ([ADR 0020](docs/adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md)). Guia: `docs/operations/cleanup.md`.
+- Portão de SQL em `domain/cleanup_*.py` (defesa em profundidade, não prova): só `DELETE FROM <tabela> WHERE ...` em tabelas de `allowed_tables`, com condição de amarração às variáveis `:run_start`, `:run_id`, `:run_tag` e `:account_N`; recusa DDL, `TRUNCATE`, `UPDATE`, PL/SQL, `COMMIT`, link de banco, `&variável`, funções fora de uma lista fechada e Unicode que imita ASCII.
+- Perfil, aditivo e opcional na schema v1: `cleanup.user`, `cleanup.password`, `cleanup.allowed_tables`, `cleanup.max_rows` e `cleanup.db_schema`; a limpeza se recusa a rodar sem os quatro primeiros. `cleanup.connection` passa a ser o DSN.
+- Dependência de runtime `oracledb` (python-oracledb) 26.1.0 (UPL-1.0 OU Apache-2.0), modo thin; proibida no `domain` pelo import-linter.
+- Portas `CleanupExecutor`, `CleanupSession`, `CleanupScripts`, `CleanupRuns`, `TokenSource` e `OperatorPrompt`; adaptadores `adapters/cleanup/` e falsos em `tests/fakes/cleanup_*.py`.
+- Trilha em `runs/<run_id>/`: `cleanup.json`, `cleanup-audit.jsonl` e `cleanup-confirmation.json` (só o hash do token).
+- Testes: portão (casos de recusa, truques de comentário, texto e `q'...'`, Unicode, propriedade com oráculo independente), plano, token, caso de uso com falsos, contrato do comando e integração contra o Oracle Free do piloto (`pytest -m integration`).
+
+### Adicionado (integração do `probe` com o piloto: vários níveis, conta por operação, orçamento de login)
+
+- Encadeamento em vários níveis em `flows.yml` (grafo sem ciclos; ciclo e auto-referência continuam recusados; cadeia de no máximo `MAX_FLOW_DEPTH` = 6 operações). `--only` traz os produtores em qualquer nível ([ADR 0021](docs/adr/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md)).
+- Perfil, aditivo e opcional na schema v1: `auth.default_account` e `auth.account_map` (conta por `operationId` e/ou caminho e método), `auth.login_limit.max_per_minute`, `auth.token_expired` e `probe.error_codes`. `spec inspect` devolve `operation_accounts` e o `issue` `ACCOUNT_MAP_MISMATCH`; `probe --account` impõe uma conta a todas as operações.
+- Orçamento de login (janela deslizante de 60 s consultada antes de todo POST de login), um login por conta por execução, cache de tokens por processo compartilhado por `preflight` e `probe`, novo login por token vencido no máximo uma vez por requisição e `Retry-After` no login.
+- Classificação exata pelo código de erro do corpo; o trecho do alvo preserva `errors[].field` e `rule` dentro do teto de 300 caracteres.
+- Gerador `br.crm` (`NNNNNNN-UF`, único por execução). Contrato das variáveis de ligação da limpeza em `docs/reference/cleanup.md`.
+- Perfis de laboratório em `lab/vampi/product-profile/` e `lab/pilot/product-profile/` (atualizado), e testes de integração `tests/integration/test_lab_vampi.py` e `test_lab_pilot.py` contra o ZAP 2.17 e o proxy de escopo reais.
+
+### Corrigido (verificação contra o ZAP real e o piloto)
+
+- O cliente HTTP do alvo não reaproveita mais conexões: contra o Spring Boot atrás do ZAP e do proxy de escopo, a terceira requisição numa conexão persistente ficava pendurada até o tempo limite de 15 s.
+- O ZAP 2.17 fecha a conexão (em vez de devolver `bad_api_key`) quando a chave está ausente ou errada; o erro agora diz isso e aponta `HDAST_ZAP_API_KEY`. O ZAP falso dos testes passou a imitar isso e as formas reais (`bad_view`, `no_implementor`, regras do Replacer com todas as chaves).
+
+### Adicionado (pilha gerenciada e trava de emergência)
+
+- Comandos `hdast stack up <produto>` (`--vulnerable/--secure`, `--token-ttl`, `--build`, `--timeout`), `hdast stack status`, `hdast stack down` e `hdast stop` ([ADR 0019](docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)). A política do proxy de escopo é gerada do perfil (nunca mais larga) e relida pelo validador do contêiner; a chave do ZAP é sorteada e guardada num arquivo de estado fora do repositório (`HDAST_STATE_DIR`), de onde `preflight`, `probe` e `stop` a leem quando o ambiente não a define.
+- Serviço `proxy-gateway` no `compose.yaml` (porta `127.0.0.1:3128`, variável `HDAST_PROXY_HOST_PORT`): o login e o token CSRF passam pelo proxy de escopo, não pelo ZAP, por padrão na pilha gerenciada (`HDAST_AUTH_PROXY_URL`).
+- Anexação dos alvos de laboratório `vampi` e `clinica-piloto` (projeto `hdast-pilotrun`, credenciais descartáveis) e `ZapApiClient.stop_all_scans`.
+
 ### Adicionado (marco M3, `spec inspect`, `preflight` e `probe`)
 
 - Comandos `hdast spec inspect <produto>` (resumo do OpenAPI e verificações cruzadas; `--budget`), `hdast preflight <produto>` (lista de verificações como dado) e `hdast probe <produto>` (`--seed`, `--only`, `--dry-run`, `--include-delete`, `--account`), com envelope JSON, códigos de saída 3 a 6 e resultado parcial em `data` quando terminam em falha ([ADR 0018](docs/adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)).

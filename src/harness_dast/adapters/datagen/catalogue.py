@@ -39,6 +39,7 @@ def build_registry() -> dict[str, Generator]:
         "br.cns": brazil.gen_cns,
         "br.phone": brazil.gen_phone,
         "br.cep": brazil.gen_cep,
+        "br.crm": brazil.gen_crm,
     }
 
 

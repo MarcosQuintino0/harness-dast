@@ -16,8 +16,9 @@ execução própria do preflight.
 
 from dataclasses import dataclass
 
-from harness_dast.application.account_session import AccountSession
+from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
     EntropySource,
@@ -76,8 +77,13 @@ class Preflight:
         sleeper: Sleeper,
         entropy: EntropySource,
         harness_version: str,
+        token_cache: TokenCache | None = None,
     ) -> None:
-        """Cria o caso de uso com as portas de que precisa."""
+        """Cria o caso de uso com as portas de que precisa.
+
+        `token_cache` é o cache de tokens do processo: o login que o preflight faz serve ao
+        `probe` que rodar no mesmo processo.
+        """
         self._profiles = profiles
         self._secrets = secrets
         self._vault = vault
@@ -88,6 +94,7 @@ class Preflight:
         self._sleeper = sleeper
         self._entropy = entropy
         self._harness_version = harness_version
+        self._token_cache = token_cache
 
     def execute(self, product: str) -> PreflightReport:
         """Roda as verificações.
@@ -167,7 +174,16 @@ class Preflight:
             trail=AuditTrail(self._store, run_id.value, self._clock),
             clock=self._clock,
         )
-        return _Network(OperationDispatcher(sender, self._sleeper, profile.auth.csrf), run_id)
+        dispatcher = OperationDispatcher(
+            sender,
+            self._sleeper,
+            profile.auth.csrf,
+            login_budget=LoginBudget(profile.login_limit, self._clock, self._sleeper),
+            login_path=profile.login_path,
+            token_expired=profile.token_expired_signal,
+            error_codes=profile.probe.error_codes,
+        )
+        return _Network(dispatcher, run_id)
 
     def _session(
         self, profile: ProductProfile, account: Account, network: _Network
@@ -180,6 +196,7 @@ class Preflight:
             vault=self._vault,
             client=self._client,
             dispatcher=network.dispatcher,
+            token_cache=self._token_cache,
         )
 
     def _secret_check(self, session: AccountSession) -> PreflightCheck:

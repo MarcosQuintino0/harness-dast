@@ -31,6 +31,22 @@ from harness_dast.domain.request_encoding import (
 from harness_dast.domain.secret_ref import SecretRef
 
 
+class TokenCache:
+    """Tokens de login por apelido de conta, em memória do processo."""
+
+    def __init__(self) -> None:
+        """Cria o cache vazio."""
+        self._tokens: dict[str, str] = {}
+
+    def get(self, alias: str) -> str | None:
+        """Token guardado para a conta, ou `None`."""
+        return self._tokens.get(alias)
+
+    def put(self, alias: str, token: str) -> None:
+        """Guarda (ou troca) o token da conta."""
+        self._tokens[alias] = token
+
+
 class AccountSession:
     """Estado de autenticação de uma conta durante uma execução."""
 
@@ -44,6 +60,7 @@ class AccountSession:
         vault: SecretVault,
         client: TargetClient,
         dispatcher: OperationDispatcher,
+        token_cache: TokenCache | None = None,
     ) -> None:
         """Cria a sessão (sem tocar o alvo nem ler segredos).
 
@@ -55,6 +72,8 @@ class AccountSession:
             vault: Registro de segredos a mascarar.
             client: Cliente do alvo (cookies por conta, para o token CSRF).
             dispatcher: Despachante usado para o login e a busca do token CSRF.
+            token_cache: Cache de tokens do processo; com ele, a conta que já fez login em outro
+                caso de uso do mesmo processo não faz outro.
         """
         self._account = account
         self._auth = auth
@@ -63,6 +82,7 @@ class AccountSession:
         self._vault = vault
         self._client = client
         self._dispatcher = dispatcher
+        self._token_cache = token_cache
         self._values: dict[str, str] = {}
         self._token: str | None = None
 
@@ -110,8 +130,11 @@ class AccountSession:
             self._vault.register(value)
             self._values[name] = value
 
-    def login(self) -> None:
+    def login(self, *, force: bool = False) -> None:
         """Faz o login (tipo `login_password`) e guarda o token; em `api_key` não faz nada.
+
+        Se o cache do processo já tem o token da conta, usa-o sem enviar nada (a menos que
+        `force`, usado quando o alvo diz que o token venceu).
 
         Raises:
             PreflightError: O login foi recusado, a resposta não é JSON ou não traz o token.
@@ -119,6 +142,11 @@ class AccountSession:
         """
         auth = self._auth
         if not isinstance(auth, PasswordLoginAuth):
+            return
+        cached = None if force or self._token_cache is None else self._token_cache.get(self.alias)
+        if cached is not None:
+            self._token = cached
+            self._vault.register(cached)
             return
         request = build_login_request(
             auth,
@@ -137,6 +165,8 @@ class AccountSession:
             )
         self._token = self._token_from(response)
         self._vault.register(self._token)
+        if self._token_cache is not None:
+            self._token_cache.put(self.alias, self._token)
 
     def fetch_csrf(self) -> None:
         """Faz o GET que emite o cookie CSRF e registra o valor para mascaramento.
@@ -182,8 +212,8 @@ class AccountSession:
             self.fetch_csrf()
 
     def relogin(self) -> None:
-        """Refaz o login depois de um 401 (e o token CSRF, se houver)."""
-        self.login()
+        """Refaz o login depois de um 401 de token vencido (e o token CSRF, se houver)."""
+        self.login(force=True)
         if isinstance(self._auth, PasswordLoginAuth):
             self.fetch_csrf()
 

@@ -9,8 +9,9 @@
 # inventados e só veria erros 404. Cada binding diz qual operação PRODUZ um
 # valor e quais operações o CONSOMEM.
 #
-# Limite da V1: UM nível. Uma operação é produtora OU consumidora, nunca as
-# duas; cadeias (A -> B -> C) e ciclos são recusados.
+# Vários níveis são aceitos (ADR 0021): convênio -> paciente -> consulta -> receita.
+# O grafo não pode ter ciclo nem auto-referência, e a cadeia vai até 6 operações
+# (MAX_FLOW_DEPTH). Cada destino (operação + param/field) tem uma só fonte.
 # =============================================================================
 schema_version: 1
 
