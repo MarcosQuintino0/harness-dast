@@ -260,7 +260,7 @@ def _traffic(report: FindingsReport) -> str:
 
 
 def _path_coverage(traffic: TrafficSummary) -> str:
-    """Aviso de cobertura parcial de injeção em caminho e nota do modo amplo (como o `report.md`)."""
+    """Aviso de cobertura parcial de injeção em caminho e nota do modo amplo."""
     out = ""
     if traffic.path_shape_denied:
         total = traffic.allowed + traffic.denied
