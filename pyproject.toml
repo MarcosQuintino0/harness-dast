@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml>=6.0",
     "httpx>=0.28.1",
     "oracledb>=3.4",
+    "keyring>=25.7",
 ]
 
 [project.scripts]
