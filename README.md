@@ -42,7 +42,7 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | --- | --- | --- |
 | Python 3.12 ou superior | Rodar a CLI | O uv pode instalar a versão certa. |
 | [uv](https://docs.astral.sh/uv/) | Ambiente virtual e dependências travadas | Equivale a Maven/Gradle para Python: resolve e trava versões. |
-| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. |
+| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. `hdast doctor` confere se o Docker responde, mas não sobe nada. |
 | Claude Code | Agente que usa as skills em `.claude/` | Opcional: os comandos `hdast` funcionam sem ele. As skills e as permissões carregam sozinhas ao abrir o `claude` na raiz do repositório. |
 
 ## Como usar
@@ -66,7 +66,9 @@ Na raiz do repositório:
 ```bash
 uv sync
 uv run hdast --json version
-uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir
+uv run hdast doctor                                            # está tudo pronto? (Docker, imagens, portas); não toca nenhum alvo
+uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir; --with-cleanup cria também cleanup/
+uv run hdast doctor meu-produto --products-dir ./meus-produtos # confere perfil, autorização, janela e segredos (só se existem)
 uv run hdast --json profile validate meu-produto --products-dir ./meus-produtos
 ```
 

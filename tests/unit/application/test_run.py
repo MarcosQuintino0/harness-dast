@@ -309,6 +309,19 @@ def test_run_gives_probe_and_scan_one_single_deadline_from_the_start_of_the_run(
     assert rig.scan_requests[0].deadline == expected  # o scan não recomeça a contagem
 
 
+def test_run_deadline_counts_from_the_run_start_not_from_when_the_stack_came_up() -> None:
+    rig = Rig()
+    limit = valid_profile("demo").limits.max_duration_minutes
+    rig.clock.advance_to(rig.clock.now() + timedelta(minutes=25))  # tempo gasto ajustando o probe
+    started = rig.clock.now()
+
+    rig.run()
+
+    expected = started + timedelta(minutes=limit)
+    assert rig.probe_requests[0].deadline == expected
+    assert rig.scan_requests[0].deadline == expected
+
+
 def test_run_deadline_is_reduced_by_max_minutes_and_never_widened() -> None:
     rig = Rig()
     started = rig.clock.now()

@@ -31,6 +31,15 @@ from harness_dast.domain.request_encoding import (
 from harness_dast.domain.secret_ref import SecretRef
 
 
+def account_secret_fields(account: Account) -> tuple[tuple[str, SecretRef], ...]:
+    """Campos secretos de uma conta como (nome do campo, referência)."""
+    if isinstance(account, LoginAccount):
+        return (("username", account.username), ("password", account.password))
+    if isinstance(account, ApiKeyAccount):
+        return (("api_key", account.api_key),)
+    return ()
+
+
 class TokenCache:
     """Tokens de login por apelido de conta, em memória do processo."""
 
@@ -103,12 +112,7 @@ class AccountSession:
 
     def secret_fields(self) -> tuple[tuple[str, SecretRef], ...]:
         """Campos secretos da conta como (nome do campo, referência)."""
-        account = self._account
-        if isinstance(account, LoginAccount):
-            return (("username", account.username), ("password", account.password))
-        if isinstance(account, ApiKeyAccount):
-            return (("api_key", account.api_key),)
-        return ()
+        return account_secret_fields(self._account)
 
     def resolve_secrets(self) -> None:
         """Lê os segredos da conta e os registra para mascaramento.
@@ -256,8 +260,9 @@ class AccountSession:
                 f"A resposta do login da conta {self.alias} não traz o token esperado.",
                 hint=(
                     "Confira auth.token_response_field e request_encoding no target.yml. Se o "
-                    "alvo responde 2xx sem token, a conta pode não existir ainda: se a carta dá "
-                    "um GET que recria os dados de exemplo, use-o em probe.health_path."
+                    "alvo responde 2xx sem token, a conta pode não existir ainda: se a carta "
+                    "autoriza um GET idempotente que recria os dados de exemplo, declare-o em "
+                    "probe.setup_path (o preflight e o run o chamam antes dos logins)."
                 ),
             ) from None
         if isinstance(token, int) or not token:

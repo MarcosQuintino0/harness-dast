@@ -77,3 +77,12 @@ def test_trigger_kill_diz_que_ja_existia_na_segunda_vez(tmp_path: Path) -> None:
 def test_trigger_kill_falha_alto_quando_a_pasta_nao_existe(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="não existe"):
         FileProxyPolicyStore().trigger_kill(tmp_path / "nao-existe")
+
+
+def test_politica_declara_a_validade_da_pilha_com_a_folga_do_ajuste() -> None:
+    profile = valid_profile()
+
+    policy = build_proxy_policy(profile, RUN_ID, NOT_AFTER)
+
+    assert policy.stack_minutes == profile.limits.max_duration_minutes + 60
+    assert policy.limits == profile.limits

@@ -37,6 +37,7 @@ def test_profiles_without_the_new_blocks_keep_their_defaults() -> None:
 
     assert result.auth.csrf is None
     assert result.probe.health_path is None
+    assert result.probe.setup_path is None
     assert result.probe.success.json_field_absent_or_not_equal is None
     assert result.environment.verify_tls is True
 
@@ -156,6 +157,43 @@ def test_health_path_must_be_literal_and_inside_the_scope() -> None:
     assert profile(ok).probe.health_path == "/api/saude"
     assert "probe.health_path" in message(wildcard)
     assert "probe.health_path" in message(outside)
+
+
+def probe_with(**fields: object) -> Callable[[dict[str, Any]], None]:
+    def apply(data: dict[str, Any]) -> None:
+        data["probe"] = dict(fields)
+
+    return apply
+
+
+def test_setup_path_is_accepted_when_literal_and_inside_the_scope() -> None:
+    result = profile(probe_with(setup_path="/api/preparar", health_path="/api/saude"))
+
+    assert result.probe.setup_path == "/api/preparar"
+    assert result.probe.health_path == "/api/saude"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("/api/*", "setup_path deve ser um caminho literal", id="wildcard"),
+        pytest.param("/fora", "probe.setup_path", id="outside_scope"),
+        pytest.param("/api/admin/reset", "probe.setup_path", id="denied_path"),
+        pytest.param("api/preparar", "probe.setup_path", id="no_leading_slash"),
+        pytest.param("", "probe.setup_path", id="empty"),
+        pytest.param(5, "probe.setup_path", id="not_text"),
+    ],
+)
+def test_setup_path_is_rejected_when_invalid(value: object, expected: str) -> None:
+    assert expected in message(probe_with(setup_path=value))
+
+
+def test_setup_path_must_be_allowed_for_get() -> None:
+    def post_only(data: dict[str, Any]) -> None:
+        data["scope"]["allow"][0]["methods"] = ["POST"]
+        data["probe"] = {"setup_path": "/api/preparar"}
+
+    assert "probe.setup_path" in message(post_only)
 
 
 def local_profile(verify_tls: object) -> Callable[[dict[str, Any]], None]:

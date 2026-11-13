@@ -53,6 +53,14 @@ $env:VAMPI_USER_B_USERNAME = "name2";  $env:VAMPI_USER_B_PASSWORD = "pass2"
 $env:VAMPI_ADMIN_USERNAME  = "admin";  $env:VAMPI_ADMIN_PASSWORD  = "pass1"
 ```
 
+## 4b. Conferir se está tudo pronto
+
+```powershell
+uv run hdast doctor vampi
+```
+
+O `doctor` não toca o alvo nem sobe nada: confere Python, `uv`, Docker, imagens, as portas 8080 e 3128, o perfil, a autorização, a janela e se as variáveis das contas estão definidas (só diz se existem, nunca o valor). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
+
 ## 5. Subir a pilha
 
 ```powershell

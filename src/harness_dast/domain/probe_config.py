@@ -8,7 +8,15 @@ declarar uma regra de corpo pequena; sem ela, vale "2xx". Este módulo é puro.
 import re
 from typing import Literal, Self
 
-from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
+from pydantic import (
+    Field,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.pathpattern import parse_pattern
@@ -143,20 +151,25 @@ class ProbeConfig(ProfileModel):
         success: Critério de sucesso.
         health_path: Caminho literal de um GET leve usado pelo `preflight` para checar a saúde
             do alvo; ausente, usa a raiz da `base_url`. Precisa estar no escopo (GET).
+        setup_path: Caminho literal de um GET IDEMPOTENTE que prepara os dados do alvo (por
+            exemplo, recria as contas de exemplo). `preflight` e `run` o chamam uma vez, antes
+            dos logins, pelo mesmo caminho e com as mesmas travas de escopo. Ausente, nada é
+            chamado. Precisa estar no escopo (GET).
         error_codes: Classificação exata por código de erro do corpo, opcional.
     """
 
     success: SuccessCriteria = SuccessCriteria()
     health_path: str | None = None
+    setup_path: str | None = None
     error_codes: ErrorCodes | None = None
 
-    @field_validator("health_path")
+    @field_validator("health_path", "setup_path")
     @classmethod
-    def validate_health_path(cls, value: str | None) -> str | None:
+    def validate_literal_path(cls, value: str | None, info: ValidationInfo) -> str | None:
         """Exige caminho literal começando com '/', sem curingas."""
         if value is None:
             return value
         parse_pattern(value)
         if "*" in value:
-            raise ValueError("health_path deve ser um caminho literal, sem curingas")
+            raise ValueError(f"{info.field_name} deve ser um caminho literal, sem curingas")
         return value

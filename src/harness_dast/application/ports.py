@@ -100,8 +100,11 @@ class ProfileRepository(Protocol):
 class ProductScaffolder(Protocol):
     """Criador da pasta de um produto novo a partir do modelo."""
 
-    def scaffold(self, product: str) -> ScaffoldedProduct:
+    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
         """Cria a pasta do produto com os arquivos do modelo.
+
+        Por padrão a subpasta `cleanup/` do modelo NÃO é copiada: a limpeza de dados é opcional
+        e o script é de autoria humana. `with_cleanup=True` a copia (README e exemplo).
 
         Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
         produtos; em caso de falha no meio da cópia, não deixa pasta parcial.
@@ -555,4 +558,47 @@ class OperatorPrompt(Protocol):
 
     def confirm(self, plan: CleanupPlan) -> bool:
         """Mostra o plano e pergunta; `True` só se a pessoa confirmou digitando o produto."""
+        ...
+
+
+class HostInspector(Protocol):
+    """Olhos do `doctor` sobre a máquina: Docker, imagens, portas, pastas e ferramentas.
+
+    Só lê. Nenhum método toca o alvo, sobe contêiner ou altera arquivo.
+    """
+
+    def docker_version(self) -> str:
+        """Versão do servidor Docker que respondeu.
+
+        Raises:
+            ExternalToolError: Docker ausente, parado ou sem resposta no prazo.
+        """
+        ...
+
+    def compose_images(self, services: tuple[str, ...]) -> tuple[str, ...]:
+        """Imagens que o `compose.yaml` do repositório usa para os serviços indicados.
+
+        Raises:
+            ConfigError: O `compose.yaml` não foi encontrado ou é ilegível.
+        """
+        ...
+
+    def image_present(self, reference: str) -> bool:
+        """Diz se a imagem já está no Docker local.
+
+        Raises:
+            ExternalToolError: Docker ausente, parado ou sem resposta no prazo.
+        """
+        ...
+
+    def port_is_free(self, port: int) -> bool:
+        """Diz se a porta TCP de 127.0.0.1 está livre para publicar."""
+        ...
+
+    def uv_version(self) -> str | None:
+        """Versão do `uv` no PATH, ou `None` se não está instalado."""
+        ...
+
+    def directory_exists(self, path: Path) -> bool:
+        """Diz se `path` existe e é uma pasta."""
         ...

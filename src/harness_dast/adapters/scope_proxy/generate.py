@@ -22,6 +22,7 @@ from harness_dast.adapters.scope_proxy.policy import (
 )
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.run import RunId
 
 POLICY_FILE_NAME = "policy.json"
@@ -45,6 +46,7 @@ def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: dateti
             "scope": scope,
             "limits": profile.limits,
             "not_after": not_after.isoformat(),
+            "stack_minutes": stack_validity_minutes(profile),
             "tls_verify_upstream": not relax_tls,
         }
     )

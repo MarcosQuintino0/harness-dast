@@ -4,6 +4,8 @@ Sem contêiner de injeção. Cada função devolve um caso de uso pronto, com as
 aos adaptadores reais.
 """
 
+import os
+import sys
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -13,6 +15,7 @@ from harness_dast.adapters.cleanup.run_files import FileCleanupRuns
 from harness_dast.adapters.cleanup.script_reader import FileCleanupScripts
 from harness_dast.adapters.cleanup.tokens import SecretsTokenSource
 from harness_dast.adapters.datagen import GeneratorCatalogue
+from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
@@ -29,6 +32,7 @@ from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.account_session import TokenCache
 from harness_dast.application.cleanup import Cleanup
+from harness_dast.application.doctor import Doctor
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.login_budget import LoginBudget
@@ -40,6 +44,7 @@ from harness_dast.cli.stack_composition import (
     layered_environ,
     load_effective_settings,
     open_kill_switch,
+    open_state_store,
 )
 from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.probe_policy import REQUEST_TIMEOUT_SECONDS
@@ -234,4 +239,27 @@ def build_cleanup(
         prompt=prompt,
         tokens=SecretsTokenSource(),
         clock=SystemClock(),
+    )
+
+
+def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
+    """Monta o caso de uso `hdast doctor` (sem rede: só a máquina e o perfil).
+
+    Raises:
+        ConfigError: Configuração `HDAST_*` ou arquivo de estado da pilha inválidos.
+    """
+    root = products_dir_or_default(products_dir)
+    clock = SystemClock()
+    profiles = FileProfileRepository(root)
+    return Doctor(
+        host=SystemHost(os.environ),
+        profiles=profiles,
+        validator=ValidateProfile(profiles, clock),
+        secrets=EnvSecretProvider(layered_environ()),
+        vault=secrets,
+        states=open_state_store(),
+        clock=clock,
+        environ=os.environ,
+        python_version=sys.version_info[:3],
+        products_dir=root,
     )

@@ -111,8 +111,11 @@ class ScopeRule(BaseModel):
             raise ValueError("IP público literal não é aceito; use o nome DNS do host")
         if host.is_local and not self.allow_local:
             raise ValueError(
-                "host local (IP, localhost, nome sem ponto, .local ou .internal) exige "
-                "allow_local: true, que só deve ser usado no laboratório"
+                "este host conta como local e exige allow_local: true nesta regra. Contam como "
+                "local: IP literal, localhost, nome sem ponto (como vampi ou clinica-piloto, "
+                "nomes de contêiner do laboratório), .local e .internal. No laboratório, "
+                "acrescente allow_local: true; em ambiente real de teste, use o nome DNS "
+                "completo, com ponto"
             )
         if self.allow_local and not host.is_local:
             raise ValueError("allow_local só se aplica a host local; remova-o deste host")

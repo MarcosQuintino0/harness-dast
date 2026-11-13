@@ -4,11 +4,12 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
+`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
 | `hdast version` | Mostra a versão instalada do harness | Não | Implementado (M1) |
+| `hdast doctor [produto]` | Responde "está tudo pronto para começar?": Python, `uv`, pasta de produtos, Docker, imagens, portas fixas, validade da pilha atual e, com produto, perfil, autorização, janela e presença das variáveis de segredo | Não (só lê a máquina) | Implementado ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)). Seção abaixo |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
@@ -44,7 +45,7 @@ Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergen
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
 | `--products-dir` | Pasta de produtos |
 
-**Prazo único.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira**: o `run` calcula um só prazo absoluto no início do `probe` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem.
+**Prazo único por execução.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira** e conta do início DELA (`run`, `probe` ou `scan`), não da subida da pilha: o `run` calcula um só prazo absoluto no início do `preflight` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem. O tempo gasto ajustando o `probe` antes do `run` não come o prazo da varredura. A pilha tem validade própria (veja `stack up`).
 
 **Parada do `scan` não perde o relatório.** Se o `scan` parar antes do fim (prazo, janela, login, ZAP ou alvo) e tiver gravado `scan.json`, o `report` roda mesmo assim sobre o que foi coletado (`coverage.partial: true` e aviso no topo de `report.md`) e a saída final continua sendo a do estágio que parou (por exemplo `3` no prazo). Com Ctrl+C ou `hdast stop` (`130`) o `report` não roda. Com a trava acionada, só vira `130` o erro que a própria trava causou; um erro de outra origem mantém o código dele e `stop_requested: true` registra a trava.
 
@@ -91,7 +92,7 @@ uv run hdast --json stack down
 
 Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de laboratório (sem nenhuma, vale o padrão dele); `--token-ttl` fixa a vida do token do alvo em segundos; `--build` reconstrói as imagens locais antes de subir (necessário depois de mudar `docker/` ou o alvo); `--oracle` e `--timeout` estão abaixo; `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
 
-`stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
+`stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = a VALIDADE DA PILHA: menor entre a duração máxima mais 60 minutos de folga para o ajuste do `probe`, o fim da autorização e o fechamento da janela; ela não é o prazo de uma varredura, que conta do início de cada execução e nunca passa de `max_duration_minutes`; passou de `not_after`, o proxy nega tudo e é preciso um novo `stack up`), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 
@@ -112,16 +113,45 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 
 Como os comandos seguintes obtêm a chave, a URL do ZAP, o proxy de login e as senhas do alvo: do ambiente `HDAST_*` quando definido; senão do `stack.json` em `HDAST_STATE_DIR` (veja [env-vars.md](env-vars.md)).
 
+## `hdast doctor`
+
+```bash
+uv run hdast doctor                   # só a máquina
+uv run hdast --json doctor meu-produto --products-dir ./meus-produtos
+```
+
+Responde "está tudo pronto para começar?" ANTES de qualquer contato com o alvo. O nome segue o costume de outras ferramentas (`brew doctor`, `flutter doctor`): diagnostica o ambiente e diz como consertar. Não envia requisição ao alvo, não sobe contêiner e nunca mostra o valor de um segredo: só diz se a variável existe. O `preflight` continua sendo a conferência COM rede (ZAP, saúde do alvo, logins); o `doctor` vem antes e não precisa da pilha no ar.
+
+Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`, `warn` ou `fail`):
+
+| `id` | O que confere | Reprova (`fail`) / avisa (`warn`) |
+| --- | --- | --- |
+| `python` | Python 3.12 ou mais novo | `fail`, com o comando para instalar |
+| `uv` | `uv` no PATH | `warn` (os comandos `uv run hdast ...` não funcionariam) |
+| `products_dir` | A pasta de produtos existe (`HDAST_PRODUCTS_DIR` ou `--products-dir`) | `fail` (tipo `config`) |
+| `docker` | O Docker responde (`docker version`, prazo de 20 s) | `fail` |
+| `images` | As imagens do `compose.yaml` (ZAP, pontes, proxy de escopo e, para o VAmPI, o alvo) já estão no Docker | `warn`: serão baixadas ou construídas no primeiro `stack up` |
+| `port:<n>` | As portas fixas 8080 (ZAP) e 3128 (proxy) em 127.0.0.1 (ou as de `HDAST_ZAP_HOST_PORT` e `HDAST_PROXY_HOST_PORT`) estão livres; para a Clínica Piloto, também 28080 e 29091. Com pilha gerenciada no ar, porta em uso é esperada | `fail`; porta configurada que não é número de 1 a 65535 é `fail` tipo `config` |
+| `stack` | Só com pilha gerenciada: se ainda vale (`not_after`) | `warn` se venceu |
+| `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |
+| `authorization`, `window` | Com produto: mesma regra do `preflight` | `fail` (tipo `scope`) |
+| `secrets:<apelido>` | Com produto: as variáveis de `secret_ref` de cada conta estão definidas (o nome da variável só aparece no texto, nunca no JSON) | `fail` |
+
+Cada reprovação traz em `detail`, numa linha, o que houve e o que fazer. `ready` é `true` quando nada reprovou (avisos não contam).
+
+`data`: `{product, ready, checks: [{id, status, detail, kind}], summary: {ok, warn, fail}}`. Código de saída: `0` pronto; se algo reprovou, o da primeira reprovação nesta prioridade: `scope` = `3` (`SCOPE_VIOLATION`), `config` = `2` (`CONFIG_ERROR`), demais = `4` (`PREFLIGHT_FAILED`). O envelope de falha traz `error` e `data` juntos, como no `preflight`.
+
 ## `hdast init`
 
 ```bash
 uv run hdast init meu-produto                    # usa HDAST_PRODUCTS_DIR (padrão: products)
 uv run hdast --json init meu-produto --products-dir ./meus-produtos
+uv run hdast init meu-produto --with-cleanup    # cria também a pasta cleanup/ (limpeza de dados)
 ```
 
 Cria `<products_dir>/<produto>/` copiando `products/_template/` e ajusta `product:` do `target.yml` para o nome da pasta. Regras: o nome é um slug (minúsculas, dígitos e `-`, 1 a 40 caracteres; nomes reservados do Windows como `con` são recusados); a pasta de produtos precisa existir (o comando não a cria); **nunca sobrescreve** um produto existente; nada é criado fora de `products_dir`; falha no meio da cópia remove a pasta parcial. O modelo é procurado em `products/_template` na raiz do repositório, relativo ao pacote instalado: funciona com `uv run` e instalação editável (`uv sync`); uma instalação por wheel não leva a pasta `products/` e o erro orienta a rodar a partir do repositório.
 
-`--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`. Flags só escolhem a pasta; não ampliam escopo, limites nem janela.
+`--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`. `--with-cleanup` copia também `cleanup/` (README e exemplo do script); por padrão a pasta NÃO é criada, porque a limpeza de dados é opcional e o script é de autoria humana (o bloco `cleanup` do `target.yml` do modelo continua lá: remova-o se não houver limpeza). Flags só escolhem a pasta; não ampliam escopo, limites nem janela.
 
 `data` em sucesso:
 
@@ -208,7 +238,7 @@ uv run hdast --json preflight meu-produto
 
 Confere, sem varrer, se o `probe` pode começar. Cada verificação é um item de `data.checks`; falha de verificação NÃO é exceção. Requer `HDAST_ZAP_BASE_URL` e `HDAST_ZAP_API_KEY` (quando o ZAP a exige) e as variáveis de ambiente dos segredos do perfil. Cada requisição enviada passa pelo `ScopeGuard` e fica em `runs/<run_id>/audit.jsonl` (o preflight tem pasta de execução própria).
 
-Verificações, na ordem: `authorization` e `window` (tipo `scope`); `secrets:<apelido>`; `zap` (versão, via API com a chave); `target_health` (um GET em `probe.health_path`, ou na raiz da `base_url`, pela rota do `probe`; sucesso é qualquer resposta abaixo de 500); por conta, `csrf:<apelido>` (quando o perfil declara `auth.csrf`) e `login:<apelido>` (só em `login_password`; o token é obtido e nunca mostrado). Se autorização ou janela falham, nenhuma requisição é enviada e as de rede aparecem como não executadas.
+Antes dele, `hdast doctor <produto>` confere a máquina e o perfil sem rede. Verificações, na ordem: `authorization` e `window` (tipo `scope`); `secrets:<apelido>`; `zap` (versão, via API com a chave); `target_health` (um GET em `probe.health_path`, ou na raiz da `base_url`, pela rota do `probe`; sucesso é qualquer resposta abaixo de 500); `target_setup` (só se o perfil declara `probe.setup_path`: um GET idempotente que prepara os dados, chamado uma vez, antes dos logins; reprova em 4xx e 5xx); por conta, `csrf:<apelido>` (quando o perfil declara `auth.csrf`) e `login:<apelido>` (só em `login_password`; o token é obtido e nunca mostrado). Se autorização ou janela falham, nenhuma requisição é enviada e as de rede aparecem como não executadas.
 
 `data`:
 

@@ -49,6 +49,12 @@ scope:
     # Uma regra por host. `paths` aceita curingas (** = qualquer profundidade).
     - host: meu-produto.hml.exemplo.com.br
       paths: ["/api/**"]
+      # Alvo de LABORATÓRIO (nome de contêiner sem ponto, como clinica-piloto ou vampi,
+      # localhost ou IP): o host conta como local e a regra PRECISA de `allow_local: true`
+      # (e `scheme: http` se não houver TLS). Ambiente real de teste: use o nome DNS
+      # completo, com ponto, e NÃO escreva allow_local.
+      # allow_local: true
+      # scheme: http
       # Liste só os métodos autorizados. Seja conservador: DELETE só se a
       # autorização formal disser explicitamente.
       methods: [GET, POST, PUT, PATCH]
@@ -153,6 +159,10 @@ auth:
 # probe:
 #   # GET leve usado pelo preflight para checar a saúde do alvo (precisa estar em scope.allow).
 #   health_path: /api/saude
+#   # GET idempotente que PREPARA os dados do alvo (ex.: recria os usuários de exemplo). O
+#   # preflight e o run o chamam UMA vez, antes dos logins; precisa estar em scope.allow.
+#   # Use só se a carta de autorização permitir esse GET. Sem ele, nada é chamado.
+#   setup_path: /createdb
 #   # Alvos que respondem 200 com {"status": "fail"}: só é sucesso se o campo estiver
 #   # ausente ou diferente do valor de FALHA abaixo.
 #   success:
@@ -171,8 +181,10 @@ auth:
 
 # -----------------------------------------------------------------------------
 # LIMPEZA. Hook escrito e revisado por uma PESSOA do time do produto, nunca
-# pelo agente. Veja cleanup/README.md. A CLI roda dentro de uma transação,
-# mostra a contagem de linhas e só confirma após o aceite de uma pessoa.
+# pelo agente. A CLI roda dentro de uma transação, mostra a contagem de linhas e só
+# confirma após o aceite de uma pessoa. OPCIONAL: sem limpeza, remova o bloco `cleanup`.
+# A pasta cleanup/ (README e exemplo) NÃO é criada por `hdast init`; para tê-la, crie o
+# produto com `hdast init <produto> --with-cleanup` (ou copie products/_template/cleanup/).
 # -----------------------------------------------------------------------------
 cleanup:
   type: oracle_sql                    # único tipo da V1

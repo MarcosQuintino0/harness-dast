@@ -25,8 +25,8 @@ lá, renomeando a pasta para o nome do produto.
 | `target.yml` | Ambiente, escopo, autorização, limites, autenticação e limpeza. É o arquivo mais sensível: `scope`, `limits` e `authorization` vêm da autorização formal do dono do produto. |
 | `data-rules.yml` | Como gerar valores válidos e únicos por campo ou operação, para a API não responder 400 ou 409. |
 | `flows.yml` | Quais operações produzem valores que outras consomem (por exemplo, o `id` devolvido ao criar). |
-| `cleanup/README.md` | Regras do hook de limpeza. |
-| `cleanup/cleanup.sql.example` | Exemplo fictício de script de limpeza. O real é `cleanup/cleanup.sql`. |
+| `cleanup/README.md` | Regras do hook de limpeza. Só é criado com `hdast init <produto> --with-cleanup`. |
+| `cleanup/cleanup.sql.example` | Exemplo fictício de script de limpeza. O real é `cleanup/cleanup.sql`. Só é criado com `--with-cleanup`. |
 
 O OpenAPI do produto (`openapi.json`) também mora na pasta do produto.
 

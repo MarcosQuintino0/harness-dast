@@ -11,14 +11,9 @@ from harness_dast.adapters.storage.product_scaffolder import (
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.domain.errors import ConfigError
 
-TEMPLATE_FILES = (
-    "README.md",
-    "cleanup/README.md",
-    "cleanup/cleanup.sql.example",
-    "data-rules.yml",
-    "flows.yml",
-    "target.yml",
-)
+CLEANUP_FILES = ("cleanup/README.md", "cleanup/cleanup.sql.example")
+DEFAULT_FILES = ("README.md", "data-rules.yml", "flows.yml", "target.yml")
+TEMPLATE_FILES = tuple(sorted(DEFAULT_FILES + CLEANUP_FILES))
 
 
 @pytest.fixture
@@ -36,8 +31,15 @@ def test_default_template_dir_points_to_the_repository_template() -> None:
     assert (default_template_dir() / "target.yml").is_file()
 
 
-def test_scaffold_copies_template_files_when_product_is_new(products: Path) -> None:
+def test_scaffold_skips_the_cleanup_folder_when_it_is_not_requested(products: Path) -> None:
     result = _scaffolder(products).scaffold("demo")
+
+    assert result.files == DEFAULT_FILES
+    assert not (products / "demo" / "cleanup").exists()
+
+
+def test_scaffold_copies_template_files_when_product_is_new(products: Path) -> None:
+    result = _scaffolder(products).scaffold("demo", with_cleanup=True)
 
     assert result.files == TEMPLATE_FILES
     assert Path(result.directory) == (products / "demo").resolve()
