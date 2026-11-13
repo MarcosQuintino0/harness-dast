@@ -26,6 +26,7 @@ O formato exato dos campos (schema v1) está em [../reference/target-yml.md](../
 - `scope`, `limits` e `authorization` **vêm da autorização formal informada pelo usuário**. O agente os transcreve; não os inventa nem os alarga.
 - Se o escopo parecer curto demais, o agente e o QA param e pedem ao dono do produto. Ninguém amplia por conta própria.
 - Flags de linha de comando só **reduzem** escopo e limites.
+- `scope.path_mode: wide` (modo amplo do proxy de escopo, [ADR 0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md)) é um **alargamento** e só vale se a carta o autoriza por escrito. O agente copia o que a carta diz, nunca o liga por conta própria e nenhuma flag o liga. Risco aceito pelo dono: um pedido liberado pode alcançar outro caminho do mesmo host que não está em `deny_paths`; por isso a lista de caminhos proibidos da carta precisa ser completa.
 
 ## Como o escopo é imposto
 

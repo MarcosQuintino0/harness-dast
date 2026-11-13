@@ -28,6 +28,13 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Métodos autorizados (liste só os necessários; DELETE só se escrito aqui):
    Caminhos PROIBIDOS, mesmo dentro dos autorizados (ações destrutivas,
    envio de e-mail ou SMS, integrações com terceiros, exclusão de conta):
+   Modo de leitura de caminhos pela cerca (marque UM; sem marca vale estrito):
+     [ ] estrito (padrão): a cerca recusa caminhos ambíguos (;  %2f  ..  //)
+     [ ] amplo: libera mais formas de caminho e nega se QUALQUER leitura do
+         caminho casar com um proibido. Risco aceito: um pedido liberado pode
+         alcançar outro caminho do mesmo host que não esteja na lista de
+         proibidos acima (host e porta nunca mudam). Exige a lista de
+         proibidos completa.
    Local do Swagger/OpenAPI (arquivo ou URL de teste):
 
 4. Janela de execução (dias, horário e fuso. Ex.: seg-sex 20:00-06:00 America/Sao_Paulo)
@@ -62,6 +69,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 | URL base | `environment.base_url` |
 | Hosts, caminhos, métodos | `scope.allow` |
 | Caminhos proibidos | `scope.deny_paths` |
+| Modo de leitura de caminhos | `scope.path_mode`: `strict` (estrito, ou sem marca) ou `wide` (amplo, só se marcado). O agente nunca marca por conta própria |
 | Referência e validade | `scope.authorization.reference` e `valid_until` |
 | Janela | `scope.windows` |
 | Limites | `limits.requests_per_second`, `max_duration_minutes`, `zap_threads_per_host` |
