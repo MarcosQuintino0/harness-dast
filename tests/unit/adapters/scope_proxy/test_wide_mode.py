@@ -306,6 +306,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "adapters/scope_proxy/engine.py",
         "application/scan.py",
         "domain/profile.py",
+        "domain/report_html.py",
         "domain/report_markdown.py",
         "domain/traffic.py",
     }
