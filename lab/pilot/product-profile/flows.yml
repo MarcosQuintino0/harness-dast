@@ -1,0 +1,28 @@
+# Encadeamento da Clinica Piloto (schema v1): convenio -> paciente -> consulta -> receita, com
+# medico alimentando a consulta. Varios niveis sao aceitos (docs/reference/flows-yml.md).
+schema_version: 1
+bindings:
+  - produces: { operation: criarConvenio, field: id }
+    consumed_by:
+      - { operation: criarPaciente, field: convenioId }
+      - { operation: atualizarPaciente, field: convenioId }
+      - { operation: buscarConvenio, param: id }
+      - { operation: atualizarConvenio, param: id }
+  - produces: { operation: criarMedico, field: id }
+    consumed_by:
+      - { operation: criarConsulta, field: medicoId }
+      - { operation: buscarMedico, param: id }
+  - produces: { operation: criarPaciente, field: id }
+    consumed_by:
+      - { operation: criarConsulta, field: pacienteId }
+      - { operation: buscarPaciente, param: id }
+      - { operation: atualizarPaciente, param: id }
+  - produces: { operation: criarConsulta, field: id }
+    consumed_by:
+      - { operation: criarReceita, field: consultaId }
+      - { operation: buscarConsulta, param: id }
+      - { operation: atualizarStatusConsulta, param: id }
+      - { operation: listarReceitasDaConsulta, param: id }
+  - produces: { operation: criarReceita, field: id }
+    consumed_by:
+      - { operation: buscarReceita, param: id }

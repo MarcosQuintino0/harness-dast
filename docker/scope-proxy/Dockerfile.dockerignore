@@ -1,0 +1,9 @@
+# Contexto mínimo: nada de .git, .env, perfis, execuções ou arquivos do host entram na imagem.
+*
+!pyproject.toml
+!README.md
+!src/
+!docker/scope-proxy/requirements.txt
+!docker/scope-proxy/addon.py
+!docker/scope-proxy/entrypoint.sh
+**/__pycache__

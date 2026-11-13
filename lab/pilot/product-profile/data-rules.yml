@@ -1,0 +1,38 @@
+# Regras de dados da Clinica Piloto (schema v1, docs/reference/data-rules-yml.md). Dados sinteticos.
+schema_version: 1
+rules:
+  - match: { field: cpf }
+    generator: br.cpf
+    unique: true
+  - match: { field: email }
+    generator: email
+    args: { domain: "teste.exemplo.com.br" }
+    unique: true
+  - match: { field: codigo }
+    generator: numeric
+    args: { digits: 8 }
+    unique: true
+  # Nascimento precisa estar no passado (o valor implicito de "date" seria hoje).
+  - match: { field: dataNascimento }
+    generator: date
+    args: { min_offset_days: -20000, max_offset_days: -7000 }
+  # Consulta precisa estar no futuro.
+  - match: { field: dataHora }
+    generator: datetime
+    args: { min_offset_days: 30, max_offset_days: 365 }
+  - match: { operation: criarConsulta, field: valor }
+    generator: number
+    args: { min: 50, max: 500, decimals: 2 }
+  # CRM NNNNNNN-UF unico por execucao (7 digitos: o prefixo da etiqueta muda entre execucoes).
+  - match: { operation: criarMedico, field: crm }
+    generator: br.crm
+    args: { digits: 7, uf: SP }
+    unique: true
+  # Documento de semente (lab/pilot/documentos); o nome sorteado nao existiria (404).
+  - match: { operation: baixarDocumento, field: arquivo }
+    generator: constant
+    args: { value: orientacoes-pos-consulta.txt }
+  # O implicito seria o primeiro valor do enum (AGENDADA), transicao que o alvo recusa (409).
+  - match: { operation: atualizarStatusConsulta, field: status }
+    generator: constant
+    args: { value: REALIZADA }

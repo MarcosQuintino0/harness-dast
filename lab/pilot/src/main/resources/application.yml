@@ -1,0 +1,65 @@
+# Toda configuracao vem do ambiente. Sem valor padrao para contas e senhas: a aplicacao
+# nao sobe sem elas (o compose falha antes com mensagem clara).
+server:
+  port: 8080
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+spring:
+  application:
+    name: clinica-piloto
+  main:
+    banner-mode: log
+  datasource:
+    # Padrao: H2 em memoria no modo Oracle. Perfil Oracle: PILOT_DB_URL=jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+    url: ${PILOT_DB_URL:jdbc:h2:mem:clinica;MODE=Oracle;DATABASE_TO_LOWER=FALSE;DB_CLOSE_DELAY=-1}
+    username: ${PILOT_DB_USER:clinica}
+    password: ${PILOT_DB_PASSWORD:}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: always
+  web:
+    resources:
+      add-mappings: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  writer-with-default-pretty-printer: true
+  writer-with-order-by-keys: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: WARN
+
+pilot:
+  vulnerable: ${PILOT_VULNERABLE:1}
+  jwt-ttl-seconds: ${PILOT_JWT_TTL_SECONDS:300}
+  login-max-per-minute: ${PILOT_LOGIN_MAX_PER_MINUTE:5}
+  xsrf-enforced: ${PILOT_XSRF_ENFORCED:1}
+  management-port: ${PILOT_MANAGEMENT_PORT:9091}
+  documents-dir: ${PILOT_DOCUMENTS_DIR:/app/documentos}
+  local-only-check: true
+  accounts:
+    admin:
+      username: ${PILOT_ADMIN_USERNAME}
+      password: ${PILOT_ADMIN_PASSWORD}
+    medico:
+      username: ${PILOT_MEDICO_USERNAME}
+      password: ${PILOT_MEDICO_PASSWORD}
+    paciente-a:
+      username: ${PILOT_PACIENTE_A_USERNAME}
+      password: ${PILOT_PACIENTE_A_PASSWORD}
+    paciente-b:
+      username: ${PILOT_PACIENTE_B_USERNAME}
+      password: ${PILOT_PACIENTE_B_PASSWORD}

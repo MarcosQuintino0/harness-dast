@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-13T08-46-09Z-vampi-b1d4",
+  "messages": [
+    {
+      "message_id": 547,
+      "request_header": "GET http://vampi:5000/users/v1/'%22%3Cimg%20src=x%20onerror=prompt()%3E HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:51:23 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 45014\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"\"<img src=x onerror=prompt()>'\"\n[SQL: SELECT * FROM users WHERE username = ''\"<img src=x onerror=prompt()>']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#34;&lt;img src=x onerror=prompt()&gt;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#34;&lt;img src=x onerror=prompt()&gt;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801319657696\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if …",
+      "truncated": true
+    },
+    {
+      "message_id": 949,
+      "request_header": "GET http://vampi:5000/users/v1/'%22%3Cimg%20src=x%20onerror=prompt()%3E HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:52:44 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 45014\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"\"<img src=x onerror=prompt()>'\"\n[SQL: SELECT * FROM users WHERE username = ''\"<img src=x onerror=prompt()>']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#34;&lt;img src=x onerror=prompt()&gt;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#34;&lt;img src=x onerror=prompt()&gt;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801318149504\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if …",
+      "truncated": true
+    },
+    {
+      "message_id": 1716,
+      "request_header": "GET http://vampi:5000/users/v1/'%22%3Cimg%20src=x%20onerror=prompt()%3E HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:55:21 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 45014\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"\"<img src=x onerror=prompt()>'\"\n[SQL: SELECT * FROM users WHERE username = ''\"<img src=x onerror=prompt()>']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#34;&lt;img src=x onerror=prompt()&gt;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#34;&lt;img src=x onerror=prompt()&gt;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801318496016\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if …",
+      "truncated": true
+    },
+    {
+      "message_id": 568,
+      "request_header": "GET http://vampi:5000/users/v1/' HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:51:27 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 44642\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"'''\"\n[SQL: SELECT * FROM users WHERE username = ''']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#39;&#39;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801319661872\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if not evt_handled:</pre>\n<pre class=\"line current\"><span class=\"ws\">                    </span>self.dialect.do_execute(\n<span …",
+      "truncated": true
+    },
+    {
+      "message_id": 976,
+      "request_header": "GET http://vampi:5000/users/v1/' HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:52:49 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 44642\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"'''\"\n[SQL: SELECT * FROM users WHERE username = ''']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#39;&#39;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801318153104\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if not evt_handled:</pre>\n<pre class=\"line current\"><span class=\"ws\">                    </span>self.dialect.do_execute(\n<span …",
+      "truncated": true
+    },
+    {
+      "message_id": 1743,
+      "request_header": "GET http://vampi:5000/users/v1/' HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 500 INTERNAL SERVER ERROR\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:55:26 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 44642\nConnection: close",
+      "response_body": "<!doctype html>\n<html lang=en>\n  <head>\n    <title>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: \"'''\"\n[SQL: SELECT * FROM users WHERE username = ''']\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <link rel=\"shortcut icon\"\n        href=\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\">\n    <script src=\"?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js\"></script>\n    <script>\n      var CONSOLE_MODE = false,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"***\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>OperationalError</h1>\n<div class=\"detail\">\n  <p class=\"errormsg\">sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token: &#34;&#39;&#39;&#39;&#34;\n[SQL: SELECT * FROM users WHERE username = &#39;&#39;&#39;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)\n</p>\n</div>\n<h2 class=\"traceback\">Traceback <em>(most recent call last)</em></h2>\n<div class=\"traceback\">\n  <h3></h3>\n  <ul><li><div class=\"frame\" id=\"frame-124801318499616\">\n  <h4>File <cite class=\"filename\">\"/usr/local/lib/python3.***.py\"</cite>,\n      line <em class=\"line\">1964</em>,\n      in <code class=\"function\">_exec_single_context</code></h4>\n  <div class=\"source library\"><pre class=\"line before\"><span class=\"ws\">                            </span>context,</pre>\n<pre class=\"line before\"><span class=\"ws\">                        </span>):</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>evt_handled = True</pre>\n<pre class=\"line before\"><span class=\"ws\">                            </span>break</pre>\n<pre class=\"line before\"><span class=\"ws\">                </span>if not evt_handled:</pre>\n<pre class=\"line current\"><span class=\"ws\">                    </span>self.dialect.do_execute(\n<span …",
+      "truncated": true
+    },
+    {
+      "message_id": 1,
+      "request_header": "GET http://vampi:5000/createdb HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:11 GMT\nContent-Type: application/json\nContent-Length: 36\nConnection: close",
+      "response_body": "{\"message\": \"Database populated.\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 3,
+      "request_header": "GET http://vampi:5000/ HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:11 GMT\nContent-Type: application/json\nContent-Length: 271\nConnection: close",
+      "response_body": "{\"message\": \"VAmPI the Vulnerable API\", \"help\": \"VAmPI is a vulnerable on purpose API. It was created in order to evaluate the efficiency of third party tools in identifying vulnerabilities in APIs but it can also be used in learning/teaching purposes.\", \"vulnerable\": 1}",
+      "truncated": false
+    },
+    {
+      "message_id": 4,
+      "request_header": "GET http://vampi:5000/users/v1 HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:11 GMT\nContent-Type: application/json\nContent-Length: 236\nConnection: close",
+      "response_body": "{\"users\": [{\"email\": \"***\", \"username\": \"***\"}, {\"email\": \"***\", \"username\": \"name2\"}, {\"email\": \"***\", \"username\": \"admin\"}]}",
+      "truncated": false
+    },
+    {
+      "message_id": 6,
+      "request_header": "GET http://vampi:5000/users/v1/_debug HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:11 GMT\nContent-Type: application/json\nContent-Length: 382\nConnection: close",
+      "response_body": "{\"users\": [{\"admin\": false, \"email\": \"***\", \"password\": \"***\", \"username\": \"***\"}, {\"admin\": false, \"email\": \"***\", \"password\": \"***\", \"username\": \"name2\"}, {\"admin\": true, \"email\": \"***\", \"password\": \"***\", \"username\": \"admin\"}]}",
+      "truncated": false
+    },
+    {
+      "message_id": 8,
+      "request_header": "POST http://vampi:5000/users/v1/register HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nContent-Type: application/json\nAuthorization: ***\nContent-Length: 95",
+      "request_body": "{\"username\": \"hdb1d40000ag\", \"password\": \"***\", \"email\": \"***\"}",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:11 GMT\nContent-Type: application/json\nContent-Length: 92\nConnection: close",
+      "response_body": "{\"message\": \"Successfully registered. Login to receive an auth token.\", \"status\": \"success\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 9,
+      "request_header": "POST http://vampi:5000/users/v1/login HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nContent-Type: application/json\nContent-Length: 39",
+      "request_body": "{\"username\": \"***\", \"password\": \"***\"}",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:12 GMT\nContent-Type: application/json\nContent-Length: 224\nConnection: close",
+      "response_body": "{\"auth_token\": \"***\", \"message\": \"Successfully logged in.\", \"status\": \"success\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 10,
+      "request_header": "GET http://vampi:5000/me HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:12 GMT\nContent-Type: application/json\nContent-Length: 95\nConnection: close",
+      "response_body": "{\"data\": {\"admin\": false, \"email\": \"***\", \"username\": \"***\"}, \"status\": \"success\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 11,
+      "request_header": "GET http://vampi:5000/users/v1/*** HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:12 GMT\nContent-Type: application/json\nContent-Length: 48\nConnection: close",
+      "response_body": "{\"username\": \"***\", \"email\": \"***\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 14,
+      "request_header": "PUT http://vampi:*** HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nContent-Type: application/json\nAuthorization: ***\nContent-Length: 20",
+      "request_body": "{\"password\": \"***\"}",
+      "response_header": "HTTP/1.1 204 NO CONTENT\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:12 GMT\nContent-Type: application/json\nConnection: close",
+      "response_body": "",
+      "truncated": false
+    },
+    {
+      "message_id": 12,
+      "request_header": "PUT http://vampi:*** HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nContent-Type: application/json\nAuthorization: ***\nContent-Length: 43",
+      "request_body": "{\"email\": \"***\"}",
+      "response_header": "HTTP/1.1 204 NO CONTENT\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:12 GMT\nContent-Type: application/json\nConnection: close",
+      "response_body": "",
+      "truncated": false
+    },
+    {
+      "message_id": 17,
+      "request_header": "POST http://vampi:5000/books/v1 HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nContent-Type: application/json\nAuthorization: ***\nContent-Length: 55",
+      "request_body": "{\"book_title\": \"livrob1d40003v\", \"secret\": \"***\"}",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:13 GMT\nContent-Type: application/json\nContent-Length: 56\nConnection: close",
+      "response_body": "{\"message\": \"Book has been added.\", \"status\": \"success\"}",
+      "truncated": false
+    },
+    {
+      "message_id": 15,
+      "request_header": "GET http://vampi:5000/books/v1 HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:13 GMT\nContent-Type: application/json\nContent-Length: 230\nConnection: close",
+      "response_body": "{\"Books\": [{\"book_title\": \"bookTitle59\", \"user\": \"***\"}, {\"book_title\": \"bookTitle45\", \"user\": \"name2\"}, {\"book_title\": \"bookTitle20\", \"user\": \"admin\"}]}",
+      "truncated": false
+    },
+    {
+      "message_id": 18,
+      "request_header": "GET http://vampi:*** HTTP/1.1\nHost: vampi:5000\nAccept: */*\nConnection: keep-alive\nUser-Agent: harness-dast\nAuthorization: ***",
+      "request_body": "",
+      "response_header": "HTTP/1.1 200 OK\nServer: Werkzeug/2.2.3 Python/3.11.15\nDate: Fri, 13 Nov 2026 08:46:13 GMT\nContent-Type: application/json\nContent-Length: 83\nConnection: close",
+      "response_body": "{\"book_title\": \"bookTitle59\", \"owner\": \"***\", \"secret\": \"***\"}",
+      "truncated": false
+    }
+  ]
+}

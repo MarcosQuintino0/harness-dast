@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info: {title: Remoto, version: "1"}
+paths:
+  /x:
+    post:
+      operationId: x
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: "https://schemas.example.test/pessoa.json"}
+      responses: {"200": {description: ok}}

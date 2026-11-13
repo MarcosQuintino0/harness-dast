@@ -1,0 +1,71 @@
+# Perfil de produto do VAmPI (alvo de treino LOCAL do harness-dast), schema v1.
+# O VAmPI e vulneravel de proposito; so roda no lab (compose.yaml da raiz, perfil "lab").
+# Siga o roteiro de comandos em lab/README.md (secao "Sondar o VAmPI com o hdast").
+# Como o OpenAPI fica em ../openapi3.yml, copie-o para esta pasta ao montar HDAST_PRODUCTS_DIR
+# (o roteiro e os testes de integracao fazem isso). Dados sinteticos; credenciais de semente.
+schema_version: 1
+product: vampi
+
+environment:
+  name: lab
+  base_url: http://vampi:5000
+
+openapi: ./openapi3.yml
+
+scope:
+  allow:
+    - host: vampi
+      scheme: http
+      port: 5000
+      allow_local: true
+      # /createdb recria o banco do VAmPI (e o que o probe precisa para ter usuarios semeados).
+      paths: ["/", "/createdb", "/me", "/users/**", "/books/**"]
+      methods: [GET, POST, PUT, DELETE]
+  deny_paths: []
+  authorization:
+    reference: "LAB-VAMPI"
+    valid_until: 2099-12-31
+  windows:
+    - "seg-dom 00:00-24:00 America/Sao_Paulo"
+
+limits:
+  requests_per_second: 50
+  max_duration_minutes: 30
+  zap_threads_per_host: 8
+
+probe:
+  # O VAmPI responde HTTP 200 com {"status": "fail"} em falha logica (spike M0, secao 4).
+  success:
+    json_field_absent_or_not_equal: { field: status, value: fail }
+  # GET /createdb e idempotente: repopula o banco. O preflight o chama antes de logar.
+  health_path: /createdb
+
+auth:
+  type: login_password
+  token_path: /users/v1/login
+  request_encoding: json
+  username_field: username
+  password_field: password
+  token_response_field: auth_token
+  token_header: Authorization
+  token_scheme: Bearer
+  # user_a escreve e le; user_b e dono do usuario alterado por PUT (o modo seguro so deixa o dono
+  # mudar a propria senha e o proprio e-mail); admin_a e o unico que pode apagar usuarios.
+  default_account: user_a
+  account_map:
+    - { account: user_b, operations: [api_views.users.update_email, api_views.users.update_password] }
+    - { account: admin_a, operations: [api_views.users.delete_user] }
+  accounts:
+    # Usuarios que o GET /createdb semeia (README do VAmPI). Os nomes das variaveis sao livres.
+    - alias: user_a
+      role: user
+      username: { secret_ref: "env:VAMPI_USER_A_USERNAME" }
+      password: { secret_ref: "env:VAMPI_USER_A_PASSWORD" }
+    - alias: user_b
+      role: user
+      username: { secret_ref: "env:VAMPI_USER_B_USERNAME" }
+      password: { secret_ref: "env:VAMPI_USER_B_PASSWORD" }
+    - alias: admin_a
+      role: admin
+      username: { secret_ref: "env:VAMPI_ADMIN_USERNAME" }
+      password: { secret_ref: "env:VAMPI_ADMIN_PASSWORD" }

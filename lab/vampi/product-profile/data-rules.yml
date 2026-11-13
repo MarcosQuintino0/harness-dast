@@ -1,0 +1,44 @@
+# Regras de dados do VAmPI (schema v1). Os valores fixos sao os que GET /createdb semeia.
+schema_version: 1
+rules:
+  - match: { operation: api_views.users.login_user, field: username }
+    generator: constant
+    args: { value: name1 }
+  - match: { operation: api_views.users.login_user, field: password }
+    generator: constant
+    args: { value: pass1 }
+  - match: { operation: api_views.users.register_user, field: username }
+    generator: alphanumeric
+    args: { length: 12, prefix: "hd" }
+    unique: true
+  - match: { operation: api_views.users.register_user, field: password }
+    generator: alphanumeric
+    args: { length: 12 }
+  - match: { operation: api_views.users.register_user, field: email }
+    generator: email
+    args: { domain: "teste.exemplo.com.br" }
+    unique: true
+  - match: { operation: api_views.users.get_by_username, field: username }
+    generator: constant
+    args: { value: name1 }
+  - match: { operation: api_views.users.update_email, field: username }
+    generator: constant
+    args: { value: name2 }
+  - match: { operation: api_views.users.update_email, field: email }
+    generator: email
+    args: { domain: "teste.exemplo.com.br" }
+    unique: true
+  - match: { operation: api_views.users.update_password, field: username }
+    generator: constant
+    args: { value: name2 }
+  # A mesma senha de semente: o PUT nao deixa o usuario fora do ar numa segunda rodada.
+  - match: { operation: api_views.users.update_password, field: password }
+    generator: constant
+    args: { value: pass2 }
+  - match: { operation: api_views.books.add_new_book, field: book_title }
+    generator: alphanumeric
+    args: { length: 14, prefix: "livro" }
+    unique: true
+  - match: { operation: api_views.books.add_new_book, field: secret }
+    generator: alphanumeric
+    args: { length: 12 }

@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info: {title: Externo, version: "1"}
+paths:
+  /x:
+    post:
+      operationId: x
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: "./outro.yaml#/components/schemas/Pessoa"}
+      responses: {"200": {description: ok}}

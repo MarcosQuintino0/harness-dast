@@ -1,0 +1,40 @@
+-- =============================================================================
+-- EXEMPLO FICTÍCIO de script de limpeza (Oracle). NÃO USE COMO ESTÁ.
+--
+-- Schema planejado para o marco M2. Tabelas, colunas e valores abaixo não
+-- existem em nenhum produto real. Este arquivo NÃO é executado pela CLI porque
+-- termina em ".example": copie para cleanup.sql no repositório privado do
+-- produto, reescreva com as tabelas reais e peça revisão do time do produto.
+--
+-- Regras (detalhes em cleanup/README.md):
+--   * Escrito e revisado por PESSOA do time do produto, nunca pelo agente.
+--   * Apaga só dados criados pelas contas de teste ou pela execução.
+--   * Sempre com variáveis de ligação (:nome); nunca concatene valores.
+--   * A CLI executa dentro de uma transação, mostra quantas linhas seriam
+--     apagadas e só faz COMMIT após confirmação humana.
+--
+-- Variáveis de ligação fornecidas pela CLI (docs/reference/cleanup.md):
+--   :run_start      início da execução (TIMESTAMP em UTC)
+--   :run_id         identificador completo da execução
+--   :run_tag        etiqueta curta embutida nos valores únicos gerados
+--   :account_1 .. :account_N   usuários das contas de teste, na ordem do perfil
+-- =============================================================================
+
+-- Nesta versão fictícia, os DELETE estão COMENTADOS e há uma guarda que sempre
+-- falha: o arquivo não consegue apagar nada nem por engano. Ao adaptar, remova
+-- a guarda e descomente depois da revisão.
+
+-- Guarda do exemplo (REMOVER ao adaptar): aborta o script inteiro.
+SELECT 1 / 0 AS exemplo_nao_executavel FROM dual;
+
+-- 1) Filhos antes dos pais, para respeitar chaves estrangeiras.
+-- DELETE FROM exemplo_consulta c
+--  WHERE c.criado_em >= :run_start
+--    AND c.criado_por IN (:account_1);
+
+-- 2) Pais.
+-- DELETE FROM exemplo_paciente p
+--  WHERE p.criado_em >= :run_start
+--    AND p.criado_por IN (:account_1);
+
+-- Sem COMMIT aqui: quem confirma é a CLI, depois do aceite de uma pessoa.

@@ -1,0 +1,9 @@
+# Todo arquivo tem o dono como revisor.
+*                       @MarcosQuintino0
+
+# Módulos críticos (AD-14): exigem revisão humana explícita.
+/src/harness_dast/domain/         @MarcosQuintino0
+/src/harness_dast/adapters/secrets/  @MarcosQuintino0
+/src/harness_dast/adapters/cleanup/  @MarcosQuintino0
+/.claude/                         @MarcosQuintino0
+/.github/                         @MarcosQuintino0

@@ -1,0 +1,258 @@
+# OWASP crAPI como alvo de laboratorio do harness-dast. SOFTWARE INTENCIONALMENTE VULNERAVEL.
+# So para localhost. Origem: https://github.com/OWASP/crAPI, tag v1.1.6-rc8 (deploy/docker/docker-compose.yml),
+# Apache License 2.0 (LICENSE-crAPI.txt). Esta e uma adaptacao: imagens fixadas por digest, portas so em
+# 127.0.0.1, bancos so na rede interna do proprio compose, limites de memoria.
+#
+# Subir:  veja README.md (pilha do hdast primeiro, depois este compose, depois seed.py).
+# Parar:  docker compose -p hdast-crapi -f lab/crapi/compose.yaml down -v
+#
+# O servico "crapi-web" (nginx) e a porta de entrada de toda a API (/identity, /community, /workshop).
+# Ele entra tambem na rede INTERNA do lab (hdast_lab_net, criada pelo compose da raiz) com o apelido
+# "crapi": por la o ZAP alcanca o alvo, sempre pelo proxy de escopo.
+
+name: hdast-crapi
+
+x-comum: &comum
+  security_opt: ["no-new-privileges:true"]
+  restart: "no"
+
+services:
+  crapi-identity:
+    <<: *comum
+    image: crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78
+    environment:
+      DB_NAME: crapi
+      DB_USER: admin
+      DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD (qualquer valor de laboratorio)}"
+      DB_HOST: postgresdb
+      DB_PORT: "5432"
+      SERVER_PORT: "8080"
+      ENABLE_SHELL_INJECTION: "false"
+      JWT_SECRET: crapi
+      MAILHOG_HOST: mailhog
+      MAILHOG_PORT: "1025"
+      MAILHOG_DOMAIN: example.com
+      # SMTP externo desligado de proposito: o e-mail do lab vai so para o mailhog local.
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_EMAIL: user@example.com
+      SMTP_PASS: unused
+      SMTP_FROM: no-reply@example.com
+      SMTP_AUTH: "false"
+      SMTP_STARTTLS: "false"
+      JWT_EXPIRATION: "604800000"
+      ENABLE_LOG4J: "false"
+      API_GATEWAY_URL: https://api.mypremiumdealership.com
+      TLS_ENABLED: "false"
+      TLS_KEYSTORE_TYPE: PKCS12
+      TLS_KEYSTORE: classpath:certs/server.p12
+      TLS_KEY_PASSWORD: passw0rd
+      TLS_KEYSTORE_PASSWORD: passw0rd
+      TLS_KEY_ALIAS: identity
+    depends_on:
+      postgresdb: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      mailhog: {condition: service_healthy}
+    healthcheck:
+      test: /app/health.sh
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 512m
+    cpus: 1.0
+    networks: [crapi_net]
+
+  crapi-community:
+    <<: *comum
+    image: crapi/crapi-community:1.1.6-rc8@sha256:ff62181b9089df60379c1cecdcfceb0f54ea6d6c4d7c407bb2f5fd55208f2be0
+    environment:
+      IDENTITY_SERVICE: crapi-identity:8080
+      DB_NAME: crapi
+      DB_USER: admin
+      DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      DB_HOST: postgresdb
+      DB_PORT: "5432"
+      SERVER_PORT: "8087"
+      MONGO_DB_HOST: mongodb
+      MONGO_DB_PORT: "27017"
+      MONGO_DB_USER: admin
+      MONGO_DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      MONGO_DB_NAME: crapi
+      TLS_ENABLED: "false"
+      TLS_CERTIFICATE: certs/server.crt
+      TLS_KEY: certs/server.key
+    depends_on:
+      postgresdb: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      crapi-identity: {condition: service_healthy}
+    healthcheck:
+      test: /app/health.sh
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 256m
+    cpus: 0.5
+    networks: [crapi_net]
+
+  crapi-workshop:
+    <<: *comum
+    image: crapi/crapi-workshop:1.1.6-rc8@sha256:b73a2e4aed1a62ba9c626214eca6b66289f2f5cced7169dbd791837edf263de6
+    environment:
+      IDENTITY_SERVICE: crapi-identity:8080
+      DB_NAME: crapi
+      DB_USER: admin
+      DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      DB_HOST: postgresdb
+      DB_PORT: "5432"
+      SERVER_PORT: "8000"
+      MONGO_DB_HOST: mongodb
+      MONGO_DB_PORT: "27017"
+      MONGO_DB_USER: admin
+      MONGO_DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      MONGO_DB_NAME: crapi
+      SECRET_KEY: crapi
+      API_GATEWAY_URL: https://api.mypremiumdealership.com
+      TLS_ENABLED: "false"
+      TLS_CERTIFICATE: certs/server.crt
+      TLS_KEY: certs/server.key
+    depends_on:
+      postgresdb: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      crapi-identity: {condition: service_healthy}
+      crapi-community: {condition: service_healthy}
+    healthcheck:
+      test: /app/health.sh
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 512m
+    cpus: 1.0
+    networks: [crapi_net]
+
+  # O nginx do crapi-web resolve este nome ao iniciar; o chatbot (sem chave de LLM) so precisa existir.
+  crapi-chatbot:
+    <<: *comum
+    image: crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f
+    environment:
+      TLS_ENABLED: "false"
+      SERVER_PORT: "5002"
+      DB_NAME: crapi
+      DB_USER: admin
+      DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      DB_HOST: postgresdb
+      DB_PORT: "5432"
+      MONGO_DB_HOST: mongodb
+      MONGO_DB_PORT: "27017"
+      MONGO_DB_USER: admin
+      MONGO_DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      MONGO_DB_NAME: crapi
+    depends_on:
+      mongodb: {condition: service_healthy}
+    mem_limit: 256m
+    networks: [crapi_net]
+
+  crapi-web:
+    <<: *comum
+    image: crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746
+    ports:
+      # So loopback. A porta existe para o seed.py e para olhar a interface; o ZAP usa a rede interna.
+      - "127.0.0.1:${CRAPI_WEB_PORT:-28888}:80"
+    environment:
+      COMMUNITY_SERVICE: crapi-community:8087
+      IDENTITY_SERVICE: crapi-identity:8080
+      WORKSHOP_SERVICE: crapi-workshop:8000
+      CHATBOT_SERVICE: crapi-chatbot:5002
+      TLS_ENABLED: "false"
+    depends_on:
+      crapi-community: {condition: service_healthy}
+      crapi-identity: {condition: service_healthy}
+      crapi-workshop: {condition: service_healthy}
+      crapi-chatbot: {condition: service_started}
+    healthcheck:
+      test: curl 0.0.0.0:80/web/health
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 128m
+    cpus: 0.5
+    networks:
+      crapi_net: {}
+      publish_net: {}
+      lab_net:
+        aliases: [crapi]
+
+  postgresdb:
+    <<: *comum
+    image: postgres:14@sha256:980b7cb415aa0f812f65bdec8f6f599be408d8ed9c83ffcaa12650eac397b264
+    command: ["postgres", "-c", "max_connections=500"]
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+      POSTGRES_DB: crapi
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 256m
+    cpus: 0.5
+    networks: [crapi_net]
+
+  mongodb:
+    <<: *comum
+    image: mongo:4.4@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo mongodb:27017/test --quiet
+      interval: 15s
+      timeout: 15s
+      retries: 15
+      start_period: 20s
+    mem_limit: 256m
+    cpus: 0.5
+    networks: [crapi_net]
+
+  mailhog:
+    <<: *comum
+    user: root
+    image: crapi/mailhog:1.1.6-rc8@sha256:c3a74b1f63673996aec82f175ad4dd49cc3152637f68dc3dfc9f765e06c0f5e9
+    environment:
+      MH_MONGO_URI: "admin:${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}@mongodb:27017"
+      MH_STORAGE: mongodb
+    ports:
+      - "127.0.0.1:${CRAPI_MAIL_PORT:-28025}:8025"   # interface/API de e-mail, so loopback
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8025"]
+      interval: 15s
+      timeout: 15s
+      retries: 15
+    mem_limit: 128m
+    cpus: 0.3
+    networks: [crapi_net, publish_net]
+
+  # Servico externo ficticio do crAPI (alvo do desafio de SSRF). Fica so na rede interna do compose.
+  api.mypremiumdealership.com:
+    <<: *comum
+    image: crapi/gateway-service:1.1.6-rc8@sha256:111a996957c1e9f78fe401b4d9a16bb99e6d6a3aa836792382a52c9ecbd39c8c
+    healthcheck:
+      test: bash -c 'echo -n "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/443'
+      interval: 15s
+      timeout: 15s
+      retries: 15
+      start_period: 15s
+    mem_limit: 64m
+    cpus: 0.1
+    networks: [crapi_net]
+
+networks:
+  # Rede dos servicos do crAPI: INTERNA (sem rota para fora), de modo que nem o SSRF do alvo sai da maquina.
+  crapi_net:
+    internal: true
+  # Bridge so para publicar duas portas em 127.0.0.1 (crapi-web e mailhog). Nenhum outro servico entra.
+  publish_net: {}
+  # Rede INTERNA do lab (compose da raiz, projeto "hdast"): so o scope-proxy a alcanca.
+  lab_net:
+    external: true
+    name: hdast_lab_net

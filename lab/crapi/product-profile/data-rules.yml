@@ -1,0 +1,38 @@
+# Regras de dados do crAPI (schema v1). Valores sinteticos. Os cupons e codigos de mecanico fixos
+# (TRAC075, TRAC_JHN) sao os que o proprio crAPI cria na semente (docs do projeto).
+schema_version: 1
+rules:
+  - match: { operation: add_new_product, field: price }
+    generator: number
+    args: { min: 1, max: 100, decimals: 2 }
+  - match: { operation: create_order, field: product_id }
+    generator: constant
+    args: { value: 1 }
+  - match: { operation: create_order, field: quantity }
+    generator: constant
+    args: { value: 1 }
+  - match: { operation: update_order, field: product_id }
+    generator: constant
+    args: { value: 1 }
+  - match: { operation: update_order, field: quantity }
+    generator: constant
+    args: { value: 2 }
+  - match: { operation: validate_coupon, field: coupon_code }
+    generator: constant
+    args: { value: TRAC075 }
+  - match: { operation: apply_coupon, field: coupon_code }
+    generator: constant
+    args: { value: TRAC075 }
+  - match: { operation: apply_coupon, field: amount }
+    generator: constant
+    args: { value: 75 }
+  - match: { operation: add_new_coupon, field: coupon_code }
+    generator: alphanumeric
+    args: { length: 10, prefix: "HD" }
+    unique: true
+  - match: { operation: add_new_coupon, field: amount }
+    generator: constant
+    args: { value: 10 }
+  - match: { operation: create_service_report, field: mechanic_code }
+    generator: constant
+    args: { value: TRAC_JHN }

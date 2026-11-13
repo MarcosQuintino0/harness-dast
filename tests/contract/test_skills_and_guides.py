@@ -1,0 +1,237 @@
+"""Contrato das skills, subagentes, permissões e guias do M6 com a CLI real.
+
+Skills e guias não podem prometer comando nem flag que não existe: toda ocorrência de `hdast ...`
+dentro de código (bloco cercado ou trecho em linha) é conferida contra o app Typer. Também confere a
+forma de cada skill (frontmatter, seções obrigatórias, tamanho), as ferramentas dos subagentes e as
+permissões de `.claude/settings.json`.
+"""
+
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+import pytest
+import typer.main
+import yaml
+
+from harness_dast.cli.app import build_app
+
+ROOT = Path(__file__).resolve().parents[2]
+SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+AGENT_FILES = sorted((ROOT / ".claude" / "agents").glob("*.md"))
+GUIDE_FILES = sorted((ROOT / "docs" / "guides").glob("*.md"))
+EXTRA_FILES = [ROOT / "evals" / "README.md"]
+CHECKED_FILES = [*SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
+EXPECTED_SKILLS = {"onboard-product", "fix-reachability", "run-scan", "triage-findings"}
+EXPECTED_AGENTS = {"spec-analyst", "findings-triager"}
+
+_FENCE = re.compile(r"^```.*?\n(.*?)^```", re.DOTALL | re.MULTILINE)
+_INLINE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
+_HDAST = re.compile(r"(?<![\w/.\-])hdast(?= |$)")
+_STOP = re.compile(r"\||;|&&|#|>|`")
+
+
+def _commands() -> dict[tuple[str, ...], Any]:
+    root = typer.main.get_command(build_app())
+    found: dict[tuple[str, ...], Any] = {}
+
+    def walk(command: Any, prefix: tuple[str, ...]) -> None:
+        if prefix:
+            found[prefix] = command
+        for name, sub in getattr(command, "commands", {}).items():
+            walk(sub, (*prefix, name))
+
+    walk(root, ())
+    return found
+
+
+def _flags_of(command: Any) -> set[str]:
+    flags = {"--json", "--help"}
+    for param in command.params:
+        flags.update(opt for opt in [*param.opts, *param.secondary_opts] if opt.startswith("--"))
+    return flags
+
+
+def _code_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for block in _FENCE.findall(text):
+        lines.extend(block.splitlines())
+    without_fences = _FENCE.sub("", text)
+    for line in without_fences.splitlines():
+        lines.extend(_INLINE.findall(line))
+    return lines
+
+
+def _invocations(path: Path) -> list[list[str]]:
+    """Tokens que seguem cada `hdast` dentro de código, até um separador de shell."""
+    found: list[list[str]] = []
+    for line in _code_lines(path.read_text(encoding="utf-8")):
+        for match in _HDAST.finditer(line):
+            rest = _STOP.split(line[match.end() :])[0]
+            tokens = [item.strip("\"',;:.()") for item in rest.split()]
+            found.append([item for item in tokens if item])
+    return found
+
+
+def _check(tokens: list[str], commands: dict[tuple[str, ...], Any]) -> str | None:
+    words = [item for item in tokens if item != "--json"]
+    positional = [item for item in words if not item.startswith("-")]
+    if not positional:
+        return None if not words or words[0] in {"--help"} else "sem comando"
+    first = positional[0]
+    if not re.fullmatch(r"[a-z][a-z-]*", first):
+        return None
+    top = {path[0] for path in commands}
+    if first not in top:
+        return f"comando inexistente: {first}"
+    path: tuple[str, ...] = (first,)
+    if (first, "up") in commands or any(key[0] == first and len(key) == 2 for key in commands):
+        sub = positional[1] if len(positional) > 1 else ""
+        if not any(key == (first, sub) for key in commands):
+            return f"subcomando inexistente: {first} {sub}"
+        path = (first, sub)
+    allowed = _flags_of(commands[path])
+    for item in words:
+        if item.startswith("--"):
+            flag = item.split("=", 1)[0]
+            if flag not in allowed:
+                return f"flag inexistente em {' '.join(path)}: {flag}"
+    return None
+
+
+def test_checked_files_exist() -> None:
+    assert {path.parent.name for path in SKILL_FILES} == EXPECTED_SKILLS
+    assert {path.stem for path in AGENT_FILES} == EXPECTED_AGENTS
+    assert len(GUIDE_FILES) >= 6
+
+
+@pytest.mark.parametrize("path", CHECKED_FILES, ids=lambda p: str(p.relative_to(ROOT)))
+def test_every_hdast_command_cited_exists_with_its_flags(path: Path) -> None:
+    commands = _commands()
+    problems = [
+        f"{' '.join(tokens)!r}: {message}"
+        for tokens in _invocations(path)
+        if (message := _check(tokens, commands))
+    ]
+
+    assert not problems, "\n".join(problems)
+
+
+def test_the_extractor_finds_commands_and_rejects_invented_ones() -> None:
+    commands = _commands()
+
+    assert _check(["--json", "stack", "up", "<produto>", "--secure"], commands) is None
+    assert _check(["probe", "<p>", "--include-delete"], commands) is None
+    assert _check(["cleanup", "<p>", "--confirm", "X"], commands) is not None
+    assert _check(["stack", "restart"], commands) is not None
+    assert _check(["rodar", "tudo"], commands) is not None
+    assert sum(len(_invocations(path)) for path in SKILL_FILES) >= 15
+
+
+def _frontmatter(path: Path) -> dict[str, object]:
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("---\n"), f"{path}: sem frontmatter"
+    loaded = yaml.safe_load(text.split("---\n", 2)[1])
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+@pytest.mark.parametrize("path", SKILL_FILES, ids=lambda p: p.parent.name)
+def test_skill_has_name_when_to_use_numbered_steps_table_and_never_section(path: Path) -> None:
+    meta = _frontmatter(path)
+    text = path.read_text(encoding="utf-8")
+
+    assert meta["name"] == path.parent.name
+    description = str(meta["description"])
+    assert description.startswith("Use quando")
+    assert len(text.splitlines()) < 150
+    assert re.search(r"^1\. \*\*", text, flags=re.MULTILINE)
+    assert "## Se der X, faça Y" in text
+    assert re.search(r"^\| .* \|$", text.split("## Se der X, faça Y")[1], flags=re.MULTILINE)
+    assert "## Nunca" in text
+    assert "decision-log.md" in text
+    never = text.split("## Nunca")[1]
+    assert ".env" in never or "cleanup" in never
+
+
+@pytest.mark.parametrize("path", SKILL_FILES, ids=lambda p: p.parent.name)
+def test_skill_repeats_the_part_b_locks_that_apply_to_it(path: Path) -> None:
+    never = path.read_text(encoding="utf-8").split("## Nunca")[1]
+    name = path.parent.name
+
+    assert "curl" in never or name == "run-scan"
+    assert "cleanup" in never or "limpeza" in never
+    if name in {"onboard-product", "run-scan"}:
+        assert "escopo" in never
+
+
+@pytest.mark.parametrize("path", AGENT_FILES, ids=lambda p: p.stem)
+def test_subagent_has_minimal_tools_and_never_web_or_shell(path: Path) -> None:
+    meta = _frontmatter(path)
+    tools = {item.strip() for item in str(meta["tools"]).split(",")}
+
+    assert meta["name"] == path.stem
+    assert str(meta["description"])
+    assert tools <= {"Read", "Grep", "Glob"}
+    assert not tools & {"Bash", "WebFetch", "WebSearch", "Write", "Edit", "PowerShell"}
+
+
+def _permissions() -> dict[str, list[str]]:
+    data = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    permissions = data["permissions"]
+    assert set(permissions) <= {"allow", "deny", "ask"}
+    return {key: list(value) for key, value in permissions.items()}
+
+
+def test_settings_allow_only_hdast_and_deny_the_dangerous_commands() -> None:
+    permissions = _permissions()
+    allow, deny = permissions["allow"], permissions["deny"]
+
+    assert set(allow) == {"Bash(uv run hdast:*)", "Bash(hdast:*)"}
+    for rule in (
+        "Bash(curl:*)",
+        "Bash(wget:*)",
+        "Bash(hdast cleanup:*)",
+        "Bash(uv run hdast cleanup:*)",
+        "WebFetch",
+        "Read(**/.env*)",
+        "Read(!.env.example)",
+        "Edit(products/*/cleanup/**)",
+    ):
+        assert rule in deny
+
+
+def test_settings_deny_precedes_exception_for_env_example() -> None:
+    deny = _permissions()["deny"]
+
+    assert deny.index("Read(**/.env*)") < deny.index("Read(!.env.example)")
+
+
+def test_settings_never_allow_cleanup_in_any_spelling() -> None:
+    allow = _permissions()["allow"]
+
+    assert not [rule for rule in allow if "cleanup" in rule]
+
+
+def _leak_terms() -> list[str]:
+    terms: list[str] = []
+    for case_file in sorted((ROOT / "evals" / "cases").glob("*/case.yml")):
+        loaded = yaml.safe_load(case_file.read_text(encoding="utf-8"))
+        terms.extend(str(term) for term in loaded.get("leak_terms", []))
+    return terms
+
+
+def test_skills_guides_and_agents_do_not_leak_planted_flaw_terms() -> None:
+    terms = _leak_terms()
+    assert terms, "os casos precisam declarar leak_terms"
+    leaks: list[str] = []
+    for path in [*SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, ROOT / "README.md"]:
+        text = path.read_text(encoding="utf-8")
+        leaks.extend(
+            f"{path.relative_to(ROOT)}: {term}"
+            for term in terms
+            if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, flags=re.IGNORECASE)
+        )
+
+    assert not leaks, "\n".join(leaks)

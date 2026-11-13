@@ -1,0 +1,68 @@
+# Perfil de produto do OWASP crAPI (alvo de treino LOCAL do harness-dast), schema v1.
+# O crAPI e vulneravel de proposito; so roda no lab (lab/crapi/compose.yaml). Veja lab/crapi/README.md.
+# Valores de autorizacao sao do laboratorio local, nao de um ambiente de empresa.
+schema_version: 1
+product: crapi
+
+environment:
+  name: lab
+  # Apelido DNS do crapi-web na rede interna do lab (lab/crapi/compose.yaml).
+  base_url: http://crapi
+
+openapi: ./openapi.json
+
+scope:
+  allow:
+    - host: crapi
+      scheme: http
+      port: 80
+      allow_local: true
+      paths: ["/identity/api/**", "/community/api/**", "/workshop/api/**"]
+      methods: [GET, POST, PUT]       # DELETE e PATCH ficam de fora de proposito
+  deny_paths:
+    # Disparam e-mail (OTP, troca de e-mail, reenvio de VIN), trocam a senha da conta logada ou criam contas: nao fazem parte do teste.
+    - "/identity/api/auth/forget-password"
+    - "/identity/api/auth/v2/check-otp"
+    - "/identity/api/auth/v3/check-otp"
+    - "/identity/api/auth/signup"
+    - "/identity/api/v2/user/change-email"
+    - "/identity/api/v2/user/reset-password"
+    - "/identity/api/v2/user/verify-email-token"
+    - "/identity/api/v2/vehicle/resend_email"
+    # O alvo faz uma requisicao a URL escolhida por quem chama (SSRF por desenho): nunca a partir do varredor.
+    - "/workshop/api/merchant/contact_mechanic"
+    - "/workshop/api/mechanic/signup"
+  authorization:
+    reference: "LAB-CRAPI"
+    valid_until: 2099-12-31
+  windows:
+    - "seg-dom 00:00-24:00 America/Sao_Paulo"
+
+limits:
+  requests_per_second: 50
+  max_duration_minutes: 30
+  zap_threads_per_host: 8
+
+probe:
+  health_path: /workshop/api/shop/products
+
+auth:
+  type: login_password
+  token_path: /identity/api/auth/login
+  request_encoding: json
+  username_field: email
+  password_field: password
+  token_response_field: token
+  token_header: Authorization
+  token_scheme: Bearer
+  default_account: user_a
+  accounts:
+    # Contas criadas por lab/crapi/seed.py (valores sorteados, fora do repositorio).
+    - alias: user_a
+      role: user
+      username: { secret_ref: "env:CRAPI_USER_A_EMAIL" }
+      password: { secret_ref: "env:CRAPI_USER_A_PASSWORD" }
+    - alias: user_b
+      role: user
+      username: { secret_ref: "env:CRAPI_USER_B_EMAIL" }
+      password: { secret_ref: "env:CRAPI_USER_B_PASSWORD" }

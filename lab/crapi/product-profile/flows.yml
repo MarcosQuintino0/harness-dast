@@ -1,0 +1,19 @@
+# Encadeamento do crAPI (schema v1): ids que uma operacao produz e outra consome.
+# Sem ligacao para os posts: o OpenAPI diz que a lista e um array, mas o alvo responde {"posts": [...]},
+# e o `flows.yml` e conferido contra o OpenAPI (get_post e post_comment ficam sem id e nao sao alcancados).
+schema_version: 1
+bindings:
+  - produces: { operation: get_vehicles, field: 0.uuid }
+    consumed_by:
+      - { operation: get_location, param: vehicleId }
+  - produces: { operation: get_vehicles, field: 0.vin }
+    consumed_by:
+      - { operation: create_service_report, param: vin }
+  - produces: { operation: create_order, field: id }
+    consumed_by:
+      - { operation: get_order_byID, param: order_id }
+      - { operation: update_order, param: order_id }
+      - { operation: return_order, param: order_id }
+  - produces: { operation: create_service_report, field: id }
+    consumed_by:
+      - { operation: get_report_byID, param: report_id }

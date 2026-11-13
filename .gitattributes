@@ -1,0 +1,4 @@
+# Finais de linha LF em todo o repositório, inclusive no Windows.
+# Os arquivos em docker/ são montados em contêineres Linux: com CRLF o Squid
+# lê "\r" como parte de cada host e de cada diretiva.
+* text=auto eol=lf

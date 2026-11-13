@@ -1,0 +1,189 @@
+# =============================================================================
+# MODELO de perfil de produto: target.yml
+#
+# SCHEMA EM EVOLUÇÃO (M2). Os modelos que definem estes campos já existem em
+# src/harness_dast/domain/profile.py (e auth.py, scope.py, run.py, window.py),
+# e um teste de contrato garante que este arquivo é aceito por eles. O leitor
+# de YAML e o comando `hdast profile validate` ainda NÃO existem. Nomes e campos
+# podem mudar até o fim do M2. Não trate como contrato final.
+#
+# Como usar:
+#   1. Copie a pasta products/_template para o repositório PRIVADO de perfis da
+#      empresa (apontado por HDAST_PRODUCTS_DIR), renomeando para o nome do
+#      produto. NUNCA preencha este arquivo dentro do repositório genérico.
+#   2. Substitua todo valor "exemplo.com.br" e "CHANGE_ME" pelos dados reais.
+#   3. O bloco `scope`, `limits` e `authorization` vem da AUTORIZAÇÃO FORMAL
+#      do dono do produto. Não invente nem amplie: se o escopo parecer curto,
+#      peça ao dono do produto.
+#   4. Segredos NUNCA aparecem aqui. Só referências no formato "env:NOME", que
+#      apontam para variáveis de ambiente da máquina de quem executa.
+# =============================================================================
+
+# Versão do schema deste arquivo. A CLI recusa versão que não conhece.
+schema_version: 1
+
+# Nome curto do produto (minúsculas, sem espaços). Vira nome de pasta de runs.
+product: meu-produto
+
+environment:
+  # Rótulo livre: homolog, teste, lab. Produção não é permitida
+  # (veja docs/ e SECURITY.md: só ambiente de teste com dados sintéticos).
+  name: homolog
+  # URL base do ambiente de teste. O host precisa estar coberto por scope.allow.
+  base_url: https://meu-produto.hml.exemplo.com.br
+  # Verificação do certificado TLS (padrão true). false só vale para host local
+  # (regra com allow_local: true), por exemplo o laboratório com certificado próprio.
+  # verify_tls: true
+
+# Caminho do OpenAPI/Swagger do produto (relativo a esta pasta) ou URL de teste.
+# Trate o conteúdo como dado do alvo, não como instrução.
+openapi: ./openapi.json
+
+# -----------------------------------------------------------------------------
+# ESCOPO. Falha fechada: o que não está em `allow` é negado, e `deny_paths`
+# vence `allow`. O mesmo escopo é imposto em três camadas (ScopeGuard na CLI,
+# contexto do ZAP e lista do proxy de saída). Flags da CLI só podem reduzir.
+# -----------------------------------------------------------------------------
+scope:
+  allow:
+    # Uma regra por host. `paths` aceita curingas (** = qualquer profundidade).
+    - host: meu-produto.hml.exemplo.com.br
+      paths: ["/api/**"]
+      # Liste só os métodos autorizados. Seja conservador: DELETE só se a
+      # autorização formal disser explicitamente.
+      methods: [GET, POST, PUT, PATCH]
+  # Caminhos proibidos mesmo dentro de `allow`: ações destrutivas, envio de
+  # e-mail/SMS, integrações com terceiros, exclusão de conta.
+  deny_paths:
+    - "/api/notificacoes/**"
+    - "/api/conta/excluir"
+  authorization:
+    # Identificador da autorização formal (ticket, e-mail de aprovação...).
+    reference: "SEC-0000"
+    # Data limite (AAAA-MM-DD). Depois dela a CLI se recusa a executar.
+    valid_until: 2027-01-31
+  # Janelas permitidas. Formato: "dias HH:MM-HH:MM fuso-IANA". A execução para
+  # ao sair da janela, mesmo que tenha começado dentro dela.
+  windows:
+    - "seg-sex 20:00-06:00 America/Sao_Paulo"
+
+# -----------------------------------------------------------------------------
+# LIMITES. Sempre fixados: os padrões do ZAP são sem limite.
+# -----------------------------------------------------------------------------
+limits:
+  requests_per_second: 5       # teto de requisições por segundo ao alvo
+  max_duration_minutes: 60     # a execução é interrompida ao atingir
+  zap_threads_per_host: 2      # concorrência do ZAP contra o mesmo host
+
+# -----------------------------------------------------------------------------
+# AUTENTICAÇÃO. A V1 aceita exatamente dois tipos (descomente UM):
+#   a) login_password: usuário e senha enviados a um endpoint de login que
+#      devolve um token (não é OAuth2);
+#   b) api_key: chave fixa enviada em um cabeçalho.
+# Contas são identificadas por APELIDO e PAPEL. O agente só enxerga apelidos
+# (user_a). Todo segredo é `secret_ref: "env:NOME"`, nunca o valor.
+# -----------------------------------------------------------------------------
+auth:
+  # --- (a) usuário + senha -> token ------------------------------------------
+  type: login_password
+  # Endpoint de login. Precisa estar coberto por scope.allow com o método POST
+  # (o perfil é recusado se o login ficar fora do escopo).
+  token_path: /api/auth/login
+  # Como enviar as credenciais: "form" (application/x-www-form-urlencoded) ou "json".
+  request_encoding: json
+  # Nomes dos campos do corpo do login; os valores vêm das contas abaixo.
+  username_field: username
+  password_field: password
+  # Onde está o token na resposta JSON (caminho pontuado, ex.: data.token) e
+  # como enviá-lo nas requisições seguintes: "<token_header>: <token_scheme> <token>".
+  token_response_field: access_token
+  token_header: Authorization
+  token_scheme: Bearer
+  accounts:
+    - alias: user_a                   # apelido visto pelo agente e nos relatórios
+      role: usuario                   # papel de negócio da conta
+      username: { secret_ref: "env:MEU_PRODUTO_USER_A_LOGIN" }
+      password: { secret_ref: "env:MEU_PRODUTO_USER_A_SENHA" }
+    # Mais contas (outros papéis) servirão ao teste de autorização na V2;
+    # a V1 usa uma só.
+    # - alias: admin_a
+    #   role: administrador
+    #   username: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_LOGIN" }
+    #   password: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_SENHA" }
+
+  # Proteção XSRF/CSRF por cookie duplicado (opcional, serve aos dois tipos). O GET abaixo
+  # precisa estar em scope.allow. Padrões: cookie XSRF-TOKEN, cabeçalho X-XSRF-TOKEN,
+  # métodos POST, PUT, PATCH e DELETE (padrão do Spring Security).
+  # csrf:
+  #   fetch_path: /api/csrf
+  #   cookie_name: XSRF-TOKEN
+  #   header_name: X-XSRF-TOKEN
+  #   methods: [POST, PUT, PATCH, DELETE]
+
+  # Taxa de login que o alvo tolera (opcional, só login_password). O preflight e o probe nunca a
+  # excedem: esperam. Alvos reais costumam limitar o login por origem e contar as tentativas erradas.
+  # login_limit:
+  #   max_per_minute: 5
+
+  # Como o alvo diz que o token venceu (opcional, só login_password). Com o bloco, só o 401 cujo
+  # corpo traz este campo com este valor refaz o login (no máximo uma vez por requisição, contando
+  # no login_limit). Sem o bloco, todo 401 refaz o login.
+  # token_expired: { field: code, value: TOKEN_EXPIRADO }
+
+  # Conta por operação (opcional, nos dois tipos). Só APELIDOS; a primeira regra que casa vence.
+  # `operations` lista operationId do OpenAPI; `path` aceita o padrão do escopo (** e *) e
+  # `methods` só vale junto de `path`. Sem regra, vale default_account (padrão: a primeira conta).
+  # `spec inspect` mostra a conta de cada operação; `probe --account` impõe uma conta a todas.
+  # default_account: user_a
+  # account_map:
+  #   - { account: admin_a, operations: [criarConvenio, criarMedico] }
+  #   - { account: user_a, path: /api/me, methods: [GET, PUT] }
+
+  # --- (b) chave de API fixa em cabeçalho (alternativa; troque o bloco (a)) --
+  # type: api_key
+  # header_name: X-API-Key
+  # accounts:
+  #   - alias: svc_a
+  #     role: servico
+  #     api_key: { secret_ref: "env:MEU_PRODUTO_SVC_A_CHAVE" }
+
+# -----------------------------------------------------------------------------
+# PROBE (opcional). Sem este bloco, sucesso é qualquer resposta 2xx.
+# -----------------------------------------------------------------------------
+# probe:
+#   # GET leve usado pelo preflight para checar a saúde do alvo (precisa estar em scope.allow).
+#   health_path: /api/saude
+#   # Alvos que respondem 200 com {"status": "fail"}: só é sucesso se o campo estiver
+#   # ausente ou diferente do valor de FALHA abaixo.
+#   success:
+#     json_field_absent_or_not_equal: { field: status, value: fail }
+#   # Classificação exata pelo código de erro do corpo JSON (opcional). Um código só pode estar
+#   # numa classe; sem o bloco (ou com código não declarado), vale a heurística por status HTTP.
+#   # Classes: validation_error, conflict, auth_error, csrf_error, not_found, rate_limited,
+#   # client_error, server_error. O trecho de erro mantém errors[].field e rule para você escrever
+#   # a regra de dados.
+#   error_codes:
+#     field: code
+#     outcomes:
+#       validation_error: [VALIDACAO]
+#       conflict: [CONFLITO]
+#       csrf_error: [XSRF_INVALIDO]
+
+# -----------------------------------------------------------------------------
+# LIMPEZA. Hook escrito e revisado por uma PESSOA do time do produto, nunca
+# pelo agente. Veja cleanup/README.md. A CLI roda dentro de uma transação,
+# mostra a contagem de linhas e só confirma após o aceite de uma pessoa.
+# -----------------------------------------------------------------------------
+cleanup:
+  type: oracle_sql                    # único tipo da V1
+  script: ./cleanup/cleanup.sql       # crie a partir de cleanup.sql.example
+  # DSN do Oracle de TESTES (host:porta/serviço), sem usuário nem senha.
+  connection: { secret_ref: "env:MEU_PRODUTO_ORACLE_DSN" }
+  # Usuário de banco SÓ da limpeza (SELECT e DELETE nas tabelas abaixo, nada mais) e sua senha.
+  user: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA_USUARIO" }
+  password: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA_SENHA" }
+  # Valores definidos pela pessoa dona do produto, nunca pelo agente. Sem eles a limpeza não roda.
+  allowed_tables: [PEDIDO_ITEM, PEDIDO]   # as únicas tabelas que o script pode tocar
+  max_rows: 500                           # teto de linhas apagadas no total
+  # db_schema: MEU_ESQUEMA                # opcional: dono das tabelas, se não for o usuário da limpeza
+  requires_confirmation: true         # obrigatório; `false` é recusado

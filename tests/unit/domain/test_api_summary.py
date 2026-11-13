@@ -1,0 +1,205 @@
+import pytest
+
+from harness_dast.domain.api_model import (
+    ApiSpec,
+    MediaBody,
+    Operation,
+    Parameter,
+    RequestBody,
+    SecurityRequirement,
+    SuccessResponse,
+)
+from harness_dast.domain.api_schema import Schema
+from harness_dast.domain.api_summary import (
+    MAX_INPUTS_PER_OPERATION,
+    MIN_BUDGET_CHARS,
+    looks_like_identifier,
+    summarize,
+    summarize_operation,
+)
+from tests.unit.api_helpers import obj
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["id", "ID", "Id", "uuid", "user_id", "user-id", "pacienteId", "pacienteID", "x.id", "guid"],
+)
+def test_looks_like_identifier_accepts_common_id_names(name: str) -> None:
+    assert looks_like_identifier(name, Schema())
+
+
+@pytest.mark.parametrize("name", ["valid", "paid", "identity", "idade", "nome", "kid"])
+def test_looks_like_identifier_rejects_words_that_merely_contain_id(name: str) -> None:
+    assert not looks_like_identifier(name, Schema())
+
+
+def test_looks_like_identifier_accepts_uuid_formatted_fields() -> None:
+    assert looks_like_identifier("token", Schema(type="string", format="uuid"))
+
+
+def create_patient() -> Operation:
+    body = obj(
+        ("nome", "endereco", "itens"),
+        nome=Schema(type="string", min_length=3, max_length=20, pattern="^[A-Z]+$"),
+        idade=Schema(type="integer", minimum=0, maximum=130),
+        endereco=obj(("cep",), cep=Schema(type="string"), complemento=Schema(type="string")),
+        itens=Schema(type="array", items=obj(("pacienteId",), pacienteId=Schema(type="integer"))),
+        criado=Schema(type="string", read_only=True),
+    )
+    response = obj(id=Schema(type="integer"), dados=obj(uuid=Schema(type="string")))
+    return Operation(
+        operation_id="criar",
+        method="post",
+        path="/pacientes/{id}",
+        parameters=(
+            Parameter(
+                name="id", location="path", required=True, value_schema=Schema(type="integer")
+            ),
+            Parameter(name="filtro", location="query"),
+        ),
+        request_body=RequestBody(
+            required=True, media=(MediaBody(media_type="application/json", body_schema=body),)
+        ),
+        success_responses=(SuccessResponse(status="201", body_schema=response),),
+        security=(SecurityRequirement(schemes=("bearer",)),),
+        deprecated=True,
+    )
+
+
+def test_summarize_operation_lists_required_inputs_with_type_and_constraints() -> None:
+    summary = summarize_operation(create_patient())
+
+    inputs = {(i.where, i.name): i for i in summary.inputs}
+    assert inputs[("path", "id")].type == "integer"
+    assert inputs[("body", "nome")].constraints == "len 3..20; pattern ^[A-Z]+$"
+    assert inputs[("body", "endereco.cep")].type == "string"
+    assert inputs[("body", "itens[].pacienteId")].type == "integer"
+    assert summary.method == "POST"
+    assert summary.auth
+    assert summary.deprecated
+
+
+def test_summarize_operation_counts_optional_inputs_without_listing_them() -> None:
+    summary = summarize_operation(create_patient())
+
+    assert summary.optional_inputs == 3  # filtro, idade, endereco.complemento (readOnly não conta)
+    assert all(i.name not in {"idade", "filtro"} for i in summary.inputs)
+
+
+def test_summarize_operation_flags_identifiers_produced_and_consumed() -> None:
+    summary = summarize_operation(create_patient())
+
+    assert summary.produces == ("id", "dados.uuid")
+    assert summary.consumes == ("id", "itens[].pacienteId")
+
+
+def test_summarize_operation_describes_enum_range_and_formats() -> None:
+    operation = Operation(
+        operation_id="a",
+        method="get",
+        path="/a",
+        parameters=(
+            Parameter(
+                name="tipo",
+                location="query",
+                required=True,
+                value_schema=Schema(type="string", enum=tuple("abcdefgh")),
+            ),
+            Parameter(
+                name="n",
+                location="query",
+                required=True,
+                value_schema=Schema(type="integer", format="int64", minimum=1),
+            ),
+            Parameter(
+                name="ids",
+                location="query",
+                required=True,
+                value_schema=Schema(type="array", items=Schema(type="string", format="uuid")),
+            ),
+        ),
+    )
+
+    inputs = {i.name: i for i in summarize_operation(operation).inputs}
+
+    assert inputs["tipo"].constraints == "enum a|b|c|d|e"
+    assert (inputs["n"].type, inputs["n"].constraints) == ("integer/int64", "range 1..")
+    assert inputs["ids"].type == "array<string/uuid>"
+
+
+def test_summarize_operation_caps_the_number_of_listed_inputs() -> None:
+    parameters = tuple(
+        Parameter(name=f"p{i}", location="query", required=True)
+        for i in range(MAX_INPUTS_PER_OPERATION + 5)
+    )
+    summary = summarize_operation(
+        Operation(operation_id="a", method="get", path="/a", parameters=parameters)
+    )
+
+    assert len(summary.inputs) == MAX_INPUTS_PER_OPERATION
+    assert summary.more_inputs == 5
+
+
+def test_summarize_operation_cuts_long_texts_and_stops_at_the_depth_limit() -> None:
+    deep: Schema = Schema(type="string")
+    for _ in range(6):
+        deep = obj(("x",), x=deep)
+    operation = Operation(
+        operation_id="o" * 200,
+        method="post",
+        path="/" + "p" * 300,
+        request_body=RequestBody(
+            media=(MediaBody(media_type="application/json", body_schema=deep),)
+        ),
+    )
+
+    summary = summarize_operation(operation)
+
+    assert len(summary.id) == 120
+    assert summary.id.endswith("…")
+    assert len(summary.path) == 120
+    assert summary.inputs == ()
+
+
+def small_spec(count: int) -> ApiSpec:
+    operations = tuple(
+        Operation(
+            operation_id=f"op{i}",
+            method="post",
+            path=f"/r{i}",
+            parameters=tuple(
+                Parameter(name=f"campo{j}", location="query", required=True) for j in range(10)
+            ),
+        )
+        for i in range(count)
+    )
+    return ApiSpec(title="T" * 200, version="1", operations=operations)
+
+
+def test_summarize_keeps_everything_when_it_fits_the_budget() -> None:
+    summary = summarize(small_spec(3))
+
+    assert summary.operation_count == 3
+    assert summary.omitted_operations == 0
+    assert len(summary.title) == 60
+
+
+def test_summarize_never_exceeds_the_budget_and_counts_the_omitted_operations() -> None:
+    spec = small_spec(2000)
+
+    summary = summarize(spec, budget_chars=20_000)
+
+    assert len(summary.model_dump_json()) <= 20_000
+    assert summary.omitted_operations > 0
+    assert len(summary.operations) + summary.omitted_operations == 2000
+    assert summary.operations[0].id == "op0"
+
+
+def test_summarize_enforces_a_minimum_budget() -> None:
+    summary = summarize(small_spec(500), budget_chars=10)
+
+    assert len(summary.model_dump_json()) <= MIN_BUDGET_CHARS
+
+
+def test_summarize_is_deterministic() -> None:
+    assert summarize(small_spec(50), 5_000) == summarize(small_spec(50), 5_000)

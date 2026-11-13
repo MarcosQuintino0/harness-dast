@@ -1,0 +1,113 @@
+# Perfil de produto da Clinica Piloto (alvo de treino LOCAL do harness-dast).
+# Segue products/_template/target.yml e docs/reference/target-yml.md (schema v1).
+# Usa os blocos opcionais do schema v1 (auth.csrf, auth.account_map, auth.login_limit, auth.token_expired,
+# probe.error_codes): cada um responde a um item de NOTES.md.
+# Valores de autorizacao sao do laboratorio local, nao de um ambiente de empresa.
+schema_version: 1
+product: clinica-piloto
+
+environment:
+  name: lab
+  # Nome DNS do servico dentro da rede interna do lab (apelido definido em lab/pilot/compose.lab-net.yaml).
+  base_url: http://clinica-piloto:8080
+
+openapi: ./openapi.json
+
+scope:
+  allow:
+    - host: clinica-piloto
+      scheme: http
+      port: 8080
+      allow_local: true          # nome de rotulo unico = host local (docs/reference/target-yml.md)
+      paths: ["/api/**", "/v3/api-docs"]
+      methods: [GET, POST, PUT, PATCH]   # DELETE fica de fora de proposito (sem autorizacao para apagar)
+  deny_paths:
+    - "/api/notificacoes/**"     # simula envio de SMS/e-mail: nunca deve ser chamado por um teste bem configurado
+  authorization:
+    reference: "LAB-CLINICA-PILOTO"
+    valid_until: 2027-12-31
+  windows:
+    - "seg-dom 00:00-24:00 America/Sao_Paulo"
+
+limits:
+  requests_per_second: 50
+  max_duration_minutes: 30
+  zap_threads_per_host: 8
+
+probe:
+  health_path: /api/saude
+  # O HTTP ja diz a verdade neste alvo; a regra so protege contra um 2xx com envelope de erro.
+  success:
+    json_field_absent_or_not_equal: { field: code, value: ERRO_INTERNO }
+  # Classificacao exata pelo campo `code` do corpo de erro (README do alvo, secao 3). Os codigos de
+  # regra de estado (TRANSICAO_INVALIDA...) nao sao falha de dado nem do alvo: ficam em client_error.
+  error_codes:
+    field: code
+    outcomes:
+      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO]
+      conflict: [CONFLITO]
+      not_found: [NAO_ENCONTRADO, REFERENCIA_INEXISTENTE]
+      csrf_error: [XSRF_INVALIDO]
+      auth_error: [NAO_AUTENTICADO, TOKEN_INVALIDO, TOKEN_EXPIRADO, CREDENCIAIS_INVALIDAS, ACESSO_NEGADO]
+      rate_limited: [LIMITE_EXCEDIDO]
+      client_error: [TRANSICAO_INVALIDA, CONSULTA_CANCELADA, EM_USO]
+      server_error: [ERRO_INTERNO]
+
+auth:
+  type: login_password
+  token_path: /api/auth/login
+  request_encoding: json
+  username_field: username
+  password_field: password
+  token_response_field: access_token
+  token_header: Authorization
+  token_scheme: Bearer
+  # Escritas exigem o par XSRF (cookie + cabecalho); o login e isento (README do alvo, secao 2).
+  csrf:
+    fetch_path: /api/csrf
+    cookie_name: XSRF-TOKEN
+    header_name: X-XSRF-TOKEN
+    methods: [POST, PUT, PATCH, DELETE]
+  # O alvo aceita 5 logins por minuto por origem e conta tambem os que falham.
+  login_limit:
+    max_per_minute: 5
+  # Token vencido: 401 com code = TOKEN_EXPIRADO (TOKEN_INVALIDO nao e vencimento).
+  token_expired: { field: code, value: TOKEN_EXPIRADO }
+  # Quem pode o que (README do alvo, tabela de endpoints). So aliases; o agente nunca ve credenciais.
+  default_account: admin_a
+  account_map:
+    - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
+    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita] }
+    - { account: paciente_a, operations: [obterPerfil, atualizarPerfil] }
+  accounts:
+    # Os nomes das variaveis sao os mesmos de lab/pilot/.env.example.
+    - alias: admin_a
+      role: admin
+      username: { secret_ref: "env:PILOT_ADMIN_USERNAME" }
+      password: { secret_ref: "env:PILOT_ADMIN_PASSWORD" }
+    - alias: medico_a
+      role: medico
+      username: { secret_ref: "env:PILOT_MEDICO_USERNAME" }
+      password: { secret_ref: "env:PILOT_MEDICO_PASSWORD" }
+    - alias: paciente_a
+      role: paciente
+      username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }
+      password: { secret_ref: "env:PILOT_PACIENTE_A_PASSWORD" }
+    - alias: paciente_b
+      role: paciente
+      username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
+      password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
+
+cleanup:
+  type: oracle_sql
+  script: ./cleanup/cleanup.sql
+  # Oracle do lab (`hdast stack up clinica-piloto --oracle`): DSN sem usuario nem senha; o usuario de banco so da
+  # limpeza (lab/pilot/cleanup/create-cleanup-user.sql) tem apenas SELECT e DELETE nas cinco tabelas de teste.
+  connection: { secret_ref: "env:PILOT_ORACLE_CLEANUP_CONNECTION" }
+  user: { secret_ref: "env:PILOT_ORACLE_CLEANUP_USER" }
+  password: { secret_ref: "env:PILOT_ORACLE_CLEANUP_PASSWORD" }
+  # Tabelas e teto vem da pessoa dona do produto (aqui, as do script e as ~centenas de linhas que um scan cria).
+  allowed_tables: [RECEITA, CONSULTA, PACIENTE, MEDICO, CONVENIO]
+  max_rows: 5000
+  db_schema: CLINICA
+  requires_confirmation: true

@@ -1,0 +1,24 @@
+# =============================================================================
+# MODELO: flows.yml. Dependências entre operações (encadeamento de dados).
+#
+# Schema versão 1, validado por `domain/flow.py`. A referência campo a campo
+# está em docs/reference/flows-yml.md.
+#
+# Por que existe: muitas operações precisam de um identificador devolvido por
+# outra (criar paciente -> buscar paciente). Sem isso, o ZAP usaria ids
+# inventados e só veria erros 404. Cada binding diz qual operação PRODUZ um
+# valor e quais operações o CONSOMEM.
+#
+# Vários níveis são aceitos (ADR 0021): convênio -> paciente -> consulta -> receita.
+# O grafo não pode ter ciclo nem auto-referência, e a cadeia vai até 6 operações
+# (MAX_FLOW_DEPTH). Cada destino (operação + param/field) tem uma só fonte.
+# =============================================================================
+schema_version: 1
+
+bindings:
+  - produces: { operation: criarPaciente, field: id }   # operationId + caminho do campo na resposta (ex.: id, data.id)
+    consumed_by:
+      # `param` = parâmetro de caminho/consulta/cabeçalho; `field` = campo do corpo
+      # (aceita caminho com pontos). Informe exatamente um dos dois.
+      - { operation: buscarPaciente, param: pacienteId }
+      - { operation: criarConsulta, field: pacienteId }
