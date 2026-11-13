@@ -36,3 +36,11 @@ Vamos:
 - A lista de padrões conhecidos é curta de propósito (um padrão). Cada nota nova exige teste e passa por revisão, porque pode induzir a descartar um achado real.
 - `report.html` é mais um arquivo a manter em sincronia com `report.md`; os dois derivam do mesmo `FindingsReport`.
 - O teste de ponta a ponta com o agente (um pedido só) ainda não foi medido na avaliação cega: a skill existe e o contrato dela é conferido, mas a rodada cega com ela está pendente.
+
+## Adendo (2026-11-13): achados de autorização entre contas e o agrupamento
+
+Não altera a decisão acima; registra o que ficou decidido quando o ADR [0027](0027-teste-de-autorizacao-entre-contas.md) chegou ao mesmo relatório.
+
+- **Decisão:** os achados de `authz` (`A-<8 hex>`, em `findings.json` `authz.findings`) **não entram em `groups`**. A regra de agrupamento (versão 1) usa a regra do ZAP (`alert_ref`), o vetor de entrada e o parâmetro, que um achado de autorização não tem; e cada achado de `authz` já é um por operação e técnica, com os campos envolvidos (só nomes) no próprio achado. Forçá-los na chave do ZAP criaria um "grupo" sem regra do ZAP ou obrigaria a mudar `GROUPING_VERSION` e os ids `G-` de quem já consome o campo. O item 5 da decisão ("origens novas entram pela mesma regra") fica como capacidade do código, não como o que o `report` faz hoje.
+- **O que garante que não somem:** `summary.authz_by_severity` (aditivo), cartões próprios e a linha "Autorização entre contas" no resumo de `report.html`, a seção própria com uma divisão por técnica (visão só da página, não identidade), os passos de "o que fazer agora" e o `--fail-on`, que conta os dois tipos. `summary.total` e `summary.by_severity` seguem sendo só do ZAP, e `groups` continua cobrindo exatamente os achados de `findings`.
+- **Quando rever:** se uma execução real trouxer muitos achados de `authz` com a mesma causa (o mesmo campo exposto em várias listagens, por exemplo), um ADR novo pode agrupá-los por técnica e campo, com versão própria do agrupamento.
