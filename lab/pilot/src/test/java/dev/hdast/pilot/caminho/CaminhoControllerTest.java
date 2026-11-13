@@ -14,6 +14,12 @@ class CaminhoControllerTest {
         assertThat(CaminhoController.atrasoDaInjecao("00000001")).isZero();
         assertThat(CaminhoController.atrasoDaInjecao("sleep(5)")).isZero(); // sem sinal de injeção
         assertThat(CaminhoController.atrasoDaInjecao("' or sleep(999) #")).isEqualTo(16000);
+        assertThat(CaminhoController.atrasoDaInjecao("case when cast(pg_sleep(15.0) as varchar) > '' then 0 else 1 end"))
+                .isEqualTo(15000);
+        assertThat(CaminhoController.atrasoDaInjecao("x' / dbms_pipe.receive_message(('RDS'),4) / '")).isEqualTo(4000);
+        assertThat(CaminhoController.atrasoDaInjecao("1'; waitfor delay '0:0:3' --")).isEqualTo(3000);
+        // payload de template/shell com "sleep 15" solto não é SQL: sem atraso (evita falso positivo de SSTI)
+        assertThat(CaminhoController.atrasoDaInjecao("<#assign ex=\"x\"?new()> ${ ex(\"sleep 15\") }")).isZero();
     }
 
     @Test

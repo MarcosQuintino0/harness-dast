@@ -36,10 +36,13 @@ public class CaminhoController {
     /** Teto do atraso que a "injeção temporal" simulada consegue provocar (ms). */
     static final long TETO_ATRASO_INJECAO_MS = 16_000;
 
-    // Funções de espera de vários bancos (MySQL, PostgreSQL, Oracle, SQL Server) e o número de segundos.
+    // Chamadas de espera de vários bancos, COM parênteses (MySQL sleep(N), PostgreSQL pg_sleep(N), Oracle
+    // dbms_lock.sleep(N) e dbms_pipe.receive_message(('x'),N), SQL Server WAITFOR DELAY '0:0:N'). Um "sleep 15" solto
+    // (shell, template) não é SQL e não atrasa a consulta simulada.
     private static final Pattern ESPERA = Pattern.compile(
-            "(?i)(?:sleep|pg_sleep|dbms_lock\\.sleep|benchmark|receive_message\\s*\\(\\s*\\(?\\s*'[^']*'\\s*\\)?\\s*,)"
-                    + "\\s*\\(?\\s*(\\d{1,3})|waitfor\\s+delay\\s+'\\d+:\\d+:(\\d{1,3})");
+            "(?i)(?:pg_sleep|dbms_lock\\.sleep|sleep)\\s*\\(\\s*(\\d{1,3})"
+                    + "|receive_message\\s*\\(\\s*\\(?\\s*'[^']*'\\s*\\)?\\s*,\\s*(\\d{1,3})"
+                    + "|waitfor\\s+delay\\s+'\\d+:\\d+:(\\d{1,3})");
 
     /** Sistema de arquivos SIMULADO: nada é lido do disco. */
     private static final Map<String, String> ARQUIVOS = Map.of(
@@ -153,7 +156,7 @@ public class CaminhoController {
         Matcher m = ESPERA.matcher(valor);
         long total = 0;
         while (m.find()) {
-            String n = m.group(1) != null ? m.group(1) : m.group(2);
+            String n = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
             total += Long.parseLong(n) * 1000;
         }
         return Math.min(total, TETO_ATRASO_INJECAO_MS);
