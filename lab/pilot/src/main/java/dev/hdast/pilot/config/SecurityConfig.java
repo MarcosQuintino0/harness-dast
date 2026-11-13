@@ -48,6 +48,21 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(8);
     }
 
+    /**
+     * Modo vulnerável (H9): o firewall aceita {@code %2f} e {@code ;} no caminho (o padrão do Spring Security os recusa
+     * com 400). No modo corrigido vale o padrão.
+     */
+    @Bean
+    org.springframework.security.web.firewall.HttpFirewall httpFirewall(PilotProperties props) {
+        org.springframework.security.web.firewall.StrictHttpFirewall firewall =
+                new org.springframework.security.web.firewall.StrictHttpFirewall();
+        if (props.vulnerable()) {
+            firewall.setAllowUrlEncodedSlash(true);
+            firewall.setAllowSemicolon(true);
+        }
+        return firewall;
+    }
+
     /** Porta de gestão: sem autenticação, mas só alcançável pela porta separada (ver EdgeFilter). */
     @Bean
     @Order(1)

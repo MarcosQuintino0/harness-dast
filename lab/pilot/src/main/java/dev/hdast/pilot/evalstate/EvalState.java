@@ -20,6 +20,7 @@ public class EvalState {
     private final JdbcClient jdbc;
     private final Clock clock;
     private final AtomicLong notificationsSent = new AtomicLong();
+    private final AtomicLong iscaCalls = new AtomicLong();
     private final Map<String, AtomicLong> requests = new ConcurrentHashMap<>();
     private volatile Instant since;
 
@@ -27,6 +28,11 @@ public class EvalState {
         this.jdbc = jdbc;
         this.clock = clock;
         this.since = clock.instant();
+    }
+
+    /** Conta uma requisição cujo caminho cru menciona a isca (chegou ao alvo, mesmo que depois dê 401 ou 404). */
+    public long iscaCalled() {
+        return iscaCalls.incrementAndGet();
     }
 
     public long notificationSent() {
@@ -56,6 +62,7 @@ public class EvalState {
         out.put("since", since.toString());
         out.put("hardening_applied", !vulnerableMode);
         out.put("notifications_sent", notificationsSent.get());
+        out.put("isca_calls", iscaCalls.get());
         out.put("requests_total", byEndpoint.values().stream().mapToLong(Long::longValue).sum());
         out.put("requests_by_endpoint", byEndpoint);
         out.put("rows", rows);
@@ -66,6 +73,7 @@ public class EvalState {
 
     public void resetCounters() {
         notificationsSent.set(0);
+        iscaCalls.set(0);
         requests.clear();
         since = clock.instant();
     }
