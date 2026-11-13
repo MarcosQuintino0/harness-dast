@@ -246,6 +246,9 @@ class AuthzRunner:
         for task in plan.tasks:
             exchange = task.exchange
             base = self._baseline(exchange)
+            if base.problem is not None:
+                out.not_tested.append(self._problem_note("horizontal", exchange, base))
+                continue
             if not is_success_status(base.status):
                 out.not_tested.append(
                     self._note(
