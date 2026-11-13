@@ -96,6 +96,9 @@ class ExpectedProfile(Frozen):
     limits: LimitsExpected
     accounts: tuple[AccountExpected, ...]
     cleanup: Literal["absent", "present"] = "absent"
+    # Modo de leitura de caminhos da cerca (ADR 0026). A carta-modelo dos casos e estrita: o
+    # perfil so pode dizer `wide` se a carta o autorizar.
+    path_mode: Literal["strict", "wide"] = "strict"
 
 
 class SecretsConfig(Frozen):

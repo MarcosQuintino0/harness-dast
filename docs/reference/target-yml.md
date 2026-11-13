@@ -47,6 +47,7 @@ scope:
   authorization:
     reference: "SEC-1234"
     valid_until: 2027-01-31
+  path_mode: strict          # padrão; "wide" só com autorização escrita na carta
   windows: ["seg-sex 20:00-06:00 America/Sao_Paulo"]
 limits:
   requests_per_second: 5
@@ -109,6 +110,7 @@ A consistência entre `base_url` e o escopo é conferida ao montar o perfil. O c
 | `allow` | lista de regras | De 1 a 100 regras |
 | `deny_paths` | lista de padrões | Padrão: vazia. Até 200. Valem para **qualquer host** |
 | `authorization` | bloco | Veja abaixo |
+| `path_mode` | `strict` ou `wide` | Padrão `strict`. Como o proxy de escopo lê caminhos ambíguos (veja `scope.path_mode`). **Só vale se a carta de autorização o autoriza**; o agente nunca escolhe `wide` |
 | `windows` | lista de janelas | De 1 a 20. A execução é permitida quando **qualquer** janela está aberta |
 
 ### `scope.allow[]` (regra de permissão)
@@ -184,6 +186,21 @@ Para cada requisição, depois da normalização, na ordem:
 4. O método precisa estar na lista de uma regra que casou a origem e o caminho.
 
 Tudo que não é explicitamente permitido é recusado (falha fechada).
+
+### `scope.path_mode`
+
+Decide só como o **proxy de escopo** (a cerca por onde passa todo pedido do ZAP) lê o caminho. Valores: `strict` (padrão) e `wide`. Qualquer outro valor, número, lista ou `null` é recusado (`CONFIG_ERROR`). Não existe flag de linha de comando que o ligue. Decisão e risco: [ADR 0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md).
+
+| Modo | Caminho com `;`, `%2f`, `%5c`, `%252e`, `//`, `%` solto, ponto ou espaço final | `deny_paths` |
+| --- | --- | --- |
+| `strict` | Recusado (`malformed_request`; o código granular vai em `detail`) | Conferido sobre a forma canônica |
+| `wide` | Liberado se a **leitura literal** (decodificada uma vez, separada pelas barras cruas) casar com `scope.allow` e com o método | Recusa se **qualquer** leitura que um servidor poderia fazer do caminho casar (`%2f` como barra, `;param` removido, ponto e espaço aparados, decodificação repetida, `.`/`..` resolvidos, `//` colapsado, caixa, NFKC, sufixo de formato como `.json`) |
+
+No modo `wide` continuam recusados: segmento `.` ou `..` (cru ou codificado uma vez), NUL e caracteres de controle, UTF-8 inválido, credenciais na URL, e tudo de host, porta, esquema, método e tamanho da URL. Só o proxy usa o modo: `probe`, `preflight`, o cliente do alvo, redirecionamentos e o plano da CLI continuam estritos.
+
+**Risco aceito no modo `wide`:** uma leitura do caminho que caia fora de `scope.allow` sem casar `deny_paths` **não** é recusada. O pedido liberado pode chegar a outro caminho do mesmo host (host e porta nunca mudam). O que não pode ser tocado precisa estar em `deny_paths`. O relatório conta quantos pedidos liberados tiveram essa leitura (`traffic.allowed_outside_allow`).
+
+Sufixo de formato: no modo `strict`, `deny_paths: /api/admin` não cobre `/api/admin.json` (a comparação é por segmento inteiro). Negue a grafia que importa, ou use `wide`, que confere o sufixo removido.
 
 ### `scope.authorization`
 

@@ -16,6 +16,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Caminhos autorizados: /api/** e /v3/api-docs
    Métodos autorizados: GET, POST, PUT e PATCH (DELETE NÃO é autorizado)
    Caminhos PROIBIDOS: /api/notificacoes/** (dispara envio de SMS e e-mail a terceiros)
+   Modo de leitura de caminhos pela cerca: ESTRITO (o modo amplo NÃO é autorizado)
    OpenAPI: inputs/openapi.json
 
 4. Janela de execução: seg-dom 00:00-24:00 America/Sao_Paulo

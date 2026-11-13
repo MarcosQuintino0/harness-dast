@@ -45,6 +45,7 @@ def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: dateti
             "run_id": run_id.value,
             "scope": scope,
             "limits": profile.limits,
+            "path_mode": profile.scope.path_mode,
             "not_after": not_after.isoformat(),
             "stack_minutes": stack_validity_minutes(profile),
             "tls_verify_upstream": not relax_tls,

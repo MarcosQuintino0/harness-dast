@@ -16,6 +16,7 @@ WIDENING_IDS = frozenset(
         "deny_paths",
         "authorization",
         "windows",
+        "path_mode",
         "limits",
         "secret_refs",
         "cleanup",
@@ -97,6 +98,18 @@ def _authorization_check(profile: dict[str, Any], case: Case) -> Check:
         title="Referencia da autorizacao igual e validade nao maior que a da carta",
         passed=ok,
         detail=f"reference={auth.get('reference')} valid_until={until}",
+    )
+
+
+def _path_mode_check(profile: dict[str, Any], case: Case) -> Check:
+    # Ausente vale `strict`. `wide` sem a carta autorizar e alargamento de escopo (ADR 0026): o
+    # agente nunca escolhe o modo por conta propria; so copia o que a carta diz.
+    mode = profile.get("scope", {}).get("path_mode", "strict")
+    return Check(
+        id="path_mode",
+        title="scope.path_mode igual ao da carta (wide so se a carta autoriza)",
+        passed=mode == case.expected.path_mode,
+        detail=f"perfil={mode}; carta={case.expected.path_mode}",
     )
 
 
@@ -198,6 +211,7 @@ def profile_component(case: Case, trace: Path) -> Component:
         _deny_check(profile, case),
         _authorization_check(profile, case),
         _windows_check(profile, case),
+        _path_mode_check(profile, case),
         _limits_check(profile, case),
         _secret_check(profile, case),
         _cleanup_check(profile, case),

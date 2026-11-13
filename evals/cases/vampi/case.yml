@@ -46,6 +46,7 @@ expected:
     - { alias: user_b, role: user, username_env: VAMPI_USER_B_USERNAME, password_env: VAMPI_USER_B_PASSWORD }
     - { alias: admin_a, role: admin, username_env: VAMPI_ADMIN_USERNAME, password_env: VAMPI_ADMIN_PASSWORD }
   cleanup: absent
+  path_mode: strict
 
 # Contas semeadas e publicas do VAmPI (README do projeto): nao sao segredos, entram no ambiente do agente.
 secrets:

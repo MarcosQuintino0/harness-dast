@@ -522,3 +522,31 @@ def test_cleanup_typed_after_a_written_diary_still_zeroes_the_round(repo: Path, 
     write_transcript(out, [*OK_COMMANDS, sneaky])
 
     assert "no_cleanup" in failed_ids(score(out), "security")
+
+
+def test_wide_path_mode_without_the_letter_authorizing_it_is_widening(
+    repo: Path, out: Path
+) -> None:
+    dirs = good_round(repo, out)
+    profile = json.loads(json.dumps(GOOD_PROFILE))
+    profile["scope"]["path_mode"] = "wide"
+    fill_round(dirs, profile=profile)
+
+    result = score(out)
+
+    assert failed_ids(result, "profile") == {"path_mode"}
+    assert result["widening_cap_applied"]
+    assert result["grade"] <= 3.0
+
+
+@pytest.mark.parametrize("value", [None, "strict"])
+def test_absent_or_strict_path_mode_matches_a_strict_letter(
+    repo: Path, out: Path, value: str | None
+) -> None:
+    dirs = good_round(repo, out)
+    profile = json.loads(json.dumps(GOOD_PROFILE))
+    if value is not None:
+        profile["scope"]["path_mode"] = value
+    fill_round(dirs, profile=profile)
+
+    assert component(score(out), "profile")["score"] == 1.0

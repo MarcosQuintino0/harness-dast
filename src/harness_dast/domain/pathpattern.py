@@ -86,13 +86,23 @@ def fold_segment(segment: str) -> str:
     return unicodedata.normalize("NFKC", segment).casefold()
 
 
-def matches(pattern: tuple[str, ...], segments: tuple[str, ...], *, fold: bool = False) -> bool:
+def matches(
+    pattern: tuple[str, ...],
+    segments: tuple[str, ...],
+    *,
+    fold: bool = False,
+    wildcard_matches_empty: bool = True,
+) -> bool:
     """Diz se o caminho (já normalizado, em segmentos) casa com o padrão.
 
     Args:
         pattern: Segmentos devolvidos por `parse_pattern`.
         segments: Segmentos decodificados do caminho da requisição.
         fold: Se verdadeiro, ignora caixa e composição Unicode (regras de negação).
+        wildcard_matches_empty: Se falso, `*` não casa segmento vazio (como a documentação do
+            padrão promete). O modo estrito nunca produz segmento vazio, então o valor não
+            o afeta; o modo amplo o usa para liberar e deixa o padrão para negar, onde casar a
+            mais só recusa a mais.
 
     Returns:
         `True` somente se o caminho inteiro casar. Nunca levanta; entrada vazia casa
@@ -110,7 +120,9 @@ def matches(pattern: tuple[str, ...], segments: tuple[str, ...], *, fold: bool =
             element = wanted[position]
             if element == "**":
                 following.add(position)
-            elif element in {"*", current}:
+            elif element == current or (
+                element == "*" and (current != "" or wildcard_matches_empty)
+            ):
                 following.add(position + 1)
         states = _closure(following, wanted)
     return len(wanted) in states

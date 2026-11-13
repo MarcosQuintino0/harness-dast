@@ -46,5 +46,6 @@ def _row(line: str) -> ProxyRow:
             "decision": raw["decision"],
             "reason": raw["reason"],
             "method": raw["method"],
+            "detail": raw.get("detail"),
         }
     )

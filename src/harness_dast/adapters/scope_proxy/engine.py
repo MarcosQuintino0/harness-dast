@@ -26,7 +26,7 @@ from harness_dast.adapters.scope_proxy.policy import KILL_FLAG_NAME, ProxyPolicy
 from harness_dast.adapters.scope_proxy.ratelimit import RateLimiter
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.host import parse_host
-from harness_dast.domain.urlnorm import default_port, normalize_request
+from harness_dast.domain.urlnorm import default_port, split_request
 
 
 class ScopeProxyEngine:
@@ -54,7 +54,7 @@ class ScopeProxyEngine:
         """
         self._policy = policy
         self._now = now
-        self._decider = ScopeDecider(policy.scope)
+        self._decider = ScopeDecider(policy.scope, policy.path_mode)
         self._gate = RunGate(
             kill_flag=policy_dir / KILL_FLAG_NAME,
             deadline=deadline_of(policy, now()),
@@ -142,6 +142,7 @@ class ScopeProxyEngine:
                 query_params=tuple(names),
                 decision="allow" if verdict.allowed else "deny",
                 reason=verdict.reason.value,
+                detail=verdict.detail,
                 status=status,
                 bytes=size,
                 duration_ms=duration_ms,
@@ -173,8 +174,10 @@ def _host_header_matches(host_header: str | None, url: str) -> bool:
     if not host_header or _HOST_HEADER.fullmatch(host_header) is None:
         return False
     try:
-        target = normalize_request("GET", url)
-        claimed = normalize_request("GET", f"{target.scheme}://{host_header}/")
+        # `split_request` (e não `normalize_request`): o caminho já foi decidido pelo guarda do
+        # modo da política; aqui só a origem importa, e no modo amplo o caminho pode ter `;`.
+        target = split_request("GET", url)
+        claimed = split_request("GET", f"{target.scheme}://{host_header}/")
     except ScopeViolation:
         return False
     return claimed.host == target.host and claimed.port == target.port

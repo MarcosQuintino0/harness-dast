@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv6Address
 
 from harness_dast.domain.errors import ScopeViolation
+from harness_dast.domain.scope_reason import ScopeReason
 
 _HINT = "Revise a URL; o escopo é imposto sobre a forma canônica e URLs ambíguas são recusadas."
 
@@ -23,9 +24,15 @@ _METADATA_NAMES = frozenset({"metadata.google.internal", "metadata", "instance-d
 _LOCAL_SUFFIXES = (".localhost", ".local", ".internal")
 
 
-def violation(message: str, hint: str = _HINT) -> ScopeViolation:
-    """Cria a `ScopeViolation` padrão da normalização, com dica de como corrigir."""
-    return ScopeViolation(message, hint=hint)
+def violation(
+    message: str, hint: str = _HINT, *, reason: ScopeReason = ScopeReason.HOST_INVALID
+) -> ScopeViolation:
+    """Cria a `ScopeViolation` padrão da normalização, com dica e código de motivo.
+
+    O código padrão é `host_invalid` porque a maioria das chamadas está neste módulo; quem
+    recusa outra coisa (caminho, porta, esquema) passa o código certo.
+    """
+    return ScopeViolation(message, hint=hint, reason=reason)
 
 
 def safe_text(text: str) -> str:
