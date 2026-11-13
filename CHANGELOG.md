@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### V1.1, ADR 0030: cofre de senhas local
+
+- Segundo tipo de referência: `secret_ref: "keyring:NOME"` lê o cofre de credenciais do sistema (Gerenciador de Credenciais do Windows, Keychain do macOS, Secret Service do Linux) pela biblioteca `keyring` 25.7 (MIT, versão travada no `uv.lock`). `env:` continua igual e continua sendo o caminho do CI e da avaliação cega.
+- Comando `hdast secret set|list|delete`: `set` lê o valor por prompt oculto e `delete` pede o nome digitado, ambos só em terminal interativo (sem terminal, recusam com saída 2); `list PRODUTO` mostra só nomes e se existem. Nenhum mostra valor nem tamanho. `.claude/settings.json` nega ao agente `secret set` e `secret delete`.
+- `preflight` e `doctor` conferem a presença dos segredos do cofre como os de ambiente e dizem o comando para resolver (`hdast secret set NOME`), sem valor.
+- Só backends do próprio sistema são aceitos (lista fixa); sem cofre utilizável o erro é `SECRET_BACKEND_ERROR` (saída 4) com a dica de usar `env:NOME`. Nunca cai em silêncio para variável de ambiente ou arquivo.
+- O valor do cofre entra no mesmo conjunto de mascaramento dos de ambiente. Nova porta `CredentialStore` e `SecretPrompt`; `RoutingSecretProvider` despacha por `SecretRef.kind`.
+- Avaliação cega: `keyring:` no perfil reprova a checagem `secret_refs` (a carta usa `env:`) e `hdast secret set|delete` no transcript zera a rodada.
+- Todo teste passa por uma trava global (`tests/conftest.py`) que impede abrir o cofre real da máquina. Ainda não verificado no cofre real de uma máquina.
+
 ### V1.1, ADR 0026: a cerca diz por que recusou e ganha o modo amplo de caminho
 
 Tudo isto é código e testes; a prova em laboratório contra o proxy e o ZAP reais ainda não foi feita (outra pessoa a mede agora).

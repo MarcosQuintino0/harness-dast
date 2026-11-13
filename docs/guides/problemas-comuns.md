@@ -27,7 +27,9 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | `port:8080` ou `port:3128` falha | Outro programa usa a porta | Feche-o, ou defina `HDAST_ZAP_HOST_PORT` / `HDAST_PROXY_HOST_PORT` com outra porta |
 | `stack` avisa que venceu | A validade da pilha acabou (duração máxima mais 60 minutos de folga, ou fim da janela ou da autorização) | `hdast stack up` de novo |
 | `profile` falha | Perfil inválido ou com valores do modelo (`PLACEHOLDER_*`) | `hdast profile validate <produto>` mostra o que preencher |
-| `secrets:<apelido>` falha | Variável de ambiente do segredo não definida neste terminal | Defina a variável (o nome aparece no texto, nunca no JSON) e abra o terminal de novo |
+| `secrets:<apelido>` falha | Segredo não definido: variável de ambiente (`env:`) ausente neste terminal, ou nome (`keyring:`) ainda não gravado no cofre | Para `env:`, defina a variável e abra o terminal de novo. Para `keyring:`, rode num terminal seu `uv run hdast secret set NOME` (o nome aparece no texto, nunca no JSON) |
+| `secrets:<apelido>` ou outro comando falha com `SECRET_BACKEND_ERROR` | O cofre do sistema não está utilizável: contêiner, CI, Linux sem serviço de segredos, cofre bloqueado, ou backend que o harness não aceita | Em contêiner ou CI, use `secret_ref: env:NOME`. No Linux, instale e desbloqueie o GNOME Keyring ou o KWallet. No Windows e no macOS, confira se a sessão está desbloqueada |
+| `hdast secret set` recusa: "só uma pessoa, num terminal interativo" | Rodou sem terminal (agente, script, entrada redirecionada) | Abra um terminal seu e rode o comando lá. Não há flag que o dispense |
 
 ## Cadastro e perfil
 

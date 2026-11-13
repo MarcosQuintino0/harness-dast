@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz` e o que os ADRs 0026 a 0029 acrescentam existem como código e testes e **ainda não foram verificados em laboratório** (veja a seção V1.1 do [roadmap](../roadmap.md)).
+`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz` e o que os ADRs 0026 a 0029 acrescentam existem como código e testes e **ainda não foram verificados em laboratório** (veja a seção V1.1 do [roadmap](../roadmap.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -19,6 +19,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); ainda não verificado contra a Clínica Piloto real. Referência: [authz.md](authz.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json`, `report.md` e `report.html`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
+| `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
 | `hdast run <produto>` | Encadeia preflight, probe, scan, authz (opcional, `--authz`) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
@@ -138,7 +139,7 @@ Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`
 | `stack` | Só com pilha gerenciada: se ainda vale (`not_after`) | `warn` se venceu |
 | `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |
 | `authorization`, `window` | Com produto: mesma regra do `preflight` | `fail` (tipo `scope`) |
-| `secrets:<apelido>` | Com produto: as variáveis de `secret_ref` de cada conta estão definidas (o nome da variável só aparece no texto, nunca no JSON) | `fail` |
+| `secrets:<apelido>` | Com produto: os segredos de `secret_ref` de cada conta existem, como variável de ambiente (`env:`) ou no cofre do sistema (`keyring:`). O nome só aparece no texto, nunca no JSON; para `keyring:` o texto traz o comando `hdast secret set NOME`. Cofre inutilizável também reprova, com a dica | `fail` |
 | `path_mode` | Com produto: só aparece se o perfil tem `scope.path_mode: wide` | `warn`: o modo amplo só é seguro com `deny_paths` completo e só vale se a carta o autoriza |
 | `authz_peers` | Com produto: nenhum papel tem duas contas em `auth.accounts` | `warn`: o teste de autorização horizontal (`run --authz`, `authz`) não poderá comparar contas; sem `--authz` nada muda |
 
@@ -343,6 +344,28 @@ Sem `--dry-run`, só roda com terminal interativo (entrada e saída de erro): a 
 
 **Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/`: `cleanup.json` (o mesmo `data`), `cleanup-audit.jsonl` (linhas `started` e `finished`, também numa exceção inesperada) e `cleanup-confirmation.json` (resíduo: só o hash de um token que a CLI não expõe).
 
+## `hdast secret`
+
+```bash
+uv run hdast secret set AGENDA_USER_A_SENHA
+uv run hdast secret list meu-produto
+uv run hdast secret delete AGENDA_USER_A_SENHA
+```
+
+Guarda as senhas das contas de teste no cofre de credenciais do sistema operacional, para `secret_ref: "keyring:NOME"` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)). **O agente de IA não grava nem remove segredo**: `set` e `delete` só funcionam em terminal interativo (entrada e saída de erro) e `.claude/settings.json` os nega ao agente. Nenhum subcomando mostra o valor nem o tamanho.
+
+| Subcomando | O que faz |
+| --- | --- |
+| `set NOME` | Pede o valor num prompt **oculto**, duas vezes. Nunca por argumento, variável nem entrada redirecionada; não existe `--value`. Sem terminal: recusa (`CONFIG_ERROR`, saída `2`). Valor vazio é recusado. Substitui o que já houver |
+| `list PRODUTO` | Para cada `keyring:` que o perfil do produto cita: o `NOME`, os campos que o usam (`used_by`) e `present` (existe e não está vazio). Só leitura, funciona sem terminal e fica liberado ao agente. `env:` não aparece (veja o `doctor`) |
+| `delete NOME` | Pede que você **digite o NOME** para confirmar. Sem terminal: recusa. Nome inexistente não pede nada e diz que não existe |
+
+`NOME` segue o formato de `secret_ref` (maiúsculas, dígitos e `_`; sem prefixo `HDAST_`). Todos aceitam `--products-dir` (usado só pelo `list`, para achar o perfil).
+
+`data` de `set`: `{name, replaced}`. De `delete`: `{name, removed, existed}`. De `list`: `{product, entries: [{name, used_by, present}]}`.
+
+Só o cofre do próprio sistema é aceito (Windows Credential Manager, macOS Keychain, Secret Service ou KWallet no Linux). Sem ele (contêiner, CI), o erro é `SECRET_BACKEND_ERROR` (saída `4`) com a dica de usar `env:NOME`; nada cai em silêncio para variável de ambiente ou arquivo.
+
 ## Envelope JSON
 
 Com `--json`, o resultado vai para `stdout` como uma linha JSON. Campos sem valor são omitidos.
@@ -397,6 +420,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | `CONFIG_ERROR` | `ConfigError`: configuração, perfil ou argumento inválido (inclui erro de uso da linha de comando) | 2 |
 | `SCOPE_VIOLATION` | `ScopeViolation`: ação fora do escopo, dos limites ou da janela | 3 |
 | `PREFLIGHT_FAILED` | `PreflightError`: verificação anterior à execução falhou | 4 |
+| `SECRET_BACKEND_ERROR` | `SecretBackendError`: o cofre de credenciais do sistema (`keyring:`) não está utilizável | 4 |
 | `EXTERNAL_TOOL_ERROR` | `ExternalToolError`: ferramenta externa (ZAP, Docker) indisponível ou com resposta inválida | 5 |
 | `TARGET_ERROR` | `TargetError`: o alvo respondeu de forma que impede o prosseguimento | 6 |
 | `CLEANUP_FAILED` | `CleanupError`: a limpeza falhou | 7 |

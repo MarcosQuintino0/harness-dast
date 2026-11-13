@@ -78,7 +78,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 | Janela | `scope.windows` |
 | Limites | `limits.requests_per_second`, `max_duration_minutes`, `zap_threads_per_host` |
 | Logins por minuto | `auth.login_limit.max_per_minute` |
-| Contas e variáveis | `auth.accounts` (`alias`, `role`, `secret_ref: "env:NOME"`) |
+| Contas e nomes dos segredos | `auth.accounts` (`alias`, `role`, `secret_ref: "env:NOME"` ou `"keyring:NOME"`). A carta lista só os **nomes**, nunca a senha: quem a guarda é o time de QA, na própria máquina |
 | Limpeza | bloco `cleanup` (escrito pela pessoa; o agente nunca o inventa) |
 | OpenAPI | `openapi` |
 | Contato de emergência | fora do perfil: quem para a execução (`hdast stop`) e quem autoriza ampliações |
