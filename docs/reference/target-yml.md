@@ -87,6 +87,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `cleanup` | bloco | Não | Padrão: ausente |
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 | `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
+| `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -386,6 +387,28 @@ scan:
   threshold: MEDIUM
   fail_on: high
 ```
+
+## `authz` (opcional)
+
+Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
+
+| Campo | Tipo | Padrão | Regra |
+| --- | --- | --- | --- |
+| `public_operations` | lista de `operationId` (até 200) | vazia | Operações legitimamente públicas ou compartilhadas entre contas: BOLA e BFLA as ignoram (sem isto, um recurso público viraria alarme falso). Operação que não existe no OpenAPI é erro de configuração |
+| `role_order` | lista de papéis (até 20) | vazia | Papéis do MENOR para o MAIOR privilégio (os `role` de `auth.accounts`). Necessário para a verificação vertical; sem ele o estágio diz que não pôde testar |
+| `volatile_fields` | lista de nomes de campo (até 50) | vazia | Campos ignorados ao comparar respostas, além de `timestamp`, `requestId`, `traceId`, `correlationId`, `date`, `now`, `elapsed`, `etag`, `nonce` (a comparação ignora maiúsculas e separadores) |
+| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Escrita só entra se o perfil listar |
+| `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa. `value` é texto, inteiro ou booleano |
+| `disabled_checks` | lista de `horizontal`, `excessive_data`, `vertical`, `mass_assignment` | vazia | Verificações desligadas |
+
+```yaml
+authz:
+  role_order: [paciente, medico, admin]
+  public_operations: [lerCatalogo]
+  volatile_fields: [versaoDoItem]
+```
+
+Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do mesmo papel em `auth.accounts`, e a operação precisa ser roteada (`auth.account_map`) para uma delas; sem isso o estágio registra `no_peer_account` em vez de dar verde.
 
 ## Segredos: `secret_ref`
 

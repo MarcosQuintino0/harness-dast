@@ -14,6 +14,7 @@ import structlog
 import typer
 from typer.exceptions import TyperException
 
+from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.preflight import preflight_command
@@ -69,6 +70,7 @@ def build_app() -> typer.Typer:
     app.command("preflight")(preflight_command)
     app.command("probe")(probe_command)
     app.command("scan")(scan_command)
+    app.command("authz")(authz_command)
     app.command("report")(report_command)
     app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)

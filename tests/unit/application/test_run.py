@@ -149,7 +149,13 @@ def test_run_chains_all_stages_and_writes_summary_when_everything_passes() -> No
     assert result.summary.status == "completed"
     assert result.summary.findings_by_severity == {"high": 1}
     assert rig.sink.summaries[RUN_ID] is result.summary
-    assert set(_stage_status(result).values()) == {"ok"}
+    assert _stage_status(result) == {
+        "preflight": "ok",
+        "probe": "ok",
+        "scan": "ok",
+        "authz": "skipped",
+        "report": "ok",
+    }
 
 
 def test_run_suggests_the_exact_cleanup_command_but_never_runs_it() -> None:
@@ -187,6 +193,7 @@ def test_run_stops_at_failed_preflight_with_its_exit_code_and_writes_summary() -
         "preflight": "failed",
         "probe": "not_run",
         "scan": "not_run",
+        "authz": "not_run",
         "report": "not_run",
     }
     assert "pre-run" in rig.sink.summaries
@@ -219,7 +226,7 @@ def test_run_stops_when_a_stage_raises_a_harness_error() -> None:
     result = Rig(report=failing).run()
 
     assert result.summary.exit_code == 2
-    assert result.summary.stages[3].status == "failed"
+    assert result.summary.stages[4].status == "failed"
 
 
 def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> None:
@@ -291,10 +298,16 @@ def test_run_reports_scope_error_when_the_window_closes_without_kill_switch() ->
     assert result.summary.stop_requested is False
 
 
-def test_run_summary_always_lists_the_four_stages_in_order() -> None:
+def test_run_summary_always_lists_the_five_stages_in_order() -> None:
     result = Rig().run()
 
-    assert [s.name for s in result.summary.stages] == ["preflight", "probe", "scan", "report"]
+    assert [s.name for s in result.summary.stages] == [
+        "preflight",
+        "probe",
+        "scan",
+        "authz",
+        "report",
+    ]
 
 
 def test_run_gives_probe_and_scan_one_single_deadline_from_the_start_of_the_run() -> None:

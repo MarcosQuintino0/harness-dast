@@ -4,6 +4,11 @@ Para no primeiro estágio que falha, com o código de saída DELE, e sempre grav
 (estágios, estados, tempos, código de saída e artefatos). Nunca roda a limpeza: o dado de teste
 só é apagado por `hdast cleanup`, com confirmação humana; o resumo traz o comando exato.
 
+Estágio opcional `authz` (ADR 0027, `--authz`): depois do `scan` e antes do `report`, repete com
+outras contas os pedidos que o `probe` provou (BOLA, BFLA, dado a mais, atribuição em massa).
+Sem `--authz` ele consta como `skipped` em `run.json`. Se o `authz` parar antes do fim, o
+`report` ainda roda sobre o que existe e o código de saída continua sendo o do `authz`.
+
 Prazo: `limits.max_duration_minutes` do perfil (reduzido por `--max-minutes`) vale para a
 execução INTEIRA. O `run` calcula um único prazo absoluto no início do `probe` e o repassa ao
 `probe` e ao `scan`; nenhum estágio recomeça a contagem.
@@ -19,11 +24,13 @@ cada conta faz login uma vez.
 """
 
 import math
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from harness_dast.application.authz import AuthzRequest
 from harness_dast.application.ports import Clock, KillSwitch, ProfileRepository
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.probe import ProbeRequest
@@ -32,11 +39,13 @@ from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
 from harness_dast.application.scan_ports import RunSummarySink
 from harness_dast.application.stage_errors import (
+    authz_stop_error,
     preflight_failure,
     probe_stop_error,
     scan_stop_error,
 )
-from harness_dast.domain.errors import ExitCode, HarnessError, UserInterrupt
+from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.errors import ConfigError, ExitCode, HarnessError, UserInterrupt
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run_summary import (
     STAGES,
@@ -77,6 +86,14 @@ class ScanStage(Protocol):
         ...
 
 
+class AuthzStage(Protocol):
+    """Etapa `authz` (opcional; ADR 0027)."""
+
+    def execute(self, request: AuthzRequest) -> AuthzResult:
+        """Roda o teste de autorização entre contas."""
+        ...
+
+
 class ReportStage(Protocol):
     """Etapa `report`."""
 
@@ -93,6 +110,9 @@ class RunRequest:
         product: Produto.
         seed: Semente dos geradores do `probe`.
         skip_scan: Para depois do `probe` (útil para o laço de regras de dados).
+        authz: Roda o estágio `authz` (teste de autorização entre contas) depois do `scan` e
+            antes do `report`. Desligado por padrão: manda requisições a mais e, na atribuição
+            em massa, escreve no alvo. Com `skip_scan` o estágio também é pulado.
         fail_on: Limiar do `report` (sobrepõe o perfil).
         compare: Execução anterior para a comparação do `report`.
         max_minutes: Reduz o prazo do `scan` (conta o tempo já gasto); nunca amplia o perfil.
@@ -101,6 +121,7 @@ class RunRequest:
     product: str
     seed: int | None = None
     skip_scan: bool = False
+    authz: bool = False
     fail_on: FailOn | None = None
     compare: str | None = None
     max_minutes: int | None = None
@@ -129,6 +150,7 @@ class _Progress:
     interrupted: bool = False
     deadline: datetime | None = None
     scan_stopped: bool = False
+    authz_findings: dict[str, int] | None = None
 
 
 class _Stop(Exception):
@@ -150,6 +172,7 @@ class RunPipeline:
         kill_switch: KillSwitch,
         clock: Clock,
         run_id_fallback: str,
+        authz: AuthzStage | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -163,8 +186,11 @@ class RunPipeline:
             kill_switch: Trava de emergência (distingue `hdast stop` de falha).
             clock: Relógio injetado.
             run_id_fallback: Identificador usado se nenhum estágio criou pasta de execução.
+            authz: Etapa de autorização entre contas; `None` quando a CLI não a montou (pedir
+                `--authz` assim é um erro de configuração).
         """
         self._profiles = profiles
+        self._authz_stage = authz
         self._stages = (preflight, probe, scan, report)
         self._sink = sink
         self._kill = kill_switch
@@ -204,6 +230,9 @@ class RunPipeline:
             progress.records["scan"] = StageRecord(
                 name="scan", status="skipped", message="Pedido com --skip-scan."
             )
+            progress.records["authz"] = StageRecord(
+                name="authz", status="skipped", message="Pedido com --skip-scan."
+            )
             progress.records["report"] = StageRecord(
                 name="report", status="skipped", message="Sem varredura não há o que reportar."
             )
@@ -215,7 +244,47 @@ class RunPipeline:
                 raise
             self._stage("report", progress, lambda: self._report(report, request, progress))
             raise
+        self._authz_then_report(report, request, progress, started)
+
+    def _authz_then_report(
+        self, report: ReportStage, request: RunRequest, progress: _Progress, started: datetime
+    ) -> None:
+        if not request.authz:
+            progress.records["authz"] = StageRecord(
+                name="authz", status="skipped", message="Não pedido (use --authz)."
+            )
+        else:
+            try:
+                self._stage("authz", progress, lambda: self._authz(request, progress))
+            except _Stop:
+                # O `authz` parado deixa `authz.json` parcial; o `scan` já terminou, então o
+                # relatório sai com o que existe e o erro do `authz` continua sendo o do `run`.
+                if progress.interrupted:
+                    raise
+                self._stage("report", progress, lambda: self._report(report, request, progress))
+                raise
         self._stage("report", progress, lambda: self._report(report, request, progress))
+
+    def _authz(self, request: RunRequest, progress: _Progress) -> None:
+        if self._authz_stage is None:
+            raise ConfigError(
+                "O estágio authz não está montado nesta execução.",
+                hint="Rode 'hdast authz' separadamente ou use um run com o estágio ligado.",
+            )
+        result = self._authz_stage.execute(
+            AuthzRequest(
+                product=request.product,
+                run_id=_require(progress.run_id),
+                deadline=progress.deadline,
+            )
+        )
+        counts = Counter(item.proposed_severity for item in result.findings)
+        progress.authz_findings = {
+            name: counts.get(name, 0) for name in ("high", "medium", "low", "informational")
+        }
+        error = authz_stop_error(result)
+        if error is not None:
+            raise error
 
     def _report_after_stop(self, progress: _Progress) -> bool:
         """Diz se vale gerar o relatório parcial de um `scan` que parou antes do fim."""
@@ -256,7 +325,7 @@ class RunPipeline:
                     "duration_seconds": self._since(began),
                 }
             )
-        if self._kill.engaged() and name in {"probe", "scan"}:
+        if self._kill.engaged() and name in {"probe", "scan", "authz"}:
             progress.interrupted = True
             raise _Stop
 
@@ -372,6 +441,7 @@ class RunPipeline:
             options=RunOptions(
                 seed=request.seed,
                 skip_scan=request.skip_scan,
+                authz=request.authz,
                 fail_on=request.fail_on,
                 compare=request.compare,
                 max_minutes=request.max_minutes,
@@ -379,6 +449,7 @@ class RunPipeline:
             stages=tuple(progress.records[name] for name in STAGES),
             artifacts=self._sink.existing_files(run_id),
             findings_by_severity=progress.findings,
+            authz_findings_by_severity=progress.authz_findings,
             stop_requested=stopped,
             cleanup_command=self._cleanup_command(request.product, progress.run_id),
         )

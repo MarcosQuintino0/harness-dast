@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
+`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -15,9 +15,10 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
+| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); ainda não verificado contra a Clínica Piloto real. Referência: [authz.md](authz.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json` e `report.md`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
-| `hdast run <produto>` | Encadeia preflight, probe, scan e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
+| `hdast run <produto>` | Encadeia preflight, probe, scan, authz (opcional, `--authz`) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
@@ -33,12 +34,13 @@ uv run hdast run meu-produto --fail-on high --compare <run_id>  # gate de severi
 uv run hdast run meu-produto --max-minutes 20
 ```
 
-Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan` e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
+Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `authz` (opcional) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
 
 | Flag | Efeito |
 | --- | --- |
 | `--seed N` | Semente dos geradores do `probe` |
-| `--skip-scan` | Para depois do `probe`; `scan` e `report` ficam `skipped` |
+| `--skip-scan` | Para depois do `probe`; `scan`, `authz` e `report` ficam `skipped` |
+| `--authz` | Inclui o estágio `authz` (teste de autorização entre contas) depois do `scan` e antes do `report`: [authz.md](authz.md). Desligado por padrão, porque manda requisições a mais e escreve no alvo (atribuição em massa); sem a flag o estágio consta como `skipped`. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
 | `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
@@ -61,10 +63,11 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `fail_on`, `compare`, `max_minutes` efetivos |
-| `stages` | Sempre os quatro, em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
+| `options` | `seed`, `skip_scan`, `authz`, `fail_on`, `compare`, `max_minutes` efetivos |
+| `stages` | Sempre os cinco (`preflight`, `probe`, `scan`, `authz`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
 | `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`...) |
-| `findings_by_severity` | Achados por severidade proposta (só se o `report` rodou) |
+| `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
+| `authz_findings_by_severity` | Achados do estágio `authz` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
 | `cleanup_command` | Comando de limpeza a rodar por uma pessoa, ou `null` |
 

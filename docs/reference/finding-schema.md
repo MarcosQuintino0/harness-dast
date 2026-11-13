@@ -14,6 +14,8 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `scan-progress.json` | `scan` | Andamento atual (fase, posição, operação, percentual). É o que `hdast stop` e o agente leem |
 | `alerts.raw.json` | `scan` | Alertas como o ZAP devolve, **depois** da redação |
 | `evidence.json` | `scan` | Requisição e resposta das mensagens de ataque mais graves e confiáveis (até 200), redigidas |
+| `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
+| `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
@@ -36,6 +38,7 @@ Raiz (`FindingsReport`):
 | `not_observed` | lista | Com `--compare`: achados da base que não apareceram agora (abaixo) |
 | `comparison` | objeto ou `null` | `baseline_run_id`, `new`, `persistent`, `not_observed`, `notice` |
 | `triage_orphans` | lista de texto | Fingerprints de `triage.json` sem achado correspondente (ignorados) |
+| `authz` | objeto ou `null` | Aditivo (ADR 0027). O `authz.json` da execução, quando o estágio rodou: achados de autorização entre contas, de origem própria e técnica própria (`origin: authz`, `technique`), **separados** de `findings` (que são do ZAP). Contrato em [authz.md](authz.md). O gate (`--fail-on`) conta os dois |
 
 `coverage`:
 
@@ -71,6 +74,7 @@ Raiz (`FindingsReport`):
 | `evidence` | objeto | Evidência da melhor ocorrência (abaixo) |
 | `description`, `solution` | texto | Textos padrão do ZAP, sem HTML, cortados |
 | `reproduce_curl` | texto ou `null` | `curl` com marcadores (`"$BASE_URL"`, `$TOKEN`, `$CSRF_TOKEN`); `null` sem evidência |
+| `technique` | texto | Aditivo (ADR 0027). Técnica que produziu o achado; aqui sempre `zap_active_scan`. Os achados de autorização têm as suas em `authz.findings[].technique` |
 | `status` | texto | Sempre `needs_triage` |
 | `comparison` | texto ou `null` | `new` ou `persistent` com `--compare` |
 | `triage` | objeto ou `null` | `{note, suspected_false_positive, reason}` do agente. Consultivo |

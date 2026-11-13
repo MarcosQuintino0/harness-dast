@@ -19,6 +19,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
+from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import (
     NetworkHandle,
     SharedServices,
@@ -126,6 +127,7 @@ def build_run_pipeline(
         probe=build_probe(products_dir, secrets, net.network, shared),
         scan=build_scan(products_dir, secrets, net, shared),
         report=build_report(products_dir),
+        authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
         clock=clock,

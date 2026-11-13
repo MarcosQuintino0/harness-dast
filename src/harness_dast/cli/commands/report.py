@@ -27,6 +27,16 @@ def _render(digest: ReportDigest) -> str:
             f"  {item.proposed_severity:<13} {item.finding_id} {item.method} "
             f"{item.path_template} {item.title}{mark}"
         )
+    if digest.authz is not None:
+        lines.append(
+            f"Autorização entre contas (técnica própria, não é o ZAP): "
+            f"{len(digest.authz.findings)} achado(s)."
+        )
+        lines += [
+            f"  {item.proposed_severity:<13} {item.finding_id} {item.technique} "
+            f"{item.method} {item.path_template}"
+            for item in digest.authz.findings
+        ]
     if digest.comparison:
         lines.append(
             f"Comparação com {digest.comparison.baseline_run_id}: novos {digest.comparison.new}, "

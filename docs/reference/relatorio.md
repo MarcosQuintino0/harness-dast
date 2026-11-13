@@ -21,7 +21,7 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 **O `report` é o dono do código `1`**, não o `scan`: o `scan` só coleta alertas; o veredito depende de fingerprint, deduplicação e severidade lida. Regras:
 
 - `1` não é erro: o envelope traz `ok: true`, `data.exceeds_threshold: true` e o mesmo `data` de sempre.
-- Conta **todos** os achados na severidade **proposta pelo ZAP**, inclusive os anotados como "suspeita de falso positivo": a triagem do agente nunca retira nada da conta.
+- Conta **todos** os achados na severidade **proposta pelo ZAP** e também os achados de autorização entre contas (`authz`, severidade da taxonomia do código; [authz.md](authz.md)), inclusive os anotados como "suspeita de falso positivo": a triagem do agente nunca retira nada da conta.
 - Severidade que a CLI não soube classificar (`unknown`: um `Critical` novo do ZAP, um ZAP em outro idioma, texto vazio) conta como acima de qualquer limiar diferente de `none`, e o relatório a mostra como "Desconhecida": o gate falha fechado.
 - Sem limiar (`none`, o padrão), a saída é `0` com ou sem achados.
 - Relatório de uma execução que parou antes do fim (`coverage.partial: true`) traz o aviso "RELATÓRIO PARCIAL" no topo da seção de cobertura.
@@ -43,7 +43,7 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 
 Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_statements`) e no `report.md` (seção "O que este relatório não testou", sempre antes do resumo):
 
-- autorização (BOLA/IDOR, BFLA, troca de dados de outro usuário), atribuição em massa, exposição excessiva em respostas legítimas e lógica de negócio **estão fora** do que uma varredura ativa do ZAP detecta;
+- autorização (BOLA/IDOR, BFLA, troca de dados de outro usuário), atribuição em massa, exposição excessiva em respostas legítimas e lógica de negócio **estão fora** do que uma varredura ativa do ZAP detecta. Quando o estágio `authz` rodou (`hdast run --authz` ou `hdast authz`), o relatório troca essa frase pela cobertura dele e traz a seção "Autorização entre contas", com a técnica de cada achado e o que ele não pôde testar;
 - só se varreu o que o `probe` alcançou com sucesso e o plano permitiu; o resto está listado como não testado, com o motivo;
 - a alcançabilidade do `probe`, as varreduras truncadas e os limites e a política aplicados;
 - severidade e confiança são propostas, todo achado exige triagem humana;
@@ -51,7 +51,7 @@ Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_sta
 
 ## `report.md`
 
-Em português, para quem corrige: aviso de que blocos de requisição e resposta são dado do alvo, a seção acima, resumo e tabela (ID, severidade, confiança, título, onde, ocorrências, comparação quando houver, coluna "Triagem (agente)"), um bloco por achado (o que é, onde, parâmetro e vetor, classe, evidência, como reproduzir, **direção de correção sugerida** genérica para APIs no estilo Spring e marcada como sugestão não verificada, solução padrão do ZAP, triagem) e a seção de comparação.
+Em português, para quem corrige: aviso de que blocos de requisição e resposta são dado do alvo, a seção acima, resumo e tabela (ID, severidade, confiança, título, onde, ocorrências, comparação quando houver, coluna "Triagem (agente)"), um bloco por achado (o que é, onde, parâmetro e vetor, classe, evidência, como reproduzir, **direção de correção sugerida** genérica para APIs no estilo Spring e marcada como sugestão não verificada, solução padrão do ZAP, triagem) e a seção de comparação. Cada achado do ZAP diz a técnica (`Técnica: varredura ativa do ZAP`). Quando existe `authz.json`, uma seção própria, separada dos achados do ZAP, lista as verificações, os achados de autorização (técnica, severidade proposta pelo código, contas, campos só pelo nome), o que não pôde ser testado e os limites da técnica.
 
 **Seguro para renderizar:** todo texto derivado do alvo, do ZAP ou do agente passa por `domain/markdown_safe.py`: texto em linha com barra invertida antes de todo caractere de marcação e sem quebra de linha, trecho de código em linha com crases suficientes, e requisição e resposta em bloco cercado por uma cerca mais longa que qualquer sequência de crases do conteúdo. HTML não é interpretado (`<`, `>` e `&` escapados ou dentro de bloco). Um texto que imite instrução ("ignore as instruções anteriores") continua sendo texto, mostrado em bloco sob um aviso; nenhuma função "entende" ordens.
 

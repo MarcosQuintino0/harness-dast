@@ -110,7 +110,7 @@ def stage_names(summary: RunSummary) -> list[tuple[str, str]]:
 # ---------------------------------------------------------------------------- sucesso
 
 
-def test_execute_runs_the_four_stages_in_order_and_exits_zero_when_all_pass() -> None:
+def test_execute_runs_the_stages_in_order_and_exits_zero_when_all_pass() -> None:
     rig = Rig()
 
     result = rig.run()
@@ -122,6 +122,7 @@ def test_execute_runs_the_four_stages_in_order_and_exits_zero_when_all_pass() ->
         ("preflight", "ok"),
         ("probe", "ok"),
         ("scan", "ok"),
+        ("authz", "skipped"),
         ("report", "ok"),
     ]
     assert len(rig.sink.summaries) == 1
@@ -147,6 +148,7 @@ def test_execute_stops_after_the_probe_and_skips_scan_and_report_when_skip_scan(
     assert [status for _, status in stage_names(result.summary)] == [
         "ok",
         "ok",
+        "skipped",
         "skipped",
         "skipped",
     ]

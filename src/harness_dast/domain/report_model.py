@@ -10,6 +10,7 @@ from typing import Final
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
 from harness_dast.domain.traffic import TrafficSummary
@@ -30,6 +31,17 @@ NOT_TESTED_STATEMENTS: Final[tuple[str, ...]] = (
     "Um relatório sem achados NÃO é evidência de que a API é segura: significa apenas que "
     "estas regras não encontraram problema nestas requisições, com estes limites.",
 )
+
+NOT_TESTED_WITH_AUTHZ: Final[tuple[str, ...]] = (
+    "O ZAP não detecta falhas de autorização nem de lógica de negócio. Nesta execução o "
+    "estágio authz (técnica própria, determinística) comparou contas; o que ele cobriu e o que "
+    "não pôde testar está na seção 'Autorização entre contas' e em 'authz'.",
+    "O estágio authz cobre BOLA em leituras com identificador, BFLA nos métodos liberados, "
+    "campos fora do esquema em respostas de GET e atribuição em massa com a lista de campos do "
+    "perfil; falhas de lógica de negócio além disso continuam sem teste.",
+    *NOT_TESTED_STATEMENTS[2:],
+)
+"""Afirmações quando o estágio de autorização rodou: no lugar das duas primeiras do ZAP."""
 
 
 class NotTested(ApiModel):
@@ -178,6 +190,9 @@ class FindingsReport(ApiModel):
         not_observed: Achados da base não observados (só com `--compare`).
         comparison: Resumo da comparação, ou `None`.
         triage_orphans: Fingerprints da triagem que não existem.
+        authz: Resultado do estágio de autorização entre contas (ADR 0027), com os achados de
+            origem própria e a técnica de cada um; `None` quando o estágio não rodou. Não se
+            mistura com `findings` (do ZAP).
     """
 
     schema_version: int = REPORT_SCHEMA_VERSION
@@ -193,6 +208,7 @@ class FindingsReport(ApiModel):
     not_observed: tuple[GoneFinding, ...] = ()
     comparison: ComparisonInfo | None = None
     triage_orphans: tuple[str, ...] = Field(default=())
+    authz: AuthzResult | None = None
 
 
 class FindingDigest(ApiModel):
@@ -247,6 +263,7 @@ class ReportDigest(ApiModel):
         not_observed: Achados da base não observados (com `--compare`).
         comparison: Resumo da comparação.
         triage_orphans: Fingerprints de triagem sem achado.
+        authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
     """
 
     run_id: str
@@ -261,6 +278,7 @@ class ReportDigest(ApiModel):
     not_observed: tuple[GoneFinding, ...]
     comparison: ComparisonInfo | None
     triage_orphans: tuple[str, ...]
+    authz: AuthzResult | None = None
 
 
 def build_digest(
@@ -300,4 +318,5 @@ def build_digest(
         not_observed=report.not_observed,
         comparison=report.comparison,
         triage_orphans=report.triage_orphans,
+        authz=report.authz,
     )
