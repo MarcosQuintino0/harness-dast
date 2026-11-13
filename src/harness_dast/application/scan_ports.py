@@ -14,9 +14,11 @@ from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanProgress, ScanResult, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
+from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
 
 
@@ -238,6 +240,42 @@ class RunArtifacts(Protocol):
         Raises:
             ConfigError: Execução ou arquivo ausente, ilegível ou inválido.
         """
+        ...
+
+
+class RunningScans(Protocol):
+    """Varreduras em andamento, lidas dos `scan-progress.json` (para `hdast stop`)."""
+
+    def running(self) -> tuple[ScanProgress, ...]:
+        """Andamentos com `status` `running`, de qualquer execução; ilegíveis são ignorados."""
+        ...
+
+
+class ProxyAudit(Protocol):
+    """Leitura da trilha de auditoria do proxy de escopo."""
+
+    def rows(self) -> tuple[ProxyRow, ...]:
+        """Linhas da trilha, em ordem; vazio se ainda não existe.
+
+        Raises:
+            ConfigError: Linha ilegível.
+        """
+        ...
+
+
+class RunSummarySink(Protocol):
+    """Grava o `run.json` e diz quais artefatos existem na pasta da execução."""
+
+    def write_summary(self, run_id: str, summary: RunSummary) -> None:
+        """Grava `run.json`.
+
+        Raises:
+            ConfigError: A pasta da execução não pôde ser escrita.
+        """
+        ...
+
+    def existing_files(self, run_id: str) -> dict[str, str]:
+        """Artefatos conhecidos que existem na pasta (nome -> nome do arquivo)."""
         ...
 
 

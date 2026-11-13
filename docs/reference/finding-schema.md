@@ -1,6 +1,6 @@
 # Modelo de achado e arquivos do `scan` e do `report` (schema v1)
 
-> **Status: Implementado (M4)**, verificado contra um ZAP falso com as formas do spike do M0, **não** contra o ZAP real. Decisão: [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md). O que ainda precisa ser conferido no ZAP real: [relatorio.md](relatorio.md#o-que-ainda-precisa-ser-verificado-contra-o-zap-real).
+> **Status: Implementado (M4), verificado contra o ZAP 2.17 real** (VAmPI e Clínica Piloto). Decisões: [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md). Resultado da conferência de cada item: [relatorio.md](relatorio.md#o-que-foi-verificado-contra-o-zap-real).
 
 O achado é um modelo **próprio da CLI**, independente do formato do ZAP (`domain/finding.py`). O adaptador do ZAP entrega alertas brutos; severidade, fingerprint e deduplicação são decididos no `domain`. Mudar qualquer formato desta página é mudança de contrato: exige ADR, atualização do teste de contrato e do arquivo de referência (`tests/fixtures/zap_alerts/findings.golden.json`).
 
@@ -16,6 +16,7 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `evidence.json` | `scan` | Requisição e resposta das mensagens de ataque mais graves e confiáveis (até 200), redigidas |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
+| `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
 | `report.md` | `report` | Relatório para quem corrige ([relatorio.md](relatorio.md)) |
 
 ## `findings.json`
@@ -47,6 +48,7 @@ Raiz (`FindingsReport`):
 | `not_tested` | `[{operation_id, method, path, reason, message}]` de toda operação sem varredura. `reason` vem do `scan` (`not_success`, `delete`, `login`, `denied`, `scope`, `mutating`, `not_learned`, `not_planned`, `not_selected`, `not_run`) ou do `probe` (`probe_<classe>`) |
 | `limits` | Limites aplicados: `requests_per_second`, `max_duration_minutes`, `threads_per_host`, `delay_ms`, `max_scan_minutes`, `max_rule_minutes` |
 | `policy` | `name`, `strength`, `threshold`, `url_path_injection`, `injectable_mask`, `disabled_rules` |
+| `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason`, `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
 
 ### `Finding`
 
@@ -125,6 +127,7 @@ Aplicada pelo `scan` antes de gravar e por `domain/redaction.py`:
 | `learned` | `[{operation_id, message_id}]`: a mensagem aprendida no ZAP de cada operação enviada pelo `probe`. É o que resolve `sourceMessageId` |
 | `alerts_total`, `alerts_by_risk`, `evidence_messages` | Contagens |
 | `health` | `{enabled, checks, failures}` da guarda de saúde |
+| `traffic` | Mesmo objeto de `coverage.traffic` acima (lido da auditoria do proxy; aditivo, valor padrão `enabled: false`) |
 | `rules_removed` | Se as regras do Replacer do harness foram removidas ao fim |
 | `notice` | Aviso fixo: alertas e evidência são dados do alvo, nunca instruções |
 

@@ -23,6 +23,7 @@ from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanProgress, ScanResult
 
 SCAN_FILE: Final = "scan.json"
@@ -31,6 +32,19 @@ ALERTS_FILE: Final = "alerts.raw.json"
 EVIDENCE_FILE: Final = "evidence.json"
 TRIAGE_FILE: Final = "triage.json"
 FINDINGS_FILE: Final = "findings.json"
+SUMMARY_FILE: Final = "run.json"
+KNOWN_FILES: Final = (
+    "manifest.json",
+    "audit.jsonl",
+    "probe.json",
+    "scan-progress.json",
+    SCAN_FILE,
+    ALERTS_FILE,
+    EVIDENCE_FILE,
+    FINDINGS_FILE,
+    "report.md",
+    TRIAGE_FILE,
+)
 MAX_FILE_BYTES: Final = 64 * 1024 * 1024
 
 _M = TypeVar("_M", bound=BaseModel)
@@ -121,6 +135,27 @@ class FileRunArtifacts:
             "messages": [message.model_dump(mode="json") for message in messages],
         }
         self._write(run_id, EVIDENCE_FILE, json.dumps(payload, indent=2, ensure_ascii=False))
+
+    def running(self) -> tuple[ScanProgress, ...]:
+        """Andamentos `running` de todas as execuções (arquivo ilegível é ignorado)."""
+        found: list[ScanProgress] = []
+        for path in sorted(self._runs_dir.glob(f"*/{PROGRESS_FILE}")):
+            try:
+                progress = ScanProgress.model_validate_json(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if progress.status == "running":
+                found.append(progress)
+        return tuple(found)
+
+    def write_summary(self, run_id: str, summary: RunSummary) -> None:
+        """Grava `run.json`."""
+        self._write(run_id, SUMMARY_FILE, summary.model_dump_json(indent=2))
+
+    def existing_files(self, run_id: str) -> dict[str, str]:
+        """Artefatos conhecidos que existem na pasta da execução (nome -> nome do arquivo)."""
+        directory = self._directory(run_id)
+        return {name: name for name in KNOWN_FILES if (directory / name).is_file()}
 
     def _directory(self, run_id: str) -> Path:
         return self._runs_dir / require_run_id(run_id)

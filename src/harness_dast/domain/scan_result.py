@@ -14,6 +14,7 @@ from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
+from harness_dast.domain.traffic import TrafficSummary
 
 ScanStatusName = Literal[
     "completed",
@@ -222,6 +223,8 @@ class ScanResult(ApiModel):
         alerts_by_risk: Contagem por risco proposto pelo ZAP.
         evidence_messages: Mensagens de evidência gravadas.
         health: Guarda de saúde do alvo.
+        traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
+            escopo).
         rules_removed: Se as regras do Replacer do harness foram removidas ao fim.
         notice: Aviso fixo.
     """
@@ -244,6 +247,7 @@ class ScanResult(ApiModel):
     alerts_by_risk: dict[str, int] = Field(default_factory=dict)
     evidence_messages: int = 0
     health: HealthSummary
+    traffic: TrafficSummary = Field(default_factory=TrafficSummary)
     rules_removed: bool = True
     notice: str = SCAN_NOTICE
 

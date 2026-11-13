@@ -17,11 +17,12 @@ from datetime import datetime, timedelta
 import structlog
 from pydantic import ValidationError
 
-from harness_dast.application.account_session import AccountSession
+from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
+    KillSwitch,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -35,7 +36,7 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
-from harness_dast.application.scan_ports import RunArtifacts, ScanControl
+from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts, ScanControl
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
 from harness_dast.domain.errors import ConfigError, ExternalToolError, PreflightError
@@ -69,6 +70,7 @@ from harness_dast.domain.scan_result import (
     ScanStatusName,
 )
 from harness_dast.domain.scan_tokens import origin_regex
+from harness_dast.domain.traffic import TrafficSummary, summarize_traffic
 from harness_dast.domain.zap_messages import parse_learned_request
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
 
@@ -150,8 +152,16 @@ class Scan:
         artifacts: RunArtifacts,
         clock: Clock,
         sleeper: Sleeper,
+        token_cache: TokenCache | None = None,
+        login_budget: LoginBudget | None = None,
+        kill_switch: KillSwitch | None = None,
+        proxy_audit: ProxyAudit | None = None,
     ) -> None:
-        """Cria o caso de uso com todas as portas de que precisa."""
+        """Cria o caso de uso com todas as portas de que precisa.
+
+        `token_cache`, `login_budget` e `kill_switch` são compartilhados com as outras etapas
+        quando o `run` encadeia tudo num processo só (cada conta faz login uma vez).
+        """
         self._profiles = profiles
         self._specs = specs
         self._documents = documents
@@ -164,6 +174,10 @@ class Scan:
         self._artifacts = artifacts
         self._clock = clock
         self._sleeper = sleeper
+        self._token_cache = token_cache
+        self._login_budget = login_budget
+        self._kill_switch = kill_switch
+        self._proxy_audit = proxy_audit
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -193,6 +207,12 @@ class Scan:
         manifest = self._artifacts.read_manifest(request.run_id)
         probe = self._artifacts.read_probe(request.run_id)
         _ensure_usable(manifest, probe, profile.product)
+        unknown = sorted(set(request.only) - {op.operation_id for op in probe.operations})
+        if unknown:
+            raise ConfigError(
+                "--only cita operação desconhecida nesta execução: " + ", ".join(unknown) + ".",
+                hint="Use os operation_id de probe.json (hdast spec inspect lista os do OpenAPI).",
+            )
         extra = frozenset(request.include_outcomes)
         if not extra <= EXTRA_OUTCOMES:
             raise ConfigError(
@@ -259,6 +279,7 @@ class Scan:
                 "evidence_messages": collected.evidence_messages if collected else 0,
                 "rules_removed": removed,
                 "health": live.health.summary,
+                "traffic": self._traffic(prep),
             }
         )
         self._artifacts.write_scan(request.run_id, result)
@@ -270,6 +291,16 @@ class Scan:
                 f"{REPLACER_RULE_PREFIX} (elas carregam o token). O resultado está em scan.json.",
             )
         return result
+
+    def _traffic(self, prep: _Prepared) -> TrafficSummary:
+        if self._proxy_audit is None:
+            return TrafficSummary()
+        return summarize_traffic(
+            self._proxy_audit.rows(),
+            start=prep.started,
+            end=self._clock.now(),
+            limit_rps=prep.limits.requests_per_second,
+        )
 
     def _check_zap(self, run_id: str, context_id: int) -> None:
         try:
@@ -307,7 +338,7 @@ class Scan:
         run_id = request.run_id
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         limited = profile.model_copy(update={"limits": prep.limits})
-        gate = RunGate(limited, self._clock, prep.started)
+        gate = RunGate(limited, self._clock, prep.started, self._kill_switch)
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._client,
@@ -320,7 +351,8 @@ class Scan:
             sender,
             self._sleeper,
             profile.auth.csrf,
-            login_budget=LoginBudget(profile.login_limit, self._clock, self._sleeper),
+            login_budget=self._login_budget
+            or LoginBudget(profile.login_limit, self._clock, self._sleeper),
             login_path=profile.login_path,
             token_expired=profile.token_expired_signal,
             error_codes=profile.probe.error_codes,
@@ -347,6 +379,7 @@ class Scan:
             vault=self._vault,
             client=self._client,
             dispatcher=dispatcher,
+            token_cache=self._token_cache,
         )
         session.open()
         limit = profile.login_limit

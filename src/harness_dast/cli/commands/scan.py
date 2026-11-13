@@ -6,36 +6,11 @@ from typing import Annotated
 import typer
 
 from harness_dast.application.scan import ScanRequest
+from harness_dast.application.stage_errors import scan_stop_error
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_scan, open_scan_network
-from harness_dast.domain.errors import (
-    ExitCode,
-    ExternalToolError,
-    HarnessError,
-    PreflightError,
-    ScopeViolation,
-    TargetError,
-)
+from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.scan_result import ScanResult
-
-
-def stop_error(result: ScanResult) -> HarnessError | None:
-    """Traduz a parada antecipada do `scan` no erro (e código de saída) correspondente.
-
-    Janela fechada e prazo esgotado são escopo (3); login recusado no meio é falha de
-    partida (4); falha do ZAP é ferramenta externa (5); alvo sem resposta é alvo (6).
-    """
-    message = result.stop_message or "O scan parou antes do fim."
-    hint = "O resultado parcial está em data e em scan.json; rode 'hdast report' se quiser."
-    if result.status in {"stopped_window", "stopped_deadline"}:
-        return ScopeViolation(message, hint=hint)
-    if result.status == "stopped_auth":
-        return PreflightError(message, hint=hint)
-    if result.status == "stopped_zap":
-        return ExternalToolError(message, hint=hint)
-    if result.status == "stopped_target_unresponsive":
-        return TargetError(message, hint=hint)
-    return None
 
 
 def _render(result: ScanResult) -> str:
@@ -128,7 +103,7 @@ def scan_command(
         net.close()
     run_id = None if result.dry_run else result.run_id
     data = result.model_dump(mode="json")
-    error = stop_error(result)
+    error = scan_stop_error(result)
     if error is None:
         emit(build_success(data, run_id), json_mode=state.json_mode, human=_render(result))
         return int(ExitCode.OK)

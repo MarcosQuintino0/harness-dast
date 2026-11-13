@@ -54,7 +54,31 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"{'ligada' if policy.url_path_injection else 'desligada'}, "
         f"{len(policy.disabled_rules)} regra(s) desligadas.",
     ]
+    lines += _traffic_lines(coverage)
     return lines + _truncated_lines(coverage) + _not_tested_lines(coverage)
+
+
+def _traffic_lines(coverage: Coverage) -> list[str]:
+    traffic = coverage.traffic
+    if not traffic.enabled:
+        return ["- Tráfego no proxy de escopo: não medido (sem auditoria do proxy)."]
+    lines = [
+        f"- Tráfego no proxy de escopo: {traffic.allowed} pedido(s) liberados em "
+        f"{traffic.duration_seconds:g} s (média {traffic.average_rps:g} req/s, pico "
+        f"{traffic.peak_rps} em 1 s; limite do perfil {traffic.limit_rps:g} req/s)."
+    ]
+    if traffic.allowed_by_method:
+        methods = ", ".join(f"{m}: {n}" for m, n in sorted(traffic.allowed_by_method.items()))
+        lines.append(f"- Liberados por método: {escape_inline(methods)}.")
+    if traffic.denied:
+        reasons = ", ".join(
+            f"{name}: {count}" for name, count in sorted(traffic.denied_by_reason.items())
+        )
+        lines.append(
+            f"- {traffic.denied} requisição(ões) que o varredor tentou foram bloqueadas pelo "
+            f"escopo ({escape_inline(reasons)})."
+        )
+    return lines
 
 
 def _truncated_lines(coverage: Coverage) -> list[str]:

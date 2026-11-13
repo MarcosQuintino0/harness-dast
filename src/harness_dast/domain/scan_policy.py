@@ -93,11 +93,6 @@ DEFAULT_DISABLED_RULES: Final[tuple[DisabledRule, ...]] = (
         name=".env Information Leak",
         reason="Adivinhação de caminho fora das requisições aprendidas.",
     ),
-    DisabledRule(
-        plugin_id=10095,
-        name="Backup File Disclosure",
-        reason="Adivinhação de nomes de arquivo de backup: carga e caminhos fora do escopo.",
-    ),
 )
 
 
@@ -169,7 +164,9 @@ def build_limits(limits: RunLimits, config: ScanConfig) -> ScanLimits:
         threads_per_host=limits.zap_threads_per_host,
         delay_ms=delay_ms_for(limits.requests_per_second),
         max_scan_minutes=min(config.max_scan_minutes, limits.max_duration_minutes),
-        max_rule_minutes=min(config.max_rule_minutes, config.max_scan_minutes),
+        max_rule_minutes=min(
+            config.max_rule_minutes, config.max_scan_minutes, limits.max_duration_minutes
+        ),
     )
 
 

@@ -353,3 +353,12 @@ def test_scan_block_rejects_unknown_fields_and_values_outside_the_closed_sets() 
         data = copy.deepcopy(profile_data(scan=bad))
         with pytest.raises(ConfigError):
             ProductProfile.from_data(data)
+
+
+def test_only_with_an_operation_the_run_does_not_have_is_a_configuration_error() -> None:
+    rig = ready()
+
+    with pytest.raises(ConfigError, match=r"operação desconhecida.*inexistente"):
+        rig.run_scan(only=("inexistente",))
+
+    assert rig.zap.started == []

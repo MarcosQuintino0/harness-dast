@@ -136,6 +136,7 @@ class ZapScanClient(ZapApiClient):
             },
         )
         if policy.disabled_rules:
+            self._require_known_rules(policy)
             ids = ",".join(str(item) for item in policy.disabled_rules)
             self._action("ascan", "disableScanners", {"ids": ids, "scanPolicyName": policy.name})
         self._verify_disabled(policy)
@@ -237,6 +238,19 @@ class ZapScanClient(ZapApiClient):
 
     def _action(self, component: str, endpoint: str, params: dict[str, str]) -> None:
         self._expect_ok(self._call(component, "action", endpoint, params))
+
+    def _require_known_rules(self, policy: ScanPolicy) -> None:
+        # O ZAP recusa `disableScanners` inteiro (does_not_exist) se UM id não existe na imagem.
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        known = {
+            _text(item.get("id")) for item in _dict_list(body, "scanners", "ascan/view/scanners")
+        }
+        unknown = sorted(str(item) for item in policy.disabled_rules if str(item) not in known)
+        if unknown:
+            raise ExternalToolError(
+                "O ZAP não tem as regras de varredura ativa " + ", ".join(unknown) + ".",
+                hint="Confira a versão do ZAP (2.17.x) e os ids em scan.disable_rules do perfil.",
+            )
 
     def _verify_disabled(self, policy: ScanPolicy) -> None:
         body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})

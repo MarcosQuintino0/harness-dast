@@ -12,6 +12,7 @@ from pydantic import Field
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
+from harness_dast.domain.traffic import TrafficSummary
 
 REPORT_SCHEMA_VERSION: Final = 1
 
@@ -80,6 +81,7 @@ class Coverage(ApiModel):
         not_tested: Operações sem varredura, com o motivo.
         limits: Limites aplicados.
         policy: Política de varredura aplicada.
+        traffic: Tráfego visto pelo proxy de escopo durante o scan.
     """
 
     operations_total: int
@@ -95,6 +97,7 @@ class Coverage(ApiModel):
     not_tested: tuple[NotTested, ...] = ()
     limits: AppliedLimits
     policy: AppliedPolicy
+    traffic: TrafficSummary = Field(default_factory=TrafficSummary)
 
 
 class FindingsSummary(ApiModel):

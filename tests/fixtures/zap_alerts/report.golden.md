@@ -17,6 +17,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 - Estado do probe: completed; do scan: completed. Varreduras executadas: 4.
 - Limites aplicados: 5 req/s, 2 thread(s) por host, atraso de 200 ms, até 60 min no total, 10 min por varredura.
 - Política: força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regra(s) desligadas.
+- Tráfego no proxy de escopo: não medido (sem auditoria do proxy).
 
 ### Varreduras truncadas ou paradas
 

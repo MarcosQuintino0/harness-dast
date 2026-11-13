@@ -14,6 +14,63 @@ from tests.fakes.local_server import Received, Reply
 
 API_KEY = "chave-zap-segredo-123"
 
+# Regras de varredura ATIVA da imagem zaproxy 2.17.0 (capturadas de ascan/view/scanners).
+REAL_ACTIVE_RULES = {
+    "0": "Directory Browsing",
+    "100043": "Swagger UI Secret & Vulnerability Detector",
+    "10045": "Source Code Disclosure - /WEB-INF Folder",
+    "10047": "HTTPS Content Available via HTTP",
+    "10048": "Remote Code Execution - Shell Shock",
+    "10058": "GET for POST",
+    "10104": "User Agent Fuzzer",
+    "10106": "HTTP Only Site",
+    "20015": "Heartbleed OpenSSL Vulnerability",
+    "20017": "Source Code Disclosure - CVE-2012-1823",
+    "20018": "Remote Code Execution - CVE-2012-1823",
+    "20019": "External Redirect",
+    "30001": "Buffer Overflow",
+    "30002": "Format String Error",
+    "40003": "CRLF Injection",
+    "40008": "Parameter Tampering",
+    "40009": "Server Side Include",
+    "40012": "Cross Site Scripting (Reflected)",
+    "40014": "Cross Site Scripting (Persistent)",
+    "40016": "Cross Site Scripting (Persistent) - Prime",
+    "40017": "Cross Site Scripting (Persistent) - Spider",
+    "40018": "SQL Injection",
+    "40019": "SQL Injection - MySQL (Time Based)",
+    "40020": "SQL Injection - Hypersonic SQL (Time Based)",
+    "40021": "SQL Injection - Oracle (Time Based)",
+    "40022": "SQL Injection - PostgreSQL (Time Based)",
+    "40026": "Cross Site Scripting (DOM Based)",
+    "40027": "SQL Injection - MsSQL (Time Based)",
+    "40028": "ELMAH Information Leak",
+    "40029": "Trace.axd Information Leak",
+    "40032": ".htaccess Information Leak",
+    "40034": ".env Information Leak",
+    "40035": "Hidden File Finder",
+    "40042": "Spring Actuator Information Leak",
+    "40043": "Log4Shell",
+    "40044": "Exponential Entity Expansion (Billion Laughs Attack)",
+    "40045": "Spring4Shell",
+    "40048": "Remote Code Execution (React2Shell)",
+    "50000": "Script Active Scan Rules",
+    "6": "Path Traversal",
+    "7": "Remote File Inclusion",
+    "90017": "XSLT Injection",
+    "90019": "Server Side Code Injection",
+    "90020": "Remote OS Command Injection",
+    "90021": "XPath Injection",
+    "90023": "XML External Entity Attack",
+    "90024": "Generic Padding Oracle",
+    "90026": "SOAP Action Spoofing",
+    "90029": "SOAP XML Injection",
+    "90034": "Cloud Metadata Potentially Exposed",
+    "90035": "Server Side Template Injection",
+    "90036": "Server Side Template Injection (Blind)",
+    "90037": "Remote OS Command Injection (Time Based)",
+}
+
 
 def ok(payload: object, status: int = 200) -> Reply:
     return Reply(status, json.dumps(payload).encode(), [("Content-Type", "application/json")])
@@ -72,6 +129,7 @@ class FakeScanZapServer:
     policies: set[str] = field(default_factory=set)
     options: dict[str, str] = field(default_factory=dict)
     disabled: set[str] = field(default_factory=set)
+    known_rules: frozenset[str] = frozenset(REAL_ACTIVE_RULES)
     _polls: int = 0
 
     def endpoints(self) -> list[str]:
@@ -152,18 +210,32 @@ class FakeScanZapServer:
         return ok({"Result": "OK"})
 
     def _ascan_action_disableScanners(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        # Como o ZAP 2.17 real: um id inexistente derruba o pedido inteiro (does_not_exist).
+        if any(rule not in self.known_rules for rule in query["ids"].split(",")):
+            return error("does_not_exist")
         for rule in query["ids"].split(","):
             if rule not in self.stubborn_rules:
                 self.disabled.add(rule)
         return ok({"Result": "OK"})
 
     def _ascan_view_scanners(self, query: dict[str, str]) -> Reply:
-        names = {"40018": "SQL Injection", "40044": "Exponential Entity Expansion", "10104": "UA"}
+        # Forma real do ZAP 2.17: todos os campos são texto (inclusive `id` e `enabled`).
         return ok(
             {
                 "scanners": [
-                    {"id": rule, "name": name, "enabled": str(rule not in self.disabled).lower()}
-                    for rule, name in names.items()
+                    {
+                        "allDependenciesAvailable": "true",
+                        "policyId": "2",
+                        "attackStrength": "DEFAULT",
+                        "alertThreshold": "DEFAULT",
+                        "name": REAL_ACTIVE_RULES.get(rule, f"Regra {rule}"),
+                        "id": rule,
+                        "enabled": str(rule not in self.disabled).lower(),
+                        "quality": "release",
+                        "status": "release",
+                        "dependencies": [],
+                    }
+                    for rule in sorted(self.known_rules)
                 ]
             }
         )

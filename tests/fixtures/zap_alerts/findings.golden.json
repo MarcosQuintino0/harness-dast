@@ -92,6 +92,17 @@
         40044,
         90034
       ]
+    },
+    "traffic": {
+      "enabled": false,
+      "allowed": 0,
+      "denied": 0,
+      "denied_by_reason": {},
+      "allowed_by_method": {},
+      "duration_seconds": 0.0,
+      "average_rps": 0.0,
+      "peak_rps": 0,
+      "limit_rps": null
     }
   },
   "not_tested_statements": [

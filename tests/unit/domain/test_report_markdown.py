@@ -6,6 +6,7 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.report_build import assemble_report
 from harness_dast.domain.report_markdown import render_markdown
 from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.traffic import TrafficSummary
 from harness_dast.domain.triage import parse_triage
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.domain.report_helpers import (
@@ -157,3 +158,32 @@ def test_output_ends_with_a_single_newline_and_is_deterministic() -> None:
     assert text.endswith("\n")
     assert not text.endswith("\n\n")
     assert text == render_markdown(report([zap_alert("9")]))
+
+
+def test_report_states_how_many_scanner_requests_the_scope_proxy_blocked() -> None:
+    base = report([])
+    traffic = TrafficSummary(
+        enabled=True,
+        allowed=120,
+        denied=7,
+        denied_by_reason={"path_not_allowed": 2, "malformed_request": 5},
+        allowed_by_method={"GET": 100, "POST": 20},
+        duration_seconds=60.0,
+        average_rps=2.0,
+        peak_rps=5,
+        limit_rps=5.0,
+    )
+    measured = base.model_copy(
+        update={"coverage": base.coverage.model_copy(update={"traffic": traffic})}
+    )
+
+    text = render_markdown(measured)
+
+    assert "120 pedido(s) liberados" in text
+    assert "7 requisição(ões) que o varredor tentou foram bloqueadas pelo escopo" in text
+    assert r"malformed\_request: 5" in text
+    assert "GET: 100, POST: 20" in text
+
+
+def test_report_says_traffic_was_not_measured_without_the_proxy_audit() -> None:
+    assert "não medido" in render_markdown(report([]))

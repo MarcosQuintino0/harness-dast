@@ -108,9 +108,10 @@ def test_csrf_targets_get_the_header_and_the_cookie_rules_with_the_current_value
         "X-XSRF-TOKEN",
         CSRF_VALUE,
     )
-    assert (cookie.match_type, cookie.regex, cookie.replacement) == (
-        "REQ_HEADER_STR",
-        True,
+    assert (cookie.match_type, cookie.match_string, cookie.regex, cookie.replacement) == (
+        "REQ_HEADER",
+        "Cookie",
+        False,
         f"XSRF-TOKEN={CSRF_VALUE}",
     )
     assert rig.zap.installed == {}

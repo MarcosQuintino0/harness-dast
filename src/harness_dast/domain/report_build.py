@@ -106,6 +106,7 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
         not_tested=_not_tested(probe, scan),
         limits=scan.limits,
         policy=scan.policy,
+        traffic=scan.traffic,
     )
 
 

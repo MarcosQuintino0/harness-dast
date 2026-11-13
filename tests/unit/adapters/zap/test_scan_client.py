@@ -124,7 +124,17 @@ def test_policy_sets_limits_first_recreates_the_policy_and_disables_the_rules() 
         "ascan/action/addScanPolicy"
     )
     assert names.index("ascan/action/removeScanPolicy") < names.index("ascan/action/addScanPolicy")
-    assert names.index("ascan/action/disableScanners") < names.index("ascan/view/scanners")
+    disabled_at = names.index("ascan/action/disableScanners")
+    assert disabled_at < names.index("ascan/view/scanners", disabled_at)
+
+
+def test_policy_is_refused_naming_the_rule_when_the_image_does_not_have_it() -> None:
+    zap = FakeScanZapServer(known_rules=frozenset({"40044"}))
+    policy, limits = policy_and_limits()
+    with serve(zap) as server, pytest.raises(ExternalToolError, match="10104"):
+        client_for(server.base_url).apply_policy(policy, limits)
+
+    assert "ascan/action/disableScanners" not in zap.endpoints()
 
 
 def test_policy_is_refused_when_a_rule_that_must_be_off_stays_on() -> None:

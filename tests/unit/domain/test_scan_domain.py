@@ -381,7 +381,7 @@ def test_origin_regex_handles_default_and_custom_ports() -> None:
     assert origin_regex("http://127.0.0.1:8080").endswith(":8080/.*")
 
 
-def test_csrf_rules_replace_the_header_and_only_the_cookie_value() -> None:
+def test_csrf_rules_set_the_header_and_the_whole_cookie_header() -> None:
     csrf = CsrfConfig(fetch_path="/api/csrf", cookie_name="XSRF-TOKEN", header_name="X-XSRF-TOKEN")
 
     rules = build_token_rules(
@@ -396,10 +396,10 @@ def test_csrf_rules_replace_the_header_and_only_the_cookie_value() -> None:
     header, cookie = rules[1], rules[2]
     assert header.match_type == "REQ_HEADER"
     assert header.replacement == "a$b\\c"
-    assert cookie.match_type == "REQ_HEADER_STR"
-    assert cookie.regex is True
-    assert cookie.replacement == "XSRF-TOKEN=a\\$b\\\\c"
-    assert "XSRF\\-TOKEN" in cookie.match_string
+    assert cookie.match_type == "REQ_HEADER"
+    assert cookie.match_string == "Cookie"
+    assert cookie.regex is False
+    assert cookie.replacement == "XSRF-TOKEN=a$b\\c"
 
 
 def test_jwt_expiry_reads_exp_and_rejects_everything_else() -> None:
@@ -445,3 +445,16 @@ def test_refresh_is_due_by_age_or_by_proximity_to_expiry() -> None:
         )
         is False
     )
+
+
+def test_rule_cap_never_exceeds_the_run_deadline() -> None:
+    from harness_dast.domain.run import RunLimits
+    from harness_dast.domain.scan_config import ScanConfig
+    from harness_dast.domain.scan_policy import build_limits
+
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=1, zap_threads_per_host=2)
+
+    applied = build_limits(limits, ScanConfig(max_scan_minutes=10, max_rule_minutes=5))
+
+    assert applied.max_rule_minutes == 1
+    assert applied.max_scan_minutes == 1

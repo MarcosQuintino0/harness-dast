@@ -6,9 +6,12 @@ renova-se com `addRule` da regra nova e `removeRule` da antiga. Toda regra tem o
 `hdast-` e é removida ao fim.
 
 CSRF por cookie duplicado (Spring `CookieCsrfTokenRepository`): o cabeçalho é um `REQ_HEADER`
-comum. O cookie é um `REQ_HEADER_STR` com expressão regular que troca só `NOME=valor` dentro
-do cabeçalho `Cookie`. Isto NÃO foi verificado contra o ZAP real: se o cookie não existir na
-requisição aprendida, a regra não o acrescenta. Este módulo é puro.
+comum e o cookie também: um `REQ_HEADER` sobre `Cookie` com `NOME=valor`, que no ZAP real
+ACRESCENTA o cabeçalho quando ele não existe (verificado: regras do varredor que reconstroem a
+requisição sem `Cookie`, como as de PHP, ficavam sem o par) e SUBSTITUI o cabeçalho inteiro quando
+existe. Por isso, na V1 (autenticação por cabeçalho: Bearer ou chave de API), o único cookie que a
+varredura envia é o do CSRF; outros cookies do alvo são descartados nos ataques (ADR 0023). Uma
+regra `REQ_HEADER_STR` trocaria só o valor, mas não acrescenta o cookie ausente. Este módulo é puro.
 """
 
 import base64
@@ -24,7 +27,7 @@ from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.urlnorm import default_port
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
 
-MatchType = Literal["REQ_HEADER", "REQ_HEADER_STR"]
+MatchType = Literal["REQ_HEADER"]
 
 _MAX_TOKEN_CHARS: Final = 8192
 
@@ -34,9 +37,9 @@ class ReplacerRule(BaseModel):
 
     Attributes:
         description: Nome da regra (sempre com o prefixo `hdast-`).
-        match_type: `REQ_HEADER` (valor do cabeçalho) ou `REQ_HEADER_STR` (texto no cabeçalho).
-        match_string: Nome do cabeçalho ou expressão regular.
-        regex: Se `match_string` é expressão regular.
+        match_type: `REQ_HEADER`: define o valor do cabeçalho (acrescenta se ausente).
+        match_string: Nome do cabeçalho.
+        regex: Se `match_string` é expressão regular (sempre `False` nas regras de hoje).
         replacement: Valor novo (contém o segredo: nunca é gravado nem logado).
         url: Expressão regular da URL; limita a regra ao alvo.
     """
@@ -63,11 +66,6 @@ def origin_regex(base_url: str) -> str:
     port = parts.port or default_port(scheme)
     suffix = f"(?::{port})?" if port == default_port(scheme) else f":{port}"
     return f"^{re.escape(scheme)}://{re.escape(host)}{suffix}/.*"
-
-
-def _escape_replacement(value: str) -> str:
-    # O Replacer usa a substituição do Java quando a regra é regex: `$` e `\` são especiais.
-    return value.replace("\\", "\\\\").replace("$", r"\$")
 
 
 def build_token_rules(
@@ -111,14 +109,13 @@ def build_token_rules(
                 url=url_regex,
             )
         )
-        cookie = re.escape(csrf.cookie_name)
         rules.append(
             ReplacerRule(
                 description=f"{REPLACER_RULE_PREFIX}csrf-cookie-{label}-{generation}",
-                match_type="REQ_HEADER_STR",
-                match_string=rf"(?<![\w-]){cookie}=[^;\s]*",
-                regex=True,
-                replacement=_escape_replacement(f"{csrf.cookie_name}={csrf_value}"),
+                match_type="REQ_HEADER",
+                match_string="Cookie",
+                regex=False,
+                replacement=f"{csrf.cookie_name}={csrf_value}",
                 url=url_regex,
             )
         )

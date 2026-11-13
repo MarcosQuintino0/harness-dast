@@ -1,6 +1,6 @@
 # `hdast scan`
 
-> **Status: Implementado (M4)**, verificado contra um ZAP falso com as formas do spike do M0, **não** contra o ZAP real. Decisão: [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md). Formatos dos arquivos: [finding-schema.md](finding-schema.md). Lista do que conferir no ZAP real: [relatorio.md](relatorio.md#o-que-ainda-precisa-ser-verificado-contra-o-zap-real).
+> **Status: Implementado (M4), verificado contra o ZAP 2.17.0 real e o proxy de escopo real.** Decisões: [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md). Formatos dos arquivos: [finding-schema.md](finding-schema.md). Resultado da conferência de cada item: [relatorio.md](relatorio.md#o-que-foi-verificado-contra-o-zap-real). Para rodar tudo de uma vez: [`hdast run`](cli.md#hdast-run).
 
 ```bash
 uv run hdast --json scan meu-produto --run 2026-11-13T05-15-32Z-meu-produto-ab12 --dry-run
@@ -14,7 +14,7 @@ Roda a varredura ativa do ZAP sobre as requisições que um `probe` **da mesma e
 | Flag | Efeito |
 | --- | --- |
 | `--run RUN_ID` | **Obrigatória.** O `run_id` do `probe` (real, não `--dry-run`). O `scan` grava na mesma pasta |
-| `--only ID` | Varre só esta operação (repetível) |
+| `--only ID` | Varre só esta operação (repetível). Um `operation_id` que a execução não tem é erro de configuração (saída 2) |
 | `--include-outcome CLASSE` | Varre também operações que o `probe` classificou assim (repetível). Lista fechada: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error`. `success` é sempre incluído; `server_error`, `auth_error` e afins nunca |
 | `--dry-run` | Mostra o plano (`data.planned`, `data.skipped`). **Não** toca o ZAP nem o alvo, não resolve segredos, não grava arquivos |
 | `--max-minutes N` | Reduz o prazo total (nunca acima de `limits.max_duration_minutes`) |
@@ -54,15 +54,17 @@ Antes da primeira varredura o ZAP recebe: `threadPerHost` (`limits.zap_threads_p
 | 10104 | User Agent Fuzzer | Repete cada requisição com dezenas de User-Agent: carga sem achado útil |
 | 40043 | Log4Shell | Depende de retorno externo (OAST) que o proxy nega; só gera carga |
 | 90034 | Cloud Metadata Potentially Exposed | Pede endereços de metadados de nuvem: fora do escopo |
-| 40035, 40032, 40034, 10095 | Hidden File Finder, `.htaccess`, `.env`, Backup File | Adivinham centenas de caminhos novos no host |
+| 40035, 40032, 40034 | Hidden File Finder, `.htaccess`, `.env` | Adivinham centenas de caminhos novos no host |
 
-Os ids vêm da documentação do ZAP e **precisam ser conferidos** no ZAP real. O adaptador lê a política de volta (`ascan/view/scanners`) e recusa a execução (saída 4) se uma regra que devia estar desligada continua ligada.
+Todos os ids foram conferidos no ZAP 2.17.0 (a imagem tem 53 regras de varredura ativa). O id 10095 (Backup File Disclosure), que constava da primeira versão desta lista, é uma regra **passiva**: não existe no varredor ativo e fazia o ZAP recusar o `disableScanners` inteiro; foi removido. O adaptador lê as regras da política ANTES de desligar e recusa a execução (saída 4) citando os ids que a imagem não tem (por exemplo, um `scan.disable_rules` errado do perfil), e as lê de volta DEPOIS, recusando se uma regra que devia estar desligada continua ligada.
 
 ## Token (Replacer)
 
 A CLI faz o login (mesma sessão e mesmo orçamento de login do `probe`), instala regras do Replacer com nome `hdast-auth-<conta>-<geração>-<n>`, `matchType=REQ_HEADER` no cabeçalho de autenticação do perfil e `url` restrita à origem do alvo, e **renova** por `addRule` da geração nova antes de `removeRule` da antiga quando passa `scan.token_refresh_seconds` (mínimo `60 / auth.login_limit.max_per_minute`) ou o JWT está a menos de 30 s de expirar. **Remove tudo ao fim**, em sucesso, erro e Ctrl+C: primeiro pelo nome, depois uma varredura por prefixo `hdast-`.
 
-**CSRF por cookie duplicado:** duas regras extras por geração: `REQ_HEADER` para o cabeçalho (`X-XSRF-TOKEN`) e `REQ_HEADER_STR` com regex que troca só `XSRF-TOKEN=valor` dentro do `Cookie`. O Replacer não consegue *acrescentar* um cookie ausente: se a requisição aprendida não tinha o cookie, essa regra não faz nada. **Marcado: a verificar no ZAP real.**
+**CSRF por cookie duplicado** ([ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)): duas regras extras por geração, ambas `REQ_HEADER`: o cabeçalho (`X-XSRF-TOKEN`) e o `Cookie` inteiro (`XSRF-TOKEN=valor`). No ZAP real o `REQ_HEADER` **acrescenta** o cabeçalho quando falta, então toda requisição do varredor, inclusive as que as regras do ZAP reconstroem sem `Cookie` (PHP, CVE-2012-1823), leva o par igual. Preço: o único cookie que a varredura envia é o do CSRF (a V1 só autentica por cabeçalho). Prova: 547 de 547 escritas do varredor com o par igual e nenhuma recusa por CSRF; a primeira versão (`REQ_HEADER_STR`, que só troca o valor de um cookie existente) deixava cerca de 6% das escritas sem o cookie (medições no [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) e no [relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
+
+**Processo morto à força** (sem Ctrl+C): as regras `hdast-` ficam no ZAP até o próximo `scan` (que as remove na partida) ou até `stack up` recriar o ZAP.
 
 ## Parada, prazo e saúde do alvo
 
@@ -70,11 +72,12 @@ A CLI faz o login (mesma sessão e mesmo orçamento de login do `probe`), instal
 - **Janela fechada ou prazo esgotado**: a varredura em curso é parada (`ascan/action/stop`), o parcial é gravado e a saída é `3`.
 - **Corte pelo ZAP** (`maxScanDuration`): o estado do ZAP é `FINISHED` com `progress` menor que 100; a CLI marca `truncated`.
 - **Alvo saturado**: um `GET` barato no escopo (`probe.health_path` ou a raiz) entre as varreduras e a cada 30 s durante uma varredura. Três falhas seguidas (transporte, 502, 503, 504), com 10 s entre elas, param tudo: saída `6`. Sem GET de saúde no escopo a guarda fica desligada e `data.health.enabled` diz `false`.
+- **Trava de emergência (`hdast stop`)**: o `RunGate` consulta o arquivo `KILL` antes de cada varredura e a cada consulta (2 s). Acionada, a varredura em curso é parada, as regras são removidas e o `scan` solto sai com `3` (como janela fechada); no `run`, com `130`. Sem isto o proxy negaria tudo e a guarda de saúde acusaria falsamente "alvo parado" (saída 6).
 - **Ctrl+C**: para a varredura, remove as regras e política, escreve `scan-progress.json` com `status: interrupted` e sai com `130`. Não grava `scan.json`.
 
 ## `data` e saída
 
-`data` é o `scan.json` (campos em [finding-schema.md](finding-schema.md#scanjson)). Sem `--dry-run`, o envelope traz `run_id`. Progresso observável fora do envelope: `scan-progress.json` e o log estruturado no `stderr`.
+`data` é o `scan.json` (campos em [finding-schema.md](finding-schema.md#scanjson)). O campo `traffic` vem da auditoria do proxy de escopo: pedidos liberados, **negados** (o que o varredor tentou fora do escopo, por motivo), duração, taxa média e pico por segundo e o limite do perfil; o `report` o transforma em "N requisições que o varredor tentou foram bloqueadas pelo escopo". Sem pilha gerenciada, `traffic.enabled` é `false`. Sem `--dry-run`, o envelope traz `run_id`. Progresso observável fora do envelope: `scan-progress.json` e o log estruturado no `stderr`.
 
 | Saída | Quando |
 | --- | --- |
@@ -85,4 +88,4 @@ A CLI faz o login (mesma sessão e mesmo orçamento de login do `probe`), instal
 | `5` | O ZAP falhou no meio, ou as regras do Replacer não puderam ser removidas ao fim (remova à mão as que começam com `hdast-`) |
 | `6` | O alvo parou de responder |
 
-O `scan` **nunca** sai com `1`: o veredito de severidade é do [`report`](relatorio.md#codigo-de-saida-1).
+O `scan` **nunca** sai com `1`: o veredito de severidade é do [`report`](relatorio.md#código-de-saída-1).
