@@ -26,6 +26,20 @@ Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do
 | `auth.py` | `PasswordLoginAuth` (`login_password`), `ApiKeyAuth` (`api_key`), contas com apelido único e `AuthConfig` | M2 |
 | `profile.py` | `ProductProfile`, `Environment`, `ProfileScope`, `CleanupConfig`; `from_data` valida o perfil inteiro e confere que a `base_url` e o login estão no escopo; `ensure_runnable` confere autorização e janela | M2 |
 | `profile_errors.py` | Converte o erro de validação do pydantic em `ConfigError` em português, por caminho de campo, sem repetir o valor recebido | M2 |
+| `api_schema.py` | Subconjunto de JSON Schema (`Schema`) independente do OpenAPI, com `flatten_schema` (resolve `allOf`/`oneOf`/`anyOf`), `find_property_path` e o alias `JsonValue` | M3 |
+| `api_model.py` | `ApiSpec`, `Operation`, `Parameter`, `RequestBody`, `SuccessResponse`: a API normalizada; sintetiza `operation_id` ausente de forma determinística; `safe_identifier` saneia texto do documento para mensagens | M3 |
+| `api_summary.py` | `summarize`: resumo compacto da API para o agente (entradas obrigatórias, ids produzidos e consumidos) com orçamento rígido em caracteres | M3 |
+| `pattern_subset.py` | Subconjunto seguro de regex (sem grupos nem alternância): análise, casamento polinomial e síntese. Nunca executa o `pattern` do documento com `re` | M3 |
+| `schema_check.py` | `violations`: o que num valor contraria o esquema (tipo, enum, limites, tamanho, formato, `pattern` suportado), sem repetir o valor | M3 |
+| `unique_values.py` | Esquema de valores únicos por execução: etiqueta do `RunId` + contador, em texto e em dígitos ([ADR 0016](../adr/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md)) | M3 |
+| `datagen_catalog.py` | Catálogo fechado de 18 geradores (nome, argumentos, se aceita `unique`) e validação estrita de argumentos | M3 |
+| `datagen.py` | `DataRules` (`data-rules.yml`): validação, precedência da regra mais específica, rejeição de regras ambíguas, conferência contra o OpenAPI | M3 |
+| `implicit_values.py` | Escolha do gerador implícito de um campo sem regra; `FieldNotGeneratable` quando o harness não sabe gerar sozinho | M3 |
+| `request_builder.py` | `RequestBuilder`: monta UMA requisição válida por operação (`BuiltRequest`) com valores de uma `ValueSource` injetada e confere tudo contra o esquema | M3 |
+| `flow.py` | `FlowSpec` (`flows.yml`): validação (um nível, sem ciclo), ordenação topológica, `extract_value` e `resolve_bindings` | M3 |
+| `versioned.py` | Validação comum de `schema_version: 1` e tradução de erros para `ConfigError` em arquivos como `data-rules.yml` e `flows.yml` | M3 |
+
+Referências: [data-rules.yml](../reference/data-rules-yml.md) e [flows.yml](../reference/flows-yml.md). Nenhum comando `hdast` chama estes módulos ainda; a fiação (casos de uso e CLI) vem na rodada seguinte.
 
 A referência campo a campo do perfil está em [../reference/target-yml.md](../reference/target-yml.md).
 
@@ -34,9 +48,6 @@ A referência campo a campo do perfil está em [../reference/target-yml.md](../r
 | Módulo | Conteúdo | Marco |
 | --- | --- | --- |
 | `run.py` (ampliação) | `RunManifest` | M5 |
-| `api_model.py` | `Operation`, `Parameter`, `Constraint` (OpenAPI normalizado) | M3 |
-| `datagen.py` | `FieldRule`, `GeneratorSpec` | M3 |
-| `flow.py` | Dependência produtor-consumidor e ordenação | M3 |
 | `finding.py` | `Finding`, `Evidence`, `Severity`, `Fingerprint` | M4 |
 
 O desenho dos módulos planejados é ilustrativo até o marco correspondente. A distribuição por marco segue o [roadmap](../roadmap.md).

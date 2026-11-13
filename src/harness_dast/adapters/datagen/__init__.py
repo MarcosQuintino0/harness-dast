@@ -1,4 +1,5 @@
-"""Adaptador de geração de dados sintéticos, incluindo geradores brasileiros.
+"""Adaptador de geração de dados: catálogo de geradores de valores sintéticos."""
 
-Não deve decidir regras de unicidade nem importar adaptadores irmãos ou `cli`.
-"""
+from harness_dast.adapters.datagen.catalogue import GeneratorCatalogue, build_registry
+
+__all__ = ["GeneratorCatalogue", "build_registry"]

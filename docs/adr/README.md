@@ -20,6 +20,8 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0012](0012-dependencias-tzdata-e-pyyaml.md) | Dependências `tzdata` e `pyyaml` | Aceito | 2026-11-13 | QA A-11 |
 | [0013](0013-schema-v1-do-perfil-de-produto.md) | Schema v1 do perfil de produto | Aceito | 2026-11-13 | QA A-01, A-02, A-07, A-11, A-13; detalha o 0005 |
 | [0014](0014-avaliacao-cega-como-eval.md) | Avaliação cega como suíte de evals | Aceito (implementação no M6) | 2026-11-13 | Requisito do dono do projeto |
+| [0015](0015-portas-do-perfil-e-carregador-de-yaml.md) | Portas do perfil e carregador de YAML endurecido | Aceito | 2026-11-13 | M2 (segunda metade); detalha 0004, 0005 e 0012 |
+| [0016](0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md) | Leitor de OpenAPI próprio, subconjunto seguro de `pattern` e esquema de unicidade | Aceito | 2026-11-13 | M3; detalha 0006 e 0007; P-12 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

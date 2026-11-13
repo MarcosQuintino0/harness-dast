@@ -243,6 +243,35 @@ ignore_names = [
     "create",
     "env_name",
     "register",
+    # API do M3 (modelo da API, regras de dados, encadeamento, montagem de requisição e
+    # resumo para o agente) ainda sem chamador de produção; os casos de uso e a CLI a
+    # consomem na rodada de fiação do M3. Remover cada entrada quando ganhar chamador.
+    "FlowSpec",
+    "RequestBuilder",
+    "build",
+    "execution_order",
+    "resolve_bindings",
+    "validate_against",
+    "summarize",
+    "run_tag_from_run_id",
+    # Campos de modelos do M3 lidos por reflexão do pydantic e, depois, pelos casos de uso.
+    "body_media_type",
+    "constraints",
+    "cookies",
+    "field_name",
+    "headers",
+    "id_synthesized",
+    "more_inputs",
+    "omitted_operations",
+    "operation_count",
+    "optional_inputs",
+    "query",
+    "security_schemes",
+    "servers",
+    "skipped_fields",
+    "success_codes",
+    "tags",
+    "id",
 ]
 
 # ------------------------------------------------------------ commitizen

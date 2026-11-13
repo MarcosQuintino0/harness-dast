@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info: {title: Sem ids, version: "1"}
+paths:
+  /a/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses: {"200": {description: ok}}
+  /a/by_id:
+    get:
+      responses: {"200": {description: ok}}
+  /:
+    get:
+      responses: {"200": {description: ok}}
+  /pessoas/{pessoaId}/enderecos:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [rua], properties: {rua: {type: string}}}
+      responses: {"201": {description: criado}}
