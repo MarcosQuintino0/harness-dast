@@ -96,7 +96,7 @@ tudo, `user_b` (dono de `name2`) os `PUT` de e-mail e senha, e `admin_a` o `DELE
 pedidos ao scope-proxy; ele nega por padrão tudo que a política da execução não autoriza (host, porta, caminho, método, taxa, prazo e
 `KILL`), então o alcance é o mesmo do ZAP. Não dá acesso ao ZAP, à rede do lab nem ao Docker.
 
-**Testes de integração do lab** (exigem Docker): `uv run pytest -m lab_fast` (nível rápido, poucos endpoints) e `uv run pytest -m lab_full` (todos os endpoints, vulnerável e seguro, com comparação ao gabarito); detalhes em [../docs/testing.md](../docs/testing.md#dois-níveis-de-integração-contra-o-lab). Os perfis de lab usam limites modestos (5 req/s, 2 threads).
+**Testes de integração do lab** (exigem Docker): `uv run pytest -m lab_fast` (nível rápido, poucos endpoints) e `uv run pytest -m lab_full` (todos os endpoints, vulnerável e seguro, com comparação ao gabarito); detalhes em [../docs/testing.md](../docs/testing.md#dois-níveis-de-integração-contra-o-lab). Os perfis de lab rodam no teto da ferramenta (50 req/s, 8 threads), com autorização do dono, porque os alvos são locais; o teste do limitador reduz a própria cópia para 5 req/s. O modelo em `products/_template` continua conservador.
 
 **Parada de emergência**: `uv run hdast stop` (de outro terminal) lê o que estava rodando, cria o `KILL` da pilha e para as varreduras do ZAP (funciona com o ZAP fora do ar); um `hdast run` ou `scan` em andamento percebe a trava em até 2 s, remove as regras do Replacer e sai (130 no `run`). Depois disso o proxy nega todo pedido novo até `hdast stack up` recriar a pilha.
 

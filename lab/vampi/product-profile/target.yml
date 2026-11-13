@@ -29,9 +29,9 @@ scope:
     - "seg-dom 00:00-24:00 America/Sao_Paulo"
 
 limits:
-  requests_per_second: 5
+  requests_per_second: 50
   max_duration_minutes: 30
-  zap_threads_per_host: 2
+  zap_threads_per_host: 8
 
 probe:
   # O VAmPI responde HTTP 200 com {"status": "fail"} em falha logica (spike M0, secao 4).

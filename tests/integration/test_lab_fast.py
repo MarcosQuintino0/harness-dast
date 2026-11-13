@@ -112,10 +112,20 @@ def test_scope_denials_counted_in_scan_json_match_the_proxy_audit(pilot_facts: F
 
 @pytest.fixture(scope="module")
 def slow_vampi(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, float]]:
-    """Varre uma operação do VAmPI no perfil de laboratório (5 req/s) e devolve a taxa medida."""
+    """Varre uma operação do VAmPI com o limite baixo (5 req/s) e devolve a taxa medida.
+
+    O perfil do laboratório roda no teto (50 req/s) para os testes serem rápidos; aqui a cópia
+    instalada é reduzida para o valor conservador do modelo, para o freio continuar com prova.
+    """
     require_docker()
     cli = LabCli(tmp_path_factory.mktemp("fast-rate"), VAMPI_ENV)
-    cli.install_product("vampi", VAMPI_PROFILE, (VAMPI_OPENAPI,))
+    installed = cli.install_product("vampi", VAMPI_PROFILE, (VAMPI_OPENAPI,)) / "target.yml"
+    fast = installed.read_text(encoding="utf-8")
+    slow = fast.replace("requests_per_second: 50", "requests_per_second: 5").replace(
+        "zap_threads_per_host: 8", "zap_threads_per_host: 2"
+    )
+    assert slow != fast, "o perfil do laboratório deixou de declarar 50 req/s e 8 threads"
+    installed.write_text(slow, encoding="utf-8")
     try:
         assert cli.run("stack", "up", "vampi", timeout=600).code == 0
         run_id, _ = _probe_and_scan(cli, "vampi", VAMPI_OPERATION)
