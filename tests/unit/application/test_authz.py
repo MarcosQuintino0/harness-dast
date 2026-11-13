@@ -305,6 +305,37 @@ def test_only_the_declared_extra_fields_are_sent() -> None:
     assert all(b"isAdmin" not in (r.body or b"") for r in puts)
 
 
+# --- alvo vulnerável contra alvo seguro ------------------------------------------------------
+
+
+def test_a_vulnerable_target_yields_one_finding_per_technique() -> None:
+    rig = AuthzRig(Clinic(bola=True, excess=True, mass=True, bfla=True))
+
+    result = run_authz(rig)
+
+    assert {f.technique for f in result.findings} == {
+        "authz_horizontal",
+        "authz_excessive_data",
+        "authz_vertical",
+        "authz_mass_assignment",
+    }
+    assert {f.proposed_severity for f in result.findings} == {"high"}
+    assert result.status == "completed"
+    assert result.accounts
+
+
+def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -> None:
+    rig = AuthzRig(Clinic())
+
+    result = run_authz(rig)
+
+    assert result.findings == ()
+    assert result.status == "completed"
+    assert [c.status for c in result.checks] == ["completed"] * 4
+    assert result.not_tested
+    assert "NÃO prova" in result.notice
+
+
 # --- regras inegociáveis ---------------------------------------------------------------
 
 

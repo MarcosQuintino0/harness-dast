@@ -2,8 +2,16 @@
 
 import json
 
+import pytest
+from pydantic import ValidationError
+
 from harness_dast.domain.http_messages import HttpRequest
-from harness_dast.domain.probe_exchange import MAX_BODY_CHARS, ExchangeLog, build_exchange
+from harness_dast.domain.probe_exchange import (
+    MAX_BODY_CHARS,
+    ExchangeLog,
+    ExchangeRecord,
+    build_exchange,
+)
 
 BASE = "https://api.exemplo.test"
 
@@ -112,3 +120,18 @@ def test_the_log_roundtrips() -> None:
     log = ExchangeLog(run_id="r", product="p", exchanges=(record,))
 
     assert ExchangeLog.model_validate_json(log.model_dump_json()) == log
+
+
+def test_a_tampered_target_in_the_file_cannot_change_the_host() -> None:
+    for target in ("//evil.test/x", "evil.test/x", "/a b", "/a\\b", "/a\nb", ""):
+        with pytest.raises(ValidationError):
+            ExchangeRecord(
+                operation_id="o", method="GET", path="/p", target=target, account="a", status=200
+            )
+
+
+def test_an_at_sign_inside_the_path_or_query_is_fine() -> None:
+    record = build(request(url=f"{BASE}/api/x/1?email=a@b.test"))
+
+    assert record is not None
+    assert record.target == "/api/x/1?email=a@b.test"

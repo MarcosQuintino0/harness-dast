@@ -14,7 +14,7 @@ das RESPOSTAS nunca é gravado. Este módulo é puro.
 import json
 from typing import Final
 
-from pydantic import Field
+from pydantic import Field, ValidationError, field_validator
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
 from harness_dast.domain.authz_sensitive import classify_field_name
@@ -51,6 +51,22 @@ class ExchangeRecord(ApiModel):
     content_type: str | None = None
     body: str | None = Field(default=None, max_length=MAX_BODY_CHARS)
     omitted_fields: tuple[str, ...] = ()
+
+    @field_validator("target")
+    @classmethod
+    def validate_target(cls, value: str) -> str:
+        """Só caminho relativo à `base_url`: um alvo adulterado nunca troca o host.
+
+        Defesa em profundidade: o `ScopeGuard` continua sendo quem decide o escopo.
+        """
+        if (
+            not value.startswith("/")
+            or value.startswith("//")
+            or any(char in value for char in "\\ \t\r\n#")
+            or not value.isprintable()
+        ):
+            raise ValueError("target precisa ser um caminho relativo simples, começando por '/'")
+        return value
 
 
 class ExchangeLog(ApiModel):
@@ -121,8 +137,9 @@ def build_exchange(
 ) -> ExchangeRecord | None:
     """Registro repetível de um pedido com sucesso, ou `None` se não pode ser guardado.
 
-    Devolve `None` quando a requisição é anônima, a URL não está sob `base_url`, o alvo ou o
-    corpo carregam um segredo registrado (`mask` muda o texto) ou o corpo é grande demais.
+    Devolve `None` quando a requisição é anônima, a URL não está sob `base_url` ou o alvo não é
+    um caminho relativo simples, o alvo ou o corpo carregam um segredo registrado (`mask` muda o
+    texto) ou o corpo é grande demais.
     """
     prefix = base_url.rstrip("/")
     if request.account is None or not request.url.startswith(prefix):
@@ -133,14 +150,17 @@ def build_exchange(
     body, omitted, discard = _body_of(request, mask)
     if discard:
         return None
-    return ExchangeRecord(
-        operation_id=request.operation_id,
-        method=request.method,
-        path=path_template,
-        target=target,
-        account=request.account,
-        status=status,
-        content_type="application/json" if body is not None else None,
-        body=body,
-        omitted_fields=omitted,
-    )
+    try:
+        return ExchangeRecord(
+            operation_id=request.operation_id,
+            method=request.method,
+            path=path_template,
+            target=target,
+            account=request.account,
+            status=status,
+            content_type="application/json" if body is not None else None,
+            body=body,
+            omitted_fields=omitted,
+        )
+    except ValidationError:
+        return None
