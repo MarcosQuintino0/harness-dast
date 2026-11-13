@@ -15,7 +15,11 @@ class FakeHost:
     def __init__(self) -> None:
         self.docker_error: ExternalToolError | None = None
         self.docker_server = "27.3.1"
-        self.images: tuple[str, ...] = ("zap:1@sha256:aaa", "socat:1@sha256:bbb", "hdast/scope-proxy:local")
+        self.images: tuple[str, ...] = (
+            "zap:1@sha256:aaa",
+            "socat:1@sha256:bbb",
+            "hdast/scope-proxy:local",
+        )
         self.compose_error: ConfigError | None = None
         self.present: set[str] = set(self.images)
         self.busy_ports: set[int] = set()
