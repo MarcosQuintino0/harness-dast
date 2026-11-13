@@ -12,6 +12,8 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 
 Casos: `clinica-piloto` (alvo próprio, com falhas plantadas, que nenhum modelo viu), `vampi` (público; pode estar na memória dos modelos, então serve de linha de base) e `crapi` ([OWASP crAPI](../lab/crapi/README.md), público, só vulnerável, **fora** do `hdast stack up`: veja [O caso crAPI](#o-caso-crapi)). Outro caso entra só com uma pasta nova (veja [Criar um caso](#criar-um-caso)).
 
+**Primeira avaliação cega (2026-11-13):** cinco rodadas com agente novo, resultado em [docs/reviews/2026-11-13-rodadas-cegas.md](../docs/reviews/2026-11-13-rodadas-cegas.md). O parágrafo seguinte descreve os ensaios anteriores, não cegos.
+
 **Estado de verificação (2026-11-13):** o arranjo foi provado com Docker em ensaios **não cegos** (o programador fez o papel do agente, com perfil copiado de `lab/`): `clinica-piloto` modo vulnerável (nota 9,53), `vampi` modo seguro (10,0) e `crapi` (veja o fim do documento). Os ensaios sujos (escopo mais largo que a carta, `curl` ao alvo) foram pegos (3,0 e 0,0). Ainda **não** houve rodada com um agente cego de verdade.
 
 ## Uma rodada, do começo ao fim

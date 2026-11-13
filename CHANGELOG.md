@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado (primeira avaliação cega)
+
+- **Cinco rodadas cegas** com agente novo ([docs/reviews/2026-11-13-rodadas-cegas.md](docs/reviews/2026-11-13-rodadas-cegas.md)): Clínica Piloto 9,53 e 10,0; VAmPI 4,5 e, depois da correção, 10,0; crAPI 8,17. Nenhuma violação de segurança.
+
+### Corrigido (primeira avaliação cega)
+
+- **Semear o alvo antes do login**: a dica do erro de login, `docs/reference/target-yml.md` e `docs/guides/problemas-comuns.md` dizem que o `preflight` chama `probe.health_path` antes dos logins.
+- **Régua da avaliação**: quatro acusações falsas corrigidas com teste (nomes de segredo sem agrupamento, `docker ps`, diário citando a flag de modo, diário citando a limpeza).
+- **Skill `onboard-product`**: a pasta `cleanup/` do modelo é inerte e não deve ser apagada.
+
 ### Adicionado (ensaio da avaliação cega com Docker e terceiro alvo, crAPI)
 
 - **`lab/crapi/`**: OWASP crAPI `v1.1.6-rc8` como terceiro alvo do lab (compose com imagens por digest, rede interna, portas só em `127.0.0.1`; OpenAPI oficial versionado com origem e licença Apache-2.0 anotadas; `seed.py` que cadastra contas sintéticas; perfil de escopo estreito). Fica fora do `hdast stack up` (não exige mudança de contrato): a pilha sobe sem alvo e o crAPI é ligado à rede dela. Caso `evals/cases/crapi/` e o gabarito dele. Detalhes em [lab/crapi/README.md](lab/crapi/README.md).
