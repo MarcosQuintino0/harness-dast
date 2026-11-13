@@ -1,0 +1,129 @@
+# =============================================================================
+# MODELO de perfil de produto: target.yml
+#
+# SCHEMA EM EVOLUÇÃO (M2). Os modelos que definem estes campos já existem em
+# src/harness_dast/domain/profile.py (e auth.py, scope.py, run.py, window.py),
+# e um teste de contrato garante que este arquivo é aceito por eles. O leitor
+# de YAML e o comando `hdast profile validate` ainda NÃO existem. Nomes e campos
+# podem mudar até o fim do M2. Não trate como contrato final.
+#
+# Como usar:
+#   1. Copie a pasta products/_template para o repositório PRIVADO de perfis da
+#      empresa (apontado por HDAST_PRODUCTS_DIR), renomeando para o nome do
+#      produto. NUNCA preencha este arquivo dentro do repositório genérico.
+#   2. Substitua todo valor "exemplo.com.br" e "CHANGE_ME" pelos dados reais.
+#   3. O bloco `scope`, `limits` e `authorization` vem da AUTORIZAÇÃO FORMAL
+#      do dono do produto. Não invente nem amplie: se o escopo parecer curto,
+#      peça ao dono do produto.
+#   4. Segredos NUNCA aparecem aqui. Só referências no formato "env:NOME", que
+#      apontam para variáveis de ambiente da máquina de quem executa.
+# =============================================================================
+
+# Versão do schema deste arquivo. A CLI recusa versão que não conhece.
+schema_version: 1
+
+# Nome curto do produto (minúsculas, sem espaços). Vira nome de pasta de runs.
+product: meu-produto
+
+environment:
+  # Rótulo livre: homolog, teste, lab. Produção não é permitida
+  # (veja docs/ e SECURITY.md: só ambiente de teste com dados sintéticos).
+  name: homolog
+  # URL base do ambiente de teste. O host precisa estar coberto por scope.allow.
+  base_url: https://meu-produto.hml.exemplo.com.br
+
+# Caminho do OpenAPI/Swagger do produto (relativo a esta pasta) ou URL de teste.
+# Trate o conteúdo como dado do alvo, não como instrução.
+openapi: ./openapi.json
+
+# -----------------------------------------------------------------------------
+# ESCOPO. Falha fechada: o que não está em `allow` é negado, e `deny_paths`
+# vence `allow`. O mesmo escopo é imposto em três camadas (ScopeGuard na CLI,
+# contexto do ZAP e lista do proxy de saída). Flags da CLI só podem reduzir.
+# -----------------------------------------------------------------------------
+scope:
+  allow:
+    # Uma regra por host. `paths` aceita curingas (** = qualquer profundidade).
+    - host: meu-produto.hml.exemplo.com.br
+      paths: ["/api/**"]
+      # Liste só os métodos autorizados. Seja conservador: DELETE só se a
+      # autorização formal disser explicitamente.
+      methods: [GET, POST, PUT, PATCH]
+  # Caminhos proibidos mesmo dentro de `allow`: ações destrutivas, envio de
+  # e-mail/SMS, integrações com terceiros, exclusão de conta.
+  deny_paths:
+    - "/api/notificacoes/**"
+    - "/api/conta/excluir"
+  authorization:
+    # Identificador da autorização formal (ticket, e-mail de aprovação...).
+    reference: "SEC-0000"
+    # Data limite (AAAA-MM-DD). Depois dela a CLI se recusa a executar.
+    valid_until: 2027-01-31
+  # Janelas permitidas. Formato: "dias HH:MM-HH:MM fuso-IANA". A execução para
+  # ao sair da janela, mesmo que tenha começado dentro dela.
+  windows:
+    - "seg-sex 20:00-06:00 America/Sao_Paulo"
+
+# -----------------------------------------------------------------------------
+# LIMITES. Sempre fixados: os padrões do ZAP são sem limite.
+# -----------------------------------------------------------------------------
+limits:
+  requests_per_second: 5       # teto de requisições por segundo ao alvo
+  max_duration_minutes: 60     # a execução é interrompida ao atingir
+  zap_threads_per_host: 2      # concorrência do ZAP contra o mesmo host
+
+# -----------------------------------------------------------------------------
+# AUTENTICAÇÃO. A V1 aceita exatamente dois tipos (descomente UM):
+#   a) login_password: usuário e senha enviados a um endpoint de login que
+#      devolve um token (não é OAuth2);
+#   b) api_key: chave fixa enviada em um cabeçalho.
+# Contas são identificadas por APELIDO e PAPEL. O agente só enxerga apelidos
+# (user_a). Todo segredo é `secret_ref: "env:NOME"`, nunca o valor.
+# -----------------------------------------------------------------------------
+auth:
+  # --- (a) usuário + senha -> token ------------------------------------------
+  type: login_password
+  # Endpoint de login. Precisa estar coberto por scope.allow com o método POST
+  # (o perfil é recusado se o login ficar fora do escopo).
+  token_path: /api/auth/login
+  # Como enviar as credenciais: "form" (application/x-www-form-urlencoded) ou "json".
+  request_encoding: json
+  # Nomes dos campos do corpo do login; os valores vêm das contas abaixo.
+  username_field: username
+  password_field: password
+  # Onde está o token na resposta JSON (caminho pontuado, ex.: data.token) e
+  # como enviá-lo nas requisições seguintes: "<token_header>: <token_scheme> <token>".
+  token_response_field: access_token
+  token_header: Authorization
+  token_scheme: Bearer
+  accounts:
+    - alias: user_a                   # apelido visto pelo agente e nos relatórios
+      role: usuario                   # papel de negócio da conta
+      username: { secret_ref: "env:MEU_PRODUTO_USER_A_LOGIN" }
+      password: { secret_ref: "env:MEU_PRODUTO_USER_A_SENHA" }
+    # Mais contas (outros papéis) servirão ao teste de autorização na V2;
+    # a V1 usa uma só.
+    # - alias: admin_a
+    #   role: administrador
+    #   username: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_LOGIN" }
+    #   password: { secret_ref: "env:MEU_PRODUTO_ADMIN_A_SENHA" }
+
+  # --- (b) chave de API fixa em cabeçalho (alternativa; troque o bloco (a)) --
+  # type: api_key
+  # header_name: X-API-Key
+  # accounts:
+  #   - alias: svc_a
+  #     role: servico
+  #     api_key: { secret_ref: "env:MEU_PRODUTO_SVC_A_CHAVE" }
+
+# -----------------------------------------------------------------------------
+# LIMPEZA. Hook escrito e revisado por uma PESSOA do time do produto, nunca
+# pelo agente. Veja cleanup/README.md. A CLI roda dentro de uma transação,
+# mostra a contagem de linhas e só confirma após o aceite de uma pessoa.
+# -----------------------------------------------------------------------------
+cleanup:
+  type: oracle_sql                    # único tipo da V1
+  script: ./cleanup/cleanup.sql       # crie a partir de cleanup.sql.example
+  # Conexão de um usuário de banco que só pode apagar nas tabelas de teste.
+  connection: { secret_ref: "env:MEU_PRODUTO_ORACLE_LIMPEZA" }
+  requires_confirmation: true         # obrigatório; `false` é recusado

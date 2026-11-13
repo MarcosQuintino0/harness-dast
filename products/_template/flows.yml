@@ -1,0 +1,19 @@
+# =============================================================================
+# MODELO: flows.yml. Dependências entre operações (encadeamento de dados).
+#
+# SCHEMA PLANEJADO PARA O MARCO M2. O código que valida este arquivo ainda não
+# existe; nomes e campos podem mudar até o M2.
+#
+# Por que existe: muitas operações precisam de um identificador devolvido por
+# outra (criar paciente -> buscar paciente). Sem isso, o ZAP usaria ids
+# inventados e só veria erros 404. Cada binding diz qual operação PRODUZ um
+# valor e quais operações o CONSOMEM.
+# =============================================================================
+schema_version: 1
+
+bindings:
+  - produces: { operation: criarPaciente, field: id }   # operationId + campo da resposta
+    consumed_by:
+      # `param` = parâmetro de caminho/consulta; `field` = campo do corpo.
+      - { operation: buscarPaciente, param: pacienteId }
+      - { operation: criarConsulta, field: pacienteId }
