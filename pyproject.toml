@@ -287,7 +287,6 @@ ignore_names = [
     # abas que ainda não existem (Falhas, Cobertura, Terminal, Tempo e tokens) e para os ganchos
     # do diário de comandos e do catálogo de explicação. Cada um perde a entrada quando a aba
     # que o desenha for escrita.
-    "FUNCTION_STATE_WORDS",
     "fmt_clock",
     "functions_total",
     "technical_name",
@@ -296,12 +295,8 @@ ignore_names = [
     "owasp",
     "authz_evidence",
     "triage_note",
-    "rules_measured",
-    "rules_unavailable",
-    "tokens_by_stage",
     "translation",
     "output",
-    "left_out",
     # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
     # (`scan`, `report`, `cleanup`).
     "FINDINGS",
@@ -330,6 +325,9 @@ ignore_names = [
     "response_total_lines",
     "response_cut",
     "personal_data_masked",
+    # Leitura de agent-metrics.json (tokens do agente): porta, adaptador e fake prontos; o
+    # chamador (`application/panel.py`) a liga na entrega que junta as abas da V1.2.
+    "read_agent_metrics",
 ]
 
 # ------------------------------------------------------------ commitizen
