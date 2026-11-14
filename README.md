@@ -4,9 +4,9 @@ Ferramenta interna para testes de segurança de APIs **autorizados**. Um agente 
 
 Princípio central: **o agente propõe, a CLI executa.** O agente nunca fala HTTP com o alvo, nunca vê segredo e nunca decide escopo. Veja [ADR 0001](docs/adr/0001-dois-planos-agente-propoe-cli-executa.md).
 
-> **Estado atual: o fluxo completo funciona.** `preflight`, `probe`, `scan`, `report`, `cleanup`, `run` (que encadeia os quatro primeiros), `stack` e `stop` estão implementados e foram verificados contra o **ZAP 2.17 real**, o proxy de escopo real e dois alvos de laboratório (VAmPI e a Clínica Piloto, em modo vulnerável e seguro). O resultado medido, o que a V1 achou e o que **não** achou está em [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md). Nada foi commitado ainda.
+> **Estado atual (versão 1.3.0): o fluxo completo funciona.** `preflight`, `probe`, `scan`, `report`, `cleanup`, `run` (que encadeia as etapas), `stack` e `stop` estão implementados e foram verificados contra o **ZAP 2.17 real**, o proxy de escopo real e alvos de laboratório (VAmPI e a Clínica Piloto, em modo vulnerável e seguro). O resultado medido, o que a V1 achou e o que **não** achou está em [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md). Desde então vieram `doctor`, `authz` (teste de autorização entre contas), `secret` (cofre do sistema), o modo amplo de caminho e o relatório agrupado (V1.1, medidos em laboratório) e `panel`, o diário de comandos e as medições (V1.2, só como código e testes, sem prova com Docker). A V1.3 trouxe a trava por pilha, a carta estruturada (`init --from-letter`) e a aprovação do escopo por uma pessoa (`profile approve`, obrigatória para todo perfil), como código e testes; só a trava foi provada com Docker. Os pull requests #1 a #5 já foram mesclados na `main` e o CI passou neles.
 >
-> **Skills, permissões e avaliação cega (M6) existem:** as quatro skills e os dois subagentes em [`.claude/`](.claude/), as permissões do Claude Code em [`.claude/settings.json`](.claude/settings.json), os [guias de operação](docs/guides/) e a suíte de avaliação cega em [`evals/`](evals/README.md). **Não existe ainda:** a execução da avaliação cega com números (a suíte prepara, coleta e dá a nota; a primeira rodada ainda não foi feita) e o piloto em um produto real (M7). As permissões do Claude Code são a camada 0 (conveniência); a trava de verdade é o código da CLI. Um relatório sem achados **não** é prova de que a API é segura: autorização entre contas (BOLA/BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Estado por item: [docs/roadmap.md](docs/roadmap.md).
+> **Skills, permissões e avaliação cega (M6) existem:** as quatro skills e os dois subagentes em [`.claude/`](.claude/), as permissões do Claude Code em [`.claude/settings.json`](.claude/settings.json), os [guias de operação](docs/guides/) e a suíte de avaliação cega em [`evals/`](evals/README.md). A avaliação cega teve seis rodadas em laboratório em 2026-11-13 ([rodadas](docs/reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](docs/reviews/2026-11-13-rodada-cega-v1-1.md)), sem violação de segurança; ainda faltam a forma fiel (`claude -p`) e repetições por caso. **Não existe ainda:** o piloto em um produto real (M7), outros motores além do ZAP e outros bancos na limpeza além do Oracle. As permissões do Claude Code são a camada 0 (conveniência); a trava de verdade é o código da CLI. Um relatório sem achados **não** é prova de que a API é segura: atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta, e a autorização entre contas só é testada pelo `hdast authz` (BOLA entre contas; o BFLA vertical segue sem prova em alvo real). Estado por item: [docs/roadmap.md](docs/roadmap.md).
 
 ## O que é e o que não é
 
@@ -23,7 +23,7 @@ Não é:
 - Um substituto do ZAP. Quem ataca é o ZAP; o agente fica na configuração.
 - Uma ferramenta pronta para produção. A V1 é de uso local por QAs.
 
-Fora do escopo da V1: teste de autorização entre contas (BOLA, escalada de privilégio), outros motores (nmap, nuclei, Schemathesis), execução automática no CI a cada release, Jira/DefectDojo/SARIF e frontend com navegador. Veja [docs/roadmap.md](docs/roadmap.md).
+Fora do escopo da V1: outros motores (nmap, nuclei, Schemathesis), execução automática no CI a cada release, Jira/DefectDojo/SARIF e frontend com navegador. O teste de autorização entre contas, que a versão 1.0 listava como fora, entrou na V1.1 (`hdast authz`, [ADR 0027](docs/adr/0027-teste-de-autorizacao-entre-contas.md)); a escalada vertical (BFLA) e a escrita sobre recurso de outra conta têm cobertura limitada, descrita em [docs/reference/authz.md](docs/reference/authz.md). Veja [docs/roadmap.md](docs/roadmap.md).
 
 ## Aviso de uso autorizado
 
@@ -95,10 +95,11 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run lint-imports
+uv run vulture
 uv run pytest
 ```
 
-Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em modo estrito; `lint-imports` (import-linter) quebra o build se uma camada importar o que não pode; `pytest` roda os testes. `uv run pytest` roda os testes unitários e de contrato (milhares) e não precisa de Docker; `uv run pytest -m integration` roda a integração contra o ZAP e o lab reais (precisa de Docker e leva horas; veja [docs/testing.md](docs/testing.md)). O CI roda ainda `uv run vulture` (código sem uso), `gitleaks` e `pip-audit`. Veja [docs/testing.md](docs/testing.md).
+Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em modo estrito; `lint-imports` (import-linter) quebra o build se uma camada importar o que não pode; `vulture` acha código sem uso; `pytest` roda os testes (inclusive a conferência de links dos documentos). `uv run pytest` roda os testes unitários e de contrato (milhares) e não precisa de Docker; `uv run pytest -m integration` roda a integração contra o ZAP e o lab reais (precisa de Docker e leva horas; veja [docs/testing.md](docs/testing.md)). O CI roda ainda `gitleaks` e `pip-audit`. Veja [docs/testing.md](docs/testing.md).
 
 `--json` pode vir antes ou depois do comando. A tabela com todos os comandos, flags e o marco de cada um está em [docs/reference/cli.md](docs/reference/cli.md).
 
@@ -107,12 +108,14 @@ Para que serve cada uma: `ruff` faz lint e formatação; `mypy` confere tipos em
 | Marco | Tema | Status |
 | --- | --- | --- |
 | M0 | Decisões e spike descartável | Feito ([docs/spikes/](docs/spikes/2026-11-13-m0-zap.md)) |
-| M1 | Fundação: esqueleto, ferramentas, CI, ADRs, documentação, lab | Entregue na árvore de trabalho; falta o primeiro commit e o primeiro pull request |
+| M1 | Fundação: esqueleto, ferramentas, CI, ADRs, documentação, lab | Entregue (pull request #1 mesclado em 2026-11-13; o CI passou no Linux depois do #2) |
 | M2 | Domínio, perfil e escopo | Entregue |
 | M3 | OpenAPI, dados e alcançabilidade | Entregue e verificado contra o ZAP real |
 | M4 | Varredura e achados | Entregue e verificado contra o ZAP real |
 | M5 | Limpeza e execução completa (`cleanup`, `run`, `stop`) | Entregue; limpeza verificada contra um Oracle Free real |
-| M6 | Skills, documentação de uso e avaliação cega por agentes (evals) | Entregue (skills, permissões, guias e suíte de avaliação); a primeira rodada cega ainda não foi executada |
+| M6 | Skills, documentação de uso e avaliação cega por agentes (evals) | Entregue (skills, permissões, guias e suíte de avaliação); seis rodadas cegas em laboratório em 2026-11-13 ([resultado](docs/reviews/2026-11-13-rodadas-cegas.md)); forma fiel e repetições em aberto |
+| V1.1 | Cerca com modo amplo, `authz`, `doctor`, relatório agrupado, cofre de senhas | Entregue; medida em laboratório (veja o [roadmap](docs/roadmap.md#v11-o-que-foi-provado-em-laboratório-e-o-que-ainda-não-foi-verificado)) |
+| V1.2 | Painel da execução, diário de comandos e medições | Entregue como código e testes; sem prova com Docker |
 | M7 | Piloto em um produto real | Planejado |
 
 A tabela de status por componente, mantida em um único lugar, está em [docs/roadmap.md](docs/roadmap.md).
@@ -122,9 +125,9 @@ A tabela de status por componente, mantida em um único lugar, está em [docs/ro
 | Documento | Conteúdo |
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | Visão geral, dois planos, camadas, erros, logs, configuração, contrato da CLI, diagramas |
-| [docs/roadmap.md](docs/roadmap.md) | Marcos M0 a M7, tabela de status, itens em aberto, candidatos a V2 |
+| [docs/roadmap.md](docs/roadmap.md) | Marcos M0 a M7, tabela de status, V1.1 e V1.2, itens em aberto, candidatos a V2 |
 | [docs/testing.md](docs/testing.md) | Níveis de teste, dublês, cobertura, casos obrigatórios do ScopeGuard, análise de mutação, avaliação cega |
-| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0025) |
+| [docs/adr/](docs/adr/README.md) | Registro das decisões arquiteturais (0001 a 0034) |
 | [docs/modules/](docs/modules/domain.md) | Uma página por pacote: `domain`, `application`, `adapters`, `cli`, `config`, `observability` |
 | [docs/reference/cli.md](docs/reference/cli.md) | Comandos da CLI |
 | [docs/reference/exit-codes.md](docs/reference/exit-codes.md) | Códigos de saída |

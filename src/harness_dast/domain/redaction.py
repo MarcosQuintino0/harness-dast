@@ -43,6 +43,7 @@ _LONG_TOKEN = re.compile(r"(?<![A-Za-z0-9])(?=[A-Za-z0-9_+/=-]*\d)[A-Za-z0-9_+/=
 _LONG_SEGMENT = re.compile(r"(?<![A-Za-z0-9])(?=[A-Za-z0-9_+-]*\d)[A-Za-z0-9_+-]{24,}")
 _URLISH = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*://|(?<![^\s])/)[^\s\"'<>]*")
 _PORT_THEN_PATH = re.compile(r"\d{1,5}(?:[/?#]|$)")
+_HTTP_VERSION = re.compile(r"HTTP/\d(?:\.\d)?")
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b.?")
 _PAIR = re.compile(
     r"(?i)(\b(?:[\w-]*(?:password|passwd|senha|pwd|secret|token|apikey|api[_-]key|csrf|xsrf|"
@@ -192,6 +193,11 @@ def redact_url(url: str, mask: Masker) -> str:
             sensitive = any(word in name.lower() for word in _SENSITIVE_QUERY)
             pairs.append(f"{name}={MASK}" if eq and sensitive else part)
         query = "&".join(pairs)
+    # A versão do protocolo é um literal que não carrega segredo; sem poupá-la, uma consulta que
+    # termina em `token` (`?nome=token HTTP/1.1`) fazia `_SCHEME_TOKEN` tratar `HTTP/1.1` como
+    # credencial.
+    if _HTTP_VERSION.fullmatch(tail):
+        return redact_text(base + sep + query, mask) + space + tail
     return redact_text(base + sep + query + space + tail, mask)
 
 

@@ -1,10 +1,10 @@
 # Autorização e escopo
 
-> **Status:** a validação existe como **código de domínio** (`ScopeGuard`, janelas, validade da autorização, modelos do perfil), testado. **Nenhum comando `hdast` a aplica ainda**: não há carregador de perfil nem comando que chame o guarda, então hoje a CLI não impõe nada sobre um alvo. Decisão: [ADR 0008](../adr/0008-escopo-em-tres-camadas.md).
+> **Status:** a validação existe em código de domínio (`ScopeGuard`, janelas, validade da autorização, modelos do perfil), testado, e é aplicada por `preflight`, `probe`, `scan`, `authz`, `run` e pelo proxy de escopo (verificada contra o ZAP real e alvos de laboratório, não contra produto real). Decisão: [ADR 0008](../adr/0008-escopo-em-tres-camadas.md); estado por item em [../roadmap.md](../roadmap.md#tabela-de-status).
 
 ## Regra geral
 
-Só se testa com **autorização formal por escrito**. Sem ela, não há teste. O modelo do perfil recusa um perfil sem a referência da autorização, e `ProductProfile.ensure_runnable` recusa autorização vencida ou fora da janela. Quando os comandos existirem (M2 em diante), a CLI os usará antes de qualquer execução. Na dúvida, a execução para (falha fechada).
+Só se testa com **autorização formal por escrito**. Sem ela, não há teste. O modelo do perfil recusa um perfil sem a referência da autorização, e `ProductProfile.ensure_runnable` recusa autorização vencida ou fora da janela. A CLI usa essas conferências antes de qualquer execução. Na dúvida, a execução para (falha fechada).
 
 ## O que a autorização formal precisa informar
 
@@ -36,7 +36,7 @@ Três camadas independentes, cada uma cobrindo a falha da outra:
 | --- | --- | --- |
 | 1. `ScopeGuard` no domínio | Valida toda requisição e todo plano de varredura | Implementado: `preflight`, `probe`, `scan` e o proxy de escopo o chamam em toda requisição |
 | 2. ZAP em modo protegido | Contexto do ZAP restrito aos mesmos hosts e caminhos | Implementado (M4): o contexto por execução (`domain/zap_scope.py`) |
-| 3. Rede interna do Docker e proxy de saída com lista de hosts | O contêiner do ZAP só sai pelo proxy | Parcial: `compose.yaml` e Squid existem e foram verificados no lab; tráfego real de varredura não provado; alvo corporativo em IP privado não confirmado. Obrigatória antes de qualquer execução contra ambiente da empresa; opcional contra o lab |
+| 3. Rede interna do Docker e proxy de escopo (mitmproxy com o mesmo `ScopeGuard`, [ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)) | O contêiner do ZAP só sai pelo proxy | Implementado e exercitado no lab: a varredura ativa real passou pelo proxy e o que saiu do escopo foi negado e contado ([relatório](../reviews/2026-11-13-e2e-lab.md)). Alvo corporativo em IP privado não confirmado (A-08). Obrigatória antes de qualquer execução contra ambiente da empresa; opcional contra o lab |
 
 As permissões do Claude Code (negar `curl`, negar leitura de `.env`) reduzem acidentes, mas não são isolamento.
 
@@ -52,4 +52,4 @@ Casos obrigatórios de teste, todos com teste hoje (lista em [../testing.md](../
 | Dono do produto | Emitir a autorização, escrever e revisar o hook de limpeza, confirmar a limpeza |
 | Mantenedor do harness | Manter as travas em código; receber relatos de falha do próprio harness (veja [../../SECURITY.md](../../SECURITY.md)) |
 
-Quem é o segundo revisor humano das mudanças em escopo, segredos, limpeza e permissões ainda não foi definido (P-09, decidir até o M2). Como o `ScopeGuard` já tem código, a pendência já pesa.
+Quem é o segundo revisor humano das mudanças em escopo, segredos, limpeza e permissões ainda não foi definido, até onde os documentos mostram (P-09, prevista para o M2; a confirmar com o dono). O `ScopeGuard` já tem código e está em uso, então a pendência pesa.

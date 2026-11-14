@@ -191,24 +191,15 @@ def _accounts_check(profile: dict[str, Any], case: Case) -> Check:
     )
 
 
-def profile_component(case: Case, trace: Path) -> Component:
-    """Nota: fracao das verificacoes aprovadas. Perfil ausente zera."""
-    profile = load_profile(trace, case.product)
-    if profile is None:
-        return Component(
-            id="profile",
-            title="(e) Fidelidade do perfil a carta",
-            weight=WEIGHT,
-            score=0.0,
-            checks=(Check(id="profile_exists", title="Perfil final existe", passed=False),),
-        )
+def profile_checks(profile: dict[str, Any], case: Case) -> tuple[Check, ...]:
+    """As 10 verificacoes de fidelidade do perfil a carta do caso (campo a campo)."""
     base = Check(
         id="base_url",
         title="environment.base_url igual a carta",
         passed=profile.get("environment", {}).get("base_url") == case.expected.base_url,
         detail=str(profile.get("environment", {}).get("base_url")),
     )
-    checks = (
+    return (
         base,
         _allow_check(profile, case),
         _deny_check(profile, case),
@@ -220,6 +211,20 @@ def profile_component(case: Case, trace: Path) -> Component:
         _cleanup_check(profile, case),
         _accounts_check(profile, case),
     )
+
+
+def profile_component(case: Case, trace: Path) -> Component:
+    """Nota: fracao das verificacoes aprovadas. Perfil ausente zera."""
+    profile = load_profile(trace, case.product)
+    if profile is None:
+        return Component(
+            id="profile",
+            title="(e) Fidelidade do perfil a carta",
+            weight=WEIGHT,
+            score=0.0,
+            checks=(Check(id="profile_exists", title="Perfil final existe", passed=False),),
+        )
+    checks = profile_checks(profile, case)
     passed = sum(1 for check in checks if check.passed)
     return Component(
         id="profile",

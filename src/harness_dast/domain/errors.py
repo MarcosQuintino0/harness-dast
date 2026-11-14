@@ -15,7 +15,8 @@ class ExitCode(IntEnum):
     """Códigos de saída do processo `hdast`. Fazem parte do contrato público.
 
     5 é reservado a falha de ferramenta externa (ZAP, Docker); 6 é o alvo respondendo de
-    forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 130 é interrupção
+    forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 8 é a pilha ocupada por
+    outra execução (ADR 0035); 130 é interrupção
     pelo usuário (Ctrl+C), convenção de shell para SIGINT.
     """
 
@@ -27,6 +28,7 @@ class ExitCode(IntEnum):
     EXTERNAL_TOOL = 5
     TARGET = 6
     CLEANUP = 7
+    BUSY = 8
     INTERRUPTED = 130
     INTERNAL = 10
 
@@ -63,6 +65,15 @@ class ConfigError(HarnessError):
     exit_code = ExitCode.USAGE
 
 
+class LetterRejected(ConfigError):
+    """A carta de autorização estruturada (`carta.yml`) não passou na conferência (ADR 0036).
+
+    Falha fechada: nada foi gerado. A resposta que falta vem da pessoa, nunca do agente.
+    """
+
+    code = "LETTER_REJECTED"
+
+
 class ScopeViolation(HarnessError):
     """Ação fora do escopo, dos limites ou da janela autorizados.
 
@@ -86,6 +97,44 @@ class ScopeViolation(HarnessError):
         """
         super().__init__(message, hint)
         self.reason = reason
+
+
+class ScopeNotApproved(HarnessError):
+    """Os blocos de proteção do perfil não têm a aprovação de uma pessoa (ADR 0037).
+
+    Falha fechada: sem aprovação, ou com o perfil alterado depois dela, nenhum comando que
+    toca o alvo roda. Usa a saída 3 (a mesma da cerca) e código próprio no envelope. Não herda de
+    `ScopeViolation` de propósito: nenhum `except ScopeViolation` existente (janela, cerca) pode
+    engolir a falta de aprovação.
+
+    Attributes:
+        state: `not_approved` (nunca aprovado), `changed` (perfil mudou desde a aprovação) ou
+            `invalid` (arquivo de aprovação ilegível, de versão desconhecida ou de outro produto).
+        changed_blocks: Identificadores dos blocos que mudaram (só com `state == "changed"`).
+    """
+
+    code = "SCOPE_NOT_APPROVED"
+    exit_code = ExitCode.SCOPE
+
+    def __init__(
+        self,
+        message: str,
+        hint: str | None = None,
+        *,
+        state: str = "not_approved",
+        changed_blocks: tuple[str, ...] = (),
+    ) -> None:
+        """Cria o erro.
+
+        Args:
+            message: O que aconteceu.
+            hint: O que fazer a respeito (opcional).
+            state: Estado da aprovação (veja a classe).
+            changed_blocks: Blocos alterados desde a aprovação.
+        """
+        super().__init__(message, hint)
+        self.state = state
+        self.changed_blocks = changed_blocks
 
 
 class PreflightError(HarnessError):
@@ -136,6 +185,17 @@ class CleanupError(HarnessError):
 
     code = "CLEANUP_FAILED"
     exit_code = ExitCode.CLEANUP
+
+
+class StackBusy(HarnessError):
+    """A pilha (ZAP e proxy) já está ocupada por outra execução (ADR 0035).
+
+    Falha fechada: duas execuções na mesma pilha se corromperiam (sessão do ZAP, regra de token
+    e histórico são globais). Não é falha do alvo nem da ferramenta: é só "tente depois".
+    """
+
+    code = "STACK_BUSY"
+    exit_code = ExitCode.BUSY
 
 
 class UserInterrupt(HarnessError):

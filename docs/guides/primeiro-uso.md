@@ -26,7 +26,7 @@ uv run hdast --json version
 Saída esperada do último comando (a versão pode mudar):
 
 ```json
-{"schema_version":1,"ok":true,"data":{"version":"1.2.0"}}
+{"schema_version":1,"ok":true,"data":{"version":"1.3.0"}}
 ```
 
 ## 2b. Primeiro passo: o `doctor`
@@ -70,6 +70,14 @@ uv run hdast doctor vampi
 ```
 
 O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do passo 2b e mais o perfil, a autorização, a janela e se os segredos das contas existem, em variável de ambiente ou no cofre (só diz se existem, nunca o valor; para o cofre, diz o comando `hdast secret set NOME`). Dois **avisos** (não reprovam) olham o perfil: `scope.path_mode: wide` (o modo amplo só é seguro com `deny_paths` completo) e a falta de duas contas do mesmo papel (sem elas, o teste de autorização horizontal não consegue comparar contas). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
+
+## 4c. Aprovar o perfil (uma vez)
+
+```powershell
+uv run hdast profile approve vampi
+```
+
+Os comandos que tocam o alvo (`stack up`, `preflight`, `probe`, `scan`, `run`) recusam com `SCOPE_NOT_APPROVED` enquanto uma **pessoa** não aprovar o escopo. Rode o comando acima num terminal seu: ele mostra o resumo (endereço, o que pode, o que é proibido, janela, limites, contas, política da varredura, teste de autorização, limpeza) e pede que você digite o nome do produto (`vampi`). Só você aprova: o agente nunca roda esse comando. `uv run hdast --json profile approval vampi` mostra o estado (`approved`, `not_approved` ou `changed`). Se você (ou o agente) editar depois qualquer campo de `environment`, `scope`, `limits`, contas, `scan`, `authz` ou `cleanup`, é preciso aprovar de novo; só `probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, a codificação do login e `openapi` não pedem. Quem atualizou o `hdast` da V1.3 antes desta correção precisa aprovar de novo: o cálculo mudou de versão e a aprovação antiga vale como não feita.
 
 ## 5. Subir a pilha
 
@@ -137,7 +145,7 @@ O OpenAPI está em <caminho>. A carta de autorização está em <caminho>.
 É ambiente de teste com dados sintéticos e a autorização vale agora.
 ```
 
-A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
+A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta (o agente faz uma entrevista de uma rodada só e monta um `carta.yml`), falta a sua aprovação do escopo (você roda um comando num terminal seu),  a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
 
 ## Próximos passos
 

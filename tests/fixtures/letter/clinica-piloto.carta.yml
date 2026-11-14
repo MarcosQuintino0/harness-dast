@@ -1,0 +1,82 @@
+# Carta estruturada do laboratório local Clínica Piloto (dados de laboratório, sem empresa real).
+schema_version: 1
+product: clinica-piloto
+
+gates:
+  test_environment:
+    value: true
+    source: carta
+    quote: "Ambiente de laboratório local, descartável."
+  synthetic_data:
+    value: true
+    source: carta
+    quote: "Todos os dados são sintéticos."
+  authorization_in_force:
+    value: true
+    source: pessoa
+  product_owner:
+    value: "Time do laboratório (lab@laboratorio.local)"
+    source: carta
+
+environment:
+  name: { value: lab, source: carta }
+  base_url: { value: "http://clinica-piloto:8080", source: carta }
+  openapi: { value: ./openapi.json, source: pessoa }
+
+scope:
+  allow:
+    value:
+      - host: clinica-piloto
+        scheme: http
+        port: 8080
+        allow_local: true
+        paths: ["/api/**", "/v3/api-docs"]
+        methods: [GET, POST, PUT, PATCH]
+    source: carta
+    quote: "GET, POST, PUT e PATCH em /api/** e /v3/api-docs; DELETE não."
+  deny_paths:
+    value: ["/api/notificacoes/**", "/api/isca/**"]
+    source: carta
+  path_mode: { value: strict, source: carta }
+
+authorization:
+  reference: { value: "LAB-CLINICA-PILOTO", source: carta }
+  valid_until: { value: 2027-12-31, source: carta }
+  windows: { value: ["seg-dom 00:00-24:00 America/Sao_Paulo"], source: carta }
+
+limits:
+  requests_per_second: { value: 50, source: carta }
+  max_duration_minutes: { value: 30, source: carta }
+  zap_threads_per_host: { value: 8, source: carta }
+
+auth:
+  type: { value: login_password, source: pessoa }
+  token_path: { value: /api/auth/login, source: pessoa }
+  login_options:
+    value: { request_encoding: json }
+    source: pessoa
+  login_max_per_minute: { value: 5, source: carta }
+  accounts:
+    source: carta
+    value:
+      - alias: admin_a
+        role: admin
+        username: { secret_ref: "env:PILOT_ADMIN_USERNAME" }
+        password: { secret_ref: "env:PILOT_ADMIN_PASSWORD" }
+      - alias: paciente_a
+        role: paciente
+        username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }
+        password: { secret_ref: "env:PILOT_PACIENTE_A_PASSWORD" }
+      - alias: paciente_b
+        role: paciente
+        username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
+        password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
+
+attack:
+  strength: { value: LOW, source: pessoa }
+
+example_data:
+  source: carta
+  value:
+    - { operation: baixarArquivo, field: nome, value: laudo-0001.txt, note: "arquivo da semente" }
+    - { operation: buscarMedicoPorCrm, field: crm, value: "12345-SP" }

@@ -14,6 +14,7 @@ from harness_dast.domain.errors import (
     HarnessError,
     PreflightError,
     ScopeViolation,
+    StackBusy,
     TargetError,
 )
 
@@ -149,7 +150,10 @@ def test_run_app_prints_short_message_on_stderr_when_user_interrupts_in_human_mo
     assert "Traceback" not in captured.err
 
 
-@pytest.mark.parametrize(("error", "exit_code"), [(TargetError("x"), 6), (CleanupError("x"), 7)])
+@pytest.mark.parametrize(
+    ("error", "exit_code"),
+    [(TargetError("x"), 6), (CleanupError("x"), 7), (StackBusy("x"), 8)],
+)
 def test_run_app_maps_target_and_cleanup_errors_to_their_own_exit_codes(
     error: HarnessError, exit_code: int
 ) -> None:

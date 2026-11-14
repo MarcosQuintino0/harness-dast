@@ -39,6 +39,7 @@ from harness_dast.cli.composition import build_cleanup
 from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ExitCode
 from harness_dast.observability.logging import SecretRegistry
+from tests.fakes.approvals import approve_product_on_disk
 from tests.fakes.cleanup_ports import finished_manifest
 
 pytestmark = pytest.mark.integration
@@ -359,6 +360,7 @@ def make_workspace(
     (folder / "openapi.json").write_text("{}", "utf-8")
     sql = script if script is not None else (PILOT / "cleanup" / "cleanup.sql").read_text("utf-8")
     (folder / "cleanup" / "cleanup.sql").write_text(sql, "utf-8")
+    approve_product_on_disk(tmp_path / "produtos", "clinica-piloto")  # a pessoa, no terminal
     runs = tmp_path / "runs"
     (runs / run_id).mkdir(parents=True)
     manifest = finished_manifest(
@@ -548,6 +550,7 @@ def test_row_ceiling_exceeded_rolls_back_the_real_transaction(
     profile = yaml.safe_load(profile_path.read_text("utf-8"))
     profile["cleanup"]["max_rows"] = 4
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), "utf-8")
+    approve_product_on_disk(workspace.products, "clinica-piloto")  # `cleanup` não está na proteção
     create_junk(stack)
     with_junk = eval_state(stack)
 

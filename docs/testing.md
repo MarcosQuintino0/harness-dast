@@ -6,13 +6,13 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 
 | Nível | O que valida | Dependências | Quando roda | Status |
 | --- | --- | --- | --- | --- |
-| Unitário | Regras de `domain`, `config`, `observability` e `cli`. Inclui testes baseados em propriedades (hypothesis) para escopo, caminhos, janelas e sobrescritas. Casos de uso com portas falsas virão com a camada `application` | Nenhuma | A cada commit e no CI | **Existe.** `tests/unit/` espelha `src/`. Cobre todo o domínio de escopo e perfil |
+| Unitário | Regras de `domain`, `config`, `observability` e `cli`. Inclui testes baseados em propriedades (hypothesis) para escopo, caminhos, janelas e sobrescritas. Casos de uso com portas falsas (`tests/fakes/`) | Nenhuma | A cada commit e no CI | **Existe.** `tests/unit/` espelha `src/` (`domain`, `application`, `adapters`, `cli`, `config`, `observability`, `evals`, `lab`) |
 | Suíte de QA independente (`*_qa.py`) | Testes escritos por um revisor que não escreveu o código, a partir da especificação: ataques de parser differential, propriedades com oráculo próprio, limites, redação de logs. Convivem com os unitários | Nenhuma | A cada commit e no CI | **Existe** (revisão de 2026-11-13; veja abaixo) |
 | Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release (não roda no pull request) | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seção abaixo |
-| Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** Existem `tests/contract/test_cli_envelope.py` e `test_cli_contract_qa.py` (envelope, códigos de saída, `--json`). Contrato dos adaptadores e do schema por arquivo: planejados |
+| Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** `tests/contract/` tem um arquivo por comando (`test_cli_*.py`: envelope, códigos de saída, `--json`), o modelo de perfil (`test_template_profile.py`), a conformidade dos documentos (`test_docs_conformance_qa.py`), os links dos documentos (`test_docs_links.py`), as skills e os guias (`test_skills_and_guides.py`) e o isolamento do estado (`test_state_isolation.py`). A suíte única que todo adaptador de `Scanner` precisa passar ainda não existe (só há o adaptador do ZAP) |
 | Ponta a ponta | `hdast run` contra o VAmPI e a Clínica Piloto do lab: achado conhecido presente, zero requisição fora do escopo, nenhum segredo nos artefatos, regras removidas, trava de emergência e limpeza no Oracle | Docker, lab | Antes de release | **Existe**, dentro de `tests/integration/test_lab_run.py` e `test_cleanup_oracle.py`; não há marcador `e2e` separado |
-| Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Planejado (M6) |
-| Avaliação cega (evals) | Agentes de teste sem contexto seguem o README contra o lab, com nota automática e rastro completo (seção abaixo) | Claude Code, Docker, lab | Ao fim da V1 e a cada mudança de skill, mensagem de erro ou trava | Planejado (M6); nada existe |
+| Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Roteiro escrito ([guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md)); a confirmar se alguma pessoa o executou |
+| Avaliação cega (evals) | Agentes de teste sem contexto seguem o README contra o lab, com nota automática e rastro completo (seção abaixo) | Claude Code, Docker, lab | Ao fim da V1 e a cada mudança de skill, mensagem de erro ou trava | **Existe** como código e testes (M6); seis rodadas feitas em 2026-11-13 (cinco na 1.0 e uma na 1.1), por subagentes dentro de uma cópia cega e não com `claude -p`: [rodadas](reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](reviews/2026-11-13-rodada-cega-v1-1.md) |
 
 ## Como rodar
 
@@ -32,7 +32,7 @@ Antes de abrir um pull request, rode os cinco comandos de qualidade listados em 
 
 | Nível | Marcador | O que roda | Para quê |
 | --- | --- | --- | --- |
-| Rápido | `lab_fast` (e `integration`) | `test_lab_fast.py`: sonda e varre 2 operações do piloto (uma escrita com XSRF, uma leitura com parâmetro, escolhidas pelo mecanismo e não por falha plantada) e confere XSRF em toda escrita do varredor, token em toda requisição, zero segredo nos artefatos, regras do Replacer removidas e as negações do proxy contadas; uma varredura do VAmPI a 5 req/s prova que o limitador de taxa segura (média ate 5,25 e pico até 6 req/s na auditoria do proxy); parada de emergência durante o `run`; limpeza no Oracle depois de `run` mais uma varredura de duas escritas; `test_lab_path_scope.py` (V1.1: 44 formas de caminho do ADR 0026 contra a isca `/api/isca/**` pelo proxy real nos modos estrito e amplo, `detail` granular, caminho byte a byte e atraso do endpoint lento) e `test_lab_path_differential.py` (cerca x servidor: o que o Spring e o Flask roteiam de fato contra as leituras de `domain/widepath.py`, mais a coerção numérica do parâmetro) | Ciclo conserta-e-roda e rodadas que não dão nota |
+| Rápido | `lab_fast` (e `integration`) | `test_lab_fast.py`: sonda e varre 2 operações do piloto (uma escrita com XSRF, uma leitura com parâmetro, escolhidas pelo mecanismo e não por falha plantada) e confere XSRF em toda escrita do varredor, token em toda requisição, zero segredo nos artefatos, regras do Replacer removidas e as negações do proxy contadas; uma varredura do VAmPI a 5 req/s prova que o limitador de taxa segura (média ate 5,25 e pico até 6 req/s na auditoria do proxy); parada de emergência durante o `run`; limpeza no Oracle depois de `run` mais uma varredura de duas escritas; `test_lab_path_scope.py` (V1.1: 44 formas de caminho do ADR 0026 contra uma isca (caminho proibido do laboratório) pelo proxy real nos modos estrito e amplo, `detail` granular, caminho byte a byte e atraso do endpoint lento) e `test_lab_path_differential.py` (cerca x servidor: o que o Spring e o Flask roteiam de fato contra as leituras de `domain/widepath.py`, mais a coerção numérica do parâmetro) | Ciclo conserta-e-roda e rodadas que não dão nota |
 | Completo | `lab_full` (e `integration`) | `test_lab_run.py`: `hdast run` com todos os endpoints, política padrão do ZAP, VAmPI e piloto em modo vulnerável e seguro, comparação entre execuções | Comparação com o gabarito; uma vez por alvo e modo, no fim |
 
 O nível rápido NÃO valida: cobertura de todas as operações, a política padrão sobre o alvo inteiro, a comparação com o gabarito e o comportamento de varreduras longas (renovação de token, prazo, saúde do alvo sob carga). Escolher regras ou endpoints olhando o gabarito das falhas plantadas é proibido no nível completo. Os testes de alcançabilidade (`test_lab_vampi.py`, `test_lab_pilot.py`) e `test_cleanup_oracle.py` só levam `integration`.
@@ -111,7 +111,7 @@ Roteiro manual, antes de release e ao mudar uma skill: partindo de um Swagger do
 
 ## Avaliação cega (evals)
 
-> **Implementado como código e testes (M6); a primeira rodada contra o lab ainda não foi feita.** O executor, os casos, a regra de nota e o passo a passo estão em [../evals/README.md](../evals/README.md); o executor é testado em `tests/unit/evals/` com artefatos de exemplo, sem Docker. Decisão e alternativas: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md).
+> **Implementado como código e testes (M6); seis rodadas contra o lab foram feitas em 2026-11-13** (resultados em [reviews/2026-11-13-rodadas-cegas.md](reviews/2026-11-13-rodadas-cegas.md) e [reviews/2026-11-13-rodada-cega-v1-1.md](reviews/2026-11-13-rodada-cega-v1-1.md)); faltam a forma fiel (`claude -p` com as permissões da cópia) e repetições por caso. O executor, os casos, a regra de nota e o passo a passo estão em [../evals/README.md](../evals/README.md); o executor é testado em `tests/unit/evals/` com artefatos de exemplo, sem Docker. Decisão e alternativas: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md).
 
 Uma **eval** é um teste automático de um sistema de IA: um caso com entrada e resposta esperada, rodado várias vezes, com nota calculada por regra. Ao fim da V1, a ferramenta é avaliada por agentes de teste **cegos**.
 
@@ -122,9 +122,10 @@ Uma **eval** é um teste automático de um sistema de IA: um caso com entrada e 
 | Alvo | Para que serve |
 | --- | --- |
 | VAmPI (primeiro) | Linha de base e regressão. Por ser público, provavelmente está na memória dos modelos, então o resultado pode ser otimista |
-| API pequena própria, com falhas plantadas (depois) | Mede o que o modelo não memorizou. O gabarito é nosso |
+| API pequena própria, com falhas plantadas (a Clínica Piloto, em `lab/`) | Mede o que o modelo não memorizou. O gabarito é nosso |
+| OWASP crAPI (`lab/crapi/`, só vulnerável) | Alvo maior, com `multipart`; nenhum desafio do gabarito é detectável pelo ZAP, então os achados ficam fora da nota |
 
-Cada caso roda várias vezes, porque o resultado varia entre execuções. O número de repetições e o orçamento por rodada serão definidos no M6.
+Cada caso roda várias vezes, porque o resultado varia entre execuções. O número de repetições e o orçamento por rodada ainda não foram definidos (item aberto no [roadmap](roadmap.md#itens-em-aberto)); até agora cada caso e modo rodou uma ou duas vezes (a segunda do VAmPI foi depois de uma correção).
 
 **Nota automática por execução.**
 
@@ -168,8 +169,8 @@ Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram p
 
 ## O que existe hoje
 
-- `tests/unit/` espelhando `src/harness_dast/` (`cli`, `config`, `domain`, `observability`), com um arquivo `test_<módulo>.py` por módulo e, ao lado, o `test_<módulo>_qa.py` da suíte de QA.
-- `tests/contract/`: `test_cli_envelope.py` e `test_cli_contract_qa.py`.
+- `tests/unit/` espelhando `src/harness_dast/` (`adapters`, `application`, `cli`, `config`, `domain`, `evals`, `lab`, `observability`), com um arquivo `test_<módulo>.py` por módulo e, ao lado, o `test_<módulo>_qa.py` da suíte de QA.
+- `tests/contract/`: um arquivo por comando e por assunto (envelope, códigos de saída, documentos, links, skills e guias); a lista está em [Níveis](#níveis).
 - `tests/unit/test_coverage_floors_script.py`: testa o script de pisos de cobertura do CI.
 - Na revisão de 2026-11-13 eram cerca de 1,7 mil testes, sem Docker nem rede. Esse número envelhece; a fonte é o próprio diretório `tests/`.
 - Desde o M3: falsos com comportamento em `tests/fakes/` (`probe_ports.py`, `rig.py`, `runtime.py`) para os casos de uso `spec inspect`, `preflight` e `probe`; servidor HTTP real em 127.0.0.1 (`tests/fakes/local_server.py`) para o cliente do alvo, as duas estratégias de autenticação com CSRF e o cliente da API do ZAP (contra um ZAP falso com as formas de resposta do spike); contratos dos três comandos em `tests/contract/test_cli_probe_commands.py`; e a afirmação central do projeto como regressão (`tests/unit/application/test_probe_vampi.py`: alcançabilidade com regras acima da sem regras, sobre o OpenAPI real do VAmPI).

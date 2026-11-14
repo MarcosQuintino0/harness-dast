@@ -16,7 +16,6 @@ from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.kill_switch import FileKillSwitch
-from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.stack_state import FileStackStateStore, default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_random import SystemRandom
@@ -24,6 +23,8 @@ from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
 from harness_dast.application.stack_models import StackState
+from harness_dast.cli.approval_composition import checked_profiles
+from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
 
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
@@ -80,7 +81,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
     settings = load_settings()
     root = products_dir if products_dir is not None else settings.products_dir
     return StackManager(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         clock=SystemClock(),
         entropy=SystemEntropy(),
         random=SystemRandom(),
@@ -90,6 +91,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         environ=os.environ,
         repo_root=default_repo_root(),
         running_scans=FileRunArtifacts(settings.runs_dir),
+        locks=open_stack_lock(),
     )
 
 

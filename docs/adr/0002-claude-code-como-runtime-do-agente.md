@@ -24,3 +24,7 @@ Vamos usar o Claude Code como runtime do agente. O repositório traz `.claude/sk
 - A qualidade do cadastro de um produto depende do modelo disponível.
 - Reavaliar se os classificadores de segurança do provedor bloquearem o fluxo (P-08, medido no spike do M0).
 - As skills e os subagentes ainda não existem; estão planejados para o M6.
+
+## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
+
+A consequência "as skills e os subagentes ainda não existem" valia em 2026-11-13, no começo do M2. Desde o M6 existem as skills `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings` (mais `test-product`, da V1.1), os subagentes `spec-analyst` e `findings-triager` e as permissões em `.claude/settings.json` (veja [roadmap](../roadmap.md#agente)). Foram avaliadas em rodadas cegas de laboratório ([rodadas de 2026-11-13](../reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](../reviews/2026-11-13-rodada-cega-v1-1.md)).

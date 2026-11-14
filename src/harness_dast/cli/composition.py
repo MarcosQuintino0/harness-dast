@@ -18,6 +18,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.storage.letter_reader import FileLetterReader
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.product_scaffolder import (
@@ -32,6 +33,7 @@ from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.account_session import TokenCache
 from harness_dast.application.cleanup import Cleanup
 from harness_dast.application.doctor import Doctor
+from harness_dast.application.init_from_letter import InitFromLetter
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.login_budget import LoginBudget
@@ -40,6 +42,7 @@ from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
 from harness_dast.application.validate_profile import ValidateProfile
+from harness_dast.cli.approval_composition import checked_profiles, open_approval_store
 from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -68,6 +71,18 @@ def build_init_product(products_dir: Path | None) -> InitProduct:
     return InitProduct(scaffolder)
 
 
+def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
+    """Monta o caso de uso `hdast init --from-letter`.
+
+    Args:
+        products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
+    """
+    root = products_dir_or_default(products_dir)
+    return InitFromLetter(
+        FileLetterReader(), FileProductScaffolder(root, default_template_dir()), SystemClock()
+    )
+
+
 def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
     """Monta o caso de uso `hdast profile validate`.
 
@@ -75,7 +90,7 @@ def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
         products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
     """
     repository = FileProfileRepository(products_dir_or_default(products_dir))
-    return ValidateProfile(repository, SystemClock())
+    return ValidateProfile(repository, SystemClock(), open_approval_store())
 
 
 def harness_version() -> str:
@@ -162,7 +177,7 @@ def open_network(product: str, products_dir: Path | None, secrets: SecretRegistr
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profile = FileProfileRepository(root).load(product)
+    profile = checked_profiles(root).load(product)
     settings = load_effective_settings()
     return NetworkHandle(settings, secrets, verify_tls=profile.environment.verify_tls)
 
@@ -177,7 +192,7 @@ def build_preflight(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Preflight(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
@@ -203,7 +218,7 @@ def build_probe(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Probe(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -228,7 +243,7 @@ def build_cleanup(
     """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
     root = products_dir_or_default(products_dir)
     return Cleanup(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         scripts=FileCleanupScripts(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),
@@ -266,7 +281,7 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
     return Doctor(
         host=SystemHost(os.environ),
         profiles=profiles,
-        validator=ValidateProfile(profiles, clock),
+        validator=ValidateProfile(profiles, clock, open_approval_store()),
         secrets=build_secret_provider(),
         vault=secrets,
         states=open_state_store(),

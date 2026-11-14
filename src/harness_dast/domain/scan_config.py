@@ -1,8 +1,10 @@
 """Bloco opcional `scan` do `target.yml`: política da varredura ativa dentro de um conjunto fechado.
 
-Tudo aqui só ESTREITA ou ajusta com valores de listas fechadas: não existe campo que reative
-uma regra desligada por padrão, amplie métodos varridos além do escopo, ou remova um limite.
-Limites de carga continuam em `limits` (com tetos absolutos). Este módulo é puro.
+Nenhum campo daqui amplia o escopo de rede (o `ScopeGuard` continua decidindo) nem reativa uma
+regra desligada por padrão. Mas vários mexem na carga (`strength`, `max_*_minutes`,
+`mutating_methods`) ou no que é relatado (`threshold`, `disable_rules`, `fail_on`): por isso o
+bloco inteiro entra na impressão digital da aprovação humana (ADR 0037) e mudá-lo exige nova
+aprovação. Limites de carga globais continuam em `limits`. Este módulo é puro.
 """
 
 from typing import Annotated, Literal

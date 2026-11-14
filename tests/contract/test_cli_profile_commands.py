@@ -37,6 +37,7 @@ VALIDATE_KEYS = {
     "checked_at",
     "runnable",
     "issues",
+    "approval",
 }
 
 

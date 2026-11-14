@@ -16,12 +16,14 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 
 ## Passos
 
+0. **Aprovação.** Antes do primeiro comando que toca o alvo, com `profile validate` em `runnable: true`, consulte `uv run hdast --json profile approval <produto>` (só lê). Se `state` não for `approved`, **pare** e peça à pessoa que rode `hdast profile approve <produto>` num terminal dela; se for `changed`, diga quais blocos mudaram (`changed_blocks`). `runnable: true` não significa liberado, e `SCOPE_NOT_APPROVED` não é janela fechada. Editar qualquer campo de `environment`, `scope`, `limits`, `auth` (tipo, caminho do login, contas e `login_limit`), `scan`, `authz` ou `cleanup` depois da aprovação exige aprovar de novo; ficam livres só `probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, a codificação do login e `openapi`. Nunca mexa em `scan`, `authz` ou `cleanup` para "ajudar" (desligar regra, declarar operação pública, afrouxar `fail_on`, apontar a limpeza): é alargamento.
 1. **Preflight.** `uv run hdast --json preflight <produto>`. Precisa de `ready: true` (ZAP no ar, segredos definidos, login, alvo saudável). Não repita sem necessidade: cada login conta no limite do alvo.
 2. **Veja o que seria enviado.** `uv run hdast --json probe <produto> --dry-run` (não toca o alvo; mostra campos e geradores, nunca valores).
 3. **Probe.** `uv run hdast --json probe <produto> --seed 1` (`--seed N` repete a geração; `--only <operationId>` isola uma operação; `--account <apelido>` reduz a uma conta).
 4. **Leia o resultado.** Abra `runs/<run_id>/probe.json` (o `run_id` está no envelope). Para cada operação veja `outcome`, `status`, `message`, `hint` e `untrusted_target_data`.
-5. **Ajuste um grupo de causas por rodada** (tabela abaixo), edite `data-rules.yml` ou `flows.yml` e rode `uv run hdast --json spec inspect <produto>` para conferir o arquivo.
-6. **Repita** do passo 3 até a meta ou a parada. Registre cada rodada no diário.
+5. **Use primeiro os dados de exemplo da carta.** `data.example_data` (rode `uv run hdast --json init <produto> --from-letter <carta.yml> --check`, que não cria nada, ou veja o `carta.yml`) traz ids, nomes de arquivo e códigos que existem no ambiente: use-os em `data-rules.yml` e `flows.yml` **antes** de pedir dado novo à pessoa. Só peça dado novo quando nenhum exemplo serve, dizendo qual operação e campo.
+6. **Ajuste um grupo de causas por rodada** (tabela abaixo), edite `data-rules.yml` ou `flows.yml` e rode `uv run hdast --json spec inspect <produto>` para conferir o arquivo.
+7. **Repita** do passo 3 até a meta ou a parada. Registre cada rodada no diário.
 
 ## Se der X, faça Y
 
@@ -40,6 +42,8 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 | `skipped_dependency` | O produtor falhou | Conserte o produtor primeiro. |
 | `preflight` sai com 3 | Autorização vencida ou janela fechada | **Pare**; só o dono renova. |
 | `preflight` ou `probe` saem com 4 | ZAP fora do ar, segredo ausente ou login recusado | Leia `error.hint`; segredo e ZAP são da pessoa (veja `docs/guides/problemas-comuns.md`). Segredo `keyring:` ausente: cite o NOME e peça que ela rode `hdast secret set NOME`; você não o roda. |
+| `probe` sai com 8 (`STACK_BUSY`) | Outra execução ocupa a pilha | **Não** repita em laço: diga à pessoa quem ocupa (a mensagem diz) e espere; `uv run hdast --json stop` só se ela concordar. |
+| `preflight` ou `probe` recusam por falta de aprovação do escopo (`SCOPE_NOT_APPROVED`) | A pessoa ainda não aprovou | **Pare** e peça que ela rode `hdast profile approve <produto>`. Nunca tente aprovar. |
 | `probe` sai com 5 ou 6 | ZAP caiu ou o alvo parou | **Pare** e avise; não reinicie em laço. |
 | `probe` sai com 0 | O comando rodou (falha de operação é dado) | Siga a tabela por `outcome`. |
 

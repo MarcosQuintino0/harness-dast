@@ -8,6 +8,7 @@ from harness_dast.domain.errors import (
     HarnessError,
     PreflightError,
     ScopeViolation,
+    StackBusy,
     TargetError,
     UserInterrupt,
 )
@@ -23,6 +24,7 @@ from harness_dast.domain.errors import (
         (ExternalToolError, "EXTERNAL_TOOL_ERROR", 5),
         (TargetError, "TARGET_ERROR", 6),
         (CleanupError, "CLEANUP_FAILED", 7),
+        (StackBusy, "STACK_BUSY", 8),
         (UserInterrupt, "INTERRUPTED", 130),
     ],
 )
@@ -62,6 +64,7 @@ def test_exit_codes_match_public_contract_when_listed() -> None:
         "EXTERNAL_TOOL": 5,
         "TARGET": 6,
         "CLEANUP": 7,
+        "BUSY": 8,
         "INTERNAL": 10,
         "INTERRUPTED": 130,
     }

@@ -26,7 +26,14 @@ def default_template_dir() -> Path:
     return Path(__file__).resolve().parents[4] / "products" / "_template"
 
 
-def _copy_template(template: Path, destination: Path, product: str, *, with_cleanup: bool) -> None:
+def _copy_template(
+    template: Path,
+    destination: Path,
+    product: str,
+    *,
+    with_cleanup: bool,
+    target_text: str | None,
+) -> None:
     for source in sorted(template.rglob("*")):
         if source.is_symlink():
             continue
@@ -35,6 +42,8 @@ def _copy_template(template: Path, destination: Path, product: str, *, with_clea
         target = destination / source.relative_to(template)
         if source.is_dir():
             target.mkdir()
+        elif source.name == PROFILE_FILE and source.parent == template and target_text is not None:
+            target.write_bytes(target_text.encode("utf-8"))
         elif source.name == PROFILE_FILE and source.parent == template:
             text = source.read_text(encoding="utf-8")
             renamed, count = _PRODUCT_LINE.subn(f"product: {product}", text)
@@ -61,7 +70,9 @@ class FileProductScaffolder:
         self._products_dir = products_dir
         self._template_dir = template_dir
 
-    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
+    def scaffold(
+        self, product: str, *, with_cleanup: bool = False, target_text: str | None = None
+    ) -> ScaffoldedProduct:
         """Cria a pasta do produto (veja `ProductScaffolder.scaffold`)."""
         destination = product_dir_path(self._products_dir, product)
         if not self._template_dir.is_dir():
@@ -82,7 +93,13 @@ class FileProductScaffolder:
                 hint="Confira a permissão de escrita em products_dir.",
             ) from None
         try:
-            _copy_template(self._template_dir, destination, product, with_cleanup=with_cleanup)
+            _copy_template(
+                self._template_dir,
+                destination,
+                product,
+                with_cleanup=with_cleanup,
+                target_text=target_text,
+            )
         except (OSError, ConfigError) as error:
             shutil.rmtree(destination, ignore_errors=True)
             if isinstance(error, ConfigError):

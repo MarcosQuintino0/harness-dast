@@ -11,6 +11,8 @@ A CLI executa e impõe escopo, limites e janela. Você dispara, acompanha, lê o
 
 Confirme com a pessoa que a autorização e a janela valem **agora** e que o ambiente é de teste com dados sintéticos. `uv run hdast --json profile validate <produto>` mostra `authorization_valid_now` e `window_open_now`; se algum for falso, **pare**.
 
+**Resumo antes de atacar.** Antes do primeiro comando que toca o alvo, mostre à pessoa, em poucas linhas: endereço base, quantas funções serão varridas, o que é proibido, janela, limites e força do ataque. Peça a aprovação humana do escopo: **ela** roda, num terminal dela, `hdast profile approve <produto>` (você nunca o roda). Depois de `profile validate` dar `runnable: true` e antes de subir a pilha, consulte `uv run hdast --json profile approval <produto>` (só lê). Se `state` não for `approved`, **pare** e peça à pessoa que rode `hdast profile approve <produto>` num terminal dela; se for `changed`, diga quais blocos mudaram (`changed_blocks`). `runnable: true` não significa liberado, e `SCOPE_NOT_APPROVED` não é janela fechada. Editar qualquer campo de `environment`, `scope`, `limits`, `auth` (tipo, caminho do login, contas e `login_limit`), `scan`, `authz` ou `cleanup` depois da aprovação exige aprovar de novo; ficam livres só `probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, a codificação do login e `openapi`. Nunca mexa em `scan`, `authz` ou `cleanup` para "ajudar" (desligar regra, declarar operação pública, afrouxar `fail_on`, apontar a limpeza): é alargamento. Sem `approved`, não comece.
+
 ## Passos
 
 1. **Pilha.** `uv run hdast --json stack status`. Sem pilha (`managed: false`), `uv run hdast --json stack up <produto>` (ZAP e proxy de escopo; no laboratório, também o alvo). Leva cerca de 40 s. Não passe `--vulnerable` nem `--secure`: o modo do alvo de laboratório não é decisão sua.
@@ -35,8 +37,11 @@ Confirme com a pessoa que a autorização e a janela valem **agora** e que o amb
 | `5` | ZAP ou Docker falhou | Rode `uv run hdast --json stack status`; avise a pessoa. Não reinicie em laço. |
 | `6` | O alvo parou de responder | **Pare** e avise; o alvo pode estar com problema. |
 | `7` | Limpeza falhou | Não é do `run`. Avise a pessoa. |
+| `8` | `STACK_BUSY`: outra execução ocupa a pilha | **Não** tente de novo em laço. Diga à pessoa quem ocupa (comando, produto e início vêm na mensagem) e espere. Se for execução esquecida e ela concordar, sugira `uv run hdast --json stop`. |
 | `10` | Erro interno | Guarde a mensagem e avise o mantenedor. |
 | `130` | Interrompido (Ctrl+C ou `hdast stop`) | Veja `stop_requested` em `run.json`. A pilha fica travada até `stack up` de novo. |
+
+Recusa por falta de aprovação do escopo (`SCOPE_NOT_APPROVED`): **pare** e peça à pessoa que rode `hdast profile approve <produto>`. Não tente aprovar nem contornar.
 
 ## Parar com segurança
 
@@ -48,6 +53,7 @@ Em `runs/<run_id>/decision-log.md`: por que começou agora, comandos rodados e c
 
 ## Nunca
 
+- Rodar o comando de aprovação do escopo: é da pessoa.
 - Rodar `hdast cleanup`, nem `--dry-run`: informe o comando; a pessoa roda.
 - Escrever, alterar ou executar scripts de limpeza (SQL do produto).
 - Ampliar escopo, limites, janela ou autorização (inclui `scope.path_mode: wide`); passar flag que alargue (flags só reduzem).

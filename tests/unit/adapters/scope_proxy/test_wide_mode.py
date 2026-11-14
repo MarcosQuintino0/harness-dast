@@ -311,7 +311,12 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "application/scan.py",
         "application/metrics.py",  # só copia o modo para o metrics.json (ADR 0031)
         "domain/panel_build.py",  # só copia o modo gravado na execução para o painel
+        "domain/letter.py",  # carta estruturada (ADR 0036): só descreve a resposta
+        "domain/letter_review.py",  # só repassa o modo ao perfil gerado
+        "domain/letter_sections.py",  # só recusa `wide` sem origem na carta; não monta guarda
         "domain/profile.py",
+        "domain/scope_fingerprint.py",  # aprovação humana (ADR 0037): só resume o modo, não decide
+        "domain/scope_approval_summary.py",  # só mostra o modo à pessoa que aprova
         "domain/report_traffic.py",
         "domain/run_metrics.py",  # campo `path_mode` do metrics.json
         "domain/traffic.py",

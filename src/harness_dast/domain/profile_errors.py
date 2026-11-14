@@ -81,7 +81,25 @@ def _hint_for(details: list[ErrorDetails], hint: str) -> str:
     return hint
 
 
-def to_config_error(error: ValidationError, *, hint: str) -> ConfigError:
+def describe_problems(error: ValidationError) -> tuple[tuple[tuple[int | str, ...], str], ...]:
+    """Lista os problemas do `ValidationError` como pares (caminho, explicação), ordenados.
+
+    A explicação nunca contém o valor recebido, só textos fixos ou das nossas validações.
+
+    Args:
+        error: Erro de validação do pydantic.
+
+    Returns:
+        Pares únicos de (caminho do campo, explicação em português).
+    """
+    details = _drop_derived_errors(error.errors())
+    pairs = {(e["loc"], _describe(e)) for e in details}
+    return tuple(sorted(pairs, key=lambda pair: (_format_location(pair[0]), pair[1])))
+
+
+def to_config_error(
+    error: ValidationError, *, hint: str, subject: str = "Perfil", feminine: bool = False
+) -> ConfigError:
     """Converte o `ValidationError` do pydantic em `ConfigError` em português.
 
     Cada problema vira uma linha `- caminho.do.campo: explicação`. Garantia de segurança: a
@@ -91,6 +109,8 @@ def to_config_error(error: ValidationError, *, hint: str) -> ConfigError:
     Args:
         error: Erro de validação do pydantic.
         hint: Orientação do que fazer, repetida na dica do erro.
+        subject: Documento que falhou ("Perfil", "Carta"), no início da mensagem.
+        feminine: Se o documento é feminino em português ("Carta inválida", não "inválido").
 
     Returns:
         O erro de configuração a ser levantado pelo chamador.
@@ -100,6 +120,13 @@ def to_config_error(error: ValidationError, *, hint: str) -> ConfigError:
     details = _drop_derived_errors(error.errors())
     problems = sorted({f"{_format_location(e['loc'])}: {_describe(e)}" for e in details})
     lines = "\n".join(f"- {problem}" for problem in problems)
+    adjective = "inválida" if feminine else "inválido"
     return ConfigError(
-        f"Perfil inválido ({len(problems)} problema(s)):\n{lines}", hint=_hint_for(details, hint)
+        f"{subject} {adjective} ({len(problems)} problema(s)):\n{lines}",
+        hint=_hint_for(details, hint),
     )
+
+
+def format_location(location: tuple[int | str, ...]) -> str:
+    """Caminho do campo em texto (`scope.allow[0].host`), como nas mensagens de erro."""
+    return _format_location(location)

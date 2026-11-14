@@ -100,9 +100,26 @@ EXTRA_DENY = (
     "PowerShell(gci env:*)",
     "Read(//**/state/**)",
     "Read(//**/sealed/**)",
+    # Aprovacao humana do escopo (ADR 0037): o agente nao aprova, nao grava na pasta de estado
+    # (onde mora a aprovacao) nem chama o executor da avaliacao que aprova pelo coordenador.
+    "Bash(uv run hdast profile approve:*)",
+    "Bash(uv run hdast --json profile approve:*)",
+    "Bash(hdast profile approve:*)",
+    "Bash(hdast --json profile approve:*)",
+    "PowerShell(uv run hdast profile approve:*)",
+    "PowerShell(uv run hdast --json profile approve:*)",
+    "PowerShell(hdast profile approve:*)",
+    "PowerShell(hdast --json profile approve:*)",
+    "Bash(uv run python -m evals.runner:*)",
+    "Bash(python -m evals.runner:*)",
+    "PowerShell(uv run python -m evals.runner:*)",
+    "PowerShell(python -m evals.runner:*)",
+    "Edit(//**/state/**)",
+    "Write(//**/state/**)",
 )
 """Permissoes negadas so no workspace: fecham canais pelos quais o agente descobriria o modo
-(`docker inspect`, `env`) ou leria o estado da pilha. Nao mudam o repositorio original."""
+(`docker inspect`, `env`), leria o estado da pilha ou aprovaria o proprio escopo. Nao mudam o
+repositorio original."""
 
 
 def harden_settings(workspace: Path) -> None:

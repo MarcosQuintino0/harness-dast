@@ -39,6 +39,7 @@ from harness_dast.domain.run import RunId
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
 
 
@@ -108,11 +109,15 @@ class ProfileRepository(Protocol):
 class ProductScaffolder(Protocol):
     """Criador da pasta de um produto novo a partir do modelo."""
 
-    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
+    def scaffold(
+        self, product: str, *, with_cleanup: bool = False, target_text: str | None = None
+    ) -> ScaffoldedProduct:
         """Cria a pasta do produto com os arquivos do modelo.
 
         Por padrão a subpasta `cleanup/` do modelo NÃO é copiada: a limpeza de dados é opcional
         e o script é de autoria humana. `with_cleanup=True` a copia (README e exemplo).
+        `target_text` (ADR 0036) substitui o `target.yml` do modelo pelo texto gerado da carta;
+        o texto é gravado como veio, em UTF-8 com quebras LF.
 
         Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
         produtos; em caso de falha no meio da cópia, não deixa pasta parcial.
@@ -120,6 +125,19 @@ class ProductScaffolder(Protocol):
         Raises:
             ConfigError: Nome inválido, pasta de produtos ausente, produto já existente,
                 modelo indisponível ou falha de escrita.
+        """
+        ...
+
+
+class LetterReader(Protocol):
+    """Leitor da carta de autorização estruturada (`carta.yml`)."""
+
+    def read(self, path: Path) -> Mapping[str, object]:
+        """Lê a carta como mapa, recusando YAML perigoso.
+
+        Raises:
+            ConfigError: Arquivo ausente, grande demais, fora de UTF-8 ou YAML inválido ou
+                com construção proibida. A mensagem nunca traz o conteúdo do arquivo.
         """
         ...
 
@@ -245,6 +263,40 @@ class SecretPrompt(Protocol):
 
     def confirm_removal(self, name: str) -> bool:
         """Pede que a pessoa digite `name` para confirmar; `True` só se digitar igual."""
+        ...
+
+
+class ApprovalStore(Protocol):
+    """Guarda a aprovação humana do escopo, por produto (ADR 0037), fora da pasta do produto."""
+
+    def read(self, product: str) -> ScopeApproval | None:
+        """Lê a aprovação do produto; `None` se nunca foi aprovado.
+
+        Raises:
+            ScopeNotApproved: Arquivo ilegível, grande demais, de versão desconhecida, de outro
+                produto ou com resumos que não conferem (`state="invalid"`): falha fechada.
+            ConfigError: Nome de produto inválido.
+        """
+        ...
+
+    def write(self, approval: ScopeApproval) -> None:
+        """Grava (substitui) a aprovação do produto de forma atômica.
+
+        Raises:
+            ConfigError: Falha ao gravar na pasta de estado.
+        """
+        ...
+
+
+class ApprovalPrompt(Protocol):
+    """Confirmação de uma PESSOA, em terminal, diante do resumo dos blocos de proteção."""
+
+    def confirm(self, product: str, summary: tuple[str, ...], changes: tuple[str, ...]) -> bool:
+        """Mostra o resumo (e o que mudou desde a aprovação anterior) e pergunta.
+
+        Returns:
+            `True` só se a pessoa digitou exatamente o nome do produto.
+        """
         ...
 
 
@@ -447,6 +499,61 @@ class StackStateStore(Protocol):
 
     def location(self) -> Path:
         """Caminho do arquivo de estado."""
+        ...
+
+
+class StackLockFile(Protocol):
+    """Arquivo de trava exclusiva da pilha, na pasta de estado (ADR 0035).
+
+    Só mexe em arquivo: quem decide se a trava está viva ou órfã é o domínio.
+    """
+
+    def location(self) -> Path:
+        """Caminho do arquivo de trava."""
+        ...
+
+    def create_exclusive(self, content: str) -> bool:
+        """Cria o arquivo com `content` de uma vez só; `False` se ele já existe.
+
+        O conteúdo aparece junto com o arquivo: ninguém nunca lê uma trava pela metade.
+
+        Raises:
+            ConfigError: Falha de escrita que não seja "já existe".
+        """
+        ...
+
+    def read(self) -> str | None:
+        """Texto do arquivo; `None` se não existe.
+
+        Raises:
+            ConfigError: O arquivo existe, mas não pôde ser lido.
+        """
+        ...
+
+    def remove_if_unchanged(self, expected: str) -> bool:
+        """Apaga o arquivo só se o conteúdo ainda for `expected`; `False` se mudou ou sumiu.
+
+        Garante que quem retoma uma trava órfã nunca apaga a trava nova de outra execução.
+
+        Raises:
+            ConfigError: Falha ao apagar.
+        """
+        ...
+
+
+class ProcessProbe(Protocol):
+    """O processo atual e a pergunta "este processo ainda está vivo?"."""
+
+    def current_pid(self) -> int:
+        """Número do processo em execução."""
+        ...
+
+    def is_alive(self, pid: int) -> bool:
+        """Se existe um processo vivo com esse número.
+
+        Na dúvida (sem permissão para consultar), responde `True`: a trava nunca é retomada
+        por engano.
+        """
         ...
 
 
