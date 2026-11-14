@@ -48,11 +48,10 @@ def _fence_mode(src: PanelSources) -> str | None:
 
 def _identity(src: PanelSources) -> PanelIdentity:
     zone = src.timezone
-    starts = [
-        src.summary.started_at if src.summary else None,
-        src.manifest.started_at if src.manifest else None,
-        src.probe.started_at if src.probe else None,
-    ]
+    # Um só início de teste, o mesmo nas telas e no índice: o do `run.json` (quando o `run` começou)
+    # ou, sem ele, o carimbo do id. A hora gravada em manifest ou probe é a de um estágio (o
+    # preflight grava a sua ao terminar), e dava horas diferentes para o mesmo teste.
+    starts = [src.summary.started_at if src.summary else None]
     ends = [
         src.summary.finished_at if src.summary else None,
         src.metrics.finished_at if src.metrics else None,

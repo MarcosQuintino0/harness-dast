@@ -202,5 +202,13 @@ def longest_open(rows: Sequence[RunRow]) -> tuple[OpenFinding, ...]:
 
 
 def is_sweep(row: RunRow) -> bool:
-    """Se a linha é uma varredura com relatório (entra no gráfico de falhas graves)."""
-    return row.kind in _SCAN_KINDS and row.severe_count is not None and row.state != "empty"
+    """Se a linha é uma varredura COMPLETA com relatório (entra no gráfico de falhas graves).
+
+    Varredura que parou no meio vê só parte das funções: ela não é comparável com as completas.
+    """
+    return (
+        row.kind in _SCAN_KINDS
+        and row.severe_count is not None
+        and row.state != "empty"
+        and row.verdict == "finished"
+    )

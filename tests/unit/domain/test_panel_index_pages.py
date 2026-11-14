@@ -312,3 +312,35 @@ def test_a_newer_test_without_a_report_does_not_erase_the_open_failures() -> Non
     page = render_products([make_entry("vampi", info(), rows)], TODAY)
 
     assert "2 falhas graves abertas" in page
+
+
+def test_a_conference_only_row_has_nothing_to_compare_and_never_says_first_time() -> None:
+    rows = [
+        run_row("vampi", "14", None, kind="preflight", what="Só conferência", verdict="error"),
+        run_row("vampi", "13"),
+    ]
+
+    page = render_history(make_entry("vampi", info(), rows), TODAY)
+    first = page.split("<tr")[2]
+
+    assert "Só conferência" in first
+    assert "primeira vez" not in first
+    assert "primeira vez" in page  # a varredura mais antiga continua sendo a primeira
+
+
+def test_a_probe_only_row_never_says_first_time_either() -> None:
+    rows = [run_row("vampi", "14", None, kind="probe", what="Só alcance", verdict="partial")]
+
+    assert "primeira vez" not in render_history(make_entry("vampi", info(), rows), TODAY)
+
+
+def test_the_chart_only_counts_sweeps_that_ran_to_the_end() -> None:
+    rows = [
+        run_row("vampi", "15", ("F-1",), verdict="partial", what="Varredura"),
+        run_row("vampi", "14", ("F-1", "F-2")),
+        run_row("vampi", "13", ("F-1",)),
+    ]
+
+    page = render_history(make_entry("vampi", info(), rows), TODAY)
+
+    assert 'aria-label="Falhas graves por varredura: 1, depois 2"' in page

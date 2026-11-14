@@ -8,7 +8,9 @@ from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.panel_build import build_panel_view
 from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelView
 from harness_dast.domain.panel_sources import parse_moment
+from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_summary import StageRecord
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.domain.panel_helpers import (
@@ -572,3 +574,22 @@ def test_an_address_that_does_not_match_the_swagger_keeps_what_was_recorded() ->
     )
 
     assert panel_view.severe[0].path_template == "/outra/{}"
+
+
+def test_the_start_without_run_json_is_the_run_id_stamp_never_a_stage_file_time() -> None:
+    """Uma só hora de início: a do `run.json`; sem ele, a do carimbo do id (tela e índice)."""
+    manifest = RunManifest(
+        run_id=RUN_ID,
+        command="preflight",
+        product="vampi",
+        harness_version="1",
+        hashes=ArtifactHashes(),
+        limits=RunLimits(requests_per_second=1, max_duration_minutes=1, zap_threads_per_host=1),
+        seed=0,
+        started_at="2026-11-13T05:16:40+00:00",
+    )
+
+    ident = view(summary=None, manifest=manifest).identity
+
+    assert ident.started_at is not None
+    assert ident.started_at.isoformat().startswith("2026-11-13T02:15:32")  # carimbo 05:15:32Z, -3 h
