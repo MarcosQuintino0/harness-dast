@@ -65,6 +65,15 @@ class ConfigError(HarnessError):
     exit_code = ExitCode.USAGE
 
 
+class LetterRejected(ConfigError):
+    """A carta de autorização estruturada (`carta.yml`) não passou na conferência (ADR 0036).
+
+    Falha fechada: nada foi gerado. A resposta que falta vem da pessoa, nunca do agente.
+    """
+
+    code = "LETTER_REJECTED"
+
+
 class ScopeViolation(HarnessError):
     """Ação fora do escopo, dos limites ou da janela autorizados.
 

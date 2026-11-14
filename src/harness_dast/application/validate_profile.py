@@ -14,21 +14,16 @@ from pydantic import BaseModel, ConfigDict
 from harness_dast.application.ports import Clock, ProfileRepository, ReferencedFile
 from harness_dast.application.secret_refs import profile_secret_refs
 from harness_dast.domain.errors import ScopeViolation
+from harness_dast.domain.placeholders import (
+    is_placeholder_host,
+    is_placeholder_reference,
+    is_placeholder_secret_name,
+)
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.window import ExecutionWindow
 
 _DAY_NAMES = ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
 _MINUTES_PER_DAY = 24 * 60
-# Valores do modelo `products/_template` que a pessoa precisa trocar antes de executar.
-_PLACEHOLDER_DOMAINS = (
-    "exemplo.com.br",
-    "exemplo.com",
-    "example.com",
-    "example.org",
-    "example.net",
-)
-_PLACEHOLDER_REFERENCES = frozenset({"SEC-0000", "CHANGE_ME"})
-_PLACEHOLDER_SECRET_PREFIXES = ("MEU_PRODUTO_", "CHANGE_ME")
 
 
 class ReadinessIssue(BaseModel):
@@ -157,13 +152,9 @@ def _summarize_window(window: ExecutionWindow, now: datetime) -> WindowSummary:
     )
 
 
-def _is_placeholder_host(host: str) -> bool:
-    return any(host == domain or host.endswith("." + domain) for domain in _PLACEHOLDER_DOMAINS)
-
-
 def _placeholder_issues(profile: ProductProfile) -> list[ReadinessIssue]:
     issues: list[ReadinessIssue] = []
-    if _is_placeholder_host(urlsplit(profile.environment.base_url).hostname or ""):
+    if is_placeholder_host(urlsplit(profile.environment.base_url).hostname or ""):
         issues.append(
             ReadinessIssue(
                 code="PLACEHOLDER_HOST",
@@ -173,7 +164,7 @@ def _placeholder_issues(profile: ProductProfile) -> list[ReadinessIssue]:
             )
         )
     for index, rule in enumerate(profile.scope.allow):
-        if _is_placeholder_host(rule.host):
+        if is_placeholder_host(rule.host):
             issues.append(
                 ReadinessIssue(
                     code="PLACEHOLDER_HOST",
@@ -181,7 +172,7 @@ def _placeholder_issues(profile: ProductProfile) -> list[ReadinessIssue]:
                     message="O host da regra ainda é o do modelo; informe o host autorizado.",
                 )
             )
-    if profile.scope.authorization.reference.strip().upper() in _PLACEHOLDER_REFERENCES:
+    if is_placeholder_reference(profile.scope.authorization.reference):
         issues.append(
             ReadinessIssue(
                 code="PLACEHOLDER_AUTHORIZATION",
@@ -201,7 +192,7 @@ def _secret_ref_issues(profile: ProductProfile) -> list[ReadinessIssue]:
             "aponte para o segredo real (variável de ambiente ou cofre).",
         )
         for field, ref in profile_secret_refs(profile)
-        if ref.name.startswith(_PLACEHOLDER_SECRET_PREFIXES)
+        if is_placeholder_secret_name(ref.name)
     ]
 
 

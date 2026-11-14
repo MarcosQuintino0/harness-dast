@@ -108,11 +108,15 @@ class ProfileRepository(Protocol):
 class ProductScaffolder(Protocol):
     """Criador da pasta de um produto novo a partir do modelo."""
 
-    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
+    def scaffold(
+        self, product: str, *, with_cleanup: bool = False, target_text: str | None = None
+    ) -> ScaffoldedProduct:
         """Cria a pasta do produto com os arquivos do modelo.
 
         Por padrão a subpasta `cleanup/` do modelo NÃO é copiada: a limpeza de dados é opcional
         e o script é de autoria humana. `with_cleanup=True` a copia (README e exemplo).
+        `target_text` (ADR 0036) substitui o `target.yml` do modelo pelo texto gerado da carta;
+        o texto é gravado como veio, em UTF-8 com quebras LF.
 
         Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
         produtos; em caso de falha no meio da cópia, não deixa pasta parcial.
@@ -120,6 +124,19 @@ class ProductScaffolder(Protocol):
         Raises:
             ConfigError: Nome inválido, pasta de produtos ausente, produto já existente,
                 modelo indisponível ou falha de escrita.
+        """
+        ...
+
+
+class LetterReader(Protocol):
+    """Leitor da carta de autorização estruturada (`carta.yml`)."""
+
+    def read(self, path: Path) -> Mapping[str, object]:
+        """Lê a carta como mapa, recusando YAML perigoso.
+
+        Raises:
+            ConfigError: Arquivo ausente, grande demais, fora de UTF-8 ou YAML inválido ou
+                com construção proibida. A mensagem nunca traz o conteúdo do arquivo.
         """
         ...
 

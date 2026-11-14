@@ -168,3 +168,35 @@ def test_scaffolded_template_is_structurally_valid_for_the_loader(products: Path
     profile = FileProfileRepository(products).load("demo")
 
     assert profile.product == "demo"
+
+
+def test_scaffold_writes_the_generated_target_text_instead_of_the_template_profile(
+    products: Path,
+) -> None:
+    text = 'schema_version: 1\nproduct: "demo"\n# ação\n'
+
+    result = _scaffolder(products).scaffold("demo", target_text=text)
+
+    written = (products / "demo" / "target.yml").read_bytes()
+    assert written == text.encode("utf-8")
+    assert result.files == DEFAULT_FILES
+    assert b"meu-produto" not in written
+
+
+def test_scaffold_with_target_text_still_copies_the_other_template_files(products: Path) -> None:
+    _scaffolder(products).scaffold("demo", target_text="x: 1\n")
+
+    for name in ("README.md", "data-rules.yml", "flows.yml"):
+        assert (products / "demo" / name).is_file()
+
+
+def test_scaffold_with_target_text_refuses_to_overwrite_an_existing_product(
+    products: Path,
+) -> None:
+    (products / "demo").mkdir()
+    (products / "demo" / "target.yml").write_text("meu trabalho", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        _scaffolder(products).scaffold("demo", target_text="x: 1\n")
+
+    assert (products / "demo" / "target.yml").read_text(encoding="utf-8") == "meu trabalho"
