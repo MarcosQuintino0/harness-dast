@@ -2,8 +2,6 @@
 
 Data: 2026-11-14. Branch: `feat/v1-4`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md).
 
-> **Rascunho.** As seções 3 e 5 ainda esperam a investigação do laboratório (seção 5, "Em investigação").
-
 ## 1. Resumo
 
 **Número:** 1.4.0 (a anterior é a 1.3.0).
@@ -17,7 +15,7 @@ Data: 2026-11-14. Branch: `feat/v1-4`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-
 3. **Campos proibidos tirados do OpenAPI**, também no cadastro (`POST`) (ADR 0040).
 4. **Tabela "quem pode o quê"**, conferida por uma pessoa (ADR 0041).
 5. **Alterar recurso de outra conta e identificador na consulta** (ADR 0042).
-6. **Correção** no portão do script de limpeza.
+6. **Correções** no portão do script de limpeza e, achadas no laboratório, na conexão do proxy de escopo e num falso positivo da atribuição em massa (ADR 0043).
 7. **Guia da escada de testes.**
 
 **O que a versão é e o que não é:** código e testes, QA independente e uma prova com Docker na Clínica Piloto, nos modos vulnerável e seguro. Nada foi provado contra produto real.
@@ -40,32 +38,46 @@ Os exemplos usam a Clínica Piloto, o sistema de mentira do laboratório, com du
 
 Arquivos em `C:\harness-dast-artefatos\v1.4\` (fora do repositório).
 
-**Teste de autorização na Clínica Piloto** (`lab-authz\lab-authz-vulnerable.json`, `lab-authz-secure.json` e `pytest-saida.txt`). O teste `tests/integration/test_lab_authz.py` sobe a pilha, roda `preflight`, `probe`, `authz` com todas as verificações e dois `run --skip-scan` (com e sem `--no-authz`), nos dois modos, com a escrita ligada numa cópia descartável do perfil. Primeira rodada: 16 passaram e 2 pularam (os exclusivos de cada modo), em 905 s.
+**Teste de autorização na Clínica Piloto** (pasta `lab-authz`). O teste `tests/integration/test_lab_authz.py` sobe a pilha, roda `preflight`, `probe`, `authz` com todas as verificações e dois `run --skip-scan` (com e sem `--no-authz`), nos dois modos. A escrita fica ligada numa cópia descartável do perfil, que também recebe uma tabela "quem pode o quê" com 5 regras tiradas do `auth.account_map` do próprio perfil.
 
-| | Vulnerável | Seguro |
-| --- | --- | --- |
-| Pedidos do `authz` | 145 | 137 |
-| Recursos criados por cadastro | 11 | 11 |
-| Achados | 4 (3 altos, 1 médio): horizontal 1, dado a mais 1, atribuição em massa 2 | 1 médio (atribuição em massa em `POST /api/consultas`, em investigação) |
-| `DELETE` enviados | 0 | 0 |
-| Pedidos fora da cerca | 0 | 0 |
-| Token ou segredo em artefato | 0 | 0 |
-| Tempo: subir a pilha, `probe`, `authz` | 44 s, 69 s, 224 s | 48 s, 69 s, 159 s |
+Foram três rodadas:
+- **Primeira** (`lab-authz-vulnerable.json`, `lab-authz-secure.json`): achou os dois defeitos da seção 5.
+- **Segunda**, depois das correções e sem a tabela (`*-v2-sem-matriz.json`).
+- **Final**, com a tabela (`*-v2.json` e `pytest-saida-v2.txt`): 22 testes passaram e 2 pularam (os exclusivos de cada modo), em 686 s.
+
+| | Vulnerável (primeira) | Vulnerável (final) | Seguro (primeira) | Seguro (final) |
+| --- | --- | --- | --- | --- |
+| Pedido sem login: operações testadas | 16 de 19 | 19 de 19 | 15 de 18 | 18 de 18 |
+| Token adulterado: operações testadas | 8 de 19 | 18 de 19 | 8 de 18 | 17 de 18 |
+| Pedidos que estouraram o tempo | 11 | 0 | 10 | 0 |
+| Tabela "quem pode o quê": células "não pode" | sem tabela | 5 testadas, 5 recusadas (403) | sem tabela | 5 testadas, 5 recusadas (403) |
+| Achados | 4 (3 altos, 1 médio) | 3 altos: horizontal, dado a mais, atribuição em massa em `PUT /api/me` | 1 médio (falso positivo) | **0** |
+| Tempo do `authz` | 224 s | 64 s | 159 s | 53 s |
+
+Nas três rodadas e nos dois modos:
+- nenhum `DELETE` foi enviado;
+- nenhum pedido saiu da cerca;
+- nenhum token ou segredo apareceu nos artefatos, na auditoria do proxy ou na saída da CLI;
+- os recursos criados por cadastro batem com os `POST` aceitos (11 por modo).
 
 No `run.json`, `--skip-scan` deixa o estágio `authz` como `skipped` com a mensagem certa, e `--skip-scan --no-authz` também.
 
+O teste rápido de integração que já existia (`test_lab_fast.py`) passou depois da correção do proxy: 6 testes, incluindo o limitador de taxa a 5 pedidos por segundo (`pytest-lab-fast-v2.txt`).
+
+**Para quem for triar:** no modo vulnerável, uma operação respondeu 2xx sem login, mas com corpo diferente do da conta dona. Por isso não virou achado (o token adulterado registrou `anonymous_already_open`).
+
 ## 4. Qualidade e testes
 
-| Gate | Resultado (commit `0c9f545`) |
+| Gate | Resultado (commit `4c28b1e`) |
 | --- | --- |
 | `ruff check` | sem problemas |
-| `ruff format --check` | 837 arquivos |
-| `mypy` | sem problemas em 700 arquivos, nas duas plataformas (Windows e `--platform linux`) |
+| `ruff format --check` | 840 arquivos |
+| `mypy` | sem problemas em 701 arquivos, nas duas plataformas (Windows e `--platform linux`) |
 | `lint-imports` | 6 contratos mantidos |
 | `vulture` | limpo |
-| `pytest` | 7812 passaram, 0 falharam, 4 pulados, 67 desselecionados |
+| `pytest` | 7818 passaram, 0 falharam, 4 pulados, 91 desselecionados (os de integração, com Docker, rodados à parte: seção 3) |
 
-Os testes passaram de 7012 (fim da 1.3) para 7812.
+Os testes passaram de 7012 (fim da 1.3) para 7818, mais os 24 do teste de integração novo.
 
 **QA independente.** Um subagente que não programou a versão atacou as travas de escrita, a impressão digital, o vazamento, as entradas, o relatório e o portão da limpeza, com 6 arquivos `*_qa.py`. Não achou defeito grave nem médio. Achou três baixos, todos corrigidos com o teste que os reproduzia:
 
@@ -79,11 +91,16 @@ Antes do QA, um teste de propriedade achou por acaso uma brecha no portão do sc
 
 ## 5. Problemas e decisões
 
-**Em investigação** (esta seção será completada antes do PR):
+**Defeitos achados no laboratório (ADR 0043):**
 
-- **Pedidos sem login e com token adulterado estourando o tempo (15 s).** Cerca de 10 por modo. O proxy registrou a resposta, mas a CLI não a recebeu. Esses pedidos viram "inconclusivo" e reduzem o que as duas verificações novas testam.
-- **Achado médio no modo seguro** (`POST /api/consultas`, campo `valor`, que aparece repetido no achado): pode ser falso positivo da leitura do recurso criado, ou comportamento real do alvo.
-- **Verificações não exercitadas no laboratório:** a tabela "quem pode o quê" (o perfil do laboratório não tem tabela) e a escrita em recurso de outra conta (sem duas contas do mesmo papel nas operações de escrita).
+- **Pedidos que estouravam o tempo, do proxy de escopo, não da verificação nova.**
+  - O que acontecia: um hook do proxy tentava devolver o nome do servidor ao endereço de uma conexão já aberta. No mitmproxy 12.3.1 isso falha em toda conexão de saída. O ZAP reaproveitava a conexão de entrada, e um pedido em cada seis ficava parado até estourar o tempo.
+  - Correção: o hook saiu e o proxy responde `Connection: close`, uma conexão por requisição entre o ZAP e o proxy. O IP conferido continua fixado na conexão de saída, e nenhuma trava afrouxou.
+  - O defeito existia antes da V1.4 e afetava todo o tráfego do ZAP. Só apareceu agora porque as verificações novas mandam pedidos sem sessão em sequência.
+  - **Para valer, é preciso reconstruir a imagem do proxy** (`hdast stack up --build`). O efeito numa varredura longa não foi medido.
+- **Falso positivo da atribuição em massa no modo seguro.**
+  - O que acontecia: o campo `valor` do cadastro de consulta é obrigatório na entrada. Mudar o valor dele e ver o servidor gravar é uso normal, não atribuição em massa. O adendo do ADR 0040 tinha deixado derivar candidato de qualquer classe a partir do nome de um campo da entrada.
+  - Correção: a derivação por nome volta a valer só para nome de privilégio, como dizia o ADR original. O campo também aparecia repetido no achado; corrigido, o que muda o fingerprint desses achados.
 
 **Decisões do coordenador** (dúvidas do projetista dos ADRs):
 
@@ -109,6 +126,9 @@ Nenhuma nesta versão.
 ## 7. Débitos e não provado
 
 - **O `run` completo com varredura e o `authz` padrão** não foi rodado de ponta a ponta com Docker: cada modo leva de 20 a 30 minutos e o plano da versão não pedia. Só `run --skip-scan` e `--no-authz`.
+- **A correção do proxy numa varredura longa** (`lab_full`): não medida. Ela muda todo o tráfego do ZAP (uma conexão por requisição); o nível rápido passou.
+- **`horizontal_write` no laboratório:** a Clínica Piloto não tem duas contas do mesmo papel com escrita sobre recurso com identificador (um admin, um médico, e pacientes sem `PUT`/`PATCH` com id). A verificação e a restauração estão provadas só por testes unitários.
+- **Célula da tabela que falha** (servidor que aceita o papel proibido): não apareceu no laboratório, que recusa com 403.
 - **Produto real:** nada foi provado.
 - **O `profile approve` com a tabela**, num terminal de verdade, com uma pessoa conferindo.
 - **BFLA vertical:** segue sem prova (o laboratório não tem conta de papel menor para as operações atribuídas a papel maior).
@@ -116,11 +136,20 @@ Nenhuma nesta versão.
 - **Autenticação só por cookie de sessão** não é modelada pelo token adulterado; `alg` escrito como `None` ou `NONE` não é coberto.
 - **QA não cobriu:** a carta com YAML hostil no `init --from-letter`, o envelope JSON e os códigos de saída do `authz` e do `run`.
 - **Funções acima de 40 linhas** já existentes no `authz` cresceram um pouco (`_plan`, `execute`, `_run`, `_mass_apply`); `application/authz.py` tem 480 linhas.
-- **ADRs 0038 a 0042** continuam "Proposto"; aceitar é decisão do dono.
+- **ADRs 0038 a 0043** continuam "Proposto"; aceitar é decisão do dono.
 - **Rodada cega:** não houve nesta versão (o plano pede só para a 1.8 e ao mudar skill; as skills mudaram em texto, por isso fica como débito).
 
 ## 8. Conclusão
 
-A completar depois da investigação do laboratório.
+A versão 1.4.0 entrega os cinco itens do plano (ADRs 0038 a 0042), com todos os gates verdes e QA independente sem defeito grave nem médio. Foi provada com Docker na Clínica Piloto: as verificações novas de pedido sem login, token adulterado e a tabela "quem pode o quê" rodaram contra o alvo de verdade. O modo seguro terminou sem achados, e o vulnerável com três achados altos. A prova no laboratório achou dois defeitos, que foram corrigidos: um no proxy de escopo, anterior à versão e que afetava todo o tráfego do ZAP, e um falso positivo novo.
 
-**Orquestração:** coordenador Claude Opus 5.5; nove subagentes Claude Sonnet 5.5 (projetista, refatoração, cinco programadores, QA independente e teste de laboratório), cada um na sua worktree, juntados um por vez na `feat/v1-4` com os gates depois de cada junção.
+Ficam sem prova: a escrita em recurso de outra conta (o laboratório não tem as contas), o `run` completo com varredura e o `authz` padrão, a correção do proxy numa varredura longa e qualquer produto real.
+
+**O que depende do dono:**
+
+1. Aceitar (ou não) os ADRs 0038 a 0043.
+2. Decidir se o laboratório ganha uma segunda conta de médico (ou de admin) para provar a escrita em recurso de outra conta.
+3. Rodar `hdast stack up --build` na próxima vez que usar a pilha, para a correção do proxy valer.
+4. Juntar a `develop` na `main` no fim do ciclo.
+
+**Orquestração:** coordenador Claude Opus 5.5; nove subagentes Claude Sonnet 5.5 (projetista, refatoração, cinco programadores, QA independente e teste de laboratório, que também investigou e corrigiu os dois defeitos achados nele), cada um na sua worktree, juntados um por vez na `feat/v1-4` com os gates depois de cada junção.
