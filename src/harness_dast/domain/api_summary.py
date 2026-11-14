@@ -79,7 +79,8 @@ class OperationSummary(ApiModel):
         optional_inputs: Quantidade de entradas opcionais (não listadas).
         produces: Campos da resposta que parecem identificadores.
         consumes: Entradas obrigatórias que parecem identificadores.
-        multipart_offline: Resultado da prova sintética se a operação declara multipart; senão None.
+        multipart_offline: Resultado da prova sintética se multipart foi detectado; senão None.
+        multipart_inspection_incomplete: Se alguma chave de mídia não foi inspecionada.
     """
 
     id: str
@@ -93,6 +94,7 @@ class OperationSummary(ApiModel):
     produces: tuple[str, ...] = ()
     consumes: tuple[str, ...] = ()
     multipart_offline: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    multipart_inspection_incomplete: bool = Field(default=False, exclude_if=lambda value: not value)
 
 
 class ApiSummary(ApiModel):
@@ -204,9 +206,13 @@ def summarize_operation(
         inputs.extend(body)
         optional += body_optional
     consumes = tuple(item.name for item, is_id in inputs if is_id)
-    has_multipart = operation.request_body is not None and any(
-        item.media_type.split(";")[0].strip().lower() == "multipart/form-data"
-        for item in operation.request_body.media
+    has_multipart = operation.request_body is not None and (
+        operation.request_body.multipart_declared
+        if operation.request_body.multipart_declared is not None
+        else any(
+            item.media_type.split(";")[0].strip().lower() == "multipart/form-data"
+            for item in operation.request_body.media
+        )
     )
     return OperationSummary(
         id=_cut(operation.operation_id, 120),
@@ -219,6 +225,10 @@ def summarize_operation(
         optional_inputs=optional,
         produces=tuple(_produced(operation.success_schema(), "", 0)[:MAX_PRODUCED]),
         consumes=consumes[:MAX_PRODUCED],
+        multipart_inspection_incomplete=(
+            operation.request_body is not None
+            and operation.request_body.multipart_inspection_incomplete
+        ),
         multipart_offline=(
             (verify_synthetic_multipart() if multipart_verified is None else multipart_verified)
             if has_multipart
