@@ -19,7 +19,12 @@ from harness_dast.domain.panel_build_content import (
 )
 from harness_dast.domain.panel_build_stages import build_stages, build_verdict
 from harness_dast.domain.panel_format import product_title
-from harness_dast.domain.panel_model import PanelIdentity, PanelMeasurements, PanelView
+from harness_dast.domain.panel_model import (
+    PanelIdentity,
+    PanelMeasurements,
+    PanelView,
+    panel_links,
+)
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
 from harness_dast.domain.run_metrics import RunMetrics
 
@@ -137,5 +142,5 @@ def build_panel_view(src: PanelSources) -> PanelView:
         ),
         measurements=_measurements(src.metrics),
         commands=src.commands,
-        links=src.links,
+        links=panel_links(src.product),
     )

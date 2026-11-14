@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, tzinfo
 
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_result import AuthzResult
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelLinks
+from harness_dast.domain.panel_model import PanelCommand, PanelExplanation
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_metrics import RunMetrics
@@ -35,7 +35,6 @@ class PanelSources:
         authorization_valid_until: Último dia de validade da carta, ou `None`.
         commands: Gancho do diário de comandos, ou `None`.
         explanations: Gancho do catálogo de explicação, por `finding_id`.
-        links: Destino dos dois primeiros pedaços do caminho.
     """
 
     product: str
@@ -54,7 +53,6 @@ class PanelSources:
     authorization_valid_until: date | None = None
     commands: tuple[PanelCommand, ...] | None = None
     explanations: Mapping[str, PanelExplanation] = field(default_factory=dict)
-    links: PanelLinks = field(default_factory=PanelLinks)
 
 
 def parse_moment(text: str | None, zone: tzinfo) -> datetime | None:

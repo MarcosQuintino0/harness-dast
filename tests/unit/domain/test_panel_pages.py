@@ -32,6 +32,8 @@ EXPECTED_FILES = (
     "terminal.html",
     "time-and-tokens.html",
 )
+INDEX_LINKS = {"../../index.html", "../../history-vampi.html"}
+"""Destinos fora de `panel/`: os índices, que `hdast panel` regrava junto com as páginas."""
 SAFE_ATTRIBUTES = {
     "class", "href", "style", "lang", "charset", "name", "content", "http-equiv", "role",
     "aria-label", "aria-current",
@@ -163,7 +165,7 @@ def test_menu_links_never_break_every_link_points_to_a_generated_page(
     for name, text in pages.items():
         for link in markup(text).links:
             target = link.split("#", 1)[0]
-            assert target in pages, (name, link)
+            assert target in pages or target in INDEX_LINKS, (name, link)
 
 
 def test_no_page_has_script_external_resource_or_event_handler(pages: dict[str, str]) -> None:

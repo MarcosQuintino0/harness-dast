@@ -22,6 +22,7 @@ from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.scan_client import ZapScanClient
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.metrics import MetricsRecorder
+from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
@@ -36,7 +37,7 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
-from harness_dast.cli.panel_composition import build_panel
+from harness_dast.cli.panel_index_composition import build_indexed_panel, build_live_board
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -87,6 +88,7 @@ def build_scan(
     secrets: SecretRegistry,
     net: ScanNetwork,
     shared: SharedServices | None = None,
+    live: ScanLive | None = None,
 ) -> Scan:
     """Monta o caso de uso `hdast scan` sobre a rede já aberta."""
     root = products_dir_or_default(products_dir)
@@ -109,6 +111,7 @@ def build_scan(
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
         proxy_audit=open_proxy_audit(),
+        live=live,
     )
 
 
@@ -129,14 +132,16 @@ def build_run_pipeline(
         kill_switch=kill_switch,
     )
     runs_dir = load_settings().runs_dir
+    board = build_live_board(products_dir, kill_switch)
     return RunPipeline(
         profiles=profiles,
         preflight=build_preflight(products_dir, secrets, net.network, shared),
         probe=build_probe(products_dir, secrets, net.network, shared),
-        scan=build_scan(products_dir, secrets, net, shared),
+        scan=build_scan(products_dir, secrets, net, shared, live=board),
         report=build_report(products_dir, with_panel=False),
         metrics=build_metrics(products_dir),
-        panel=build_panel(products_dir),
+        panel=build_indexed_panel(products_dir),
+        live=board,
         authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
@@ -164,7 +169,7 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
         clock=SystemClock(),
         harness_version=harness_version(),
         metrics=build_metrics(products_dir),
-        panel=build_panel(products_dir) if with_panel else None,
+        panel=build_indexed_panel(products_dir) if with_panel else None,
     )
 
 

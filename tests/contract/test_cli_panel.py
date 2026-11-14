@@ -1,6 +1,7 @@
 """Contrato de `hdast panel`: envelope JSON, códigos de saída, páginas gravadas e erros de uso."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -241,3 +242,95 @@ def test_the_panel_command_is_listed_in_the_help(capsys: pytest.CaptureFixture[s
 
     assert code == ExitCode.OK
     assert "panel" in out
+
+
+# ------------------------------------------------------------ índices (ADR 0034)
+
+
+def hrefs(page: str) -> list[str]:
+    return re.findall(r'href="([^"]*)"', page)
+
+
+def test_panel_also_writes_the_indexes_and_the_path_links_reach_files_that_exist(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+
+    code, envelope = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+
+    assert code == ExitCode.OK
+    assert envelope["data"]["indexes"] == ["index.html", "history-vampi.html"]
+    panel = folder / "panel"
+    for name in envelope["data"]["files"]:
+        for link in hrefs((folder / name).read_text(encoding="utf-8")):
+            assert (panel / link.split("#", 1)[0]).resolve().is_file(), (name, link)
+    index = (runs / "index.html").read_text(encoding="utf-8")
+    history = (runs / "history-vampi.html").read_text(encoding="utf-8")
+    for page in (index, history):
+        for link in hrefs(page):
+            assert (runs / link).is_file(), link
+    assert "<script" not in index + history
+
+
+def test_the_index_only_mode_rebuilds_the_indexes_without_touching_the_test_panels(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+
+    code, envelope = invoke_json(capsys, "panel", "--index")
+
+    assert code == ExitCode.OK
+    assert envelope["data"] == {"indexes": ["index.html", "history-vampi.html"]}
+    assert not (folder / "panel").exists()
+    assert "sem painel" in (runs / "history-vampi.html").read_text(encoding="utf-8")
+
+
+def test_the_index_only_mode_on_an_empty_runs_folder_says_there_is_no_product(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs, _ = world
+
+    code, out, _ = invoke(capsys, "panel", "--index")
+
+    assert code == ExitCode.OK
+    assert "index.html" in out
+    assert "Nenhum produto testado ainda" in (runs / "index.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("extra", [["vampi"], ["--run", RUN_ID]])
+def test_the_index_flag_alone_refuses_a_product_or_a_run(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str], extra: list[str]
+) -> None:
+    code, envelope = invoke_json(capsys, "panel", "--index", *extra)
+
+    assert code == ExitCode.USAGE
+    assert envelope["error"]["hint"]
+
+
+def test_panel_without_a_product_and_without_the_index_flag_is_a_usage_error(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, envelope = invoke_json(capsys, "panel")
+
+    assert code == ExitCode.USAGE
+    assert "--index" in envelope["error"]["message"]
+
+
+def test_a_corrupted_run_folder_does_not_break_the_index(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs, _ = world
+    write_run(runs)
+    broken = runs / "2026-11-12T05-15-32Z-vampi-cd34"
+    broken.mkdir()
+    (broken / "run.json").write_text("{isto nao e json", encoding="utf-8")
+    (runs / "pasta-qualquer").mkdir()
+
+    code, _ = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+
+    assert code == ExitCode.OK
+    history = (runs / "history-vampi.html").read_text(encoding="utf-8")
+    assert "sem dados" in history
+    assert history.count("<tr") == 3

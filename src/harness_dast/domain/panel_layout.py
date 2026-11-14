@@ -18,7 +18,7 @@ from typing import Final, Literal
 
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel_format import CONFIDENCE_WORDS, fmt_datetime, fmt_duration
-from harness_dast.domain.panel_model import PanelView
+from harness_dast.domain.panel_model import PanelLinks, PanelView
 from harness_dast.domain.panel_style import STYLE
 
 CSP: Final = (
@@ -37,7 +37,7 @@ _SPOKEN: Final[dict[str, str]] = {
     "out": "proibido: ",
 }
 _MODE_WORDS: Final[dict[str, str]] = {"strict": "modo estrito", "wide": "modo amplo"}
-_STATE_CHIP: Final[dict[str, tuple[Tone, str]]] = {
+STATE_CHIP: Final[dict[str, tuple[Tone, str]]] = {
     "finished": ("ok", "Terminado"),
     "partial": ("am", "Parou no meio"),
     "error": ("gr", "Erro"),
@@ -57,11 +57,14 @@ class TabItem:
         file: Nome do arquivo da página (link relativo).
         label: Texto da aba.
         count: Contador ao lado do texto (vermelho se maior que zero, cinza se zero), ou `None`.
+        enabled: `False` para a aba cuja página ainda não existe (durante o teste ao vivo): sai
+            como texto apagado, nunca como link quebrado.
     """
 
     file: str
     label: str
     count: int | None = None
+    enabled: bool = True
 
 
 # ---------------------------------------------------------------- componentes
@@ -159,9 +162,12 @@ def not_measured(why: str) -> str:
 # ---------------------------------------------------------------- casca
 
 
-def _crumbs(view: PanelView) -> str:
-    ident = view.identity
-    when = fmt_datetime(ident.started_at)
+def crumbs(name: str, when: str, links: PanelLinks, *, when_href: str = "summary.html") -> str:
+    """Caminho do alto: `hdast / Produto / data · hora`.
+
+    Cada pedaço é link relativo e só vira texto quando a página de destino não existe
+    (`PanelLinks` com `None`). `name` e `when` chegam em texto cru; aqui são escapados.
+    """
 
     def piece(text: str, href: str | None) -> str:
         if href is None:
@@ -170,16 +176,28 @@ def _crumbs(view: PanelView) -> str:
 
     return (
         '<div class="brand"><i></i>'
-        f'{piece("hdast", view.links.products)}<span class="sep">/</span>'
-        f"{piece(h.ident(ident.product_name), view.links.product)}"
+        f'{piece("hdast", links.products)}<span class="sep">/</span>'
+        f"{piece(h.ident(name), links.product)}"
         '<span class="sep">/</span>'
-        f'<a class="here" href="summary.html">{h.plain(when)}</a></div>'
+        f'<a class="here" href="{h.plain(when_href)}">{h.plain(when)}</a></div>'
     )
 
 
-def _tabs(tabs: Sequence[TabItem], current: str) -> str:
+def _crumbs(view: PanelView) -> str:
+    ident = view.identity
+    return crumbs(ident.product_name, fmt_datetime(ident.started_at), view.links)
+
+
+def tabs_nav(tabs: Sequence[TabItem], current: str | None) -> str:
+    """Menu de abas; a aba `current` ganha `aria-current="page"`."""
     items: list[str] = []
     for tab in tabs:
+        if not tab.enabled:
+            items.append(
+                '<span class="off" aria-disabled="true" title="Aparece quando o teste terminar">'
+                f"{h.plain(tab.label)}</span>"
+            )
+            continue
         count = ""
         if tab.count is not None:
             grey = ' style="background: var(--s2); color: var(--mu)"' if tab.count == 0 else ""
@@ -191,7 +209,7 @@ def _tabs(tabs: Sequence[TabItem], current: str) -> str:
 
 def _status(view: PanelView) -> str:
     ident = view.identity
-    tone, word = _STATE_CHIP[view.verdict.kind]
+    tone, word = STATE_CHIP[view.verdict.kind]
     when = (
         f" · {fmt_duration(ident.duration_seconds)}" if ident.duration_seconds is not None else ""
     )
@@ -208,6 +226,36 @@ def _status(view: PanelView) -> str:
     )
 
 
+def document(*, title: str, header: str, main: str, refresh_seconds: int | None = None) -> str:
+    """Documento HTML completo: política de conteúdo, estilo, `header` e `main` já escapados.
+
+    `refresh_seconds` liga a recarga automática (`<meta http-equiv="refresh">`); a política de
+    conteúdo (CSP) não restringe esse recarregamento e não muda por causa dele.
+    """
+    reload = (
+        f'<meta http-equiv="refresh" content="{int(refresh_seconds)}">\n'
+        if refresh_seconds is not None
+        else ""
+    )
+    return (
+        '<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f'<meta http-equiv="Content-Security-Policy" content="{CSP}">\n{reload}'
+        f"<title>{h.plain(title)}</title>\n<style>\n{STYLE}</style>\n</head>\n<body>\n"
+        f'<div class="tp">\n<header class="top">\n{header}\n</header>\n'
+        f'<main class="pg">\n{main}\n</main>\n'
+        f'<footer class="foot">{h.plain(_FOOTER)}</footer>\n</div>\n</body>\n</html>\n'
+    )
+
+
+def status_box(chips_html: str) -> str:
+    """Canto direito do alto (cerca, hora da gravação e etiqueta de estado), já escapado."""
+    return (
+        '<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 14px; '
+        f'align-items: center; padding: 10px 0">{chips_html}</div>'
+    )
+
+
 def render_page(
     view: PanelView, *, current: str, tabs: Sequence[TabItem], title: str, main: str
 ) -> str:
@@ -221,13 +269,5 @@ def render_page(
         main: Conteúdo do `<main>`, já escapado.
     """
     name = h.ident(view.identity.product_name)
-    return (
-        '<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f'<meta http-equiv="Content-Security-Policy" content="{CSP}">\n'
-        f"<title>{h.plain(title)} · {name}</title>\n<style>\n{STYLE}</style>\n</head>\n<body>\n"
-        '<div class="tp">\n<header class="top">\n'
-        f"{_crumbs(view)}\n{_tabs(tabs, current)}\n{_status(view)}\n</header>\n"
-        f'<main class="pg">\n{main}\n</main>\n'
-        f'<footer class="foot">{h.plain(_FOOTER)}</footer>\n</div>\n</body>\n</html>\n'
-    )
+    header = "\n".join((_crumbs(view), tabs_nav(tabs, current), _status(view)))
+    return document(title=f"{title} · {name}", header=header, main=main)

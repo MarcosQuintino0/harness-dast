@@ -4,6 +4,7 @@ alvo, e o ZAP falso "aprende" as requisições dele."""
 from typing import Any
 
 from harness_dast.application.metrics import MetricsRecorder
+from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
@@ -53,7 +54,7 @@ class ScanRig(Rig):
         assert self._probe_result is not None
         return self._probe_result
 
-    def scan(self) -> Scan:
+    def scan(self, live: ScanLive | None = None) -> Scan:
         return Scan(
             profiles=self.profiles,
             specs=self._specs(),
@@ -67,6 +68,7 @@ class ScanRig(Rig):
             artifacts=self.artifacts,
             clock=self.clock,
             sleeper=self.clock,
+            live=live,
         )
 
     def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:
