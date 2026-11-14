@@ -19,6 +19,7 @@ from harness_dast.domain import html_safe as h
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.fix_hints import fix_hint
+from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_html_authz import authz_cards, authz_section
 from harness_dast.domain.report_html_style import STYLE
@@ -271,12 +272,32 @@ def _comparison(report: FindingsReport) -> str:
     )
 
 
+def _internal_error_section(report: FindingsReport) -> str:
+    signals = report.internal_error_signals
+    if signals is None:
+        return ""
+    rows = "".join(
+        f"<li>{h.plain(label)}: {signals.counts.get(key, 0)} mensagem(ns).</li>"
+        for key, label in SIGNAL_LABELS.items()
+    )
+    return (
+        "<h2>Sinais passivos de erro interno</h2>"
+        f"<p>Mensagens distintas examinadas: {signals.messages_examined}; "
+        f"com campos cortados: {signals.truncated_messages}.</p>"
+        "<p>Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; "
+        "não são achados confirmados nem cobertura completa. "
+        "Ausência de sinal não prova ausência de erros.</p>"
+        f"<ul>{rows}</ul>"
+    )
+
+
 def render_html(report: FindingsReport) -> str:
     """Gera o `report.html` completo (UTF-8, terminado em quebra de linha)."""
     title = f"Relatório de varredura: {h.ident(report.product, 80)}"
     body = "".join(
         (
             _summary(report),
+            _internal_error_section(report),
             _steps(report),
             _findings(report),
             authz_section(report),
