@@ -16,7 +16,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
-| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); ainda não verificado contra a Clínica Piloto real. Referência: [authz.md](authz.md) |
+| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Referência: [authz.md](authz.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json`, `report.md` e `report.html`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
@@ -389,7 +389,7 @@ Objeto `error`:
 Exemplo de sucesso:
 
 ```json
-{"schema_version":1,"ok":true,"data":{"version":"0.1.0"}}
+{"schema_version":1,"ok":true,"data":{"version":"1.1.0"}}
 ```
 
 O valor de `version` acima é ilustrativo; ele vem do pacote instalado.

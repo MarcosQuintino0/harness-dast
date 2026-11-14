@@ -2,9 +2,31 @@
 
 Todas as mudanças relevantes deste projeto são registradas aqui.
 
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O versionamento seguirá [Versionamento Semântico](https://semver.org/lang/pt-BR/); mudança incompatível no envelope JSON ou no schema do perfil sobe a versão maior. Ainda não há versão publicada.
+O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O versionamento seguirá [Versionamento Semântico](https://semver.org/lang/pt-BR/); mudança incompatível no envelope JSON ou no schema do perfil sobe a versão maior. A versão 1.1.0 é a primeira numerada (a 1.0.0 nunca foi publicada).
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-11-13
+
+A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/reviews/2026-11-13-lab-v1-1-cerca.md](docs/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/reviews/2026-11-13-lab-v1-1-authz.md](docs/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).
+
+### V1.1, laboratório: o que foi provado e o que a medição achou
+
+- **Cerca (ADR 0026), proxy e ZAP reais:** a isca em `scope.deny_paths` foi atacada por 45 formas de caminho pelo proxy de escopo real nos dois modos: `isca_calls` ficou em 0 (estrito e amplo); o caminho chega ao alvo byte a byte (o proxy não recodifica). Estrito contra amplo na Clínica Piloto: o amplo achou 1 falha a mais (H9, travessia de caminho) e 3 variantes a mais do H8, com 2,25 vezes mais tempo de varredura; no modo seguro com amplo, 0 achado alto; no VAmPI o amplo não achou nada a mais.
+- **Prazo da pilha (ADR 0028):** provado com `max_duration_minutes: 3` em cópia do perfil (o `run` parou aos 180,6 s, saída 3, 4 min 42 s depois do `stack up`). `probe.setup_path` provado no VAmPI (perfil de `lab/vampi` migrado de `health_path: /createdb` para `setup_path`, alcançabilidade 1,0). `doctor` provado com Docker real e com porta ocupada.
+- **Teste de autorização (ADR 0027) na Clínica Piloto:** H5, H6 e H7 achados no vulnerável (3 achados altos) e zero no seguro. BFLA vertical não foi medido (sem conta de papel menor).
+- **Laboratório (`lab/pilot`):** falhas plantadas H8 (injeção de SQL cega por tempo em parâmetro de caminho), H9 (travessia de caminho, só com `%2f`) e H10 (injeção com aspa, controle positivo), endpoint lento de 2 s e a isca `/api/isca/**` (conta `isca_calls` e `isca_mentions`); teste diferencial cerca x servidor (Spring e Flask: nenhuma forma fora do modelo, exceto a coerção numérica abaixo); testes de integração `test_lab_path_scope.py` e `test_lab_path_differential.py`.
+- **Brecha conhecida, não corrigida (pede ADR):** o servidor coage o tipo do parâmetro de caminho (`/api/convenios/01`, `+1`, `%2b1`, `0x1`, dígito Unicode como `%D9%A1` chegam ao mesmo recurso que `/api/convenios/1`), formas que o modelo da cerca não conhece, nos dois modos. Um `deny_paths` sem curinga não as cobre. Mitigação hoje: negar com curinga.
+
+### Corrigido nas medições de laboratório
+
+- `report.html` não mostrava o modo de caminho, o aviso de cobertura parcial de injeção em caminho nem os motivos granulares (só o `report.md`); corrigido, com 3 testes.
+- `authz`, falso "seguro" em lista vazia (H7 passou despercebido na primeira rodada): vira `not_tested` com `no_sample_data` (já descrito abaixo).
+- Laboratório: o firewall do Spring recusava `%2f` mesmo com o Tomcat em `passthrough` (H9 inalcançável); o atraso simulado do H8 reagia a qualquer "sleep 15" e gerava falso alarme de template; `isca_calls` contava qualquer pedido que citasse a isca (agora só o método da isca); parâmetros de caminho novos não eram varridos até ganharem constantes em `data-rules.yml`.
+
+### Corrigido: cópia cega da avaliação
+
+- A cópia do repositório para a avaliação cega deixa de fora os worktrees de outros agentes e os nomes de campo do laboratório (commit 2c68b4c).
 
 ### V1.1, authz: parada depois do PUT não esconde alteração
 
@@ -24,7 +46,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### V1.1, ADR 0026: a cerca diz por que recusou e ganha o modo amplo de caminho
 
-Tudo isto é código e testes; a prova em laboratório contra o proxy e o ZAP reais ainda não foi feita (outra pessoa a mede agora).
+Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeira seção desta versão).
 
 - Cada recusa do escopo carrega um código estável (`ScopeReason`: `path_encoded_slash`, `path_matrix_param`, `deny_path`...). O campo `reason` do proxy continua sendo `malformed_request` para recusa por forma; o código granular vai em `detail` na auditoria e em `scan.json` `traffic.denied_by_detail`. O caminho na auditoria sobe de 120 para 2048 caracteres.
 - `scan.json` e `findings.json` ganham, de forma aditiva, `traffic.denied_by_detail`, `path_shape_denied`, `allowed_outside_allow` e `path_mode`.
@@ -36,7 +58,7 @@ Tudo isto é código e testes; a prova em laboratório contra o proxy e o ZAP re
 - Comando `hdast authz <produto> --run ID` (`--check`, `--dry-run`) e estágio `authz` do `run` (`--authz`, desligado por padrão): repete, com outras contas, os pedidos que o `probe` provou. Quatro verificações: acesso horizontal (BOLA), dado a mais, acesso vertical (BFLA) e campo a mais (atribuição em massa). Sem ZAP, pelo mesmo caminho de envio do `probe` (escopo, taxa, janela, prazo, auditoria).
 - O `probe` passa a gravar `exchanges.json`; o estágio grava `authz.json`. Bloco opcional `authz` no `target.yml`. `run.json` passa a ter cinco estágios.
 - `findings.json` ganha a seção `authz`, `technique` em cada achado e `summary.authz_by_severity`. O `--fail-on` conta os achados dos dois tipos. O que o estágio não pôde testar vai em `not_tested`, nunca para "seguro".
-- Ainda não verificado contra a Clínica Piloto real. Limites: só leituras no BOLA, achados fora do `--compare` e da triagem.
+- Verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Limites: só leituras no BOLA, achados fora do `--compare` e da triagem.
 
 ### V1.1, ADR 0028: facilitar o uso
 
