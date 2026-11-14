@@ -400,7 +400,7 @@ Objeto `error`:
 Exemplo de sucesso:
 
 ```json
-{"schema_version":1,"ok":true,"data":{"version":"1.1.0"}}
+{"schema_version":1,"ok":true,"data":{"version":"1.2.0"}}
 ```
 
 O valor de `version` acima é ilustrativo; ele vem do pacote instalado.
