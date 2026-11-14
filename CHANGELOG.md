@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### V1.1, authz: parada depois do PUT não esconde alteração
+
+- Atribuição em massa: se a janela fechar, o prazo vencer, a trava acionar ou o proxy falhar depois do `PUT` com o campo extra, a restauração ainda é tentada pelo mesmo caminho guardado (com a janela fechada nada é enviado). Se não der para restaurar ou confirmar, `not_tested` ganha `possible_unrestored_change` com a conta e a operação (sem campo novo no `authz.json`). Restauração não confirmada no caminho normal também gera o aviso.
+- Uma parada no meio de uma verificação não perde mais o que ela já achou: a verificação sai como `partial` com seus achados e `not_tested`.
+
 ### V1.1, ADR 0030: cofre de senhas local
 
 - Segundo tipo de referência: `secret_ref: "keyring:NOME"` lê o cofre de credenciais do sistema (Gerenciador de Credenciais do Windows, Keychain do macOS, Secret Service do Linux) pela biblioteca `keyring` 25.7 (MIT, versão travada no `uv.lock`). `env:` continua igual e continua sendo o caminho do CI e da avaliação cega.

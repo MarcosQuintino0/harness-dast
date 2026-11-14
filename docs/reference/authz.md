@@ -58,11 +58,12 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 | `no_response_schema` | O OpenAPI não declara o esquema da resposta de sucesso | Declare-o no OpenAPI |
 | `no_json_response` | A resposta de sucesso não é JSON | Nada |
 | `no_json_body` | O `probe` não guardou corpo JSON (objeto) para o `PUT`/`PATCH` | Nada |
+| `possible_unrestored_change` | A atribuição em massa enviou o campo extra e a execução parou (janela, prazo, trava, proxy) ou a restauração não foi confirmada: o valor injetado PODE ter ficado no alvo. A mensagem diz a conta e a operação | Confira o estado da conta e restaure por fora (reset do ambiente ou `cleanup`) |
 | `same_value_in_body` | O `probe` já enviou o campo extra com o valor de teste (não dá para distinguir o efeito) | Fixe o campo do `probe` com uma regra em `data-rules.yml` ou declare outro valor em `authz.mass_assignment_fields` |
 
 ## Limites conhecidos (também em `limits` do `authz.json`)
 
-BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
+BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas, salvo quando o perfil lista métodos de escrita em `authz.vertical_methods`. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
 
 ## Bloco `authz` do perfil
 

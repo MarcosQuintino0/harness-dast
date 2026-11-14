@@ -34,7 +34,12 @@ from harness_dast.domain.authz_findings import (
     vertical_finding,
 )
 from harness_dast.domain.authz_plan import MassTask, Planned, ReplayTask
-from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested, CheckSummary
+from harness_dast.domain.authz_result import (
+    AuthzFinding,
+    AuthzNotTested,
+    CheckStatus,
+    CheckSummary,
+)
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.probe_exchange import ExchangeRecord
@@ -53,6 +58,19 @@ class _Stop(Exception):
         super().__init__(message)
         self.status = status
         self.message = message
+
+
+_INTERRUPTIONS = (_Stop, WindowClosed, DeadlineReached, ExternalToolError)
+"""Paradas que interrompem o laço; depois de um `PUT` a restauração ainda é tentada."""
+
+
+@dataclass
+class _Pending:
+    """Estado de um `PUT` de atribuição em massa que ainda pode ter deixado alteração."""
+
+    attempted: bool = False
+    known: bool = False
+    previous: JsonValue = None
 
 
 @dataclass(frozen=True)
@@ -151,6 +169,12 @@ class AuthzRunner:
         self._sent = 0
         self._failures = 0
         self._accounts: list[str] = []
+        self._live: dict[AuthzCheck, CheckResult] = {}
+
+    def _begin(self, check: AuthzCheck, result: CheckResult) -> CheckResult:
+        """Registra o resultado em andamento: uma parada no meio não pode perdê-lo."""
+        self._live[check] = result
+        return result
 
     def run(self, checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutcome:
         """Roda as verificações na ordem recebida.
@@ -163,8 +187,10 @@ class AuthzRunner:
         results: dict[AuthzCheck, CheckResult] = {}
         status: ProbeStatus = "completed"
         message: str | None = None
+        current: AuthzCheck | None = None
         try:
             for check in checks:
+                current = check
                 results[check] = self._run_check(check, plans)
         except _Stop as stop:
             status, message = stop.status, stop.message
@@ -174,7 +200,10 @@ class AuthzRunner:
             status, message = "stopped_deadline", error.message
         except ExternalToolError as error:
             status, message = "stopped_zap", error.message
-        return self._outcome(checks, results, status, message)
+        partial = current if status != "completed" and current not in results else None
+        if partial is not None and partial in self._live:
+            results[partial] = self._live[partial]
+        return self._outcome(checks, results, status, message, partial)
 
     def _run_check(self, check: AuthzCheck, plans: AuthzPlans) -> CheckResult:
         if check == "horizontal":
@@ -242,7 +271,9 @@ class AuthzRunner:
     # --- verificações ------------------------------------------------------------------
 
     def _horizontal(self, plan: Planned[ReplayTask]) -> CheckResult:
-        out = CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks))
+        out = self._begin(
+            "horizontal", CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks))
+        )
         for task in plan.tasks:
             exchange = task.exchange
             base = self._baseline(exchange)
@@ -285,7 +316,10 @@ class AuthzRunner:
         return out
 
     def _excessive(self, plan: Planned[ExchangeRecord]) -> CheckResult:
-        out = CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks))
+        out = self._begin(
+            "excessive_data",
+            CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks)),
+        )
         for exchange in plan.tasks:
             reply = self._baseline(exchange)
             operation = self._s.operations.get(exchange.operation_id)
@@ -312,7 +346,9 @@ class AuthzRunner:
         return out
 
     def _vertical(self, plan: Planned[ReplayTask]) -> CheckResult:
-        out = CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks))
+        out = self._begin(
+            "vertical", CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks))
+        )
         for task in plan.tasks:
             exchange = task.exchange
             reply = self._send(exchange, task.actor[0])
@@ -339,8 +375,9 @@ class AuthzRunner:
 
     def _mass(self, plan: Planned[MassTask]) -> CheckResult:
         fields = self._s.config.mass_assignment_fields
-        out = CheckResult(
-            not_tested=list(plan.not_tested), candidates=len(plan.tasks) * len(fields)
+        out = self._begin(
+            "mass_assignment",
+            CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks) * len(fields)),
         )
         for task in plan.tasks:
             for extra in fields:
@@ -363,10 +400,29 @@ class AuthzRunner:
             )
             return
         before = self._read(task)
+        pending = _Pending()
+        try:
+            self._mass_apply(task, original, extra, before, out, pending)
+        except _INTERRUPTIONS:
+            self._after_interruption(task, original, extra, before, pending, out)
+            raise
+
+    def _mass_apply(
+        self,
+        task: MassTask,
+        original: dict[str, JsonValue],
+        extra: MassAssignmentField,
+        before: JsonValue | None,
+        out: CheckResult,
+        pending: _Pending,
+    ) -> None:
+        exchange = task.exchange
+        pending.attempted = True
         put = self._send(
             exchange, exchange.account, body={**original, extra.name: extra.value}, with_body=True
         )
         if put.problem is not None:
+            pending.attempted = False
             out.not_tested.append(self._problem_note("mass_assignment", exchange, put))
             return
         if put.status is None or put.status >= 500:
@@ -374,12 +430,18 @@ class AuthzRunner:
             return
         out.tested += 1
         if not is_success_status(put.status):
+            pending.attempted = False
             return
         after = self._read(task, fallback=put)
         changed, previous = injected_effect(before, after, extra.name, extra.value)
         if not changed:
+            pending.attempted = False
             return
+        pending.previous, pending.known = previous, True
         restored = self._restore(task, original, extra, changed, previous)
+        pending.attempted = False
+        if restored is not True:
+            out.not_tested.append(self._unrestored_note(exchange, extra.name, "restore_failed"))
         role = self._s.roles.get(exchange.account)
         out.findings.append(
             mass_assignment_finding(
@@ -393,6 +455,61 @@ class AuthzRunner:
                 status=put.status,
                 restored=restored,
             )
+        )
+
+    def _after_interruption(
+        self,
+        task: MassTask,
+        original: dict[str, JsonValue],
+        extra: MassAssignmentField,
+        before: JsonValue | None,
+        pending: _Pending,
+        out: CheckResult,
+    ) -> None:
+        """Parada depois do `PUT`: tenta desfazer; se não der, avisa em `not_tested`.
+
+        A restauração passa pelo mesmo caminho guardado: com a janela fechada, o prazo vencido
+        ou a trava acionada nada é enviado e só o aviso fica registrado.
+        """
+        if not pending.attempted:
+            return
+        previous = pending.previous if pending.known else _previous_value(before, extra.name)
+        if not self._try_restore(task, original, extra, previous):
+            out.not_tested.append(self._unrestored_note(task.exchange, extra.name, "interrupted"))
+
+    def _try_restore(
+        self,
+        task: MassTask,
+        original: dict[str, JsonValue],
+        extra: MassAssignmentField,
+        previous: JsonValue,
+    ) -> bool:
+        if previous is None or isinstance(previous, dict | list):
+            return False
+        exchange = task.exchange
+        try:
+            reply = self._send(
+                exchange, exchange.account, body={**original, extra.name: previous}, with_body=True
+            )
+        except _INTERRUPTIONS:
+            return False
+        return reply.problem is None and is_success_status(reply.status)
+
+    def _unrestored_note(
+        self, exchange: ExchangeRecord, field_name: str, cause: str
+    ) -> AuthzNotTested:
+        why = (
+            "a execução parou depois do PUT e a restauração não pôde ser feita ou confirmada"
+            if cause == "interrupted"
+            else "a restauração não foi confirmada"
+        )
+        return self._note(
+            "mass_assignment",
+            exchange,
+            "possible_unrestored_change",
+            f"Possível alteração não desfeita na conta '{exchange.account}', operação "
+            f"'{exchange.operation_id}': o campo extra '{field_name}' foi enviado e {why}. "
+            "Confira o estado da conta e restaure por fora (reset do ambiente ou `cleanup`).",
         )
 
     def _read(self, task: MassTask, fallback: Reply | None = None) -> JsonValue | None:
@@ -486,6 +603,7 @@ class AuthzRunner:
         results: Mapping[AuthzCheck, CheckResult],
         status: ProbeStatus,
         message: str | None,
+        partial: AuthzCheck | None,
     ) -> AuthzOutcome:
         summaries: list[CheckSummary] = []
         findings: list[AuthzFinding] = []
@@ -503,7 +621,7 @@ class AuthzRunner:
                 continue
             findings.extend(result.findings)
             not_tested.extend(result.not_tested)
-            summaries.append(_summary(check, result))
+            summaries.append(_summary(check, result, partial=check == partial))
         return AuthzOutcome(
             status=status,
             stop_message=message,
@@ -515,16 +633,22 @@ class AuthzRunner:
         )
 
 
-def _summary(check: AuthzCheck, result: CheckResult) -> CheckSummary:
+def _summary(check: AuthzCheck, result: CheckResult, *, partial: bool) -> CheckSummary:
     skipped = result.tested == 0
+    done: CheckStatus = "partial" if partial else "completed"
     return CheckSummary(
         check=check,
-        status="skipped" if skipped else "completed",
+        status="skipped" if skipped else done,
         candidates=result.candidates,
         tested=result.tested,
         findings=len(result.findings),
         message="Nenhuma operação pôde ser testada; veja not_tested." if skipped else None,
     )
+
+
+def _previous_value(before: JsonValue | None, name: str) -> JsonValue:
+    """Valor da leitura anterior com o mesmo nome do campo enviado (`None` se não há)."""
+    return before.get(name) if isinstance(before, dict) else None
 
 
 def _already_sent(original: dict[str, JsonValue], extra: MassAssignmentField) -> bool:
