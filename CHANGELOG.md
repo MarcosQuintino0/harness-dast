@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado: abas Falhas e Terminal do painel e ganchos ligados (ADR 0032, V1.2)
+
+- Aba **Falhas** (`findings.html`): lista das falhas graves com âncora por falha (`findings.html#F-...`, usada pelos links do Resumo), título do catálogo, etiqueta cinza com o nome técnico, medidor de confiança de três degraus, "o que aconteceu", "por que importa", "o que fazer" com quem faz cada passo, a prova (pedido e resposta como texto, com o aviso) e "Como reproduzir à mão" com `$BASE_URL`, `$TOKEN` e o apelido da conta. Os demais achados aparecem agrupados, com link para o `report.html`. Falha do teste entre contas não tem reprodução à mão (a página diz por quê). Estados: falha a confirmar, nenhuma falha grave, sem `findings.json`, prova cortada, pedido com corpo.
+- Aba **Terminal** (`terminal.html`): cada comando do diário, em ordem, com hora, comando cru, frase que o traduz, estado (palavra), duração e resposta resumida (aberta nos comandos parciais e com erro). Sem diário para o teste, diz que o diário começou na versão 1.2; linhas corrompidas puladas são contadas. A aba Resumo passa a usar o dado real.
+- Ganchos ligados: `application/panel_hooks.CatalogPanelHooks` lê o diário (`load_journal_for_run`, que agora devolve `RunJournal` com as linhas puladas) e o catálogo de explicação. `domain/panel_journal.py` (etapa de cada comando por tabela fixa, comando cru, resposta resumida) e `domain/panel_catalog.py`. Modelo: `PanelJournal`, `PanelAction`, `PanelExplanation.why_it_matters` e `.actions`, `PanelFinding.repro` e `.proposed_confidence`, `PanelView.commands_skipped`.
+- Regra de "prova forte" unificada em `finding_confidence.confidence_step`: evidência gravada, trecho de prova do ZAP e nem o ZAP nem o agente indicam falso positivo; a confiança proposta pelo ZAP não entra. Medido na Clínica Piloto: 2 prova forte e 1 a confirmar.
+- `manual_repro`: quando a redação do `findings.json` comeu o caminho do endereço (`host:***`), o caminho é refeito pelo modelo da função e o dado traz `target_damaged`; novo campo `attack`.
+
 ### Adicionado: diário de comandos e dados auxiliares do painel (ADR 0033, V1.2)
 
 - Toda invocação do `hdast` grava uma linha em `<pasta de estado>/journal/<produto>.jsonl` (`HDAST_STATE_DIR`; fora do repositório e de `runs/`; comandos sem produto em `_sem-produto.jsonl`): início e fim, subcomando, flags (valor sensível `***`, texto livre redigido), produto, `run_id`, código de saída, estado (`ok`, `parcial`, `erro`), código do erro e um resumo curto do envelope (contagens e identificadores; nunca corpo do alvo). `secret set` e `secret delete` registram só o subcomando e o NOME. O registro é feito em `run_app`, o ponto único de todo comando; falha ao gravar vira aviso no log e nunca derruba o comando. Linha com `schema_version`; leitura tolerante (linha corrompida é pulada e contada).

@@ -1,6 +1,7 @@
 """Contrato de `hdast panel`: envelope JSON, códigos de saída, páginas gravadas e erros de uso."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -241,3 +242,66 @@ def test_the_panel_command_is_listed_in_the_help(capsys: pytest.CaptureFixture[s
 
     assert code == ExitCode.OK
     assert "panel" in out
+
+
+def journal_line(command: str, run_id: str | None, *, minute: int, state: str = "ok") -> str:
+    start = datetime(2026, 11, 13, 23, 8, tzinfo=UTC) + timedelta(minutes=minute)
+    record = {
+        "schema_version": 1,
+        "started_at": start.isoformat(),
+        "finished_at": (start + timedelta(seconds=30)).isoformat(),
+        "command": command,
+        "product": "vampi",
+        "run_id": run_id,
+        "flags": [],
+        "args": [],
+        "exit_code": 0 if state == "ok" else 3,
+        "state": state,
+        "error_code": None if state == "ok" else "PREFLIGHT_FAILED",
+        "summary": {"operations_sent": 30},
+    }
+    return json.dumps(record)
+
+
+def test_panel_shows_the_commands_of_the_diary_in_the_terminal_page(
+    world: tuple[Path, Path],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+    state = tmp_path / "estado-do-diario"
+    (state / "journal").mkdir(parents=True)
+    lines = [
+        journal_line("doctor", None, minute=0),
+        journal_line("probe", RUN_ID, minute=1, state="erro"),
+        "isto não é json",
+    ]
+    (state / "journal" / "vampi.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    monkeypatch.setenv("HDAST_STATE_DIR", str(state))
+
+    code, _ = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+
+    assert code == ExitCode.OK
+    page = (folder / "panel" / "terminal.html").read_text(encoding="utf-8")
+    assert "<code>$ hdast doctor vampi</code>" in page
+    assert "<code>$ hdast probe vampi</code>" in page
+    assert '<span class="chip ch-gr">erro</span>' in page
+    assert "operations_sent: 30" in page
+    assert "1 linha do diário estavam corrompidas" in page
+    summary = (folder / "panel" / "summary.html").read_text(encoding="utf-8")
+    assert "2 comandos, todos visíveis" in summary
+
+
+def test_panel_without_a_diary_for_the_run_says_the_test_is_older_than_the_diary(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+
+    code, _ = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+
+    assert code == ExitCode.OK
+    page = (folder / "panel" / "terminal.html").read_text(encoding="utf-8")
+    assert "O diário de comandos começou na versão 1.2; este teste é anterior" in page

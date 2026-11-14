@@ -33,7 +33,7 @@ def _finding(
     )
 
 
-def test_confidence_step_e_prova_forte_com_evidencia_e_confianca_alta() -> None:
+def test_confidence_step_e_prova_forte_com_evidencia_e_trecho_de_prova() -> None:
     assert confidence_step(_finding()) == "prova forte"
 
 
@@ -49,8 +49,14 @@ def test_confidence_step_e_a_confirmar_sem_evidencia_guardada() -> None:
     assert confidence_step(_finding(available=False)) == "a confirmar"
 
 
-def test_confidence_step_e_a_confirmar_com_confianca_media() -> None:
-    assert confidence_step(_finding(confidence="medium")) == "a confirmar"
+def test_confidence_step_nao_depende_da_confianca_que_o_zap_propoe() -> None:
+    # Erro 500 depois de uma aspa costuma vir "low", e a resposta gravada prova a falha.
+    assert confidence_step(_finding(confidence="low")) == "prova forte"
+    assert confidence_step(_finding(confidence="medium")) == "prova forte"
+
+
+def test_confidence_step_e_a_confirmar_quando_o_zap_marca_falso_positivo() -> None:
+    assert confidence_step(_finding(confidence="false_positive")) == "a confirmar"
 
 
 def test_confidence_step_e_a_confirmar_quando_o_agente_suspeita_de_falso_positivo() -> None:

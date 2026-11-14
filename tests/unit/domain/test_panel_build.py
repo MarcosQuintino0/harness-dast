@@ -16,6 +16,7 @@ from tests.unit.domain.panel_helpers import (
     bare,
     findings_report,
     run_summary,
+    sources,
     spec_operations,
     view,
 )
@@ -174,6 +175,83 @@ def test_the_zap_proposed_confidence_does_not_lower_a_proven_failure() -> None:
     low = base.findings[0].model_copy(update={"proposed_confidence": "low"})
 
     assert view(findings=base.model_copy(update={"findings": (low,)})).severe[0].confidence == 2
+
+
+def test_the_measured_example_has_two_strong_proofs_and_one_to_confirm() -> None:
+    # Clínica Piloto (execução f087): dois erros 500 depois de uma aspa (o ZAP os propôs "low") e
+    # uma falha por demora, sem trecho na resposta (o ZAP a propôs "medium").
+    base = findings_report()
+    proof = base.findings[0].evidence.model_copy(
+        update={"available": True, "zap_evidence": "HTTP/1.1 500"}
+    )
+    strong = base.findings[0].model_copy(update={"evidence": proof, "proposed_confidence": "low"})
+    delay = strong.model_copy(
+        update={
+            "finding_id": "F-00000002",
+            "proposed_confidence": "medium",
+            "evidence": proof.model_copy(update={"zap_evidence": ""}),
+        }
+    )
+    twin = strong.model_copy(update={"finding_id": "F-00000003"})
+    report = base.model_copy(update={"findings": (strong, delay, twin)})
+
+    verdict = view(findings=report).verdict
+
+    assert (verdict.severe_count, verdict.strong_count, verdict.to_confirm_count) == (3, 2, 1)
+
+
+def test_the_agent_suspecting_a_false_positive_lowers_the_step_to_confirm() -> None:
+    from harness_dast.domain.finding import TriageNote
+
+    shown = _with_evidence(available=True, zap_evidence="HTTP/1.1 500")
+    suspected = shown.findings[0].model_copy(
+        update={"triage": TriageNote(suspected_false_positive=True, reason="parece esperado")}
+    )
+
+    report = shown.model_copy(update={"findings": (suspected,)})
+
+    assert view(findings=report).severe[0].confidence == 1
+
+
+def test_the_severe_finding_carries_the_repro_with_the_account_of_the_probe() -> None:
+    shown = _with_evidence(
+        available=True,
+        zap_evidence="HTTP/1.1 500",
+        request_header="GET http://alvo/users/v1/x HTTP/1.1\nHost: alvo",
+    )
+    base = sources()
+    assert base.probe is not None
+    ops = tuple(
+        item.model_copy(update={"account": "user_a"}) if item.operation_id == "obter" else item
+        for item in base.probe.operations
+    )
+
+    (finding,) = view(
+        findings=shown, probe=base.probe.model_copy(update={"operations": ops})
+    ).severe
+
+    assert finding.repro is not None
+    assert finding.repro.account == "user_a"
+    assert finding.repro.target == "/users/v1/x"
+    assert finding.proposed_confidence is not None
+
+
+def test_a_finding_without_recorded_evidence_has_no_repro() -> None:
+    assert view().severe[0].repro is None
+
+
+def test_command_times_are_shown_in_the_zone_of_the_panel() -> None:
+    from datetime import UTC, datetime
+
+    command = PanelCommand(
+        command="hdast doctor vampi", at=datetime(2026, 11, 13, 23, 8, tzinfo=UTC)
+    )
+
+    (shown,) = view(commands=(command,)).commands or ()
+
+    assert shown.at is not None
+    assert shown.at.hour == 20  # fuso -03:00 do cenário
+    assert shown.at == command.at
 
 
 def test_confidence_never_reaches_the_third_step_without_a_person() -> None:

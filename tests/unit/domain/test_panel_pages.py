@@ -1,5 +1,6 @@
 """Registro de páginas: todas as abas existem, os links não quebram, texto hostil não vira HTML."""
 
+import html
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -34,7 +35,7 @@ EXPECTED_FILES = (
 )
 SAFE_ATTRIBUTES = {
     "class", "href", "style", "lang", "charset", "name", "content", "http-equiv", "role",
-    "aria-label", "aria-current",
+    "aria-label", "aria-current", "id", "open",
 }  # fmt: skip
 FORBIDDEN_TAGS = {"script", "link", "img", "iframe", "object", "embed", "form", "svg", "base"}
 
@@ -161,9 +162,14 @@ def test_menu_links_never_break_every_link_points_to_a_generated_page(
     pages: dict[str, str],
 ) -> None:
     for name, text in pages.items():
-        for link in markup(text).links:
-            target = link.split("#", 1)[0]
-            assert target in pages, (name, link)
+        parsed = markup(text)
+        for link in parsed.links:
+            if link == "../report.html":  # o relatório completo, na pasta da execução
+                continue
+            target, _, anchor = link.partition("#")
+            assert (target or name) in pages, (name, link)
+            if anchor:  # a âncora existe na página de destino
+                assert f'id="{html.escape(anchor)}"' in pages[target or name], (name, link)
 
 
 def test_no_page_has_script_external_resource_or_event_handler(pages: dict[str, str]) -> None:
@@ -201,10 +207,10 @@ def test_hostile_finding_id_cannot_break_out_of_the_link_attribute() -> None:
     assert '"><script' not in summary
 
 
-def test_the_four_tabs_without_a_module_use_the_provisional_page_with_the_full_shell() -> None:
+def test_the_tabs_without_a_module_use_the_provisional_page_with_the_full_shell() -> None:
     rendered = render_panel(build_panel_view(sources()))
 
-    for name in ("findings.html", "coverage.html", "terminal.html", "time-and-tokens.html"):
+    for name in ("coverage.html", "time-and-tokens.html"):
         text = rendered[name]
         assert PENDING_TEXT in text
         assert 'class="tabs"' in text

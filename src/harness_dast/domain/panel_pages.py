@@ -12,11 +12,13 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Final
 
+from harness_dast.domain.panel_findings import render_findings
 from harness_dast.domain.panel_layout import TabItem, render_page
 from harness_dast.domain.panel_model import PanelView
 from harness_dast.domain.panel_pending import render_pending
 from harness_dast.domain.panel_stages import render_stages
 from harness_dast.domain.panel_summary import render_summary
+from harness_dast.domain.panel_terminal import render_terminal
 
 PageRenderer = Callable[[PanelView], str]
 TabCounter = Callable[[PanelView], int | None]
@@ -49,13 +51,11 @@ def severe_count(view: PanelView) -> int | None:
 PAGES: Final[tuple[PanelPage, ...]] = (
     PanelPage("summary.html", "Resumo", "Resumo do teste", render_summary),
     PanelPage("stages.html", "Etapas", "Etapas", render_stages),
-    PanelPage(
-        "findings.html", "Falhas", "Falhas", partial(render_pending, title="Falhas"), severe_count
-    ),
+    PanelPage("findings.html", "Falhas", "Falhas", render_findings, severe_count),
     PanelPage(
         "coverage.html", "Cobertura", "Cobertura", partial(render_pending, title="Cobertura")
     ),
-    PanelPage("terminal.html", "Terminal", "Terminal", partial(render_pending, title="Terminal")),
+    PanelPage("terminal.html", "Terminal", "Terminal", render_terminal),
     PanelPage(
         "time-and-tokens.html",
         "Tempo e tokens",

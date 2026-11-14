@@ -18,6 +18,7 @@ from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import FindingEvidence
+from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel_format import FunctionStateKind, RunStateKind
 from harness_dast.domain.rule_stats import RuleTotal
 from harness_dast.domain.run_metrics import OperationMetric
@@ -149,6 +150,18 @@ class PanelFunction(ApiModel):
     finding_ids: tuple[str, ...] = ()
 
 
+class PanelAction(ApiModel):
+    """Um passo do "o que fazer", com quem o faz.
+
+    Attributes:
+        who: Quem faz, como a tela o mostra (`Você (QA)`, `Time de dev`, `Dono do produto`).
+        text: O passo, em português simples.
+    """
+
+    who: str
+    text: str
+
+
 class PanelExplanation(ApiModel):
     """Explicação simples de uma falha (gancho do catálogo; a chave é o `finding_id`).
 
@@ -156,15 +169,19 @@ class PanelExplanation(ApiModel):
         title: Título que conta o que houve.
         technical_name: Nome técnico, para a etiqueta cinza.
         what_happened: O que aconteceu, em português simples.
-        what_to_do: O que fazer.
-        who: Quem faz (`Você (QA)`, `Dono do produto`, `Time de desenvolvimento`...).
+        why_it_matters: Por que isso importa, sem exagero e sem promessa.
+        what_to_do: O que fazer, em uma frase só (os passos estão em `actions`).
+        who: Quem conduz o assunto (`Você (QA)`, `Dono do produto`, `Time de dev`...).
+        actions: Os passos do "o que fazer", cada um com quem o faz, na ordem.
     """
 
     title: str
     technical_name: str | None = None
     what_happened: str = ""
+    why_it_matters: str = ""
     what_to_do: str = ""
     who: str = ""
+    actions: tuple[PanelAction, ...] = ()
 
 
 class PanelFinding(ApiModel):
@@ -176,6 +193,8 @@ class PanelFinding(ApiModel):
         title: Nome do alerta ou da técnica.
         severity: Severidade PROPOSTA (nunca alterada).
         confidence: Degrau do medidor: 1 a confirmar, 2 prova forte, 3 confirmada.
+        proposed_confidence: Confiança que o ZAP propôs (`low`, `medium`, `high`...), ou `None`
+            em falha de autorização (que não passa pelo ZAP).
         method: Método HTTP.
         path_template: Modelo de caminho.
         operation_id: Operação de origem, ou `None`.
@@ -190,6 +209,8 @@ class PanelFinding(ApiModel):
         evidence: Prova gravada (já redigida), ou `None` em falha de autorização.
         authz_evidence: Resumo da prova do teste entre contas, ou `None`.
         reproduce_curl: Comando `curl` com marcadores no lugar dos segredos, ou `None`.
+        repro: Dados de "Como reproduzir à mão" (sem segredo, dado pessoal mascarado), ou `None`
+            em falha de autorização ou sem evidência gravada.
         comparison: `new` ou `persistent` com `--compare`.
         suspected_false_positive: Suspeita do agente (consultiva), ou `None` sem triagem.
         triage_note: Observação do agente, ou `None`.
@@ -201,6 +222,7 @@ class PanelFinding(ApiModel):
     title: str
     severity: str
     confidence: int
+    proposed_confidence: str | None = None
     method: str
     path_template: str
     operation_id: str | None = None
@@ -215,6 +237,7 @@ class PanelFinding(ApiModel):
     evidence: FindingEvidence | None = None
     authz_evidence: str | None = None
     reproduce_curl: str | None = None
+    repro: ManualRepro | None = None
     comparison: str | None = None
     suspected_false_positive: bool | None = None
     triage_note: str | None = None
@@ -346,6 +369,18 @@ class PanelCommand(ApiModel):
     tokens: int | None = None
 
 
+class PanelJournal(ApiModel):
+    """Trecho do diário de comandos que pertence a um teste (devolvido pelo gancho `commands`).
+
+    Attributes:
+        commands: Comandos do teste, em ordem cronológica.
+        skipped_lines: Linhas corrompidas do diário que foram puladas (a aba Terminal as conta).
+    """
+
+    commands: tuple[PanelCommand, ...]
+    skipped_lines: int = 0
+
+
 class PanelView(ApiModel):
     """Visão completa de UM teste: o que as seis abas leem.
 
@@ -362,7 +397,9 @@ class PanelView(ApiModel):
         left_out: O que ficou de fora.
         next_steps: O que fazer agora.
         measurements: Medição do teste.
-        commands: Diário de comandos (gancho), ou `None` quando ninguém o entregou.
+        commands: Diário de comandos (gancho), ou `None` quando ninguém o entregou ou o teste
+            é anterior ao diário.
+        commands_skipped: Linhas corrompidas do diário que foram puladas (0 sem diário).
         links: Para onde o caminho do alto leva.
     """
 
@@ -379,4 +416,5 @@ class PanelView(ApiModel):
     next_steps: tuple[PanelStep, ...] = ()
     measurements: PanelMeasurements = PanelMeasurements()
     commands: tuple[PanelCommand, ...] | None = None
+    commands_skipped: int = 0
     links: PanelLinks = PanelLinks()

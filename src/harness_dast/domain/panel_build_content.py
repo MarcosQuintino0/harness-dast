@@ -12,6 +12,8 @@ from typing import Final
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.finding import Finding
+from harness_dast.domain.finding_confidence import confidence_step
+from harness_dast.domain.manual_repro import build_manual_repro
 from harness_dast.domain.panel_format import (
     FunctionStateKind,
     capitalize_first,
@@ -35,7 +37,7 @@ from harness_dast.domain.scan_result import ScanEntry, ScanResult
 
 OTHER_AREA: Final = "Outras"
 STRONG: Final = 2
-TO_CONFIRM: Final = 1
+_STEP_LEVEL: Final[dict[str, int]] = {"a confirmar": 1, "prova forte": STRONG, "confirmada": 3}
 _NOT_ATTACKED: Final = frozenset({"refused"})
 _FORBIDDEN_OUTCOMES: Final = {
     "skipped_scope": "Fora do escopo da carta.",
@@ -80,23 +82,20 @@ _BLIND: Final = (
 
 
 def _confidence(item: Finding) -> int:
-    """Degrau do medidor: prova forte se a resposta gravada traz o trecho que o ZAP aponta.
+    """Degrau do medidor (1 a confirmar, 2 prova forte, 3 confirmada), pela regra única.
 
-    Regra fixa e simples desta versão: a evidência foi gravada, o trecho que o ZAP aponta está
-    preenchido (a resposta mostra a falha) e o ZAP não a marcou como falso positivo. A confiança
-    proposta pelo ZAP não entra: um erro 500 depois de uma aspa costuma vir como "low" e a
-    resposta gravada prova a falha. Falha por demora (sem trecho na resposta) fica "a
-    confirmar". O terceiro degrau (confirmada) só existe quando uma pessoa confirma, e nenhum
-    arquivo da execução registra isso ainda.
+    A regra mora em `finding_confidence.confidence_step` (ADR 0032, item 8). Aqui só vira
+    número. Nenhum arquivo da execução registra confirmação por pessoa, então o degrau 3 não
+    sai deste cálculo.
     """
-    proven = item.evidence.available and bool(item.evidence.zap_evidence.strip())
-    return STRONG if proven and item.proposed_confidence != "false_positive" else TO_CONFIRM
+    return _STEP_LEVEL[confidence_step(item)]
 
 
 def _zap_finding(
     item: Finding,
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
+    accounts: Mapping[str, str],
 ) -> PanelFinding:
     note = item.triage
     return PanelFinding(
@@ -105,6 +104,7 @@ def _zap_finding(
         title=item.title,
         severity=item.proposed_severity,
         confidence=_confidence(item),
+        proposed_confidence=item.proposed_confidence,
         method=item.method,
         path_template=item.path_template,
         operation_id=item.operation_id,
@@ -118,6 +118,7 @@ def _zap_finding(
         solution=item.solution,
         evidence=item.evidence,
         reproduce_curl=item.reproduce_curl,
+        repro=build_manual_repro(item, account=accounts.get(item.operation_id or "")),
         comparison=item.comparison,
         suspected_false_positive=None if note is None else note.suspected_false_positive,
         triage_note=(note.note or None) if note else None,
@@ -155,10 +156,19 @@ def build_severe(
     authz: AuthzResult | None,
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
+    probe: ProbeResult | None = None,
 ) -> tuple[PanelFinding, ...]:
-    """Falhas graves (severidade proposta `high`), da prova mais forte para a mais fraca."""
+    """Falhas graves (severidade proposta `high`), da prova mais forte para a mais fraca.
+
+    O `probe` dá o apelido da conta que enviou cada operação (para "Como reproduzir à mão").
+    """
+    accounts = {
+        result.operation_id: result.account
+        for result in (probe.operations if probe else ())
+        if result.account
+    }
     found = [
-        _zap_finding(item, names, explanations)
+        _zap_finding(item, names, explanations, accounts)
         for item in (report.findings if report else ())
         if item.proposed_severity == "high"
     ]

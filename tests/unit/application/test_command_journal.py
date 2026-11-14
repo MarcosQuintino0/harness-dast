@@ -46,15 +46,18 @@ def test_load_journal_for_run_devolve_o_trecho_do_teste_do_produto() -> None:
 
     got = load_journal_for_run(store, "clinica", RUN_2)
 
-    assert [e.command for e in got] == ["doctor", "run"]
+    assert [e.command for e in got.entries] == ["doctor", "run"]
     assert store.asked == ["clinica"]
 
 
 def test_load_journal_for_run_com_linhas_puladas_ainda_devolve_o_que_leu() -> None:
     store = _MemoryJournal([_entry(1, "run", RUN_1)], skipped=3)
 
-    assert len(load_journal_for_run(store, "clinica", RUN_1)) == 1
+    got = load_journal_for_run(store, "clinica", RUN_1)
+
+    assert len(got.entries) == 1
+    assert got.skipped_lines == 3
 
 
 def test_load_journal_for_run_sem_diario_devolve_vazio() -> None:
-    assert load_journal_for_run(_MemoryJournal([]), "clinica", RUN_1) == ()
+    assert load_journal_for_run(_MemoryJournal([]), "clinica", RUN_1).entries == ()
