@@ -40,12 +40,20 @@ def _letter_data(outcome: LetterOutcome, *, check: bool) -> dict[str, JsonValue]
         "check": check,
         "generated_blocks": list(outcome.generated_blocks),
         "issues": [issue.model_dump(mode="json") for issue in outcome.issues],
+        "warnings": [warning.model_dump(mode="json") for warning in outcome.warnings],
         "example_data": list(outcome.example_data),
     }
     if outcome.created is not None:
         data["directory"] = outcome.created.directory
         data["files"] = list(outcome.created.files)
     return data
+
+
+def _render_warnings(outcome: LetterOutcome) -> str:
+    if not outcome.warnings:
+        return ""
+    lines = "\n".join(f"  - {warning.field}: {warning.message}" for warning in outcome.warnings)
+    return f"\nAvisos (não bloqueiam; mostre à pessoa e confirme com o dono do produto):\n{lines}"
 
 
 def _render_letter(outcome: LetterOutcome, *, check: bool) -> str:
@@ -55,12 +63,12 @@ def _render_letter(outcome: LetterOutcome, *, check: bool) -> str:
     if check or outcome.created is None:
         return (
             f"Carta de {outcome.product} completa e válida (nada foi criado: --check).\n"
-            f"Geraria no target.yml os blocos: {blocks}."
+            f"Geraria no target.yml os blocos: {blocks}." + _render_warnings(outcome)
         )
     return (
         f"Produto {outcome.product} criado em {outcome.created.directory} a partir da carta.\n"
         f"Blocos gerados no target.yml (não os edite à mão): {blocks}.\n"
-        "Próximo passo: hdast profile validate " + outcome.product
+        "Próximo passo: hdast profile validate " + outcome.product + _render_warnings(outcome)
     )
 
 

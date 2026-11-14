@@ -24,8 +24,11 @@ write_files:
     FROM hdast-clinica-piloto:1.0.0
 
 # O ADR 0027 cita campos e o gabarito deste caso; ADR aceito e imutavel, entao sai da copia.
+# O CHANGELOG e o roadmap citam a isca e os contadores deste caso (historico das medicoes).
 exclude:
   - docs/adr/0027-teste-de-autorizacao-entre-contas.md
+  - CHANGELOG.md
+  - docs/roadmap.md
 
 # Termos que revelam as falhas plantadas (caminhos do OpenAPI nao entram: o dono do produto os entrega). Nenhum pode aparecer na copia do agente nem em skills,
 # guias ou agentes (tests/contract/test_skills_and_guides.py).

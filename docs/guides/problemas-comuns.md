@@ -12,7 +12,7 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | `5` | `EXTERNAL_TOOL_ERROR` | Docker ou ZAP falhou, ou caiu no meio | `uv run hdast --json stack status`; reinicie a pilha com `stack up` |
 | `6` | `TARGET_ERROR` | O alvo parou de responder | Verifique o alvo; não repita em laço |
 | `7` | `CLEANUP_FAILED` | Falha ou teto de linhas na limpeza | [limpeza-de-dados.md](limpeza-de-dados.md); a transação sofreu `ROLLBACK` |
-| `8` | `STACK_BUSY` | Outra execução ocupa a pilha (ZAP e proxy) | A mensagem diz quem ocupa (comando, produto, início). Espere terminar; se foi esquecida, `uv run hdast stop`. Não repita em laço |
+| `8` | `STACK_BUSY` | Outra execução ocupa a pilha (ZAP e proxy) | A mensagem diz quem ocupa (comando, produto, início). Espere terminar; para parar agora, `uv run hdast stop` e espere o processo sair (o `stop` não solta a trava, e `stack down` também fica bloqueado até lá). Se **você** conferiu que não há execução nenhuma (outro programa reaproveitou o número do processo), apague o arquivo de trava que a mensagem cita; o agente não apaga. Não repita em laço |
 | `10` | `INTERNAL` | Erro inesperado | Guarde a saída de `stderr` e reporte ao mantenedor |
 | `130` | `INTERRUPTED` | Ctrl+C ou `hdast stop` | Esperado. Depois de `stop`, a pilha só volta com `stack up` |
 | `1` | (nenhum) | Achado no limiar do `--fail-on` ou `scan.fail_on` | Não é erro; leia o relatório |

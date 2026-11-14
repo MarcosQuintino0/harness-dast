@@ -32,7 +32,7 @@ def valid_data() -> Data:
                     "methods": ["GET", "POST", "PUT", "PATCH"],
                 }
             ],
-            "deny_paths": ["/api/notificacoes/**", "/api/conta/excluir"],
+            "deny_paths": ["/api/interno/**", "/api/conta/excluir"],
             "authorization": {"reference": "SEC-1234", "valid_until": "2027-01-31"},
             "windows": ["seg-sex 20:00-06:00 America/Sao_Paulo"],
         },

@@ -87,7 +87,7 @@ def test_describe_age_uses_short_phrases(elapsed: timedelta, expected: str) -> N
 
 
 def test_busy_message_says_who_holds_the_stack_and_what_to_do() -> None:
-    message, hint = busy_message(holder(), START + timedelta(minutes=5))
+    message, hint = busy_message(holder(), START + timedelta(minutes=5), "/estado/stack.lock")
 
     assert "`probe`" in message
     assert "demo" in message
@@ -95,6 +95,16 @@ def test_busy_message_says_who_holds_the_stack_and_what_to_do() -> None:
     assert "321" in message
     assert "há 5 min" in message
     assert "hdast stop" in hint
+
+
+def test_busy_message_tells_the_truth_about_stop_and_about_a_reused_pid() -> None:
+    _, hint = busy_message(holder(), START, "/estado/stack.lock")
+
+    assert "stop não solta a trava" in hint
+    assert "stack down" in hint
+    assert "reaproveitado o número de processo 321" in hint
+    assert "apaga o arquivo /estado/stack.lock" in hint
+    assert "O agente não apaga" in hint
 
 
 def test_unreadable_message_points_to_the_file_and_to_stack_status() -> None:

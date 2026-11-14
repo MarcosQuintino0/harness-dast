@@ -59,7 +59,7 @@ class Answer(ProfileModel):
     def validate_unknown_has_no_value(self) -> Self:
         """Uma resposta `desconhecido` não traz valor (não há o que transcrever)."""
         if self.source == "desconhecido" and self.value is not None:
-            raise ValueError("resposta desconhecido não pode ter value; apague o valor")
+            raise ValueError("uma resposta desconhecida não pode ter value; apague o valor")
         return self
 
 
@@ -223,7 +223,7 @@ class Letter(ProfileModel):
         try:
             return cls.model_validate(data)
         except ValidationError as error:
-            raise to_config_error(error, hint=LETTER_HINT, subject="Carta") from None
+            raise to_config_error(error, hint=LETTER_HINT, subject="Carta", feminine=True) from None
 
 
 def _ensure_supported_version(data: object) -> None:

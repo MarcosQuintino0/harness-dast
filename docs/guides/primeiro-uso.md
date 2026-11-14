@@ -77,7 +77,7 @@ O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do pass
 uv run hdast profile approve vampi
 ```
 
-Os comandos que tocam o alvo (`stack up`, `preflight`, `probe`, `scan`, `run`) recusam com `SCOPE_NOT_APPROVED` enquanto uma **pessoa** não aprovar o escopo. Rode o comando acima num terminal seu: ele mostra o resumo (endereço, o que pode, o que é proibido, janela, limites, contas, força) e pede que você digite o nome do produto (`vampi`). Só você aprova: o agente nunca roda esse comando. `uv run hdast --json profile approval vampi` mostra o estado (`approved`, `not_approved` ou `changed`). Se você editar depois `scope`, `limits`, `environment`, contas ou força, aprove de novo; `probe`, `auth.csrf` e `auth.account_map` não pedem.
+Os comandos que tocam o alvo (`stack up`, `preflight`, `probe`, `scan`, `run`) recusam com `SCOPE_NOT_APPROVED` enquanto uma **pessoa** não aprovar o escopo. Rode o comando acima num terminal seu: ele mostra o resumo (endereço, o que pode, o que é proibido, janela, limites, contas, política da varredura, teste de autorização, limpeza) e pede que você digite o nome do produto (`vampi`). Só você aprova: o agente nunca roda esse comando. `uv run hdast --json profile approval vampi` mostra o estado (`approved`, `not_approved` ou `changed`). Se você (ou o agente) editar depois qualquer campo de `environment`, `scope`, `limits`, contas, `scan`, `authz` ou `cleanup`, é preciso aprovar de novo; só `probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, a codificação do login e `openapi` não pedem. Quem atualizou o `hdast` da V1.3 antes desta correção precisa aprovar de novo: o cálculo mudou de versão e a aprovação antiga vale como não feita.
 
 ## 5. Subir a pilha
 

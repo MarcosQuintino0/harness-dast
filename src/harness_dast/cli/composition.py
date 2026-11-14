@@ -78,7 +78,9 @@ def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
         products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
     """
     root = products_dir_or_default(products_dir)
-    return InitFromLetter(FileLetterReader(), FileProductScaffolder(root, default_template_dir()))
+    return InitFromLetter(
+        FileLetterReader(), FileProductScaffolder(root, default_template_dir()), SystemClock()
+    )
 
 
 def build_validate_profile(products_dir: Path | None) -> ValidateProfile:

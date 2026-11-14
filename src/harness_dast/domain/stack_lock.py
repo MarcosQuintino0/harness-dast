@@ -102,12 +102,29 @@ def describe_holder(holder: LockHolder, now: datetime) -> str:
     )
 
 
-def busy_message(holder: LockHolder, now: datetime) -> tuple[str, str]:
-    """Mensagem e orientação para quem foi recusado porque a pilha está ocupada."""
+def busy_message(holder: LockHolder, now: datetime, location: str) -> tuple[str, str]:
+    """Mensagem e orientação para quem foi recusado porque a pilha está ocupada.
+
+    Diz a verdade sobre as saídas: `hdast stop` para o trabalho, mas NÃO solta a trava (quem a
+    solta é a própria execução ao terminar), e `stack down` também fica bloqueado enquanto ela
+    existe. Se o número do processo foi reaproveitado por outro programa, a execução citada não
+    existe e só uma pessoa, conferindo, apaga o arquivo de trava. A CLI não apaga trava de
+    processo vivo.
+
+    Args:
+        holder: Dono lido do arquivo de trava.
+        now: Instante atual (para "há quanto tempo").
+        location: Caminho do arquivo de trava, citado na orientação.
+    """
     return (
         f"A pilha está ocupada por {describe_holder(holder, now)}.",
-        "Espere essa execução terminar e tente de novo. Para pará-la agora, rode hdast stop. "
-        "Duas execuções na mesma pilha se corrompem, por isso a segunda é recusada.",
+        "Se essa execução existe, espere ela terminar e tente de novo; para pará-la agora, "
+        "rode hdast stop e espere o processo sair (o stop não solta a trava: quem a solta é a "
+        "própria execução ao terminar, e hdast stack down também fica bloqueado até lá). "
+        f"Se uma pessoa conferiu que não há execução nenhuma (outro programa pode ter "
+        f"reaproveitado o número de processo {holder.pid}), ela apaga o arquivo {location}. "
+        "O agente não apaga esse arquivo. Duas execuções na mesma pilha se corrompem, por isso "
+        "a segunda é recusada.",
     )
 
 

@@ -599,12 +599,17 @@ def test_functions_that_share_a_swagger_summary_are_listed_with_distinct_names()
     from harness_dast.domain.api_model import Operation
 
     operations = tuple(
-        Operation(operation_id=f"isca_{method}", method=method, path="/api/isca/**", summary="Isca")
+        Operation(
+            operation_id=f"dup_{method}",
+            method=method,
+            path="/api/duplicada/**",
+            summary="Duplicada",
+        )
         for method in ("get", "post", "put")
     )
 
     panel_view = build_panel_view(sources(operations=operations))
 
-    names = [item.name for item in panel_view.functions if item.operation_id.startswith("isca_")]
+    names = [item.name for item in panel_view.functions if item.operation_id.startswith("dup_")]
     assert len(set(names)) == 3
-    assert "Isca (POST /api/isca/**)" in names
+    assert "Duplicada (POST /api/duplicada/**)" in names

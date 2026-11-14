@@ -121,7 +121,7 @@ def test_record_with_a_malformed_digest_is_refused(bad: str) -> None:
         ScopeApproval.model_validate(tampered(approval, digest=bad))
 
 
-@pytest.mark.parametrize("version", [0, 2, "1", None])
+@pytest.mark.parametrize("version", [0, 1, 3, "2", None])
 def test_record_with_an_unknown_schema_version_is_refused(version: object) -> None:
     approval = approval_for(valid_profile())
 
@@ -201,3 +201,80 @@ def test_summary_of_a_strict_profile_says_strict_and_names_no_denied_path_when_n
 
     assert "estrito" in text
     assert "nenhum caminho negado" in text
+
+
+def test_summary_shows_scan_policy_authz_and_cleanup_the_person_approves() -> None:
+    profile = profile_with(
+        lambda d: d.update(
+            scan={"fail_on": "high", "disable_rules": [40018], "max_scan_minutes": 30},
+            authz={"public_operations": ["listar"], "disabled_checks": ["vertical"]},
+            cleanup={
+                "type": "oracle_sql",
+                "script": "./cleanup/cleanup.sql",
+                "connection": {"secret_ref": "env:ACME_ORACLE"},
+                "requires_confirmation": True,
+                "allowed_tables": ["PEDIDOS"],
+                "max_rows": 50,
+            },
+        )
+    )
+
+    text = "\n".join(describe_protection(profile))
+
+    assert "regras do ZAP desligadas: 40018" in text
+    assert "30 min por varredura" in text
+    assert "a partir de: high" in text
+    assert "listar" in text
+    assert "verificações desligadas: vertical" in text
+    assert "script ./cleanup/cleanup.sql" in text
+    assert "env:ACME_ORACLE" in text
+    assert "tabelas permitidas: PEDIDOS; até 50 linhas" in text
+
+
+def test_summary_without_cleanup_says_it_is_not_configured() -> None:
+    text = "\n".join(describe_protection(valid_profile()))
+
+    assert "Limpeza do ambiente: não configurada." in text
+
+
+def test_an_approval_of_the_old_calculation_version_is_refused_when_read() -> None:
+    old = tampered(approval_for(valid_profile()), schema_version=1)
+
+    with pytest.raises(ValidationError):
+        ScopeApproval.model_validate(old)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("scan", {"fail_on": "none", "disable_rules": [40018]}),
+        ("authz", {"public_operations": ["listar"]}),
+    ],
+)
+def test_agent_edit_after_approval_to_scan_or_authz_makes_it_changed(
+    key: str, value: dict[str, Any]
+) -> None:
+    approval = approval_for(valid_profile())
+    edited = profile_with(lambda d: d.update({key: value}))
+
+    check = check_approval(edited, approval)
+
+    assert check.state == "changed"
+    assert check.changed_blocks == (key,)
+
+
+def test_changed_message_names_each_block_in_plain_language_without_nested_parentheses() -> None:
+    approval = approval_for(valid_profile())
+    changed = profile_with(
+        lambda d: (
+            d["scope"]["allow"][0]["methods"].append("DELETE"),
+            d["limits"].update(requests_per_second=9),
+        )
+    )
+
+    message = check_approval(changed, approval).message()
+
+    assert "o que pode ser alcançado (scope.allow)" in message
+    assert "limites de carga (limits)" in message
+    assert "((" not in message
+    assert message.count("(") == message.count(")")

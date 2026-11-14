@@ -5,11 +5,12 @@ estiverem completas, cria o produto com o `target.yml` gerado. Falha fechada: co
 pendência nada é criado. O agente não escreve os blocos de proteção do perfil.
 """
 
+from datetime import UTC
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-from harness_dast.application.ports import LetterReader, ProductScaffolder, ScaffoldedProduct
+from harness_dast.application.ports import Clock, LetterReader, ProductScaffolder, ScaffoldedProduct
 from harness_dast.domain.errors import LetterRejected
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_collect import LetterIssue
@@ -29,6 +30,8 @@ class LetterOutcome(BaseModel):
         product: Produto pedido.
         ready: Se a carta está completa e válida.
         issues: Pendências campo a campo (vazio quando `ready`).
+        warnings: Avisos que não recusam a carta (permissão em `/**`, `DELETE`, nenhum caminho
+            proibido, validade acima de um ano); o agente os mostra à pessoa na entrevista.
         generated_blocks: Blocos do `target.yml` que a CLI gerou (ou geraria, em `--check`).
         example_data: Dados de exemplo da carta, informação para o agente.
         created: A pasta criada; `None` em `--check` ou quando há pendência.
@@ -39,6 +42,7 @@ class LetterOutcome(BaseModel):
     product: str
     ready: bool
     issues: tuple[LetterIssue, ...]
+    warnings: tuple[LetterIssue, ...]
     generated_blocks: tuple[str, ...]
     example_data: tuple[dict[str, JsonValue], ...]
     created: ScaffoldedProduct | None = None
@@ -47,15 +51,17 @@ class LetterOutcome(BaseModel):
 class InitFromLetter:
     """Confere a carta e cria o produto com o perfil gerado."""
 
-    def __init__(self, reader: LetterReader, scaffolder: ProductScaffolder) -> None:
+    def __init__(self, reader: LetterReader, scaffolder: ProductScaffolder, clock: Clock) -> None:
         """Cria o caso de uso.
 
         Args:
             reader: Leitor da carta.
             scaffolder: Criador da pasta do produto.
+            clock: Relógio injetado (a validade da autorização é conferida contra hoje).
         """
         self._reader = reader
         self._scaffolder = scaffolder
+        self._clock = clock
 
     def review(self, product: str, letter_path: Path) -> LetterReview:
         """Lê e confere a carta, sem criar nada.
@@ -65,7 +71,7 @@ class InitFromLetter:
                 desconhecido, resposta fora do formato `{value, source}`).
         """
         letter = Letter.from_data(self._reader.read(letter_path))
-        return review_letter(letter, product)
+        return review_letter(letter, product, self._clock.now().astimezone(UTC).date())
 
     def check(self, product: str, letter_path: Path) -> LetterOutcome:
         """Só confere a carta (`--check`): não cria pasta nem arquivo."""
@@ -97,6 +103,7 @@ def _outcome(
         product=product,
         ready=review.ready,
         issues=review.issues,
+        warnings=review.warnings,
         generated_blocks=review.blocks,
         example_data=review.example_data,
         created=created,

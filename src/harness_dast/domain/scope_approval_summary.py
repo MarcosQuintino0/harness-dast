@@ -1,7 +1,8 @@
 """Resumo legível dos blocos de proteção, para a pessoa ler antes de aprovar (ADR 0037).
 
 Mostra, em português e em linhas curtas, o que a aprovação trava: endereço, o que pode, o que é
-proibido, modo de caminho, janela, validade, limites, contas e papéis e a força do ataque.
+proibido, modo de caminho, janela, validade, limites, contas e papéis, a política da varredura,
+o teste de autorização e a limpeza do ambiente.
 Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
@@ -73,6 +74,46 @@ def _strength_line(profile: ProductProfile) -> str:
     )
 
 
+def _scan_policy_line(profile: ProductProfile) -> str:
+    scan = profile.scan
+    rules = ", ".join(str(rule) for rule in sorted(scan.disable_rules)) or "nenhuma"
+    return (
+        f"Varredura: limiar {scan.threshold}; regras do ZAP desligadas: {rules}; "
+        f"tetos de {scan.max_scan_minutes} min por varredura e {scan.max_rule_minutes} min por "
+        f"regra; token renovado a cada {scan.token_refresh_seconds} s; "
+        f"código de saída 1 a partir de: {scan.fail_on}."
+    )
+
+
+def _authz_lines(profile: ProductProfile) -> list[str]:
+    authz = profile.authz
+    public = ", ".join(sorted(authz.public_operations)) or "nenhuma"
+    disabled = ", ".join(sorted(authz.disabled_checks)) or "nenhuma"
+    mass = ", ".join(field.name for field in authz.mass_assignment_fields) or "nenhum"
+    roles = " < ".join(authz.role_order) or "não declarada"
+    return [
+        "Teste de autorização repete com os métodos: " + ", ".join(authz.vertical_methods),
+        f"  - operações tratadas como públicas (não geram achado): {public}",
+        f"  - verificações desligadas: {disabled}",
+        f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
+    ]
+
+
+def _cleanup_lines(profile: ProductProfile) -> list[str]:
+    cleanup = profile.cleanup
+    if cleanup is None:
+        return ["Limpeza do ambiente: não configurada."]
+    refs = [cleanup.connection.secret_ref]
+    refs += [ref.secret_ref for ref in (cleanup.user, cleanup.password) if ref is not None]
+    tables = ", ".join(cleanup.allowed_tables) or "nenhuma"
+    ceiling = "sem teto" if cleanup.max_rows is None else f"até {cleanup.max_rows} linhas"
+    schema = "" if cleanup.db_schema is None else f"; esquema {cleanup.db_schema}"
+    return [
+        f"Limpeza do ambiente: script {cleanup.script}; credenciais: {', '.join(sorted(refs))}",
+        f"  - tabelas permitidas: {tables}; {ceiling}{schema}",
+    ]
+
+
 def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
     """Linhas legíveis dos blocos que a aprovação trava (sem segredo, sem valor de variável)."""
     scope = profile.scope
@@ -97,5 +138,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         "Contas de teste:",
         *_account_lines(profile),
         _strength_line(profile),
-        "Teste de autorização repete com os métodos: " + ", ".join(profile.authz.vertical_methods),
+        _scan_policy_line(profile),
+        *_authz_lines(profile),
+        *_cleanup_lines(profile),
     )
