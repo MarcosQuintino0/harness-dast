@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 
 from harness_dast.domain.api_schema import JsonValue, Schema
 from harness_dast.domain.authz_compare import (
+    MAX_PARSE_DEPTH,
     MAX_PATHS,
     bodies_equivalent,
     has_empty_list,
@@ -276,3 +277,17 @@ def test_holds_value_checks_exact_value_and_type() -> None:
     assert not holds_value(body, ("n",), True)
     assert not holds_value(None, ("papel",), "admin")
     assert not holds_value(body, ("ausente",), "admin")
+
+
+def test_nesting_just_over_the_limit_is_refused_whatever_the_interpreter_allows() -> None:
+    over = b"[" * (MAX_PARSE_DEPTH + 1) + b"]" * (MAX_PARSE_DEPTH + 1)
+    inside = b"[" * MAX_PARSE_DEPTH + b"]" * MAX_PARSE_DEPTH
+
+    assert parse_json(over) is None
+    assert parse_json(inside) is not None
+
+
+def test_brackets_inside_strings_do_not_count_as_nesting() -> None:
+    body = ('{"a": "' + "[" * 500 + '\\"[' + '"}').encode()
+
+    assert parse_json(body) == {"a": "[" * 500 + '"['}

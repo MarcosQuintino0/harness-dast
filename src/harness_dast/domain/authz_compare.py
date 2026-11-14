@@ -18,6 +18,8 @@ Verdict = Literal["allowed_equivalent", "allowed_different", "denied", "baseline
 """Resultado de repetir um pedido com outra conta (veja `judge_replay`)."""
 
 MAX_DEPTH: Final = 12
+MAX_PARSE_DEPTH: Final = 200
+"""Aninhamento máximo de um corpo JSON aceito; acima disso o corpo é tratado como não JSON."""
 MAX_PATHS: Final = 20
 _OK_RANGE: Final = range(200, 300)
 
@@ -32,10 +34,41 @@ def parse_json(body: bytes) -> JsonValue | None:
     if not body.strip():
         return None
     try:
-        parsed: JsonValue = json.loads(body.decode("utf-8"))
+        text = body.decode("utf-8")
+        if _nesting_exceeds(text, MAX_PARSE_DEPTH):
+            return None
+        parsed: JsonValue = json.loads(text)
     except (UnicodeDecodeError, ValueError, RecursionError):
         return None
     return parsed
+
+
+def _nesting_exceeds(text: str, limit: int) -> bool:
+    """Diz se o aninhamento de listas e objetos passa de `limit`, sem interpretar o JSON.
+
+    O limite de recursão do interpretador muda entre versões e sistemas; contar aqui deixa a
+    recusa de corpo profundo igual em toda máquina.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > limit:
+                return True
+        elif char in "]}":
+            depth -= 1
+    return False
 
 
 def strip_volatile(value: JsonValue, volatile: frozenset[str], depth: int = 0) -> JsonValue:
