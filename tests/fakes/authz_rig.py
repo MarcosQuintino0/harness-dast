@@ -56,12 +56,14 @@ class Clinic:
         mass: bool = False,
         bfla: bool = False,
         reject_extra_fields: bool = False,
+        empty_lists: bool = False,
     ) -> None:
         self.bola = bola
         self.excess = excess
         self.mass = mass
         self.bfla = bfla
         self.reject_extra_fields = reject_extra_fields
+        self.empty_lists = empty_lists
         self.papel = dict(ROLES)
         self.nome = {alias: f"Nome {alias}" for alias in ROLES}
         self.counter = 0
@@ -99,7 +101,7 @@ class Clinic:
         if method == "GET" and path.startswith("api/catalogo/"):
             return reply(200, {"id": path.rsplit("/", 1)[1], "nome": "item publico"})
         if method == "GET" and path == "api/pacientes":
-            return reply(200, {"items": [self._patient()]})
+            return reply(200, {"items": [] if self.empty_lists else [self._patient()]})
         admin_only = path in {"api/relatorios", "api/convenios"}
         if admin_only and not self.bfla and self.papel[alias] != "admin":
             return reply(403, {"code": "ACESSO_NEGADO"})

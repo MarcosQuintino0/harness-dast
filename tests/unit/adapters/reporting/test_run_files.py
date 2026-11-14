@@ -220,3 +220,71 @@ def test_write_gives_up_with_a_config_error_when_the_file_stays_locked(
 
     with pytest.raises(ConfigError):
         store.write_alerts(RUN_ID, [])
+
+
+def test_missing_exchanges_json_is_a_config_error_that_names_the_probe(
+    store: FileRunArtifacts,
+) -> None:
+    with pytest.raises(ConfigError) as info:
+        store.read_exchanges(RUN_ID)
+
+    assert "Rode o probe" in (info.value.hint or "")
+
+
+def test_missing_authz_json_means_the_stage_did_not_run(store: FileRunArtifacts) -> None:
+    assert store.read_authz(RUN_ID) is None
+
+
+@pytest.mark.parametrize("name", ["exchanges.json", "authz.json"])
+@pytest.mark.parametrize(
+    "content",
+    [
+        "",
+        "{nao e json",
+        "[]",
+        "null",
+        '{"run_id": 1}',
+        '{"schema_version": 1, "run_id": "r", "product": "p", "exchanges": "x"}',
+        '{"schema_version": 1, "run_id": "r", "product": "p", "findings": [1]}',
+    ],
+)
+def test_corrupt_or_malformed_exchanges_and_authz_are_config_errors_without_echoing_content(
+    tmp_path: Path, store: FileRunArtifacts, name: str, content: str
+) -> None:
+    (run_dir(tmp_path) / name).write_text(content, encoding="utf-8")
+    reader = store.read_exchanges if name == "exchanges.json" else store.read_authz
+
+    with pytest.raises(ConfigError) as info:
+        reader(RUN_ID)
+
+    assert "ilegível" in info.value.message
+    assert content.strip() == "" or content.strip() not in info.value.message
+
+
+def test_exchanges_json_with_a_tampered_target_is_refused(
+    tmp_path: Path, store: FileRunArtifacts
+) -> None:
+    record = {
+        "operation_id": "o",
+        "method": "GET",
+        "path": "/p",
+        "target": "//evil.test/x",
+        "account": "a",
+        "status": 200,
+    }
+    text = json.dumps({"run_id": RUN_ID, "product": "p", "exchanges": [record]})
+    (run_dir(tmp_path) / "exchanges.json").write_text(text, encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="ilegível"):
+        store.read_exchanges(RUN_ID)
+
+
+def test_non_utf8_exchanges_and_authz_are_refused(tmp_path: Path, store: FileRunArtifacts) -> None:
+    directory = run_dir(tmp_path)
+    (directory / "exchanges.json").write_bytes(b"\xff\xfe\x00bad")
+    (directory / "authz.json").write_bytes(b"\xff\xfe\x00bad")
+
+    with pytest.raises(ConfigError, match="ilegível"):
+        store.read_exchanges(RUN_ID)
+    with pytest.raises(ConfigError, match="ilegível"):
+        store.read_authz(RUN_ID)

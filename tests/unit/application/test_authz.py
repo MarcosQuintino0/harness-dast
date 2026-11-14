@@ -159,6 +159,18 @@ def test_does_not_accuse_when_the_response_matches_the_schema() -> None:
     assert check(result, "excessive_data").tested >= 1
 
 
+def test_an_empty_list_is_not_tested_instead_of_counted_as_safe() -> None:
+    rig = AuthzRig(Clinic(excess=True, empty_lists=True))
+
+    result = run_authz(rig, checks=("excessive_data",))
+
+    reasons = [n.reason for n in result.not_tested if n.operation_id == "listarPacientes"]
+    assert reasons == ["no_sample_data"]
+    assert result.findings == ()
+    summary = check(result, "excessive_data")
+    assert summary.tested < summary.candidates
+
+
 def test_never_writes_the_value_of_the_suspect_field() -> None:
     rig = AuthzRig(Clinic(excess=True))
 
