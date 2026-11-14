@@ -23,7 +23,7 @@ sempre como texto. Este módulo é puro.
 
 import re
 from typing import Final
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import Finding
@@ -111,6 +111,31 @@ class ManualRepro(ApiModel):
     personal_data_masked: bool = False
     attack: str = ""
     target_damaged: bool = False
+
+
+_TIME_BASED: Final = re.compile(r"time[ -]?based", re.IGNORECASE)
+_SLEEP_SECONDS: Final = re.compile(
+    r"(?:sleep|pg_sleep|benchmark|dbms_pipe\.receive_message)\s*\(\s*(?:'[^']*',\s*)?(\d{1,3})"
+    r"|waitfor\s+delay\s+'\d+:\d+:(\d{1,3})",
+    re.IGNORECASE,
+)
+
+
+def is_time_based(title: str) -> bool:
+    """Se o ZAP nomeou a regra como detecção por tempo (`... (Time Based)`).
+
+    Nesse tipo a prova é a demora da resposta, não o corpo dela: comparar status ou texto da
+    resposta não diz se a falha continua.
+    """
+    return bool(_TIME_BASED.search(title))
+
+
+def sleep_seconds(attack: str) -> int | None:
+    """Segundos de espera que a carga pede (`pg_sleep(15)`, `sleep(5)`, `waitfor delay ...`)."""
+    found = _SLEEP_SECONDS.search(unquote(attack))
+    if found is None:
+        return None
+    return int(found.group(1) or found.group(2))
 
 
 def mask_personal_data(text: str) -> tuple[str, bool]:

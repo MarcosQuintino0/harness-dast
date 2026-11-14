@@ -224,8 +224,17 @@ def _confidence_rows(item: PanelFinding) -> str:
         triage = line("no", "O agente suspeita de falso positivo", "sem triagem")
     elif suspect:
         triage = line("am", "O agente suspeita de falso positivo", "sim")
+    elif item.triage_note:
+        # O campo diz "não suspeita", mas a nota é texto livre que pode levantar dúvida: sem
+        # selo verde, e a nota logo abaixo da linha (não interpretamos a nota).
+        triage = line("no", "O agente suspeita de falso positivo", "campo: não suspeita")
     else:
         triage = line("ok", "O agente suspeita de falso positivo", "não suspeita")
+    if item.triage_note:
+        triage += (
+            '<p class="sm mu" style="margin: 4px 0 6px">O agente anotou (texto dele, consultivo): '
+            f"{h.text(item.triage_note, 400)}</p>"
+        )
     return (
         line(
             "ok" if proven else "no",
@@ -248,18 +257,12 @@ def _confidence_block(item: PanelFinding) -> str:
     if item.confidence < 2 and item.origin == "zap":
         notes.append(_REPEAT_SENTENCE)
     notes.append(_CONFIRM_SENTENCE)
-    triage = (
-        '<p class="sm mu">O agente anotou (texto dele, consultivo): '
-        f"{h.text(item.triage_note, 400)}</p>"
-        if item.triage_note
-        else ""
-    )
     return (
         '<div style="flex: 1 1 300px; min-width: 0">'
         '<h2 class="h" style="margin-bottom: 4px">Confiança nesta falha '
         f"<span>{meter(item.confidence)}</span></h2>"
         f"{_confidence_rows(item)}"
-        f'<p class="sm mu" style="margin-top: 8px">{h.plain(" ".join(notes))}</p>{triage}</div>'
+        f'<p class="sm mu" style="margin-top: 8px">{h.plain(" ".join(notes))}</p></div>'
     )
 
 

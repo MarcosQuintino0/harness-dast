@@ -228,6 +228,30 @@ def test_agent_suspicion_and_note_are_shown_as_advisory_text() -> None:
     assert "O agente anotou (texto dele, consultivo): parece esperado" in text
 
 
+def test_a_no_suspicion_flag_next_to_a_doubtful_note_is_not_a_green_seal() -> None:
+    doubtful = finding(
+        suspected_false_positive=False, triage_note="Pode ser falso positivo por tempo."
+    )
+    page = page_for(doubtful)
+
+    row = re.search(
+        r'<div class="r"[^>]*>(?:(?!</div>).)*suspeita de falso positivo.*?</div>', page
+    )
+    assert row is not None
+    assert "k-ok" not in row.group(0)
+    text = main_text(page)
+    assert "O agente suspeita de falso positivo campo: não suspeita" in text
+    assert "Pode ser falso positivo por tempo." in text
+    assert text.index("campo: não suspeita") < text.index("Pode ser falso positivo por tempo.")
+    assert text.index("Pode ser falso positivo por tempo.") < text.index("Uma pessoa repetiu")
+
+
+def test_a_no_suspicion_flag_without_a_note_stays_green() -> None:
+    plain = finding(suspected_false_positive=False)
+
+    assert "O agente suspeita de falso positivo não suspeita" in main_text(page_for(plain))
+
+
 def test_a_finding_without_triage_says_so() -> None:
     assert "O agente suspeita de falso positivo sem triagem" in main_text(one_page())
 
@@ -253,6 +277,43 @@ def test_without_the_catalog_the_page_falls_back_to_the_tool_text_and_stays_hone
 
 
 # ---------------------------------------------------------------- como reproduzir à mão
+
+PAYLOAD = "case when cast(pg_sleep(15) as varchar) > '' then 0 else 1 end"
+
+
+def time_based() -> PanelFinding:
+    return finding(
+        title="SQL Injection - PostgreSQL (Time Based)",
+        confidence=1,
+        evidence=EVIDENCE.model_copy(update={"zap_evidence": "", "attack": PAYLOAD}),
+        repro=REPRO.model_copy(
+            update={"received_status": 404, "attack": PAYLOAD, "target": "/api/convenios/x"}
+        ),
+    )
+
+
+def test_a_time_based_failure_is_compared_by_the_delay_and_never_by_the_body() -> None:
+    text = main_text(page_for(time_based()))
+
+    assert "Demorou perto de 15 s nas 3 vezes" in text
+    assert "a falha continua" in text  # só na linha do atraso, que é a prova deste tipo
+    assert "igual ao da prova" not in text
+    assert "A resposta gravada (404) não mostra a falha: o que vale é o tempo" in text
+
+
+def test_a_failure_whose_recorded_response_does_not_prove_it_never_says_it_continues() -> None:
+    unproven = finding(confidence=1, evidence=EVIDENCE.model_copy(update={"zap_evidence": ""}))
+
+    text = main_text(page_for(unproven))
+
+    assert "a falha continua" not in text
+    assert "a resposta sozinha não prova a falha" in text
+
+
+def test_a_failure_whose_recorded_response_proves_it_keeps_the_same_response_rule() -> None:
+    text = main_text(one_page())
+
+    assert "Erro 500 igual ao da prova abaixo: a falha continua." in text
 
 
 def test_the_repro_has_the_three_steps_and_only_markers_for_secrets() -> None:

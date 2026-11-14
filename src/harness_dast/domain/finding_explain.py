@@ -25,6 +25,7 @@ from typing import Final, Literal
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_result import AuthzTechnique
 from harness_dast.domain.finding import Finding
+from harness_dast.domain.manual_repro import is_time_based
 from harness_dast.domain.redaction import strip_control
 
 Who = Literal["QA", "dono do produto", "time de desenvolvimento"]
@@ -643,6 +644,66 @@ _AUTHZ_MASS = FindingExplanation(
     technical_name="Atribuição em massa (Mass Assignment, CWE-915)",
 )
 
+_SQL_TIME = FindingExplanation(
+    key="sql_injection_time",
+    title="Um texto digitado pode estar virando parte do comando que o sistema manda ao banco",
+    what_happened=(
+        "O teste mandou um texto montado de propósito que, se virasse parte do comando do banco "
+        "de dados, o faria esperar alguns segundos. A ferramenta de ataque anotou que a resposta "
+        "demorou. A resposta gravada não mostra a falha: o que indica é só a demora, e demora "
+        "também acontece por acaso."
+    ),
+    why_it_matters=(
+        "Se isso for real, quem souber montar o texto certo consegue mudar o comando do banco: "
+        "ler dados de outras pessoas ou alterar informações sem ter permissão."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (
+            _QA,
+            "Repetir o pedido à mão 3 vezes, medindo o tempo de cada uma, como mostra o passo "
+            "a passo desta falha.",
+        ),
+        (_DEV, "Montar o comando do banco com parâmetros, nunca juntando o texto digitado."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Injeção de SQL por tempo (Time Based, CWE-89)",
+)
+
+_OS_COMMAND_TIME = FindingExplanation(
+    key="os_command_injection_time",
+    title="Um texto digitado pode estar virando comando no servidor",
+    what_happened=(
+        "O teste mandou um texto com um comando do sistema operacional que faria o servidor "
+        "esperar alguns segundos. A ferramenta de ataque anotou que a resposta demorou. A "
+        "resposta gravada não mostra a falha: o que indica é só a demora, e demora também "
+        "acontece por acaso."
+    ),
+    why_it_matters=(
+        "Se isso for real, é uma das falhas mais graves: quem explora controla o que o "
+        "servidor executa."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (
+            _QA,
+            "Repetir o pedido à mão 3 vezes, medindo o tempo de cada uma, como mostra o passo "
+            "a passo desta falha.",
+        ),
+        (_DEV, "Parar de passar texto recebido para comandos do sistema."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Injeção de comando do sistema por tempo (Time Based, CWE-78)",
+)
+
+_TIME_VARIANT: Final[dict[str, FindingExplanation]] = {
+    "sql_injection": _SQL_TIME,
+    "os_command_injection": _OS_COMMAND_TIME,
+}
+"""Variante "por tempo" de cada tipo: a prova é a demora, e o corpo da resposta não a mostra."""
+
 _SQL_PLUGINS: Final = frozenset(
     {"40018", "40019", "40020", "40021", "40022", "40024", "40027", "90018"}
 )
@@ -710,7 +771,13 @@ _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
 def catalog_entries() -> tuple[FindingExplanation, ...]:
     """Todas as entradas distintas do catálogo (sem a genérica), em ordem estável."""
     seen: dict[str, FindingExplanation] = {}
-    for entry in (*_BY_PLUGIN.values(), *_BY_CWE.values(), *_BY_TECHNIQUE.values()):
+    every = (
+        *_BY_PLUGIN.values(),
+        *_BY_CWE.values(),
+        *_BY_TECHNIQUE.values(),
+        *_TIME_VARIANT.values(),
+    )
+    for entry in every:
         seen.setdefault(entry.key, entry)
     return tuple(seen.values())
 
@@ -758,7 +825,9 @@ def explain_zap_alert(*, plugin_id: str, cwe: int | None, title: str) -> Finding
     entry = _BY_PLUGIN.get(plugin_id.strip())
     if entry is None and cwe is not None:
         entry = _BY_CWE.get(cwe)
-    return entry if entry is not None else _generic(title, plugin_id.strip())
+    if entry is None:
+        return _generic(title, plugin_id.strip())
+    return _TIME_VARIANT.get(entry.key, entry) if is_time_based(title) else entry
 
 
 def explain_authz_technique(technique: AuthzTechnique) -> FindingExplanation:
