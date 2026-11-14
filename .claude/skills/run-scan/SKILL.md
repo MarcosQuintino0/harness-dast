@@ -11,7 +11,7 @@ A CLI executa e impõe escopo, limites e janela. Você dispara, acompanha, lê o
 
 Confirme com a pessoa que a autorização e a janela valem **agora** e que o ambiente é de teste com dados sintéticos. `uv run hdast --json profile validate <produto>` mostra `authorization_valid_now` e `window_open_now`; se algum for falso, **pare**.
 
-**Resumo antes de atacar.** Antes do primeiro comando que toca o alvo, mostre à pessoa, em poucas linhas: endereço base, quantas funções serão varridas, o que é proibido, janela, limites e força do ataque. Peça a aprovação humana do escopo: **ela** roda, num terminal dela, `<<COMANDO_DE_APROVACAO>> <produto>` (você nunca o roda). Sem a aprovação, não comece.
+**Resumo antes de atacar.** Antes do primeiro comando que toca o alvo, mostre à pessoa, em poucas linhas: endereço base, quantas funções serão varridas, o que é proibido, janela, limites e força do ataque. Peça a aprovação humana do escopo: **ela** roda, num terminal dela, `hdast profile approve <produto>` (você nunca o roda). Sem a aprovação, não comece.
 
 ## Passos
 
@@ -41,7 +41,7 @@ Confirme com a pessoa que a autorização e a janela valem **agora** e que o amb
 | `10` | Erro interno | Guarde a mensagem e avise o mantenedor. |
 | `130` | Interrompido (Ctrl+C ou `hdast stop`) | Veja `stop_requested` em `run.json`. A pilha fica travada até `stack up` de novo. |
 
-Recusa por falta de aprovação do escopo (`<<CODIGO_SEM_APROVACAO>>`): **pare** e peça à pessoa que rode `<<COMANDO_DE_APROVACAO>> <produto>`. Não tente aprovar nem contornar.
+Recusa por falta de aprovação do escopo (`SCOPE_NOT_APPROVED`): **pare** e peça à pessoa que rode `hdast profile approve <produto>`. Não tente aprovar nem contornar.
 
 ## Parar com segurança
 

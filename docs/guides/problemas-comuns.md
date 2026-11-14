@@ -39,7 +39,7 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | `init`: pasta de produtos inexistente | A CLI não cria a pasta | Crie-a, ou use `--products-dir`/`HDAST_PRODUCTS_DIR` |
 | `init`: produto já existe | `init` nunca sobrescreve | Edite a pasta existente ou escolha outro nome |
 | `init --from-letter` sai com `LETTER_REJECTED` | O `carta.yml` tem pendências (`data.issues`: campo e código) | Responda o que falta na entrevista e rode `--check` de novo. Portão "não" ou resposta desconhecida recusa tudo; valor de senha no lugar do nome do segredo é recusado |
-| Comando que toca o alvo recusa por falta de aprovação (`<<CODIGO_SEM_APROVACAO>>`) | A pessoa ainda não aprovou o escopo | Leia o resumo e rode `<<COMANDO_DE_APROVACAO>> <produto>` num terminal seu. O agente não aprova por você |
+| Comando que toca o alvo recusa por falta de aprovação (`SCOPE_NOT_APPROVED`) | A pessoa ainda não aprovou o escopo | Leia o resumo e rode `hdast profile approve <produto>` num terminal seu. O agente não aprova por você |
 | `runnable: false` com `PLACEHOLDER_HOST`, `PLACEHOLDER_AUTHORIZATION` ou `PLACEHOLDER_SECRET_REF` | Valor do modelo ainda no perfil | Preencha com os dados da carta de autorização |
 | `FILE_MISSING` | `openapi` ou script de limpeza não está na pasta do produto | Copie o arquivo para lá |
 | `AUTHORIZATION_EXPIRED` ou `WINDOW_CLOSED` | Fora da validade ou da janela | Veja saída `3` |

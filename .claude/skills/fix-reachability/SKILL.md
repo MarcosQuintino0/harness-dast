@@ -42,7 +42,7 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 | `preflight` sai com 3 | Autorização vencida ou janela fechada | **Pare**; só o dono renova. |
 | `preflight` ou `probe` saem com 4 | ZAP fora do ar, segredo ausente ou login recusado | Leia `error.hint`; segredo e ZAP são da pessoa (veja `docs/guides/problemas-comuns.md`). Segredo `keyring:` ausente: cite o NOME e peça que ela rode `hdast secret set NOME`; você não o roda. |
 | `probe` sai com 8 (`STACK_BUSY`) | Outra execução ocupa a pilha | **Não** repita em laço: diga à pessoa quem ocupa (a mensagem diz) e espere; `uv run hdast --json stop` só se ela concordar. |
-| `preflight` ou `probe` recusam por falta de aprovação do escopo (`<<CODIGO_SEM_APROVACAO>>`) | A pessoa ainda não aprovou | **Pare** e peça que ela rode `<<COMANDO_DE_APROVACAO>> <produto>`. Nunca tente aprovar. |
+| `preflight` ou `probe` recusam por falta de aprovação do escopo (`SCOPE_NOT_APPROVED`) | A pessoa ainda não aprovou | **Pare** e peça que ela rode `hdast profile approve <produto>`. Nunca tente aprovar. |
 | `probe` sai com 5 ou 6 | ZAP caiu ou o alvo parou | **Pare** e avise; não reinicie em laço. |
 | `probe` sai com 0 | O comando rodou (falha de operação é dado) | Siga a tabela por `outcome`. |
 

@@ -73,7 +73,7 @@ Ao cadastrar, o agente lê a carta e o Swagger, monta um `carta.yml` com o que a
 
 O agente **não marca opção como recomendada** nem preenche escopo, limite, janela ou autorização por conta própria. "Não sei" entra como `desconhecido` e o agente para naquele campo: quem responde é o dono do produto. Com tudo respondido, a CLI gera `environment`, `scope`, `limits`, as contas e a força do ataque no `target.yml`; o agente escreve só o que a carta não traz (`probe`, `auth.csrf`, `auth.account_map`, `data-rules.yml`, `flows.yml`).
 
-**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força) e pede que **você** rode `<<COMANDO_DE_APROVACAO>> <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`<<CODIGO_SEM_APROVACAO>>`). O agente não roda esse comando, e nenhuma permissão o libera: leia o resumo antes de aprovar.
+**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força) e pede que **você** rode `hdast profile approve <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`SCOPE_NOT_APPROVED`). O agente não roda esse comando, e nenhuma permissão o libera: leia o resumo antes de aprovar.
 
 ## 6. Os prompts
 
