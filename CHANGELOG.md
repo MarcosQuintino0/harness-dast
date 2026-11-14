@@ -6,6 +6,24 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-14
+
+### Relatório e cobertura
+
+- Sinais passivos de erro interno em JSON, Markdown e HTML, a partir das evidências já redigidas. Contagens fixas de resposta 5xx, possível rastreamento de exceção e possível erro de banco (ADR 0045).
+- Operações sem varredura mostram o HTTP 404 observado no probe e o motivo de ausência registrado no scan. Se o motivo estiver ausente, o relatório diz que é desconhecido (ADR 0046).
+
+### Inspeção offline do OpenAPI
+
+- `spec inspect` indica incompatibilidades de tipo, obrigatoriedade, faixa, enum e comprimento em exemplos locais, sem imprimir os valores (ADR 0047).
+- O resumo identifica operações com multipart e apresenta uma prova sintética em memória. Limites de inspeção das mídias ficam explícitos (ADR 0048).
+
+### Portabilidade
+
+- `AGENTS.md` orienta o uso com Codex. A preparação da cópia cega exclui os planos e briefings do coordenador e continua verificando vazamentos.
+
+Detalhes e limites em [docs/reviews/relatorio-v1.5.md](docs/reviews/relatorio-v1.5.md).
+
 ## [1.3.0] - 2026-11-14
 
 Versão do uso seguro e fácil: uma trava por pilha, a carta de autorização em formulário, a aprovação do escopo por uma pessoa e a entrevista inicial nas skills. A trava foi provada com Docker uma vez, no laboratório; o resto foi verificado como código e testes, e **não** foi provado contra produto real, nem o `hdast profile approve` num terminal de verdade, nem a entrevista com uma pessoa, nem uma rodada cega no fluxo novo.

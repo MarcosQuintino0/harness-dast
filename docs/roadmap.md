@@ -214,7 +214,7 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
-## Ciclo V1.3 a V1.8 (1.3 entregue; 1.4 a 1.8 planejadas)
+## Ciclo V1.3 a V1.8
 
 Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
 
@@ -222,7 +222,7 @@ Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans
 | --- | --- | --- |
 | 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
 | 1.4 | Achar mais: autorização | Planejada |
-| 1.5 | Achar mais: entrada e erros | Planejada |
+| 1.5 | Diagnósticos de entrada, erros e cobertura | Candidato 1.5.0 com análise passiva, inspeção offline e prova sintética de multipart. Veja [o relatório](reviews/relatorio-v1.5.md) |
 | 1.6 | Confirmar e relatar | Planejada |
 | 1.7 | Velocidade | Planejada |
 | 1.8 | Sessão do Claude | Planejada |

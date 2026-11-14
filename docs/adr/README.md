@@ -43,6 +43,10 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0035](0035-trava-por-pilha.md) | Trava exclusiva por pilha (`STACK_BUSY`, saída 8) | Proposto | 2026-11-14 | Revisão do consultor; duas execuções na mesma pilha se corrompiam |
 | [0036](0036-carta-estruturada.md) | Carta de autorização estruturada (`carta.yml`) e `hdast init --from-letter` | Proposto | 2026-11-14 | O agente deixa de escrever os blocos de proteção do perfil |
 | [0037](0037-aprovacao-humana-do-escopo.md) | Aprovação humana do escopo (`hdast profile approve`, `SCOPE_NOT_APPROVED`) | Proposto | 2026-11-14 | Completa o 0036; só pessoa aprova, como no 0030 |
+| [0045](0045-sinais-passivos-de-erro-interno.md) | Sinais passivos de erro interno nas evidências redigidas | Proposto | 2026-11-14 | Relatório da V1.5 |
+| [0046](0046-cobertura-de-operacoes-com-404.md) | Cobertura de operações sem varredura que responderam HTTP 404 | Proposto | 2026-11-14 | Relatório da V1.5 |
+| [0047](0047-validacao-offline-de-exemplos-openapi.md) | Validação offline de exemplos do OpenAPI | Proposto | 2026-11-14 | Inspeção da V1.5 |
+| [0048](0048-multipart-funcional-offline.md) | Detecção de multipart e prova sintética em memória | Proposto | 2026-11-14 | Inspeção da V1.5 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 
