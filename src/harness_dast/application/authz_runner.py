@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from harness_dast.application.authz_checks_access import run_anonymous, run_tampered
 from harness_dast.application.authz_checks_mass import run_mass
+from harness_dast.application.authz_checks_matrix import run_access_matrix
 from harness_dast.application.authz_checks_read import run_excessive, run_horizontal, run_vertical
 from harness_dast.application.authz_checks_write import run_horizontal_write
 from harness_dast.application.authz_sender import (
@@ -26,6 +27,8 @@ from harness_dast.application.authz_sender import (
 )
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_matrix_plan import MatrixPlan
+from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_plan import Planned, ReplayTask
 from harness_dast.domain.authz_plan_mass import MassTask
 from harness_dast.domain.authz_plan_write import WriteTask
@@ -55,6 +58,8 @@ class AuthzOutcome:
         requests_sent: Requisições enviadas.
         accounts: Contas que enviaram.
         created_resources: Recursos que um `POST` de teste deixou no alvo (ADR 0040).
+        access_matrix: A tabela "quem pode o quê" com o resultado de cada célula (ADR 0041),
+            ou `None` quando a verificação não rodou.
     """
 
     status: ProbeStatus
@@ -65,6 +70,7 @@ class AuthzOutcome:
     requests_sent: int
     accounts: tuple[str, ...]
     created_resources: int = 0
+    access_matrix: AccessMatrixReport | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +82,7 @@ class AuthzPlans:
     anonymous: Planned[ExchangeRecord]
     tampered: Planned[ExchangeRecord]
     vertical: Planned[ReplayTask]
+    matrix: MatrixPlan
     mass: Planned[MassTask]
     horizontal_write: Planned[WriteTask]
 
@@ -88,6 +95,7 @@ CHECK_RUNNERS: dict[AuthzCheck, CheckRunner] = {
     "anonymous_access": lambda ctx, plans: run_anonymous(ctx, plans.anonymous),
     "tampered_token": lambda ctx, plans: run_tampered(ctx, plans.tampered),
     "vertical": lambda ctx, plans: run_vertical(ctx, plans.vertical),
+    "access_matrix": lambda ctx, plans: run_access_matrix(ctx, plans.matrix),
     "mass_assignment": lambda ctx, plans: run_mass(ctx, plans.mass),
     "horizontal_write": lambda ctx, plans: run_horizontal_write(ctx, plans.horizontal_write),
 }
@@ -169,7 +177,14 @@ class AuthzRunner:
             requests_sent=self._sender.sent,
             accounts=self._sender.accounts,
             created_resources=sum(item.created for item in results.values()),
+            access_matrix=_matrix_of(results),
         )
+
+
+def _matrix_of(results: Mapping[AuthzCheck, CheckResult]) -> AccessMatrixReport | None:
+    result = results.get("access_matrix")
+    matrix = None if result is None else result.matrix
+    return matrix if matrix is not None and matrix.rows else None
 
 
 def _summary(check: AuthzCheck, result: CheckResult, *, partial: bool) -> CheckSummary:

@@ -353,7 +353,12 @@ def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -
 
     assert result.findings == ()
     assert result.status == "completed"
-    assert [c.status for c in result.checks] == ["completed"] * 6 + ["skipped"]
+    # A tabela vazia (access_matrix) e a escrita em outra conta (sem leitor) não têm o que testar.
+    assert [c.status for c in result.checks] == ["completed"] * 5 + [
+        "skipped",
+        "completed",
+        "skipped",
+    ]
     assert result.not_tested
     assert "NÃO prova" in result.notice
 
@@ -466,10 +471,11 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
         "anonymous_access",
         "tampered_token",
         "vertical",
+        "access_matrix",
         "mass_assignment",
         "horizontal_write",
     ]
-    assert [c.status for c in result.checks][1:] == ["disabled"] * 6
+    assert [c.status for c in result.checks][1:] == ["disabled"] * 7
 
 
 def test_checks_disabled_in_the_profile_never_run_even_when_asked() -> None:

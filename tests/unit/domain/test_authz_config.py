@@ -80,6 +80,7 @@ def test_checks_run_in_the_fixed_order_minus_the_disabled_ones() -> None:
         "excessive_data",
         "anonymous_access",
         "tampered_token",
+        "access_matrix",
         "mass_assignment",
         "horizontal_write",
     )
@@ -162,6 +163,7 @@ def test_the_check_order_puts_the_read_only_access_checks_before_vertical() -> N
         "anonymous_access",
         "tampered_token",
         "vertical",
+        "access_matrix",
         "mass_assignment",
         "horizontal_write",
     )

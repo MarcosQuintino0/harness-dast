@@ -156,6 +156,7 @@ def plan_vertical(
     assigned: Callable[[ExchangeRecord], str | None],
     methods: frozenset[str],
     public: frozenset[str],
+    covered: frozenset[str] = frozenset(),
 ) -> Planned[ReplayTask]:
     """BFLA: operações atribuídas a um papel maior, repetidas por uma conta de cada papel menor.
 
@@ -166,6 +167,8 @@ def plan_vertical(
         assigned: Apelido atribuído por regra EXPLÍCITA do `account_map`, ou `None`.
         methods: Métodos repetidos (`authz.vertical_methods`).
         public: Operações marcadas como públicas ou compartilhadas.
+        covered: Operações que a tabela `authz.access_matrix` cobre (ADR 0041): a `vertical` as
+            pula, porque a tabela não supõe uma escada de papéis.
     """
     if not role_order:
         return Planned(
@@ -190,6 +193,17 @@ def plan_vertical(
             )
             continue
         if assigned(item) != item.account:
+            continue
+        if item.operation_id in covered:
+            skips.append(
+                skip_note(
+                    "vertical",
+                    item,
+                    "covered_by_access_matrix",
+                    "A tabela authz.access_matrix cobre esta operação e é mais precisa: a "
+                    "verificação access_matrix a testa.",
+                )
+            )
             continue
         owner_role = roles.get(item.account)
         if owner_role not in rank:

@@ -12,7 +12,8 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
 - `scan`: o bloco inteiro (força, limiar, regras desligadas, tetos de tempo, renovação de token,
   gate de severidade, injeção em segmento de caminho e `PUT`/`PATCH` sobre qualquer recurso);
 - `authz`: o bloco inteiro (operações públicas, ordem de papéis, campos voláteis, métodos
-  repetidos, campos da atribuição em massa e verificações desligadas);
+  repetidos, campos da atribuição em massa, verificações desligadas e a tabela "quem pode o quê",
+  normalizada: a ordem das regras e dos papéis não conta, e tabela vazia fica de fora);
 - `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
   de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
@@ -159,6 +160,18 @@ def _authz(profile: ProductProfile) -> JsonValue:
         field.model_dump(mode="json") for field in authz.mass_assignment_fields
     ]
     dumped["mass_assignment_fields"] = _sorted_items(fields)
+    if authz.access_matrix:
+        # Tabela "quem pode o quê" (ADR 0041): a ordem das regras e dos papéis não muda o que é
+        # testado, então não muda a impressão digital. Tabela vazia já saiu acima (valor padrão).
+        rules: list[JsonValue] = [
+            {
+                "operation": rule.operation,
+                "allow": _list(sorted(rule.allow)),
+                "deny": _list(sorted(rule.deny)),
+            }
+            for rule in sorted(authz.access_matrix, key=lambda rule: rule.operation)
+        ]
+        dumped["access_matrix"] = rules
     return dumped
 
 

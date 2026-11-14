@@ -13,6 +13,7 @@ from harness_dast.domain.authz_config import (
     AuthzConfig,
 )
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.redaction import strip_control
 from harness_dast.domain.scope import ScopeRule
 from harness_dast.domain.window import ExecutionWindow
 
@@ -103,6 +104,7 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
         f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
     ]
     lines += _authz_mass_lines(authz)
+    lines += _authz_matrix_lines(authz)
     if authz.id_parameters:
         lines.append(
             "  - parâmetros de consulta tratados como identificador de objeto (BOLA de leitura): "
@@ -113,6 +115,32 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
             "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
             "alterar dados do ambiente (atribuição em massa, métodos de escrita acima e PUT/PATCH "
             "em recurso de outra conta)"
+        )
+    return lines
+
+
+def _authz_matrix_lines(authz: AuthzConfig) -> list[str]:
+    """Toda a tabela "quem pode o quê" (ADR 0041), uma linha por operação; vazio sem tabela.
+
+    A pessoa só aprova o que viu: por isso a lista é inteira, sem corte, em ordem alfabética.
+    """
+    if not authz.access_matrix:
+        return []
+
+    def shown(roles: tuple[str, ...]) -> str:
+        return (
+            ", ".join(sorted(strip_control(role, keep_newlines=False) for role in roles))
+            or "ninguém"
+        )
+
+    lines = [
+        f"  - tabela quem pode o quê ({len(authz.access_matrix)} operação(ões)); papel que não "
+        "aparece numa linha não é testado:"
+    ]
+    for rule in sorted(authz.access_matrix, key=lambda item: item.operation):
+        name = strip_control(rule.operation, keep_newlines=False)
+        lines.append(
+            f"    - operação {name}: podem {shown(rule.allow)}; não podem {shown(rule.deny)}"
         )
     return lines
 

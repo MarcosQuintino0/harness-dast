@@ -424,6 +424,7 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
         "max_derived_candidates": 3,
         "mass_assignment_methods": ["PUT"],
         "id_parameters": ["cpf"],
+        "access_matrix": [{"operation": "x", "allow": ["a"], "deny": ["b"]}],
     }
     profile = ProductProfile.from_data(
         mutated(lambda d: d.update(cleanup=_cleanup(), authz=changed))
@@ -480,5 +481,62 @@ def test_allow_writes_false_hashes_like_a_profile_that_never_had_the_key() -> No
 def test_allow_writes_true_changes_only_the_authz_digest() -> None:
     before = digests(valid_profile_data())
     after = digests(mutated(lambda d: d.update(authz={"allow_writes": True})))
+
+    assert [name for name in before if before[name] != after[name]] == ["authz"]
+
+
+TABLE = [
+    {"operation": "criarMedico", "allow": ["admin"], "deny": ["paciente", "recepcao"]},
+    {"operation": "getConsulta", "allow": ["paciente", "medico"], "deny": ["recepcao"]},
+]
+
+
+def test_an_empty_or_absent_access_matrix_hashes_like_a_profile_from_before_adr_0041() -> None:
+    explicit = mutated(lambda d: d.update(authz={"access_matrix": []}))
+
+    assert digests(explicit) == digests(valid_profile_data())
+    assert overall(explicit) == overall(valid_profile_data())
+    block = protected_blocks(ProductProfile.from_data(explicit))["authz"]
+    assert isinstance(block, dict)
+    assert "access_matrix" not in block
+
+
+def test_filling_the_access_matrix_changes_only_the_authz_digest() -> None:
+    before = digests(valid_profile_data())
+    after = digests(mutated(lambda d: d.update(authz={"access_matrix": TABLE})))
+
+    assert [name for name in before if before[name] != after[name]] == ["authz"]
+
+
+def test_reordering_the_rules_and_the_roles_does_not_change_the_digests() -> None:
+    shuffled = [
+        {"operation": "getConsulta", "allow": ["medico", "paciente"], "deny": ["recepcao"]},
+        {"operation": "criarMedico", "allow": ["admin"], "deny": ["recepcao", "paciente"]},
+    ]
+
+    one = digests(mutated(lambda d: d.update(authz={"access_matrix": TABLE})))
+    two = digests(mutated(lambda d: d.update(authz={"access_matrix": shuffled})))
+
+    assert one == two
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda rules: rules[1].update(deny=[]),
+        lambda rules: rules[0].update(deny=["paciente"]),
+        lambda rules: rules[0].update(allow=["admin", "medico"]),
+        lambda rules: rules[0].update(operation="criarMedicos"),
+        lambda rules: rules.pop(),
+    ],
+)
+def test_taking_a_role_out_of_deny_or_editing_a_rule_changes_only_the_authz_digest(
+    change: Callable[[list[dict[str, Any]]], object],
+) -> None:
+    edited = copy.deepcopy(TABLE)
+    change(edited)
+
+    before = digests(mutated(lambda d: d.update(authz={"access_matrix": TABLE})))
+    after = digests(mutated(lambda d: d.update(authz={"access_matrix": edited})))
 
     assert [name for name in before if before[name] != after[name]] == ["authz"]
