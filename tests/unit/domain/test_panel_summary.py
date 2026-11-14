@@ -367,3 +367,40 @@ def test_render_summary_is_the_function_of_the_registry() -> None:
     panel_view = view()
 
     assert render_summary(panel_view) in summary_html(panel_view)
+
+
+def test_a_severe_row_is_titled_by_the_function_and_names_the_failure_after_the_meter() -> None:
+    page = summary_html()
+
+    assert '<b>Ver usuário</b><br><span class="sm mu"><span class="bars"' in page
+    assert re.search(r"a confirmar · SQL Injection</span>", page)
+
+
+def test_a_severe_row_without_a_function_name_is_titled_by_the_failure() -> None:
+    panel_view = view()
+    nameless = panel_view.severe[0].model_copy(update={"function_name": None})
+
+    page = summary_html(panel_view.model_copy(update={"severe": (nameless,)}))
+
+    assert "<b>SQL Injection</b><br>" in page
+    assert "a confirmar · SQL Injection" not in page
+
+
+@pytest.mark.parametrize(
+    "message", ["Uma pessoa mandou parar.", "Uma pessoa mandou parar", "Parou... "]
+)
+def test_the_reason_never_ends_in_a_double_period(message: str) -> None:
+    summary = run_summary(
+        status="failed",
+        stages=(
+            StageRecord(name="preflight", status="ok"),
+            StageRecord(name="probe", status="ok"),
+            StageRecord(name="scan", status="failed", message=message),
+            StageRecord(name="authz", status="not_run"),
+            StageRecord(name="report", status="not_run"),
+        ),
+    )
+
+    page = summary_html(view(summary=summary))
+
+    assert ".." not in main_text(page).split("Motivo:")[1].split("O que faltou")[0]

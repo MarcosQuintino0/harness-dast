@@ -64,7 +64,7 @@ def _where(view: PanelView) -> str:
 def _reason_text(view: PanelView) -> str:
     verdict = view.verdict
     if verdict.reason:
-        return h.text(verdict.reason, 300)
+        return h.text(verdict.reason.rstrip(". "), 300)
     if verdict.stop_requested:
         return "uma pessoa mandou parar"
     return "a execução não registrou o motivo"
@@ -200,12 +200,15 @@ def _severe_rows(view: PanelView) -> str:
         return _grouped_rows(severe)
     rows: list[str] = []
     for item in severe:
-        function = f"{h.ident(item.function_name)} · " if item.function_name else ""
+        kind = h.text(_finding_title(item), 160)
+        # Como no desenho: o título é a função (o que a pessoa conhece); o tipo da falha vai
+        # depois do medidor. Sem nome da função, o título é o tipo da falha.
+        title = h.text(item.function_name, 160) if item.function_name else kind
+        after = f" · {kind}" if item.function_name else ""
         rows.append(
             row(
                 "gr" if item.confidence >= 2 else "am",
-                f"<b>{h.text(_finding_title(item), 160)}</b><br>"
-                f'<span class="sm mu">{function}{meter(item.confidence)}</span>',
+                f'<b>{title}</b><br><span class="sm mu">{meter(item.confidence)}{after}</span>',
                 end=f'<a class="end" href="findings.html#{h.ident(item.finding_id)}">ver prova</a>',
                 first=not rows,
             )
