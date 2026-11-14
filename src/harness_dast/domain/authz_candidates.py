@@ -156,7 +156,10 @@ def _derive(
     kind = classify_candidate(name)
     if kind == "ownership":
         return None
-    if kind is None and source == "name_in_input":
+    if source == "name_in_input" and kind != "privilege":
+        # Campo que a entrada já declara só é "proibido" quando o nome indica privilégio (ADR 0040):
+        # um `valor` ou `saldo` que o corpo normal já leva é entrada legítima, e vê-lo mudar na
+        # leitura seguinte não prova atribuição em massa (falso positivo medido no laboratório).
         return None
     return Candidate(name=name, source=source, kind=kind or "other", schema=flat)
 

@@ -268,7 +268,7 @@ def mass_assignment_finding(
         actor=actor,
         owner=None,
         statuses=(None, status),
-        fields=(sent_field, *changed),
+        fields=(sent_field, *(path for path in changed if path != sent_field)),
         evidence=(
             f"Ao enviar o campo '{sent_field}' {action}junto do corpo válido{origin}, "
             f"{_OBSERVED[observed_in]} mostrou o valor injetado em: {', '.join(changed)}. "

@@ -48,6 +48,7 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0040](0040-candidatos-de-campo-proibido-do-openapi.md) | Candidatos de campo proibido tirados do OpenAPI e atribuição em massa em `POST` | Proposto | 2026-11-14 | Lista fixa de quatro nomes achava pouco |
 | [0041](0041-tabela-quem-pode-o-que.md) | Tabela "quem pode o quê" (`authz.access_matrix`, `--draft-matrix`) | Proposto | 2026-11-14 | Papel menor usando função de papel maior não tinha prova |
 | [0042](0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md) | Escrita em recurso de outra conta (`horizontal_write`) e identificador na consulta | Proposto | 2026-11-14 | O BOLA só testava leitura com id no caminho |
+| [0043](0043-defeitos-do-laboratorio-da-v1-4-proxy-e-campo-ja-aceito.md) | Defeitos do laboratório da V1.4: conexão do proxy e campo que a entrada já aceita | Proposto | 2026-11-14 | Pedidos sem sessão estouravam o tempo; falso positivo de `valor` |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 
