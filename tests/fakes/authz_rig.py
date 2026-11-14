@@ -4,7 +4,7 @@
 responde como um alvo seguro ou com a falha ligada:
 
 - `bola`: qualquer conta lê a consulta de qualquer outra (senão, só a conta dona, `pac_a`);
-- `excess`: a lista de pacientes devolve `senhaHash` e `notasInternas`, fora do esquema;
+- `excess`: a lista de pacientes devolve `passwordHash` e `internalNotes`, fora do esquema;
 - `mass`: `PUT /api/me` copia o campo `role` do corpo para `papel` (o nome muda de propósito);
 - `bfla`: `GET /api/relatorios` e `POST /api/convenios` aceitam qualquer papel.
 
@@ -114,7 +114,7 @@ class Clinic:
     def _patient(self) -> dict[str, Any]:
         item: dict[str, Any] = {"id": 1, "nome": "Paciente"}
         if self.excess:
-            item.update({"senhaHash": HASH_VALUE, "notasInternas": NOTES_VALUE})
+            item.update({"passwordHash": HASH_VALUE, "internalNotes": NOTES_VALUE})
         return item
 
     def _me(self, request: HttpRequest, alias: str) -> HttpResponse:

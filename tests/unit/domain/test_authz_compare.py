@@ -158,9 +158,9 @@ def test_only_2xx_is_success() -> None:
 
 def test_extra_fields_in_a_list_of_items_are_reported_with_their_path() -> None:
     schema = obj(items=Schema(type="array", items=obj(id=INT, nome=STR)))
-    body = val({"items": [{"id": 1, "nome": "a", "senhaHash": "x"}, {"id": 2, "nome": "b"}]})
+    body = val({"items": [{"id": 1, "nome": "a", "passwordHash": "x"}, {"id": 2, "nome": "b"}]})
 
-    assert unexpected_fields(schema, body) == ("items[].senhaHash",)
+    assert unexpected_fields(schema, body) == ("items[].passwordHash",)
 
 
 def test_an_empty_list_where_the_schema_declares_items_has_nothing_to_compare() -> None:

@@ -142,3 +142,13 @@ def test_real_cases_load_and_list_their_flaws() -> None:
 def test_unknown_case_names_the_known_ones() -> None:
     with pytest.raises(EvalError, match="clinica-piloto"):
         load_case("nao-existe")
+
+
+def test_prepare_leaves_other_agents_worktrees_out_of_the_copy(repo: Path, out: Path) -> None:
+    leaked = repo / ".claude" / "worktrees" / "agent-x" / "evals" / "answer-keys" / "k.md"
+    leaked.parent.mkdir(parents=True)
+    leaked.write_text("gabarito\n", encoding="utf-8")
+
+    dirs = make_round(repo, out)
+
+    assert not (dirs.workspace / ".claude" / "worktrees").exists()

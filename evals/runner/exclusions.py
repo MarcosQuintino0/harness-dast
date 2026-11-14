@@ -25,6 +25,10 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("runs", "execucoes anteriores: dizem o que a ferramenta achou"),
     Exclusion(".env", "segredos do coordenador"),
     Exclusion(".claude/settings.local.json", "permissoes locais do coordenador"),
+    Exclusion(
+        ".claude/worktrees",
+        "copias de trabalho de outros agentes: trazem gabaritos e perfis",
+    ),
     Exclusion("coverage.xml", "artefato de teste"),
     Exclusion(".coverage", "artefato de teste"),
     Exclusion("evals", "gabaritos, casos e o proprio executor da avaliacao"),

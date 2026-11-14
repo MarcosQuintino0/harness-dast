@@ -35,7 +35,7 @@ Tratamento de falso alarme e de resultado esperado: operação listada em `authz
 
 - Todo pedido sai pelo MESMO caminho do `probe` (`OperationDispatcher` sobre `GuardedSender`): `ScopeGuard`, `deny_paths`, métodos do escopo, `limits.requests_per_second`, janela, prazo, trava de emergência (`hdast stop`), auditoria (as linhas entram em `audit.jsonl` com `operation_id` `authz:<operação>`, continuando a numeração) e orçamento de login. Nada de HTTP por fora; cada conta loga uma vez.
 - Só REPETE o que está em `exchanges.json`: não inventa caminho, não troca método e não adivinha identificador. Nunca `DELETE`.
-- Nunca grava o VALOR de campo do alvo: só nomes e caminhos de campo (`items[].senhaHash`), códigos HTTP, apelidos de conta e veredito. Nenhum segredo, token ou senha aparece em artefato, log ou saída.
+- Nunca grava o VALOR de campo do alvo: só nomes e caminhos de campo (`items[].passwordHash`), códigos HTTP, apelidos de conta e veredito. Nenhum segredo, token ou senha aparece em artefato, log ou saída.
 - Severidade e equivalência de resposta são decididas em `domain`, puras e testadas. O agente não muda severidade.
 - Cinco falhas de transporte seguidas encerram o estágio (`stopped_target_unresponsive`), como no `probe`.
 

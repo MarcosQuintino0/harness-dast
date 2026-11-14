@@ -47,7 +47,7 @@ def test_page_shows_each_authz_finding_with_its_technique_apart_from_zap() -> No
         assert TECHNIQUE_LABEL[technique] in page
     assert "não é achado do ZAP" in page
     assert "GET /api/x/{}" in page
-    assert "senhaHash" in page
+    assert "passwordHash" in page
 
 
 def test_page_summary_counts_authz_findings_in_their_own_cards() -> None:

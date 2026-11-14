@@ -12,7 +12,7 @@ from harness_dast.domain.authz_sensitive import classify_field_name
     "name",
     [
         "senha",
-        "senhaHash",
+        "senhaCriptografada",
         "password",
         "passwordHash",
         "password_hash",
@@ -50,7 +50,7 @@ def test_personal_names_are_personal(name: str) -> None:
     [
         "id",
         "nome",
-        "notasInternas",
+        "internalNotes",
         "convenioId",
         "origem",
         "merge",
@@ -75,9 +75,9 @@ def test_classification_never_raises_and_returns_a_known_class(name: str) -> Non
 
 
 def test_exposure_severity_is_medium_for_plain_names() -> None:
-    assert severity_for_fields(("items[].notasInternas",)) == "medium"
+    assert severity_for_fields(("items[].internalNotes",)) == "medium"
 
 
 def test_exposure_severity_is_high_when_any_name_is_secret_or_personal() -> None:
-    assert severity_for_fields(("a.nome", "items[].senhaHash")) == "high"
+    assert severity_for_fields(("a.nome", "items[].passwordHash")) == "high"
     assert severity_for_fields(("items[].cpf",)) == "high"

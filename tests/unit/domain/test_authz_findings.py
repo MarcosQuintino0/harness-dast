@@ -62,7 +62,7 @@ def test_excessive_data_is_medium_for_plain_names_and_high_for_secret_names() ->
         path_template="/api/x",
         actor=("adm", "admin"),
         status=200,
-        fields=("items[].notasInternas",),
+        fields=("items[].internalNotes",),
     )
     secret = excessive_data_finding(
         product="p",
@@ -71,7 +71,7 @@ def test_excessive_data_is_medium_for_plain_names_and_high_for_secret_names() ->
         path_template="/api/x",
         actor=("adm", "admin"),
         status=200,
-        fields=("items[].notasInternas", "items[].senhaHash"),
+        fields=("items[].internalNotes", "items[].passwordHash"),
     )
 
     assert plain.proposed_severity == "medium"

@@ -2,7 +2,7 @@
 
 Usada pela verificação de exposição excessiva (a severidade sobe quando o NOME do campo
 indica segredo ou dado pessoal) e pelo `probe` ao gravar corpos de requisição (campo com nome
-de segredo nunca é gravado). A decisão olha só o nome, em palavras (`senhaHash` vira `senha` e
+de segredo nunca é gravado). A decisão olha só o nome, em palavras (`passwordHash` vira `password` e
 `hash`), nunca o valor. A lista é conservadora de propósito: acertar o nome é decisão de
 severidade, então uma palavra ambígua fica de fora. Este módulo é puro.
 """

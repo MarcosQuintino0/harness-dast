@@ -148,7 +148,7 @@ def test_finds_fields_outside_the_schema_and_raises_severity_for_secret_names() 
     found = by_technique(result, "authz_excessive_data")
     assert len(found) == 1
     assert found[0].operation_id == "listarPacientes"
-    assert set(found[0].fields) == {"items[].senhaHash", "items[].notasInternas"}
+    assert set(found[0].fields) == {"items[].passwordHash", "items[].internalNotes"}
     assert found[0].proposed_severity == "high"
 
 

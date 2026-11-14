@@ -75,7 +75,7 @@ def handler(r: Received) -> Reply:
     if r.headers.get("authorization") not in {f"Bearer {t}" for t in TOKENS.values()}:
         return Reply(401, b"{}")
     if r.path.startswith("/api/doc/"):
-        body = {"id": int(r.path.rsplit("/", 1)[1]), "nome": "documento", "senhaHash": HASH}
+        body = {"id": int(r.path.rsplit("/", 1)[1]), "nome": "documento", "passwordHash": HASH}
         return Reply(200, json.dumps(body).encode())
     return Reply(200, b'{"ok":true}')
 

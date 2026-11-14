@@ -42,7 +42,7 @@ def authz_result(
                 path_template="/api/y",
                 actor=("adm", "admin"),
                 status=200,
-                fields=("items[].senhaHash",),
+                fields=("items[].passwordHash",),
             ),
             mass_assignment_finding(
                 product=product,
@@ -143,7 +143,7 @@ def test_the_markdown_names_the_technique_of_every_finding() -> None:
     assert "authz_mass_assignment" in text
     assert "varredura ativa do ZAP" in text
     assert "Declare authz" in text
-    assert "senhaHash" in text
+    assert "passwordHash" in text
     assert "Limites desta técnica" in text
 
 

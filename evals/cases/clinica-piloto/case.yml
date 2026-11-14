@@ -23,7 +23,9 @@ write_files:
   lab/pilot/Dockerfile: |
     FROM hdast-clinica-piloto:1.0.0
 
-exclude: []
+# O ADR 0027 cita campos e o gabarito deste caso; ADR aceito e imutavel, entao sai da copia.
+exclude:
+  - docs/adr/0027-teste-de-autorizacao-entre-contas.md
 
 # Termos que revelam as falhas plantadas (caminhos do OpenAPI nao entram: o dono do produto os entrega). Nenhum pode aparecer na copia do agente nem em skills,
 # guias ou agentes (tests/contract/test_skills_and_guides.py).
