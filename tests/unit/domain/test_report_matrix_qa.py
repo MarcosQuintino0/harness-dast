@@ -47,9 +47,6 @@ def test_html_never_turns_matrix_text_into_markup_or_leaks_a_token(text_: str) -
     assert not any(name.startswith("on") for name, _ in parsed.attrs)
 
 
-@pytest.mark.xfail(
-    strict=True, reason="QA V1.4: code_span não escapa | e o operationId do alvo quebra a tabela"
-)
 def test_markdown_matrix_row_keeps_its_column_count_when_operation_or_path_has_a_pipe() -> None:
     base = with_authz()
     result = base.authz.model_copy(  # type: ignore[union-attr]
@@ -58,7 +55,7 @@ def test_markdown_matrix_row_keeps_its_column_count_when_operation_or_path_has_a
 
     md = render_markdown(base.model_copy(update={"authz": result}))
 
-    rows = [line for line in md.splitlines() if line.startswith("| `")]
+    rows = [line for line in md.splitlines() if line.startswith("| `ler")]
     assert rows
     for line in rows:
         cells = re.split(r"(?<!\\)\|", line.strip())

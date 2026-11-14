@@ -76,7 +76,6 @@ def test_digest_stays_when_matrix_rules_and_roles_are_reordered() -> None:
     assert _digest({"access_matrix": first}) == _digest({"access_matrix": second})
 
 
-@pytest.mark.xfail(strict=True, reason="QA V1.4: id_parameters é conjunto e a ordem muda a digital")
 def test_digest_stays_when_id_parameters_are_reordered() -> None:
     assert _digest({"id_parameters": ["cpf", "matricula"]}) == _digest(
         {"id_parameters": ["matricula", "cpf"]}

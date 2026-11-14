@@ -7,7 +7,7 @@ campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módu
 
 from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
-from harness_dast.domain.markdown_safe import code_span, escape_inline
+from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline
 from harness_dast.domain.report_authz_matrix import matrix_lines
 from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL
 
@@ -107,9 +107,9 @@ def _not_tested_lines(authz: AuthzResult) -> list[str]:
     lines = ["", "### O que o teste de autorização não pôde testar", ""]
     lines += ["| Verificação | Operação | Motivo | O que fazer |", "|---|---|---|---|"]
     for item in authz.not_tested[:_MAX_NOT_TESTED]:
-        where = code_span(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
+        where = cell_code(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
         lines.append(
-            f"| {CHECK_LABEL[item.check]} | {where} | {code_span(item.reason)} | "
+            f"| {CHECK_LABEL[item.check]} | {where} | {cell_code(item.reason)} | "
             f"{escape_inline(item.message, 200)} |"
         )
     hidden = len(authz.not_tested) - _MAX_NOT_TESTED

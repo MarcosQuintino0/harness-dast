@@ -1,6 +1,5 @@
 """QA independente da V1.4: o rascunho da tabela é YAML seguro para qualquer nome de operação."""
 
-import pytest
 import yaml
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -44,10 +43,6 @@ def test_draft_round_trips_and_never_fills_deny_when_names_are_hostile(
     assert set(loaded["authz"]) == {"access_matrix"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.4: json.dumps escreve par substituto (surrogate) que o YAML não junta",
-)
 def test_draft_keeps_an_operation_name_outside_the_bmp() -> None:
     text = render_draft("demo", [DraftItem("ler😀", "GET", "/x", ())], with_run=False)
 

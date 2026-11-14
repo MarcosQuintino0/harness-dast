@@ -140,6 +140,13 @@ _LEGACY_AUTHZ_KEYS: Final = frozenset(
 """Chaves do `authz` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
 
 
+_NEW_SET_KEYS: Final = ("id_parameters", "mass_assignment_methods")
+
+
+def _texts(value: JsonValue) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
 def _authz(profile: ProductProfile) -> JsonValue:
     authz = profile.authz
     dumped = authz.model_dump(mode="json")
@@ -148,6 +155,11 @@ def _authz(profile: ProductProfile) -> JsonValue:
     # continua valendo; ligar a chave muda a impressão digital e exige aprovar de novo.
     # O padrão sai do próprio modelo já serializado: tupla e lista só coincidem em JSON.
     defaults = type(authz)().model_dump(mode="json")
+    # Chaves novas que são conjuntos: a ordem não muda o que é testado, então não muda a
+    # impressão digital (nem a comparação com o padrão).
+    for key in _NEW_SET_KEYS:
+        dumped[key] = _list(sorted(set(_texts(dumped[key]))))
+        defaults[key] = _list(sorted(set(_texts(defaults[key]))))
     for key in [k for k in dumped if k not in _LEGACY_AUTHZ_KEYS]:
         if dumped[key] == defaults[key]:
             del dumped[key]
