@@ -44,7 +44,8 @@ class MassTask:
     created: bool = False
 
 
-def _is_json_object(text: str | None) -> bool:
+def is_json_object(text: str | None) -> bool:
+    """O texto é um JSON válido cujo valor de topo é um objeto."""
     if text is None:
         return False
     try:
@@ -61,7 +62,8 @@ def _is_marker(segment: str) -> bool:
     return segment.startswith("{") and segment.endswith("}")
 
 
-def _update_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
+def update_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
+    """`GET` provado do mesmo modelo de caminho e conta (o de `target` igual primeiro)."""
     same = [r for r in reads if r.path == item.path and r.account == item.account]
     exact = [r for r in same if r.target == item.target]
     chosen = exact or same
@@ -166,7 +168,7 @@ def _refusal(
             "infrastructure_path",
             "Caminho de login, saúde ou preparação: não é operação de negócio.",
         )
-    if not _is_json_object(item.body):
+    if not is_json_object(item.body):
         return skip_note(
             "mass_assignment",
             item,
@@ -188,7 +190,7 @@ def _task(
     candidates = build_candidates(operation, family, config, post=created)
     notes = [_limited_note(item, candidates.cut)] if candidates.cut else []
     if not created:
-        return MassTask(item, _update_reader(item, reads), candidates.candidates), notes
+        return MassTask(item, update_reader(item, reads), candidates.candidates), notes
     reader = _created_reader(item, reads)
     if reader is None and not _echoes(operation):
         notes.append(

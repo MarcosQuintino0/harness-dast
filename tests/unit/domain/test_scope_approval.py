@@ -290,6 +290,18 @@ def test_summary_shows_the_authorized_writes_only_when_they_are_on() -> None:
     assert "ESCRITA AUTORIZADA (authz.allow_writes: true)" in on
 
 
+def test_summary_shows_the_id_parameters_only_when_declared() -> None:
+    off = " | ".join(describe_protection(profile_with(lambda d: d.update(authz={}))))
+    on = " | ".join(
+        describe_protection(
+            profile_with(lambda d: d.update(authz={"id_parameters": ["cpf", "matricula"]}))
+        )
+    )
+
+    assert "identificador de objeto" not in off
+    assert "identificador de objeto (BOLA de leitura): cpf, matricula" in on
+
+
 def test_turning_allow_writes_on_after_approval_makes_it_changed_and_off_keeps_it_approved() -> (
     None
 ):

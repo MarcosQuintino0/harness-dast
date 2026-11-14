@@ -28,6 +28,7 @@ AuthzCheck = Literal[
     "tampered_token",
     "vertical",
     "mass_assignment",
+    "horizontal_write",
 ]
 CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
     "horizontal",
@@ -36,6 +37,7 @@ CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
     "tampered_token",
     "vertical",
     "mass_assignment",
+    "horizontal_write",
 )
 """Ordem de execução: do que não escreve no alvo para o que escreve."""
 
@@ -62,6 +64,7 @@ MAX_MASS_FIELDS: Final = 10
 MASS_METHODS_ALLOWED: Final = frozenset({"PATCH", "POST", "PUT"})
 DEFAULT_MASS_METHODS: Final = ("PATCH", "POST", "PUT")
 MAX_DERIVED_LIMIT: Final = 20
+MAX_ID_PARAMETERS: Final = 20
 DEFAULT_DERIVED_LIMIT: Final = 6
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _ROLE = re.compile(r"[^\s]{1,64}")
@@ -123,6 +126,9 @@ class AuthzConfig(ProfileModel):
         mass_assignment_methods: Métodos testados na atribuição em massa (subconjunto de
             `PATCH`, `POST` e `PUT`). Sem `POST`, o cadastro não é testado. Só vale com
             `allow_writes`.
+        id_parameters: Nomes de parâmetro de CONSULTA que o dono do produto declara como
+            identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; ADR 0042).
+            Só acrescenta candidatos de leitura do BOLA; o `ScopeGuard` segue decidindo.
     """
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
@@ -139,6 +145,17 @@ class AuthzConfig(ProfileModel):
         default=DEFAULT_DERIVED_LIMIT, ge=1, le=MAX_DERIVED_LIMIT
     )
     mass_assignment_methods: tuple[str, ...] = DEFAULT_MASS_METHODS
+    id_parameters: tuple[str, ...] = Field(default=(), max_length=MAX_ID_PARAMETERS)
+
+    @field_validator("id_parameters")
+    @classmethod
+    def validate_id_parameters(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Nomes simples de parâmetro, sem repetição."""
+        if not all(_NAME.fullmatch(name) for name in value) or len(set(value)) != len(value):
+            raise ValueError(
+                "id_parameters precisa de nomes simples (letras, dígitos, '_'), únicos"
+            )
+        return value
 
     @field_validator("role_order")
     @classmethod

@@ -582,6 +582,28 @@ _AUTHZ_HORIZONTAL = FindingExplanation(
     technical_name="Acesso indevido a dado de outra conta (BOLA, IDOR, CWE-639)",
 )
 
+_AUTHZ_HORIZONTAL_WRITE = FindingExplanation(
+    key="authz_horizontal_write",
+    title="Uma pessoa consegue alterar dados que pertencem a outra pessoa do mesmo tipo de conta",
+    what_happened=(
+        "O teste mandou, com outra conta do mesmo papel, a gravação que a primeira conta fez, "
+        "trocando só o identificador do dado e um campo. A primeira conta leu depois e o campo "
+        "tinha mudado."
+    ),
+    why_it_matters=(
+        "Se isso for real, qualquer pessoa com login consegue alterar os dados de todas as "
+        "outras, bastando mudar o número no endereço."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_DEV, "Conferir no servidor que o dado pertence a quem grava antes de salvar."),
+        (_OWNER, "Conferir no ambiente de teste se o valor foi mesmo restaurado."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Alteração indevida de dado de outra conta (BOLA, IDOR, CWE-639)",
+)
+
 _AUTHZ_VERTICAL = FindingExplanation(
     key="authz_vertical",
     title="Uma conta comum consegue fazer uma função reservada a um papel maior",
@@ -809,6 +831,7 @@ _BY_CWE: Final[dict[int, FindingExplanation]] = {
 
 _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
     "authz_horizontal": _AUTHZ_HORIZONTAL,
+    "authz_horizontal_write": _AUTHZ_HORIZONTAL_WRITE,
     "authz_vertical": _AUTHZ_VERTICAL,
     "authz_excessive_data": _AUTHZ_EXCESSIVE,
     "authz_mass_assignment": _AUTHZ_MASS,

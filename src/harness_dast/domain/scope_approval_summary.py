@@ -103,10 +103,16 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
         f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
     ]
     lines += _authz_mass_lines(authz)
+    if authz.id_parameters:
+        lines.append(
+            "  - parâmetros de consulta tratados como identificador de objeto (BOLA de leitura): "
+            + ", ".join(authz.id_parameters)
+        )
     if authz.allow_writes:
         lines.append(
             "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
-            "alterar dados do ambiente (atribuição em massa e métodos de escrita acima)"
+            "alterar dados do ambiente (atribuição em massa, métodos de escrita acima e PUT/PATCH "
+            "em recurso de outra conta)"
         )
     return lines
 

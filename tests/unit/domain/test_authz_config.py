@@ -81,6 +81,7 @@ def test_checks_run_in_the_fixed_order_minus_the_disabled_ones() -> None:
         "anonymous_access",
         "tampered_token",
         "mass_assignment",
+        "horizontal_write",
     )
     assert config.enabled_checks(("mass_assignment", "horizontal")) == (
         "horizontal",
@@ -162,6 +163,7 @@ def test_the_check_order_puts_the_read_only_access_checks_before_vertical() -> N
         "tampered_token",
         "vertical",
         "mass_assignment",
+        "horizontal_write",
     )
 
 
@@ -230,3 +232,47 @@ def test_a_profile_with_a_bad_mass_key_is_a_config_error() -> None:
 
     with pytest.raises(ConfigError):
         ProductProfile.from_data(data)
+
+
+# --- campo do ADR 0042 --------------------------------------------------------------------
+
+
+def test_id_parameters_default_to_empty_and_accept_simple_names() -> None:
+    assert AuthzConfig().id_parameters == ()
+    assert AuthzConfig(id_parameters=("cpf", "matricula_1")).id_parameters == ("cpf", "matricula_1")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        ["cpf", "cpf"],
+        ["1cpf"],
+        ["cpf-x"],
+        ["a b"],
+        [""],
+        ["x" * 65],
+        [f"p{n}" for n in range(21)],
+        "cpf",
+        [1],
+        None,
+    ],
+)
+def test_malformed_id_parameters_are_refused(value: Any) -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig.model_validate({"id_parameters": value})
+
+
+def test_a_profile_with_malformed_id_parameters_is_a_config_error() -> None:
+    data = valid_profile_data()
+    data["authz"] = {"id_parameters": ["cpf", "cpf"]}
+
+    with pytest.raises(ConfigError):
+        ProductProfile.from_data(data)
+
+
+def test_horizontal_write_can_be_disabled_and_requested_alone() -> None:
+    config = AuthzConfig(disabled_checks=("horizontal_write",))
+
+    assert "horizontal_write" not in config.enabled_checks()
+    assert config.enabled_checks(("horizontal_write",)) == ()
+    assert AuthzConfig().enabled_checks(("horizontal_write",)) == ("horizontal_write",)

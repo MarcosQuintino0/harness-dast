@@ -208,6 +208,7 @@ def test_authz_finds_bola_and_excessive_data_and_writes_authz_json(
         "tampered_token",
         "vertical",
         "mass_assignment",
+        "horizontal_write",
     ]
     on_disk = json.loads((tmp_path / "runs" / run_id / "authz.json").read_text(encoding="utf-8"))
     assert on_disk == data
@@ -456,3 +457,58 @@ def test_authz_dry_run_lists_the_access_candidates_without_sending(
     by_name = {c["check"]: c for c in envelope["data"]["checks"]}
     assert by_name["anonymous_access"]["candidates"] >= 1
     assert by_name["tampered_token"]["candidates"] >= 1
+
+
+def test_authz_check_horizontal_write_is_accepted_and_needs_the_letter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "horizontal_write",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    data = envelope["data"]
+    assert data["findings"] == []
+    assert data["requests_sent"] == 0
+    reasons = {(n["check"], n["reason"]) for n in data["not_tested"]}
+    assert ("horizontal_write", "writes_not_authorized") in reasons
+    write = next(c for c in data["checks"] if c["check"] == "horizontal_write")
+    assert write["status"] == "skipped"
+    assert "escrita não autorizada" in write["message"]
+
+
+def test_authz_dry_run_of_horizontal_write_sends_nothing_even_with_the_letter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path, allow_writes=True) as (server, products):
+        run_id = probe(capsys, products)
+        before = len(server.requests)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--dry-run",
+            "--check",
+            "horizontal_write",
+            "--products-dir",
+            str(products),
+        )
+        after = len(server.requests)
+
+    assert code == ExitCode.OK
+    assert before == after
+    write = next(c for c in envelope["data"]["checks"] if c["check"] == "horizontal_write")
+    assert write["status"] == "skipped"
+    assert write["candidates"] == 0

@@ -1,15 +1,14 @@
 """Verificação de atribuição em massa e a restauração do que ela altera.
 
-Esta é a única verificação que ESCREVE no alvo: envia um `PUT` ou `PATCH` com um campo extra
-(declarado ou derivado do OpenAPI, ADR 0040) e confere, na leitura seguinte, se o valor
+Esta verificação ESCREVE no alvo (a outra é `horizontal_write`): envia um `PUT` ou `PATCH` com um
+campo extra (declarado ou derivado do OpenAPI, ADR 0040) e confere, na leitura seguinte, se o valor
 injetado pegou. Quando pegou, tenta devolver o valor anterior e confere. Se uma parada (janela,
 prazo, ZAP, alvo sem resposta) vier depois do envio, a restauração ainda é tentada pelo mesmo
 caminho guardado; se não houver como confirmá-la, o aviso `possible_unrestored_change` vai para
 `not_tested`. Nada disso é engolido: a parada volta a ser levantada para o laço. O `POST` que
-cria recurso tem fluxo próprio (`authz_mass_post`: nada a restaurar). Nunca `DELETE`.
+cria recurso tem fluxo próprio (`authz_mass_post`: nada a restaurar). A restauração é a de
+`authz_restore`, comum às duas verificações de escrita. Nunca `DELETE`.
 """
-
-from dataclasses import dataclass
 
 from harness_dast.application.authz_mass_common import (
     as_object,
@@ -18,6 +17,13 @@ from harness_dast.application.authz_mass_common import (
     no_body_note,
 )
 from harness_dast.application.authz_mass_post import run_post_candidate
+from harness_dast.application.authz_restore import (
+    Pending,
+    after_interruption,
+    read_body,
+    restore,
+    unrestored_note,
+)
 from harness_dast.application.authz_sender import (
     INTERRUPTIONS,
     CheckContext,
@@ -30,7 +36,6 @@ from harness_dast.application.authz_sender import (
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_candidates import Candidate, Injection
 from harness_dast.domain.authz_compare import (
-    holds_value,
     injected_effect,
     is_success_status,
     parse_json,
@@ -39,16 +44,6 @@ from harness_dast.domain.authz_findings import mass_assignment_finding
 from harness_dast.domain.authz_plan import Planned
 from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS, MassTask
 from harness_dast.domain.authz_result import AuthzNotTested
-from harness_dast.domain.probe_exchange import ExchangeRecord
-
-
-@dataclass
-class _Pending:
-    """Estado de um `PUT` de atribuição em massa que ainda pode ter deixado alteração."""
-
-    attempted: bool = False
-    known: bool = False
-    previous: JsonValue = None
 
 
 def run_mass(ctx: CheckContext, plan: Planned[MassTask]) -> CheckResult:
@@ -111,11 +106,19 @@ def _mass_one(
     if not isinstance(chosen, Injection):
         out.not_tested.append(chosen)
         return
-    pending = _Pending()
+    pending = Pending()
     try:
         _mass_apply(ctx, task, original, (candidate, chosen), before, out, pending)
     except INTERRUPTIONS:
-        _after_interruption(ctx, task, original, chosen, before, pending, out)
+        after_interruption(
+            ctx,
+            out,
+            pending,
+            ("mass_assignment", exchange, original),
+            chosen.name,
+            _previous_value(before, chosen.name),
+            (_what(chosen.name), "do PUT"),
+        )
         raise
 
 
@@ -126,7 +129,7 @@ def _mass_apply(
     chosen: tuple[Candidate, Injection],
     before: JsonValue | None,
     out: CheckResult,
-    pending: _Pending,
+    pending: Pending,
 ) -> None:
     candidate, extra = chosen
     exchange = task.exchange
@@ -153,10 +156,16 @@ def _mass_apply(
         return
     pending.previous, pending.known = previous, True
     out.writes += 1
-    restored = _restore(ctx, task, original, extra, changed, previous)
+    restored = restore(
+        ctx, exchange, task.read, original, (extra.name, extra.value), changed, previous
+    )
     pending.attempted = False
     if restored is not True:
-        out.not_tested.append(_unrestored_note(exchange, extra.name, "restore_failed"))
+        out.not_tested.append(
+            unrestored_note(
+                "mass_assignment", exchange, _what(extra.name), "do PUT", "restore_failed"
+            )
+        )
     role = ctx.settings.roles.get(exchange.account)
     out.findings.append(
         mass_assignment_finding(
@@ -175,87 +184,15 @@ def _mass_apply(
     )
 
 
-def _after_interruption(
-    ctx: CheckContext,
-    task: MassTask,
-    original: dict[str, JsonValue],
-    extra: Injection,
-    before: JsonValue | None,
-    pending: _Pending,
-    out: CheckResult,
-) -> None:
-    """Parada depois do `PUT`: tenta desfazer; se não der, avisa em `not_tested`.
-
-    A restauração passa pelo mesmo caminho guardado: com a janela fechada, o prazo vencido
-    ou a trava acionada nada é enviado e só o aviso fica registrado.
-    """
-    if not pending.attempted:
-        return
-    previous = pending.previous if pending.known else _previous_value(before, extra.name)
-    if not _try_restore(ctx, task, original, extra, previous):
-        out.not_tested.append(_unrestored_note(task.exchange, extra.name, "interrupted"))
-
-
-def _try_restore(
-    ctx: CheckContext,
-    task: MassTask,
-    original: dict[str, JsonValue],
-    extra: Injection,
-    previous: JsonValue,
-) -> bool:
-    if previous is None or isinstance(previous, dict | list):
-        return False
-    exchange = task.exchange
-    try:
-        reply = ctx.sender.send(
-            exchange, exchange.account, body={**original, extra.name: previous}, with_body=True
-        )
-    except INTERRUPTIONS:
-        return False
-    return reply.problem is None and is_success_status(reply.status)
-
-
-def _unrestored_note(exchange: ExchangeRecord, field_name: str, cause: str) -> AuthzNotTested:
-    why = (
-        "a execução parou depois do PUT e a restauração não pôde ser feita ou confirmada"
-        if cause == "interrupted"
-        else "a restauração não foi confirmada"
-    )
-    return note(
-        "mass_assignment",
-        exchange,
-        "possible_unrestored_change",
-        f"Possível alteração não desfeita na conta '{exchange.account}', operação "
-        f"'{exchange.operation_id}': o campo extra '{field_name}' foi enviado e {why}. "
-        "Confira o estado da conta e restaure por fora (reset do ambiente ou `cleanup`).",
-    )
+def _what(field_name: str) -> str:
+    return f"o campo extra '{field_name}' foi enviado"
 
 
 def _read(ctx: CheckContext, task: MassTask, fallback: Reply | None = None) -> JsonValue | None:
     """Corpo JSON da leitura seguinte (um GET provado pelo `probe`) ou da própria resposta."""
     if task.read is None:
         return parse_json(fallback.body) if fallback is not None else None
-    reply = ctx.sender.send(task.read, task.read.account)
-    return parse_json(reply.body) if is_success_status(reply.status) else None
-
-
-def _restore(
-    ctx: CheckContext,
-    task: MassTask,
-    original: dict[str, JsonValue],
-    extra: Injection,
-    changed: tuple[str, ...],
-    previous: JsonValue,
-) -> bool | None:
-    """Tenta devolver o valor anterior; `None` se não havia valor escalar para devolver."""
-    if previous is None or isinstance(previous, dict | list):
-        return None
-    exchange = task.exchange
-    ctx.sender.send(
-        exchange, exchange.account, body={**original, extra.name: previous}, with_body=True
-    )
-    again = _read(ctx, task)
-    return again is not None and not holds_value(again, changed, extra.value)
+    return read_body(ctx, task.read)
 
 
 def _previous_value(before: JsonValue | None, name: str) -> JsonValue:

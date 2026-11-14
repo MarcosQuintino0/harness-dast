@@ -14,6 +14,8 @@ from harness_dast.domain.authz_findings import (
     vertical_finding,
 )
 from harness_dast.domain.authz_findings_access import anonymous_finding, tampered_finding
+from harness_dast.domain.authz_findings_write import horizontal_write_finding
+from harness_dast.domain.authz_identifiers import IdentifierRef
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 
 ACTOR = ("pac_b", "paciente")
@@ -175,6 +177,7 @@ def test_every_technique_has_a_label() -> None:
         "authz_anonymous_access",
         "authz_tampered_token",
         "authz_mass_assignment",
+        "authz_horizontal_write",
     }
 
 
@@ -331,3 +334,132 @@ def test_a_post_finding_says_the_created_resource_stays_and_where_it_was_seen() 
 
 def test_the_source_does_not_change_the_fingerprint() -> None:
     assert mass("declared", "balance").fingerprint == mass("response_only", "price").fingerprint
+
+
+# --- ADR 0042: identificador de consulta e escrita em outra conta -------------------------
+
+PATH_ID_FINGERPRINT = "985246a245906dcc884b74ebcc4d38a87effbcf66c984748af08b2f59b6e61e1"
+"""Fingerprint do achado horizontal de caminho, calculado antes da versão 1.4: não pode mudar."""
+
+
+def path_finding() -> AuthzFinding:
+    return horizontal_finding(
+        product="clinica",
+        operation_id="buscarConsulta",
+        method="GET",
+        path_template="/api/consultas/{id}",
+        actor=("b", "p"),
+        owner=("a", "p"),
+        statuses=(200, 200),
+    )
+
+
+def query_finding(confidence: str) -> AuthzFinding:
+    return horizontal_finding(
+        product="clinica",
+        operation_id="listar",
+        method="GET",
+        path_template="/api/consultas",
+        actor=("b", "p"),
+        owner=("a", "p"),
+        statuses=(200, 200),
+        identifiers=(IdentifierRef("query", "pacienteId", confidence),),  # type: ignore[arg-type]
+    )
+
+
+def test_a_path_identifier_keeps_empty_fields_and_the_fingerprint_from_before() -> None:
+    finding = path_finding()
+
+    assert finding.fields == ()
+    assert finding.fingerprint == PATH_ID_FINGERPRINT
+    assert finding.proposed_severity == "high"
+    assert finding.title.endswith("do mesmo papel")
+
+
+def test_a_query_identifier_goes_to_fields_and_gives_another_fingerprint() -> None:
+    finding = query_finding("owned_hint")
+
+    assert finding.fields == ("query:pacienteId",)
+    assert finding.fingerprint != PATH_ID_FINGERPRINT
+    assert "Identificador na consulta: `pacienteId`" in finding.evidence
+    assert "identificador de caminho da conta dona" in finding.evidence
+    assert "(identificador na consulta)" in finding.title
+
+
+def test_the_same_operation_with_path_and_query_ids_is_two_distinct_findings() -> None:
+    both = horizontal_finding(
+        product="clinica",
+        operation_id="buscarConsulta",
+        method="GET",
+        path_template="/api/consultas/{id}",
+        actor=("b", "p"),
+        owner=("a", "p"),
+        statuses=(200, 200),
+        identifiers=(IdentifierRef("query", "medicoId", "name_only"),),
+    )
+
+    assert both.fingerprint != path_finding().fingerprint
+    assert both.proposed_severity == "high"  # o caminho decide
+
+
+def test_severity_of_a_query_identifier_depends_on_the_confidence() -> None:
+    assert query_finding("owned_hint").proposed_severity == "high"
+    name_only = query_finding("name_only")
+    assert name_only.proposed_severity == "medium"
+    assert "só o nome indica identificador" in name_only.evidence
+
+
+def test_the_write_finding_is_high_names_the_field_and_never_a_value() -> None:
+    finding = horizontal_write_finding(
+        product="clinica",
+        operation_id="salvarNota",
+        method="put",
+        path_template="/api/notas/{id}",
+        actor=("b", "p"),
+        owner=("a", "p"),
+        status=200,
+        field="titulo",
+        restored=True,
+    )
+
+    assert finding.technique == "authz_horizontal_write"
+    assert (finding.proposed_severity, finding.cwe) == ("high", 639)
+    assert finding.owasp_api_2023 == "API1:2023 Broken Object Level Authorization"
+    assert (finding.fields, finding.method, finding.observed_status) == (("titulo",), "PUT", 200)
+    assert (finding.actor_account, finding.owner_account) == ("b", "a")
+    assert "campo `titulo`" in finding.evidence
+    assert "restaurado" in finding.evidence
+
+
+def test_the_write_finding_says_when_the_value_was_not_restored() -> None:
+    finding = horizontal_write_finding(
+        product="clinica",
+        operation_id="salvarNota",
+        method="PATCH",
+        path_template="/api/notas/{id}",
+        actor=("b", "p"),
+        owner=("a", "p"),
+        status=204,
+        field="titulo",
+        restored=False,
+    )
+
+    assert "NÃO pôde ser restaurado" in finding.evidence
+
+
+def test_the_write_fingerprint_depends_on_the_field_and_not_on_accounts() -> None:
+    def build(field: str, actor: str) -> AuthzFinding:
+        return horizontal_write_finding(
+            product="clinica",
+            operation_id="salvarNota",
+            method="PUT",
+            path_template="/api/notas/{id}",
+            actor=(actor, "p"),
+            owner=("a", "p"),
+            status=200,
+            field=field,
+            restored=True,
+        )
+
+    assert build("titulo", "b").fingerprint == build("titulo", "c").fingerprint
+    assert build("titulo", "b").fingerprint != build("ordem", "b").fingerprint
