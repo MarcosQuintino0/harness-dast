@@ -12,11 +12,13 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Final
 
+from harness_dast.domain.panel_coverage import render_coverage
 from harness_dast.domain.panel_layout import TabItem, render_page
 from harness_dast.domain.panel_model import PanelView
 from harness_dast.domain.panel_pending import render_pending
 from harness_dast.domain.panel_stages import render_stages
 from harness_dast.domain.panel_summary import render_summary
+from harness_dast.domain.panel_time import render_time
 
 PageRenderer = Callable[[PanelView], str]
 TabCounter = Callable[[PanelView], int | None]
@@ -52,16 +54,9 @@ PAGES: Final[tuple[PanelPage, ...]] = (
     PanelPage(
         "findings.html", "Falhas", "Falhas", partial(render_pending, title="Falhas"), severe_count
     ),
-    PanelPage(
-        "coverage.html", "Cobertura", "Cobertura", partial(render_pending, title="Cobertura")
-    ),
+    PanelPage("coverage.html", "Cobertura", "Cobertura", render_coverage),
     PanelPage("terminal.html", "Terminal", "Terminal", partial(render_pending, title="Terminal")),
-    PanelPage(
-        "time-and-tokens.html",
-        "Tempo e tokens",
-        "Tempo e tokens",
-        partial(render_pending, title="Tempo e tokens"),
-    ),
+    PanelPage("time-and-tokens.html", "Tempo e tokens", "Tempo e tokens", render_time),
 )
 
 
