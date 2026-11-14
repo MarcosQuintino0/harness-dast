@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import pytest
 
 from harness_dast.domain.errors import ScopeViolation
-from harness_dast.domain.widepath import interpretations
+from harness_dast.domain.widepath import interpretations, literal_segments
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     VAMPI_OPENAPI,
@@ -97,8 +97,13 @@ def forms_for(segments: tuple[str, ...]) -> dict[str, str]:
 
 
 def covered(form: str, resource: Resource) -> bool:
-    """A testemunha do recurso está entre as leituras do modelo? (recusa conta como coberta)"""
+    """A testemunha do recurso está entre as leituras do modelo? (recusa conta como coberta)
+
+    Segue o fluxo do guarda amplo: primeiro a leitura literal (que recusa controle, UTF-8 inválido e
+    `.`/`..` crus), depois o conjunto de leituras comparado com `deny_paths`.
+    """
     try:
+        literal_segments(form)
         readings = interpretations(form)
     except ScopeViolation:
         return True
@@ -260,9 +265,9 @@ def test_vampi_every_route_flask_reaches_is_among_the_model_readings(
     try:
         assert cli.run("stack", "up", "vampi", timeout=600).code == 0
         for resource in (
-            Resource("usuario", ("users", "v1", "name1"), 3),
+            Resource("usuarios", ("users", "v1"), 2),
             Resource("livros", ("books", "v1"), 2),
-            Resource("raiz-books", ("books", "v1", "bookTitle1"), 3),
+            Resource("depuracao", ("users", "v1", "_debug"), 3),
         ):
             forms = forms_for(resource.segments)
             done = subprocess.run(  # noqa: S603 - docker do próprio laboratório

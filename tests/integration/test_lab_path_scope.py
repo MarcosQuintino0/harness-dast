@@ -141,7 +141,7 @@ def _has_isca_reading(path: str) -> bool:
 def _detail_of(cli: LabCli, path: str) -> str | None:
     """`detail` da última linha da auditoria do proxy para este caminho (cru)."""
     for row in reversed(proxy_audit(cli)):
-        if row.get("path") == path:
+        if row.get("path") in {path, ascii(path)[1:-1]}:  # a auditoria escapa em ASCII
             detail = row.get("detail")
             return str(detail) if detail is not None else None
     return None
