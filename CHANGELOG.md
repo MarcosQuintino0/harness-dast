@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado: diário de comandos e dados auxiliares do painel (ADR 0033, V1.2)
+
+- Toda invocação do `hdast` grava uma linha em `<pasta de estado>/journal/<produto>.jsonl` (`HDAST_STATE_DIR`; fora do repositório e de `runs/`; comandos sem produto em `_sem-produto.jsonl`): início e fim, subcomando, flags (valor sensível `***`, texto livre redigido), produto, `run_id`, código de saída, estado (`ok`, `parcial`, `erro`), código do erro e um resumo curto do envelope (contagens e identificadores; nunca corpo do alvo). `secret set` e `secret delete` registram só o subcomando e o NOME. O registro é feito em `run_app`, o ponto único de todo comando; falha ao gravar vira aviso no log e nunca derruba o comando. Linha com `schema_version`; leitura tolerante (linha corrompida é pulada e contada).
+- `application.command_journal.load_journal_for_run(store, product, run_id)` devolve os comandos de um teste (do fim do teste anterior até o fim dele). Porta `CommandJournalStore`, adaptador `adapters/storage/command_journal.py`. `domain/command_translation.py`: frase em português simples de cada comando, com teste que falha se a CLI tiver comando sem tradução.
+- `domain/finding_explain.py`: catálogo fixo de explicação de falha (título, o que houve, por que importa, o que fazer com quem faz, nome técnico) por regra do ZAP, CWE e técnica do `authz`, com explicação genérica honesta para tipo desconhecido. `domain/finding_confidence.py`: degrau de confiança (`a confirmar`, `prova forte`, `confirmada`; o terceiro só com confirmação de pessoa, que o `triage.json` ainda não registra). `domain/manual_repro.py`: dados de "Como reproduzir à mão" com `$BASE_URL`, `$TOKEN`, apelido da conta e CPF, e-mail e telefone mascarados.
+- Os testes que rodavam `run_app` passam a gravar o diário na pasta de estado isolada pela fixture de `tests/conftest.py`. Referência: [docs/reference/command-journal.md](docs/reference/command-journal.md).
+
 ### Adicionado: design do painel da execução (só documentação)
 
 - `docs/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e ainda não implementado. Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.

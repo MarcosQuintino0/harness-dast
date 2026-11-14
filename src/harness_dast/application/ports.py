@@ -24,6 +24,7 @@ from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
 from harness_dast.domain.cleanup_gate import CleanupStatement
 from harness_dast.domain.cleanup_plan import CleanupAuditLine, CleanupPlan, CleanupRecord
+from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
@@ -440,6 +441,28 @@ class StackStateStore(Protocol):
 
     def location(self) -> Path:
         """Caminho do arquivo de estado."""
+        ...
+
+
+class CommandJournalStore(Protocol):
+    """Diário de comandos por produto, guardado fora do repositório e de `runs/` (ADR 0033)."""
+
+    def append(self, product: str | None, entry: JournalEntry) -> None:
+        """Acrescenta uma linha ao diário do produto (`None`: comandos sem produto).
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def load(self, product: str | None) -> JournalLoad:
+        """Lê o diário do produto de forma tolerante: linha corrompida é pulada e contada.
+
+        Um diário que ainda não existe devolve zero linhas.
+
+        Raises:
+            ConfigError: O arquivo existe, mas não pôde ser lido.
+        """
         ...
 
 
