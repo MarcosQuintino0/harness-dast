@@ -73,6 +73,8 @@ Ao cadastrar, o agente lê a carta e o Swagger, monta um `carta.yml` com o que a
 
 O agente **não marca opção como recomendada** nem preenche escopo, limite, janela ou autorização por conta própria. "Não sei" entra como `desconhecido` e o agente para naquele campo: quem responde é o dono do produto. Com tudo respondido, a CLI gera `environment`, `scope`, `limits`, as contas e a força do ataque no `target.yml`; o agente escreve só o que a carta não traz (`probe`, `auth.csrf`, `auth.account_map`, `data-rules.yml`, `flows.yml`).
 
+Carta com autorização já vencida (`valid_until` no passado) é recusada com `AUTHORIZATION_EXPIRED`. Com a carta pronta, o agente também pode trazer **avisos** (`data.warnings`), que não bloqueiam nada: permissão com `/**` na raiz, método `DELETE` autorizado, nenhum caminho proibido e validade a mais de um ano. Ele os mostra a você, e você confirma com o dono do produto se é isso mesmo.
+
 **Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força, política da varredura, teste de autorização e limpeza, se houver) e pede que **você** rode `hdast profile approve <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`SCOPE_NOT_APPROVED`). O agente não roda esse comando, e nenhuma permissão o libera: leia o resumo antes de aprovar. Depois dela, editar qualquer campo travado (`environment`, `scope`, `limits`, contas, `scan`, `authz`, `cleanup`) pede aprovar de novo; só o que serve para alcançar as operações (`probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, codificação do login, `openapi`) fica livre.
 
 ## 6. Os prompts

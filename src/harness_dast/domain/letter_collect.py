@@ -38,7 +38,9 @@ class LetterIssue(BaseModel):
     Attributes:
         field: Caminho do campo no carta.yml (`scope.allow[0].host`).
         code: Identificador estável (`MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`,
-            `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH`, `PROFILE_REJECTED`).
+            `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH`, `PROFILE_REJECTED`,
+            `AUTHORIZATION_EXPIRED`; nos avisos: `ALLOW_ROOT_WILDCARD`, `DELETE_AUTHORIZED`,
+            `DENY_PATHS_EMPTY`, `VALIDITY_OVER_ONE_YEAR`).
         message: O que está pendente e o que fazer.
     """
 

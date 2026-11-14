@@ -1,13 +1,16 @@
 """Conferência da carta estruturada e geração dos blocos do `target.yml` (ADR 0036).
 
-`review_letter` é determinística e sem relógio: a mesma carta dá o mesmo texto, qualquer que
-seja a ordem das chaves no arquivo. Falha fechada em duas etapas: (1) os portões (ambiente de
-teste, dados sintéticos, autorização vigente, dono do produto): um "não" ou "desconhecido"
-recusa tudo e nenhum outro campo é lido; (2) cada campo obrigatório, com origem e valor. Só
-sem nenhuma pendência o perfil é montado, e ele ainda passa por `ProductProfile.from_data`:
-o que o perfil recusa, a carta recusa. Este módulo é puro.
+`review_letter` é determinística e sem relógio (o dia de hoje entra por parâmetro): a mesma
+carta no mesmo dia dá o mesmo texto, qualquer que seja a ordem das chaves no arquivo. Falha
+fechada em duas etapas: (1) os portões (ambiente de teste, dados sintéticos, autorização
+vigente, dono do produto): um "não" ou "desconhecido" recusa tudo e nenhum outro campo é lido;
+(2) cada campo obrigatório, com origem e valor. Só sem nenhuma pendência o perfil é montado, e
+ele ainda passa por `ProductProfile.from_data`: o que o perfil recusa, a carta recusa.
+Autorização com validade vencida é pendência. Avisos (`warnings`) não recusam nem mudam o
+perfil. Este módulo é puro.
 """
 
+from datetime import date
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict, JsonValue
@@ -32,6 +35,7 @@ from harness_dast.domain.letter_sections import (
     read_scope,
     read_strength,
 )
+from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
 from harness_dast.domain.letter_yaml import render_yaml
 from harness_dast.domain.profile import ProductProfile
 
@@ -58,6 +62,8 @@ class LetterReview(BaseModel):
         profile_text: O `target.yml` gerado, só quando não há pendência.
         blocks: Blocos do perfil que o texto gerado contém, na ordem em que aparecem.
         example_data: Dados de exemplo da carta, como informação para o agente.
+        warnings: Avisos (não bloqueiam e não mudam o perfil gerado) para o agente mostrar à
+            pessoa na entrevista; só há avisos com a carta pronta.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -66,6 +72,7 @@ class LetterReview(BaseModel):
     profile_text: str | None = None
     blocks: tuple[str, ...] = ()
     example_data: tuple[dict[str, JsonValue], ...] = ()
+    warnings: tuple[LetterIssue, ...] = ()
 
     @property
     def ready(self) -> bool:
@@ -90,11 +97,16 @@ def _check_gates(c: Collector, gates: Gates) -> None:
 
 
 def _profile_data(
-    letter: Letter, c: Collector
+    letter: Letter, c: Collector, today: date
 ) -> tuple[dict[str, object], tuple[dict[str, JsonValue], ...]] | None:
     environment = read_environment(c, letter.environment)
     scope = read_scope(c, letter.scope)
     authorization = read_authorization(c, letter.authorization)
+    if authorization is not None:
+        valid_until = authorization[0]["valid_until"]
+        expired = expired_issue(valid_until, today) if isinstance(valid_until, date) else None
+        if expired is not None:
+            c.issues.append(expired)
     limits = read_limits(c, letter.limits)
     auth = read_auth(c, letter.auth)
     strength = read_strength(c, letter.attack.strength)
@@ -129,12 +141,14 @@ def _profile_data(
     return data, examples
 
 
-def review_letter(letter: Letter, expected_product: str) -> LetterReview:
+def review_letter(letter: Letter, expected_product: str, today: date) -> LetterReview:
     """Confere a carta e, se estiver completa, gera o texto do `target.yml`.
 
     Args:
         letter: Carta já lida e com a forma validada (`Letter.from_data`).
         expected_product: Produto pedido em `hdast init`; a carta precisa ser dele.
+        today: Dia de hoje em UTC (entra por parâmetro: o domínio não lê relógio). Autorização
+            que venceu antes dele é pendência; a validade longa demais vira aviso.
 
     Returns:
         A conferência: pendências campo a campo ou o texto gerado.
@@ -149,12 +163,12 @@ def review_letter(letter: Letter, expected_product: str) -> LetterReview:
     _check_gates(c, letter.gates)
     if c.issues:
         return LetterReview(issues=tuple(c.issues))
-    built = _profile_data(letter, c)
+    built = _profile_data(letter, c, today)
     if built is None:
         return LetterReview(issues=tuple(c.issues))
     data, examples = built
     try:
-        ProductProfile.from_data(data)
+        profile = ProductProfile.from_data(data)
     except ConfigError as error:
         c.add("(perfil gerado)", PROFILE_REJECTED, f"{error.message} {error.hint or ''}".strip())
         return LetterReview(issues=tuple(c.issues))
@@ -164,4 +178,5 @@ def review_letter(letter: Letter, expected_product: str) -> LetterReview:
         profile_text=_HEADER + render_yaml(data),
         blocks=blocks,
         example_data=examples,
+        warnings=letter_warnings(profile, today),
     )

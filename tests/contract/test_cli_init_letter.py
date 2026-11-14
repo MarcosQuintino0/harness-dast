@@ -7,8 +7,10 @@ from typing import Any
 
 import pytest
 
+from harness_dast.cli import composition
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.domain.errors import ExitCode
+from tests.fakes.clock import FixedClock, utc
 from tests.fakes.letter_data import answer, valid_letter_data
 from tests.fakes.profile_data import dump_yaml
 
@@ -20,11 +22,21 @@ LAB_OPENAPI = Path(__file__).parents[2] / "lab" / "pilot" / "product-profile" / 
 LAB_GOLDEN = FIXTURES / "clinica-piloto.target.golden.yml"
 SECRET = "SenhaLiteral-Nao-Pode-Vazar-5"  # noqa: S105 - sentinela para provar que não vaza
 
-LETTER_KEYS = {"product", "ready", "check", "generated_blocks", "issues", "example_data"}
+LETTER_KEYS = {
+    "product",
+    "ready",
+    "check",
+    "generated_blocks",
+    "issues",
+    "warnings",
+    "example_data",
+}
 
 
 @pytest.fixture(autouse=True)
 def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # O relógio é fixo: a validade da carta não pode depender do dia em que o teste roda.
+    monkeypatch.setattr(composition, "SystemClock", lambda: FixedClock(utc(2026, 11, 14)))
     for name in ("HDAST_LOG_LEVEL", "HDAST_PRODUCTS_DIR", "HDAST_ZAP_API_KEY"):
         monkeypatch.delenv(name, raising=False)
 
@@ -427,3 +439,60 @@ def test_plain_init_keeps_its_original_envelope(
 
     assert code == ExitCode.OK
     assert set(envelope["data"]) == {"product", "directory", "files"}
+
+
+def test_check_refuses_a_letter_with_an_expired_authorization_with_its_own_code(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = valid_letter_data()
+    data["authorization"]["valid_until"] = answer("2026-11-13")
+    letter = _letter_file(tmp_path, data)
+
+    code, envelope = _run_json(capsys, "init", "demo", "--from-letter", str(letter), "--check")
+
+    assert code == ExitCode.USAGE
+    assert envelope["ok"] is False
+    assert envelope["data"]["ready"] is False
+    assert [(i["field"], i["code"]) for i in envelope["data"]["issues"]] == [
+        ("authorization.valid_until", "AUTHORIZATION_EXPIRED")
+    ]
+
+
+def test_init_from_an_expired_letter_creates_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = valid_letter_data()
+    data["authorization"]["valid_until"] = answer("2026-11-13")
+    products = _products(tmp_path)
+
+    code, _ = _run_json(
+        capsys,
+        "init",
+        "demo",
+        "--from-letter",
+        str(_letter_file(tmp_path, data)),
+        "--products-dir",
+        str(products),
+    )
+
+    assert code == ExitCode.USAGE
+    assert list(products.iterdir()) == []
+
+
+def test_warnings_go_in_the_envelope_and_do_not_block_or_change_the_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = valid_letter_data()
+    data["scope"]["deny_paths"] = answer([])
+    letter = _letter_file(tmp_path, data)
+
+    code, envelope = _run_json(capsys, "init", "demo", "--from-letter", str(letter), "--check")
+
+    assert code == ExitCode.OK
+    assert envelope["data"]["ready"] is True
+    assert envelope["data"]["issues"] == []
+    assert {w["code"] for w in envelope["data"]["warnings"]} == {
+        "DENY_PATHS_EMPTY",
+        "VALIDITY_OVER_ONE_YEAR",
+    }
+    assert all({"field", "code", "message"} == set(w) for w in envelope["data"]["warnings"])

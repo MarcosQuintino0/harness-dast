@@ -5,6 +5,7 @@ o guia vai na cópia entregue ao agente cego, e o perfil esperado de um caso nã
 """
 
 import re
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,7 @@ def _guide_letter() -> str:
 def test_guide_example_letter_is_ready_and_generates_the_golden_profile() -> None:
     letter = Letter.from_data(parse_yaml_document(_guide_letter(), "carta.yml"))
 
-    review = review_letter(letter, "livraria-exemplo")
+    review = review_letter(letter, "livraria-exemplo", date(2026, 11, 14))
 
     assert review.issues == ()
     assert review.profile_text == GOLDEN.read_text(encoding="utf-8")

@@ -1,4 +1,5 @@
 import copy
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -12,10 +13,11 @@ from harness_dast.domain.profile import ProductProfile
 from tests.fakes.letter_data import answer, valid_letter_data
 
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "letter"
+TODAY = date(2026, 11, 14)
 
 
 def _review(data: dict[str, Any], product: str = "demo") -> LetterReview:
-    return review_letter(Letter.from_data(data), product)
+    return review_letter(Letter.from_data(data), product, TODAY)
 
 
 def _issues(review: LetterReview) -> dict[str, str]:
@@ -63,7 +65,7 @@ def test_review_is_ready_and_profile_validates_when_the_letter_is_complete() -> 
 def test_review_matches_the_golden_profile_when_the_clinica_piloto_letter_is_used() -> None:
     raw = FileLetterReader().read(FIXTURES / "clinica-piloto.carta.yml")
 
-    review = review_letter(Letter.from_data(raw), "clinica-piloto")
+    review = review_letter(Letter.from_data(raw), "clinica-piloto", TODAY)
 
     golden = (FIXTURES / "clinica-piloto.target.golden.yml").read_text(encoding="utf-8")
     assert review.profile_text == golden
@@ -87,7 +89,7 @@ def test_review_does_not_change_the_letter_it_receives() -> None:
     letter = Letter.from_data(data)
     before = copy.deepcopy(letter.model_dump())
 
-    review_letter(letter, "demo")
+    review_letter(letter, "demo", TODAY)
 
     assert letter.model_dump() == before
 

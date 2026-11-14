@@ -5,6 +5,7 @@ import pytest
 
 from harness_dast.application.init_from_letter import InitFromLetter, rejection
 from harness_dast.domain.errors import ConfigError, ExitCode, LetterRejected
+from tests.fakes.clock import FixedClock, utc
 from tests.fakes.letter_data import answer, valid_letter_data
 from tests.fakes.letter_reader import InMemoryLetterReader
 from tests.fakes.product_scaffolder import InMemoryScaffolder
@@ -17,7 +18,7 @@ def _use_case(
 ) -> tuple[InitFromLetter, InMemoryScaffolder, InMemoryLetterReader]:
     reader = InMemoryLetterReader({"carta.yml": data if data is not None else valid_letter_data()})
     scaffolder = InMemoryScaffolder(files=("README.md", "target.yml"))
-    return InitFromLetter(reader, scaffolder), scaffolder, reader
+    return InitFromLetter(reader, scaffolder, FixedClock(utc(2026, 11, 14))), scaffolder, reader
 
 
 def test_execute_creates_the_product_with_the_generated_profile_when_the_letter_is_ready() -> None:
@@ -121,3 +122,41 @@ def test_rejection_lists_every_field_and_says_the_answer_comes_from_the_person()
     assert "scope.deny_paths [MISSING]" in error.message
     assert error.hint is not None
     assert "agente não preenche" in error.hint
+
+
+def test_execute_refuses_a_letter_whose_authorization_already_expired_and_creates_nothing() -> None:
+    data = valid_letter_data()
+    data["authorization"]["valid_until"] = answer("2026-11-13")
+    use_case, scaffolder, _ = _use_case(data)
+
+    outcome = use_case.execute("demo", LETTER)
+
+    assert not outcome.ready
+    assert outcome.created is None
+    assert scaffolder.created == {}
+    assert [(i.field, i.code) for i in outcome.issues] == [
+        ("authorization.valid_until", "AUTHORIZATION_EXPIRED")
+    ]
+
+
+def test_check_uses_the_injected_clock_so_the_same_letter_expires_when_the_clock_advances() -> None:
+    data = valid_letter_data()
+    data["authorization"]["valid_until"] = answer("2026-12-31")
+    reader = InMemoryLetterReader({"carta.yml": data})
+    clock = FixedClock(utc(2026, 12, 31, 23, 59))
+    use_case = InitFromLetter(reader, InMemoryScaffolder(files=("target.yml",)), clock)
+
+    assert use_case.check("demo", LETTER).ready
+
+    clock.advance_to(utc(2027, 1, 1))
+
+    assert not use_case.check("demo", LETTER).ready
+
+
+def test_outcome_carries_the_warnings_of_a_ready_letter() -> None:
+    use_case, _, _ = _use_case()
+
+    outcome = use_case.check("demo", LETTER)
+
+    assert outcome.ready
+    assert [w.code for w in outcome.warnings] == ["VALIDITY_OVER_ONE_YEAR"]

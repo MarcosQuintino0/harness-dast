@@ -197,7 +197,9 @@ Gera o `target.yml` a partir do `carta.yml` (formulário de formato fechado, com
 - `--from-letter <carta.yml>`: caminho da carta. A geração é determinística (mesma carta, mesmo texto; sem relógio nem dependência da ordem das chaves).
 - `--check`: só vale com `--from-letter`; confere a carta sem criar nada e não exige que o produto esteja livre. Sem `--from-letter` é erro de uso.
 
-Pendências recusam a carta: portão (ambiente de teste, dados sintéticos, autorização vigente) respondido "não" ou desconhecido recusa tudo; campo obrigatório ausente ou desconhecido; valor de modelo (`exemplo.com.br`, `SEC-0000`, `MEU_PRODUTO_*`, `CHANGE_ME`); valor recusado pelos modelos do perfil; valor de segredo no lugar do NOME (`env:NOME`/`keyring:NOME`); `path_mode: wide` sem `source: carta` e `quote`; carta de outro produto; perfil gerado recusado por `ProductProfile`. A vigência (`valid_until`) e a janela aberta não são conferidas aqui: são do `profile validate` e do `preflight`.
+Pendências recusam a carta: portão (ambiente de teste, dados sintéticos, autorização vigente) respondido "não" ou desconhecido recusa tudo; campo obrigatório ausente ou desconhecido; valor de modelo (`exemplo.com.br`, `SEC-0000`, `MEU_PRODUTO_*`, `CHANGE_ME`); valor recusado pelos modelos do perfil; valor de segredo no lugar do NOME (`env:NOME`/`keyring:NOME`); `path_mode: wide` sem `source: carta` e `quote`; carta de outro produto; perfil gerado recusado por `ProductProfile`. Autorização com `valid_until` anterior a hoje (UTC; o último dia vale inteiro) também recusa a carta, com o código `AUTHORIZATION_EXPIRED`. A janela aberta não é conferida aqui: é do `preflight`.
+
+**Avisos.** Com a carta pronta, `data.warnings` lista o que merece uma segunda olhada do dono do produto; **não bloqueia nem muda o perfil gerado**. O agente os mostra à pessoa na entrevista. Códigos: `ALLOW_ROOT_WILDCARD` (permissão com `/**`), `DELETE_AUTHORIZED` (método `DELETE` autorizado), `DENY_PATHS_EMPTY` (nenhum caminho proibido) e `VALIDITY_OVER_ONE_YEAR` (validade a mais de um ano).
 
 `data` (sucesso e falha):
 
@@ -207,7 +209,8 @@ Pendências recusam a carta: portão (ambiente de teste, dados sintéticos, auto
 | `ready` | booleano | Se a carta está completa e válida |
 | `check` | booleano | Se foi `--check` |
 | `generated_blocks` | lista de texto | Blocos do `target.yml` gerados da carta (`environment`, `openapi`, `scope`, `limits`, `auth`, `scan.strength`); vazia com pendência |
-| `issues` | lista de objetos | Pendências, uma por campo: `{field, code, message}`; `code` é `MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`, `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH` ou `PROFILE_REJECTED` |
+| `issues` | lista de objetos | Pendências, uma por campo: `{field, code, message}`; `code` é `MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`, `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH`, `PROFILE_REJECTED` ou `AUTHORIZATION_EXPIRED` |
+| `warnings` | lista de objetos | Avisos que não bloqueiam: `{field, code, message}` (veja abaixo); vazia com a carta recusada |
 | `example_data` | lista de objetos | Dados de exemplo da carta, só informação para o agente (não viram regra) |
 | `directory`, `files` | texto, lista | Só quando o produto foi criado (como no `init` simples) |
 
