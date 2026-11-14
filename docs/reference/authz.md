@@ -57,6 +57,7 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 | `inconclusive` | `5xx`, sem resposta, ou `4xx` ambíguo no acesso vertical | Repita; confira a saúde do alvo |
 | `no_response_schema` | O OpenAPI não declara o esquema da resposta de sucesso | Declare-o no OpenAPI |
 | `no_json_response` | A resposta de sucesso não é JSON | Nada |
+| `no_sample_data` | A resposta de uma operação de exposição excessiva veio com lista vazia: não há item para comparar com o esquema | Faça o `probe` receber itens (por exemplo, regras de `page` e `size` em `data-rules.yml`) |
 | `no_json_body` | O `probe` não guardou corpo JSON (objeto) para o `PUT`/`PATCH` | Nada |
 | `possible_unrestored_change` | A atribuição em massa enviou o campo extra e a execução parou (janela, prazo, trava, proxy) ou a restauração não foi confirmada: o valor injetado PODE ter ficado no alvo. A mensagem diz a conta e a operação | Confira o estado da conta e restaure por fora (reset do ambiente ou `cleanup`) |
 | `same_value_in_body` | O `probe` já enviou o campo extra com o valor de teste (não dá para distinguir o efeito) | Fixe o campo do `probe` com uma regra em `data-rules.yml` ou declare outro valor em `authz.mass_assignment_fields` |

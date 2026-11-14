@@ -9,6 +9,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ### V1.1, authz: parada depois do PUT não esconde alteração
 
 - Atribuição em massa: se a janela fechar, o prazo vencer, a trava acionar ou o proxy falhar depois do `PUT` com o campo extra, a restauração ainda é tentada pelo mesmo caminho guardado (com a janela fechada nada é enviado). Se não der para restaurar ou confirmar, `not_tested` ganha `possible_unrestored_change` com a conta e a operação (sem campo novo no `authz.json`). Restauração não confirmada no caminho normal também gera o aviso.
+- `authz`, exposição excessiva: resposta com lista vazia onde o esquema declara itens vira `not_tested` (`no_sample_data`) em vez de "testado e seguro". Medido no laboratório: o `probe` sorteava uma página vazia e o H7 passava despercebido. O perfil de `lab/pilot` fixa `page` e `size` em `data-rules.yml`.
 - Uma parada no meio de uma verificação não perde mais o que ela já achou: a verificação sai como `partial` com seus achados e `not_tested`.
 
 ### V1.1, ADR 0030: cofre de senhas local

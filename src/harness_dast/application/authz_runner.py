@@ -19,6 +19,7 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue, Schema
 from harness_dast.domain.authz_compare import (
     bodies_equivalent,
+    has_empty_list,
     holds_value,
     injected_effect,
     is_success_status,
@@ -328,8 +329,20 @@ class AuthzRunner:
             if schema is None or body is None:
                 out.not_tested.append(self._no_schema_note(exchange, reply, schema is None))
                 continue
-            out.tested += 1
             fields = unexpected_fields(schema, body)
+            if not fields and has_empty_list(schema, body):
+                out.not_tested.append(
+                    self._note(
+                        "excessive_data",
+                        exchange,
+                        "no_sample_data",
+                        "A resposta veio com lista vazia, sem item para comparar com o esquema; "
+                        "não conta como seguro. Ajuste a paginação do pedido (por exemplo, "
+                        "`page` e `size` em data-rules.yml) para o probe receber itens.",
+                    )
+                )
+                continue
+            out.tested += 1
             if fields and reply.status is not None:
                 role = self._s.roles.get(exchange.account)
                 out.findings.append(

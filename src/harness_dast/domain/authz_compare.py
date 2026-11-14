@@ -143,6 +143,31 @@ def unexpected_fields(schema: Schema, body: JsonValue) -> tuple[str, ...]:
     return tuple(found)[:MAX_PATHS]
 
 
+def has_empty_list(schema: Schema, body: JsonValue) -> bool:
+    """Diz se a resposta traz uma lista vazia onde o esquema declara itens.
+
+    Lista vazia não deixa comparar os campos dos itens: quem chama não pode contar a operação
+    como testada e segura.
+    """
+    return any(_empty_lists(body, schema, 0))
+
+
+def _empty_lists(value: JsonValue, schema: Schema, depth: int) -> Iterator[bool]:
+    if depth > MAX_DEPTH:
+        return
+    properties, items, _ = _declared(schema)
+    if isinstance(value, dict):
+        for name, item in value.items():
+            for sub in properties.get(name, []):
+                yield from _empty_lists(item, sub, depth + 1)
+    elif isinstance(value, list):
+        if not value and items:
+            yield True
+        for item in value[:50]:
+            for sub in items:
+                yield from _empty_lists(item, sub, depth + 1)
+
+
 def _leaves(value: JsonValue, prefix: str, depth: int) -> Iterator[tuple[str, JsonValue]]:
     if depth > MAX_DEPTH:
         return

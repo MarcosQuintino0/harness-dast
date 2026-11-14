@@ -10,6 +10,7 @@ from harness_dast.domain.api_schema import JsonValue, Schema
 from harness_dast.domain.authz_compare import (
     MAX_PATHS,
     bodies_equivalent,
+    has_empty_list,
     holds_value,
     injected_effect,
     is_success_status,
@@ -160,6 +161,14 @@ def test_extra_fields_in_a_list_of_items_are_reported_with_their_path() -> None:
     body = val({"items": [{"id": 1, "nome": "a", "senhaHash": "x"}, {"id": 2, "nome": "b"}]})
 
     assert unexpected_fields(schema, body) == ("items[].senhaHash",)
+
+
+def test_an_empty_list_where_the_schema_declares_items_has_nothing_to_compare() -> None:
+    schema = obj(items=Schema(type="array", items=obj(id=INT)))
+
+    assert has_empty_list(schema, val({"items": []})) is True
+    assert has_empty_list(schema, val({"items": [{"id": 1}]})) is False
+    assert has_empty_list(obj(id=INT), val({"id": 1})) is False
 
 
 def test_a_matching_response_has_no_unexpected_field() -> None:
