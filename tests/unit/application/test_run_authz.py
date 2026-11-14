@@ -1,4 +1,4 @@
-"""`run` com o estágio opcional `authz`: ordem, prazo, parada e resumo."""
+"""`run` com o estágio `authz` (ligado por padrão, ADR 0038): ordem, prazo, parada e resumo."""
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -104,7 +104,7 @@ def _status(result: RunResult) -> dict[str, str]:
     return {stage.name: stage.status for stage in result.summary.stages}
 
 
-def test_authz_runs_after_the_scan_and_before_the_report_when_asked() -> None:
+def test_authz_runs_after_the_scan_and_before_the_report() -> None:
     rig = Rig(authz=lambda: _authz(findings=(_finding(),)))
 
     result = rig.run(RunRequest(product="demo", authz=True))
@@ -122,14 +122,25 @@ def test_authz_runs_after_the_scan_and_before_the_report_when_asked() -> None:
     assert result.summary.findings_by_severity == {"high": 1}
 
 
-def test_authz_is_skipped_by_default_and_says_how_to_ask() -> None:
+def test_authz_runs_by_default_without_any_flag() -> None:
     rig = Rig()
 
     result = rig.run(RunRequest(product="demo"))
 
+    assert rig.calls == ["preflight", "probe", "scan", "authz", "report"]
+    assert _status(result)["authz"] == "ok"
+    assert result.summary.options.authz is True
+
+
+def test_no_authz_skips_the_stage_and_says_why() -> None:
+    rig = Rig()
+
+    result = rig.run(RunRequest(product="demo", authz=False))
+
     assert "authz" not in rig.calls
     assert _status(result)["authz"] == "skipped"
-    assert "--authz" in (result.summary.stages[3].message or "")
+    assert "--no-authz" in (result.summary.stages[3].message or "")
+    assert result.summary.options.authz is False
     assert result.summary.authz_findings_by_severity is None
 
 
@@ -144,6 +155,16 @@ def test_authz_shares_the_run_deadline_and_the_probe_run_folder() -> None:
     assert request.dry_run is False
 
 
+def test_the_stage_asks_to_tolerate_missing_exchanges_and_never_sends_checks_or_writes() -> None:
+    rig = Rig()
+
+    rig.run(RunRequest(product="demo"))
+
+    request = rig.authz_requests[0]
+    assert request.tolerate_missing_exchanges is True
+    assert request.checks == ()
+
+
 def test_skip_scan_also_skips_the_authz_stage() -> None:
     rig = Rig()
 
@@ -156,10 +177,16 @@ def test_skip_scan_also_skips_the_authz_stage() -> None:
     assert "hdast authz PRODUTO --run RUN_ID" in message
 
 
-def test_skip_scan_without_authz_keeps_the_short_skip_message() -> None:
+def test_skip_scan_with_no_authz_keeps_the_short_skip_message() -> None:
+    result = Rig().run(RunRequest(product="demo", authz=False, skip_scan=True))
+
+    assert result.summary.stages[3].message == "Pedido com --skip-scan e --no-authz."
+
+
+def test_skip_scan_by_default_still_points_to_the_standalone_authz_command() -> None:
     result = Rig().run(RunRequest(product="demo", skip_scan=True))
 
-    assert result.summary.stages[3].message == "Pedido com --skip-scan."
+    assert "hdast authz PRODUTO --run RUN_ID" in (result.summary.stages[3].message or "")
 
 
 def test_a_stopped_authz_still_produces_the_report_and_keeps_its_own_exit_code() -> None:

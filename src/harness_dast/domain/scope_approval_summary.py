@@ -91,12 +91,18 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
     disabled = ", ".join(sorted(authz.disabled_checks)) or "nenhuma"
     mass = ", ".join(field.name for field in authz.mass_assignment_fields) or "nenhum"
     roles = " < ".join(authz.role_order) or "não declarada"
-    return [
+    lines = [
         "Teste de autorização repete com os métodos: " + ", ".join(authz.vertical_methods),
         f"  - operações tratadas como públicas (não geram achado): {public}",
         f"  - verificações desligadas: {disabled}",
         f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
     ]
+    if authz.allow_writes:
+        lines.append(
+            "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
+            "alterar dados do ambiente (atribuição em massa e métodos de escrita acima)"
+        )
+    return lines
 
 
 def _cleanup_lines(profile: ProductProfile) -> list[str]:

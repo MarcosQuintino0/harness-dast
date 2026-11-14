@@ -181,6 +181,7 @@ PROTECTED_CHANGES: list[tuple[str, Mutation, str]] = [
         lambda d: d.update(authz={"volatile_fields": ["criadoEm"]}),
         "authz",
     ),
+    ("authz.allow_writes", lambda d: d.update(authz={"allow_writes": True}), "authz"),
     ("cleanup.novo", lambda d: d.update(cleanup=_cleanup()), "cleanup"),
     ("cleanup.script", lambda d: d.update(cleanup=_cleanup(script="./outro.sql")), "cleanup"),
     (
@@ -411,10 +412,27 @@ def test_every_auth_field_is_in_the_auth_block_or_in_the_free_list() -> None:
 
 
 def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block() -> None:
-    profile = ProductProfile.from_data(mutated(lambda d: d.update(cleanup=_cleanup())))
+    # Chaves novas do `authz` no padrão ficam de fora do cálculo; ligada, `allow_writes` entra.
+    profile = ProductProfile.from_data(
+        mutated(lambda d: d.update(cleanup=_cleanup(), authz={"allow_writes": True}))
+    )
     blocks = protected_blocks(profile)
 
     for name, model in (("scan", ScanConfig), ("authz", AuthzConfig), ("cleanup", CleanupConfig)):
         block = blocks[name]
         assert isinstance(block, dict)
         assert set(block) == set(model.model_fields), name
+
+
+def test_allow_writes_false_hashes_like_a_profile_that_never_had_the_key() -> None:
+    explicit = mutated(lambda d: d.update(authz={"allow_writes": False}))
+
+    assert digests(explicit) == digests(valid_profile_data())
+    assert overall(explicit) == overall(valid_profile_data())
+
+
+def test_allow_writes_true_changes_only_the_authz_digest() -> None:
+    before = digests(valid_profile_data())
+    after = digests(mutated(lambda d: d.update(authz={"allow_writes": True})))
+
+    assert [name for name in before if before[name] != after[name]] == ["authz"]

@@ -278,3 +278,30 @@ def test_changed_message_names_each_block_in_plain_language_without_nested_paren
     assert "limites de carga (limits)" in message
     assert "((" not in message
     assert message.count("(") == message.count(")")
+
+
+def test_summary_shows_the_authorized_writes_only_when_they_are_on() -> None:
+    off_profile = profile_with(lambda d: d.update(authz={}))
+    on_profile = profile_with(lambda d: d.update(authz={"allow_writes": True}))
+    off = " | ".join(describe_protection(off_profile))
+    on = " | ".join(describe_protection(on_profile))
+
+    assert "ESCRITA AUTORIZADA" not in off
+    assert "ESCRITA AUTORIZADA (authz.allow_writes: true)" in on
+
+
+def test_turning_allow_writes_on_after_approval_makes_it_changed_and_off_keeps_it_approved() -> (
+    None
+):
+    approval = approval_for(valid_profile())
+
+    still = check_approval(
+        profile_with(lambda d: d.update(authz={"allow_writes": False})), approval
+    )
+    changed = check_approval(
+        profile_with(lambda d: d.update(authz={"allow_writes": True})), approval
+    )
+
+    assert still.state == "approved"
+    assert changed.state == "changed"
+    assert "authz" in changed.changed_blocks

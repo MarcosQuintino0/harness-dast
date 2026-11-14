@@ -126,9 +126,29 @@ def _scan(profile: ProductProfile) -> JsonValue:
     return dumped
 
 
+_LEGACY_AUTHZ_KEYS: Final = frozenset(
+    {
+        "public_operations",
+        "role_order",
+        "volatile_fields",
+        "vertical_methods",
+        "mass_assignment_fields",
+        "disabled_checks",
+    }
+)
+"""Chaves do `authz` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
+
+
 def _authz(profile: ProductProfile) -> JsonValue:
     authz = profile.authz
     dumped = authz.model_dump(mode="json")
+    # Chave nova do `authz` (por exemplo `allow_writes`, ADR 0038) no valor padrão fica de fora:
+    # assim o perfil que não a usa mantém a impressão digital de antes e a aprovação já feita
+    # continua valendo; ligar a chave muda a impressão digital e exige aprovar de novo.
+    for key in [k for k in dumped if k not in _LEGACY_AUTHZ_KEYS]:
+        default = type(authz).model_fields[key].get_default(call_default_factory=True)
+        if dumped[key] == default:
+            del dumped[key]
     # `role_order` é ordem de privilégio: mantém a do perfil. Os demais são conjuntos.
     dumped["public_operations"] = _list(sorted(set(authz.public_operations)))
     dumped["volatile_fields"] = _list(sorted(set(authz.volatile_fields)))

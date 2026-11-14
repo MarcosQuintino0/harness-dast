@@ -4,7 +4,11 @@ Tudo é declarativo e nada aqui amplia escopo, métodos permitidos pelo escopo, 
 (o `ScopeGuard` continua decidindo). Mas `vertical_methods` e `mass_assignment_fields` escrevem
 no alvo, e `public_operations`, `disabled_checks` e `volatile_fields` escondem achados: por isso
 o bloco inteiro entra na impressão digital da aprovação humana (ADR 0037). Sem o bloco, valem os
-padrões conservadores abaixo. Este módulo é puro.
+padrões conservadores abaixo.
+
+Escrita no alvo só com `allow_writes: true` (ADR 0038), que vem da carta de autorização: sem ele a
+atribuição em massa não roda e os métodos de escrita de `vertical_methods` saem do plano. Este
+módulo é puro.
 """
 
 import re
@@ -28,6 +32,8 @@ CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
 
 VERTICAL_METHODS_ALLOWED: Final = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH"})
 DEFAULT_VERTICAL_METHODS: Final = ("GET", "HEAD")
+READ_METHODS: Final = frozenset({"GET", "HEAD"})
+"""Métodos que só leem: valem na verificação vertical mesmo sem `allow_writes`."""
 DEFAULT_VOLATILE_FIELDS: Final = (
     "timestamp",
     "servertime",
@@ -93,6 +99,11 @@ class AuthzConfig(ProfileModel):
         vertical_methods: Métodos repetidos na verificação vertical. `DELETE` nunca.
         mass_assignment_fields: Campos extras (e valor de teste) da atribuição em massa.
         disabled_checks: Verificações desligadas pelo perfil.
+        allow_writes: A carta de autorização permite ao teste entre contas ESCREVER no alvo
+            (ADR 0038). Falso por padrão: a atribuição em massa vira `not_tested` e os métodos
+            de escrita de `vertical_methods` ficam fora do plano. Só `hdast init --from-letter`
+            o liga, a partir de uma resposta `source: carta` com a frase de origem; nenhuma flag
+            da CLI o liga.
     """
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
@@ -103,6 +114,7 @@ class AuthzConfig(ProfileModel):
         default=DEFAULT_MASS_FIELDS, max_length=MAX_MASS_FIELDS
     )
     disabled_checks: tuple[AuthzCheck, ...] = ()
+    allow_writes: StrictBool = False
 
     @field_validator("role_order")
     @classmethod
@@ -149,6 +161,17 @@ class AuthzConfig(ProfileModel):
         return tuple(
             check for check in CHECK_ORDER if check in wanted and check not in self.disabled_checks
         )
+
+    def effective_vertical_methods(self) -> frozenset[str]:
+        """Métodos que a verificação vertical repete: só os de leitura sem `allow_writes`."""
+        methods = frozenset(self.vertical_methods)
+        return methods if self.allow_writes else methods & READ_METHODS
+
+    def dropped_write_methods(self) -> tuple[str, ...]:
+        """Métodos de escrita de `vertical_methods` fora do plano por falta de `allow_writes`."""
+        if self.allow_writes:
+            return ()
+        return tuple(sorted(set(self.vertical_methods) - READ_METHODS))
 
     def ensure_operations_exist(self, operation_ids: Sequence[str]) -> None:
         """Garante que toda operação pública citada existe no OpenAPI.
