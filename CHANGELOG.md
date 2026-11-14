@@ -6,6 +6,24 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-14
+
+### Relatório e cobertura
+
+- Sinais passivos de erro interno em JSON, Markdown e HTML, a partir das evidências já redigidas. Contagens fixas de resposta 5xx, possível rastreamento de exceção e possível erro de banco (ADR 0045).
+- Operações sem varredura mostram o HTTP 404 observado no probe e o motivo de ausência registrado no scan. Se o motivo estiver ausente, o relatório diz que é desconhecido (ADR 0046).
+
+### Inspeção offline do OpenAPI
+
+- `spec inspect` indica incompatibilidades de tipo, obrigatoriedade, faixa, enum e comprimento em exemplos locais, sem imprimir os valores (ADR 0047).
+- O resumo identifica operações com multipart e apresenta uma prova sintética em memória. Limites de inspeção das mídias ficam explícitos (ADR 0048).
+
+### Portabilidade
+
+- `AGENTS.md` orienta o uso com Codex. A preparação da cópia cega exclui os planos e briefings do coordenador e continua verificando vazamentos.
+
+Detalhes e limites em [docs/reviews/relatorio-v1.5.md](docs/reviews/relatorio-v1.5.md).
+
 ## [1.4.0] - 2026-11-14
 
 Versão do "achar mais: autorização". O teste de autorização entre contas passa a rodar sempre que se roda o `hdast run`, só lendo, e ganha seis verificações novas. Tudo que escreve no alvo continua desligado até a carta autorizar. Provado por testes unitários, de contrato e de QA independente, e com Docker na Clínica Piloto (vulnerável e seguro) por um teste de integração novo. **Nada foi provado contra produto real.**

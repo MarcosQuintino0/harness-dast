@@ -42,7 +42,9 @@ class Schema(ApiModel):
     Attributes:
         type: Tipo JSON, ou `None` quando não declarado.
         format: Formato declarado (`date`, `uuid`, `int64`...).
-        enum: Valores permitidos, sem `null` (que vira `nullable`).
+        enum: Valores permitidos, sem `null` no modelo carregado.
+        enum_allows_null: A enumeração declarada inclui `null`.
+        type_allows_null: Nulabilidade do tipo antes da normalização legada, se conhecida.
         minimum: Limite inferior numérico (`exclusive_minimum` diz se ele é aberto).
         maximum: Limite superior numérico.
         min_length: Tamanho mínimo de texto.
@@ -66,6 +68,8 @@ class Schema(ApiModel):
     type: SchemaType | None = None
     format: str | None = Field(default=None, max_length=64)
     enum: tuple[JsonScalar, ...] | None = Field(default=None, max_length=MAX_ENUM_VALUES)
+    enum_allows_null: bool = Field(default=False, exclude=True)
+    type_allows_null: bool | None = Field(default=None, exclude=True)
     minimum: int | float | None = None
     maximum: int | float | None = None
     exclusive_minimum: bool = False
@@ -82,6 +86,7 @@ class Schema(ApiModel):
     read_only: bool = False
     default: JsonScalar = None
     example: JsonScalar = None
+    declared_examples: tuple[JsonValue, ...] = Field(default=(), exclude=True, repr=False)
     one_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)
     any_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)
     all_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)

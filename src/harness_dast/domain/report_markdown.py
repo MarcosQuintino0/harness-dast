@@ -10,6 +10,7 @@ from collections.abc import Iterable
 
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
+from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
 from harness_dast.domain.report_authz import authz_lines
 from harness_dast.domain.report_labels import SEVERITY_LABEL
@@ -290,6 +291,26 @@ def _comparison_lines(report: FindingsReport) -> list[str]:
     return lines
 
 
+def _internal_error_lines(report: FindingsReport) -> list[str]:
+    signals = report.internal_error_signals
+    if signals is None:
+        return []
+    return [
+        "## Sinais passivos de erro interno",
+        "",
+        f"Mensagens distintas examinadas: {signals.messages_examined}; "
+        f"com campos cortados: {signals.truncated_messages}.",
+        "Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; "
+        "não são achados confirmados nem cobertura completa. "
+        "Ausência de sinal não prova ausência de erros.",
+        "",
+        *[
+            f"- {label}: {signals.counts.get(key, 0)} mensagem(ns)."
+            for key, label in SIGNAL_LABELS.items()
+        ],
+    ]
+
+
 def render_markdown(report: FindingsReport) -> str:
     """Gera o `report.md` completo (texto UTF-8 terminado em quebra de linha)."""
     lines = [
@@ -304,6 +325,8 @@ def render_markdown(report: FindingsReport) -> str:
         *_coverage_lines(report.coverage, report.not_tested_statements),
         "",
         *_summary_lines(report),
+        "",
+        *_internal_error_lines(report),
         "",
         *_group_lines(report),
         "",

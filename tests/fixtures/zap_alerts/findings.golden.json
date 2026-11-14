@@ -1,4 +1,13 @@
 {
+  "internal_error_signals": {
+    "messages_examined": 3,
+    "truncated_messages": 0,
+    "counts": {
+      "http_5xx": 1,
+      "stack_trace": 0,
+      "sql_error": 0
+    }
+  },
   "schema_version": 1,
   "fingerprint_version": 1,
   "run_id": "2026-11-13T05-15-32Z-vampi-ab12",

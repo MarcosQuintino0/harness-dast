@@ -41,6 +41,8 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 | `not_observed`, `comparison`, `triage_orphans` | Comparação e triagem |
 | `authz` | Resultado do teste de autorização entre contas (o mesmo conteúdo de `authz.json`), ou `null` se o estágio não rodou. Os achados dele não entram em `findings` nem em `groups` ([authz.md](authz.md)) |
 
+Quando uma operação sem varredura tem HTTP 404 registrado no probe, a mensagem de cobertura informa o status observado separadamente do motivo registrado pelo scan, cujo código é preservado. Sem motivo registrado no scan, usa `scan_sem_registro` e informa que o motivo é desconhecido. O relatório não interpreta o corpo da resposta. Outros status, inclusive 410, não são tratados como 404; resultados antigos sem status mantêm o significado anterior. Uma operação com entrada no scan não é listada como sem varredura. Veja o [ADR 0046](../adr/0046-cobertura-de-operacoes-com-404.md).
+
 ## O que o relatório diz sobre honestidade
 
 Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_statements`) e no `report.md` (seção "O que este relatório não testou", sempre antes do resumo):

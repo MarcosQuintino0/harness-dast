@@ -7,6 +7,8 @@ import pytest
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import FINGERPRINT_VERSION
 from harness_dast.domain.report_build import assemble_report, build_resolver
+from harness_dast.domain.report_html import render_html
+from harness_dast.domain.report_markdown import render_markdown
 from harness_dast.domain.report_model import NOT_TESTED_STATEMENTS, FindingsReport
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
 from harness_dast.domain.triage import parse_triage
@@ -227,3 +229,94 @@ def test_comparison_refuses_another_product_or_fingerprint_version() -> None:
         assemble(baseline=old.model_copy(update={"product": "outro"}))
     with pytest.raises(ConfigError, match="versão"):
         assemble(baseline=old.model_copy(update={"fingerprint_version": FINGERPRINT_VERSION + 1}))
+
+
+def test_404_observado_preserva_motivo_do_scan_nos_tres_formatos() -> None:
+    probe = probe_result([operation("ausente", "GET", "/x", "not_found", status=404)])
+    skip = ScanSkip(
+        operation_id="ausente",
+        method="GET",
+        path="/x",
+        reason="not_success",
+        message="O probe não teve sucesso.",
+    )
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([], skipped=[skip]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+
+    (item,) = report.coverage.not_tested
+    assert item.reason == "not_success"
+    assert item.message == "O probe observou HTTP 404. O probe não teve sucesso."
+    assert "HTTP 404" in report.model_dump_json()
+    assert "HTTP 404" in render_markdown(report)
+    assert "HTTP 404" in render_html(report)
+
+
+def test_404_sem_pulo_registrado_nao_inventa_motivo() -> None:
+    probe = probe_result([operation("ausente", "GET", "/x", "not_found", status=404)])
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+
+    (item,) = report.coverage.not_tested
+    assert item.reason == "scan_sem_registro"
+    assert item.message == (
+        "O probe observou HTTP 404. Não há motivo de ausência de varredura registrado no scan."
+    )
+
+
+@pytest.mark.parametrize("status", [410, None])
+def test_status_nao_404_preserva_tratamento_anterior(status: int | None) -> None:
+    probe = probe_result([operation("ausente", "GET", "/x", "not_found", status=status)])
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+
+    (item,) = report.coverage.not_tested
+    assert item.reason == "probe_not_found"
+    assert item.message == "O probe terminou com not_found."
+
+
+def test_404_com_entrada_no_scan_nao_e_listado_como_sem_varredura() -> None:
+    probe = probe_result([operation("ausente", "GET", "/x", "not_found", status=404)])
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([entry("ausente", "GET", "/x", 1)]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+
+    assert report.coverage.not_tested == ()

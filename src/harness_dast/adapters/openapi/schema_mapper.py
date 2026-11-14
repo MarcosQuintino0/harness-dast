@@ -19,6 +19,7 @@ from harness_dast.domain.api_schema import (
     MAX_PROPERTIES,
     MAX_STRING,
     JsonScalar,
+    JsonValue,
     Schema,
     SchemaType,
 )
@@ -101,11 +102,16 @@ class SchemaMapper:
             type=schema_type,
             format=_opt_str(node, "format", where, 64),
             enum=enum,
+            enum_allows_null=enum_null,
+            type_allows_null=schema_type in (None, "null")
+            or nullable
+            or node.get("nullable") is True,
             nullable=nullable or enum_null or node.get("nullable") is True,
             read_only=node.get("readOnly") is True,
             pattern=_opt_str(node, "pattern", where, MAX_STRING, drop_long=True),
             default=to_scalar(node.get("default")),
             example=to_scalar(node.get("example")),
+            declared_examples=read_schema_examples(node),
             min_length=_opt_int(node, "minLength", where),
             max_length=_opt_int(node, "maxLength", where),
             min_items=_opt_int(node, "minItems", where),
@@ -241,3 +247,37 @@ def _bound(
     if isinstance(exclusive, int | float) and not isinstance(exclusive, bool):
         return exclusive, True
     return value, exclusive is True
+
+
+def _json_example(value: Raw, depth: int = 0, budget: list[int] | None = None) -> JsonValue:
+    if budget is None:
+        budget = [1000]
+    budget[0] -= 1
+    if depth > 20 or budget[0] < 0:
+        raise ValueError("exemplo profundo demais")
+    if value is None or isinstance(value, str | bool | int):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    if isinstance(value, list) and len(value) <= 1000:
+        return [_json_example(item, depth + 1, budget) for item in value]
+    if isinstance(value, Mapping) and len(value) <= 1000 and all(isinstance(k, str) for k in value):
+        return {str(k): _json_example(v, depth + 1, budget) for k, v in value.items()}
+    raise ValueError("exemplo não JSON ou grande demais")
+
+
+def read_schema_examples(node: Mapping[str, Raw]) -> tuple[JsonValue, ...]:
+    """Preserva exemplos JSON locais; descarta valores incompatíveis ou excessivos."""
+    raw: list[Raw] = []
+    if "example" in node:
+        raw.append(node["example"])
+    examples = node.get("examples")
+    if isinstance(examples, list):
+        raw.extend(examples[:100])
+    result: list[JsonValue] = []
+    for item in raw:
+        try:
+            result.append(_json_example(item))
+        except ValueError:
+            continue
+    return tuple(result)

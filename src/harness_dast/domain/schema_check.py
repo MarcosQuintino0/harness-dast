@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import TypeGuard
 from urllib.parse import urlsplit
 
-from harness_dast.domain.api_schema import JsonValue, Schema
+from harness_dast.domain.api_schema import JsonValue, Schema, effective_type
 from harness_dast.domain.pattern_subset import matches, parse_pattern
 
 _INT_RANGES = {"int32": (-(2**31), 2**31 - 1), "int64": (-(2**63), 2**63 - 1)}
@@ -125,3 +125,74 @@ def violations(schema: Schema, value: JsonValue) -> tuple[str, ...]:
     if isinstance(value, str):
         problems.extend(_check_text(schema, value))
     return tuple(problems)
+
+
+def check_schema(schema: Schema, value: JsonValue) -> tuple[str, ...]:
+    """Devolve códigos de violações locais, sem incluir o valor recebido.
+
+    Não avalia composição, formato ou expressões regulares; nós truncados são ignorados.
+    """
+    if schema.truncated:
+        return ()
+    kind = effective_type(schema)
+    if value is None:
+        return _check_null(schema, kind)
+    if not _matches_type(kind, value):
+        return ("type",)
+    codes: list[str] = []
+    if schema.enum is not None and not any(_same(value, item) for item in schema.enum):
+        codes.append("enum")
+    if _bad_length(schema, value):
+        codes.append("length")
+    if (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and _out_of_range(schema, value)
+    ):
+        codes.append("range")
+    if isinstance(value, dict) and any(name not in value for name in schema.required):
+        codes.append("required")
+    return tuple(codes)
+
+
+def _check_null(schema: Schema, kind: str | None) -> tuple[str, ...]:
+    allows_null = schema.type_allows_null
+    if allows_null is None:
+        allows_null = schema.nullable or kind in (None, "null")
+    if not allows_null:
+        return ("type",)
+    if schema.enum is not None and not (schema.enum_allows_null or None in schema.enum):
+        return ("enum",)
+    return ()
+
+
+def _matches_type(kind: str | None, value: JsonValue) -> bool:
+    if kind is None:
+        return True
+    if kind == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if kind == "number":
+        return isinstance(value, int | float) and not isinstance(value, bool)
+    return (
+        (kind == "string" and isinstance(value, str))
+        or (kind == "boolean" and isinstance(value, bool))
+        or (kind == "array" and isinstance(value, list))
+        or (kind == "object" and isinstance(value, dict))
+    )
+
+
+def _out_of_range(schema: Schema, value: int | float) -> bool:
+    low, high = schema.minimum, schema.maximum
+    return (low is not None and (value < low or (schema.exclusive_minimum and value == low))) or (
+        high is not None and (value > high or (schema.exclusive_maximum and value == high))
+    )
+
+
+def _bad_length(schema: Schema, value: JsonValue) -> bool:
+    if isinstance(value, str):
+        low, high = schema.min_length, schema.max_length
+    elif isinstance(value, list):
+        low, high = schema.min_items, schema.max_items
+    else:
+        return False
+    return (low is not None and len(value) < low) or (high is not None and len(value) > high)

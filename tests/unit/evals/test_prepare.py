@@ -152,3 +152,31 @@ def test_prepare_leaves_other_agents_worktrees_out_of_the_copy(repo: Path, out: 
     dirs = make_round(repo, out)
 
     assert not (dirs.workspace / ".claude" / "worktrees").exists()
+
+
+def test_prepare_copies_agents_instructions_without_coordinator_material(
+    repo: Path, out: Path
+) -> None:
+    instructions = (Path(__file__).resolve().parents[3] / "AGENTS.md").read_text(encoding="utf-8")
+    write(repo / "AGENTS.md", instructions)
+    write(repo / "docs/plans/briefing.md", "segredo-do-gabarito")
+    write(repo / ".claude/settings.local.json", "permissoes do coordenador")
+    write(repo / ".claude/worktrees/agent/evals/answer-keys/key.md", "gabarito")
+
+    dirs = make_round(repo, out)
+
+    assert (dirs.workspace / "AGENTS.md").read_text(encoding="utf-8") == instructions
+    assert not (dirs.workspace / "docs/plans").exists()
+    assert not (dirs.workspace / ".claude/settings.local.json").exists()
+    assert not (dirs.workspace / ".claude/worktrees").exists()
+    assert not (dirs.workspace / "evals/answer-keys").exists()
+
+
+def test_prepare_detects_answer_key_term_in_agents_instructions(repo: Path, out: Path) -> None:
+    write(repo / "AGENTS.md", "segredo-do-gabarito")
+
+    with pytest.raises(EvalError, match="termo"):
+        prepare("mini", "vulnerable", 1, out, source=repo, cases_dir=CASES)
+
+    report = json.loads((RoundDirs(out).sealed / "leak-report.json").read_text(encoding="utf-8"))
+    assert any(hit["path"] == "AGENTS.md" for hit in report)

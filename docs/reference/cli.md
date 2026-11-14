@@ -289,6 +289,8 @@ uv run hdast spec inspect meu-produto --budget 20000 --products-dir ./meus-produ
 
 Não toca o alvo. Lê o `target.yml` e o OpenAPI do produto (erro de perfil ou de OpenAPI é `CONFIG_ERROR`, saída 2) e devolve o resumo compacto da API mais verificações cruzadas. Problemas em `data-rules.yml` e `flows.yml` NÃO são erro: viram `issues`, para o agente ver tudo de uma vez. `--budget` (padrão 40000, de 2000 a 200000) limita o tamanho do JSON do resumo; fora do intervalo é erro de uso (saída 2).
 
+Cada operação do resumo traz `multipart_offline` quando a inspeção detecta `multipart/form-data`: `true` ou `false` indica o resultado de uma prova de construção e leitura de corpo sintético em memória. São verificadas até 100 chaves de mídia de requisição com até 100 caracteres cada. Se houver mais chaves ou alguma for longa demais ou não for texto, aparece também `multipart_inspection_incomplete: true`; nesse caso, a ausência de `multipart_offline` é inconclusiva. Um resultado positivo continua válido mesmo com inspeção incompleta. A prova não valida o esquema nem envia requisições; a mídia preferida continua escolhida entre as primeiras 20 mídias representadas e o probe continua recusando multipart. Veja o [ADR 0048](../adr/0048-multipart-funcional-offline.md).
+
 `data` em sucesso:
 
 | Campo | Tipo | Descrição |
@@ -304,6 +306,8 @@ Não toca o alvo. Lê o `target.yml` e o OpenAPI do produto (erro de perfil ou d
 | `needs_rule_unchecked` | lista de texto | Consumidores de `flows.yml`; a montagem deles depende de valores de outra operação e não é simulada aqui |
 | `issues` | lista de `{code, message, hint}` | `DATA_RULES_INVALID`, `DATA_RULES_MISMATCH` (regra cita operação inexistente), `FLOWS_INVALID`, `FLOWS_MISMATCH` (operação, parâmetro ou campo inexistente), `ACCOUNT_MAP_MISMATCH` (`auth.account_map` cita operação inexistente) |
 | `operation_accounts` | lista de `{operation_id, account}` | A conta (apelido) que enviará cada operação que o `probe` envia, segundo `auth.default_account` e `auth.account_map` |
+
+A inspeção também verifica exemplos JSON locais representados pelo carregador. Falhas aparecem em `issues` como `EXAMPLE_TYPE`, `EXAMPLE_REQUIRED`, `EXAMPLE_RANGE`, `EXAMPLE_ENUM` ou `EXAMPLE_LENGTH`, sem exibir os valores. `EXAMPLE_TRUNCATED` indica o limite da análise. O [ADR 0047](../adr/0047-validacao-offline-de-exemplos-openapi.md) descreve o subconjunto verificado.
 
 ## `hdast preflight`
 
