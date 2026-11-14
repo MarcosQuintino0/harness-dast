@@ -2,9 +2,9 @@
 
 import pytest
 
+from harness_dast.domain.authz_finding_build import authz_fingerprint
 from harness_dast.domain.authz_findings import (
     TECHNIQUE_LABEL,
-    authz_fingerprint,
     excessive_data_finding,
     horizontal_finding,
     mass_assignment_finding,

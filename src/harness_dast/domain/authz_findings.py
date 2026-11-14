@@ -1,4 +1,4 @@
-"""Taxonomia e construção dos achados de autorização: severidade, CWE, OWASP e fingerprint.
+"""Construtores dos achados de autorização por técnica: severidade, rótulo e texto.
 
 A severidade é decidida AQUI, em código, a partir da técnica e do NOME dos campos; nem o
 agente nem o adaptador a escolhem:
@@ -10,19 +10,16 @@ agente nem o adaptador a escolhem:
 | authz_mass_assignment    | alta                                                    |
 | authz_excessive_data     | média; alta se algum campo tem nome de segredo/pessoal  |
 
-Para as técnicas próprias o CWE e a categoria do OWASP API Top 10 2023 são os da própria
-técnica (não há inferência a partir de um CWE ambíguo). O fingerprint não inclui as contas
-nem os códigos HTTP: o mesmo problema é o mesmo achado entre execuções. Este módulo é puro.
+O CWE, a categoria do OWASP API Top 10 2023 e o fingerprint saem de `build_finding`
+(`authz_finding_build`): são os da própria técnica, sem inferência. O fingerprint não inclui
+as contas nem os códigos HTTP: o mesmo problema é o mesmo achado entre execuções. Este módulo
+é puro.
 """
 
-import hashlib
 from typing import Final
 
-from harness_dast.domain.authz_result import (
-    AUTHZ_FINGERPRINT_VERSION,
-    AuthzFinding,
-    AuthzTechnique,
-)
+from harness_dast.domain.authz_finding_build import build_finding
+from harness_dast.domain.authz_result import AuthzFinding, AuthzTechnique
 from harness_dast.domain.authz_sensitive import classify_field_name
 from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.zap_alert import Severity
@@ -35,12 +32,6 @@ TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
 }
 """Nome legível de cada técnica, usado no relatório."""
 
-_CLASS: Final[dict[AuthzTechnique, tuple[int, str]]] = {
-    "authz_horizontal": (639, "API1:2023 Broken Object Level Authorization"),
-    "authz_vertical": (285, "API5:2023 Broken Function Level Authorization"),
-    "authz_excessive_data": (213, "API3:2023 Broken Object Property Level Authorization"),
-    "authz_mass_assignment": (915, "API3:2023 Broken Object Property Level Authorization"),
-}
 _MAX_NAMES_IN_TITLE: Final = 3
 
 
@@ -51,76 +42,6 @@ def severity_for_fields(paths: tuple[str, ...]) -> Severity:
         if classify_field_name(name) in {"secret", "personal"}:
             return "high"
     return "medium"
-
-
-def authz_fingerprint(
-    *,
-    product: str,
-    technique: AuthzTechnique,
-    method: str,
-    path_template: str,
-    fields: tuple[str, ...],
-) -> str:
-    """SHA-256 (hex) do achado: técnica, produto, método, modelo de caminho e campos."""
-    parts = (
-        f"hdast-authz-v{AUTHZ_FINGERPRINT_VERSION}",
-        product,
-        technique,
-        method.upper(),
-        normalize_path_template(path_template),
-        ",".join(sorted(fields)),
-    )
-    payload = "".join(f"{len(part)}:{part}" for part in parts)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _build(
-    *,
-    product: str,
-    technique: AuthzTechnique,
-    title: str,
-    severity: Severity,
-    operation_id: str,
-    method: str,
-    path_template: str,
-    actor: tuple[str, str | None],
-    owner: tuple[str, str | None] | None,
-    statuses: tuple[int | None, int | None],
-    fields: tuple[str, ...],
-    evidence: str,
-    description: str,
-    solution: str,
-) -> AuthzFinding:
-    fingerprint = authz_fingerprint(
-        product=product,
-        technique=technique,
-        method=method,
-        path_template=path_template,
-        fields=fields,
-    )
-    cwe, category = _CLASS[technique]
-    return AuthzFinding(
-        finding_id=f"A-{fingerprint[:8]}",
-        fingerprint=fingerprint,
-        technique=technique,
-        title=title,
-        proposed_severity=severity,
-        cwe=cwe,
-        owasp_api_2023=category,
-        operation_id=operation_id,
-        method=method.upper(),
-        path_template=normalize_path_template(path_template),
-        actor_account=actor[0],
-        actor_role=actor[1],
-        owner_account=owner[0] if owner else None,
-        owner_role=owner[1] if owner else None,
-        baseline_status=statuses[0],
-        observed_status=statuses[1],
-        fields=fields,
-        evidence=evidence,
-        description=description,
-        solution=solution,
-    )
 
 
 def horizontal_finding(
@@ -134,7 +55,7 @@ def horizontal_finding(
     statuses: tuple[int, int],
 ) -> AuthzFinding:
     """Achado de BOLA: outra conta do mesmo papel leu o recurso com o mesmo conteúdo."""
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_horizontal",
         title=f"{method.upper()} {normalize_path_template(path_template)} devolve o recurso "
@@ -173,7 +94,7 @@ def vertical_finding(
     statuses: tuple[int, int],
 ) -> AuthzFinding:
     """Achado de BFLA: conta de papel menor executou operação atribuída a papel maior."""
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_vertical",
         title=f"{method.upper()} {normalize_path_template(path_template)} aceita conta de "
@@ -212,7 +133,7 @@ def excessive_data_finding(
     shown = ", ".join(fields[:_MAX_NAMES_IN_TITLE])
     more = len(fields) - _MAX_NAMES_IN_TITLE
     suffix = f" e mais {more}" if more > 0 else ""
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_excessive_data",
         title=f"{method.upper()} {normalize_path_template(path_template)} devolve campos fora "
@@ -258,7 +179,7 @@ def mass_assignment_finding(
         False: "Não foi possível restaurar o valor anterior: confira o estado da conta.",
         None: "Não havia valor anterior para restaurar.",
     }[restored]
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_mass_assignment",
         title=f"{method.upper()} {normalize_path_template(path_template)} aceita o campo "
