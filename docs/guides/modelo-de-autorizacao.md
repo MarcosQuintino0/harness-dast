@@ -92,6 +92,8 @@ hdast init meu-produto --from-letter carta.yml --check   # só confere; lista ca
 hdast init meu-produto --from-letter carta.yml           # confere e cria a pasta com o target.yml gerado
 ```
 
+O que a carta não responde, o agente pergunta numa rodada só (a entrevista, na ordem do formulário), sem sugerir valor de escopo, limite, janela ou autorização: veja [cadastrar-um-produto.md](cadastrar-um-produto.md#5-a-entrevista-e-a-aprovação-do-escopo). Depois de gerado o perfil, uma pessoa aprova o escopo num terminal dela.
+
 Regras do formulário:
 
 - Cada resposta é `{value, source, quote}`. `source` é `carta` (a carta assinada diz isso), `pessoa` (a pessoa respondeu na entrevista) ou `desconhecido` ("não sei" / "não está na carta", sem `value`). `quote` é a frase de origem (opcional).
