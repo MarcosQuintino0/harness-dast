@@ -12,6 +12,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - O `scan` grava `rule-stats.json` (dado bruto por regra e por operação, lido de `ascan/view/scanProgress` ao fim de cada varredura; forma real do ZAP 2.17.0). Falha na coleta ou na gravação não derruba a varredura: a operação fica marcada como indisponível, com o motivo, e o log estruturado registra. `scan.json` não mudou.
 - `ScanControl.scan_rules`, `RunArtifacts.write_rule_stats`, `read_rule_stats` e `write_metrics`, porta `RunMetricsRecorder`; `run.json` passa a listar `rule-stats.json` e `metrics.json` em `artifacts` quando existem.
 
+### Adicionado: medição do agente na avaliação cega
+
+- Avaliação cega: `python -m evals.runner measure --out <rodada>` lê o transcript e grava `agent-metrics.json` com a duração, os tokens (entrada, saída e cache), os turnos e as chamadas de ferramenta, e, por etapa (leitura, cadastro, alcance, varredura, triagem, outro), os segundos pensando e esperando, os tokens e a contagem de cada subcomando `hdast`. A etapa sai de uma regra determinística sobre os comandos, sem modelo de linguagem. Inclui sinais de volta (comandos repetidos, falha seguida de nova tentativa, arquivos lidos mais de uma vez), só com nomes e contagens, e recusa gravar se um segredo da rodada aparecer. Do `metrics.json` das execuções (ADR 0031, `schema_version` 1) copia só um resumo tipado: segundos de cada etapa da CLI, lacunas do proxy e tempo por regra do ZAP.
+- Avaliação cega: `measure --save <rótulo>` guarda o resumo da rodada em `evals/measurements/` (agent-metrics, nota, `metrics.json` das execuções e `meta.json`), sem sobrescrever pasta existente, e `python -m evals.runner compare <A> <B> [--json]` mostra as diferenças, com `n/d` onde falta dado: totais, etapas do agente, segundos de cada etapa da CLI, total de lacunas e as 10 regras do ZAP com maior diferença de tempo (por `plugin_id` e nome). O `metrics.json` é lido por um modelo tolerante: arquivo ausente, malformado ou de versão desconhecida vira `n/d`. Primeira medição: cinco rodadas da V1.0 e uma da V1.1.
+
+### Corrigido: isolamento dos testes
+
+- Os testes deixam de depender do ambiente da máquina: com uma pilha Docker do hdast no ar, 12 a 27 testes de `tests/contract/test_cli_scan_report.py` falhavam (o `probe` saía com código 4) por ler o estado real da pilha. Uma fixture `autouse` em `tests/conftest.py` limpa toda `HDAST_*` e aponta `HDAST_STATE_DIR` para uma pasta vazia por teste; `tests/contract/test_state_isolation.py` prova o isolamento.
+
 ## [1.1.0] - 2026-11-13
 
 A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/reviews/2026-11-13-lab-v1-1-cerca.md](docs/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/reviews/2026-11-13-lab-v1-1-authz.md](docs/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).
