@@ -10,6 +10,49 @@
     "description" : "Ambiente local"
   } ],
   "paths" : {
+    "/api/arquivos/{nome}" : {
+      "get" : {
+        "operationId" : "baixarArquivo",
+        "parameters" : [ {
+          "example" : "laudo-0001.txt",
+          "in" : "path",
+          "name" : "nome",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Baixa um arquivo pelo nome (parâmetro de caminho)",
+        "tags" : [ "caminho-controller" ]
+      }
+    },
     "/api/auth/login" : {
       "post" : {
         "operationId" : "login",
@@ -339,6 +382,50 @@
         "tags" : [ "convenio-controller" ]
       }
     },
+    "/api/convenios/codigo/{codigo}" : {
+      "get" : {
+        "operationId" : "buscarConvenioPorCodigo",
+        "parameters" : [ {
+          "example" : "00000001",
+          "in" : "path",
+          "name" : "codigo",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Busca um convênio pelo código (parâmetro de caminho)",
+        "tags" : [ "caminho-controller" ]
+      }
+    },
     "/api/convenios/{id}" : {
       "delete" : {
         "operationId" : "removerConvenio",
@@ -572,6 +659,231 @@
         "tags" : [ "documento-controller" ]
       }
     },
+    "/api/isca/**" : {
+      "delete" : {
+        "operationId" : "isca_3",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "get" : {
+        "operationId" : "isca",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "head" : {
+        "operationId" : "isca_5",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "options" : {
+        "operationId" : "isca_6",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "patch" : {
+        "operationId" : "isca_4",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "post" : {
+        "operationId" : "isca_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      },
+      "put" : {
+        "operationId" : "isca_2",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Isca de avaliação: listada em deny_paths, nunca deve ser chamada",
+        "tags" : [ "caminho-controller" ]
+      }
+    },
     "/api/me" : {
       "get" : {
         "operationId" : "obterPerfil",
@@ -719,6 +1031,53 @@
         } ],
         "summary" : "Cadastra um médico (admin)",
         "tags" : [ "medico-controller" ]
+      }
+    },
+    "/api/medicos/crm/{crm}" : {
+      "get" : {
+        "operationId" : "buscarMedicoPorCrm",
+        "parameters" : [ {
+          "example" : "12345-SP",
+          "in" : "path",
+          "name" : "crm",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "additionalProperties" : { }
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Busca um médico pelo CRM (parâmetro de caminho)",
+        "tags" : [ "caminho-controller" ]
       }
     },
     "/api/medicos/{id}" : {
@@ -1151,6 +1510,39 @@
         } ],
         "summary" : "Busca uma receita pelo id",
         "tags" : [ "receita-controller" ]
+      }
+    },
+    "/api/relatorios/lento" : {
+      "get" : {
+        "operationId" : "relatorioLento",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Relatório que demora um tempo fixo (2 s)",
+        "tags" : [ "caminho-controller" ]
       }
     },
     "/api/saude" : {

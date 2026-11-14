@@ -200,6 +200,18 @@ Todos com `Authorization: Bearer`, salvo os públicos (login, csrf, saúde, api-
 | `GET /api/receitas/{id}`, `GET /api/consultas/{id}/receitas` | buscarReceita, listarReceitasDaConsulta | equipe ou o paciente da consulta |
 | `GET /api/documentos`, `GET /api/documentos/download?arquivo=` | listarDocumentos, baixarDocumento | qualquer conta |
 | `POST /api/notificacoes/enviar` | enviarNotificacao | qualquer conta (**deny_paths**) |
+| `GET /api/convenios/codigo/{codigo}` | buscarConvenioPorCodigo | qualquer conta (H8, parâmetro de caminho) |
+| `GET /api/arquivos/{nome}` | baixarArquivo | qualquer conta (H9, parâmetro de caminho) |
+| `GET /api/medicos/crm/{crm}` | buscarMedicoPorCrm | qualquer conta (H10, parâmetro de caminho) |
+| `GET /api/relatorios/lento` | relatorioLento | qualquer conta (atraso fixo de 2 s, nos dois modos) |
+| `ANY /api/isca/**` | isca | qualquer conta (**deny_paths**; só conta chamadas) |
+
+Em PARÂMETRO DE CAMINHO (V1.1, ver o gabarito): H8 (injeção de SQL que só aparece pelo tempo; consulta simulada, sem comando
+de sistema), H9 (travessia sobre um sistema de arquivos SIMULADO em memória, que só chega com `%2f`) e H10 (injeção de SQL
+simples, controle positivo). No modo vulnerável o Tomcat deixa o `%2f` passar (`encodedSolidusHandling=passthrough`) e o
+firewall do Spring Security aceita `;`, `%2f` e `%` no caminho; no modo corrigido valem os padrões (400). A isca expõe em
+`/internal/eval/state` os contadores `isca_calls` (chegou ao método da isca; deve ser 0) e `isca_mentions` (qualquer pedido
+cujo caminho cru cita a isca, mesmo sem chegar ao método).
 
 Fora do OpenAPI e só na porta 9091: `GET /internal/eval/state` e `POST /internal/eval/reset`.
 

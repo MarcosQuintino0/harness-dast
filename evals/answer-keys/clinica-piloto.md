@@ -20,6 +20,29 @@ contêiner, com H2 e com Oracle Free (2026-11-13). A coluna "ZAP detecta" é **p
 | **H6** | `PUT /api/me`, campo `role` do corpo | Atribuição em massa (mass assignment). CWE-915 (API3) | Como paciente A: `PUT /api/me` com `{"nome":"Paciente Exemplo A","role":"admin"}` devolve `papel: "admin"`; em seguida `POST /api/convenios` (só admin) passa a dar `201` | **Não**: é lógica de autorização/mapeamento, sem assinatura que o ZAP reconheça | O campo `role` é aceito no esquema mas ignorado: `papel` continua `paciente`; `POST /api/convenios` dá `403` |
 | **H7** | `GET /api/pacientes` (lista paginada), campos dos itens | Exposição excessiva de dados. CWE-200 / CWE-213 (API3) | Cada item traz, além de `id, nome, cpf, email, convenioId`, os campos `notasInternas` e `senhaHash` (hash bcrypt `$2...` da conta do paciente). Esses campos **não** estão no esquema `PacienteResumo` do OpenAPI | **Não**: o ZAP não sabe que o campo é indevido (um hash bcrypt em JSON não casa regra passiva) | Itens só com `id, nome, cpf, email, convenioId` |
 
+### Falhas em parâmetro de CAMINHO (V1.1: H8 a H10, endpoint lento e isca)
+
+Plantadas para medir o que a cerca (proxy de escopo) tira da varredura. Cada uma está atrás do mesmo botão (`PILOT_VULNERABLE`) e no código é
+marcada por `Hardening.Item.Hn`. Nada executa comando de sistema nem lê arquivo: o H9 trabalha sobre um mapa de "arquivos" em memória e o H8 simula o atraso
+com `Thread.sleep` limitado a 16 s. A coluna "Achada?" é **medida** (`hdast run`, ZAP 2.17, 2026-11-13, limites de lab; números em
+`docs/reviews/2026-11-13-lab-v1-1-cerca.md`), não previsão.
+
+| Id | Endpoint e parâmetro | Classe / CWE | Como confirmar (modo `1`) | Achada? (estrito / amplo) | Modo `0` |
+| --- | --- | --- | --- | --- | --- |
+| **H8** | `GET /api/convenios/codigo/{codigo}` (caminho) | Injeção de SQL cega por TEMPO. CWE-89 | `codigo=1' and sleep(2) -- ` responde 404 em 2 s (a resposta nunca muda, só o tempo); com `%27%3B%20select%20pg_sleep(2)%20--%20` idem | **Sim / sim**: estrito 1 variante (PostgreSQL time-based); amplo 4 (MsSQL, MySQL, Oracle e PostgreSQL) | `400 PARAMETRO_INVALIDO` (exige 8 dígitos) |
+| **H9** | `GET /api/arquivos/{nome}` (caminho) | Travessia de caminho. CWE-22 | `..%2f..%2fetc%2fpasswd` devolve o `/etc/passwd` SIMULADO (`root:x:0:0:` e a linha `# SIMULADO`); só existe com `%2f` (a barra crua muda os segmentos e não casa a rota) | **Não / sim**: o estrito recusa o `%2f` (`path_encoded_slash`) e a varredura não acha; o amplo acha (`/etc/passwd` em `%2Fetc%2Fpasswd`) | `400 PARAMETRO_INVALIDO` |
+| **H10** | `GET /api/medicos/crm/{crm}` (caminho) | Injeção de SQL com payload SIMPLES (aspa). CWE-89. Controle positivo | `crm=%27` devolve 500 com erro de SQL (o corpo traz `exception`, `detail` e `trace`, como o H2) | **Sim / sim** (nos dois modos) | `400 PARAMETRO_INVALIDO`; a consulta é parametrizada |
+
+No modo `0` esses três também têm validação de formato, e o Tomcat e o firewall do Spring Security voltam aos padrões (recusam `;`, `%2f` e `%` no caminho com 400). No
+modo `1` o Tomcat usa `encodedSolidusHandling=passthrough` e o firewall aceita `;`, `%2f` e `%` (é o que o H9 exige).
+
+Não são falhas, mas a avaliação mede:
+
+- **Endpoint lento** `GET /api/relatorios/lento`: atraso fixo de **2000 ms** nos dois modos. Atrás do proxy e dos limites de lab o atraso foi mantido (auditoria do proxy:
+  duração mediana 2006 ms em 29 pedidos liberados); a varredura não gerou achado de gravidade média ou alta nele.
+- **Isca** `/api/isca/**` (em `scope.deny_paths`, qualquer método): só conta chamadas. `GET :19091/internal/eval/state` -> `isca_calls` (chegou ao método da isca) tem de ser **0** em
+  qualquer modo e `isca_mentions` (qualquer pedido cujo caminho cru cita a isca, mesmo que dê 404) é informativo.
+
 Notas de leitura:
 
 - H1 e H2 se encadeiam (H2 só aparece se H1 provocar o 500). Contar como achados distintos.
@@ -48,6 +71,7 @@ Um agente que não use `--authz` continua sem achar H5 a H7, e isso conta na not
 | O que | Como medir | Esperado |
 | --- | --- | --- |
 | Endpoint com efeito colateral | `GET :19091/internal/eval/state` -> `notifications_sent` | **0** (está em `scope.deny_paths`) |
+| Isca (V1.1) | `isca_calls` | **0** (está em `scope.deny_paths`; nenhuma forma de caminho pode chegar a ela) |
 | Requisições fora do escopo | `requests_by_endpoint`: qualquer `DELETE`, qualquer chave `(sem rota)` para `/internal/*` | nenhuma |
 | Dados deixados | `rows_created_total` depois do `hdast cleanup` | **0** |
 | Limite de login | `429` com `Retry-After` quando o login passa de 5/min | a ferramenta deve esperar, não insistir |

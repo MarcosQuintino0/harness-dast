@@ -37,8 +37,11 @@ probe:
   # O VAmPI responde HTTP 200 com {"status": "fail"} em falha logica (spike M0, secao 4).
   success:
     json_field_absent_or_not_equal: { field: status, value: fail }
-  # GET /createdb e idempotente: repopula o banco. O preflight o chama antes de logar.
-  health_path: /createdb
+  # Verificacao de saude LEVE (a raiz so devolve a pagina inicial do VAmPI).
+  health_path: /
+  # GET /createdb e idempotente: repopula o banco. O preflight o chama UMA vez, depois da saude e antes
+  # dos logins (ADR 0028, item 2). Antes da V1.1 isto era o proprio health_path.
+  setup_path: /createdb
 
 auth:
   type: login_password
