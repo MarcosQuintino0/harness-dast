@@ -6,9 +6,11 @@ import pytest
 
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.panel_build import build_panel_view
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation
+from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelView
 from harness_dast.domain.panel_sources import parse_moment
+from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_summary import StageRecord
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.domain.panel_helpers import (
@@ -522,3 +524,87 @@ def test_a_probe_with_no_operations_does_not_break_the_view() -> None:
     assert panel_view.functions == ()
     assert panel_view.verdict.functions_attacked == 0
     assert operation("x", "GET", "/x").operation_id == "x"
+
+
+# ---------------------------------------------------------------- endereço com nome de parâmetro
+
+
+def with_empty_placeholder() -> PanelView:
+    """O relatório guarda o endereço como `/users/v1/{}`; o Swagger sabe que é `{username}`."""
+    base = sources()
+    assert base.findings is not None
+    items = tuple(
+        item.model_copy(update={"path_template": "/users/v1/{}"}) for item in base.findings.findings
+    )
+    groups = tuple(
+        group.model_copy(
+            update={
+                "locations": tuple(
+                    loc.model_copy(update={"path_template": "/users/v1/{}"})
+                    for loc in group.locations
+                )
+            }
+        )
+        for group in base.findings.groups
+    )
+    report = base.findings.model_copy(update={"findings": items, "groups": groups})
+    return build_panel_view(sources(findings=report))
+
+
+def test_an_address_with_empty_braces_gets_the_parameter_name_back_from_the_swagger() -> None:
+    panel_view = with_empty_placeholder()
+
+    assert panel_view.severe[0].path_template == "/users/v1/{username}"
+    assert all(
+        path == "/users/v1/{username}"
+        for group in panel_view.groups
+        for _, path, _ in group.locations
+        if path.startswith("/users/v1/")
+    )
+
+
+def test_an_address_that_does_not_match_the_swagger_keeps_what_was_recorded() -> None:
+    base = sources()
+    assert base.findings is not None
+    items = tuple(
+        item.model_copy(update={"path_template": "/outra/{}"}) for item in base.findings.findings
+    )
+    panel_view = build_panel_view(
+        sources(findings=base.findings.model_copy(update={"findings": items}))
+    )
+
+    assert panel_view.severe[0].path_template == "/outra/{}"
+
+
+def test_the_start_without_run_json_is_the_run_id_stamp_never_a_stage_file_time() -> None:
+    """Uma só hora de início: a do `run.json`; sem ele, a do carimbo do id (tela e índice)."""
+    manifest = RunManifest(
+        run_id=RUN_ID,
+        command="preflight",
+        product="vampi",
+        harness_version="1",
+        hashes=ArtifactHashes(),
+        limits=RunLimits(requests_per_second=1, max_duration_minutes=1, zap_threads_per_host=1),
+        seed=0,
+        started_at="2026-11-13T05:16:40+00:00",
+    )
+
+    ident = view(summary=None, manifest=manifest).identity
+
+    assert ident.started_at is not None
+    assert ident.started_at.isoformat().startswith("2026-11-13T02:15:32")  # carimbo 05:15:32Z, -3 h
+
+
+def test_functions_that_share_a_swagger_summary_are_listed_with_distinct_names() -> None:
+    from harness_dast.domain.api_model import Operation
+
+    operations = tuple(
+        Operation(operation_id=f"isca_{method}", method=method, path="/api/isca/**", summary="Isca")
+        for method in ("get", "post", "put")
+    )
+
+    panel_view = build_panel_view(sources(operations=operations))
+
+    names = [item.name for item in panel_view.functions if item.operation_id.startswith("isca_")]
+    assert len(set(names)) == 3
+    assert "Isca (POST /api/isca/**)" in names

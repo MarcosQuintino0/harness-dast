@@ -132,6 +132,27 @@ def test_sql_injection_de_regra_desconhecida_cai_pelo_cwe() -> None:
     assert explained.key == "sql_injection"
 
 
+def test_sql_por_tempo_nao_manda_esconder_mensagem_de_erro_do_banco() -> None:
+    by_error = explain_zap_alert(plugin_id="40018", cwe=89, title="SQL Injection")
+    by_time = explain_zap_alert(
+        plugin_id="40022", cwe=89, title="SQL Injection - PostgreSQL (Time Based)"
+    )
+
+    assert by_time.key == "sql_injection_time"
+    assert any("erro interna do banco" in step.text for step in by_error.what_to_do)
+    assert not any("erro" in step.text for step in by_time.what_to_do)
+    assert "demor" in by_time.what_happened
+
+
+def test_comando_do_sistema_por_tempo_tem_a_propria_explicacao() -> None:
+    by_time = explain_zap_alert(
+        plugin_id="90020", cwe=78, title="Remote OS Command Injection (Time Based)"
+    )
+
+    assert by_time.key == "os_command_injection_time"
+    assert by_time.known is True
+
+
 def test_regra_conhecida_vale_mais_que_o_cwe() -> None:
     # 10021 tem CWE 693 (configuração), mas a regra tem texto próprio.
     explained = explain_zap_alert(plugin_id="10021", cwe=693, title="X")

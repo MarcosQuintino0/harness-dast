@@ -16,9 +16,10 @@ from harness_dast.domain.panel_build_content import (
     build_severe,
     build_steps,
     function_names,
+    function_paths,
 )
 from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
-from harness_dast.domain.panel_build_stages import build_stages, build_verdict
+from harness_dast.domain.panel_build_stages import build_stages, build_verdict, settle_stopped
 from harness_dast.domain.panel_format import product_title
 from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
@@ -47,11 +48,10 @@ def _fence_mode(src: PanelSources) -> str | None:
 
 def _identity(src: PanelSources) -> PanelIdentity:
     zone = src.timezone
-    starts = [
-        src.summary.started_at if src.summary else None,
-        src.manifest.started_at if src.manifest else None,
-        src.probe.started_at if src.probe else None,
-    ]
+    # Um só início de teste, o mesmo nas telas e no índice: o do `run.json` (quando o `run` começou)
+    # ou, sem ele, o carimbo do id. A hora gravada em manifest ou probe é a de um estágio (o
+    # preflight grava a sua ao terminar), e dava horas diferentes para o mesmo teste.
+    starts = [src.summary.started_at if src.summary else None]
     ends = [
         src.summary.finished_at if src.summary else None,
         src.metrics.finished_at if src.metrics else None,
@@ -107,11 +107,14 @@ def build_panel_view(src: PanelSources) -> PanelView:
         de fora, próximos passos e medições. Dado ausente fica `None` ou vazio.
     """
     names = function_names(src.operations)
-    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe)
+    paths = function_paths(src.operations)
+    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe, paths)
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz)
     measurements = build_measurements(src.metrics, src.agent_metrics)
-    stages = with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
+    stages = settle_stopped(
+        src, with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
+    )
     verdict = build_verdict(src, stages, functions, severe)
     skipped_by_choice = any(item.key == "authz" and item.state == "skipped" for item in stages)
     return PanelView(
@@ -122,7 +125,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         traffic=src.scan.traffic if src.scan else None,
         traffic_measured=bool(src.scan and src.scan.traffic.enabled),
         counts=counts,
-        groups=build_groups(src.findings),
+        groups=build_groups(src.findings, paths),
         severe=severe,
         left_out=build_left_out(
             functions, src.scan, src.authz, authz_skipped_by_choice=skipped_by_choice

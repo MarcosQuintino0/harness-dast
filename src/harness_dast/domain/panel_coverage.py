@@ -18,6 +18,7 @@ from harness_dast.domain.panel_format import (
     FUNCTION_STATE_WORDS,
     NO_DATA,
     fmt_count,
+    pick,
     plural,
     x_of_y,
 )
@@ -79,7 +80,7 @@ def _function_line(item: PanelFunction) -> str:
         css, body = "fn", name
     # A proibida não repete o motivo aqui: ele já está em "O que ficou de fora", agrupado.
     if item.state in ("failed", "not_tried") and item.reason:
-        body += f'<span class="sm mu" style="display: block">{h.plain(item.reason)}</span>'
+        body += f'<span class="sm mu" style="display: block">{h.tagged(item.reason)}</span>'
     return f'<span class="{css}">{mark}{body}</span>'
 
 
@@ -117,14 +118,30 @@ def _summary(view: PanelView) -> str:
     total = len(view.functions)
     aria = (
         f"{states['tested']} sem falha grave, {states['severe']} com falha grave, "
-        f"{waiting} não testadas, {states['forbidden']} proibidas"
+        f"{plural(waiting, 'não testada', 'não testadas')}, "
+        f"{plural(states['forbidden'], 'proibida', 'proibidas')}"
     )
     stats = (
-        stat(fmt_count(total), "funções no Swagger")
-        + stat(fmt_count(states["tested"]), "atacadas, sem falha grave", tone="ok")
-        + stat(fmt_count(states["severe"]), "atacadas, com falha grave", tone="gr")
-        + stat(fmt_count(waiting), "não testadas", tone="am")
-        + stat(fmt_count(states["forbidden"]), "proibidas pela carta", tone="mu")
+        stat(
+            fmt_count(total),
+            pick(total, "função do sistema (no Swagger)", "funções do sistema (no Swagger)"),
+        )
+        + stat(
+            fmt_count(states["tested"]),
+            pick(states["tested"], "atacada, sem falha grave", "atacadas, sem falha grave"),
+            tone="ok",
+        )
+        + stat(
+            fmt_count(states["severe"]),
+            pick(states["severe"], "atacada, com falha grave", "atacadas, com falha grave"),
+            tone="gr",
+        )
+        + stat(fmt_count(waiting), pick(waiting, "não testada", "não testadas"), tone="am")
+        + stat(
+            fmt_count(states["forbidden"]),
+            pick(states["forbidden"], "proibida pela carta", "proibidas pela carta"),
+            tone="mu",
+        )
     )
     return card(
         '<div class="g" style="gap: 16px 48px; align-items: center">'
@@ -134,7 +151,7 @@ def _summary(view: PanelView) -> str:
 
 
 def _names(items: Sequence[PanelFunction]) -> str:
-    unique = list(dict.fromkeys(h.text(item.name, 60) for item in items))
+    unique = list(dict.fromkeys(h.text(item.name, 100) for item in items))
     text = ", ".join(unique[:_MAX_NAMES])
     rest = len(unique) - _MAX_NAMES
     return text + (f" e mais {h.plain(fmt_count(rest))}" if rest > 0 else "")
@@ -150,7 +167,7 @@ def _function_items(view: PanelView) -> list[tuple[MarkerKind, str]]:
     rows: list[tuple[MarkerKind, str]] = []
     for (state, reason), items in list(groups.items())[:_MAX_GROUPS]:
         count = h.plain(plural(len(items), "função", "funções"))
-        why = f"{h.plain(reason)} " if reason else ""
+        why = f"{h.tagged(reason)} " if reason else ""
         rows.append(
             (
                 "am",
@@ -166,7 +183,7 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
     rows = _function_items(view)
     wide = view.identity.fence_mode == _MODE_WIDE
     for item in view.left_out:
-        text = h.plain(item.text)
+        text = h.tagged(item.text)
         if item.kind == "authz":
             rows.append(
                 (
@@ -201,7 +218,7 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
 def _left_out(view: PanelView) -> str:
     found = _left_out_rows(view) or [("ok", f"<b>{h.plain(_NOTHING_LEFT)}</b>")]
     blind: list[tuple[MarkerKind, str]] = [
-        ("no", h.plain(item.text)) for item in view.left_out if item.kind == "blind"
+        ("no", h.tagged(item.text)) for item in view.left_out if item.kind == "blind"
     ]
     rows = "".join(
         row(kind, body, first=index == 0) for index, (kind, body) in enumerate([*found, *blind])

@@ -99,7 +99,7 @@ Quatro entregas, cada uma com ADR, juntadas em `feat/v1-1` e costuradas entre si
 
 As costuras entre as quatro (página com `authz` e com a cerca, doctor, mensagens de erro, guias e skills) foram fechadas em código e testes, também sem Docker.
 
-### V1.2: painel da execução (em andamento)
+### V1.2: painel da execução (entregue em 1.2.0 como código e testes)
 
 Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma como código e testes unitários e de contrato, **sem Docker e sem prova contra alvo**:
 
@@ -111,7 +111,7 @@ Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma co
 | Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
 | Painel (HTML), comando `panel`, índices de produtos e histórico | O comando `panel` e as abas existem (veja a tabela abaixo); os índices e a página ao vivo estão feitos como código e testes ([ADR 0034](adr/0034-indices-do-painel-e-pagina-ao-vivo.md), proposto) |
 
-### V1.2: painel da execução (em construção)
+### V1.2: painel da execução, estado por parte (1.2.0)
 
 O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/design/execution-panel/](design/execution-panel/README.md)); a CLI gera as páginas ([ADR 0032](adr/0032-painel-da-execucao.md), proposto). Estado por parte:
 
@@ -125,6 +125,20 @@ O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/design/exe
 | Índices de produtos e de histórico | `runs/index.html` e `runs/history-<produto>.html`, refeitos a cada painel e por `hdast panel --index`; links relativos no caminho do alto; estados "nenhum produto", "um teste só", "erro", "carta vencida" e "sem dados" | Gerados só a partir de execuções reais guardadas; sem prova com `hdast run` de verdade |
 | Página "ao vivo" | `panel/live.html` regravada a cada etapa e função, sem JavaScript, com recarga a cada 15 s; fecha sem recarga ao fim do `run` | Sem prova com `hdast run` de verdade (sem Docker); faltam "tipos de teste da função", "sinais de falha" e o terminal ao vivo, e o estado transitório "alvo fora do ar" |
 | Máscara de dados pessoais na prova | Nada | Tudo (o dono ainda não respondeu sobre a máscara) |
+
+### Diferenças entre o painel e o desenho
+
+O painel da 1.2.0 segue o desenho de `docs/design/execution-panel/`. O que o desenho mostra e a CLI ainda não tem, ou que ficou conferido só em parte (todos itens abertos, sem correção prevista nesta versão):
+
+- **Nomes das regras do ZAP em inglês no painel.** Falta uma tabela de tradução (regra do ZAP para nome em português); hoje a lista de grupos e as regras mais lentas mostram o nome que o ZAP dá.
+- **Chaves em inglês na resposta dos comandos do Terminal.** A resposta resumida mostra `chave: valor` com a chave do envelope da CLI (`run_id`, `operations_sent`...); falta traduzir as chaves como as frases dos comandos.
+- **Blocos do desenho do Ao vivo que não existem por falta de dado:** o terminal ao vivo, os tipos de teste de cada função, os sinais de falha até agora e os tokens até agora.
+- **Estado "sistema testado fora do ar".** O desenho prevê o estado transitório da página ao vivo; o código não o produz.
+- **Degrau "confirmada" sem registro de confirmação humana.** O `triage.json` não tem campo escrito por uma pessoa, então o terceiro degrau não é alcançável (já listado acima).
+- **Celular e tema claro conferidos só em parte.** Foram vistos o Resumo e a página ao vivo; as demais abas não foram abertas em celular de verdade nem no tema claro.
+- **Sem link "pular para o conteúdo"** no topo das páginas (acessibilidade por teclado).
+- **A página ao vivo só começa na varredura**, porque o preflight do `run` abre uma pasta própria (nota no ADR 0034).
+- **Reprodução à mão do teste entre contas:** a página diz que não há passo a passo; o `authz` não guarda pedido nem resposta inteiros.
 
 ### Controles de segurança
 

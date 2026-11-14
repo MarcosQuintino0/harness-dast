@@ -17,6 +17,8 @@ from harness_dast.domain.panel_format import (
     fmt_date,
     fmt_duration,
     fmt_tokens,
+    pick,
+    plain_stop_reason,
     plural,
     x_of_y,
 )
@@ -29,7 +31,7 @@ from harness_dast.domain.panel_layout import (
     row,
     stat,
 )
-from harness_dast.domain.panel_model import PanelFinding, PanelView
+from harness_dast.domain.panel_model import PanelFinding, PanelVerdict, PanelView
 from harness_dast.domain.panel_stages import render_track
 
 _MAX_ROWS: Final = 8
@@ -64,7 +66,7 @@ def _where(view: PanelView) -> str:
 def _reason_text(view: PanelView) -> str:
     verdict = view.verdict
     if verdict.reason:
-        return h.text(verdict.reason.rstrip(". "), 300)
+        return h.text(plain_stop_reason(verdict.reason, None).rstrip(". "), 300)
     if verdict.stop_requested:
         return "uma pessoa mandou parar"
     return "a execução não registrou o motivo"
@@ -82,21 +84,27 @@ def _skipped_count(view: PanelView) -> tuple[int, int]:
     return left, forbidden
 
 
+def _attack_basis(verdict: PanelVerdict) -> int | None:
+    """Base das funções atacadas: as planejadas; sem plano, as que o alcance tentou."""
+    return verdict.functions_planned or verdict.functions_attempted
+
+
 def _hero_text(view: PanelView) -> tuple[str, str, str]:
     """Etiqueta, frase grande e frase de apoio (HTML já escapado)."""
     verdict = view.verdict
     severe = verdict.severe_count
     when = fmt_date(view.identity.started_at)
     if verdict.kind == "partial":
-        attacked, tried = verdict.functions_attacked, verdict.functions_attempted
+        attacked, tried = verdict.functions_attacked, _attack_basis(verdict)
         late = verdict.stopped_stage in _AFTER_SCAN
         count = (
-            f", com {x_of_y(attacked, tried)} funções atacadas"
+            f", com {x_of_y(attacked, tried)} {pick(tried, 'função atacada', 'funções atacadas')}"
             if late and attacked is not None and tried
             else ""
         )
         seen = (
-            f" Até ali apareceu {plural(severe, 'falha grave', 'falhas graves')}."
+            f" Até ali {pick(severe, 'apareceu', 'apareceram')} "
+            f"{plural(severe, 'falha grave', 'falhas graves')}."
             if severe is not None
             else ""
         )
@@ -142,14 +150,22 @@ def _hero_text(view: PanelView) -> tuple[str, str, str]:
 
 def _stats(view: PanelView) -> str:
     verdict = view.verdict
-    attacked, tried = verdict.functions_attacked, verdict.functions_attempted
+    attacked, tried = verdict.functions_attacked, _attack_basis(verdict)
     if attacked is not None and tried:
-        first = stat(x_of_y(attacked, tried), "funções atacadas")
+        first = stat(
+            x_of_y(attacked, tried),
+            "funções atacadas, das planejadas pela varredura"
+            if verdict.functions_planned
+            else "funções atacadas, das que o alcance tentou",
+        )
     else:
         first = stat(NO_DATA, "funções atacadas · não medido")
     traffic = view.traffic
     if view.traffic_measured and traffic is not None:
-        second = stat(fmt_count(traffic.allowed_outside_allow), "pedidos fora da carta")
+        outside = traffic.allowed_outside_allow
+        second = stat(
+            fmt_count(outside), pick(outside, "pedido fora da carta", "pedidos fora da carta")
+        )
     else:
         second = stat(NO_DATA, "pedidos fora da carta · não medido")
     third = stat(
@@ -249,7 +265,8 @@ def _minor_line(view: PanelView) -> str:
         return ""
     joined = ", ".join(present[:-1]) + (" e " if len(present) > 1 else "") + present[-1]
     causes = plural(counts.groups, "causa", "causas")
-    return f'<p class="sm mu">{h.plain(f"Mais {joined}, agrupados em {causes}.")}</p>'
+    grouped = pick(counts.groups, "agrupado", "agrupados")
+    return f'<p class="sm mu">{h.plain(f"Mais {joined}, {grouped} em {causes}.")}</p>'
 
 
 def _severe_card(view: PanelView) -> str:
@@ -301,11 +318,16 @@ def _trust_card(view: PanelView) -> str:
 
 
 def _commands_row(view: PanelView) -> str:
-    if not view.commands:
+    if view.commands is None:
         return row(
             "am",
             "<b>No agente:</b> sem diário de comandos para este teste (o diário começou na "
             "versão 1.2)",
+        )
+    if not view.commands:
+        return row(
+            "am",
+            "<b>No agente:</b> o diário existe, mas não tem comando deste teste",
         )
     total = plural(len(view.commands), "comando", "comandos")
     skipped = (
@@ -333,7 +355,8 @@ def _fence_row(view: PanelView) -> str:
     total = traffic.allowed + traffic.denied
     return row(
         "gr" if outside else "ok",
-        f"<b>No agente:</b> {h.plain(x_of_y(outside, total))} pedidos fora da carta",
+        f"<b>No agente:</b> {h.plain(x_of_y(outside, total))} "
+        f"{pick(total, 'pedido', 'pedidos')} fora da carta",
     )
 
 

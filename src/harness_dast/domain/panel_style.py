@@ -144,6 +144,7 @@ body{margin:0}
 .crumb{color:var(--mu);font-weight:600}
 .foot{padding:8px clamp(14px,2vw,28px) 28px;max-width:1440px;margin:0 auto;font-size:13px;color:var(--mu)}
 .seg-cut{border-top-color:var(--am)}
+@media (max-width:640px){.track{flex-direction:column}.seg{flex:none!important;overflow:visible}.seg b,.seg span{white-space:normal}}
 .seg-cut b{color:var(--am)}
 .nb-cut{background:var(--ams);color:var(--am)}
 .nb-no{background:var(--s2);color:var(--mu)}

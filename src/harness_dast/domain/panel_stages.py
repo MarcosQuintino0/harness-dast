@@ -11,9 +11,9 @@ from typing import Final
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel_format import (
     STAGE_WORDS,
-    fmt_count,
     fmt_duration,
     fmt_tokens,
+    plain_stop_reason,
     plural,
 )
 from harness_dast.domain.panel_layout import bar, card, heading, not_measured, row, terminal
@@ -33,6 +33,7 @@ _MAX_SQUARES: Final = 200
 _MAX_TRAVAS: Final = 6
 _MAX_RULES: Final = 8
 _FLOOR: Final = 0.1
+_NO_REASON: Final = "O teste não registrou o motivo."
 
 
 def _no_answer(count: int) -> str:
@@ -56,7 +57,8 @@ def scan_extra(view: PanelView) -> str:
         return ""
     text = plural(attacked, "função", "funções")
     if view.traffic is not None and view.traffic.enabled:
-        text += f", {fmt_count(view.traffic.allowed + view.traffic.denied)} pedidos"
+        sent = view.traffic.allowed + view.traffic.denied
+        text += f", {plural(sent, 'pedido', 'pedidos')}"
     return text
 
 
@@ -129,7 +131,7 @@ def _stage_block(view: PanelView, number: int, stage: PanelStage, *, last: bool)
     grid = _squares(view) if stage.key == "scan" and stage.state != "pending" else ""
     return (
         f'<div class="stg"{border}><span class="nb{_NB_CLASS[stage.state]}">{number}</span>'
-        f'<div><b>{h.plain(_TITLES[stage.key])}</b><p class="mu">{h.plain(stage.summary)}</p>'
+        f'<div><b>{h.plain(_TITLES[stage.key])}</b><p class="mu">{h.tagged(stage.summary)}</p>'
         f"{message}{grid}{_stage_links(view, stage)}</div>{side}</div>"
     )
 
@@ -138,7 +140,7 @@ def _stuck(view: PanelView) -> str:
     rows: list[str] = []
     for stage in view.stages:
         if stage.state == "cut":
-            reason = h.text(stage.message or "sem mensagem", 300)
+            reason = h.text(plain_stop_reason(stage.message or _NO_REASON, None), 300)
             rows.append(row("am", f"<b>{h.plain(stage.label)}:</b> parou aqui. {reason}"))
     failed = [item for item in view.functions if item.state == "failed"]
     if failed:
@@ -149,6 +151,8 @@ def _stuck(view: PanelView) -> str:
                 " como esperado e não foi atacada.",
             )
         )
+    if not rows and view.verdict.kind != "finished":
+        rows.append(row("am", f"O teste não terminou. {_NO_REASON}", first=True))
     if not rows:
         rows.append(row("ok", "Nada travou: todas as etapas que rodaram terminaram.", first=True))
     note = (

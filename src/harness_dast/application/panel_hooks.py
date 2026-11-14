@@ -32,14 +32,15 @@ class CatalogPanelHooks:
         """Comandos do teste e quantas linhas corrompidas foram puladas.
 
         Returns:
-            O diário do teste, ou `None` quando ele não existe ou não tem comando desta
-            execução (teste anterior à versão 1.2, que não gravava o diário).
+            O diário do teste (com zero comandos quando o diário do produto existe mas não tem
+            comando desta execução), ou `None` quando não há diário nenhum (teste anterior à
+            versão 1.2, que não o gravava, ou rodado em outro computador).
 
         Raises:
             ConfigError: O arquivo do diário existe, mas não pôde ser lido.
         """
         loaded = load_journal_for_run(self._journal, product, run_id)
-        return build_journal(loaded.entries, loaded.skipped_lines)
+        return build_journal(loaded.entries, loaded.skipped_lines, has_diary=loaded.has_diary)
 
     def explanations(
         self, report: FindingsReport | None, authz: AuthzResult | None

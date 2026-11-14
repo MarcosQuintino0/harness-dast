@@ -10,10 +10,11 @@ agente ou do OpenAPI sai por `h.text` ou `h.ident`. O medidor de confiança nunc
 página nunca diz "seguro" nem "aprovado".
 """
 
+from collections import Counter
 from typing import Final
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.panel_format import fmt_count, plural
+from harness_dast.domain.panel_format import fmt_count, pick, plural
 from harness_dast.domain.panel_layout import card, chip, meter, row
 from harness_dast.domain.panel_model import PanelFinding, PanelGroup, PanelView
 from harness_dast.domain.panel_repro import render_repro
@@ -71,13 +72,22 @@ def _found(count: int) -> str:
     return plural(count, "achado", "achados")
 
 
+def _group_label(group: PanelGroup, repeated: frozenset[str]) -> str:
+    """Título do grupo; quando outro grupo tem o mesmo título, diz o campo que os separa."""
+    if group.title in repeated and group.parameter:
+        return f"{group.title} (campo {group.parameter})"
+    return group.title
+
+
 def _group_rows(groups: tuple[PanelGroup, ...]) -> str:
     minor = [group for group in groups if group.severity != "high"]
     shown = minor[:_MAX_GROUPS]
+    titles = Counter(group.title for group in minor)
+    repeated = frozenset(title for title, count in titles.items() if count > 1)
     rows = [
         row(
             "no",
-            h.text(group.title, 120),
+            h.text(_group_label(group, repeated), 160),
             end=f'<span class="end">{h.plain(_found(group.findings_count))}</span>',
             first=index == 0,
         )
@@ -224,8 +234,17 @@ def _confidence_rows(item: PanelFinding) -> str:
         triage = line("no", "O agente suspeita de falso positivo", "sem triagem")
     elif suspect:
         triage = line("am", "O agente suspeita de falso positivo", "sim")
+    elif item.triage_note:
+        # O campo diz "não suspeita", mas a nota é texto livre que pode levantar dúvida: sem
+        # selo verde, e a nota logo abaixo da linha (não interpretamos a nota).
+        triage = line("no", "O agente suspeita de falso positivo", "campo: não suspeita")
     else:
         triage = line("ok", "O agente suspeita de falso positivo", "não suspeita")
+    if item.triage_note:
+        triage += (
+            '<p class="sm mu" style="margin: 4px 0 6px">O agente anotou (texto dele, consultivo): '
+            f"{h.text(item.triage_note, 400)}</p>"
+        )
     return (
         line(
             "ok" if proven else "no",
@@ -248,18 +267,12 @@ def _confidence_block(item: PanelFinding) -> str:
     if item.confidence < 2 and item.origin == "zap":
         notes.append(_REPEAT_SENTENCE)
     notes.append(_CONFIRM_SENTENCE)
-    triage = (
-        '<p class="sm mu">O agente anotou (texto dele, consultivo): '
-        f"{h.text(item.triage_note, 400)}</p>"
-        if item.triage_note
-        else ""
-    )
     return (
         '<div style="flex: 1 1 300px; min-width: 0">'
         '<h2 class="h" style="margin-bottom: 4px">Confiança nesta falha '
         f"<span>{meter(item.confidence)}</span></h2>"
         f"{_confidence_rows(item)}"
-        f'<p class="sm mu" style="margin-top: 8px">{h.plain(" ".join(notes))}</p>{triage}</div>'
+        f'<p class="sm mu" style="margin-top: 8px">{h.plain(" ".join(notes))}</p></div>'
     )
 
 
@@ -314,7 +327,11 @@ def _finding_card(view: PanelView, item: PanelFinding) -> str:
 def _no_severe_card(view: PanelView) -> str:
     counts = view.counts
     tested = view.verdict.functions_attacked
-    scope = f"nas {fmt_count(tested)} funções testadas" if tested else "no que foi testado"
+    scope = (
+        pick(tested, "na única função testada", f"nas {fmt_count(tested)} funções testadas")
+        if tested
+        else "no que foi testado"
+    )
     return card(
         '<div><span class="chip ch-ok"><i></i>Nenhuma falha grave</span></div>'
         f'<h2 class="big">Nenhuma falha grave {h.plain(scope)}.</h2>'

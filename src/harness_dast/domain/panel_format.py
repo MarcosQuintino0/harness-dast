@@ -111,6 +111,30 @@ def plural(value: int, one: str, many: str) -> str:
     return f"{fmt_count(value)} {one if value == 1 else many}"
 
 
+_TIME_LIMIT_MARK: Final = "limits.max_duration_minutes"
+
+
+def plain_stop_reason(message: str, limit_minutes: int | None) -> str:
+    """Motivo de parada em frase simples; só reescreve a mensagem conhecida do prazo.
+
+    A CLI diz "O tempo máximo da execução (limits.max_duration_minutes) acabou." Para quem lê o
+    painel, isso vira "parou porque chegou ao tempo máximo combinado, de N min". Qualquer outra
+    mensagem passa como veio.
+    """
+    if _TIME_LIMIT_MARK not in message:
+        return message
+    base = "parou porque chegou ao tempo máximo combinado"
+    return f"{base}, de {limit_minutes} min" if limit_minutes else base
+
+
+def pick(value: int, one: str, many: str) -> str:
+    """A palavra (ou frase) certa para o número, sem o número: `pick(1, "foi", "foram")`.
+
+    É a irmã de `plural` para verbo e artigo que concordam com a contagem: o singular só para 1.
+    """
+    return one if value == 1 else many
+
+
 def capitalize_first(text: str) -> str:
     """Põe só a primeira letra em maiúscula (o resto do texto fica como está)."""
     return text[:1].upper() + text[1:]

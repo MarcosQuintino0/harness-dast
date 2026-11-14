@@ -385,14 +385,17 @@ def test_panel_shows_the_commands_of_the_diary_in_the_terminal_page(
     assert "operations_sent: 30" in page
     assert "1 linha do diário estavam corrompidas" in page
     summary = (folder / "panel" / "summary.html").read_text(encoding="utf-8")
-    assert "2 comandos, todos visíveis" in summary
+    # O próprio `hdast panel` conta: o painel é refeito depois de gravar a linha do comando.
+    assert "3 comandos, todos visíveis" in summary
+    assert f"<code>$ hdast panel vampi --run {RUN_ID}</code>" in page
     assert (runs / "index.html").is_file()  # o diário e os índices saem pelo mesmo comando
     assert (runs / "history-vampi.html").is_file()
 
 
-def test_panel_without_a_diary_for_the_run_says_the_test_is_older_than_the_diary(
+def test_panel_without_an_earlier_diary_shows_only_the_command_that_made_it(
     world: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """Nenhum comando anterior: a linha do próprio `hdast panel` já vale como diário do teste."""
     runs, _ = world
     folder = write_run(runs)
 
@@ -400,7 +403,9 @@ def test_panel_without_a_diary_for_the_run_says_the_test_is_older_than_the_diary
 
     assert code == ExitCode.OK
     page = (folder / "panel" / "terminal.html").read_text(encoding="utf-8")
-    assert "O diário de comandos começou na versão 1.2; este teste é anterior" in page
+    assert f"<code>$ hdast panel vampi --run {RUN_ID}</code>" in page
+    assert "Os comandos deste teste: 1" in page
+    assert "este teste é anterior" not in page
 
 
 def test_every_relative_link_of_every_generated_page_reaches_an_existing_file_and_anchor(

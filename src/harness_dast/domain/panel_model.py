@@ -108,6 +108,8 @@ class PanelVerdict(ApiModel):
         to_confirm_count: Falhas graves a confirmar, ou `None` sem relatório.
         functions_total: Funções do OpenAPI, ou `None` se ninguém as contou.
         functions_attempted: Funções que o alcance tentou, ou `None` sem `probe.json`.
+        functions_planned: Funções que a varredura planejou atacar (as que responderam no
+            alcance e a carta permite), ou `None` sem `scan.json`.
         functions_attacked: Funções que a varredura atacou, ou `None` sem `scan.json`.
     """
 
@@ -120,6 +122,7 @@ class PanelVerdict(ApiModel):
     to_confirm_count: int | None = None
     functions_total: int | None = None
     functions_attempted: int | None = None
+    functions_planned: int | None = None
     functions_attacked: int | None = None
 
 
@@ -134,6 +137,8 @@ class PanelStage(ApiModel):
         summary: O que aconteceu, em texto nosso com os números.
         message: Mensagem de erro ou de parada (texto da CLI), ou `None`.
         tokens: Tokens do agente nesta etapa, ou `None` (ainda não medido).
+        unreached: `True` quando a etapa é `cut` só porque o teste acabou antes dela (não há
+            registro de que começou): marca onde parou, sem dizer que rodou.
     """
 
     key: StageKey
@@ -143,6 +148,7 @@ class PanelStage(ApiModel):
     summary: str
     message: str | None = None
     tokens: int | None = None
+    unreached: bool = False
 
 
 class PanelFunction(ApiModel):
@@ -276,6 +282,8 @@ class PanelGroup(ApiModel):
         cwe: CWE comum, ou `None`.
         locations: Onde aparece, como (método, caminho, id do achado).
         expected_note: Nota fixa quando o padrão costuma ser esperado, ou `None`.
+        parameter: Campo ou parâmetro que a regra apontou (`XSRF-TOKEN`): é o que separa dois
+            grupos de mesmo título.
     """
 
     group_id: str
@@ -286,6 +294,7 @@ class PanelGroup(ApiModel):
     cwe: int | None = None
     locations: tuple[tuple[str, str, str], ...] = ()
     expected_note: str | None = None
+    parameter: str = ""
 
 
 class FindingCounts(ApiModel):

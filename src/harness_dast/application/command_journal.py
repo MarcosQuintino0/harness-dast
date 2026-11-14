@@ -17,10 +17,12 @@ class RunJournal:
     Attributes:
         entries: Comandos do teste, em ordem cronológica.
         skipped_lines: Linhas do diário do produto que estavam corrompidas e foram puladas.
+        has_diary: Se o diário do produto tem alguma linha (lida ou pulada), de qualquer teste.
     """
 
     entries: tuple[JournalEntry, ...]
     skipped_lines: int
+    has_diary: bool = False
 
 
 def load_journal_for_run(store: CommandJournalStore, product: str, run_id: str) -> RunJournal:
@@ -46,4 +48,8 @@ def load_journal_for_run(store: CommandJournalStore, product: str, run_id: str) 
     loaded = store.load(product)
     if loaded.skipped_lines:
         _log.warning("diario_linhas_puladas", produto=product, puladas=loaded.skipped_lines)
-    return RunJournal(slice_for_run(loaded.entries, run_id), loaded.skipped_lines)
+    return RunJournal(
+        slice_for_run(loaded.entries, run_id),
+        loaded.skipped_lines,
+        has_diary=bool(loaded.entries) or loaded.skipped_lines > 0,
+    )

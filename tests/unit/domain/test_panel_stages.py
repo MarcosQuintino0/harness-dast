@@ -8,7 +8,9 @@ import pytest
 from harness_dast.domain.panel_model import PanelCommand, PanelFunction, PanelView
 from harness_dast.domain.panel_pages import render_panel
 from harness_dast.domain.panel_stages import render_stages, render_track
+from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.rule_stats import RuleTotal
+from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_summary import StageRecord
 from tests.unit.domain.panel_helpers import run_summary, sources, view
 from tests.unit.domain.test_panel_summary import EXTRA_CLASSES, analyse, main_text
@@ -86,7 +88,7 @@ def test_the_five_stages_have_number_title_summary_and_time() -> None:
 def test_the_stage_summaries_carry_the_numbers_of_the_run() -> None:
     text = main_text(stages_html())
 
-    assert "Tentou 3 funções e 2 de 3 responderam como esperado." in text
+    assert "Tentou 3 funções (de 5 no sistema); 2 de 3 responderam como esperado." in text
     assert "1 função atacada" in text
     assert "1 achado agrupado por causa (1 causa): 1 graves" in text
     assert "Achou 5 funções." in text
@@ -252,3 +254,58 @@ def test_render_stages_is_the_function_of_the_registry() -> None:
 
     assert render_stages(panel_view) in stages_html(panel_view)
     assert sources().run_id in panel_view.identity.run_id
+
+
+def preflight_only(status: str = "ready") -> PanelView:
+    """Pasta com só a conferência: o `manifest.json` do preflight e nenhum `run.json`."""
+    manifest = RunManifest(
+        run_id="2026-11-13T23-08-00Z-vampi-7617",
+        command="preflight",
+        product="vampi",
+        harness_version="1.1.0",
+        hashes=ArtifactHashes(),
+        limits=RunLimits(requests_per_second=1, max_duration_minutes=1, zap_threads_per_host=1),
+        seed=0,
+        started_at="2026-11-13T23:08:00+00:00",
+        status=status,
+    )
+    return view(
+        summary=None, probe=None, scan=None, findings=None, authz=None, metrics=None,
+        manifest=manifest,
+    )  # fmt: skip
+
+
+def test_an_error_without_run_json_marks_where_it_stopped_and_never_says_nothing_stuck() -> None:
+    panel_view = preflight_only()
+
+    text = main_text(stages_html(panel_view))
+    assert panel_view.verdict.kind == "error"
+    assert panel_view.verdict.stopped_stage == "probe"
+    assert [item.key for item in panel_view.stages if item.state == "cut"] == ["probe"]
+    assert "Nada travou" not in text
+    assert "Alcance: parou aqui." in text
+    assert stages_html(panel_view).count("seg seg-cut") == 1
+
+
+def test_the_summary_and_the_stages_name_the_same_stage_as_the_one_that_stopped() -> None:
+    panel_view = preflight_only()
+
+    summary = main_text(render_panel(panel_view)["summary.html"])
+    stages = main_text(stages_html(panel_view))
+    assert "O teste deu erro no alcance" in summary
+    assert "Alcance: parou aqui." in stages
+
+
+def test_a_preflight_that_was_not_ready_is_the_stage_that_stopped_and_is_not_green() -> None:
+    panel_view = preflight_only("not_ready")
+
+    assert panel_view.verdict.stopped_stage == "preflight"
+    assert panel_view.stages[0].state == "cut"
+    assert "Conferência: parou aqui." in main_text(stages_html(panel_view))
+
+
+def test_a_stage_with_a_failure_is_never_drawn_green_in_the_track() -> None:
+    page = stages_html(preflight_only("not_ready"))
+
+    assert page.count("seg seg-cut") == 1
+    assert page.count('<div class="seg"') == 0

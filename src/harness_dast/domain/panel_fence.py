@@ -7,10 +7,11 @@ Sem a auditoria do proxy não há como saber quantos pedidos foram barrados: o q
 traço e a explicação, nunca zero. Módulo puro.
 """
 
+import re
 from typing import Final
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.panel_format import NO_DATA, fmt_count, x_of_y
+from harness_dast.domain.panel_format import NO_DATA, fmt_count, pick, plural, x_of_y
 from harness_dast.domain.panel_layout import card, chip, not_measured
 from harness_dast.domain.panel_model import PanelView
 from harness_dast.domain.report_traffic import denied_rows, path_shape_warning
@@ -107,19 +108,31 @@ def _rows(traffic: TrafficSummary, wide: bool) -> str:
     return f"<div>{''.join(rows)}</div>"
 
 
+_CODE_IN_LABEL: Final = re.compile(r"\s*\(([a-z_]+(?:\.[a-z_]+)*)\)$")
+
+
+def _reason_label(label: str, code: str) -> str:
+    """A frase simples primeiro; o termo do perfil e o código da auditoria, em etiquetas."""
+    found = _CODE_IN_LABEL.search(label)
+    phrase = label[: found.start()] if found else label
+    tags = [found.group(1)] if found else []
+    chips = "".join(f' <span class="chip ch-mu">{h.ident(tag)}</span>' for tag in (*tags, code))
+    return f"{h.ident(phrase)}{chips}"
+
+
 def _reasons(traffic: TrafficSummary) -> str:
     """Os motivos em detalhe: o nome em português e, ao lado, o código da auditoria."""
     rows = denied_rows(traffic)
     if not rows:
         return ""
     shown = "".join(
-        f'<div class="r"><span>{h.ident(label)} <span class="mu">[{h.ident(code)}]</span></span>'
+        f'<div class="r"><span>{_reason_label(label, code)}</span>'
         f'<span class="end">{h.plain(fmt_count(count))}</span></div>'
         for label, code, count in rows[:_MAX_REASONS]
     )
     more = len(rows) - _MAX_REASONS
     tail = (
-        f'<p class="sm mu">e mais {h.plain(fmt_count(more))} motivos menores.</p>'
+        f'<p class="sm mu">e mais {h.plain(plural(more, "motivo menor", "motivos menores"))}.</p>'
         if more > 0
         else ""
     )
@@ -144,7 +157,8 @@ def _partial_notice(traffic: TrafficSummary, *, strict: bool) -> str:
         else ""
     )
     text = (
-        f"{x_of_y(traffic.path_shape_denied, total)} pedidos foram barrados pela forma do "
+        f"{x_of_y(traffic.path_shape_denied, total)} "
+        f"{pick(total, 'pedido foi barrado', 'pedidos foram barrados')} pela forma do "
         "endereço. Os ataques que dependem dessas formas não chegaram ao sistema: a cobertura "
         f"de injeção em caminho foi parcial.{advice}"
     )

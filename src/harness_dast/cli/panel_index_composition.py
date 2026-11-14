@@ -13,7 +13,7 @@ from harness_dast.adapters.storage.profile_repository import FileProfileReposito
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.application.panel_index import IndexedPanel, PanelIndexer
 from harness_dast.application.panel_live import LiveBoard
-from harness_dast.application.ports import KillSwitch
+from harness_dast.application.ports import CommandJournalStore, KillSwitch
 from harness_dast.cli.composition import build_spec_loader, products_dir_or_default
 from harness_dast.cli.panel_composition import build_panel
 from harness_dast.config.settings import load_settings
@@ -46,9 +46,16 @@ def build_indexer(products_dir: Path | None) -> PanelIndexer:
     )
 
 
-def build_indexed_panel(products_dir: Path | None) -> IndexedPanel:
-    """Monta o painel de um teste que refaz os índices a cada página gerada."""
-    return IndexedPanel(build_panel(products_dir), build_indexer(products_dir))
+def build_indexed_panel(
+    products_dir: Path | None, journal: CommandJournalStore | None = None
+) -> IndexedPanel:
+    """Monta o painel de um teste que refaz os índices a cada página gerada.
+
+    Args:
+        products_dir: Pasta de produtos, ou `None` para a padrão.
+        journal: Diário de comandos a ler; `None` usa o da pasta de estado.
+    """
+    return IndexedPanel(build_panel(products_dir, journal), build_indexer(products_dir))
 
 
 def build_live_board(products_dir: Path | None, kill_switch: KillSwitch) -> LiveBoard:

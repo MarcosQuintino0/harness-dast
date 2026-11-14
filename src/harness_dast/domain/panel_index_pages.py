@@ -24,6 +24,7 @@ from harness_dast.domain.panel_format import (
 )
 from harness_dast.domain.panel_index_build import (
     Change,
+    comparable,
     diff,
     is_sweep,
     latest_report,
@@ -113,7 +114,7 @@ def _duration_cell(row: RunRow) -> str:
 
 
 def _change_text(change: Change | None, *, first: bool, row: RunRow) -> str:
-    if row.state == "empty":
+    if row.state == "empty" or not comparable(row):
         return NO_DATA
     if first:
         return "primeira vez"
@@ -398,7 +399,8 @@ def _oldest_card(rows: Sequence[RunRow]) -> str:
         return ""
     lines = "".join(
         f'<div class="r">{marker("gr")}<span>{h.text(item.title, 200)}</span>'
-        f'<span class="end">desde {h.plain(fmt_date(item.since)[:5])} · {item.tests} testes</span>'
+        f'<span class="end">desde {h.plain(fmt_date(item.since)[:5])} · '
+        f"{h.plain(plural(item.tests, 'teste', 'testes'))}</span>"
         "</div>"
         for item in found
     )

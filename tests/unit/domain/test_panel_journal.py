@@ -130,12 +130,19 @@ def test_the_state_words_map_to_the_panel_statuses(state: str, status: str) -> N
 
 
 def test_build_journal_keeps_the_order_and_the_skipped_count() -> None:
-    journal = build_journal((entry("doctor"), entry("probe")), 3)
+    journal = build_journal((entry("doctor"), entry("probe")), 3, has_diary=True)
 
     assert journal is not None
     assert [item.stage for item in journal.commands] == [None, "probe"]
     assert journal.skipped_lines == 3
 
 
-def test_build_journal_is_none_without_commands() -> None:
-    assert build_journal((), 5) is None
+def test_build_journal_is_none_only_without_any_diary() -> None:
+    assert build_journal((), 0, has_diary=False) is None
+
+
+def test_build_journal_keeps_an_empty_journal_when_the_diary_exists() -> None:
+    journal = build_journal((), 5, has_diary=True)
+
+    assert journal is not None
+    assert (journal.commands, journal.skipped_lines) == ((), 5)

@@ -10,7 +10,8 @@ from harness_dast.adapters.storage.command_journal import FileCommandJournalStor
 from harness_dast.application.command_journal import load_journal_for_run
 from harness_dast.application.ports import CommandJournalStore
 from harness_dast.cli.app import build_app, run_app
-from harness_dast.cli.journal_recording import describe_invocation
+from harness_dast.cli.journal_recording import describe_invocation, record_invocation
+from harness_dast.cli.output import CliState, build_failure, build_success
 from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.command_translation import translated_commands
 from harness_dast.domain.errors import ConfigError
@@ -180,3 +181,101 @@ def test_diario_de_um_teste_atravessa_o_adaptador_e_o_recorte(tmp_path: Path) ->
     got = load_journal_for_run(store, "clinica", run_id)
 
     assert [e.command for e in got.entries] == ["profile validate", "probe"]
+
+
+class _Panels:
+    """Fábrica de painel falsa: guarda o que lhe pediram."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, Path | None]] = []
+        self.journals: list[CommandJournalStore | None] = []
+        self._products_dir: Path | None = None
+
+    def __call__(self, products_dir: Path | None, journal: CommandJournalStore | None) -> "_Panels":
+        self._products_dir = products_dir
+        self.journals.append(journal)
+        return self
+
+    def refresh(self, product: str, run_id: str) -> str | None:
+        self.calls.append((product, run_id, self._products_dir))
+        return "panel/summary.html"
+
+
+def _record(
+    argv: list[str], envelope_run_id: str | None, exit_code: int, panels: _Panels
+) -> _MemoryJournal:
+    journal = _MemoryJournal()
+    envelope = (
+        build_success({"ok": True}, envelope_run_id)
+        if exit_code in (0, 1)
+        else build_failure(ConfigError("falhou"))
+    )
+    now = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
+    record_invocation(
+        store=journal,
+        app=build_app(),
+        argv=argv,
+        state=CliState(json_mode=True),
+        envelopes=[envelope],
+        exit_code=exit_code,
+        started_at=now,
+        finished_at=now,
+        panels=panels,
+    )
+    return journal
+
+
+def test_depois_de_gravar_o_run_o_painel_e_refeito_para_incluir_o_proprio_comando(
+    tmp_path: Path,
+) -> None:
+    panels = _Panels()
+    run_id = "2026-11-14T10-00-00Z-clinica-aaaa"
+
+    journal = _record(["run", "clinica", "--products-dir", str(tmp_path)], run_id, 0, panels)
+
+    assert panels.calls == [("clinica", run_id, tmp_path)]
+    assert panels.journals == [journal]
+
+
+def test_report_e_panel_com_sucesso_tambem_refazem_o_painel() -> None:
+    panels = _Panels()
+    run_id = "2026-11-14T10-00-00Z-clinica-aaaa"
+
+    _record(["report", "clinica", "--run", run_id], run_id, 0, panels)
+    _record(["panel", "clinica", "--run", run_id], run_id, 0, panels)
+
+    assert [call[:2] for call in panels.calls] == [("clinica", run_id)] * 2
+
+
+def test_comando_que_nao_gera_painel_ou_falhou_nao_refaz_nada() -> None:
+    panels = _Panels()
+    run_id = "2026-11-14T10-00-00Z-clinica-aaaa"
+
+    _record(["probe", "clinica"], run_id, 0, panels)
+    _record(["report", "clinica", "--run", run_id], None, 3, panels)
+    _record(["panel", "--index"], None, 0, panels)
+
+    assert panels.calls == []
+
+
+def test_falha_ao_refazer_o_painel_nunca_derruba_o_comando() -> None:
+    def broken(products_dir: Path | None, journal: CommandJournalStore | None) -> _Panels:
+        raise ConfigError("sem fuso")
+
+    journal = _MemoryJournal()
+    now = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
+    run_id = "2026-11-14T10-00-00Z-clinica-aaaa"
+
+    record_invocation(
+        store=journal,
+        app=build_app(),
+        argv=["run", "clinica"],
+        state=CliState(json_mode=True),
+        envelopes=[build_success({}, run_id)],
+        exit_code=0,
+        started_at=now,
+        finished_at=now,
+        panels=broken,
+    )
+
+    assert len(journal.saved) == 1

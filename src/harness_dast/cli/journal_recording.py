@@ -6,12 +6,19 @@ flags e argumentos) vem da própria árvore do Click, reconhecendo só o que a p
 os valores passam pela redação do projeto em `domain.command_journal`.
 
 Falha ao gravar o diário NUNCA derruba o comando: vira um aviso no log estruturado.
+
+Decisão (ADR 0033): o painel que `run`, `report` e `panel` geram dentro do comando nasce antes de
+a linha do próprio comando existir. Por isso, depois de gravar essa linha, o painel do teste é
+refeito uma vez: assim o Terminal já mostra o comando que o gerou, sem criar linha "em andamento"
+no diário (que tem formato fechado).
 """
 
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Protocol
 
 import structlog
 import typer
@@ -20,10 +27,25 @@ from typer.core import TyperCommand, TyperGroup, TyperOption
 from harness_dast.adapters.storage.command_journal import FileCommandJournalStore
 from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.application.ports import CommandJournalStore
+from harness_dast.application.scan_ports import PanelRefresher
 from harness_dast.cli.output import CliState, Envelope
-from harness_dast.domain.command_journal import build_journal_entry
+from harness_dast.cli.panel_index_composition import build_indexed_panel
+from harness_dast.domain.command_journal import JournalEntry, build_journal_entry
 
 _log = structlog.get_logger()
+_PANEL_COMMANDS = frozenset({"run", "report", "panel"})
+"""Comandos que geram o painel de um teste dentro deles."""
+_PANEL_OK_EXIT_CODES = frozenset({0, 1})
+
+
+class PanelFactory(Protocol):
+    """Monta quem refaz o painel (`build_indexed_panel` na CLI real)."""
+
+    def __call__(
+        self, products_dir: Path | None, journal: CommandJournalStore | None
+    ) -> PanelRefresher:
+        """Monta o gerador do painel, lendo o diário dado (ou o da pasta de estado)."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -128,8 +150,9 @@ def record_invocation(
     exit_code: int,
     started_at: datetime,
     finished_at: datetime,
+    panels: PanelFactory | None = None,
 ) -> None:
-    """Grava uma linha no diário; qualquer falha vira aviso no log e nunca propaga.
+    """Grava uma linha no diário e refaz o painel do teste; falha vira aviso e nunca propaga.
 
     Args:
         store: Diário; `None` usa o da pasta de estado.
@@ -140,6 +163,7 @@ def record_invocation(
         exit_code: Código de saída do processo.
         started_at: Início da invocação.
         finished_at: Fim da invocação.
+        panels: Fábrica do gerador do painel; `None` usa o da CLI real.
     """
     try:
         invocation = describe_invocation(app, argv)
@@ -164,5 +188,27 @@ def record_invocation(
             mask=state.secrets.mask,
         )
         (store if store is not None else default_journal_store()).append(entry.product, entry)
+        _refresh_panel(entry, invocation, store, panels or build_indexed_panel)
     except Exception as error:  # noqa: BLE001 - o diário nunca pode derrubar o comando
         _log.warning("diario_nao_gravado", motivo=type(error).__name__)
+
+
+def _refresh_panel(
+    entry: JournalEntry,
+    invocation: Invocation,
+    store: CommandJournalStore | None,
+    panels: PanelFactory,
+) -> None:
+    """Refaz o painel do teste depois da linha do comando, para ele já incluí-la."""
+    if (
+        entry.command not in _PANEL_COMMANDS
+        or entry.exit_code not in _PANEL_OK_EXIT_CODES
+        or entry.product is None
+        or entry.run_id is None
+    ):
+        return
+    products_dir = next(
+        (Path(value) for name, value in invocation.flags if name == "--products-dir" and value),
+        None,
+    )
+    panels(products_dir, store).refresh(entry.product, entry.run_id)

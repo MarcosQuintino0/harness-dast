@@ -5,6 +5,7 @@ Funções puras sobre os modelos que os arquivos da execução já têm. Cada de
 severidade, apaga achado ou diz "seguro". Módulo puro.
 """
 
+import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Final
@@ -18,6 +19,7 @@ from harness_dast.domain.panel_format import (
     FunctionStateKind,
     capitalize_first,
     count_word,
+    pick,
     plural,
 )
 from harness_dast.domain.panel_model import (
@@ -41,12 +43,12 @@ _STEP_LEVEL: Final[dict[str, int]] = {"a confirmar": 1, "prova forte": STRONG, "
 _NOT_ATTACKED: Final = frozenset({"refused"})
 _FORBIDDEN_OUTCOMES: Final = {
     "skipped_scope": "Fora do escopo da carta.",
-    "skipped_denied": "Caminho proibido na carta (deny_paths).",
+    "skipped_denied": "Caminho que a carta proíbe, na lista `deny_paths`.",
     "skipped_destructive": "Função que apaga dados (DELETE): a ferramenta nunca a ataca.",
 }
 _FORBIDDEN_SKIPS: Final = {
     "scope": "Fora do escopo da carta.",
-    "denied": "Caminho proibido na carta (deny_paths).",
+    "denied": "Caminho que a carta proíbe, na lista `deny_paths`.",
     "delete": "Função que apaga dados (DELETE): a ferramenta nunca a ataca.",
     "login": "Entrada (login): não é atacada, para não bloquear a conta de teste.",
 }
@@ -96,6 +98,7 @@ def _zap_finding(
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
     accounts: Mapping[str, str],
+    paths: Mapping[str, str],
 ) -> PanelFinding:
     note = item.triage
     return PanelFinding(
@@ -106,7 +109,7 @@ def _zap_finding(
         confidence=_confidence(item),
         proposed_confidence=item.proposed_confidence,
         method=item.method,
-        path_template=item.path_template,
+        path_template=restore_path(item.path_template, item.operation_id, paths),
         operation_id=item.operation_id,
         function_name=names.get(item.operation_id or ""),
         parameter=item.parameter,
@@ -130,6 +133,7 @@ def _authz_finding(
     item: AuthzFinding,
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
+    paths: Mapping[str, str],
 ) -> PanelFinding:
     return PanelFinding(
         finding_id=item.finding_id,
@@ -138,7 +142,7 @@ def _authz_finding(
         severity=item.proposed_severity,
         confidence=STRONG,
         method=item.method,
-        path_template=item.path_template,
+        path_template=restore_path(item.path_template, item.operation_id, paths),
         operation_id=item.operation_id,
         function_name=names.get(item.operation_id),
         parameter=", ".join(item.fields),
@@ -157,23 +161,26 @@ def build_severe(
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
     probe: ProbeResult | None = None,
+    paths: Mapping[str, str] | None = None,
 ) -> tuple[PanelFinding, ...]:
     """Falhas graves (severidade proposta `high`), da prova mais forte para a mais fraca.
 
-    O `probe` dá o apelido da conta que enviou cada operação (para "Como reproduzir à mão").
+    O `probe` dá o apelido da conta que enviou cada operação (para "Como reproduzir à mão");
+    `paths` devolve o nome dos parâmetros do endereço.
     """
+    known = paths or {}
     accounts = {
         result.operation_id: result.account
         for result in (probe.operations if probe else ())
         if result.account
     }
     found = [
-        _zap_finding(item, names, explanations, accounts)
+        _zap_finding(item, names, explanations, accounts, known)
         for item in (report.findings if report else ())
         if item.proposed_severity == "high"
     ]
     found += [
-        _authz_finding(item, names, explanations)
+        _authz_finding(item, names, explanations, known)
         for item in (authz.findings if authz else ())
         if item.proposed_severity == "high"
     ]
@@ -196,10 +203,14 @@ def build_counts(report: FindingsReport | None, authz: AuthzResult | None) -> Fi
     )
 
 
-def build_groups(report: FindingsReport | None) -> tuple[PanelGroup, ...]:
+def build_groups(
+    report: FindingsReport | None, paths: Mapping[str, str] | None = None
+) -> tuple[PanelGroup, ...]:
     """Grupos do `findings.json` (cada achado em exatamente um)."""
     if report is None:
         return ()
+    operation_of = {item.finding_id: item.operation_id for item in report.findings}
+    known = paths or {}
     return tuple(
         PanelGroup(
             group_id=group.group_id,
@@ -209,17 +220,62 @@ def build_groups(report: FindingsReport | None) -> tuple[PanelGroup, ...]:
             occurrences=group.occurrences,
             cwe=group.cwe,
             locations=tuple(
-                (loc.method, loc.path_template, loc.finding_id) for loc in group.locations
+                (
+                    loc.method,
+                    restore_path(loc.path_template, operation_of.get(loc.finding_id), known),
+                    loc.finding_id,
+                )
+                for loc in group.locations
             ),
             expected_note=group.expected_note,
+            parameter=group.parameter,
         )
         for group in report.groups
     )
 
 
+_NAME_CAP: Final = 40
+_PLACEHOLDER: Final = re.compile(r"\{[^{}]*\}")
+
+
+def function_paths(operations: Sequence[Operation]) -> dict[str, str]:
+    """Caminho do Swagger por `operation_id` (com o nome de cada parâmetro: `{crm}`)."""
+    return {item.operation_id: item.path for item in operations}
+
+
+def restore_path(template: str, operation_id: str | None, paths: Mapping[str, str]) -> str:
+    """Devolve o nome do parâmetro que o relatório apagou (`/crm/{}` vira `/crm/{crm}`).
+
+    O relatório guarda o endereço com chaves vazias. Só troca quando o caminho do Swagger da
+    mesma operação, com as chaves esvaziadas, é exatamente o gravado: senão fica o que foi
+    gravado.
+    """
+    real = paths.get(operation_id or "")
+    if real is None or "{}" not in template:
+        return template
+    return real if _PLACEHOLDER.sub("{}", real) == template else template
+
+
 def function_names(operations: Sequence[Operation]) -> dict[str, str]:
-    """Nome simples por `operation_id`: o `summary` do OpenAPI, senão o próprio id."""
-    return {item.operation_id: item.summary or item.operation_id for item in operations}
+    """Nome simples por `operation_id`: o `summary` do OpenAPI, senão o próprio id.
+
+    Duas funções com o mesmo nome ganham o método e o caminho ao lado, para a lista nunca ter
+    linhas idênticas.
+    """
+    plain = {item.operation_id: item.summary or item.operation_id for item in operations}
+    repeated = {name for name, count in Counter(plain.values()).items() if count > 1}
+    return {
+        item.operation_id: (
+            f"{_shorten(plain[item.operation_id])} ({item.method.upper()} {item.path})"
+            if plain[item.operation_id] in repeated
+            else plain[item.operation_id]
+        )
+        for item in operations
+    }
+
+
+def _shorten(name: str) -> str:
+    return name if len(name) <= _NAME_CAP else name[: _NAME_CAP - 1].rstrip() + "…"
 
 
 def _decide(
@@ -278,6 +334,7 @@ def build_functions(
     conhecem. Sem nenhuma das três fontes, a lista sai vazia.
     """
     spec = {item.operation_id: item for item in operations}
+    names = function_names(operations)
     results = {item.operation_id: item for item in (probe.operations if probe else ())}
     entries = {item.operation_id: item for item in (scan.entries if scan else ())}
     skips = {item.operation_id: item for item in (scan.skipped if scan else ())}
@@ -300,7 +357,7 @@ def build_functions(
                 operation_id=key,
                 method=method,
                 path=path,
-                name=(known.summary if known and known.summary else key),
+                name=names.get(key, key),
                 area=known.tags[0] if known and known.tags else OTHER_AREA,
                 state=state,
                 reason=reason,
@@ -451,16 +508,30 @@ def build_steps(
         steps.append(
             PanelStep(
                 owner="owner",
-                text=f"Conferir se as {states['forbidden']} funções proibidas pela carta devem "
-                "mesmo ficar de fora. A ferramenta não amplia a carta sozinha.",
+                text=(
+                    "Conferir se "
+                    + pick(
+                        states["forbidden"],
+                        "a função proibida pela carta deve",
+                        f"as {states['forbidden']} funções proibidas pela carta devem",
+                    )
+                    + " mesmo ficar de fora. A ferramenta não amplia a carta sozinha."
+                ),
             )
         )
     if states["failed"]:
         steps.append(
             PanelStep(
                 owner="qa",
-                text=f"Pedir ao agente para melhorar o alcance das {states['failed']} funções que "
-                "não responderam e repetir o teste.",
+                text=(
+                    "Pedir ao agente para melhorar o alcance "
+                    + pick(
+                        states["failed"],
+                        "da função que não respondeu",
+                        f"das {states['failed']} funções que não responderam",
+                    )
+                    + " e repetir o teste."
+                ),
             )
         )
     if not severe and counts is not None and counts.total:

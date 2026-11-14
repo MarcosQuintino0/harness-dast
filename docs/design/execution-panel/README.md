@@ -1,8 +1,8 @@
 # Painel da execução: design final
 
-> **Status: design aprovado pelo dono em 2026-11-14, ainda não implementado.** Nada nesta pasta é código do produto. São o desenho das telas, o sistema de design e as decisões que ficaram em aberto. Não trate nenhuma tela ou comando citado aqui como existente; o que existe hoje é o `report.html`.
+> **Status: design aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em [`docs/roadmap.md`](../../roadmap.md) (seção "Diferenças entre o painel e o desenho").** Nada nesta pasta é código do produto: são o desenho das telas, o sistema de design e as decisões que ficaram em aberto. As páginas geradas por `hdast panel` (e por `hdast report` e `hdast run`) seguem este desenho; o que o desenho mostra e a CLI ainda não tem está nessa seção. O painel foi medido só em laboratório, nunca contra um produto real.
 
-O painel da execução é o conjunto de páginas que a CLI vai gerar para a pessoa de QA e para o dono do produto entenderem um teste: o que foi achado, o que fazer, e o que o agente e a CLI fizeram. Quem lê não domina jargão de segurança, rede ou arquitetura.
+O painel da execução é o conjunto de páginas que a CLI gera para a pessoa de QA e para o dono do produto entenderem um teste: o que foi achado, o que fazer, e o que o agente e a CLI fizeram. Quem lê não domina jargão de segurança, rede ou arquitetura.
 
 ## Como ver
 
@@ -83,7 +83,9 @@ São três níveis, do geral para o detalhe. O caminho fica sempre no alto, à e
 
 ## O que falta para implementar
 
-### Dados que as telas pedem e ainda não existem
+### Dados que as telas pedem (estado na 1.2.0)
+
+A coluna "Situação" é a do momento do desenho; na 1.2.0 o diário de comandos, o catálogo de explicação, os índices e as páginas existem como código e testes (veja o `CHANGELOG.md`).
 
 | O que a tela mostra | De onde viria | Situação |
 | --- | --- | --- |

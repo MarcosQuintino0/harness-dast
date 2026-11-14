@@ -336,3 +336,35 @@ def test_slice_for_run_sem_comando_da_execucao_devolve_vazio() -> None:
 
 def test_slice_for_run_com_diario_vazio_devolve_vazio() -> None:
     assert slice_for_run([], RUN_1) == ()
+
+
+def test_slice_for_run_inclui_o_stack_up_mesmo_com_o_run_id_da_pilha() -> None:
+    """O `stack up` grava o run_id da pilha (de antes do teste): não é "outro teste"."""
+    stack = "2026-11-14T09-55-00Z-clinica-eeee"
+    journal = [
+        _entry(-5, "stack up", stack),
+        _entry(1, "doctor"),
+        _entry(2, "run", RUN_1),
+        _entry(60, "stack down", stack),
+        _entry(61, "stack up", "2026-11-14T10-59-00Z-clinica-ffff"),
+        _entry(62, "run", RUN_2),
+    ]
+
+    first = slice_for_run(journal, RUN_1)
+    second = slice_for_run(journal, RUN_2)
+
+    assert [e.command for e in first] == ["stack up", "doctor", "run"]
+    assert [e.command for e in second] == ["stack down", "stack up", "run"]
+
+
+def test_build_journal_entry_mantem_o_run_id_e_mascara_token_no_mesmo_campo() -> None:
+    token = "q7Xk29LmPz81VbNc40RtYw36"  # noqa: S105 - sentinela de teste
+    entry = _build(
+        command="report",
+        flags=[("--run", RUN_1), ("--note", f"{RUN_1} {token}")],
+        mask=lambda text: text,
+    )
+
+    values = {flag.name: flag.value for flag in entry.flags}
+    assert values["--run"] == RUN_1
+    assert values["--note"] == f"{RUN_1} {MASK}"

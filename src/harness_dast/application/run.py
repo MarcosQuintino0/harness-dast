@@ -320,7 +320,13 @@ class RunPipeline:
         return "scan.json" in self._sink.existing_files(progress.run_id)
 
     def _announce(self, name: StageName, progress: _Progress) -> None:
-        """Avisa a página ao vivo que a etapa começou (só quando a pasta da execução já existe)."""
+        """Avisa a página ao vivo que a etapa começou (só quando a pasta da execução já existe).
+
+        O preflight abre uma pasta só dele; a da execução de verdade é a do `probe`. Por isso a
+        página só começa na varredura: antes disso `progress.run_id` ainda é o do preflight.
+        """
+        if name in ("preflight", "probe"):
+            return
         if self._live is None or progress.run_id is None or progress.started is None:
             return
         self._live.stage_started(

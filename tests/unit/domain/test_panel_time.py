@@ -75,7 +75,7 @@ def test_the_top_numbers_come_from_the_run() -> None:
     assert "28 min do começo ao fim" in text
     assert "168 mil tokens (trabalho do agente de IA)" in text
     assert "19 min só de varredura (68% do tempo)" in text
-    assert "1 funções atacadas" in text
+    assert "1 função atacada" in text
 
 
 def test_traffic_not_measured_is_a_dash_with_the_explanation() -> None:

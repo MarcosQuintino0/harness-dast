@@ -12,7 +12,7 @@ from typing import Final
 
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel_bars import cost_bar, millis_text, seconds_text
-from harness_dast.domain.panel_format import fmt_count, fmt_duration, plural, x_of_y
+from harness_dast.domain.panel_format import fmt_duration, plural, x_of_y
 from harness_dast.domain.panel_layout import card, heading, not_measured, row
 from harness_dast.domain.panel_model import PanelView
 
@@ -76,7 +76,11 @@ def _skipped_rules(view: PanelView) -> str:
         for index, ((_, name, state, why), times) in enumerate(found.most_common(_MAX_SKIPPED))
     )
     more = len(found) - _MAX_SKIPPED
-    tail = f'<p class="sm mu">e mais {h.plain(fmt_count(more))} regras.</p>' if more > 0 else ""
+    tail = (
+        f'<p class="sm mu">e mais {h.plain(plural(more, "regra", "regras"))}.</p>'
+        if more > 0
+        else ""
+    )
     return f'<p class="sm mu" style="margin-top: 12px">Puladas ou interrompidas:</p>{lines}{tail}'
 
 
@@ -212,7 +216,8 @@ def render_disabled(view: PanelView) -> str:
     )
     more = len(disabled) - _MAX_DISABLED
     tail = (
-        f'<p class="sm mu" style="margin-top: 8px">e mais {h.plain(fmt_count(more))} regras.</p>'
+        f'<p class="sm mu" style="margin-top: 8px">e mais '
+        f"{h.plain(plural(more, 'regra', 'regras'))}.</p>"
         if more > 0
         else ""
     )

@@ -14,10 +14,13 @@ from typing import Final
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel_format import (
     NO_DATA,
+    capitalize_first,
     fmt_clock,
     fmt_count,
     fmt_datetime,
     fmt_duration,
+    pick,
+    plain_stop_reason,
     plural,
     x_of_y,
 )
@@ -73,16 +76,33 @@ _STOP_TEXT: Final = (
 _STALE: Final = "Se este horário não muda há mais de 1 minuto, o teste parou. Pergunte ao agente."
 
 
+def _after_cut(stage: LiveStage, view: LiveView) -> bool:
+    """Etapa feita DEPOIS de uma etapa cortada: o que ela fez vale só com o que veio até aí."""
+    if stage.state != "done":
+        return False
+    keys = [item.key for item in view.stages]
+    return any(
+        item.state == "cut" and keys.index(item.key) < keys.index(stage.key) for item in view.stages
+    )
+
+
 def _stage_detail(stage: LiveStage, view: LiveView) -> str:
     if stage.state == "running":
         text = fmt_duration(stage.seconds) if stage.seconds is not None else "agora"
         if stage.key == "scan" and view.scan_total:
             text += f" · {x_of_y(view.scan_done or 0, view.scan_total)}"
         return text
+    if stage.state == "done" and _after_cut(stage, view):
+        return "só com o que veio até aí"
     if stage.state == "done":
         return f"{fmt_duration(stage.seconds)} · feita" if stage.seconds is not None else "feita"
     if stage.state == "cut":
-        return "parou aqui"
+        where = (
+            f" · {x_of_y(view.scan_done or 0, view.scan_total)}"
+            if stage.key == "scan" and view.scan_total
+            else ""
+        )
+        return f"parou aqui{where}"
     return "não rodou" if stage.state == "skipped" else "a seguir"
 
 
@@ -93,8 +113,9 @@ def _track(view: LiveView) -> str:
     for stage in view.stages:
         width = max(stage.seconds or 0.0, total * _FLOOR) if total else 1.0
         label = stage.label + (" · agora" if stage.state == "running" else "")
+        css = " seg-cut" if _after_cut(stage, view) else _SEG_CLASS[stage.state]
         segments.append(
-            f'<div class="seg{_SEG_CLASS[stage.state]}" style="flex: {width:.2f} 1 0">'
+            f'<div class="seg{css}" style="flex: {width:.2f} 1 0">'
             f"<b>{h.plain(label)}</b><span>{h.plain(_stage_detail(stage, view))}</span></div>"
         )
     return card(f'<div class="track">{"".join(segments)}</div>')
@@ -118,7 +139,7 @@ def _squares(view: LiveView) -> str:
         f'<span><i class="dotk k-no" style="border-radius: 2px"></i>na fila ({queue})</span>'
     )
     return card(
-        heading(f"As {total} funções")
+        heading(pick(total, "A única função planejada", f"As {total} funções planejadas"))
         + f'<div class="grid" role="img" aria-label="{h.plain(aria)}">{cells}</div>'
         f'<div class="lg">{legend}</div>',
         style="flex: 1 1 280px",
@@ -126,23 +147,29 @@ def _squares(view: LiveView) -> str:
 
 
 def _requests_stats(view: LiveView) -> str:
-    def number(value: int | None, caption: str) -> str:
+    def number(value: int | None, caption: str, one: str | None = None) -> str:
         if value is None:
             return (
                 f'<div class="stat"><b class="mu">{NO_DATA}</b>'
                 f"<span>{h.plain(caption)}: não medido</span></div>"
             )
-        return stat(fmt_count(value), caption)
+        return stat(fmt_count(value), pick(value, one or caption, caption))
 
     reached = ""
     if view.functions_tried is not None and view.functions_reached is not None:
         reached = stat(
-            x_of_y(view.functions_reached, view.functions_tried), "funções responderam no alcance"
+            x_of_y(view.functions_reached, view.functions_tried),
+            pick(
+                view.functions_tried,
+                "função tentada respondeu no alcance",
+                "funções tentadas responderam no alcance",
+            ),
         )
     return (
         '<div class="stats" style="margin-top: 6px">'
-        f"{reached}{number(view.allowed, 'pedidos passaram pela cerca')}"
-        f"{number(view.denied, 'barrados pela cerca')}"
+        f"{reached}"
+        f"{number(view.allowed, 'pedidos passaram pela cerca', 'pedido passou pela cerca')}"
+        f"{number(view.denied, 'barrados pela cerca', 'barrado pela cerca')}"
         f"{number(view.outside_allow, 'fora da carta')}</div>"
     )
 
@@ -162,11 +189,15 @@ def _hero(view: LiveView) -> str:
         shown = min(done + 1, view.scan_total)
         name = h.text(view.current_function or "função em ataque", 200)
         percent = round(done / view.scan_total * 100)
-        aria = f"{done} de {view.scan_total} funções atacadas"
+        aria = (
+            f"{done} de {view.scan_total} "
+            f"{pick(view.scan_total, 'função atacada', 'funções atacadas')}"
+        )
         return card(
             f"<div>{chip('Atacando agora', 'run')}</div>"
             f'<h1 class="big">"{name}"</h1>'
-            f'<p class="mu">Função {fmt_count(shown)} de {fmt_count(view.scan_total)}</p>'
+            f'<p class="mu">Função {fmt_count(shown)} de '
+            f"{fmt_count(view.scan_total)} planejadas</p>"
             f'<div class="prog" role="img" aria-label="{h.plain(aria)}">'
             f'<i style="width: {percent}%"></i></div>' + _requests_stats(view),
             style="padding: 24px 26px",
@@ -185,7 +216,7 @@ def _hero(view: LiveView) -> str:
 def _done_card(view: LiveView) -> str:
     rows: list[str] = []
     for index, item in enumerate(view.stages):
-        kind = _ROW_KIND.get(item.state, "no")
+        kind = "am" if _after_cut(item, view) else _ROW_KIND.get(item.state, "no")
         time = (
             f'<span class="end">{h.plain(fmt_duration(item.seconds))}</span>'
             if item.state == "done" and item.seconds is not None
@@ -205,7 +236,8 @@ def _done_card(view: LiveView) -> str:
 
 def _finished_card(view: LiveView) -> str:
     outcome = view.outcome or "partial"
-    reason = f'<p class="mu">{h.text(view.reason, 400)}</p>' if view.reason else ""
+    why = capitalize_first(plain_stop_reason(view.reason or "", view.limit_minutes))
+    reason = f'<p class="mu">{h.text(why.rstrip(". "), 400)}.</p>' if view.reason else ""
     links = (
         '<div class="r"><span>Veja o resultado em '
         '<a href="summary.html">Resumo</a> e o que cada etapa fez em '

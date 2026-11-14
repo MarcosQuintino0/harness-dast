@@ -66,6 +66,7 @@ class RecordingLive:
 
     def __init__(self) -> None:
         self.stages: list[StageName] = []
+        self.run_ids: list[str] = []
         self.progress: list[tuple[int, int, str | None]] = []
         self.finished: list[RunSummary] = []
 
@@ -80,9 +81,11 @@ class RecordingLive:
         authz: bool,
     ) -> None:
         self.stages.append(stage)
+        self.run_ids.append(run_id)
 
     def run_finished(self, product: str, run_id: str, summary: RunSummary) -> None:
         self.finished.append(summary)
+        self.run_ids.append(run_id)
 
     def scan_progress(
         self,

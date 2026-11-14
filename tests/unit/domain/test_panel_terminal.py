@@ -222,8 +222,12 @@ def test_without_a_diary_the_page_says_the_diary_started_in_version_1_2() -> Non
     assert "Como ler" in text
 
 
-def test_an_empty_diary_is_the_same_as_no_diary() -> None:
-    assert "começou na versão 1.2" in main_text(page_for(()))
+def test_a_diary_that_exists_without_a_command_of_this_test_says_exactly_that() -> None:
+    text = main_text(page_for(()))
+
+    assert "O diário de comandos existe, mas não tem nenhum comando deste teste." in text
+    assert "começou na versão 1.2" not in text
+    assert "anterior" not in text
 
 
 def test_skipped_lines_are_counted_on_the_page() -> None:
@@ -271,3 +275,27 @@ def test_the_page_has_no_script_external_resource_or_event_handler() -> None:
         assert "<script" not in page.lower()
         assert "onclick" not in page.lower()
         assert not re.search(r"https?://", page)
+
+
+# ---------------------------------------------------------------- virada de dia
+
+
+MIDNIGHT = datetime(2026, 11, 14, 2, 50, 31, tzinfo=UTC)  # 23:50 no fuso do painel (UTC-3)
+
+
+def test_the_date_appears_only_on_the_command_where_the_day_changes() -> None:
+    before = command(0, "hdast doctor vampi").model_copy(update={"at": MIDNIGHT})
+    after = command(0, "hdast probe vampi", stage="probe").model_copy(
+        update={"at": MIDNIGHT + timedelta(minutes=20)}
+    )
+    text = main_text(page_for((before, after)))
+
+    assert "14/11 00:10:31" in text
+    assert "13/11 23:50:31" not in text
+    assert " 23:50:31" in text
+
+
+def test_a_list_inside_one_day_never_shows_a_date() -> None:
+    text = main_text(page_for(sample()))
+
+    assert not re.search(r"\d\d/\d\d \d\d:\d\d:\d\d", text)

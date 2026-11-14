@@ -21,7 +21,12 @@ from typing import Final
 from urllib.parse import quote
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.manual_repro import BASE_URL_MARKER, ManualRepro
+from harness_dast.domain.manual_repro import (
+    BASE_URL_MARKER,
+    ManualRepro,
+    is_time_based,
+    sleep_seconds,
+)
 from harness_dast.domain.panel_format import fmt_date, plural
 from harness_dast.domain.panel_layout import row
 from harness_dast.domain.panel_model import PanelFinding, PanelView
@@ -190,32 +195,83 @@ def _step_request(repro: ManualRepro) -> str:
     )
 
 
-def _step_compare(repro: ManualRepro, view: PanelView) -> str:
-    when = fmt_date(view.identity.started_at)
+def _proves_failure(item: PanelFinding) -> bool:
+    """A resposta gravada traz a marca que o ZAP usou para dar a falha como achada."""
+    return bool(item.evidence and item.evidence.available and item.evidence.zap_evidence.strip())
+
+
+def _compare_by_response(item: PanelFinding, repro: ManualRepro, when: str) -> tuple[str, ...]:
     status = repro.received_status
     if status is None:
         same = "Resposta igual à da prova abaixo"
     else:
         kind = "Erro" if status >= _SERVER_ERROR else "Resposta"
         same = f"{kind} {status} igual ao da prova abaixo"
-    rows = (
-        row(
+    if _proves_failure(item):
+        first = row(
             "gr",
             f"<b>{h.plain(same)}:</b> a falha continua. Foi o que o teste recebeu no teste de "
             f"{h.plain(when)}.",
             first=True,
-        ),
+        )
+    else:
+        first = row(
+            "am",
+            f"<b>{h.plain(same)}:</b> repete o que o teste viu em {h.plain(when)}, mas a resposta "
+            "sozinha não prova a falha. Mostre ao time de dev.",
+            first=True,
+        )
+    return (
+        first,
         row(
             "ok",
             "<b>Resposta diferente, como lista vazia ou erro 400 de validação:</b> pode ter "
             "sido corrigida.",
         ),
+    )
+
+
+def _compare_by_time(repro: ManualRepro) -> tuple[str, ...]:
+    seconds = sleep_seconds(repro.attack)
+    wait = f"perto de {seconds} s" if seconds is not None else "bem mais que o normal"
+    shown = f" ({repro.received_status})" if repro.received_status is not None else ""
+    return (
+        row(
+            None,
+            f"A resposta gravada{h.plain(shown)} não mostra a falha: o que vale é o tempo. "
+            "Mande o pedido 3 vezes e anote quanto cada uma demorou. Depois mande o mesmo "
+            "pedido com um valor normal no lugar do ataque, para ver o tempo de referência.",
+            first=True,
+        ),
+        row(
+            "gr",
+            f"<b>Demorou {h.plain(wait)} nas 3 vezes, e o pedido normal responde rápido:</b> a "
+            "falha continua.",
+        ),
+        row(
+            "ok",
+            "<b>Demorou pouco, igual ao pedido normal:</b> pode ter sido corrigida, ou a demora "
+            "do teste foi acaso.",
+        ),
+        row(
+            "am",
+            "<b>Demorou só em algumas vezes:</b> pode ser lentidão do sistema. Mostre ao time "
+            "de dev.",
+        ),
+    )
+
+
+def _step_compare(item: PanelFinding, repro: ManualRepro, view: PanelView) -> str:
+    when = fmt_date(view.identity.started_at)
+    by_time = is_time_based(item.title)
+    rows = (_compare_by_time(repro) if by_time else _compare_by_response(item, repro, when)) + (
         row("am", "<b>401 ou 403:</b> o token venceu. Pegue outro no passo 1."),
         row("no", "<b>Qualquer outra coisa:</b> pare e mostre ao time de dev."),
     )
     return (
         '<div class="sub" style="flex: 1.2 1 320px">'
-        f'<b><span class="stepn">3</span>Compare a resposta</b>{"".join(rows)}</div>'
+        f'<b><span class="stepn">3</span>Compare {"o tempo" if by_time else "a resposta"}</b>'
+        f"{''.join(rows)}</div>"
     )
 
 
@@ -328,7 +384,7 @@ def render_repro(item: PanelFinding, view: PanelView) -> str:
         + head
         + damaged
         + '<div class="g">'
-        + f"{_step_token(repro)}{_step_request(repro)}{_step_compare(repro, view)}</div>"
+        + f"{_step_token(repro)}{_step_request(repro)}{_step_compare(item, repro, view)}</div>"
         + _request_block(repro)
         + _response_block(item, repro)
         + masked

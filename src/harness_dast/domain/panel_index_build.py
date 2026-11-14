@@ -31,7 +31,8 @@ _MIN_STREAK: Final = 2
 
 def _kind(view: PanelView) -> tuple[RunKind, str | None]:
     state = {item.key: item.state for item in view.stages}
-    ran = {key for key, value in state.items() if value in ("done", "cut")}
+    reached = {item.key for item in view.stages if not item.unreached}
+    ran = {key for key, value in state.items() if value in ("done", "cut") and key in reached}
     if "scan" in ran and "authz" in ran:
         return "scan", "Varredura e teste entre contas"
     if "scan" in ran:
@@ -49,7 +50,7 @@ def row_from_view(view: PanelView, *, incomplete: bool, panel_link: str | None) 
     """Linha de uma execução legível (`incomplete` marca arquivo que não pôde ser lido)."""
     kind, what = _kind(view)
     verdict = view.verdict
-    basis = verdict.functions_attempted
+    basis = verdict.functions_planned or verdict.functions_attempted
     if basis is None:
         basis = verdict.functions_total
     return RunRow(
@@ -201,5 +202,13 @@ def longest_open(rows: Sequence[RunRow]) -> tuple[OpenFinding, ...]:
 
 
 def is_sweep(row: RunRow) -> bool:
-    """Se a linha é uma varredura com relatório (entra no gráfico de falhas graves)."""
-    return row.kind in _SCAN_KINDS and row.severe_count is not None and row.state != "empty"
+    """Se a linha é uma varredura COMPLETA com relatório (entra no gráfico de falhas graves).
+
+    Varredura que parou no meio vê só parte das funções: ela não é comparável com as completas.
+    """
+    return (
+        row.kind in _SCAN_KINDS
+        and row.severe_count is not None
+        and row.state != "empty"
+        and row.verdict == "finished"
+    )

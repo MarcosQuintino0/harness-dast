@@ -19,6 +19,7 @@ from harness_dast.domain.panel_format import (
     fmt_count,
     fmt_duration,
     fmt_tokens,
+    pick,
 )
 from harness_dast.domain.panel_layout import card, heading, not_measured, row, stat
 from harness_dast.domain.panel_model import PanelStage, PanelView
@@ -61,12 +62,15 @@ def _stats(view: PanelView) -> str:
         third = stat(fmt_duration(scan_seconds), f"só de varredura{part}")
     traffic = view.traffic
     if view.traffic_measured and traffic is not None:
-        fourth = stat(fmt_count(traffic.allowed + traffic.denied), "pedidos de ataque tentados")
+        sent = traffic.allowed + traffic.denied
+        fourth = stat(
+            fmt_count(sent), pick(sent, "pedido de ataque tentado", "pedidos de ataque tentados")
+        )
     else:
         fourth = stat(NO_DATA, "pedidos de ataque tentados · não medido")
     attacked = view.verdict.functions_attacked
     fifth = (
-        stat(fmt_count(attacked), "funções atacadas")
+        stat(fmt_count(attacked), pick(attacked, "função atacada", "funções atacadas"))
         if attacked is not None
         else stat(NO_DATA, "funções atacadas · não medido")
     )

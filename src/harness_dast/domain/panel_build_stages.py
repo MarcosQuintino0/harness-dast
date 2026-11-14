@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from typing import Final
 
 from harness_dast.domain.panel_build_content import STRONG
-from harness_dast.domain.panel_format import RunStateKind, fmt_count, plural, x_of_y
+from harness_dast.domain.panel_format import RunStateKind, fmt_count, pick, plural, x_of_y
 from harness_dast.domain.panel_model import (
     FindingCounts,
     PanelFinding,
@@ -50,6 +50,8 @@ def _from_record(record: StageRecord | None) -> tuple[StageState, str | None]:
 def _derived(key: StageKey, src: PanelSources) -> tuple[StageState, str | None]:
     probe, scan, authz = src.probe, src.scan, src.authz
     if key == "preflight":
+        if probe is None and src.manifest is not None and src.manifest.status == "not_ready":
+            return "cut", None
         return ("done" if probe or src.manifest else "pending"), None
     if key == "probe":
         if probe is None:
@@ -79,9 +81,14 @@ def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
         if traffic.enabled
         else sum(item.requests for item in scan.entries)
     )
-    text = (
-        f"{plural(attacked, 'função atacada', 'funções atacadas')}, {fmt_count(requests)} pedidos."
+    planned = len(scan.planned) if scan.planned and not scan.dry_run else None
+    done = (
+        f"{x_of_y(attacked, planned)} "
+        f"{pick(planned, 'função planejada atacada', 'funções planejadas atacadas')}"
+        if planned
+        else plural(attacked, "função atacada", "funções atacadas")
     )
+    text = f"{done}, {plural(requests, 'pedido', 'pedidos')}."
     if traffic.enabled:
         text += (
             f" A cerca deixou passar {fmt_count(traffic.allowed)} e barrou "
@@ -90,8 +97,8 @@ def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
         text += (
             " Nenhum chegou a lugar proibido."
             if not traffic.allowed_outside_allow
-            else f" {fmt_count(traffic.allowed_outside_allow)} passaram com leitura fora de "
-            "scope.allow (modo amplo)."
+            else f" {fmt_count(traffic.allowed_outside_allow)} passaram com leitura do caminho "
+            "fora do que a carta permite (`scope.allow`, modo amplo)."
         )
     return text
 
@@ -115,8 +122,10 @@ def _probe_text(src: PanelSources) -> str:
     if probe.dry_run:
         return "Só simulação: nada foi enviado ao sistema."
     summary = probe.summary
+    total = _total(src)
+    system = f" (de {fmt_count(total)} no sistema)" if total else ""
     return (
-        f"Tentou {plural(summary.operations_sent, 'função', 'funções')} e "
+        f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
         f"{x_of_y(summary.successes, summary.operations_sent)} responderam como esperado."
     )
 
@@ -200,11 +209,28 @@ def build_stages(
     return tuple(built)
 
 
+def settle_stopped(src: PanelSources, stages: Sequence[PanelStage]) -> tuple[PanelStage, ...]:
+    """Garante que a etapa onde o teste parou apareça como cortada, nunca como feita ou ausente.
+
+    É a fonte única de "onde parou": o veredito, o Resumo e as Etapas leem o estado daqui. Sem
+    etapa cortada, a primeira que não rodou é a que o teste não alcançou; relatório parcial sem
+    etapa cortada (varredura cortada) marca a varredura. Um teste que terminou não muda nada.
+    """
+    if any(item.state == "cut" for item in stages):
+        return tuple(stages)
+    target = next((item.key for item in stages if item.state == "pending"), None)
+    if target is None and src.findings and src.findings.coverage.partial:
+        target = "scan"
+    return tuple(
+        item.model_copy(update={"state": "cut", "unreached": item.state == "pending"})
+        if item.key == target
+        else item
+        for item in stages
+    )
+
+
 def _cut_stage(stages: Sequence[PanelStage]) -> PanelStage | None:
-    cut = next((item for item in stages if item.state == "cut"), None)
-    if cut is not None:
-        return cut
-    return next((item for item in stages if item.state == "pending"), None)
+    return next((item for item in stages if item.state == "cut"), None)
 
 
 def _is_error(src: PanelSources, stopped: PanelStage | None) -> bool:
@@ -228,9 +254,6 @@ def build_verdict(
     """Como o teste terminou: `finished`, `partial` (parou no meio) ou `error`."""
     kind: RunStateKind
     stopped = _cut_stage(stages)
-    partial_report = bool(src.findings and src.findings.coverage.partial)
-    if stopped is None and partial_report:
-        stopped = next((item for item in stages if item.key == "scan"), None)
     if src.summary is None and src.probe is None and src.scan is None and src.findings is None:
         kind = "error"
     elif stopped is None:
@@ -250,6 +273,11 @@ def build_verdict(
         functions_attempted=(
             src.probe.summary.operations_sent if src.probe and not src.probe.dry_run else None
         ),
+        functions_planned=(
+            len(src.scan.planned)
+            if src.scan and not src.scan.dry_run and src.scan.planned
+            else None
+        ),
         functions_attacked=(
             sum(1 for item in functions if item.state in ("tested", "severe")) if src.scan else None
         ),
@@ -264,11 +292,7 @@ def _total(src: PanelSources) -> int | None:
 
 def _reason(src: PanelSources, stopped: PanelStage | None) -> str | None:
     if stopped is None:
-        return (
-            src.scan.stop_message
-            if src.findings and src.findings.coverage.partial and src.scan
-            else None
-        )
+        return None
     return stopped.message or (
         src.scan.stop_message if stopped.key == "scan" and src.scan else None
     )

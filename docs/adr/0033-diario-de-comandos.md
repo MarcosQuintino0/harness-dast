@@ -59,3 +59,7 @@ O diário é por produto, mas o painel é por teste. `slice_for_run` (domínio, 
 - Duas invocações em paralelo no mesmo produto acrescentam linhas curtas; a ordem final pode divergir do tempo por milissegundos, e por isso o recorte ordena por `started_at`.
 - Mudar o formato da linha exige subir `schema_version`; leitores antigos pulam e contam as linhas novas.
 - Fica para depois: tokens e tempo por comando (`agent-metrics.json`, ADR a definir), que não vêm do `hdast` e não entram neste diário.
+
+## Nota de 2026-11-14 (ADR ainda Proposto): o painel final mostra o próprio comando
+
+O painel que `run`, `report` e `panel` geram dentro do comando nascia antes de a linha dele existir no diário, e o Terminal dizia "teste anterior à versão 1.2". Decisão: `run_app` grava a linha e, em seguida, refaz o painel (e os índices) do teste desses três comandos quando terminaram com sucesso (`cli/journal_recording.py`). Descartado: uma linha "em andamento" no diário (o formato é fechado, e um comando que nasce sem `run_id` não se liga ao teste). O recorte `slice_for_run` ignora o `run_id` dos comandos `stack` e `stop`: ele é o da pilha, anterior ao teste, e não de outro teste; assim o `stack up` entra no recorte do teste que usou a pilha. O estado vazio distingue "não há diário nenhum" (`PanelView.commands` é `None`) de "o diário existe, mas não tem comando deste teste" (`commands` é uma tupla vazia).
