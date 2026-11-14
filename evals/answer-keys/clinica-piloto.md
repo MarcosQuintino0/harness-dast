@@ -54,7 +54,7 @@ Notas de leitura:
 
 ## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/adr/0027-teste-de-autorizacao-entre-contas.md))
 
-O ZAP não as detecta, mas o estágio `authz` (`hdast run --authz`, ou `hdast authz --run ID` depois do `probe`) é desenhado para
+O ZAP não as detecta, mas o estágio `authz` (roda por padrão no `hdast run` desde a V1.4, ADR 0038; ou `hdast authz --run ID` depois do `probe`) é desenhado para
 detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse estágio** (achado de `authz` em `findings.json`, campo
 `technique`). Previsão, **ainda não medida contra o alvo real**:
 
@@ -64,7 +64,10 @@ detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse est�
 | H6 | `authz_mass_assignment` em `PUT /api/me` (campo enviado `role`, campo que muda `papel`) | o `probe` provou o `PUT /api/me`; o campo `role` do corpo do `probe` não pode já valer `admin` | nenhum achado |
 | H7 | `authz_excessive_data` em `GET /api/pacientes` (`items[].senhaHash`, `items[].notasInternas`; severidade alta) | o `probe` provou a listagem e o OpenAPI declara o esquema da resposta | nenhum achado |
 
-Um agente que não use `--authz` continua sem achar H5 a H7, e isso conta na nota.
+Desde a V1.4 o estágio roda por padrão, só lendo: H5 e H7 entram sem nada pedir. H6 escreve no alvo e só é testada com
+`authz.allow_writes: true`, que só a carta liga (`attack.allow_authz_writes` com `source: carta`); sem a carta do caso
+autorizar a escrita, H6 fica `not_tested` (`writes_not_authorized`). Um agente que desligue o estágio (`--no-authz`)
+continua sem achar H5 a H7, e isso conta na nota.
 
 ## Comportamentos que a avaliação mede (não são falhas)
 

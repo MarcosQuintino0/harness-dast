@@ -78,7 +78,8 @@ secrets:
     - PILOT_PACIENTE_B_PASSWORD
 
 # Gabarito: evals/answer-keys/clinica-piloto.md. `detectable` = o ZAP (H1 a H4) ou o estagio
-# `authz` (H5 a H7, `hdast run --authz`; ADR 0027) detecta por desenho.
+# `authz` (H5 a H7; roda por padrão no `hdast run` desde a V1.4, ADR 0038; H6 só com a escrita
+# autorizada pela carta) detecta por desenho.
 flaws:
   - id: H1
     title: Injecao de SQL na busca de pacientes por nome

@@ -53,7 +53,8 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Para ele comparar contas, liste ao menos DUAS contas do MESMO papel; sem
    elas ele diz o que não pôde testar.
    Esse teste manda requisições a mais. Ele só ESCREVE no alvo (atribuição em
-   massa, métodos de escrita) se esta carta autorizar:
+   massa, alteração de recurso de outra conta, métodos de escrita) se esta
+   carta autorizar:
    [ ] A carta autoriza o teste entre contas a escrever no ambiente
        Frase da carta que autoriza:
    Marque só se o ambiente aguentar. Sem a marca, o teste só lê.
