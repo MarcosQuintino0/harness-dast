@@ -98,6 +98,18 @@ Quatro entregas, cada uma com ADR, juntadas em `feat/v1-1` e costuradas entre si
 
 As costuras entre as quatro (página com `authz` e com a cerca, doctor, mensagens de erro, guias e skills) foram fechadas em código e testes, também sem Docker.
 
+### V1.2: painel da execução (em andamento)
+
+Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma como código e testes unitários e de contrato, **sem Docker e sem prova contra alvo**:
+
+| Peça | Situação |
+| --- | --- |
+| Diário de comandos por produto ([ADR 0033](adr/0033-diario-de-comandos.md), Proposto) | Código e testes: `domain/command_journal.py`, `application/command_journal.py`, `adapters/storage/command_journal.py`, registro em `run_app`; referência em [reference/command-journal.md](reference/command-journal.md) |
+| Tradução de cada comando para português simples | Código e testes (`domain/command_translation.py`); teste falha se a CLI ganhar comando sem tradução |
+| Catálogo de explicação de falha, degrau de confiança e dados de "reproduzir à mão" | Código e testes (`domain/finding_explain.py`, `finding_confidence.py`, `manual_repro.py`); nenhuma tela os usa ainda |
+| Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
+| Painel (HTML), comando `panel`, índices de produtos e histórico | Em construção por outras frentes; não existem |
+
 ### Controles de segurança
 
 | Controle | Status |
