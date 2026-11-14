@@ -39,7 +39,7 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 | `redirect` | Não é seguido | Registre `redirect_in_scope`; não mexa no escopo. |
 | `skipped_dependency` | O produtor falhou | Conserte o produtor primeiro. |
 | `preflight` sai com 3 | Autorização vencida ou janela fechada | **Pare**; só o dono renova. |
-| `preflight` ou `probe` saem com 4 | ZAP fora do ar, segredo ausente ou login recusado | Leia `error.hint`; segredo e ZAP são da pessoa (veja `docs/guides/problemas-comuns.md`). |
+| `preflight` ou `probe` saem com 4 | ZAP fora do ar, segredo ausente ou login recusado | Leia `error.hint`; segredo e ZAP são da pessoa (veja `docs/guides/problemas-comuns.md`). Segredo `keyring:` ausente: cite o NOME e peça que ela rode `hdast secret set NOME`; você não o roda. |
 | `probe` sai com 5 ou 6 | ZAP caiu ou o alvo parou | **Pare** e avise; não reinicie em laço. |
 | `probe` sai com 0 | O comando rodou (falha de operação é dado) | Siga a tabela por `outcome`. |
 

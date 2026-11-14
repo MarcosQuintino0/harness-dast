@@ -15,6 +15,7 @@ from harness_dast.application.ports import ScaffoldedProduct
 from harness_dast.domain.errors import ConfigError
 
 PROFILE_FILE = "target.yml"
+CLEANUP_DIR = "cleanup"
 # O modelo traz um nome de produto de exemplo; a cópia passa a usar o nome da pasta, que é o
 # que o carregador exige que o campo `product` seja.
 _PRODUCT_LINE = re.compile(r"^product: meu-produto[ \t]*$", re.MULTILINE)
@@ -25,9 +26,11 @@ def default_template_dir() -> Path:
     return Path(__file__).resolve().parents[4] / "products" / "_template"
 
 
-def _copy_template(template: Path, destination: Path, product: str) -> None:
+def _copy_template(template: Path, destination: Path, product: str, *, with_cleanup: bool) -> None:
     for source in sorted(template.rglob("*")):
         if source.is_symlink():
+            continue
+        if not with_cleanup and source.relative_to(template).parts[0] == CLEANUP_DIR:
             continue
         target = destination / source.relative_to(template)
         if source.is_dir():
@@ -58,7 +61,7 @@ class FileProductScaffolder:
         self._products_dir = products_dir
         self._template_dir = template_dir
 
-    def scaffold(self, product: str) -> ScaffoldedProduct:
+    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
         """Cria a pasta do produto (veja `ProductScaffolder.scaffold`)."""
         destination = product_dir_path(self._products_dir, product)
         if not self._template_dir.is_dir():
@@ -79,7 +82,7 @@ class FileProductScaffolder:
                 hint="Confira a permissão de escrita em products_dir.",
             ) from None
         try:
-            _copy_template(self._template_dir, destination, product)
+            _copy_template(self._template_dir, destination, product, with_cleanup=with_cleanup)
         except (OSError, ConfigError) as error:
             shutil.rmtree(destination, ignore_errors=True)
             if isinstance(error, ConfigError):

@@ -24,8 +24,9 @@ from pydantic import (
 )
 
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.run import RunId, RunLimits
-from harness_dast.domain.scope import Scope
+from harness_dast.domain.proxy_deadline import STACK_MARGIN_MINUTES
+from harness_dast.domain.run import MAX_DURATION_MINUTES, RunId, RunLimits
+from harness_dast.domain.scope import PathMode, Scope
 
 SCHEMA_VERSION = 1
 """Versão do schema do arquivo; mudar o formato exige novo número e ADR."""
@@ -45,7 +46,13 @@ class ProxyPolicy(BaseModel):
         run_id: Identificador da execução (formato de `RunId`), gravado em toda linha de auditoria.
         scope: Mesmo formato do `scope` do perfil: regras `allow` e `deny_paths`.
         limits: Limites da execução; o proxy usa `requests_per_second` e `max_duration_minutes`.
-        not_after: Prazo absoluto, com fuso; depois dele o proxy nega tudo.
+        path_mode: Modo de leitura do caminho (`strict` ou `wide`; ADR 0026). Ausente vale
+            `strict`. O modo vem do perfil e a CLI nunca o liga por flag.
+        not_after: Prazo absoluto, com fuso; depois dele o proxy nega tudo. É a validade da
+            pilha (autorização, janela e `stack_minutes`), não o prazo de uma varredura.
+        stack_minutes: Validade da pilha em minutos, contada da partida do proxy. Ausente, vale
+            `limits.max_duration_minutes` (política escrita à mão mantém a cerca antiga). A CLI
+            grava aqui a duração máxima mais a folga do ajuste do `probe`.
         tls_verify_upstream: Verificar o certificado do servidor de destino (padrão `true`).
             `false` só é aceito se TODA regra tiver `allow_local: true` (laboratório).
         max_queued_requests: Tamanho máximo da fila da taxa; além dele o pedido é recusado (429).
@@ -57,7 +64,11 @@ class ProxyPolicy(BaseModel):
     run_id: str
     scope: Scope
     limits: RunLimits
+    path_mode: PathMode = "strict"
     not_after: AwareDatetime
+    stack_minutes: StrictInt | None = Field(
+        default=None, ge=1, le=MAX_DURATION_MINUTES + STACK_MARGIN_MINUTES
+    )
     tls_verify_upstream: StrictBool = True
     max_queued_requests: StrictInt = Field(default=100, ge=1, le=1000)
 
@@ -144,9 +155,12 @@ def parse_policy(raw: bytes) -> ProxyPolicy:
 
 
 def deadline_of(policy: ProxyPolicy, started_at: datetime) -> datetime:
-    """Instante a partir do qual o proxy nega tudo: o menor entre `not_after` e início + duração."""
-    by_duration = started_at + timedelta(minutes=policy.limits.max_duration_minutes)
-    return min(policy.not_after, by_duration)
+    """Instante a partir do qual o proxy nega tudo: o menor entre `not_after` e a validade da pilha.
+
+    A validade conta da partida do proxy: `stack_minutes` ou, sem ele, `max_duration_minutes`.
+    """
+    minutes = policy.stack_minutes or policy.limits.max_duration_minutes
+    return min(policy.not_after, started_at + timedelta(minutes=minutes))
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

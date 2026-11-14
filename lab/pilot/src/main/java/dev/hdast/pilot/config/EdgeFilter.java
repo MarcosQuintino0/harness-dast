@@ -32,6 +32,31 @@ public class EdgeFilter {
         };
     }
 
+    /**
+     * Modo vulnerável (H9): o Tomcat deixa o {@code %2f} passar sem decodificar, para o Spring tratá-lo como parte do
+     * segmento do caminho. No modo corrigido vale o padrão do Tomcat (400 para {@code %2f}).
+     */
+    @Bean
+    WebServerFactoryCustomizer<TomcatServletWebServerFactory> encodedSlashPassthrough(PilotProperties props) {
+        return factory -> factory.addConnectorCustomizers(connector -> {
+            if (props.vulnerable()) {
+                connector.setEncodedSolidusHandling("passthrough");
+            }
+        });
+    }
+
+    /** Verdadeiro se o caminho cru, antes ou depois de decodificar o percentual, traz o segmento da isca. */
+    static boolean mencionaIsca(String rawUri) {
+        String lower = rawUri.toLowerCase(java.util.Locale.ROOT);
+        String decoded;
+        try {
+            decoded = java.net.URLDecoder.decode(lower.replace("+", "%2b"), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            decoded = lower;
+        }
+        return lower.contains("/api/isca") || decoded.contains("/api/isca") || lower.contains("%2fapi%2fisca");
+    }
+
     @Bean
     FilterRegistrationBean<OncePerRequestFilter> edge(PilotProperties props, EvalState state) {
         OncePerRequestFilter filter = new OncePerRequestFilter() {
@@ -45,6 +70,9 @@ public class EdgeFilter {
                     res.setContentType("application/json");
                     res.getWriter().write("{\"code\":\"NAO_ENCONTRADO\",\"message\":\"Recurso não encontrado.\",\"errors\":[]}");
                     return;
+                }
+                if (!internalPath && mencionaIsca(req.getRequestURI())) {
+                    state.iscaMentioned();
                 }
                 chain.doFilter(req, res);
                 if (!internalPath) {

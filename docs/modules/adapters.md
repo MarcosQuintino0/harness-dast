@@ -55,6 +55,7 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 | `http/target_client.py` | `TargetClient` | `HttpxTargetClient`: só envia `ApprovedRequest`; rotas `zap` (pelo proxy do ZAP) e `auth` (direta ou por `HDAST_AUTH_PROXY_URL`); `trust_env=False`; sem seguir redirecionamento; tempo limite; corpo lido até 256 KiB; TLS verificado por padrão; cookies por conta |
 | `zap/api_client.py` | `ZapControl` | `ZapApiClient`: versão, sessão nova, contexto, remoção de regras `hdast-` do Replacer; chave no cabeçalho `X-ZAP-API-KEY`; todo erro vira `ExternalToolError` com dica |
 | `secrets/env_provider.py` | `SecretProvider` | `EnvSecretProvider`: lê a variável de ambiente; ausente ou vazia vira `None` |
+| `secrets/keyring_store.py` | `CredentialStore` | `KeyringCredentialStore`: cofre do sistema (biblioteca `keyring`) sob o serviço `harness-dast`; só backends do sistema (lista fixa); falha vira `SecretBackendError`, sem o valor ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
 | `storage/run_store.py` | `RunStore` | `FileRunStore`: `audit.jsonl` só de acréscimo com `fsync`; `manifest.json` e `probe.json` atômicos; `run_id` revalidado |
 | `storage/product_documents.py` | `ProductDocuments` | `data-rules.yml` e `flows.yml` pelo leitor de YAML endurecido; SHA-256 dos arquivos de entrada |
 | `openapi/spec_loader.py` | `SpecLoader` | `FileSpecLoader`: delega a `load_spec` com o caminho já conferido |

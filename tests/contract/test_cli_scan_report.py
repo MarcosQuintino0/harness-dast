@@ -357,7 +357,8 @@ def test_report_writes_findings_and_markdown_and_exits_zero_by_default(
         "findings",
         "not_observed",
     } <= set(data)
-    assert data["files"] == ["findings.json", "report.md"]
+    assert data["files"] == ["findings.json", "report.md", "report.html"]
+    assert [g["findings_count"] for g in data["groups"]] == [1]
     assert data["exceeds_threshold"] is False
     (finding,) = data["findings"]
     assert finding["operation_id"] == "ler"
@@ -365,6 +366,7 @@ def test_report_writes_findings_and_markdown_and_exits_zero_by_default(
     run_dir = tmp_path / "runs" / run_id
     assert (run_dir / "findings.json").is_file()
     assert (run_dir / "report.md").is_file()
+    assert (run_dir / "report.html").is_file()
     assert_clean(json.dumps(envelope), err, files_text(run_dir))
     assert requests_after == len(server.requests)
 

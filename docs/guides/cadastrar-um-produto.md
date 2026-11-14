@@ -21,22 +21,33 @@ mkdir C:\hdast-produtos                        # a pasta precisa existir
 $env:HDAST_PRODUCTS_DIR = "C:\hdast-produtos"  # PowerShell; no Git Bash: export HDAST_PRODUCTS_DIR=/c/hdast-produtos
 ```
 
-Cada produto é uma pasta com o nome do produto (`target.yml`, `data-rules.yml`, `flows.yml`, o OpenAPI e, se houver, `cleanup/`). Versione-as num repositório privado.
+Cada produto é uma pasta com o nome do produto (`target.yml`, `data-rules.yml`, `flows.yml`, o OpenAPI e, se houver limpeza de dados, `cleanup/`, que o `init` só cria com `--with-cleanup`). Versione-as num repositório privado.
 
 ## 3. Como guardar os segredos
 
-O perfil nunca tem senha. Ele tem `secret_ref: "env:NOME"`, e o valor fica numa variável de ambiente que **você** define no terminal de onde abre o Claude Code:
+O perfil nunca tem senha. Ele tem uma referência, e o valor fica fora do repositório. São duas formas, e você escolhe por segredo:
+
+**Cofre do sistema (recomendado no dia a dia): `secret_ref: "keyring:NOME"`.** Você grava uma vez, num terminal seu, e vale em todo terminal e em toda sessão; nada fica no histórico do shell:
+
+```powershell
+uv run hdast secret set MEU_PRODUTO_USER_A_SENHA      # pede o valor num prompt oculto, duas vezes
+uv run hdast secret list meu-produto                  # mostra quais existem (nunca o valor)
+```
+
+Os nomes são os que a carta lista. O agente **não** roda `secret set` nem `secret delete` (a permissão os nega e o comando só funciona em terminal interativo): quando faltar um segredo, ele cita o NOME e pede que você rode o comando. No Windows o valor vai para o Gerenciador de Credenciais.
+
+**Variável de ambiente: `secret_ref: "env:NOME"`** (CI, contêiner, ou se preferir), definida no terminal de onde abre o Claude Code:
 
 ```powershell
 $env:MEU_PRODUTO_USER_A_LOGIN = "..."          # os nomes são os que a carta lista
 $env:MEU_PRODUTO_USER_A_SENHA = "..."
 ```
 
-Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; não peça ao agente que leia `.env`. O harness mascara segredos em relatórios, logs e auditoria, mas **o ambiente do terminal é visível ao processo do agente**: use contas de teste dedicadas, sem poder fora do ambiente de teste.
+Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; não peça ao agente que leia `.env`. O cofre protege contra o histórico e contra arquivo esquecido, não contra um programa que rode na sua conta: a conta de teste continua tendo de ser descartável. O harness mascara segredos em relatórios, logs e auditoria, mas **o ambiente do terminal é visível ao processo do agente**: use contas de teste dedicadas, sem poder fora do ambiente de teste.
 
 ## 4. Abrir o Claude Code
 
-Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` e as variáveis de segredo já definidas, rode `claude`. As skills em `.claude/skills/` e as permissões de `.claude/settings.json` carregam sozinhas. As permissões negam `curl`, `wget`, `hdast cleanup` e leitura de `.env`: são conveniência (camada 0); a trava de verdade é o código da CLI ([detalhes](../../README.md#como-usar)).
+Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido e os segredos já guardados (cofre ou variáveis), rode `claude`. As skills em `.claude/skills/` e as permissões de `.claude/settings.json` carregam sozinhas. As permissões negam `curl`, `wget`, `hdast cleanup`, `hdast secret set`, `hdast secret delete` e leitura de `.env`: são conveniência (camada 0); a trava de verdade é o código da CLI ([detalhes](../../README.md#como-usar)).
 
 O que as permissões **não** garantem (o formato de regras do Claude Code não expressa):
 
@@ -46,7 +57,19 @@ O que as permissões **não** garantem (o formato de regras do Claude Code não 
 - O ambiente do terminal (as senhas das contas de teste) é herdado pelo processo do agente; as regras negam `printenv` e a leitura de `.env`, mas não impedem toda forma de ler uma variável.
 - As regras valem também para quem desenvolve o projeto neste repositório (por exemplo, WebFetch e `curl` ficam negados).
 
-## 5. Os prompts, um por etapa
+## 5. Os prompts
+
+**Atalho: um pedido só (skill `test-product`).** A skill conduz as quatro etapas abaixo em sequência e só para quando precisa de você: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas são as mesmas.
+
+```text
+Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
+O OpenAPI está em <caminho ou URL>. A carta de autorização está em <caminho>;
+use SOMENTE o que ela diz. É ambiente de teste com dados sintéticos e a
+autorização vale agora. Se faltar dado, pergunte. No fim, me entregue os achados
+altos para eu confirmar e o caminho do report.html.
+```
+
+Se preferir acompanhar etapa por etapa, ou retomar de uma etapa, use os prompts abaixo.
 
 Troque o que está entre `<>`. Cada etapa usa uma skill e deixa um diário de decisões.
 
@@ -93,6 +116,6 @@ suspeitas de falso positivo com o motivo e o que a varredura não cobre.
 
 ## 6. Depois da varredura
 
-- Leia `runs/<run_id>/report.md` e `findings.json` (comece por "O que este relatório não testou").
+- Abra `runs/<run_id>/report.html` no navegador (uma página só, sem internet, para ler e compartilhar; comece pelo resumo e por "O que fazer agora"). O mesmo conteúdo está em `report.md` e `findings.json` (comece por "O que este relatório não testou").
 - Para remover os dados de teste, siga [limpeza-de-dados.md](limpeza-de-dados.md): você roda, não o agente.
 - Problemas: [problemas-comuns.md](problemas-comuns.md). Parar tudo: `uv run hdast stop`.

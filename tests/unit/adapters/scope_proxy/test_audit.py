@@ -53,7 +53,8 @@ def test_describe_target_escapa_e_trunca_caminho_malformado() -> None:
 
     path, _ = describe_target("GET", "https://a.exemplo.com" + raw, raw, "")
 
-    assert len(path) <= 120
+    # O limite do caminho subiu de 120 para 2048 (ADR 0026); o escape e o corte continuam.
+    assert len(path) <= 2048
     assert "\n" not in path
     assert "\x1b" not in path
 

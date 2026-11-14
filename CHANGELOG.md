@@ -2,9 +2,82 @@
 
 Todas as mudanças relevantes deste projeto são registradas aqui.
 
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O versionamento seguirá [Versionamento Semântico](https://semver.org/lang/pt-BR/); mudança incompatível no envelope JSON ou no schema do perfil sobe a versão maior. Ainda não há versão publicada.
+O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O versionamento seguirá [Versionamento Semântico](https://semver.org/lang/pt-BR/); mudança incompatível no envelope JSON ou no schema do perfil sobe a versão maior. A versão 1.1.0 é a primeira numerada (a 1.0.0 nunca foi publicada).
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-11-13
+
+A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/reviews/2026-11-13-lab-v1-1-cerca.md](docs/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/reviews/2026-11-13-lab-v1-1-authz.md](docs/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).
+
+### V1.1, laboratório: o que foi provado e o que a medição achou
+
+- **Cerca (ADR 0026), proxy e ZAP reais:** a isca em `scope.deny_paths` foi atacada por 45 formas de caminho pelo proxy de escopo real nos dois modos: `isca_calls` ficou em 0 (estrito e amplo); o caminho chega ao alvo byte a byte (o proxy não recodifica). Estrito contra amplo na Clínica Piloto: o amplo achou 1 falha a mais (H9, travessia de caminho) e 3 variantes a mais do H8, com 2,25 vezes mais tempo de varredura; no modo seguro com amplo, 0 achado alto; no VAmPI o amplo não achou nada a mais.
+- **Prazo da pilha (ADR 0028):** provado com `max_duration_minutes: 3` em cópia do perfil (o `run` parou aos 180,6 s, saída 3, 4 min 42 s depois do `stack up`). `probe.setup_path` provado no VAmPI (perfil de `lab/vampi` migrado de `health_path: /createdb` para `setup_path`, alcançabilidade 1,0). `doctor` provado com Docker real e com porta ocupada.
+- **Teste de autorização (ADR 0027) na Clínica Piloto:** H5, H6 e H7 achados no vulnerável (3 achados altos) e zero no seguro. BFLA vertical não foi medido (sem conta de papel menor).
+- **Laboratório (`lab/pilot`):** falhas plantadas H8 (injeção de SQL cega por tempo em parâmetro de caminho), H9 (travessia de caminho, só com `%2f`) e H10 (injeção com aspa, controle positivo), endpoint lento de 2 s e a isca `/api/isca/**` (conta `isca_calls` e `isca_mentions`); teste diferencial cerca x servidor (Spring e Flask: nenhuma forma fora do modelo, exceto a coerção numérica abaixo); testes de integração `test_lab_path_scope.py` e `test_lab_path_differential.py`.
+- **Brecha conhecida, não corrigida (pede ADR):** o servidor coage o tipo do parâmetro de caminho (`/api/convenios/01`, `+1`, `%2b1`, `0x1`, dígito Unicode como `%D9%A1` chegam ao mesmo recurso que `/api/convenios/1`), formas que o modelo da cerca não conhece, nos dois modos. Um `deny_paths` sem curinga não as cobre. Mitigação hoje: negar com curinga.
+
+### Corrigido nas medições de laboratório
+
+- `report.html` não mostrava o modo de caminho, o aviso de cobertura parcial de injeção em caminho nem os motivos granulares (só o `report.md`); corrigido, com 3 testes.
+- `authz`, falso "seguro" em lista vazia (H7 passou despercebido na primeira rodada): vira `not_tested` com `no_sample_data` (já descrito abaixo).
+- Laboratório: o firewall do Spring recusava `%2f` mesmo com o Tomcat em `passthrough` (H9 inalcançável); o atraso simulado do H8 reagia a qualquer "sleep 15" e gerava falso alarme de template; `isca_calls` contava qualquer pedido que citasse a isca (agora só o método da isca); parâmetros de caminho novos não eram varridos até ganharem constantes em `data-rules.yml`.
+
+### Corrigido: cópia cega da avaliação
+
+- A cópia do repositório para a avaliação cega deixa de fora os worktrees de outros agentes e os nomes de campo do laboratório (commit 2c68b4c).
+
+### V1.1, authz: parada depois do PUT não esconde alteração
+
+- Atribuição em massa: se a janela fechar, o prazo vencer, a trava acionar ou o proxy falhar depois do `PUT` com o campo extra, a restauração ainda é tentada pelo mesmo caminho guardado (com a janela fechada nada é enviado). Se não der para restaurar ou confirmar, `not_tested` ganha `possible_unrestored_change` com a conta e a operação (sem campo novo no `authz.json`). Restauração não confirmada no caminho normal também gera o aviso.
+- `authz`, exposição excessiva: resposta com lista vazia onde o esquema declara itens vira `not_tested` (`no_sample_data`) em vez de "testado e seguro". Medido no laboratório: o `probe` sorteava uma página vazia e o H7 passava despercebido. O perfil de `lab/pilot` fixa `page` e `size` em `data-rules.yml`.
+- Uma parada no meio de uma verificação não perde mais o que ela já achou: a verificação sai como `partial` com seus achados e `not_tested`.
+
+### V1.1, ADR 0030: cofre de senhas local
+
+- Segundo tipo de referência: `secret_ref: "keyring:NOME"` lê o cofre de credenciais do sistema (Gerenciador de Credenciais do Windows, Keychain do macOS, Secret Service do Linux) pela biblioteca `keyring` 25.7 (MIT, versão travada no `uv.lock`). `env:` continua igual e continua sendo o caminho do CI e da avaliação cega.
+- Comando `hdast secret set|list|delete`: `set` lê o valor por prompt oculto e `delete` pede o nome digitado, ambos só em terminal interativo (sem terminal, recusam com saída 2); `list PRODUTO` mostra só nomes e se existem. Nenhum mostra valor nem tamanho. `.claude/settings.json` nega ao agente `secret set` e `secret delete`.
+- `preflight` e `doctor` conferem a presença dos segredos do cofre como os de ambiente e dizem o comando para resolver (`hdast secret set NOME`), sem valor.
+- Só backends do próprio sistema são aceitos (lista fixa); sem cofre utilizável o erro é `SECRET_BACKEND_ERROR` (saída 4) com a dica de usar `env:NOME`. Nunca cai em silêncio para variável de ambiente ou arquivo.
+- O valor do cofre entra no mesmo conjunto de mascaramento dos de ambiente. Nova porta `CredentialStore` e `SecretPrompt`; `RoutingSecretProvider` despacha por `SecretRef.kind`.
+- Avaliação cega: `keyring:` no perfil reprova a checagem `secret_refs` (a carta usa `env:`) e `hdast secret set|delete` no transcript zera a rodada.
+- Todo teste passa por uma trava global (`tests/conftest.py`) que impede abrir o cofre real da máquina. Ainda não verificado no cofre real de uma máquina.
+
+### V1.1, ADR 0026: a cerca diz por que recusou e ganha o modo amplo de caminho
+
+Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeira seção desta versão).
+
+- Cada recusa do escopo carrega um código estável (`ScopeReason`: `path_encoded_slash`, `path_matrix_param`, `deny_path`...). O campo `reason` do proxy continua sendo `malformed_request` para recusa por forma; o código granular vai em `detail` na auditoria e em `scan.json` `traffic.denied_by_detail`. O caminho na auditoria sobe de 120 para 2048 caracteres.
+- `scan.json` e `findings.json` ganham, de forma aditiva, `traffic.denied_by_detail`, `path_shape_denied`, `allowed_outside_allow` e `path_mode`.
+- Perfil: `scope.path_mode: strict | wide` (padrão `strict`). O modo amplo só vale no proxy de escopo, só se a carta do dono do produto o autorizar, e nenhuma flag o liga. Risco aceito: um pedido liberado pode alcançar outro caminho do mesmo host que `scope.allow` não lista; por isso `deny_paths` precisa ser completo.
+- Relatórios (`report.md` e `report.html`): modo de leitura do caminho, aviso de cobertura parcial de injeção em caminho (quantos pedidos, quantos por cento e por quê), contagem de liberados com leitura fora de `scope.allow` e nome legível para cada código de recusa, com o código ao lado.
+
+### V1.1, ADR 0027: teste de autorização entre contas
+
+- Comando `hdast authz <produto> --run ID` (`--check`, `--dry-run`) e estágio `authz` do `run` (`--authz`, desligado por padrão): repete, com outras contas, os pedidos que o `probe` provou. Quatro verificações: acesso horizontal (BOLA), dado a mais, acesso vertical (BFLA) e campo a mais (atribuição em massa). Sem ZAP, pelo mesmo caminho de envio do `probe` (escopo, taxa, janela, prazo, auditoria).
+- O `probe` passa a gravar `exchanges.json`; o estágio grava `authz.json`. Bloco opcional `authz` no `target.yml`. `run.json` passa a ter cinco estágios.
+- `findings.json` ganha a seção `authz`, `technique` em cada achado e `summary.authz_by_severity`. O `--fail-on` conta os achados dos dois tipos. O que o estágio não pôde testar vai em `not_tested`, nunca para "seguro".
+- Verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Limites: só leituras no BOLA, achados fora do `--compare` e da triagem.
+
+### V1.1, ADR 0028: facilitar o uso
+
+- Comando `hdast doctor [produto]`: confere Python, `uv`, Docker, imagens, portas e validade da pilha e, com produto, perfil, autorização, janela e segredos, sem tocar o alvo. Avisa (sem reprovar) de `scope.path_mode: wide` e de perfil sem duas contas do mesmo papel.
+- Perfil: `probe.setup_path` (GET idempotente que prepara os dados antes dos logins). `allow_local` ganha mensagem e dica claras. `hdast init` deixa de criar `cleanup/` (use `--with-cleanup`).
+- A validade da pilha ganha 60 minutos de folga e fica separada do prazo da execução, que continua limitado por `limits.max_duration_minutes`.
+
+### V1.1, ADR 0029: relatório agrupado, página HTML e skill de um pedido só
+
+- `findings.json` e o envelope do `report` ganham `groups` (achados com a mesma causa provável); nenhum achado some e nenhuma severidade muda. Nota fixa para o cookie de XSRF sem `HttpOnly`.
+- Novo arquivo `report.html`: página única, sem JavaScript e sem recurso externo, com resumo, o que fazer agora, achados por gravidade, o que não foi coberto e o tráfego recusado. Todo texto do alvo é escapado e redigido.
+- Nova skill `test-product`: conduz cadastro, alcançabilidade, varredura e triagem num pedido só e para quando precisa da pessoa.
+
+### Adicionado e corrigido (costuras entre as quatro entregas da V1.1)
+
+- `report.html` mostra os achados de autorização entre contas, com a técnica de cada um, o que o estágio não pôde testar e os limites; o resumo e o "o que fazer agora" os contam. `summary.authz_by_severity` (previsto no ADR 0027) passa a existir. Os achados de `authz` não entram em `groups` (adendo do ADR 0029).
+- `report.md` e `report.html` usam as mesmas frases sobre a cerca (`report_traffic.py`) e os mesmos rótulos (`report_labels.py`, `scope_labels.py`).
+- `hdast doctor` ganha os dois avisos do perfil. As mensagens dizem que o `report` precisa do `scan.json` e que `run --authz` não roda com `--skip-scan`. Skills e guias começam pelo `doctor` e explicam quando usar `--authz` e que `path_mode: wide` só entra se a carta disser.
+- Documentos de referência (`cli.md`, `exit-codes.md`, `finding-schema.md`, `relatorio.md`, `scan.md`), roadmap e `CLAUDE.md` alinhados.
 
 ### Adicionado (primeira avaliação cega)
 

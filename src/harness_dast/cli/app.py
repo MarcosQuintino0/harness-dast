@@ -14,7 +14,9 @@ import structlog
 import typer
 from typer.exceptions import TyperException
 
+from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
+from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
@@ -22,6 +24,7 @@ from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
+from harness_dast.cli.commands.secret import build_secret_app
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.version import version_command
@@ -63,16 +66,19 @@ def build_app() -> typer.Typer:
         configure_logging(settings.log_level, state.secrets)
 
     app.command("version")(version_command)
+    app.command("doctor")(doctor_command)
     app.command("init")(init_command)
     app.add_typer(build_profile_app(), name="profile")
     app.add_typer(build_spec_app(), name="spec")
     app.command("preflight")(preflight_command)
     app.command("probe")(probe_command)
     app.command("scan")(scan_command)
+    app.command("authz")(authz_command)
     app.command("report")(report_command)
     app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
+    app.add_typer(build_secret_app(), name="secret")
     app.command("stop")(stop_command)
     return app
 

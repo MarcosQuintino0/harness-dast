@@ -36,3 +36,21 @@ rules:
   - match: { operation: atualizarStatusConsulta, field: status }
     generator: constant
     args: { value: REALIZADA }
+  # Parametros de caminho das falhas H8 a H10 (V1.1): valores que existem na semente, para o pedido base dar 200.
+  - match: { operation: buscarConvenioPorCodigo, field: codigo }
+    generator: constant
+    args: { value: "00000001" }
+  - match: { operation: baixarArquivo, field: nome }
+    generator: constant
+    args: { value: laudo-0001.txt }
+  - match: { operation: buscarMedicoPorCrm, field: crm }
+    generator: constant
+    args: { value: 12345-SP }
+  # Paginacao (V1.1, authz): o valor sorteado de `page` cai numa pagina vazia (items: []) e o teste de exposicao
+  # excessiva nao teria item para comparar com o esquema. Pagina 0 e tamanho pequeno devolvem a semente.
+  - match: { field: page }
+    generator: integer
+    args: { min: 0, max: 0 }
+  - match: { field: size }
+    generator: integer
+    args: { min: 5, max: 10 }

@@ -70,7 +70,7 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
+Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
@@ -79,7 +79,23 @@ Existem `version`, `init`, `profile validate`, `spec inspect`, `preflight`, `pro
 | `hdast spec inspect`, `hdast preflight`, `hdast probe` | Implementado (M3); verificado contra o ZAP real (seção abaixo) |
 | `hdast scan`, `hdast report` | Implementado (M4); verificado contra o ZAP 2.17 real ([ADR 0022](adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0023](adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md); resultado dos 12 itens em [reference/relatorio.md](reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real)) |
 | `hdast cleanup` | Implementado (M5): `--dry-run`, confirmação digitada só em terminal interativo ([ADR 0025](adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
-| `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as quatro etapas em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
+| `hdast doctor` | Implementado (V1.1, [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)); avisa de `scope.path_mode: wide` e da falta de duas contas do mesmo papel; verificado com Docker real e com porta ocupada em 2026-11-13. Veja "V1.1" abaixo |
+| `hdast authz`, `hdast run --authz` | Implementado (V1.1, [ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); verificado só na Clínica Piloto local (H5, H6, H7), não contra produto real. Veja "V1.1" abaixo |
+| `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as etapas (preflight, probe, scan, authz opcional e report) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
+
+### V1.1: o que foi provado em laboratório e o que ainda NÃO foi verificado
+
+Quatro entregas, cada uma com ADR, juntadas em `feat/v1-1` e costuradas entre si. Todas passam nos gates e nos testes unitários e de contrato. Em 2026-11-13 a cerca, o `authz`, o `doctor`, o `setup_path` e o prazo da pilha foram medidos com Docker, ZAP e alvos de laboratório reais ([cerca](reviews/2026-11-13-lab-v1-1-cerca.md), [authz](reviews/2026-11-13-lab-v1-1-authz.md)). Continua sem prova contra produto real.
+
+| Entrega | Existe como código e testes | O que ainda NÃO foi verificado |
+| --- | --- | --- |
+| Cerca com motivo granular e `scope.path_mode: wide` ([ADR 0026](adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md)) | `ScopeReason`, `detail` na auditoria, `traffic.denied_by_detail`, `path_shape_denied`, `allowed_outside_allow`, `path_mode`, `WideScopeGuard` só no proxy; aviso de cobertura parcial e nomes legíveis no `report.md` e no `report.html` | **Provado em laboratório:** a isca em `deny_paths` não foi alcançada por nenhuma das 45 formas, contra o proxy e o ZAP reais, nos dois modos (`isca_calls` 0). **Não verificado:** a coerção de tipo do parâmetro de caminho (veja "Itens novos da V1.1"); uma repetição por célula, sem variância; HTTPS pelo proxy; o caminho `allowed_outside_allow` contra alvo real. O ADR 0026 mantém o status que tinha (decisão do dono) |
+| Teste de autorização entre contas ([ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)) | `hdast authz`, `run --authz`, `exchanges.json` do `probe`, quatro verificações, `authz.json`, seção `authz` em `findings.json`, `report.md` e `report.html`, `summary.authz_by_severity` | **Provado na Clínica Piloto local:** H5, H6 e H7 achados no vulnerável e zero no seguro (55 e 51 pedidos), `exchanges.json` gravado por `probe` real, restauração do campo conferida pelo próprio `authz.json`. **Não verificado:** produto real; BFLA vertical e a interrupção após o `PUT` em alvo real; `report` com a seção `authz` (o `scan` não rodou); escritas sobre recurso de outra conta |
+| Facilitar o uso ([ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) | `hdast doctor` (com avisos de `path_mode: wide` e de falta de duas contas do mesmo papel), `probe.setup_path`, mensagem do `allow_local`, `init --with-cleanup`, validade da pilha | **Provado:** `doctor` com tudo certo e com porta 3128 ocupada; `setup_path` no VAmPI (migrado de `health_path: /createdb`, alcançabilidade 1,0); prazo da pilha com `max_duration_minutes: 3` em cópia. **Não verificado:** `doctor` com Docker parado; 30 minutos reais entre `stack up` e `run` |
+| Cofre de senhas local ([ADR 0030](adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) | `secret_ref: keyring:NOME`, `hdast secret set\|list\|delete` (só em terminal), `RoutingSecretProvider`, adaptador `keyring` com lista fixa de backends, presença no `preflight` e no `doctor`, redação igual à de `env:`, negação no `.claude/settings.json` | O cofre real do Windows, do macOS e do Linux (os testes usam backend em memória e nunca tocam o cofre da máquina); o `secret set` num terminal real com prompt oculto; o roteiro de prova está no relatório da entrega |
+| Relatório agrupado, `report.html` e skill `test-product` ([ADR 0029](adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) | `groups`, notas de padrão esperado, `report.html` (sem JavaScript, CSP, escape), skill `test-product` com contrato testado | A página aberta em navegador de verdade (claro e escuro, celular, impressão); a rodada cega com a skill de um pedido só |
+
+As costuras entre as quatro (página com `authz` e com a cerca, doctor, mensagens de erro, guias e skills) foram fechadas em código e testes, também sem Docker.
 
 ### Controles de segurança
 
@@ -163,10 +179,21 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 | Canal de reporte de vulnerabilidade | Habilitar o Private vulnerability reporting no GitHub | A confirmar pelo dono | M1 |
 | Calibração de cobertura | Pisos de cobertura por camada | Valores iniciais definidos; calibrar | Fim do M2 |
 | Fingerprint | Formato e versão do fingerprint do achado | Definido na versão 1 ([finding-schema.md](reference/finding-schema.md#fingerprint-versão-1)) | M4 |
-| Prazo da pilha e ajuste do `probe` | Os 30 minutos do `stack up` contam da subida: o tempo gasto ajustando dados come o da varredura (rodada cega 1) | Aberto. Avaliar renovar o prazo no `run` ou separar prazo de pilha e de execução, com ADR | V1.1 |
+| Prazo da pilha e ajuste do `probe` | Os 30 minutos do `stack up` contavam da subida (rodada cega 1) | Resolvido em código e testes pelo [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md) (validade da pilha com folga de 60 minutos, separada do prazo da execução). Provado em 2026-11-13 com limite de 3 min em cópia do perfil (30 minutos reais não foram esperados) | V1.1 |
 | `probe` sem `multipart` e sem correção de tipo | Envio de arquivo não é suportado e uma regra de dados não corrige tipo divergente do OpenAPI (rodada cega 5, crAPI: alcançabilidade 0,41) | Aberto | V1.1 |
 | Avaliação cega na forma fiel | As rodadas de 2026-11-13 usaram subagentes; falta repetir com `claude -p` dentro da cópia, para as permissões da cópia valerem, e repetir cada caso para medir variação | Aberto | M6 |
 | Orçamento das evals | Custo máximo por rodada da avaliação cega e número de repetições por caso | Não definido | M6 |
+
+### Itens novos da V1.1 (abertos em 2026-11-13, a partir das medições)
+
+| Id | Item | Situação |
+| --- | --- | --- |
+| V1.1-a | Coerção de tipo do parâmetro de caminho (`01`, `+1`, `%2b1`, `0x1`, dígitos Unicode como `%D9%A1`) alcança o mesmo recurso e fica fora do modelo da cerca, nos dois modos | Aberto, **pede ADR** (canonizar segmentos numéricos nos dois guardas muda o contrato do `ScopeGuard`). Mitigação: negar com curinga em `deny_paths`. Detalhe na seção 6 do [relatório da cerca](reviews/2026-11-13-lab-v1-1-cerca.md) |
+| V1.1-b | Repetir estrito x amplo para medir a variância (hoje 1 repetição por célula) | Aberto |
+| V1.1-c | BFLA vertical e interrupção após o `PUT` do H6 sem prova em alvo real (a vertical ficou `skipped` por falta de conta de papel menor) | Aberto |
+| V1.1-d | "Escada de testes" mais rápida e menos sujeita a falso verde: (1) a imagem do proxy tem de bater com o código antes de teste de laboratório (hoje `--build` é opcional e nenhum teste de integração o pede: risco de falso verde); (2) desligar a regra SSRF 40046 no perfil de lab (hipótese, ainda inferida: explicaria ~500 s de espera no modo amplo); (3) pytest-xdist (medido 223 s para 52 s; pede ADR); (4) pular `tests/unit/evals/` no laço local; (5) documentar o ataque direcionado com `probe --only` e `scan --only`; (6) pilhas em paralelo | Aberto |
+| V1.1-e | Funções acima de 40 linhas sem justificativa: módulos de authz, `report_actions.next_steps`, `report_build.assemble_report` e `cli/commands/run.py:run_command` (apontado pelo QA) | Aberto: justificar ou dividir |
+| V1.1-f | `except Exception` em `adapters/secrets/keyring_store.py` é desvio consciente da regra "sem `except` genérico fora do tratador da CLI" (a biblioteca `keyring` levanta tipos variados por backend) | Registrado como nota; não é pendência de código |
 
 Decididas e registradas: P-01 (perfis fora do repositório), P-02 (regras declarativas), P-03 (proxy de saída antes de ambiente da empresa), P-04 (dois tipos de autenticação; nomes `login_password` e `api_key` no [ADR 0013](adr/0013-schema-v1-do-perfil-de-produto.md)), P-05 (SQL Oracle), P-06 (idiomas), P-07 (mypy estrito), P-11 (Windows com Docker Desktop), P-12 (encadeamento de um nível), P-13 (`hdast` e `harness_dast`). Fechados nesta rodada: a gramática de `scope.windows` e os valores de `auth.type` ([reference/target-yml.md](reference/target-yml.md)), e os códigos de saída e valores de `error.code` da V1 ([reference/cli.md](reference/cli.md#valores-de-errorcode)); novos valores entram por marco.
 
@@ -176,7 +203,7 @@ Nada abaixo está planejado nem prometido. São direções que a V1 já deixa pr
 
 | Candidato | Por quê | O que a V1 deixa pronto |
 | --- | --- | --- |
-| Teste de autorização entre contas (BOLA, escalada de privilégio) | É a V2 recomendada. Novo caso de uso que repete requisições com outra conta e compara | Várias contas com papel no perfil; `TargetClient` por apelido; fingerprint com papéis |
+| Teste de autorização entre contas (BOLA, escalada de privilégio) | **Já entrou na V1.1 como código e testes** ([ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); falta verificá-lo em laboratório. Fica aqui só o que ele não cobre (escritas sobre recurso de outra conta, comparação entre execuções e triagem dos achados de `authz`) | Várias contas com papel no perfil; `TargetClient` por apelido; fingerprint com papéis |
 | Outros motores (nuclei, Schemathesis) | Novo pacote em `adapters/`, registro na montagem, mapeamento de alertas | Porta `Scanner` e suíte de contrato reutilizável |
 | nmap | Mesmo caminho de um motor novo, mas **baixa prioridade**: contra uma URL na nuvem ele mostra o balanceador, não a aplicação | Possível pela porta `Scanner` |
 | Execução no CI a cada release | Job que chama `hdast run --json` | Modo não interativo, códigos de saída, segredos por porta |

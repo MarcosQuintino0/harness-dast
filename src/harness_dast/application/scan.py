@@ -307,6 +307,7 @@ class Scan:
             start=prep.started,
             end=self._clock.now(),
             limit_rps=prep.limits.requests_per_second,
+            path_mode=prep.profile.scope.path_mode,
         )
 
     def _check_zap(self, run_id: str, context_id: int) -> None:

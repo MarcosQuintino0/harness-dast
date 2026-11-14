@@ -42,7 +42,7 @@ Severidade e confiança abaixo são PROPOSTAS pelo ZAP.
 |---|---|
 | Alta | 3 |
 | Média | 1 |
-| Baixa | 2 |
+| Baixa | 6 |
 | Informativa | 1 |
 | Desconhecida | 0 |
 
@@ -53,14 +53,35 @@ Severidade e confiança abaixo são PROPOSTAS pelo ZAP.
 | `F-2f11bee2` | Alta | low | SQL Injection | `GET /users/v1` | 1 | - |
 | `F-2602e516` | Média | low | Content Injection \[clique\]\(http\://evil.example\) | `POST /books/v1` | 1 | - |
 | `F-25f11dca` | Baixa | high | Server Leaks Version Information via "Server" HTTP Response Header Field | `GET /books/v1` | 1 | - |
+| `F-a1c30554` | Baixa | medium | Cookie No HttpOnly Flag | `GET /users/v1/{}` | 1 | - |
+| `F-b1d6a451` | Baixa | medium | Cookie No HttpOnly Flag | `POST /books/v1` | 1 | - |
+| `F-b7bf6b8d` | Baixa | medium | Cookie No HttpOnly Flag | `GET /users/v1` | 1 | - |
+| `F-de30cb2b` | Baixa | medium | Cookie No HttpOnly Flag | `GET /books/v1` | 1 | - |
 | `F-275f10e3` | Baixa | medium | X-Content-Type-Options Header Missing | `GET /books/v1` | 1 | - |
 | `F-317171ee` | Informativa | medium | User Agent Fuzzer | `GET /users/v1/_debug` | 1 | - |
+
+## Achados agrupados pela causa
+
+Visão a mais: nenhum achado some e nenhuma severidade muda. Achados com a mesma regra, o mesmo parâmetro e a mesma severidade proposta ficam juntos.
+
+| Grupo | Severidade | Título | Parâmetro | Achados | Alertas | Onde (primeiros) |
+|---|---|---|---|---|---|---|
+| `G-f7001590` | Alta | SQL Injection | `-` | 2 | 3 | GET /users/v1/\{\}, GET /users/v1 |
+| `G-00a0661f` | Alta | Cross Site Scripting \(Reflected\) | `book_title` | 1 | 1 | POST /books/v1 |
+| `G-55d3ce4b` | Média | Content Injection \[clique\]\(http\://evil.example\) | `nota` | 1 | 1 | POST /books/v1 |
+| `G-b0dec505` | Baixa | Cookie No HttpOnly Flag | `XSRF-TOKEN` | 4 | 4 | GET /users/v1/\{\}, POST /books/v1, GET /users/v1 e mais 1 |
+| `G-0489ad6f` | Baixa | Server Leaks Version Information via "Server" HTTP Response Header Field | `-` | 1 | 1 | GET /books/v1 |
+| `G-1506b54a` | Baixa | X-Content-Type-Options Header Missing | `x-content-type-options` | 1 | 1 | GET /books/v1 |
+| `G-9d9be071` | Informativa | User Agent Fuzzer | `Header User-Agent` | 1 | 1 | GET /users/v1/\_debug |
+
+- `G-b0dec505`: Padrão conhecido: o cookie de XSRF/CSRF usa o esquema de duplo envio \(double submit\): o JavaScript do front-end precisa LER o cookie para devolvê-lo no cabeçalho X-XSRF-TOKEN. Por isso ele costuma não ter HttpOnly e isso costuma ser esperado. Confirme com o time que o cookie de SESSÃO \(que não é este\) tem HttpOnly. A severidade continua sendo a proposta pelo ZAP.
 
 ## Achados
 
 ### `F-54dbc8f2` Cross Site Scripting \(Reflected\)
 
 - **Severidade proposta pelo ZAP:** Alta (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
 - **Parâmetro:** `book_title`, vetor `json`.
 - **Classe:** CWE-79, WASC-8.
@@ -102,6 +123,7 @@ Solução padrão do ZAP: Phase: Architecture and Design. Understand the context
 ### `F-ce1a5087` SQL Injection
 
 - **Severidade proposta pelo ZAP:** Alta (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1/{}`, operação `get_user`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `urlpath`.
 - **Classe:** CWE-89, WASC-19.
@@ -140,6 +162,7 @@ Solução padrão do ZAP: Do not trust client side input.
 ### `F-2f11bee2` SQL Injection
 
 - **Severidade proposta pelo ZAP:** Alta (confiança low). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1`, operação `list_users`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `urlpath`.
 - **Classe:** CWE-89, WASC-19.
@@ -158,6 +181,7 @@ Solução padrão do ZAP: Do not trust client side input.
 ### `F-2602e516` Content Injection \[clique\]\(http\://evil.example\)
 
 - **Severidade proposta pelo ZAP:** Média (confiança low). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
 - **Parâmetro:** `nota`, vetor `json`.
 - **Classe:** WASC-20.
@@ -199,6 +223,7 @@ Solução padrão do ZAP: Valide a entrada.
 ### `F-25f11dca` Server Leaks Version Information via "Server" HTTP Response Header Field
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança high). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
 - **Parâmetro:** `-`, vetor `-`.
 - **Classe:** CWE-200, WASC-13.
@@ -213,9 +238,82 @@ Solução padrão do ZAP: Valide a entrada.
 **Direção de correção (sugestão genérica, não verificada):** Revise o que a resposta expõe; devolva só os campos necessários (DTO dedicado).
 Solução padrão do ZAP: Ensure that your web server, application server, load balancer, etc. is configured to suppress the Server header.
 
+### `F-a1c30554` Cookie No HttpOnly Flag
+
+- **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
+- **Onde:** `GET /users/v1/{}`, operação `get_user`, ligação por source\_message.
+- **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
+- **Classe:** CWE-1004, WASC-13.
+- **Ocorrências:** 1. Fingerprint: `a1c305544b9798ec93ee24c2dd215ef497cb2adb976ee62353dc2717b56287be`.
+
+**O que é (texto padrão do ZAP):** The web/application server is leaking version information via the Server HTTP response header.
+
+**Evidência:** a requisição e a resposta não foram guardadas pelo scan.
+
+- Trecho apontado pelo ZAP: `Set-Cookie: XSRF-TOKEN=***`
+
+**Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
+Solução padrão do ZAP: Ensure that your web server, application server, load balancer, etc. is configured to suppress the Server header.
+
+### `F-b1d6a451` Cookie No HttpOnly Flag
+
+- **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
+- **Onde:** `POST /books/v1`, operação `create_book`, ligação por source\_message.
+- **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
+- **Classe:** CWE-1004, WASC-13.
+- **Ocorrências:** 1. Fingerprint: `b1d6a45143044dbed55c2c122ecc02ceb0addbc60c51e666bd750a8980b109db`.
+
+**O que é (texto padrão do ZAP):** The web/application server is leaking version information via the Server HTTP response header.
+
+**Evidência:** a requisição e a resposta não foram guardadas pelo scan.
+
+- Trecho apontado pelo ZAP: `Set-Cookie: XSRF-TOKEN=***`
+
+**Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
+Solução padrão do ZAP: Ensure that your web server, application server, load balancer, etc. is configured to suppress the Server header.
+
+### `F-b7bf6b8d` Cookie No HttpOnly Flag
+
+- **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
+- **Onde:** `GET /users/v1`, operação `list_users`, ligação por source\_message.
+- **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
+- **Classe:** CWE-1004, WASC-13.
+- **Ocorrências:** 1. Fingerprint: `b7bf6b8d77de654ead4c53b500f2f32a321af2a33b19cedcba97b6e0606ddad0`.
+
+**O que é (texto padrão do ZAP):** The web/application server is leaking version information via the Server HTTP response header.
+
+**Evidência:** a requisição e a resposta não foram guardadas pelo scan.
+
+- Trecho apontado pelo ZAP: `Set-Cookie: XSRF-TOKEN=***`
+
+**Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
+Solução padrão do ZAP: Ensure that your web server, application server, load balancer, etc. is configured to suppress the Server header.
+
+### `F-de30cb2b` Cookie No HttpOnly Flag
+
+- **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
+- **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
+- **Parâmetro:** `XSRF-TOKEN`, vetor `-`.
+- **Classe:** CWE-1004, WASC-13.
+- **Ocorrências:** 1. Fingerprint: `de30cb2b3cdf2468c6f15724ca5ee4a220231a7d8dd7de260b81539443b1e87f`.
+
+**O que é (texto padrão do ZAP):** The web/application server is leaking version information via the Server HTTP response header.
+
+**Evidência:** a requisição e a resposta não foram guardadas pelo scan.
+
+- Trecho apontado pelo ZAP: `Set-Cookie: XSRF-TOKEN=***`
+
+**Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
+Solução padrão do ZAP: Ensure that your web server, application server, load balancer, etc. is configured to suppress the Server header.
+
 ### `F-275f10e3` X-Content-Type-Options Header Missing
 
 - **Severidade proposta pelo ZAP:** Baixa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /books/v1`, operação `list_books`, ligação por source\_message.
 - **Parâmetro:** `x-content-type-options`, vetor `-`.
 - **Classe:** CWE-693, WASC-15.
@@ -231,6 +329,7 @@ Solução padrão do ZAP: Ensure that the application/web server sets the Conten
 ### `F-317171ee` User Agent Fuzzer
 
 - **Severidade proposta pelo ZAP:** Informativa (confiança medium). Status: needs_triage.
+- **Técnica:** varredura ativa do ZAP (`zap_active_scan`), não é teste de autorização entre contas.
 - **Onde:** `GET /users/v1/_debug`, operação `debug`, ligação por url\_match.
 - **Parâmetro:** `Header User-Agent`, vetor `-`.
 - **Classe:** n/d.

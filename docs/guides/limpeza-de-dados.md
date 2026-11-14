@@ -11,6 +11,10 @@ O `probe` e a varredura criam registros sintéticos no ambiente de teste. Apagá
 | Agente de IA | **Nada.** Não escreve, não altera, não executa. No máximo sugere que você rode a limpeza. As permissões do Claude Code negam `hdast cleanup` ao agente (camada de conveniência) e a CLI recusa confirmar sem terminal interativo (camada de verdade) |
 | CLI | Confere execução e autorização, passa o script por um portão de SQL, abre uma transação, mostra as contagens e só faz `COMMIT` com a sua confirmação |
 
+## Preparar a pasta `cleanup/`
+
+O `hdast init <produto>` **não** cria a pasta `cleanup/`: a limpeza é opcional. Se a carta prevê limpeza, crie o produto com `hdast init <produto> --with-cleanup` (README e exemplo do script, para a pessoa do time do produto escrever o `cleanup.sql`). Se o produto já existe, copie `products/_template/cleanup/` à mão. Sem limpeza, remova também o bloco `cleanup` do `target.yml`.
+
 ## Passo a passo
 
 1. A varredura termina e o `run.json` traz o `cleanup_command`.

@@ -13,7 +13,9 @@ from typing import Any
 
 from harness_dast.application.scan_ports import ScanStart
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
@@ -221,6 +223,7 @@ class InMemoryRunArtifacts:
         self.evidence: dict[str, list[EvidenceMessage]] = {}
         self.triage: dict[str, object] = {}
         self.findings: dict[str, FindingsReport] = {}
+        self.authz: dict[str, AuthzResult] = {}
 
     def read_manifest(self, run_id: str) -> RunManifest:
         if run_id not in self._store.manifests:
@@ -268,10 +271,22 @@ class InMemoryRunArtifacts:
             raise ConfigError("A execução não tem findings.json.")
         return self.findings[run_id]
 
+    def read_authz(self, run_id: str) -> AuthzResult | None:
+        return self.authz.get(run_id)
+
+    def write_authz(self, run_id: str, result: AuthzResult) -> None:
+        self.authz[run_id] = result
+
+    def read_exchanges(self, run_id: str) -> ExchangeLog:
+        if run_id not in self._store.exchanges:
+            raise ConfigError("A execução não tem exchanges.json.")
+        return self._store.exchanges[run_id]
+
     def serialized(self) -> str:
         """Tudo o que o `scan` gravou, como texto (para procurar vazamentos)."""
         parts = [r.model_dump_json() for r in self.scans.values()]
         parts += [p.model_dump_json() for ps in self.progress.values() for p in ps]
         parts += [json.dumps(a) for alerts in self.alerts.values() for a in alerts]
         parts += [m.model_dump_json() for ms in self.evidence.values() for m in ms]
+        parts += [a.model_dump_json() for a in self.authz.values()]
         return "\n".join(parts)

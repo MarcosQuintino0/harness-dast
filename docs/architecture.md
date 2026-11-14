@@ -149,7 +149,7 @@ Status: o logger estruturado (JSON no `stderr`) com redação está **implementa
 | --- | --- | --- |
 | Ferramenta | Variáveis `HDAST_*` | Lidas e validadas na partida. Veja [reference/env-vars.md](reference/env-vars.md) |
 | Produto | `target.yml` | Versionado, sem segredos. Veja [reference/target-yml.md](reference/target-yml.md) |
-| Segredos | `secret_ref: env:NOME` no perfil | O valor vem de variável de ambiente ou de `.env` ignorado pelo git |
+| Segredos | `secret_ref: env:NOME` ou `keyring:NOME` no perfil | O valor vem de variável de ambiente, de `.env` ignorado pelo git ou do cofre de credenciais do sistema ([ADR 0030](adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
 | Execução | Flags de linha de comando | |
 
 Precedência: flag, depois ambiente, depois perfil. **Exceção deliberada:** escopo e limites só podem ser **reduzidos** por flag, nunca ampliados.

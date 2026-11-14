@@ -42,7 +42,7 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | --- | --- | --- |
 | Python 3.12 ou superior | Rodar a CLI | O uv pode instalar a versão certa. |
 | [uv](https://docs.astral.sh/uv/) | Ambiente virtual e dependências travadas | Equivale a Maven/Gradle para Python: resolve e trava versões. |
-| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. |
+| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. `hdast doctor` confere se o Docker responde, mas não sobe nada. |
 | Claude Code | Agente que usa as skills em `.claude/` | Opcional: os comandos `hdast` funcionam sem ele. As skills e as permissões carregam sozinhas ao abrir o `claude` na raiz do repositório. |
 
 ## Como usar
@@ -55,7 +55,9 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | Entender um erro | [docs/guides/problemas-comuns.md](docs/guides/problemas-comuns.md) |
 | Saber se uma mudança em skill piorou o agente | [docs/guides/avaliacao-das-skills.md](docs/guides/avaliacao-das-skills.md) e a [avaliação cega](evals/README.md) |
 
-O agente (Claude Code) trabalha com quatro skills, uma por etapa, em [`.claude/skills/`](.claude/skills/): `onboard-product` (do Swagger e da carta ao perfil validado), `fix-reachability` (preflight, probe e ajuste das regras de dados até alcançar a API), `run-scan` (`stack up`, `run`, códigos de saída e parada segura) e `triage-findings` (anotar achados sem nunca apagar nem mudar severidade). Dois subagentes só de leitura ajudam: `spec-analyst` e `findings-triager`. Toda skill manda manter um diário de decisões. O agente age sobre o alvo **somente** por `hdast`; `.claude/settings.json` nega a ele `curl`, `wget`, `hdast cleanup`, leitura de `.env`, WebFetch e escrita em `cleanup/`, como conveniência: o escopo, a janela e a confirmação da limpeza são impostos pela CLI, em código testado.
+**Um pedido só.** Com o Claude Code aberto na raiz do repositório (e `uv run hdast doctor` sem falhas), a skill `test-product` conduz as quatro etapas abaixo em sequência (`Use a skill test-product no produto "<produto>"`, com o Swagger e a carta de autorização) e só para quando precisa de você: falta dado na carta, a alcançabilidade não chegou à meta, há achado alto para confirmar ou há dúvida de autorização, escopo ou janela. O resultado mais legível é `runs/<run_id>/report.html`, uma página única com o resumo, o que fazer agora, os achados agrupados pela causa, o que a varredura não cobriu e o tráfego recusado pela cerca de escopo. Passo a passo em [docs/guides/primeiro-uso.md](docs/guides/primeiro-uso.md).
+
+O agente (Claude Code) trabalha com quatro skills, uma por etapa, em [`.claude/skills/`](.claude/skills/): `onboard-product` (do Swagger e da carta ao perfil validado), `fix-reachability` (preflight, probe e ajuste das regras de dados até alcançar a API), `run-scan` (`stack up`, `run`, códigos de saída e parada segura) e `triage-findings` (anotar achados sem nunca apagar nem mudar severidade). A `test-product` não repete as regras das quatro: aponta para elas e para a CLI, e cita as travas da Parte B do `CLAUDE.md`. Dois subagentes só de leitura ajudam: `spec-analyst` e `findings-triager`. Toda skill manda manter um diário de decisões. O agente age sobre o alvo **somente** por `hdast`; `.claude/settings.json` nega a ele `curl`, `wget`, `hdast cleanup`, `hdast secret set` e `delete`, leitura de `.env`, WebFetch e escrita em `cleanup/`, como conveniência: o escopo, a janela e a confirmação da limpeza são impostos pela CLI, em código testado.
 
 ## Instalação e uso (o que funciona hoje)
 
@@ -64,7 +66,9 @@ Na raiz do repositório:
 ```bash
 uv sync
 uv run hdast --json version
-uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir
+uv run hdast doctor                                            # está tudo pronto? (Docker, imagens, portas); não toca nenhum alvo
+uv run hdast init meu-produto --products-dir ./meus-produtos   # a pasta precisa existir; --with-cleanup cria também cleanup/
+uv run hdast doctor meu-produto --products-dir ./meus-produtos # confere perfil, autorização, janela e segredos (só se existem)
 uv run hdast --json profile validate meu-produto --products-dir ./meus-produtos
 ```
 
@@ -75,11 +79,12 @@ export HDAST_PRODUCTS_DIR=./meus-produtos          # com lab/vampi/product-profi
 # variáveis VAMPI_* do perfil: veja lab/README.md
 uv run hdast stack up vampi                         # ZAP, proxy de escopo e alvo
 uv run hdast --json run vampi                       # preflight, probe, scan e report num processo
+uv run hdast --json run vampi --authz               # opcional: inclui o teste de autorização entre contas (precisa de duas contas do mesmo papel)
 uv run hdast cleanup vampi --run <run_id> --dry-run  # só se o perfil tiver cleanup; uma pessoa confirma
 uv run hdast stack down
 ```
 
-O `run` grava `runs/<run_id>/run.json`, `findings.json` e `report.md`. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
+O `run` grava `runs/<run_id>/run.json`, `findings.json`, `report.md` e `report.html` (e `authz.json` com `--authz`). Rode `uv run hdast doctor` antes: ele é o primeiro passo e avisa de problemas do ambiente e do perfil. O modo amplo de caminho (`scope.path_mode: wide`) só entra no perfil se a carta de autorização do dono do produto disser; nem o agente nem uma flag o ligam. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
 
 O segundo comando imprime em stdout um envelope JSON com `schema_version`, `ok` e o resultado do comando. O formato do envelope está em [docs/reference/cli.md](docs/reference/cli.md) e [docs/architecture.md](docs/architecture.md).
 

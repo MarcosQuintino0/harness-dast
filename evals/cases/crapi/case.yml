@@ -53,6 +53,7 @@ expected:
     - { alias: user_a, role: user, username_env: CRAPI_USER_A_EMAIL, password_env: CRAPI_USER_A_PASSWORD }
     - { alias: user_b, role: user, username_env: CRAPI_USER_B_EMAIL, password_env: CRAPI_USER_B_PASSWORD }
   cleanup: absent
+  path_mode: strict
 
 # O `prepare` sorteia e o coordenador cadastra as contas com `python lab/crapi/seed.py --use sealed/secrets.json`.
 secrets:

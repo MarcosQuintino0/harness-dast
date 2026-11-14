@@ -8,12 +8,17 @@ depois de uma mudança intencional: `HDAST_UPDATE_GOLDEN=1 uv run pytest -k gold
 import os
 import re
 import shutil
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
-from harness_dast.adapters.reporting.sinks import JsonFindingsSink, MarkdownReportSink
+from harness_dast.adapters.reporting.sinks import (
+    HtmlReportSink,
+    JsonFindingsSink,
+    MarkdownReportSink,
+)
 from harness_dast.application.report import Report, ReportRequest
 from tests.fakes.clock import FixedClock, utc
 from tests.fakes.profile_data import valid_profile
@@ -22,7 +27,11 @@ from tests.fakes.profile_repository import InMemoryProfileRepository
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "zap_alerts"
 RUN_ID = "2026-11-13T05-15-32Z-vampi-ab12"
 INPUTS = ("probe.json", "scan.json", "alerts.raw.json", "evidence.json")
-GOLDEN = {"findings.json": "findings.golden.json", "report.md": "report.golden.md"}
+GOLDEN = {
+    "findings.json": "findings.golden.json",
+    "report.md": "report.golden.md",
+    "report.html": "report.golden.html",
+}
 
 
 def generate(tmp_path: Path) -> Path:
@@ -35,7 +44,11 @@ def generate(tmp_path: Path) -> Path:
     Report(
         profiles=profiles,
         artifacts=FileRunArtifacts(tmp_path),
-        sinks=[JsonFindingsSink(tmp_path), MarkdownReportSink(tmp_path)],
+        sinks=[
+            JsonFindingsSink(tmp_path),
+            MarkdownReportSink(tmp_path),
+            HtmlReportSink(tmp_path),
+        ],
         clock=FixedClock(utc(2026, 11, 13, 6, 0)),
         harness_version="0.0-golden",
     ).execute(ReportRequest(product="vampi", run_id=RUN_ID))
@@ -82,3 +95,23 @@ def test_golden_report_shows_the_honest_framing_and_escapes_hostile_content(tmp_
 @pytest.mark.parametrize("name", ["README.md", *INPUTS, *GOLDEN.values()])
 def test_every_fixture_file_exists(name: str) -> None:
     assert (FIXTURES / name).is_file()
+
+
+def test_golden_html_is_one_page_with_groups_and_no_script_or_external_reference(
+    tmp_path: Path,
+) -> None:
+    page = (generate(tmp_path) / "report.html").read_text(encoding="utf-8")
+
+    assert "<script" not in page
+    found: list[str] = []
+
+    class Collect(HTMLParser):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            found.extend([tag, *(name for name, _ in attrs)])
+
+    Collect().feed(page)
+    assert not {"script", "img", "link", "iframe", "src", "href"} & set(found)
+    assert not [name for name in found if name.startswith("on")]
+    assert "Cookie No HttpOnly Flag" in page
+    assert "4 achado(s)" in page
+    assert "duplo envio" in page

@@ -32,3 +32,19 @@ def test_init_keeps_first_product_untouched_when_second_attempt_fails() -> None:
         use_case.execute("demo")
 
     assert scaffolder.created["demo"] == first
+
+
+def test_init_does_not_ask_for_cleanup_folder_by_default() -> None:
+    scaffolder = InMemoryScaffolder()
+
+    InitProduct(scaffolder).execute("demo")
+
+    assert scaffolder.cleanup_requested["demo"] is False
+
+
+def test_init_asks_for_cleanup_folder_when_requested() -> None:
+    scaffolder = InMemoryScaffolder()
+
+    InitProduct(scaffolder).execute("demo", with_cleanup=True)
+
+    assert scaffolder.cleanup_requested["demo"] is True

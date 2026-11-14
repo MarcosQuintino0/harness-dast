@@ -5,8 +5,9 @@ Leitura: limite de tamanho, JSON estrito e modelos validados; qualquer problema 
 arquivo temporário e `os.replace`, para nunca existir um arquivo pela metade. Este armazém NÃO
 redige: quem grava já entregou texto redigido (`domain.redaction`).
 
-Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json` (escritos aqui);
-`manifest.json`, `probe.json`, `audit.jsonl`, `triage.json` e `findings.json` (lidos).
+Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json`, `authz.json`
+(escritos aqui); `manifest.json`, `probe.json`, `exchanges.json`, `audit.jsonl`, `triage.json` e
+`findings.json` (lidos).
 """
 
 import json
@@ -19,7 +20,9 @@ from typing import Final, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
@@ -36,16 +39,26 @@ EVIDENCE_FILE: Final = "evidence.json"
 TRIAGE_FILE: Final = "triage.json"
 FINDINGS_FILE: Final = "findings.json"
 SUMMARY_FILE: Final = "run.json"
+EXCHANGES_FILE: Final = "exchanges.json"
+AUTHZ_FILE: Final = "authz.json"
+_SCAN_MISSING_HINT: Final = (
+    "O report precisa do scan.json (mesmo com authz.json). Uma execução só com probe, ou com "
+    "'run --skip-scan', não o tem. Rode 'hdast scan PRODUTO --run RUN_ID' ou 'hdast run PRODUTO' "
+    "sem --skip-scan, e confira o run_id e HDAST_RUNS_DIR."
+)
 KNOWN_FILES: Final = (
     "manifest.json",
     "audit.jsonl",
     "probe.json",
+    EXCHANGES_FILE,
+    AUTHZ_FILE,
     "scan-progress.json",
     SCAN_FILE,
     ALERTS_FILE,
     EVIDENCE_FILE,
     FINDINGS_FILE,
     "report.md",
+    "report.html",
     TRIAGE_FILE,
 )
 MAX_FILE_BYTES: Final = 64 * 1024 * 1024
@@ -74,11 +87,25 @@ class FileRunArtifacts:
 
     def read_scan(self, run_id: str) -> ScanResult:
         """Lê `scan.json`."""
-        return self._model(run_id, SCAN_FILE, ScanResult, "o scan")
+        return self._model(run_id, SCAN_FILE, ScanResult, "o scan", missing_hint=_SCAN_MISSING_HINT)
 
     def read_findings(self, run_id: str) -> FindingsReport:
         """Lê `findings.json` de outra execução."""
         return self._model(run_id, FINDINGS_FILE, FindingsReport, "o report")
+
+    def read_exchanges(self, run_id: str) -> ExchangeLog:
+        """Lê `exchanges.json` (gravado pelo `probe`)."""
+        return self._model(run_id, EXCHANGES_FILE, ExchangeLog, "o probe")
+
+    def read_authz(self, run_id: str) -> AuthzResult | None:
+        """Lê `authz.json`; `None` se o estágio não rodou nesta execução."""
+        if not (self._directory(run_id) / AUTHZ_FILE).exists():
+            return None
+        return self._model(run_id, AUTHZ_FILE, AuthzResult, "o authz")
+
+    def write_authz(self, run_id: str, result: AuthzResult) -> None:
+        """Grava `authz.json`."""
+        self._write(run_id, AUTHZ_FILE, result.model_dump_json(indent=2))
 
     def read_audit(self, run_id: str) -> tuple[AuditEntry, ...]:
         """Lê `audit.jsonl`; uma linha ilegível é erro (a trilha não pode ser adivinhada)."""
@@ -163,7 +190,9 @@ class FileRunArtifacts:
     def _directory(self, run_id: str) -> Path:
         return self._runs_dir / require_run_id(run_id)
 
-    def _read_text(self, run_id: str, name: str, command: str) -> str:
+    def _read_text(
+        self, run_id: str, name: str, command: str, missing_hint: str | None = None
+    ) -> str:
         path = self._directory(run_id) / name
         try:
             if path.stat().st_size > MAX_FILE_BYTES:
@@ -172,21 +201,31 @@ class FileRunArtifacts:
         except FileNotFoundError:
             raise ConfigError(
                 f"A execução não tem {name}.",
-                hint=f"Rode {command} nesta execução (ou confira o run_id e HDAST_RUNS_DIR).",
+                hint=missing_hint
+                or f"Rode {command} nesta execução (ou confira o run_id e HDAST_RUNS_DIR).",
             ) from None
         except (OSError, UnicodeDecodeError):
             raise _corrupt(name, command) from None
 
-    def _json(self, run_id: str, name: str, command: str) -> object:
+    def _json(
+        self, run_id: str, name: str, command: str, missing_hint: str | None = None
+    ) -> object:
         try:
-            parsed: object = json.loads(self._read_text(run_id, name, command))
+            parsed: object = json.loads(self._read_text(run_id, name, command, missing_hint))
         except (ValueError, RecursionError):
             raise _corrupt(name, command) from None
         return parsed
 
-    def _model(self, run_id: str, name: str, model: type[_M], command: str) -> _M:
+    def _model(
+        self,
+        run_id: str,
+        name: str,
+        model: type[_M],
+        command: str,
+        missing_hint: str | None = None,
+    ) -> _M:
         try:
-            return model.model_validate(self._json(run_id, name, command))
+            return model.model_validate(self._json(run_id, name, command, missing_hint))
         except ValidationError:
             raise _corrupt(name, command) from None
 

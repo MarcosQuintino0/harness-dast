@@ -73,7 +73,7 @@ export HDAST_PRODUCTS_DIR=/tmp/produtos
 # Usuários que o GET /createdb semeia (README do VAmPI); não são segredos reais, mas o perfil os lê por secret_ref.
 export VAMPI_USER_A_USERNAME=name1 VAMPI_USER_A_PASSWORD=pass1 VAMPI_USER_B_USERNAME=name2 VAMPI_USER_B_PASSWORD=pass2        VAMPI_ADMIN_USERNAME=admin VAMPI_ADMIN_PASSWORD=pass1
 uv run hdast --json stack up vampi                           # ~40 s; --secure liga o modo seguro; --token-ttl 20 encurta o token
-uv run hdast --json preflight vampi                          # o health_path /createdb repopula o banco; rode antes de cada probe
+uv run hdast --json preflight vampi                          # o setup_path /createdb repopula o banco (V1.1); rode antes de cada probe
 uv run hdast --json probe vampi --include-delete             # 14 de 14 operações (alcançabilidade 1.0)
 uv run hdast --json run vampi                                # preflight + probe + scan + report num processo (~15 min); grava run.json
 uv run hdast --json stack status                             # audit_file = trilha do proxy; kill_switch
@@ -82,7 +82,7 @@ uv run hdast --json stack down
 
 `preflight` antes de cada `probe` não é cerimônia: o `probe` apaga um usuário (`--include-delete`, só o que a listagem desta
 execução devolveu) e troca e-mail e senha de `name2`, e o login das contas acontece antes do `GET /createdb` do plano. O
-`preflight` chama `/createdb` (é o `health_path` do perfil) e deixa o banco como a semente. Sem `--include-delete` o `DELETE` é
+`preflight` chama `/createdb` (é o `probe.setup_path` do perfil desde a V1.1, depois do `health_path: /`, que é leve) e deixa o banco como a semente. Sem `--include-delete` o `DELETE` é
 `skipped_destructive` e fica de fora das operações tentadas. Contas por operação: `user_a` envia quase
 tudo, `user_b` (dono de `name2`) os `PUT` de e-mail e senha, e `admin_a` o `DELETE`.
 

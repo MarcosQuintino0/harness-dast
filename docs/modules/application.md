@@ -13,7 +13,9 @@ Portas previstas no desenho aprovado:
 | `Scanner` | ZAP | Outros motores na V2; casos de uso testados com motor falso |
 | `TargetClient` | `httpx` via proxy do ZAP | Ponto único onde o escopo é imposto; dublê nos testes |
 | `SpecLoader` | Leitor de OpenAPI 3 | Swagger 2 e outras fontes depois |
-| `SecretProvider` | Variáveis de ambiente | Cofre de segredos no CI depois |
+| `SecretProvider` | `RoutingSecretProvider` (`env:` pelo ambiente, `keyring:` pelo cofre) | Cofre de segredos no CI depois |
+| `CredentialStore` | `KeyringCredentialStore` (cofre do sistema operacional) | Segundo cofre real, se houver demanda |
+| `SecretPrompt` | Prompt de terminal do `hdast secret` | Nenhuma |
 | `ReportSink` | JSON e Markdown | SARIF, DefectDojo e Jira depois |
 | `CleanupHook` | Script SQL do produto | Limpeza por API ou SQL conforme o produto |
 | `RunStore` | Sistema de arquivos | Dublê em memória nos testes |

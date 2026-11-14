@@ -10,6 +10,7 @@ from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError, ExternalToolError, HarnessError
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpRequest, HttpResponse
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.secret_ref import SecretRef
@@ -120,6 +121,7 @@ class InMemoryRunStore:
         self.manifests: dict[str, list[RunManifest]] = {}
         self.audit: dict[str, list[AuditEntry]] = {}
         self.probes: dict[str, ProbeResult] = {}
+        self.exchanges: dict[str, ExchangeLog] = {}
         self.events: list[str] = []
 
     def write_manifest(self, run_id: str, manifest: RunManifest) -> None:
@@ -134,6 +136,10 @@ class InMemoryRunStore:
         self.probes[run_id] = result
         self.events.append("probe")
 
+    def write_exchanges(self, run_id: str, log: ExchangeLog) -> None:
+        self.exchanges[run_id] = log
+        self.events.append("exchanges")
+
     def all_audit(self) -> list[AuditEntry]:
         return [entry for entries in self.audit.values() for entry in entries]
 
@@ -142,6 +148,7 @@ class InMemoryRunStore:
         parts = [m.model_dump_json() for ms in self.manifests.values() for m in ms]
         parts += [e.model_dump_json() for e in self.all_audit()]
         parts += [p.model_dump_json() for p in self.probes.values()]
+        parts += [x.model_dump_json() for x in self.exchanges.values()]
         return "\n".join(parts)
 
 

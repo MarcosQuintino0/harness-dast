@@ -11,6 +11,7 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
@@ -239,6 +240,14 @@ class RunArtifacts(Protocol):
 
         Raises:
             ConfigError: Execução ou arquivo ausente, ilegível ou inválido.
+        """
+        ...
+
+    def read_authz(self, run_id: str) -> AuthzResult | None:
+        """Lê `authz.json`; `None` quando o estágio de autorização não rodou (ADR 0027).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
         """
         ...
 

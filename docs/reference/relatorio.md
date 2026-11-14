@@ -7,7 +7,7 @@ uv run hdast --json report meu-produto --run <run_id>
 uv run hdast report meu-produto --run <run_id> --compare <outro_run_id> --fail-on high
 ```
 
-Transforma os alertas brutos de uma execução em **achados** e escreve `findings.json` e `report.md` na pasta dela. **Não usa rede nem o ZAP**: lê só arquivos (`probe.json`, `scan.json`, `alerts.raw.json`, `evidence.json` e, se existir, `triage.json`). Por isso não confere janela nem autorização.
+Transforma os alertas brutos de uma execução em **achados** e escreve `findings.json`, `report.md` e `report.html` na pasta dela. **Não usa rede nem o ZAP**: lê só arquivos (`probe.json`, `scan.json`, `alerts.raw.json`, `evidence.json` e, se existir, `triage.json`). Por isso não confere janela nem autorização.
 
 | Flag | Efeito |
 | --- | --- |
@@ -21,7 +21,7 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 **O `report` é o dono do código `1`**, não o `scan`: o `scan` só coleta alertas; o veredito depende de fingerprint, deduplicação e severidade lida. Regras:
 
 - `1` não é erro: o envelope traz `ok: true`, `data.exceeds_threshold: true` e o mesmo `data` de sempre.
-- Conta **todos** os achados na severidade **proposta pelo ZAP**, inclusive os anotados como "suspeita de falso positivo": a triagem do agente nunca retira nada da conta.
+- Conta **todos** os achados na severidade **proposta pelo ZAP** e também os achados de autorização entre contas (`authz`, severidade da taxonomia do código; [authz.md](authz.md)), inclusive os anotados como "suspeita de falso positivo": a triagem do agente nunca retira nada da conta.
 - Severidade que a CLI não soube classificar (`unknown`: um `Critical` novo do ZAP, um ZAP em outro idioma, texto vazio) conta como acima de qualquer limiar diferente de `none`, e o relatório a mostra como "Desconhecida": o gate falha fechado.
 - Sem limiar (`none`, o padrão), a saída é `0` com ou sem achados.
 - Relatório de uma execução que parou antes do fim (`coverage.partial: true`) traz o aviso "RELATÓRIO PARCIAL" no topo da seção de cobertura.
@@ -31,19 +31,21 @@ Transforma os alertas brutos de uma execução em **achados** e escreve `finding
 
 | Campo | Descrição |
 | --- | --- |
-| `run_id`, `product`, `files` | Execução e arquivos gerados (`findings.json`, `report.md`) |
+| `run_id`, `product`, `files` | Execução e arquivos gerados (`findings.json`, `report.md`, `report.html`) |
 | `threshold`, `exceeds_threshold` | Limiar aplicado e se há achado nele ou acima |
-| `summary` | Totais por severidade proposta |
+| `summary` | Totais por severidade proposta (ZAP) e, em `authz_by_severity`, os do teste de autorização entre contas |
 | `coverage` | Alcançabilidade do `probe`, varreduras truncadas, operações sem varredura com o motivo, limites e política |
 | `not_tested_statements` | As afirmações fixas sobre o que não foi testado |
 | `findings` | Resumo de cada achado (`finding_id`, `fingerprint`, `title`, severidade e confiança propostas, operação, método, modelo de caminho, parâmetro, ocorrências, CWE, categoria OWASP, `comparison`, `suspected_false_positive`). **A evidência não vai no envelope**: está em `findings.json` e `report.md`, para o agente não carregar dado do alvo sem precisar |
+| `groups` | Achados agrupados pela causa provável (mesma regra, vetor, parâmetro e severidade), com contagem, onde aparece e, quando há, a nota de padrão esperado ([finding-schema.md](finding-schema.md#findinggroup-groups)) |
 | `not_observed`, `comparison`, `triage_orphans` | Comparação e triagem |
+| `authz` | Resultado do teste de autorização entre contas (o mesmo conteúdo de `authz.json`), ou `null` se o estágio não rodou. Os achados dele não entram em `findings` nem em `groups` ([authz.md](authz.md)) |
 
 ## O que o relatório diz sobre honestidade
 
 Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_statements`) e no `report.md` (seção "O que este relatório não testou", sempre antes do resumo):
 
-- autorização (BOLA/IDOR, BFLA, troca de dados de outro usuário), atribuição em massa, exposição excessiva em respostas legítimas e lógica de negócio **estão fora** do que uma varredura ativa do ZAP detecta;
+- autorização (BOLA/IDOR, BFLA, troca de dados de outro usuário), atribuição em massa, exposição excessiva em respostas legítimas e lógica de negócio **estão fora** do que uma varredura ativa do ZAP detecta. Quando o estágio `authz` rodou (`hdast run --authz` ou `hdast authz`), o relatório troca essa frase pela cobertura dele e traz a seção "Autorização entre contas", com a técnica de cada achado e o que ele não pôde testar;
 - só se varreu o que o `probe` alcançou com sucesso e o plano permitiu; o resto está listado como não testado, com o motivo;
 - a alcançabilidade do `probe`, as varreduras truncadas e os limites e a política aplicados;
 - severidade e confiança são propostas, todo achado exige triagem humana;
@@ -51,9 +53,13 @@ Toda execução, inclusive sem achados, leva no `findings.json` (`not_tested_sta
 
 ## `report.md`
 
-Em português, para quem corrige: aviso de que blocos de requisição e resposta são dado do alvo, a seção acima, resumo e tabela (ID, severidade, confiança, título, onde, ocorrências, comparação quando houver, coluna "Triagem (agente)"), um bloco por achado (o que é, onde, parâmetro e vetor, classe, evidência, como reproduzir, **direção de correção sugerida** genérica para APIs no estilo Spring e marcada como sugestão não verificada, solução padrão do ZAP, triagem) e a seção de comparação.
+Em português, para quem corrige: aviso de que blocos de requisição e resposta são dado do alvo, a seção acima, resumo e tabela (ID, severidade, confiança, título, onde, ocorrências, comparação quando houver, coluna "Triagem (agente)"), um bloco por achado (o que é, onde, parâmetro e vetor, classe, evidência, como reproduzir, **direção de correção sugerida** genérica para APIs no estilo Spring e marcada como sugestão não verificada, solução padrão do ZAP, triagem) e a seção de comparação. Cada achado do ZAP diz a técnica (`Técnica: varredura ativa do ZAP`). Quando existe `authz.json`, uma seção própria, separada dos achados do ZAP, lista as verificações, os achados de autorização (técnica, severidade proposta pelo código, contas, campos só pelo nome), o que não pôde ser testado e os limites da técnica.
 
 **Seguro para renderizar:** todo texto derivado do alvo, do ZAP ou do agente passa por `domain/markdown_safe.py`: texto em linha com barra invertida antes de todo caractere de marcação e sem quebra de linha, trecho de código em linha com crases suficientes, e requisição e resposta em bloco cercado por uma cerca mais longa que qualquer sequência de crases do conteúdo. HTML não é interpretado (`<`, `>` e `&` escapados ou dentro de bloco). Um texto que imite instrução ("ignore as instruções anteriores") continua sendo texto, mostrado em bloco sob um aviso; nenhuma função "entende" ordens.
+
+## `report.html`
+
+A mesma informação numa página única para quem não é especialista (QA e dono do produto): resumo no topo (achados por gravidade, política e limites, cobertura), "O que fazer agora", achados **agrupados** por gravidade (cada grupo com onde aparece, evidência resumida, comando de reprodução e direção de correção), "O que a varredura NÃO cobriu" (parcial, truncadas, operações sem varredura) e o tráfego recusado pela cerca de escopo, por motivo com nome legível (o código fica ao lado), com o modo de leitura do caminho (`strict` ou `wide`), o aviso de cobertura parcial de injeção em caminho e, no modo amplo, quantos pedidos foram liberados com leitura fora de `scope.allow`. Quando existe `authz.json`, a página traz também uma seção "Autorização entre contas" (separada dos achados do ZAP, agrupada por técnica, com contas, operação, campos só pelo nome, o que não pôde ser testado e os limites), cartões próprios no resumo e passos próprios em "O que fazer agora". Os achados de autorização **não** entram em `groups` (veja o adendo do [ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)). É autocontida: CSS embutido, sem JavaScript, sem recurso externo (uma política de conteúdo na página proíbe os dois), legível em claro e escuro. Todo texto do alvo, do ZAP ou do agente passa por `domain/html_safe.py` (escape, redação e corte); ver [ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md).
 
 ## Triagem (`triage.json`)
 

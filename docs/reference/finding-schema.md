@@ -14,10 +14,13 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `scan-progress.json` | `scan` | Andamento atual (fase, posição, operação, percentual). É o que `hdast stop` e o agente leem |
 | `alerts.raw.json` | `scan` | Alertas como o ZAP devolve, **depois** da redação |
 | `evidence.json` | `scan` | Requisição e resposta das mensagens de ataque mais graves e confiáveis (até 200), redigidas |
+| `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
+| `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
 | `report.md` | `report` | Relatório para quem corrige ([relatorio.md](relatorio.md)) |
+| `report.html` | `report` | O mesmo relatório numa página única, sem JavaScript nem recurso externo ([ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) |
 
 ## `findings.json`
 
@@ -31,11 +34,13 @@ Raiz (`FindingsReport`):
 | `generated_at`, `harness_version` | texto | Instante (ISO 8601) e versão da CLI |
 | `coverage` | objeto | O que a execução cobriu e **não** cobriu (abaixo) |
 | `not_tested_statements` | lista de texto | Afirmações fixas sobre o que não foi testado. Presentes em TODO relatório, inclusive sem achados |
-| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable` |
+| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable`; `total` e `by_severity` são só do ZAP. Aditivo (ADR 0027): `authz_by_severity` (mesmas cinco chaves, achados de autorização entre contas; `{}` quando o estágio não rodou) |
 | `findings` | lista de `Finding` | Ordenada por severidade proposta, confiança, título e fingerprint |
+| `groups` | lista de `FindingGroup` | Visão agrupada pela causa provável (abaixo). Aditivo (ADR 0029): todo achado de `findings` está em exatamente um grupo; arquivos antigos sem o campo continuam válidos |
 | `not_observed` | lista | Com `--compare`: achados da base que não apareceram agora (abaixo) |
 | `comparison` | objeto ou `null` | `baseline_run_id`, `new`, `persistent`, `not_observed`, `notice` |
 | `triage_orphans` | lista de texto | Fingerprints de `triage.json` sem achado correspondente (ignorados) |
+| `authz` | objeto ou `null` | Aditivo (ADR 0027). O `authz.json` da execução, quando o estágio rodou: achados de autorização entre contas, de origem própria e técnica própria (`origin: authz`, `technique`), **separados** de `findings` (que são do ZAP). Contrato em [authz.md](authz.md). O gate (`--fail-on`) conta os dois |
 
 `coverage`:
 
@@ -49,7 +54,7 @@ Raiz (`FindingsReport`):
 | `not_tested` | `[{operation_id, method, path, reason, message}]` de toda operação sem varredura. `reason` vem do `scan` (`not_success`, `delete`, `login`, `denied`, `scope`, `mutating`, `not_learned`, `not_planned`, `not_selected`, `not_run`) ou do `probe` (`probe_<classe>`) |
 | `limits` | Limites aplicados: `requests_per_second`, `max_duration_minutes`, `threads_per_host`, `delay_ms`, `max_scan_minutes`, `max_rule_minutes` |
 | `policy` | `name`, `strength`, `threshold`, `url_path_injection`, `injectable_mask`, `disabled_rules` |
-| `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason`, `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
+| `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason` (recusa por forma agrupada em `malformed_request`), `denied_by_detail` (o código granular: `path_encoded_slash`, `url_forbidden_char`, `deny_path`...), `path_shape_denied` (recusas por forma do caminho, a base do aviso de cobertura parcial de injeção em caminho), `allowed_outside_allow` (modo amplo: liberados com leitura fora de `scope.allow`), `path_mode` (`strict` ou `wide`; ADR 0026), `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
 
 ### `Finding`
 
@@ -71,6 +76,7 @@ Raiz (`FindingsReport`):
 | `evidence` | objeto | Evidência da melhor ocorrência (abaixo) |
 | `description`, `solution` | texto | Textos padrão do ZAP, sem HTML, cortados |
 | `reproduce_curl` | texto ou `null` | `curl` com marcadores (`"$BASE_URL"`, `$TOKEN`, `$CSRF_TOKEN`); `null` sem evidência |
+| `technique` | texto | Aditivo (ADR 0027). Técnica que produziu o achado; aqui sempre `zap_active_scan`. Os achados de autorização têm as suas em `authz.findings[].technique` |
 | `status` | texto | Sempre `needs_triage` |
 | `comparison` | texto ou `null` | `new` ou `persistent` com `--compare` |
 | `triage` | objeto ou `null` | `{note, suspected_false_positive, reason}` do agente. Consultivo |
@@ -78,6 +84,22 @@ Raiz (`FindingsReport`):
 `evidence`: `available` (`false` quando a mensagem não foi guardada), `message_id`, `attack` (carga, redigida), `zap_evidence` (trecho apontado pelo ZAP), `request_header`, `request_body`, `response_header`, `response_body` e `truncated`.
 
 `not_observed[]`: `fingerprint`, `finding_id`, `title`, `proposed_severity`, `method`, `path_template` e `operation_scanned_now`. **"Não observado nesta execução" não é "corrigido"**: a operação pode não ter sido varrida agora (`operation_scanned_now: false`), a varredura pode ter sido cortada, o varredor pode não ter repetido o ataque.
+
+### `FindingGroup` (`groups[]`)
+
+Visão **a mais**: nenhum achado some, nenhuma severidade muda. Chave do grupo (versão 1 da regra): `alert_ref`, `input_vector`, `parameter` e `proposed_severity`, iguais. Regra em `domain/finding_group.py`.
+
+| Campo | Descrição |
+| --- | --- |
+| `group_id` | `G-` e 8 hexadecimais da chave; estável entre execuções, legível, não é identidade |
+| `title`, `plugin_id`, `alert_ref`, `parameter`, `input_vector`, `cwe` | Do achado mais bem classificado do grupo (a chave garante regra, vetor e parâmetro iguais) |
+| `proposed_severity` | Igual à de todos os membros |
+| `findings_count`, `occurrences` | Achados no grupo e soma dos alertas do ZAP deles |
+| `finding_ids` | Achados do grupo, na ordem de `findings` |
+| `locations` | `[{finding_id, method, path_template, operation_id, occurrences}]`: onde aparece |
+| `expected_note` | Nota fixa do código (texto nosso) quando o padrão costuma ser esperado, como o cookie de XSRF por duplo envio; `null` sem padrão. Não altera severidade nem tira o achado da lista |
+
+Ordem: severidade, tamanho (maior primeiro), título, `group_id`.
 
 ## Fingerprint (versão 1)
 

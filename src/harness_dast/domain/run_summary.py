@@ -8,9 +8,9 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-STAGES: Final = ("preflight", "probe", "scan", "report")
+STAGES: Final = ("preflight", "probe", "scan", "authz", "report")
 
-StageName = Literal["preflight", "probe", "scan", "report"]
+StageName = Literal["preflight", "probe", "scan", "authz", "report"]
 StageStatus = Literal["ok", "failed", "interrupted", "skipped", "not_run"]
 RunStatus = Literal["completed", "findings", "failed", "interrupted"]
 
@@ -49,6 +49,7 @@ class RunOptions(BaseModel):
 
     seed: int | None = None
     skip_scan: bool = False
+    authz: bool = False
     fail_on: str | None = None
     compare: str | None = None
     max_minutes: int | None = None
@@ -67,9 +68,11 @@ class RunSummary(BaseModel):
         finished_at: Fim.
         duration_seconds: Duração total.
         options: Opções efetivas.
-        stages: Os quatro estágios, sempre, na ordem.
+        stages: Os cinco estágios, sempre, na ordem (`authz` fica `skipped` se não pedido).
         artifacts: Nome do arquivo -> nome do arquivo, só dos que existem na pasta.
-        findings_by_severity: Achados por severidade proposta, quando o `report` rodou.
+        findings_by_severity: Achados do ZAP por severidade proposta, quando o `report` rodou.
+        authz_findings_by_severity: Achados do estágio `authz` (técnica própria, não misturados
+            aos do ZAP) por severidade, quando o estágio rodou.
         stop_requested: Se a trava de emergência (`hdast stop`) foi acionada.
         cleanup_command: Comando que a pessoa deve rodar para limpar os dados desta execução.
     """
@@ -88,5 +91,6 @@ class RunSummary(BaseModel):
     stages: tuple[StageRecord, ...]
     artifacts: dict[str, str] = Field(default_factory=dict)
     findings_by_severity: dict[str, int] | None = None
+    authz_findings_by_severity: dict[str, int] | None = None
     stop_requested: bool = False
     cleanup_command: str | None = None

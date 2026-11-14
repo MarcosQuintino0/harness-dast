@@ -7,8 +7,11 @@ além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adap
 from pathlib import Path
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
-from harness_dast.adapters.reporting.sinks import JsonFindingsSink, MarkdownReportSink
-from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
+from harness_dast.adapters.reporting.sinks import (
+    HtmlReportSink,
+    JsonFindingsSink,
+    MarkdownReportSink,
+)
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
@@ -19,6 +22,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
+from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import (
     NetworkHandle,
     SharedServices,
@@ -29,8 +33,8 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
+from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
-    layered_environ,
     load_effective_settings,
     open_kill_switch,
     open_proxy_audit,
@@ -87,7 +91,7 @@ def build_scan(
         profiles=FileProfileRepository(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
-        secrets=EnvSecretProvider(layered_environ()),
+        secrets=build_secret_provider(),
         vault=secrets,
         client=net.network.client,
         zap=net.network.zap,
@@ -126,6 +130,7 @@ def build_run_pipeline(
         probe=build_probe(products_dir, secrets, net.network, shared),
         scan=build_scan(products_dir, secrets, net, shared),
         report=build_report(products_dir),
+        authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
         clock=clock,
@@ -141,7 +146,11 @@ def build_report(products_dir: Path | None) -> Report:
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
         artifacts=FileRunArtifacts(runs_dir),
-        sinks=(JsonFindingsSink(runs_dir), MarkdownReportSink(runs_dir)),
+        sinks=(
+            JsonFindingsSink(runs_dir),
+            MarkdownReportSink(runs_dir),
+            HtmlReportSink(runs_dir),
+        ),
         clock=SystemClock(),
         harness_version=harness_version(),
     )

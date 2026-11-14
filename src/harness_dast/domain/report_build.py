@@ -9,12 +9,16 @@ from collections.abc import Mapping, Sequence
 
 from pydantic import ValidationError
 
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
+from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import (
+    NOT_TESTED_STATEMENTS,
+    NOT_TESTED_WITH_AUTHZ,
     ComparisonInfo,
     Coverage,
     FindingsReport,
@@ -111,16 +115,22 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
     )
 
 
-def _summary(findings: Sequence[Finding], unreadable: int) -> FindingsSummary:
-    counts = Counter(item.proposed_severity for item in findings)
+_SEVERITIES = ("high", "medium", "low", "informational", "unknown")
+
+
+def _summary(
+    findings: Sequence[Finding], unreadable: int, authz: AuthzResult | None
+) -> FindingsSummary:
+    counts: Counter[str] = Counter(item.proposed_severity for item in findings)
+    own: Counter[str] = Counter(
+        item.proposed_severity for item in (authz.findings if authz else ())
+    )
     return FindingsSummary(
         total=len(findings),
-        by_severity={
-            name: counts.get(name, 0)
-            for name in ("high", "medium", "low", "informational", "unknown")
-        },
+        by_severity={name: counts.get(name, 0) for name in _SEVERITIES},
         occurrences=sum(item.occurrences for item in findings),
         alerts_unreadable=unreadable,
+        authz_by_severity=({name: own.get(name, 0) for name in _SEVERITIES} if authz else {}),
     )
 
 
@@ -136,6 +146,7 @@ def assemble_report(
     harness_version: str,
     auth_header: tuple[str, str] | None,
     csrf_header: str | None,
+    authz: AuthzResult | None = None,
 ) -> FindingsReport:
     """Monta o relatório completo.
 
@@ -167,9 +178,12 @@ def assemble_report(
         generated_at=generated_at,
         harness_version=harness_version,
         coverage=_coverage(probe, scan),
-        summary=_summary(findings, unreadable),
+        summary=_summary(findings, unreadable, authz),
         findings=findings,
+        groups=group_findings(findings),
         not_observed=gone,
         comparison=comparison,
         triage_orphans=orphans,
+        authz=authz,
+        not_tested_statements=NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ,
     )

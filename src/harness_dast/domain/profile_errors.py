@@ -67,6 +67,20 @@ def _drop_derived_errors(errors: list[ErrorDetails]) -> list[ErrorDetails]:
     return [e for e in errors if not (e["type"] == "too_short" and has_child(e))]
 
 
+_ALLOW_LOCAL_HINT = (
+    "Host de laboratório (nome de contêiner como vampi, localhost ou IP): na regra de "
+    "scope.allow, escreva allow_local: true (e scheme: http se o alvo não tem TLS). "
+    "Ambiente real de teste: use o nome DNS completo, com ponto."
+)
+
+
+def _hint_for(details: list[ErrorDetails], hint: str) -> str:
+    # O erro de allow_local é o que mais confunde quem começa: a dica diz a correção exata.
+    if any("allow_local: true nesta regra" in _describe(e) for e in details):
+        return f"{hint} {_ALLOW_LOCAL_HINT}"
+    return hint
+
+
 def to_config_error(error: ValidationError, *, hint: str) -> ConfigError:
     """Converte o `ValidationError` do pydantic em `ConfigError` em português.
 
@@ -86,4 +100,6 @@ def to_config_error(error: ValidationError, *, hint: str) -> ConfigError:
     details = _drop_derived_errors(error.errors())
     problems = sorted({f"{_format_location(e['loc'])}: {_describe(e)}" for e in details})
     lines = "\n".join(f"- {problem}" for problem in problems)
-    return ConfigError(f"Perfil inválido ({len(problems)} problema(s)):\n{lines}", hint=hint)
+    return ConfigError(
+        f"Perfil inválido ({len(problems)} problema(s)):\n{lines}", hint=_hint_for(details, hint)
+    )

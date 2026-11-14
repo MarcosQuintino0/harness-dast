@@ -10,7 +10,9 @@ from typing import Final
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
+from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
 from harness_dast.domain.traffic import TrafficSummary
 
@@ -30,6 +32,17 @@ NOT_TESTED_STATEMENTS: Final[tuple[str, ...]] = (
     "Um relatório sem achados NÃO é evidência de que a API é segura: significa apenas que "
     "estas regras não encontraram problema nestas requisições, com estes limites.",
 )
+
+NOT_TESTED_WITH_AUTHZ: Final[tuple[str, ...]] = (
+    "O ZAP não detecta falhas de autorização nem de lógica de negócio. Nesta execução o "
+    "estágio authz (técnica própria, determinística) comparou contas; o que ele cobriu e o que "
+    "não pôde testar está na seção 'Autorização entre contas' e em 'authz'.",
+    "O estágio authz cobre BOLA em leituras com identificador, BFLA nos métodos liberados, "
+    "campos fora do esquema em respostas de GET e atribuição em massa com a lista de campos do "
+    "perfil; falhas de lógica de negócio além disso continuam sem teste.",
+    *NOT_TESTED_STATEMENTS[2:],
+)
+"""Afirmações quando o estágio de autorização rodou: no lugar das duas primeiras do ZAP."""
 
 
 class NotTested(ApiModel):
@@ -111,12 +124,16 @@ class FindingsSummary(ApiModel):
         by_severity: Contagem pela severidade proposta pelo ZAP.
         occurrences: Alertas do ZAP reunidos nos achados.
         alerts_unreadable: Alertas brutos ilegíveis (ignorados e contados).
+        authz_by_severity: Achados do estágio de autorização entre contas por severidade
+            (aditivo, ADR 0027); vazio quando o estágio não rodou. NÃO entra em `total` nem em
+            `by_severity`, que seguem sendo só do ZAP.
     """
 
     total: int
     by_severity: dict[str, int]
     occurrences: int
     alerts_unreadable: int = 0
+    authz_by_severity: dict[str, int] = Field(default_factory=dict)
 
 
 class GoneFinding(ApiModel):
@@ -174,10 +191,15 @@ class FindingsReport(ApiModel):
         coverage: Cobertura e limites.
         not_tested_statements: Afirmações fixas sobre o que não foi testado.
         summary: Totais.
-        findings: Achados.
+        findings: Achados (todos, sem agrupar).
+        groups: Visão agrupada pela causa provável; cada achado está em exatamente um grupo
+            (aditivo, ADR 0029).
         not_observed: Achados da base não observados (só com `--compare`).
         comparison: Resumo da comparação, ou `None`.
         triage_orphans: Fingerprints da triagem que não existem.
+        authz: Resultado do estágio de autorização entre contas (ADR 0027), com os achados de
+            origem própria e a técnica de cada um; `None` quando o estágio não rodou. Não se
+            mistura com `findings` (do ZAP).
     """
 
     schema_version: int = REPORT_SCHEMA_VERSION
@@ -190,9 +212,11 @@ class FindingsReport(ApiModel):
     not_tested_statements: tuple[str, ...] = NOT_TESTED_STATEMENTS
     summary: FindingsSummary
     findings: tuple[Finding, ...] = ()
+    groups: tuple[FindingGroup, ...] = ()
     not_observed: tuple[GoneFinding, ...] = ()
     comparison: ComparisonInfo | None = None
     triage_orphans: tuple[str, ...] = Field(default=())
+    authz: AuthzResult | None = None
 
 
 class FindingDigest(ApiModel):
@@ -244,9 +268,11 @@ class ReportDigest(ApiModel):
         coverage: Cobertura, limites e o que não foi testado.
         not_tested_statements: Afirmações fixas de honestidade.
         findings: Resumo dos achados.
+        groups: Grupos de achados com a mesma causa provável.
         not_observed: Achados da base não observados (com `--compare`).
         comparison: Resumo da comparação.
         triage_orphans: Fingerprints de triagem sem achado.
+        authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
     """
 
     run_id: str
@@ -258,9 +284,11 @@ class ReportDigest(ApiModel):
     coverage: Coverage
     not_tested_statements: tuple[str, ...]
     findings: tuple[FindingDigest, ...]
+    groups: tuple[FindingGroup, ...]
     not_observed: tuple[GoneFinding, ...]
     comparison: ComparisonInfo | None
     triage_orphans: tuple[str, ...]
+    authz: AuthzResult | None = None
 
 
 def build_digest(
@@ -297,7 +325,9 @@ def build_digest(
             )
             for item in report.findings
         ),
+        groups=report.groups,
         not_observed=report.not_observed,
         comparison=report.comparison,
         triage_orphans=report.triage_orphans,
+        authz=report.authz,
     )

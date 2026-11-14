@@ -208,3 +208,27 @@ def test_deadline_of_limita_pela_duracao_maxima_quando_prazo_e_distante() -> Non
     started = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 
     assert deadline_of(make_policy(), started) == datetime(2026, 11, 13, 13, 0, tzinfo=UTC)
+
+
+def test_deadline_of_usa_stack_minutes_quando_a_politica_declara() -> None:
+    started = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
+    policy = make_policy(stack_minutes=90)
+
+    assert deadline_of(policy, started) == datetime(2026, 11, 13, 13, 30, tzinfo=UTC)
+
+
+def test_deadline_de_politica_com_stack_minutes_ainda_respeita_not_after() -> None:
+    started = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
+    policy = make_policy(stack_minutes=90, not_after="2026-11-13T12:45:00Z")
+
+    assert deadline_of(policy, started) == datetime(2026, 11, 13, 12, 45, tzinfo=UTC)
+
+
+def test_parse_policy_aceita_politica_sem_stack_minutes() -> None:
+    assert make_policy().stack_minutes is None
+
+
+@pytest.mark.parametrize("value", [0, -1, 541, "90", 90.5, True, []])
+def test_parse_policy_recusa_stack_minutes_invalido(value: object) -> None:
+    with pytest.raises(ConfigError, match="stack_minutes"):
+        parse_policy(dump(policy_data(stack_minutes=value)))

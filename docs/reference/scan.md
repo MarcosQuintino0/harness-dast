@@ -77,7 +77,7 @@ A CLI faz o login (mesma sessão e mesmo orçamento de login do `probe`), instal
 
 ## `data` e saída
 
-`data` é o `scan.json` (campos em [finding-schema.md](finding-schema.md#scanjson)). O campo `traffic` vem da auditoria do proxy de escopo: pedidos liberados, **negados** (o que o varredor tentou fora do escopo, por motivo), duração, taxa média e pico por segundo e o limite do perfil; o `report` o transforma em "N requisições que o varredor tentou foram bloqueadas pelo escopo". Sem pilha gerenciada, `traffic.enabled` é `false`. Sem `--dry-run`, o envelope traz `run_id`. Progresso observável fora do envelope: `scan-progress.json` e o log estruturado no `stderr`.
+`data` é o `scan.json` (campos em [finding-schema.md](finding-schema.md#scanjson)). O campo `traffic` vem da auditoria do proxy de escopo: pedidos liberados, **negados** (o que o varredor tentou fora do escopo, por motivo), duração, taxa média e pico por segundo e o limite do perfil; o `report` o transforma em "N requisições que o varredor tentou foram bloqueadas pelo escopo", com o nome legível de cada código de recusa, o modo de leitura do caminho (`path_mode`), o aviso de cobertura parcial de injeção em caminho (`path_shape_denied`) e, no modo amplo, a contagem de liberados com leitura fora de `scope.allow` (`allowed_outside_allow`). Os campos novos do ADR 0026 estão em [finding-schema.md](finding-schema.md). Sem pilha gerenciada, `traffic.enabled` é `false`. Sem `--dry-run`, o envelope traz `run_id`. Progresso observável fora do envelope: `scan-progress.json` e o log estruturado no `stderr`.
 
 | Saída | Quando |
 | --- | --- |

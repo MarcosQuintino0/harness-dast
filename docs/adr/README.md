@@ -31,6 +31,8 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0023](0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) | Verificação do `scan` no ZAP real: CSRF durante a varredura, tráfego medido no proxy e regras desligadas | Aceito | 2026-11-13 | Verificação de M4 contra o ZAP 2.17 real; corrige pontos do 0022 |
 | [0024](0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md) | `hdast run`: etapas encadeadas, `run.json`, trava de emergência e Oracle na pilha | Aceito | 2026-11-13 | M5; detalha 0010, 0019, 0020 e 0022 |
 | [0025](0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md) | Limpeza: confirmação só em terminal, amarração por coluna real e demais mudanças do QA M2 a M5 | Aceito | 2026-11-13 | QA M2 a M5; altera 0020, 0022 e 0024 |
+| [0026](0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) | A cerca enxerga melhor (motivo granular) e ganha um modo amplo de caminho | Proposto | 2026-11-13 | Medição em três varreduras reais; complementa 0008 e 0024 |
+| [0028](0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md) | Facilitar o uso: `hdast doctor`, `probe.setup_path`, mensagem do `allow_local`, `init` sem `cleanup/` e prazo da pilha | Aceito | 2026-11-13 | Rodadas cegas de 2026-11-13; altera 0010, 0013, 0017 e 0019 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 
