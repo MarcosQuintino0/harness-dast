@@ -68,7 +68,8 @@ class RunSummary(BaseModel):
         finished_at: Fim.
         duration_seconds: Duração total.
         options: Opções efetivas.
-        stages: Os cinco estágios, sempre, na ordem (`authz` fica `skipped` se não pedido).
+        stages: Os cinco estágios, sempre, na ordem (`authz` fica `skipped` com `--no-authz` ou
+            `--skip-scan`).
         artifacts: Nome do arquivo -> nome do arquivo, só dos que existem na pasta.
         findings_by_severity: Achados do ZAP por severidade proposta, quando o `report` rodou.
         authz_findings_by_severity: Achados do estágio `authz` (técnica própria, não misturados

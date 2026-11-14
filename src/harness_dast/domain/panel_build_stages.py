@@ -135,8 +135,8 @@ def _authz_text(src: PanelSources, state: StageState) -> str:
     if authz is None:
         if state == "skipped":
             return (
-                "Não rodou. O teste entre contas é opcional (hdast run --authz) e o dono do "
-                "produto decide se autoriza."
+                "Não rodou. O teste entre contas roda por padrão no hdast run (só leitura); foi "
+                "desligado com --no-authz ou pulado com --skip-scan."
             )
         return ""
     return (
