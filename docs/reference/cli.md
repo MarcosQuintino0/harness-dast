@@ -123,6 +123,7 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 | `services` | lista | `{project, service, state, health}` |
 | `target_urls` | mapa | `api` e `management` do alvo piloto |
 | `warnings` | lista de textos | Avisos |
+| `lock` | objeto ou nulo | Quem ocupa a pilha agora (trava por pilha, [ADR 0035](../adr/0035-trava-por-pilha.md)): `state` (`held`, `orphan` ou `unreadable`), `command`, `product`, `lock_id`, `pid`, `started_at` e `message`; nulo com a pilha livre |
 
 `stop` lê os `scan-progress.json` com `status: running` atualizados há até 120 s (`data.scans_running`: execução, operação, posição e percentual do que estava rodando), cria o arquivo `KILL` na pasta da política (a da pilha gerenciada, ou `HDAST_SCOPE_POLICY_DIR`) **antes** de falar com o ZAP e depois pede ao ZAP `ascan/stopAllScans`; ZAP inacessível não é erro (`zap_reachable: false`). `data`: `kill_file`, `kill_created`, `stack_managed`, `zap_reachable`, `zap_scans_stopped`, `zap_message`. O proxy nega todo pedido novo e a trava só se desfaz recriando a pilha (`stack up`). Sem pilha e sem `HDAST_SCOPE_POLICY_DIR`, sai com `2`. `stop` não derruba contêineres: use `stack down`.
 
@@ -435,6 +436,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | `EXTERNAL_TOOL_ERROR` | `ExternalToolError`: ferramenta externa (ZAP, Docker) indisponível ou com resposta inválida | 5 |
 | `TARGET_ERROR` | `TargetError`: o alvo respondeu de forma que impede o prosseguimento | 6 |
 | `CLEANUP_FAILED` | `CleanupError`: a limpeza falhou | 7 |
+| `STACK_BUSY` | `StackBusy`: a pilha já está ocupada por outra execução (trava por pilha, [ADR 0035](../adr/0035-trava-por-pilha.md)) | 8 |
 | `INTERNAL` | Erro interno inesperado | 10 |
 | `INTERRUPTED` | Interrompido pelo usuário (Ctrl+C) | 130 |
 
