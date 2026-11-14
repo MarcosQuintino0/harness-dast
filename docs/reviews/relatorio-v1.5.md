@@ -40,6 +40,7 @@ Em `C:\harness-dast-artefatos\v1.5\`:
 | mypy Windows e Linux | 701 arquivos sem erros em cada execução |
 | import-linter | 372 arquivos, 2.261 dependências e 6 contratos preservados |
 | Vulture | Sem código sem uso reportado pelo gate |
+| Cobertura local | Ramos de domínio 98,6% (piso 95%) e de aplicação 96,9% (piso 85%). Linhas alteradas da V1.5 94% (piso 90%), comparadas com a base `origin/feat/v1-4` usada na candidata |
 | pytest | 7723 passaram, 5 pulados e 67 desmarcados em 211.42s (0:03:31) |
 
 O teste focado do QA integrado passou nos três casos. Os logs detalhados estão em C:\harness-dast-artefatos\v1.5\gates.
