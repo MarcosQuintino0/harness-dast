@@ -171,6 +171,11 @@ PROTECTED_CHANGES: list[tuple[str, Mutation, str]] = [
         "authz",
     ),
     (
+        "authz.disabled_checks (verificações de acesso, ADR 0039)",
+        lambda d: d.update(authz={"disabled_checks": ["anonymous_access", "tampered_token"]}),
+        "authz",
+    ),
+    (
         "authz.mass_assignment_fields",
         lambda d: d.update(authz={"mass_assignment_fields": [{"name": "tipo", "value": "x"}]}),
         "authz",

@@ -57,6 +57,13 @@ def _finding(item: AuthzFinding) -> str:
         if item.fields
         else ""
     )
+    variants = (
+        "<p><b>Variantes de token aceitas (só nomes; o token não foi gravado):</b> "
+        + ", ".join(f"<code>{h.text(name, 40)}</code>" for name in item.variants)
+        + "</p>"
+        if item.variants
+        else ""
+    )
     return (
         f'<article class="group {sev}"><h4>{h.text(item.title, 160)}'
         f'<span class="badge {sev}">{SEVERITY_LABEL[sev]}</span></h4>'
@@ -65,7 +72,7 @@ def _finding(item: AuthzFinding) -> str:
         f"não é achado do ZAP. Achado {h.ident(item.finding_id)}; "
         f"CWE-{item.cwe}, {h.text(item.owasp_api_2023, 120)}.</p>"
         f"<p><b>Onde:</b> <code>{h.ident(item.method + ' ' + item.path_template)}</code>, "
-        f"operação {h.ident(item.operation_id)}, {_who(item)}.</p>{fields}"
+        f"operação {h.ident(item.operation_id)}, {_who(item)}.</p>{fields}{variants}"
         f"<p><b>O que foi observado:</b> {h.text(item.evidence, 600)}</p>"
         f"<p><b>O que significa:</b> {h.text(item.description, 600)}</p>"
         "<p><b>Direção de correção (sugestão genérica, não verificada):</b> "

@@ -29,6 +29,8 @@ TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
     "authz_vertical": "Acesso vertical: papel menor chama operação de papel maior (BFLA)",
     "authz_excessive_data": "Exposição excessiva de dados (campos fora do esquema)",
     "authz_mass_assignment": "Atribuição em massa (campo extra aceito)",
+    "authz_anonymous_access": "Acesso sem login",
+    "authz_tampered_token": "Token adulterado aceito",
 }
 """Nome legível de cada técnica, usado no relatório."""
 

@@ -8,6 +8,7 @@ from harness_dast.domain.authz_findings import (
     horizontal_finding,
     mass_assignment_finding,
 )
+from harness_dast.domain.authz_findings_access import anonymous_finding, tampered_finding
 from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.report_markdown import render_markdown
@@ -186,3 +187,55 @@ def test_no_value_of_a_suspect_field_reaches_the_report() -> None:
     text = report.model_dump_json() + render_markdown(report)
 
     assert "$2b$" not in text
+
+
+def access_result() -> AuthzResult:
+    base = authz_result(findings=False)
+    findings = (
+        anonymous_finding(
+            product="agenda",
+            operation_id="lista",
+            method="GET",
+            path_template="/api/y",
+            actor=("adm", "admin"),
+            operation=None,
+            statuses=(200, 200),
+        ),
+        tampered_finding(
+            product="agenda",
+            operation_id="lista",
+            method="GET",
+            path_template="/api/y",
+            actor=("adm", "admin"),
+            variants=("alg_none", "scrambled"),
+            statuses=(200, 200),
+        ),
+    )
+    return base.model_copy(update={"findings": findings})
+
+
+def test_the_markdown_shows_the_access_findings_with_label_and_variants_but_no_token() -> None:
+    report = report_with(scanned(), access_result())
+
+    text = render_markdown(report)
+
+    assert "Acesso sem login" in text
+    assert "Token adulterado aceito" in text
+    assert "`authz_anonymous_access`" in text
+    assert "`alg_none`" in text
+    assert "CWE-347" in text
+    assert "eyJ" not in text
+
+
+def test_the_findings_json_carries_the_access_techniques_and_variants() -> None:
+    report = report_with(scanned(), access_result())
+
+    assert report.authz is not None
+    dumped = report.model_dump(mode="json")["authz"]["findings"]
+    assert {item["technique"] for item in dumped} == {
+        "authz_anonymous_access",
+        "authz_tampered_token",
+    }
+    assert [item["variants"] for item in dumped] == [[], ["alg_none", "scrambled"]]
+    by_severity = report.summary.authz_by_severity
+    assert (by_severity["high"], by_severity["medium"]) == (1, 1)

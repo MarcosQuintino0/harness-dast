@@ -203,6 +203,8 @@ def test_authz_finds_bola_and_excessive_data_and_writes_authz_json(
     assert [c["check"] for c in data["checks"]] == [
         "horizontal",
         "excessive_data",
+        "anonymous_access",
+        "tampered_token",
         "vertical",
         "mass_assignment",
     ]
@@ -376,3 +378,80 @@ def test_authz_check_mass_assignment_without_the_letter_is_not_tested_and_not_an
     assert ("mass_assignment", "writes_not_authorized") in reasons
     mass = next(c for c in data["checks"] if c["check"] == "mass_assignment")
     assert mass["status"] == "skipped"
+
+
+def test_authz_accepts_the_access_checks_by_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "anonymous_access",
+            "--check",
+            "tampered_token",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    statuses = {c["check"]: c["status"] for c in envelope["data"]["checks"]}
+    assert statuses["anonymous_access"] != "disabled"
+    assert statuses["tampered_token"] != "disabled"  # noqa: S105 - nome de verificação
+    assert statuses["horizontal"] == "disabled"
+
+
+def test_authz_check_with_an_unknown_name_still_lists_the_new_ones_in_the_hint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "token_forjado",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.USAGE
+    assert "anonymous_access" in json.dumps(envelope)
+    assert "tampered_token" in json.dumps(envelope)
+
+
+def test_authz_dry_run_lists_the_access_candidates_without_sending(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (server, products):
+        run_id = probe(capsys, products)
+        before = len(server.requests)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--dry-run",
+            "--check",
+            "anonymous_access",
+            "--check",
+            "tampered_token",
+            "--products-dir",
+            str(products),
+        )
+        after = len(server.requests)
+
+    assert code == ExitCode.OK
+    assert before == after
+    by_name = {c["check"]: c for c in envelope["data"]["checks"]}
+    assert by_name["anonymous_access"]["candidates"] >= 1
+    assert by_name["tampered_token"]["candidates"] >= 1

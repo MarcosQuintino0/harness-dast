@@ -232,3 +232,21 @@ def test_unknown_code_is_shown_as_it_came() -> None:
 @pytest.mark.parametrize("reason", list(ScopeReason))
 def test_every_scope_reason_has_a_human_label(reason: ScopeReason) -> None:
     assert reason.value in SCOPE_CODE_LABELS
+
+
+def test_page_shows_the_access_findings_with_labels_and_variant_names() -> None:
+    from tests.unit.application.test_report_authz import access_result
+
+    base = report([zap_alert("9")])
+    result = access_result()
+    counts = {name: 0 for name in ("high", "medium", "low", "informational", "unknown")}
+    for item in result.findings:
+        counts[item.proposed_severity] += 1
+    summary = base.summary.model_copy(update={"authz_by_severity": counts})
+
+    page = render_html(base.model_copy(update={"authz": result, "summary": summary}))
+
+    assert TECHNIQUE_LABEL["authz_anonymous_access"] in page
+    assert TECHNIQUE_LABEL["authz_tampered_token"] in page
+    assert "<code>alg_none</code>" in page
+    assert "o token não foi gravado" in page

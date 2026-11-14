@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from harness_dast.domain.authz_config import (
+    CHECK_ORDER,
     DEFAULT_MASS_FIELDS,
     DEFAULT_VERTICAL_METHODS,
     AuthzConfig,
@@ -74,7 +75,13 @@ def test_a_literal_secret_typed_in_the_wrong_place_is_not_echoed() -> None:
 def test_checks_run_in_the_fixed_order_minus_the_disabled_ones() -> None:
     config = AuthzConfig(disabled_checks=("vertical",))
 
-    assert config.enabled_checks() == ("horizontal", "excessive_data", "mass_assignment")
+    assert config.enabled_checks() == (
+        "horizontal",
+        "excessive_data",
+        "anonymous_access",
+        "tampered_token",
+        "mass_assignment",
+    )
     assert config.enabled_checks(("mass_assignment", "horizontal")) == (
         "horizontal",
         "mass_assignment",
@@ -145,3 +152,26 @@ def test_a_profile_with_a_non_boolean_allow_writes_is_refused_as_a_config_error(
 
     with pytest.raises(ConfigError):
         ProductProfile.from_data(data)
+
+
+def test_the_check_order_puts_the_read_only_access_checks_before_vertical() -> None:
+    assert CHECK_ORDER == (
+        "horizontal",
+        "excessive_data",
+        "anonymous_access",
+        "tampered_token",
+        "vertical",
+        "mass_assignment",
+    )
+
+
+def test_the_access_checks_can_be_disabled_and_requested_alone() -> None:
+    config = AuthzConfig(disabled_checks=("tampered_token",))
+
+    assert config.enabled_checks(("tampered_token", "anonymous_access")) == ("anonymous_access",)
+    assert config.enabled_checks(("tampered_token",)) == ()
+
+
+def test_unknown_check_name_in_disabled_checks_is_refused() -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig.model_validate({"disabled_checks": ["token_forjado"]})

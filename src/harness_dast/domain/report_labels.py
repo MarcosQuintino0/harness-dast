@@ -16,6 +16,8 @@ SEVERITY_ORDER: Final = tuple(SEVERITY_LABEL)
 CHECK_LABEL: Final = {
     "horizontal": "Acesso horizontal (BOLA)",
     "excessive_data": "Dado a mais (exposição excessiva)",
+    "anonymous_access": "Acesso sem login",
+    "tampered_token": "Token adulterado aceito",
     "vertical": "Acesso vertical (BFLA)",
     "mass_assignment": "Campo a mais (atribuição em massa)",
 }

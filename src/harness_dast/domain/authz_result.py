@@ -10,6 +10,7 @@ from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_token import TamperVariant
 from harness_dast.domain.probe_result import ProbeStatus
 from harness_dast.domain.zap_alert import Severity
 
@@ -17,7 +18,12 @@ AUTHZ_SCHEMA_VERSION: Final = 1
 AUTHZ_FINGERPRINT_VERSION: Final = 1
 
 AuthzTechnique = Literal[
-    "authz_horizontal", "authz_vertical", "authz_excessive_data", "authz_mass_assignment"
+    "authz_horizontal",
+    "authz_vertical",
+    "authz_excessive_data",
+    "authz_mass_assignment",
+    "authz_anonymous_access",
+    "authz_tampered_token",
 ]
 CheckStatus = Literal["completed", "partial", "skipped", "disabled"]
 
@@ -38,6 +44,11 @@ AUTHZ_LIMITS: Final[tuple[str, ...]] = (
     "authz.vertical_methods; exige authz.role_order.",
     "Atribuição em massa só com os campos de authz.mass_assignment_fields, um por pedido.",
     "Operações que o probe não alcançou com sucesso não são repetidas.",
+    "Pedido sem login e token adulterado só em GET; autenticação só por cookie de sessão não é "
+    "modelada, então 'sem achado' no pedido sem login não prova segurança.",
+    "Token adulterado: só JWT (remover assinatura, alg none, uma reivindicação a mais) e texto "
+    "embaralhado; nunca se forja assinatura nem se troca identidade. 2xx com corpo diferente não "
+    "é achado.",
 )
 
 
@@ -64,6 +75,8 @@ class AuthzFinding(ApiModel):
         baseline_status: Código HTTP da linha de base, quando existe.
         observed_status: Código HTTP observado na repetição.
         fields: Caminhos de campo envolvidos (dado a mais; atribuição em massa). Só nomes.
+        variants: Variantes de token aceitas pelo servidor (token adulterado). Só nomes: o
+            valor de um token nunca é gravado. Fora do fingerprint.
         evidence: Frase que descreve o que foi observado, sem valores do alvo.
         description: O que a falha significa.
         solution: O que fazer a respeito.
@@ -89,6 +102,7 @@ class AuthzFinding(ApiModel):
     baseline_status: int | None = None
     observed_status: int | None = None
     fields: tuple[str, ...] = ()
+    variants: tuple[TamperVariant, ...] = ()
     evidence: str
     description: str
     solution: str

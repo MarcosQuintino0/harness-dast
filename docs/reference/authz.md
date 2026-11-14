@@ -1,6 +1,6 @@
 # `hdast authz`: teste de autorização entre contas
 
-Decisões: [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md) e [ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md) (estágio ligado por padrão no `run` e escrita só com a carta). O ZAP varre uma requisição por vez, com uma identidade, e não conhece o esquema de resposta do produto; por isso não acha BOLA, BFLA, atribuição em massa nem exposição excessiva de dados. O `authz` é um estágio **determinístico, sem ZAP**, que roda depois do `probe` e repete com outras contas os pedidos que o `probe` já provou com sucesso.
+Decisões: [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md), [ADR 0039](../adr/0039-pedido-sem-login-e-token-adulterado.md) (pedido sem login e token adulterado) e [ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md) (estágio ligado por padrão no `run` e escrita só com a carta). O ZAP varre uma requisição por vez, com uma identidade, e não conhece o esquema de resposta do produto; por isso não acha BOLA, BFLA, atribuição em massa nem exposição excessiva de dados. O `authz` é um estágio **determinístico, sem ZAP**, que roda depois do `probe` e repete com outras contas, **sem login** e **com o token adulterado** os pedidos que o `probe` já provou com sucesso.
 
 ```bash
 uv run hdast --json authz meu-produto --run <run_id do probe>
@@ -10,12 +10,12 @@ uv run hdast run meu-produto                                             # dentr
 uv run hdast run meu-produto --no-authz                                  # pula o estágio (é redução)
 ```
 
-**No `run` o estágio vem ligado** (ADR 0038) e, por padrão, só LÊ: `horizontal`, `excessive_data` e `vertical` restrita a `GET` e `HEAD`. A flag `--authz` continua aceita por compatibilidade e não muda nada. Com `--skip-scan` o estágio fica `skipped`. Sem contas ou pedidos suficientes ele **não derruba o `run`**: cada verificação que não pôde rodar vai para `not_tested` com o motivo.
+**No `run` o estágio vem ligado** (ADR 0038) e, por padrão, só LÊ: `horizontal`, `excessive_data`, `anonymous_access`, `tampered_token` e `vertical` restrita a `GET` e `HEAD`. A flag `--authz` continua aceita por compatibilidade e não muda nada. Com `--skip-scan` o estágio fica `skipped`. Sem contas ou pedidos suficientes ele **não derruba o `run`**: cada verificação que não pôde rodar vai para `not_tested` com o motivo.
 
 | Flag | Efeito |
 | --- | --- |
 | `--run ID` | Obrigatória. `run_id` de um `probe` real (com `exchanges.json`). Um `probe --dry-run` não serve |
-| `--check NOME` | Roda só esta verificação (repetível): `horizontal`, `excessive_data`, `vertical`, `mass_assignment`. **Só reduz**: não liga o que `authz.disabled_checks` desligou. Nome desconhecido é erro de configuração (`2`) |
+| `--check NOME` | Roda só esta verificação (repetível): `horizontal`, `excessive_data`, `anonymous_access`, `tampered_token`, `vertical`, `mass_assignment`. **Só reduz**: não liga o que `authz.disabled_checks` desligou. Nome desconhecido é erro de configuração (`2`) |
 | `--dry-run` | Planeja (candidatos por verificação e o que fica sem teste) sem enviar nada nem gravar `authz.json` |
 | `--products-dir` | Pasta de produtos |
 
@@ -41,8 +41,12 @@ Ordem fixa, do que não escreve no alvo para o que escreve. As que escrevem (`ma
 | --- | --- | --- | --- |
 | `horizontal` (BOLA, OWASP API1) | Cada `GET` com identificador no caminho: primeiro com a conta dona (linha de base) e depois com outra conta do MESMO papel | A outra conta recebe `2xx` com corpo equivalente (sem campos voláteis) | Alta |
 | `excessive_data` (API3) | Cada `GET` com sucesso (reaproveita a linha de base quando há) | A resposta traz campo que o esquema de resposta do OpenAPI não declara | Média; **alta** se o NOME do campo indica segredo (senha, hash, token...) ou dado pessoal (cpf, e-mail...) |
+| `anonymous_access` (API2) | Cada `GET` provado (um por operação): o mesmo alvo, **um** pedido sem credencial (sem cabeçalho de autenticação, sem cookie, sem sessão e sem novo login), depois da linha de base da conta dona | `2xx` com corpo equivalente ao autenticado | **Alta** se o OpenAPI exige autenticação na operação; **média** se não declara `security` (pode ser pública de propósito: triagem humana). CWE-306 |
+| `tampered_token` (API2) | Cada `GET` provado em que o pedido sem credencial foi recusado: o token que a sessão da conta dona já tem, adulterado, sem cookie e sem novo login. JWT: até 3 pedidos (`stripped_signature`, `alg_none`, `altered_claims`); token opaco ou chave de API: 1 (`scrambled`, o texto invertido) | `2xx` com corpo equivalente ao autenticado em alguma variante (o achado lista as variantes aceitas em `variants`) | **Alta**. CWE-347 se alguma variante JWT foi aceita; CWE-287 se só `scrambled` |
 | `vertical` (BFLA, API5) | Operações que uma regra EXPLÍCITA de `auth.account_map` atribui a um papel maior, com uma conta de cada papel menor (segundo `authz.role_order`) | `2xx`. Só `401` e `403` contam como negado; `400`, `404`, `409`, `422` e `5xx` são inconclusivos | Alta |
 | `mass_assignment` (API3) | Cada `PUT`/`PATCH` com corpo JSON provado pelo `probe`: o mesmo corpo mais UM campo extra de `authz.mass_assignment_fields` por pedido (se o corpo já traz o campo, o valor é trocado pelo de teste) | Uma leitura seguinte (um `GET` do mesmo modelo de caminho, mesma conta; ou a própria resposta) mostra o valor injetado onde antes não estava. Cobre nome diferente (`role` entra, `papel` muda). Depois tenta restaurar o valor anterior | Alta |
+
+**Pedido sem login e token adulterado** (ADR 0039) só leem, não dependem de `allow_writes` e rodam por padrão. A ferramenta só REMOVE ou CORROMPE o que protege o token: nunca assina, nunca tenta chave conhecida nem confusão de algoritmo, nunca troca `sub`, papel ou `scope` (a variante `altered_claims` só acrescenta a reivindicação inofensiva `hdast`), nunca envia o token de uma conta em pedido de outra. O valor do token (original ou adulterado) nunca é gravado em artefato, log, auditoria ou mensagem, e cada valor adulterado é registrado no cofre de máscara antes de sair. Um `401` do pedido adulterado não dispara novo login nem repete o pedido (não gasta o orçamento de login). Teto por execução: 200 operações em `anonymous_access` e 100 em `tampered_token` (o resto vai para `not_tested` com `budget_exhausted`). O pedido sem credencial é feito uma vez por operação e reaproveitado pelas duas verificações; se só `tampered_token` for pedida, ele é enviado mesmo assim, para não acusar um servidor que ignora o token.
 
 Tratamento de falso alarme e de resultado esperado: operação listada em `authz.public_operations` é ignorada (BOLA e BFLA); `401`, `403` e demais `4xx` da outra conta são o resultado esperado; `2xx` com corpo DIFERENTE não é achado (o recurso responde por quem pergunta); campos voláteis (`timestamp`, `requestId`, `traceId`, `date`, `etag`... e os de `authz.volatile_fields`) não entram na comparação; linha de base que não deu `2xx` agora vai para `not_tested`, não para "seguro"; `5xx` e falta de resposta também são `inconclusive`.
 
@@ -60,9 +64,16 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 
 | `reason` | Quando | O que fazer |
 | --- | --- | --- |
+| `declared_public` | `anonymous_access` e `tampered_token`: o OpenAPI declara a operação como anônima (alguma alternativa de `security` sem esquema) | Nada: responder sem login é o esperado |
+| `infrastructure_path` | `anonymous_access` e `tampered_token`: é o caminho do login, `probe.health_path` ou `probe.setup_path` | Nada: existem para responder sem sessão |
+| `anonymous_already_open` | `tampered_token`: a operação responde `2xx` sem credencial; o servidor ignora o token, então adulterá-lo não diz nada | Veja o resultado de `anonymous_access` |
+| `token_too_short` | `tampered_token`: o token tem menos de 2 caracteres, ou espaço ou caractere de controle, e não dá para embaralhar | Nada |
+| `no_credential` | `tampered_token`: a conta dona não tem token nem chave para adulterar | Confira o login da conta (`preflight`) |
+| `no_read_exchange` | `anonymous_access` e `tampered_token`: o `probe` não trouxe nenhum `GET` com sucesso | Faça o `probe` alcançar leituras (`fix-reachability`) |
+| `budget_exhausted` | `anonymous_access` e `tampered_token`: passou do teto de operações por execução | Marque as públicas em `authz.public_operations` e rode de novo |
 | `no_peer_account` | Não há outra conta do mesmo papel da dona do pedido | Cadastre uma segunda conta do mesmo papel em `auth.accounts` e roteie a operação para uma delas em `auth.account_map` |
 | `no_path_parameter` | `GET` sem identificador no caminho (coleção) | Nada: coleções não são comparadas entre contas |
-| `public_operation` | A operação está em `authz.public_operations` | Nada (declarado) |
+| `public_operation` | A operação está em `authz.public_operations` (vale também para `anonymous_access` e `tampered_token`) | Nada (declarado). Se `anonymous_access` deu achado médio num endpoint público de propósito, é o remédio |
 | `writes_not_authorized` | `mass_assignment` (ou métodos de escrita de `vertical_methods`) pedido sem `authz.allow_writes` no perfil | Nada: a carta não autorizou escrita. Se o dono do produto autoriza, a pessoa registra em `attack.allow_authz_writes` da carta, gera o perfil de novo e aprova o escopo |
 | `no_exchanges` | O `probe` não registrou nenhum pedido com sucesso (`exchanges.json` vazio): vale para cada verificação | Faça o `probe` alcançar operações (`fix-reachability`) |
 | `exchanges_unavailable` | No estágio do `run`, `exchanges.json` ausente ou ilegível: o estágio não derruba a execução e cada verificação diz isto | Rode o `probe` de novo; o comando `hdast authz` solto recusa essa situação como erro de configuração |
@@ -82,11 +93,11 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 
 ## Limites conhecidos (também em `limits` do `authz.json`)
 
-BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas, salvo quando o perfil lista métodos de escrita em `authz.vertical_methods` **e** `authz.allow_writes` está ligado. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
+Pedido sem login e token adulterado só em `GET`; autenticação só por cookie de sessão não é modelada (um alvo que autentica só por cookie aparece como `anonymous_access` sem achado, o que **não** prova segurança); JWT cujo conteúdo não é objeto ou com cabeçalho sem `alg` é tratado como opaco; `alg: none` escrito como `None` ou `NONE` não é coberto; `2xx` com corpo diferente não é achado. BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas, salvo quando o perfil lista métodos de escrita em `authz.vertical_methods` **e** `authz.allow_writes` está ligado. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
 
 ## Bloco `authz` do perfil
 
-Opcional e aditivo na `schema_version` 1 (`allow_writes`, ADR 0038, também). Veja [target-yml.md](target-yml.md#authz-opcional).
+Opcional e aditivo na `schema_version` 1 (`allow_writes`, ADR 0038, também). As verificações do ADR 0039 não criam campo no perfil: `disabled_checks` e `public_operations` já as controlam. Veja [target-yml.md](target-yml.md#authz-opcional).
 
 ## `data` do envelope e `authz.json`
 
@@ -106,7 +117,7 @@ Opcional e aditivo na `schema_version` 1 (`allow_writes`, ADR 0038, também). Ve
 | `limits` | lista de texto | Limites conhecidos, fixos |
 | `notice` | texto | Aviso fixo: zero achados não prova segurança |
 
-Achado (`AuthzFinding`): `finding_id` (`A-` e 8 hexadecimais), `fingerprint` (SHA-256 de técnica, produto, método, modelo de caminho e campos; sem contas nem códigos HTTP), `fingerprint_version`, `origin` (sempre `authz`), `technique` (`authz_horizontal`, `authz_vertical`, `authz_excessive_data`, `authz_mass_assignment`), `title`, `proposed_severity`, `cwe`, `owasp_api_2023`, `operation_id`, `method`, `path_template`, `actor_account`, `actor_role`, `owner_account`, `owner_role`, `baseline_status`, `observed_status`, `fields` (caminhos de campo, só nomes), `evidence` (frase sem valores), `description`, `solution`, `status` (sempre `needs_triage`).
+Achado (`AuthzFinding`): `finding_id` (`A-` e 8 hexadecimais), `fingerprint` (SHA-256 de técnica, produto, método, modelo de caminho e campos; sem contas nem códigos HTTP), `fingerprint_version`, `origin` (sempre `authz`), `technique` (`authz_horizontal`, `authz_vertical`, `authz_excessive_data`, `authz_mass_assignment`, `authz_anonymous_access`, `authz_tampered_token`), `title`, `proposed_severity`, `cwe`, `owasp_api_2023`, `operation_id`, `method`, `path_template`, `actor_account`, `actor_role`, `owner_account`, `owner_role`, `baseline_status`, `observed_status`, `fields` (caminhos de campo, só nomes), `variants` (token adulterado: nomes das variantes aceitas, só nomes; fora do fingerprint; vazio nas demais técnicas), `evidence` (frase sem valores), `description`, `solution`, `status` (sempre `needs_triage`).
 
 | Técnica | CWE | Categoria OWASP API 2023 |
 | --- | --- | --- |
@@ -114,6 +125,8 @@ Achado (`AuthzFinding`): `finding_id` (`A-` e 8 hexadecimais), `fingerprint` (SH
 | `authz_vertical` | 285 | API5 Broken Function Level Authorization |
 | `authz_excessive_data` | 213 | API3 Broken Object Property Level Authorization |
 | `authz_mass_assignment` | 915 | API3 Broken Object Property Level Authorization |
+| `authz_anonymous_access` | 306 | API2 Broken Authentication |
+| `authz_tampered_token` | 347 (287 se só `scrambled` foi aceita) | API2 Broken Authentication |
 
 **Saída:** `0` quando o estágio rodou, mesmo com achados (são dado; o `report` é o dono do código `1`). `2` configuração (execução sem `exchanges.json`, `probe` simulado, outro produto, `--check` inválido, operação pública inexistente); `3` janela fechada, autorização vencida ou prazo esgotado, inclusive no meio; `5` o proxy do ZAP caiu; `6` o alvo parou de responder. Nos casos `3`, `5` e `6` depois de começar, o envelope traz `ok: false`, `error` e `data` com o resultado parcial. Com `--dry-run`, o envelope não tem `run_id` no topo.
 
