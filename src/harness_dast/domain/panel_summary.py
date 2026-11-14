@@ -30,7 +30,7 @@ from harness_dast.domain.panel_layout import (
     row,
     stat,
 )
-from harness_dast.domain.panel_model import PanelFinding, PanelView
+from harness_dast.domain.panel_model import PanelFinding, PanelVerdict, PanelView
 from harness_dast.domain.panel_stages import render_track
 
 _MAX_ROWS: Final = 8
@@ -83,13 +83,18 @@ def _skipped_count(view: PanelView) -> tuple[int, int]:
     return left, forbidden
 
 
+def _attack_basis(verdict: PanelVerdict) -> int | None:
+    """Base das funções atacadas: as planejadas; sem plano, as que o alcance tentou."""
+    return verdict.functions_planned or verdict.functions_attempted
+
+
 def _hero_text(view: PanelView) -> tuple[str, str, str]:
     """Etiqueta, frase grande e frase de apoio (HTML já escapado)."""
     verdict = view.verdict
     severe = verdict.severe_count
     when = fmt_date(view.identity.started_at)
     if verdict.kind == "partial":
-        attacked, tried = verdict.functions_attacked, verdict.functions_attempted
+        attacked, tried = verdict.functions_attacked, _attack_basis(verdict)
         late = verdict.stopped_stage in _AFTER_SCAN
         count = (
             f", com {x_of_y(attacked, tried)} {pick(tried, 'função atacada', 'funções atacadas')}"
@@ -144,9 +149,14 @@ def _hero_text(view: PanelView) -> tuple[str, str, str]:
 
 def _stats(view: PanelView) -> str:
     verdict = view.verdict
-    attacked, tried = verdict.functions_attacked, verdict.functions_attempted
+    attacked, tried = verdict.functions_attacked, _attack_basis(verdict)
     if attacked is not None and tried:
-        first = stat(x_of_y(attacked, tried), "funções atacadas")
+        first = stat(
+            x_of_y(attacked, tried),
+            "funções atacadas, das planejadas pela varredura"
+            if verdict.functions_planned
+            else "funções atacadas, das que o alcance tentou",
+        )
     else:
         first = stat(NO_DATA, "funções atacadas · não medido")
     traffic = view.traffic

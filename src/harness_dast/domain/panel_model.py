@@ -108,6 +108,8 @@ class PanelVerdict(ApiModel):
         to_confirm_count: Falhas graves a confirmar, ou `None` sem relatório.
         functions_total: Funções do OpenAPI, ou `None` se ninguém as contou.
         functions_attempted: Funções que o alcance tentou, ou `None` sem `probe.json`.
+        functions_planned: Funções que a varredura planejou atacar (as que responderam no
+            alcance e a carta permite), ou `None` sem `scan.json`.
         functions_attacked: Funções que a varredura atacou, ou `None` sem `scan.json`.
     """
 
@@ -120,6 +122,7 @@ class PanelVerdict(ApiModel):
     to_confirm_count: int | None = None
     functions_total: int | None = None
     functions_attempted: int | None = None
+    functions_planned: int | None = None
     functions_attacked: int | None = None
 
 

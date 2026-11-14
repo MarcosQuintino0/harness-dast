@@ -88,7 +88,7 @@ def test_the_five_stages_have_number_title_summary_and_time() -> None:
 def test_the_stage_summaries_carry_the_numbers_of_the_run() -> None:
     text = main_text(stages_html())
 
-    assert "Tentou 3 funções e 2 de 3 responderam como esperado." in text
+    assert "Tentou 3 funções (de 5 no sistema); 2 de 3 responderam como esperado." in text
     assert "1 função atacada" in text
     assert "1 achado agrupado por causa (1 causa): 1 graves" in text
     assert "Achou 5 funções." in text

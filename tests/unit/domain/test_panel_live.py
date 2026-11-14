@@ -143,7 +143,7 @@ def test_during_the_scan_the_page_names_the_function_and_counts_the_ones_done() 
     page = render_live(view())
 
     assert '"Cadastrar paciente"' in page
-    assert "Função 11 de 26" in page
+    assert "Função 11 de 26 planejadas" in page
     assert 'aria-label="10 de 26 funções atacadas"' in page
     assert "Varredura · agora" in page
     assert "10 de 26" in page

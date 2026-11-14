@@ -119,7 +119,7 @@ def _squares(view: LiveView) -> str:
         f'<span><i class="dotk k-no" style="border-radius: 2px"></i>na fila ({queue})</span>'
     )
     return card(
-        heading(pick(total, "A única função", f"As {total} funções"))
+        heading(pick(total, "A única função planejada", f"As {total} funções planejadas"))
         + f'<div class="grid" role="img" aria-label="{h.plain(aria)}">{cells}</div>'
         f'<div class="lg">{legend}</div>',
         style="flex: 1 1 280px",
@@ -176,7 +176,8 @@ def _hero(view: LiveView) -> str:
         return card(
             f"<div>{chip('Atacando agora', 'run')}</div>"
             f'<h1 class="big">"{name}"</h1>'
-            f'<p class="mu">Função {fmt_count(shown)} de {fmt_count(view.scan_total)}</p>'
+            f'<p class="mu">Função {fmt_count(shown)} de '
+            f"{fmt_count(view.scan_total)} planejadas</p>"
             f'<div class="prog" role="img" aria-label="{h.plain(aria)}">'
             f'<i style="width: {percent}%"></i></div>' + _requests_stats(view),
             style="padding: 24px 26px",

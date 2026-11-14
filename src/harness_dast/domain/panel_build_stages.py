@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from typing import Final
 
 from harness_dast.domain.panel_build_content import STRONG
-from harness_dast.domain.panel_format import RunStateKind, fmt_count, plural, x_of_y
+from harness_dast.domain.panel_format import RunStateKind, fmt_count, pick, plural, x_of_y
 from harness_dast.domain.panel_model import (
     FindingCounts,
     PanelFinding,
@@ -81,10 +81,14 @@ def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
         if traffic.enabled
         else sum(item.requests for item in scan.entries)
     )
-    text = (
-        f"{plural(attacked, 'função atacada', 'funções atacadas')}, "
-        f"{plural(requests, 'pedido', 'pedidos')}."
+    planned = len(scan.planned) if scan.planned and not scan.dry_run else None
+    done = (
+        f"{x_of_y(attacked, planned)} "
+        f"{pick(planned, 'função planejada atacada', 'funções planejadas atacadas')}"
+        if planned
+        else plural(attacked, "função atacada", "funções atacadas")
     )
+    text = f"{done}, {plural(requests, 'pedido', 'pedidos')}."
     if traffic.enabled:
         text += (
             f" A cerca deixou passar {fmt_count(traffic.allowed)} e barrou "
@@ -118,8 +122,10 @@ def _probe_text(src: PanelSources) -> str:
     if probe.dry_run:
         return "Só simulação: nada foi enviado ao sistema."
     summary = probe.summary
+    total = _total(src)
+    system = f" (de {fmt_count(total)} no sistema)" if total else ""
     return (
-        f"Tentou {plural(summary.operations_sent, 'função', 'funções')} e "
+        f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
         f"{x_of_y(summary.successes, summary.operations_sent)} responderam como esperado."
     )
 
@@ -266,6 +272,11 @@ def build_verdict(
         functions_total=_total(src),
         functions_attempted=(
             src.probe.summary.operations_sent if src.probe and not src.probe.dry_run else None
+        ),
+        functions_planned=(
+            len(src.scan.planned)
+            if src.scan and not src.scan.dry_run and src.scan.planned
+            else None
         ),
         functions_attacked=(
             sum(1 for item in functions if item.state in ("tested", "severe")) if src.scan else None

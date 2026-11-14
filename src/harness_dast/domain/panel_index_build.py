@@ -50,7 +50,7 @@ def row_from_view(view: PanelView, *, incomplete: bool, panel_link: str | None) 
     """Linha de uma execução legível (`incomplete` marca arquivo que não pôde ser lido)."""
     kind, what = _kind(view)
     verdict = view.verdict
-    basis = verdict.functions_attempted
+    basis = verdict.functions_planned or verdict.functions_attempted
     if basis is None:
         basis = verdict.functions_total
     return RunRow(
