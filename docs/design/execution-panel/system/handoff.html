@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Sistema de design: regras e entrega</title>
+<style>
+body{margin:0}
+.escuro{--bg:#0b0d10;--s1:#12161b;--s2:#1a2027;--ink:#eceff2;--mu:#98a1ab;--ln:#262d35;--run:#8fb8ff;--runs:#15233a;--ok:#6fd3a8;--oks:#11281f;--gr:#ff8e7a;--grs:#3a1c18;--am:#e6b84a;--ams:#33290f;--term:#07090b;--sel:#27405f}
+.claro{--bg:#f1f3f6;--s1:#ffffff;--s2:#eef1f4;--ink:#14181c;--mu:#56606a;--ln:#d5dbe1;--run:#1d55b8;--runs:#e2ebfb;--ok:#0f6b47;--oks:#dcf2e8;--gr:#b3261e;--grs:#fbe6e3;--am:#7a4b00;--ams:#f8ecd2;--term:#e6eaee;--sel:#cfe0fb}
+.tp{background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-variant-numeric:tabular-nums;min-height:900px}
+.tp *{box-sizing:border-box}
+.tp ::selection{background:var(--sel)}
+.tp h1,.tp h2,.tp h3,.tp p,.tp ul,.tp ol,.tp pre{margin:0}
+.tp ul,.tp ol{padding:0;list-style:none}
+.tp a{color:var(--run);text-underline-offset:3px}
+.tp a:hover{color:var(--ink)}
+.tp a:focus-visible{outline:2px solid var(--run);outline-offset:3px;border-radius:4px}
+.mu{color:var(--mu)}
+.sm{font-size:13.5px}
+.top{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;padding:0 clamp(14px,2vw,28px);background:var(--s1);border-bottom:1px solid var(--ln)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;padding:14px 0}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--run);display:block;position:relative}
+.brand i::after{content:"";position:absolute;inset:6px;border:2px solid var(--s1);border-radius:2px}
+.brand a{color:var(--mu);text-decoration:none;font-weight:600}
+.brand a:hover{color:var(--ink)}
+.brand .here{color:var(--ink)}
+.sep{color:var(--mu);font-weight:400}
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{text-align:left;font-size:13px;color:var(--mu);font-weight:600;padding:8px 14px 8px 0;border-bottom:1px solid var(--ln);white-space:nowrap}
+.tbl td{padding:12px 14px 12px 0;border-bottom:1px solid var(--ln);vertical-align:middle}
+.tbl tr.selrow td{background:var(--s2)}
+.tbl td:first-child,.tbl th:first-child{padding-left:10px;white-space:nowrap}
+.trend{display:flex;align-items:flex-end;gap:10px;height:96px;border-bottom:1px solid var(--ln)}
+.trend div{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:13px;font-weight:700}
+.trend i{display:block;width:100%;max-width:44px;background:var(--gr);border-radius:4px 4px 0 0;min-height:3px}
+.trendx{display:flex;gap:10px;font-size:12px;color:var(--mu);margin-top:6px}
+.trendx span{flex:1 1 0;text-align:center}
+.tp a.prod{flex:1 1 360px;text-decoration:none;color:var(--ink)}
+.tp a.prod:hover{border-color:var(--run)}
+.prod b.nm{display:block;font-size:20px}
+.stg{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:6px 18px;padding:18px 0;border-top:1px solid var(--ln);align-items:start}
+.stg .nb{width:34px;height:34px;border-radius:50%;background:var(--oks);color:var(--ok);font-weight:700;display:flex;align-items:center;justify-content:center}
+.stg .tm{text-align:right;white-space:nowrap}
+.stg .tm b{display:block;font-size:18px}
+.tabs{display:flex;flex-wrap:wrap;gap:0 4px;align-self:stretch}
+.tabs a{display:flex;align-items:center;gap:8px;padding:14px 14px 12px;text-decoration:none;color:var(--mu);font-weight:600;border-bottom:3px solid transparent}
+.tabs a:hover{color:var(--ink)}
+.tabs .on{color:var(--ink);border-bottom-color:var(--run)}
+.cnt{font-size:12px;font-weight:700;padding:0 7px;border-radius:99px;background:var(--grs);color:var(--gr)}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:3px 11px;border-radius:99px;white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.ch-run{background:var(--runs);color:var(--run)}
+.ch-ok{background:var(--oks);color:var(--ok)}
+.ch-gr{background:var(--grs);color:var(--gr)}
+.ch-am{background:var(--ams);color:var(--am)}
+.ch-mu{background:var(--s2);color:var(--mu)}
+.pg{padding:clamp(14px,2vw,24px) clamp(14px,2vw,28px) 32px;display:flex;flex-direction:column;gap:16px;max-width:1440px;margin:0 auto}
+.g{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:20px 22px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.h{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.h a,.h span{font-weight:400;font-size:13.5px}
+.big{font-size:clamp(24px,3vw,34px);line-height:1.18;font-weight:650;letter-spacing:-.012em;text-wrap:balance;max-width:24ch}
+.stats{display:flex;flex-wrap:wrap;gap:14px 34px}
+.stat b{display:block;font-size:24px;line-height:1.15;font-weight:650}
+.stat span{font-size:13px;color:var(--mu)}
+.r{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--ln)}
+.r>.end{margin-left:auto;white-space:nowrap;color:var(--mu);font-size:13.5px;padding-left:10px;text-align:right}
+.dotk{flex:none;width:10px;height:10px;margin-top:6px;border-radius:50%;display:block}
+.k-ok{background:var(--ok)}
+.k-gr{background:var(--gr);border-radius:1px;transform:rotate(45deg) scale(.9)}
+.k-am{border:2px solid var(--am)}
+.k-run{border:3px solid var(--run)}
+.k-no{border:1px solid var(--mu)}
+.k-out{border:1px dashed var(--mu);border-radius:2px}
+.bars{display:inline-flex;gap:3px;vertical-align:middle}
+.bars i{display:block;width:16px;height:7px;border-radius:2px;border:1px solid var(--mu)}
+.bars .f{background:var(--ink);border-color:var(--ink)}
+.who{flex:none;width:96px;font-size:13px;font-weight:700;color:var(--run)}
+.track{display:flex;gap:4px}
+.seg{min-width:0;padding-top:10px;border-top:6px solid var(--ok);display:flex;flex-direction:column;gap:1px;overflow:hidden;border-radius:2px 2px 0 0}
+.seg b{font-weight:600;white-space:nowrap;font-size:14px}
+.seg span{font-size:12.5px;color:var(--mu);white-space:nowrap}
+.seg-run{border-image:linear-gradient(90deg,var(--run) 0 42%,var(--ln) 42% 100%) 1}
+.seg-run b{color:var(--run)}
+.seg-no{border-top-color:var(--ln)}
+.seg-no b{color:var(--mu)}
+.prog{height:8px;background:var(--s2);border-radius:99px;overflow:hidden}
+.prog i{display:block;height:8px;background:var(--run);border-radius:99px}
+.term{background:var(--term);border:1px solid var(--ln);border-radius:8px;padding:14px 16px;font:13px/1.7 ui-monospace,"Cascadia Mono",Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.term .t,.term .o{color:var(--mu)}
+.term .c{color:var(--ink);font-weight:600}
+.term .rn{color:var(--run)}
+.cur{display:inline-block;width:8px;height:15px;background:var(--run);vertical-align:-2px}
+.hl{color:var(--gr);font-weight:700;background:var(--grs);padding:0 3px;border-radius:3px}
+.ex{font-size:11.5px;font-weight:600;color:var(--mu);border:1px dashed var(--mu);border-radius:4px;padding:0 5px;white-space:nowrap}
+.grid{display:flex;flex-wrap:wrap;gap:6px}
+.grid i{width:30px;height:30px;display:block;border:1px solid var(--mu);border-radius:5px;background:transparent}
+.grid .d{background:var(--ok);border-color:var(--ok)}
+.grid .s{background:var(--gr);border-color:var(--gr);border-radius:50%}
+.grid .n{border:3px solid var(--run);background:var(--runs)}
+.lg{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mu)}
+.lg span{display:flex;gap:7px;align-items:center}
+.lg .dotk{margin:0}
+.tp .pick{display:block;padding:12px 14px;border:1px solid var(--ln);border-radius:9px;text-decoration:none;color:var(--ink)}
+.pick b{display:block;font-weight:600;margin-bottom:5px}
+.pick-on{border-color:var(--run);background:var(--runs)}
+.area{flex:1 1 190px;min-width:0}
+.area h3{font-size:13.5px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--ln);margin-bottom:6px;display:flex;justify-content:space-between}
+.area h3 span{font-weight:400;color:var(--mu)}
+.fn{display:block;position:relative;padding:3px 0 3px 20px;font-size:14px;line-height:1.4}
+.fn .dotk{position:absolute;left:0;top:2px}
+.stack{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--s2)}
+.stack i{display:block}
+.cmd{display:grid;grid-template-columns:86px minmax(0,1.1fr) minmax(0,1.2fr) 74px 118px;gap:4px 18px;padding:10px 0;border-top:1px solid var(--ln);align-items:baseline}
+.cmd code{font:13px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere;font-weight:600}
+.cmd .tm{font-size:13px;color:var(--mu);white-space:nowrap;text-align:right}
+.cmd .hr{font:12.5px/1.6 ui-monospace,Consolas,monospace;color:var(--mu)}
+.grp{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;font-weight:700;padding:16px 0 8px}
+.grp span{font-weight:400;color:var(--mu)}
+.scroll{overflow-x:auto}
+.tbl td,.tbl th{white-space:nowrap}
+.copy{user-select:all}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.tp a.gl{color:inherit;text-decoration:none;border-bottom:1px dotted var(--mu)}
+.tp a.gl:hover{color:var(--run)}
+.tp a.end,.tp .h a{display:inline-block;padding:5px 0}
+.b-hatch{background:repeating-linear-gradient(135deg,var(--mu) 0 2px,transparent 2px 6px)}
+.kvl{flex:none;width:112px;color:var(--mu);font-size:13.5px;padding-top:1px}
+.mono{font:13px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+.stepn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--runs);color:var(--run);font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;margin-right:8px}
+.sub{background:var(--s2);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cost{display:grid;grid-template-columns:minmax(130px,200px) 1fr 1fr;gap:8px 22px;align-items:center;padding:10px 0;border-top:1px solid var(--ln)}
+.cb{display:flex;align-items:center;gap:10px;font-size:13.5px;white-space:nowrap}
+.cb i{display:block;height:10px;border-radius:99px;background:var(--ink);min-width:4px}
+.cb .tk{background:var(--mu)}
+
+.ds{padding:28px clamp(14px,2vw,32px) 40px;display:flex;flex-direction:column;gap:18px;max-width:1440px;margin:0 auto}
+.dsh{font-size:30px;line-height:1.2;font-weight:650;letter-spacing:-.012em}
+.lead{color:var(--mu);max-width:86ch}
+.sw{flex:none;width:44px;height:30px;border-radius:6px;border:1px solid var(--ln);display:block}
+.tok{display:grid;grid-template-columns:44px minmax(150px,1fr) 78px minmax(0,1.6fr);gap:4px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--ln);font-size:13.5px}
+.tok code,.spec code,.mono{font:12.5px/1.5 ui-monospace,"Cascadia Mono",Consolas,monospace}
+.pane{border-radius:12px;padding:20px 22px;background:var(--bg);border:1px solid var(--ln);color:var(--ink);flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.spec{width:100%;border-collapse:collapse;font-size:13.5px}
+.spec th{text-align:left;color:var(--mu);font-weight:600;font-size:12.5px;padding:6px 14px 6px 0;border-bottom:1px solid var(--ln);white-space:nowrap}
+.spec td{padding:10px 14px 10px 0;border-bottom:1px solid var(--ln);vertical-align:top}
+.cmp{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:10px;padding:16px 18px;border:1px solid var(--ln);border-radius:10px}
+.cmp h3{font-size:14px;font-weight:700;margin:0}
+.cmp p{font-size:13px;color:var(--mu)}
+.demo{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;min-height:34px}
+.rule{height:10px;background:var(--run);border-radius:2px;display:block}
+@keyframes ds-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes ds-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes ds-ring{0%,100%{box-shadow:0 0 0 0 var(--runs)}50%{box-shadow:0 0 0 5px var(--runs)}}
+@keyframes ds-fill{0%{width:0}100%{width:42%}}
+.a-pulse{animation:ds-pulse 1.6s ease-in-out infinite}
+.a-blink{animation:ds-blink 1s steps(1) infinite}
+.a-ring{animation:ds-ring 1.6s ease-in-out infinite}
+.a-fill{animation:ds-fill 2.4s cubic-bezier(.16,1,.3,1) infinite alternate}
+@media (prefers-reduced-motion:reduce){.a-pulse,.a-blink,.a-ring,.a-fill{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="tp escuro">
+<div class="ds">
+
+<h1 class="dsh">Regras de uso e entrega para quem programa</h1>
+<p class="lead">O que não é cor nem medida, mas faz parte do desenho: acessibilidade, jeito de escrever, estados de cada tela e de onde vem cada dado. Os estados marcados "falta" têm agora o pedaço que muda desenhado no quadro Estados; o celular tem dois quadros de exemplo.</p>
+<div class="g">
+  <section class="card" style="flex: 1 1 420px"><h2 class="h">Acessibilidade</h2>
+    <div class="r"><i class="dotk k-no"></i><span><b>Estado por forma e palavra,</b> nunca só por cor.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Foco visível:</b> contorno azul de 2 px, afastado 3 px, em todo link. <code class="mono">:focus-visible</code></span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Tudo pelo teclado:</b> abas, itens e linhas clicáveis são links de verdade (<code class="mono">a href</code>).</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Gráficos com texto:</b> toda barra tem <code class="mono">role="img"</code> e <code class="mono">aria-label</code> com os números.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Títulos em ordem:</b> um h1 por tela, h2 por painel.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Idioma:</b> <code class="mono">lang="pt-BR"</code>. Aba atual com <code class="mono">aria-current="page"</code>.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Zoom de 200%:</b> a página não pode rolar de lado; só as tabelas, dentro da caixa.</span></div></section>
+  <section class="card" style="flex: 1 1 420px"><h2 class="h">Jeito de escrever</h2>
+    <div class="r"><i class="dotk k-no"></i><span><b>Português simples.</b> Palavra técnica vem explicada na própria tela, na primeira vez em que aparece. Não há glossário separado.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Função, não endpoint.</b> "Buscar paciente por nome", não o caminho técnico.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Falha tem título que conta o que houve,</b> e o nome técnico vai numa etiqueta cinza.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Números por extenso curto:</b> 151 mil, 28 min, 26 de 30. Milhar com ponto: 16.854.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Sem promessa:</b> nunca "seguro" nem "aprovado". Sem falha grave não é atestado.</span></div>
+    <div class="r"><i class="dotk k-no"></i><span><b>Texto do sistema testado</b> entra sempre como texto, no bloco de terminal, com o aviso.</span></div></section>
+  <section class="card" style="flex: 1 1 420px"><h2 class="h">O token e os segredos</h2>
+    <div class="r"><i class="dotk k-gr"></i><span>O painel <b>nunca</b> mostra token, senha, cookie ou chave.</span></div>
+    <div class="r"><i class="dotk k-ok"></i><span>Mostra o apelido da conta (<code class="mono">user_a</code>) e deixa o lugar do token marcado em amarelo.</span></div>
+    <div class="r"><i class="dotk k-ok"></i><span>No curl, usa variáveis: <code class="mono">$BASE_URL</code>, <code class="mono">$TOKEN</code>.</span></div></section>
+</div>
+<section class="card"><h2 class="h">Estados de cada tela</h2>
+<div class="scroll"><table class="spec" style="min-width: 980px">
+<tr><th>Tela</th><th>Estado normal</th><th>Outros estados que precisam existir</th><th>Desenhado?</th></tr>
+<tr><td><b>Produtos</b></td><td>2 ou mais produtos</td><td>Nenhum produto ainda (só o cartão "Testar um produto novo") · carta vencida</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Histórico</b></td><td>Vários testes</td><td>Um teste só (sem "mudou desde o anterior" e sem gráfico) · teste com erro</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Resumo</b></td><td>Com falhas graves</td><td>Sem falha grave (etiqueta verde, frase "nenhuma falha grave no que foi testado") · parcial (etiqueta amarela "parou no meio")</td><td><span class="chip ch-am">só na primeira rodada</span></td></tr>
+<tr><td><b>Ao vivo</b></td><td>Durante a varredura</td><td>Nas etapas 1 a 3 (sem quadrados nem tipos de teste) · sistema testado fora do ar · parando</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Etapas</b></td><td>5 etapas feitas</td><td>Parou no meio (etapa cortada e as seguintes em cinza)</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Falhas</b></td><td>Falha com prova forte</td><td>Falha a confirmar · falha confirmada · nenhuma falha grave · prova cortada por ser grande · pedido com corpo (POST)</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Cobertura</b></td><td>Modo estrito</td><td>Modo amplo · tudo testado</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Terminal</b></td><td>Todos os comandos ok ou parcial</td><td>Comando com erro (etiqueta vermelha e a mensagem do erro aberta)</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Custo</b></td><td>Com medição</td><td>Teste antigo sem medição de tokens (traço no lugar do número, com explicação)</td><td><span class="chip ch-am">falta</span></td></tr>
+<tr><td><b>Todas</b></td><td>Computador, escuro</td><td>Celular (390 px) · tema claro (só o Resumo foi desenhado)</td><td><span class="chip ch-am">falta</span></td></tr>
+</table></div></section>
+<section class="card"><h2 class="h">De onde vem cada dado</h2>
+<div class="scroll"><table class="spec" style="min-width: 980px">
+<tr><th>O que aparece</th><th>Arquivo da execução</th><th>Já existe?</th></tr>
+<tr><td>Funções, o que foi atacado, tempo de cada varredura, pedidos, o que a cerca barrou</td><td class="mono">scan.json</td><td><span class="chip ch-ok">sim</span></td></tr>
+<tr><td>Falhas, prova (pedido e resposta), curl, código da falha, comparação com o teste anterior</td><td class="mono">findings.json</td><td><span class="chip ch-ok">sim</span></td></tr>
+<tr><td>Anotação do agente sobre cada falha (base do medidor de confiança)</td><td class="mono">triage.json</td><td><span class="chip ch-ok">sim</span></td></tr>
+<tr><td>Tempo por etapa, tempo por regra do ZAP</td><td class="mono">metrics.json, rule-stats.json</td><td><span class="chip ch-am">em construção</span></td></tr>
+<tr><td>Tokens por etapa e por comando</td><td class="mono">agent-metrics.json</td><td><span class="chip ch-am">em construção</span></td></tr>
+<tr><td>Lista de comandos do agente com hora, resultado e resposta</td><td class="mono">diário de comandos (novo)</td><td><span class="chip ch-gr">não</span></td></tr>
+<tr><td>Nome simples de cada função e a parte do sistema</td><td class="mono">perfil do produto (novo campo)</td><td><span class="chip ch-gr">não</span></td></tr>
+<tr><td>Explicação simples da falha, "o que fazer" e "quem faz"</td><td class="mono">catálogo por tipo de falha (novo)</td><td><span class="chip ch-gr">não</span></td></tr>
+<tr><td>Lista de produtos e histórico</td><td class="mono">índice montado a partir das pastas de teste (novo comando)</td><td><span class="chip ch-gr">não</span></td></tr>
+<tr><td>Validade da carta</td><td class="mono">target.yml (janela de autorização)</td><td><span class="chip ch-am">a conferir</span></td></tr>
+</table></div></section>
+
+</div>
+</div>
+</body>
+</html>

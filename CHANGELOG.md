@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado: design do painel da execução (só documentação)
+
+- `docs/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e ainda não implementado. Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.
+
 ### Adicionado: medição da execução (ADR 0031)
 
 - Toda execução que chega ao `hdast report` ou ao `hdast run` grava `runs/<run_id>/metrics.json`: tempo por etapa (`preflight` só no `run`; etapa não executada é `null`), por operação varrida (reaproveita `scan.json`), **por regra do ZAP** (tempo em ms, pedidos, alertas e estado, somados na execução e por operação), tráfego do proxy (liberados, recusados por motivo) com as "lacunas" de mais de 10 s sem pedido e as regras desligadas pela política com o motivo. Só números e identificadores; sem dado do alvo nem segredo. `hdast report` cita o arquivo na saída humana.
