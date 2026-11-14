@@ -48,3 +48,13 @@ def test_resultado_independe_da_ordem() -> None:
     assert classify_internal_error_signals({1: a, 2: b}) == classify_internal_error_signals(
         {2: b, 1: a}
     )
+
+
+def test_frame_java_e_falsos_inicios_em_linha_longa() -> None:
+    body = "at Nome(" * 400 + " at pacote.Classe.metodo(Classe.java:42)"
+    result = classify_internal_error_signals({1: EvidenceMessage(message_id=1, response_body=body)})
+    assert result.counts["stack_trace"] == 1
+    only_false = classify_internal_error_signals(
+        {1: EvidenceMessage(message_id=1, response_body="at Nome(" * 400)}
+    )
+    assert only_false.counts["stack_trace"] == 0

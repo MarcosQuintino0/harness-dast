@@ -10,7 +10,7 @@ from harness_dast.domain.redaction import EvidenceMessage
 _PATTERNS: Final = {
     "http_5xx": re.compile(r"^HTTP/\d(?:\.\d)?\s+5\d\d(?:\s|$)", re.IGNORECASE),
     "stack_trace": re.compile(
-        r"traceback \(most recent call last\)|\bat [\w.$]+\([^\n]*:\d+\)|"
+        r"traceback \(most recent call last\)|\bat [\w.$]{1,200}\([^\n()]{0,200}:\d{1,10}\)|"
         r"\b(?:[\w]+\.)*[\w]+Exception\s*:",
         re.IGNORECASE,
     ),
