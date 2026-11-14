@@ -1,6 +1,6 @@
 # Arquitetura
 
-Este documento descreve a arquitetura aprovada do `harness-dast`. Estado atual: **M1 concluído na árvore de trabalho e primeira metade do M2 (domínio de escopo e perfil)**. Muito do que está descrito aqui ainda é desenho; cada seção diz o que existe hoje. A tabela de status por componente fica em [roadmap.md](roadmap.md#tabela-de-status), e é o único lugar a atualizar.
+Este documento descreve a arquitetura aprovada do `harness-dast`. Estado atual: **versão 1.2.0** (M1 a M6 entregues; M7, o piloto em produto real, não existe). Cada seção diz o que existe hoje e o que ficou só como desenho. A tabela de status por componente fica em [roadmap.md](roadmap.md#tabela-de-status), e é o único lugar a atualizar.
 
 ## Visão geral
 
@@ -28,13 +28,13 @@ Termos usados aqui:
 
 As skills são roteiros curtos em Markdown: dizem quais comandos chamar e como ler a saída. Se uma skill precisar de lógica, a lógica vira comando.
 
-Status: o plano determinístico tem a fundação, o domínio de escopo e perfil, `init`, `profile validate` e, desde o M3, `spec inspect`, `preflight` e `probe` (cliente HTTP do alvo, cliente da API do ZAP, trilha de execução); a varredura (`scan`), o relatório e a limpeza não existem (veja a tabela em [roadmap.md](roadmap.md#tabela-de-status)). O plano do agente ainda não existe (M6).
+Status: o plano determinístico está implementado de ponta a ponta (`init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `stack`, `stop`, `doctor`, `secret`; veja a tabela em [roadmap.md](roadmap.md#tabela-de-status)). O plano do agente existe desde o M6: skills e subagentes em `.claude/`, avaliados em rodadas cegas de laboratório ([reviews](reviews/README.md)).
 
 ## Diagramas
 
 ### Componentes e fronteira de confiança
 
-O agente escreve arquivos de perfil e chama a CLI. Só o ZAP alcança o alvo, e só através do proxy de saída.
+O agente escreve arquivos de perfil e chama a CLI. Só o ZAP alcança o alvo, e só através do proxy de escopo.
 
 ```mermaid
 flowchart LR
@@ -49,7 +49,7 @@ flowchart LR
     PORTS --> AD["adapters"]
   end
   subgraph DK["Docker - rede interna"]
-    ZAP["OWASP ZAP"] --> EP["Proxy de saida com lista permitida"]
+    ZAP["OWASP ZAP"] --> EP["Proxy de escopo - mesmo ScopeGuard"]
   end
   PROD[("products/PRODUTO - perfil e regras")]
   RUNS[("runs/RUN_ID - auditoria, achados, relatorio")]
@@ -64,7 +64,7 @@ flowchart LR
 
 ### Fluxo de uma execução
 
-O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. Este fluxo é o desenho aprovado; `spec inspect`, `preflight` e `probe` existem desde o M3; `scan`, `report` e `cleanup` ainda não (veja [reference/cli.md](reference/cli.md)). O mecanismo do `probe` foi confirmado no spike do M0 ([ADR 0007](adr/0007-zap-alimentado-por-requisicoes-validas.md)) e detalhado no [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md): o login e a busca do token CSRF saem direto (nunca pelo ZAP) e as operações saem pelo proxy do ZAP.
+O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. Todos os comandos do fluxo existem (veja [reference/cli.md](reference/cli.md)); `run` encadeia `preflight`, `probe`, `scan` e `report` num processo. O mecanismo do `probe` foi confirmado no spike do M0 ([relato](spikes/2026-11-13-m0-zap.md); [ADR 0007](adr/0007-zap-alimentado-por-requisicoes-validas.md)) e detalhado no [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md): o login e a busca do token CSRF saem direto (nunca pelo ZAP) e as operações saem pelo proxy do ZAP.
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +135,7 @@ Status: hierarquia de erros e tratador único, **Implementado (M1)**. Cada tipo 
 
 ## Logs e rastreabilidade
 
-Status: o logger estruturado (JSON no `stderr`) com redação está **implementado** (M1). `audit.jsonl`, `manifest.json` e `probe.json` por execução estão **implementados** para `preflight` e `probe` (M3, [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)); `run_id` em cada linha de log, `harness.log` e o manifesto completo da varredura são **planejados** (M5).
+Status: o logger estruturado (JSON no `stderr`) com redação está **implementado** (M1). `audit.jsonl`, `manifest.json` e `probe.json` por execução estão **implementados** para `preflight` e `probe` (M3, [ADR 0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)); `run_id` em cada linha de log e `harness.log` **não existem** (aberto); `run.json` e `scan.json` resumem a execução encadeada e a varredura (M4 e M5).
 
 - Logs estruturados em JSON, com `run_id` em todas as linhas, gravados em `runs/RUN_ID/harness.log`.
 - `stdout` fica reservado ao resultado do comando. Logs vão para `stderr` e para arquivo. O agente nunca precisa separar log de resposta.

@@ -6,7 +6,7 @@ Caminho: `src/harness_dast/adapters/`. Decisão: [ADR 0004](../adr/0004-portas-e
 
 Implementar as portas de `application` com tecnologia concreta, um subpacote por tecnologia. Um adaptador traduz: converte o mundo externo em modelos de `domain` e converte exceções de terceiros em `HarnessError` na fronteira.
 
-Subpacotes previstos no desenho aprovado:
+Subpacotes do desenho aprovado (todos existem; `scope_proxy/`, `docker/` e `system_*.py` vieram depois, com os ADRs 0017 e 0019):
 
 | Subpacote | Conteúdo | Marco |
 | --- | --- | --- |
@@ -18,6 +18,8 @@ Subpacotes previstos no desenho aprovado:
 | `zap/` | Cliente da API do ZAP, plano de varredura, mapeamento de alertas | M4 |
 | `reporting/` | Relatório em JSON e Markdown | M4 |
 | `cleanup/` | Executor do SQL de limpeza (Oracle, python-oracledb) | M5 |
+| `scope_proxy/` | Lado Python do proxy de escopo: decisão, auditoria, trava de emergência, política ([ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)) | M3 a M5 |
+| `docker/` | Sobe, consulta e derruba a pilha (`docker compose`) | M5 |
 
 ## Pode importar
 
@@ -38,7 +40,7 @@ Subpacotes previstos no desenho aprovado:
 
 ## Status
 
-Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml.md)); o restante é planejado (veja a [tabela de status](../roadmap.md#tabela-de-status)).
+Todos os adaptadores abaixo estão implementados; as tabelas seguem a ordem dos marcos (veja a [tabela de status](../roadmap.md#tabela-de-status)). Na V1.2 vieram `storage/command_journal.py` (diário de comandos, [ADR 0033](../adr/0033-diario-de-comandos.md)) e `reporting/panel_files.py` e `panel_index_files.py` (páginas do painel, [ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md)). O M2 trouxe ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml.md)):
 
 | Módulo | Porta | Conteúdo |
 | --- | --- | --- |

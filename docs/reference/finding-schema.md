@@ -117,7 +117,7 @@ sha256( "hdast-finding-v1" , produto , MÉTODO , modelo-de-caminho , vetor , par
 - Se algum ingrediente contém o separador U+001F (dado do ZAP), o hash usa uma forma com o tamanho de cada parte, que começa com U+001E e nunca coincide com a forma simples; sem o separador o valor é o de sempre (ADR 0025).
 - **Fora do fingerprint, de propósito:** carga (`attack`), host, ids concretos, `messageId`, id do alerta, severidade e confiança.
 - Mudar um ingrediente ou a normalização invalida o histórico: suba `FINGERPRINT_VERSION` e escreva um ADR. `report --compare` recusa execuções de versões diferentes.
-- O prefixo de papéis de conta para o teste de autorização (V2) ainda não faz parte do fingerprint v1; entrará numa versão nova.
+- O fingerprint v1 é o dos achados do ZAP e não leva papéis de conta. Os achados do teste de autorização (V1.1) têm fingerprint próprio, `hdast-authz-v1`, sem contas nem códigos HTTP (veja [authz.md](authz.md)).
 
 ## Deduplicação
 

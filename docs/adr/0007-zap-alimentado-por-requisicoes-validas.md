@@ -25,3 +25,7 @@ Vamos alimentar o ZAP com requisições válidas. O comando `probe` envia uma re
 - O ZAP vira o único ponto de tráfego; motores que abram conexão própria precisarão passar pelo proxy de saída ([ADR 0008](0008-escopo-em-tres-camadas.md)).
 - Se o spike mostrar que o mecanismo não funciona, este ADR é substituído por um ADR novo.
 - O comando `probe` chega no M3 e não existe hoje.
+
+## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
+
+O mecanismo que este ADR deixava para o spike do M0 foi confirmado. O spike ([relato](../spikes/2026-11-13-m0-zap.md), 2026-11-13) mostrou que requisições enviadas pelo proxy do ZAP aparecem no histórico e servem de ponto de partida da varredura ativa, e respondeu a entrega do token e a execução do plano (P-10). As decisões que dele saíram estão nos ADRs [0017](0017-proxy-de-escopo-com-scopeguard.md), [0018](0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md), [0019](0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md), [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0023](0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md), e o `probe` existe desde o M3, verificado contra o ZAP 2.17 real ([relatório](../reviews/2026-11-13-e2e-lab.md)). Este ADR não foi substituído. Não foram medidos no spike: Oracle de testes, skill chamando um comando e a taxa de bloqueio do provedor (P-08); o Oracle foi verificado depois, no M5.

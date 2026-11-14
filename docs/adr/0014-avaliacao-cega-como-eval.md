@@ -68,3 +68,7 @@ Toda falha corrigida vira um **caso permanente** da suíte, para não voltar.
 - Cria um ciclo: falha de eval, classificação, correção, caso permanente. A suíte cresce com o projeto.
 - Complementa o "roteiro de avaliação das skills" do desenho original como critério de saída do M6, sem apagá-lo.
 - Descrição da suíte em [../testing.md](../testing.md#avaliação-cega-evals) e marco em [../roadmap.md](../roadmap.md#m6-skills-documentação-de-uso-e-avaliação-cega).
+
+## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
+
+O status "nada existe ainda" valia em 2026-11-13, antes do M6. A suíte existe em `evals/` ([evals/README.md](../../evals/README.md)): preparação da cópia cega, coleta do rastro, nota automática e comparação de medições. Seis rodadas foram feitas em 2026-11-13 contra o laboratório (cinco da versão 1.0 e uma da 1.1): [rodadas cegas](../reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](../reviews/2026-11-13-rodada-cega-v1-1.md). Continuam em aberto: a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem), o número de repetições por caso e o orçamento por rodada, e a rodada cega com a skill `test-product`.
