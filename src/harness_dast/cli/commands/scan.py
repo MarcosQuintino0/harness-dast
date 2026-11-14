@@ -9,6 +9,7 @@ from harness_dast.application.scan import ScanRequest
 from harness_dast.application.stage_errors import scan_stop_error
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_scan, open_scan_network
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.scan_result import ScanResult
 
@@ -85,22 +86,24 @@ def scan_command(
 ) -> int:
     """Varre com o ZAP as requisições que o probe ensinou, com limites fixos."""
     state = get_state(ctx)
-    net = open_scan_network(product, products_dir, state.secrets)
-    try:
-        result = build_scan(products_dir, state.secrets, net).execute(
-            ScanRequest(
-                product=product,
-                run_id=run,
-                only=tuple(only or ()),
-                include_outcomes=tuple(include_outcome or ()),
-                dry_run=dry_run,
-                max_minutes=max_minutes,
-                threads=threads,
-                account=account,
+    # A simulação não toca o ZAP nem o alvo: não precisa da pilha (ADR 0035).
+    with hold_stack("scan", product, needed=not dry_run):
+        net = open_scan_network(product, products_dir, state.secrets)
+        try:
+            result = build_scan(products_dir, state.secrets, net).execute(
+                ScanRequest(
+                    product=product,
+                    run_id=run,
+                    only=tuple(only or ()),
+                    include_outcomes=tuple(include_outcome or ()),
+                    dry_run=dry_run,
+                    max_minutes=max_minutes,
+                    threads=threads,
+                    account=account,
+                )
             )
-        )
-    finally:
-        net.close()
+        finally:
+            net.close()
     run_id = None if result.dry_run else result.run_id
     data = result.model_dump(mode="json")
     error = scan_stop_error(result)

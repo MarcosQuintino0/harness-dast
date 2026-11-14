@@ -9,6 +9,7 @@ from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.stage_errors import probe_stop_error
 from harness_dast.cli.composition import build_probe, open_network
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.probe_result import ProbeResult
 
@@ -73,20 +74,22 @@ def probe_command(
 ) -> int:
     """Envia uma requisição válida por operação, pelo ZAP, e mede a alcançabilidade."""
     state = get_state(ctx)
-    network = open_network(product, products_dir, state.secrets)
-    try:
-        use_case = build_probe(products_dir, state.secrets, network)
-        request = ProbeRequest(
-            product=product,
-            seed=seed,
-            only=tuple(only or ()),
-            dry_run=dry_run,
-            include_delete=include_delete,
-            account=account,
-        )
-        result = use_case.execute(request)
-    finally:
-        network.close()
+    # A simulação não toca o ZAP nem o alvo: não precisa da pilha (ADR 0035).
+    with hold_stack("probe", product, needed=not dry_run):
+        network = open_network(product, products_dir, state.secrets)
+        try:
+            use_case = build_probe(products_dir, state.secrets, network)
+            request = ProbeRequest(
+                product=product,
+                seed=seed,
+                only=tuple(only or ()),
+                dry_run=dry_run,
+                include_delete=include_delete,
+                account=account,
+            )
+            result = use_case.execute(request)
+        finally:
+            network.close()
     run_id = None if result.dry_run else result.run_id
     data = result.model_dump(mode="json")
     error = probe_stop_error(result)

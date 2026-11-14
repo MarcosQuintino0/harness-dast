@@ -8,6 +8,7 @@ import typer
 from harness_dast.application.run import RunRequest, RunResult
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_run_pipeline, open_scan_network
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_config import FailOn
 
@@ -102,21 +103,24 @@ def run_command(
 ) -> int:
     """Encadeia preflight, probe, scan e report; nunca roda a limpeza."""
     state = get_state(ctx)
-    net = open_scan_network(product, products_dir, state.secrets)
-    try:
-        pipeline = build_run_pipeline(product, products_dir, state.secrets, net)
-        result = pipeline.execute(
-            RunRequest(
-                product=product,
-                seed=seed,
-                skip_scan=skip_scan,
-                authz=authz,
-                fail_on=fail_on,
-                compare=compare,
-                max_minutes=max_minutes,
+    # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
+    # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).
+    with hold_stack("run", product):
+        net = open_scan_network(product, products_dir, state.secrets)
+        try:
+            pipeline = build_run_pipeline(product, products_dir, state.secrets, net)
+            result = pipeline.execute(
+                RunRequest(
+                    product=product,
+                    seed=seed,
+                    skip_scan=skip_scan,
+                    authz=authz,
+                    fail_on=fail_on,
+                    compare=compare,
+                    max_minutes=max_minutes,
+                )
             )
-        )
-    finally:
-        net.close()
+        finally:
+            net.close()
     state.result_emitted = True
     return _emit(result, json_mode=state.json_mode)

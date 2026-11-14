@@ -12,6 +12,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). Os
 | `5` | `EXTERNAL_TOOL` | Falha de ferramenta externa (ZAP, Docker) | `ExternalToolError` (`EXTERNAL_TOOL_ERROR`) | Implementado (M3): o proxy do ZAP deixa de responder no meio do `probe` (`stopped_zap`). Falha de API do ZAP na partida sai com 4. M4: o ZAP falha no meio do `scan` ou do `authz` (`stopped_zap`), ou as regras do Replacer não puderam ser removidas ao fim |
 | `6` | `TARGET` | O alvo respondeu de forma que impede o prosseguimento | `TargetError` (`TARGET_ERROR`) | Implementado (M3): cinco falhas de transporte seguidas no `probe` (`stopped_target_unresponsive`). M4: três falhas seguidas da guarda de saúde durante o `scan`; `authz`: cinco falhas de transporte seguidas (`stopped_target_unresponsive`) |
 | `7` | `CLEANUP` | A limpeza do ambiente falhou | `CleanupError` (`CLEANUP_FAILED`) | Implementado (M5): `hdast cleanup` com falha no banco, teto de linhas excedido ou erro ao confirmar (a transação sofre `ROLLBACK`). Execução, perfil, script, segredo ou confirmação inválidos saem com `2` |
+| `8` | `BUSY` | A pilha (ZAP e proxy) já está ocupada por outra execução, ou o arquivo de trava não pôde ser lido | `StackBusy` (`STACK_BUSY`) | Implementado (V1.3, [ADR 0035](../adr/0035-trava-por-pilha.md)). `probe`, `scan`, `authz` e `run` (fora do `--dry-run`) e `stack up` e `stack down`, na partida, antes de tocar o alvo. A mensagem diz quem ocupa (comando, produto, id, processo e início). `hdast stop` e `stack status` nunca saem com `8` |
 | `10` | `INTERNAL` | Erro interno inesperado | `HarnessError` genérico (`INTERNAL`) | Implementado (M1) |
 | `130` | (interrupção) | Interrompido pelo usuário (Ctrl+C) ou pela trava de emergência durante o `run` | `INTERRUPTED` | Implementado. `hdast run` grava `run.json` com `status: interrupted` e, se foi `hdast stop`, `stop_requested: true` |
 
@@ -24,7 +25,7 @@ uv run hdast --json version
 echo $?
 ```
 
-Tratamento sugerido: `0` segue; `1` é um resultado de segurança que o time precisa avaliar (não é falha da ferramenta); `2` a `7` são falhas que pedem correção do uso, da configuração, do ambiente, do alvo ou da limpeza; `130` é interrupção deliberada; `10` deve ser reportado ao mantenedor.
+Tratamento sugerido: `0` segue; `1` é um resultado de segurança que o time precisa avaliar (não é falha da ferramenta); `2` a `7` são falhas que pedem correção do uso, da configuração, do ambiente, do alvo ou da limpeza; `8` pede esperar a outra execução terminar (ou `hdast stop`) e tentar de novo, sem mudar nada; `130` é interrupção deliberada; `10` deve ser reportado ao mantenedor.
 
 ## `hdast run`
 

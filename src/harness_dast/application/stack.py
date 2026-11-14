@@ -37,6 +37,7 @@ from harness_dast.application.ports import (
     ZapScanStopper,
 )
 from harness_dast.application.scan_ports import RunningScans
+from harness_dast.application.stack_lock import StackLockService
 from harness_dast.application.stack_models import (
     ComposeProject,
     ServiceStatus,
@@ -104,6 +105,7 @@ class StackManager:
         environ: Mapping[str, str],
         repo_root: Path,
         running_scans: RunningScans | None = None,
+        locks: StackLockService | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -118,6 +120,7 @@ class StackManager:
             environ: Ambiente da CLI (chave do ZAP, portas, credenciais já definidas).
             repo_root: Raiz do repositório (onde estão `compose.yaml` e `lab/`).
             running_scans: Leitura do andamento das varreduras, para o `stop` dizer o que parou.
+            locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
         """
         self._profiles = profiles
         self._clock = clock
@@ -129,6 +132,7 @@ class StackManager:
         self._environ = environ
         self._root = repo_root
         self._running_scans = running_scans
+        self._locks = locks
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -184,13 +188,15 @@ class StackManager:
         """Descreve a pilha gerenciada (ou diz que não há).
 
         Raises:
-            ConfigError: Arquivo de estado inválido.
+            ConfigError: Arquivo de estado ou de trava inválido.
             ExternalToolError: Docker indisponível.
         """
         state = self._states.load()
+        lock = self._locks.inspect() if self._locks is not None else None
         if state is None:
-            return StackReport(managed=False, state_file=str(self._states.location()))
-        return self._report(state, policy_file=state.policy_dir / "policy.json")
+            return StackReport(managed=False, state_file=str(self._states.location()), lock=lock)
+        report = self._report(state, policy_file=state.policy_dir / "policy.json")
+        return report.model_copy(update={"lock": lock})
 
     def down(self) -> StackReport:
         """Derruba a pilha e esquece o estado.

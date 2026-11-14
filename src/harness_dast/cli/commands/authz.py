@@ -10,6 +10,7 @@ from harness_dast.application.stage_errors import authz_stop_error
 from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import open_network
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExitCode
@@ -81,11 +82,13 @@ def authz_command(
     """Repete pedidos do probe com outras contas e confere campos fora do esquema."""
     state = get_state(ctx)
     request = AuthzRequest(product=product, run_id=run, checks=_checks(check), dry_run=dry_run)
-    network = open_network(product, products_dir, state.secrets)
-    try:
-        result = build_authz(products_dir, state.secrets, network).execute(request)
-    finally:
-        network.close()
+    # A simulação só planeja: não toca o ZAP nem o alvo e não precisa da pilha (ADR 0035).
+    with hold_stack("authz", product, needed=not dry_run):
+        network = open_network(product, products_dir, state.secrets)
+        try:
+            result = build_authz(products_dir, state.secrets, network).execute(request)
+        finally:
+            network.close()
     run_id = None if result.dry_run else result.run_id
     data = result.model_dump(mode="json")
     error = authz_stop_error(result)

@@ -13,11 +13,13 @@ from harness_dast.cli.stack_composition import (
     open_zap_stopper,
     policy_dir_from_environment,
 )
+from harness_dast.cli.stack_lock_composition import hold_stack
 
 
 def _render(report: StackReport) -> str:
+    lock = f"\nTrava da pilha: {report.lock.message}" if report.lock else ""
     if not report.managed:
-        return f"Nenhuma pilha gerenciada (estado em {report.state_file})."
+        return f"Nenhuma pilha gerenciada (estado em {report.state_file}).{lock}"
     lines = [
         f"Pilha {report.run_id} (produto {report.product}, alvo {report.lab_target or 'externo'})",
         f"Em execução: {'sim' if report.running else 'NÃO'}; trava KILL: "
@@ -34,7 +36,7 @@ def _render(report: StackReport) -> str:
     )
     lines.extend(f"  alvo {name}: {url}" for name, url in report.target_urls.items())
     lines.extend(f"Aviso: {warning}" for warning in report.warnings)
-    return "\n".join(lines)
+    return "\n".join(lines) + lock
 
 
 def _render_stop(report: StopReport) -> str:
@@ -105,7 +107,9 @@ def up_command(
         timeout_seconds=timeout,
         oracle=oracle,
     )
-    report = build_stack_manager(products_dir).up(request)
+    # Subir recria os contêineres: não pode acontecer debaixo de uma execução (ADR 0035).
+    with hold_stack("stack up", product):
+        report = build_stack_manager(products_dir).up(request)
     state = get_state(ctx)
     emit(
         build_success(report.model_dump(mode="json"), report.run_id),
@@ -126,7 +130,9 @@ def status_command(ctx: typer.Context) -> None:
 
 def down_command(ctx: typer.Context) -> None:
     """Derruba o que `stack up` subiu e esquece o estado (a auditoria é mantida)."""
-    report = build_stack_manager(None).down()
+    # Derrubar com uma execução em andamento a destruiria: use `hdast stop` antes.
+    with hold_stack("stack down", "-"):
+        report = build_stack_manager(None).down()
     human = (
         "Nada a derrubar: não há pilha gerenciada."
         if not report.managed
