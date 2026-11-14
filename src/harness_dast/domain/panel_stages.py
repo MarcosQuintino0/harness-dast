@@ -33,6 +33,7 @@ _MAX_SQUARES: Final = 200
 _MAX_TRAVAS: Final = 6
 _MAX_RULES: Final = 8
 _FLOOR: Final = 0.1
+_NO_REASON: Final = "O teste não registrou o motivo."
 
 
 def _no_answer(count: int) -> str:
@@ -138,7 +139,7 @@ def _stuck(view: PanelView) -> str:
     rows: list[str] = []
     for stage in view.stages:
         if stage.state == "cut":
-            reason = h.text(stage.message or "sem mensagem", 300)
+            reason = h.text(stage.message or _NO_REASON, 300)
             rows.append(row("am", f"<b>{h.plain(stage.label)}:</b> parou aqui. {reason}"))
     failed = [item for item in view.functions if item.state == "failed"]
     if failed:
@@ -149,6 +150,8 @@ def _stuck(view: PanelView) -> str:
                 " como esperado e não foi atacada.",
             )
         )
+    if not rows and view.verdict.kind != "finished":
+        rows.append(row("am", f"O teste não terminou. {_NO_REASON}", first=True))
     if not rows:
         rows.append(row("ok", "Nada travou: todas as etapas que rodaram terminaram.", first=True))
     note = (

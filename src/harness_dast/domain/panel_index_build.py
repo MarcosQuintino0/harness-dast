@@ -31,7 +31,8 @@ _MIN_STREAK: Final = 2
 
 def _kind(view: PanelView) -> tuple[RunKind, str | None]:
     state = {item.key: item.state for item in view.stages}
-    ran = {key for key, value in state.items() if value in ("done", "cut")}
+    reached = {item.key for item in view.stages if not item.unreached}
+    ran = {key for key, value in state.items() if value in ("done", "cut") and key in reached}
     if "scan" in ran and "authz" in ran:
         return "scan", "Varredura e teste entre contas"
     if "scan" in ran:

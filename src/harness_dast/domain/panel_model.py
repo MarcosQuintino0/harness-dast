@@ -134,6 +134,8 @@ class PanelStage(ApiModel):
         summary: O que aconteceu, em texto nosso com os números.
         message: Mensagem de erro ou de parada (texto da CLI), ou `None`.
         tokens: Tokens do agente nesta etapa, ou `None` (ainda não medido).
+        unreached: `True` quando a etapa é `cut` só porque o teste acabou antes dela (não há
+            registro de que começou): marca onde parou, sem dizer que rodou.
     """
 
     key: StageKey
@@ -143,6 +145,7 @@ class PanelStage(ApiModel):
     summary: str
     message: str | None = None
     tokens: int | None = None
+    unreached: bool = False
 
 
 class PanelFunction(ApiModel):

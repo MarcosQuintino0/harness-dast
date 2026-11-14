@@ -18,7 +18,7 @@ from harness_dast.domain.panel_build_content import (
     function_names,
 )
 from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
-from harness_dast.domain.panel_build_stages import build_stages, build_verdict
+from harness_dast.domain.panel_build_stages import build_stages, build_verdict, settle_stopped
 from harness_dast.domain.panel_format import product_title
 from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
@@ -111,7 +111,9 @@ def build_panel_view(src: PanelSources) -> PanelView:
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz)
     measurements = build_measurements(src.metrics, src.agent_metrics)
-    stages = with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
+    stages = settle_stopped(
+        src, with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
+    )
     verdict = build_verdict(src, stages, functions, severe)
     skipped_by_choice = any(item.key == "authz" and item.state == "skipped" for item in stages)
     return PanelView(

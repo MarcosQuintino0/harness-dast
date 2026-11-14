@@ -50,6 +50,8 @@ def _from_record(record: StageRecord | None) -> tuple[StageState, str | None]:
 def _derived(key: StageKey, src: PanelSources) -> tuple[StageState, str | None]:
     probe, scan, authz = src.probe, src.scan, src.authz
     if key == "preflight":
+        if probe is None and src.manifest is not None and src.manifest.status == "not_ready":
+            return "cut", None
         return ("done" if probe or src.manifest else "pending"), None
     if key == "probe":
         if probe is None:
@@ -200,11 +202,28 @@ def build_stages(
     return tuple(built)
 
 
+def settle_stopped(src: PanelSources, stages: Sequence[PanelStage]) -> tuple[PanelStage, ...]:
+    """Garante que a etapa onde o teste parou apareça como cortada, nunca como feita ou ausente.
+
+    É a fonte única de "onde parou": o veredito, o Resumo e as Etapas leem o estado daqui. Sem
+    etapa cortada, a primeira que não rodou é a que o teste não alcançou; relatório parcial sem
+    etapa cortada (varredura cortada) marca a varredura. Um teste que terminou não muda nada.
+    """
+    if any(item.state == "cut" for item in stages):
+        return tuple(stages)
+    target = next((item.key for item in stages if item.state == "pending"), None)
+    if target is None and src.findings and src.findings.coverage.partial:
+        target = "scan"
+    return tuple(
+        item.model_copy(update={"state": "cut", "unreached": item.state == "pending"})
+        if item.key == target
+        else item
+        for item in stages
+    )
+
+
 def _cut_stage(stages: Sequence[PanelStage]) -> PanelStage | None:
-    cut = next((item for item in stages if item.state == "cut"), None)
-    if cut is not None:
-        return cut
-    return next((item for item in stages if item.state == "pending"), None)
+    return next((item for item in stages if item.state == "cut"), None)
 
 
 def _is_error(src: PanelSources, stopped: PanelStage | None) -> bool:
@@ -228,9 +247,6 @@ def build_verdict(
     """Como o teste terminou: `finished`, `partial` (parou no meio) ou `error`."""
     kind: RunStateKind
     stopped = _cut_stage(stages)
-    partial_report = bool(src.findings and src.findings.coverage.partial)
-    if stopped is None and partial_report:
-        stopped = next((item for item in stages if item.key == "scan"), None)
     if src.summary is None and src.probe is None and src.scan is None and src.findings is None:
         kind = "error"
     elif stopped is None:
@@ -264,11 +280,7 @@ def _total(src: PanelSources) -> int | None:
 
 def _reason(src: PanelSources, stopped: PanelStage | None) -> str | None:
     if stopped is None:
-        return (
-            src.scan.stop_message
-            if src.findings and src.findings.coverage.partial and src.scan
-            else None
-        )
+        return None
     return stopped.message or (
         src.scan.stop_message if stopped.key == "scan" and src.scan else None
     )
