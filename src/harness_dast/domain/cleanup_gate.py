@@ -69,6 +69,23 @@ _REASON_BY_FIRST_WORD = {
     "LOCK": "LOCK não é aceito",
     "SET": "SET não é aceito (a CLI configura a sessão)",
 }
+_RESERVED_ALIASES = frozenset(_REASON_BY_FIRST_WORD) | {
+    "AND",
+    "AS",
+    "BY",
+    "DELETE",
+    "FROM",
+    "GROUP",
+    "IN",
+    "INTO",
+    "NOT",
+    "OR",
+    "ORDER",
+    "RETURNING",
+    "UNION",
+    "USING",
+    "VALUES",
+}
 
 
 class CleanupStatement(BaseModel):
@@ -165,7 +182,11 @@ def _parse_head(index: int, tokens: list[Token], policy: CleanupPolicy) -> _Head
             "(inclua-a só se a pessoa dona do produto concordar)",
         )
     if at < len(tokens) and tokens[at].kind is TokenKind.WORD and not tokens[at].is_word("WHERE"):
-        at += 1  # apelido da tabela
+        # Apelido da tabela. Palavra reservada nunca vale como apelido: falha fechada mesmo
+        # quando o Oracle recusaria o comando ao executar.
+        if tokens[at].upper in _RESERVED_ALIASES:
+            raise _fail(index, f"{tokens[at].upper} não vale como apelido da tabela")
+        at += 1
     if at >= len(tokens) or not tokens[at].is_word("WHERE"):
         raise _fail(index, "DELETE sem WHERE (ou WHERE escondido em comentário)")
     return _Head(table=table, where_at=at)
