@@ -16,12 +16,13 @@ from typing import Any
 from evals.runner.cases import REPO_ROOT, EvalError, RoundDirs
 from evals.runner.checks_security import _secret_forms
 from evals.runner.metrics_models import AgentMetrics
+from evals.runner.run_metrics import CLI_STAGES, GapsIn, RunMetricsIn, parse_run_metrics
 
 MEASUREMENTS_DIR = REPO_ROOT / "evals" / "measurements"
 LABEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,40}$")
 MIN_SECRET_LENGTH = 8
 NO_DATA = "n/d"
-TIME_KEY = re.compile(r"seconds|duration|elapsed|time", re.IGNORECASE)
+TOP_RULES = 10
 
 
 def _read_json(path: Path) -> Any:
@@ -147,56 +148,39 @@ def _number(value: Any) -> float | None:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
-def _scan_seconds(runs: list[Any]) -> float | None:
-    """Maior campo numerico do topo cujo nome tem `scan` e tempo (heuristica, sem esquema fixo)."""
-    values = [
-        number
-        for data in runs
-        if isinstance(data, dict)
-        for key, value in data.items()
-        if "scan" in key.lower() and TIME_KEY.search(key) and (number := _number(value)) is not None
-    ]
-    return max(values) if values else None
+def _parsed_runs(runs: list[Any]) -> list[RunMetricsIn]:
+    """So as execucoes que o modelo tolerante entende (versao 1); o resto vira "sem dado"."""
+    return [parsed for data in runs if (parsed := parse_run_metrics(data)) is not None]
 
 
-def _rule_times(runs: list[Any]) -> dict[str, float]:
-    """Tempo por regra do ZAP, se algum campo do topo com `rule` no nome o traz (heuristica)."""
-    times: dict[str, float] = {}
-    for data in runs:
-        if not isinstance(data, dict):
-            continue
-        for key, value in data.items():
-            if "rule" in key.lower():
-                times.update(_rule_rows(value))
+def _sum_known(values: list[float | None]) -> float | None:
+    known = [value for value in values if value is not None]
+    return round(sum(known), 3) if known else None
+
+
+def _stage_seconds(runs: list[RunMetricsIn], stage: str) -> float | None:
+    return _sum_known([run.stages_seconds.get(stage) for run in runs])
+
+
+def _gaps(runs: list[RunMetricsIn]) -> list[GapsIn]:
+    return [run.traffic.gaps for run in runs if run.traffic and run.traffic.gaps]
+
+
+def _rule_times(runs: list[RunMetricsIn]) -> dict[str, tuple[str | None, float]]:
+    """Segundos por regra (`plugin_id`), somados nas execucoes; so regras com `time_ms`."""
+    times: dict[str, tuple[str | None, float]] = {}
+    for run in runs:
+        for rule in run.rules.totals if run.rules else []:
+            if rule.time_ms is None:
+                continue
+            key = str(rule.plugin_id)
+            name, seconds = times.get(key, (rule.name, 0.0))
+            times[key] = (name or rule.name, seconds + rule.time_ms / 1000)
     return times
 
 
-def _rule_rows(value: Any) -> dict[str, float]:
-    rows: dict[str, float] = {}
-    items = (
-        list(value.items())
-        if isinstance(value, dict)
-        else [(None, item) for item in value]
-        if isinstance(value, list)
-        else []
-    )
-    for name, item in items:
-        number = _number(item)
-        if isinstance(item, dict):
-            name = name or next(
-                (str(item[k]) for k in ("name", "id", "rule", "rule_id") if k in item), None
-            )
-            number = next(
-                (
-                    n
-                    for k, v in item.items()
-                    if TIME_KEY.search(k) and (n := _number(v)) is not None
-                ),
-                None,
-            )
-        if name is not None and number is not None:
-            rows[str(name)] = number
-    return rows
+def _rule_label(plugin_id: str, name: str | None) -> str:
+    return f"regra ZAP {plugin_id} {name} (s)" if name else f"regra ZAP {plugin_id} (s)"
 
 
 def _load(folder: Path) -> dict[str, Any]:
@@ -252,14 +236,49 @@ def compare_measurements(folder_a: Path, folder_b: Path) -> dict[str, Any]:
             ),
             _row(f"{stage}: chamadas", _get(sa, "tool_calls"), _get(sb, "tool_calls")),
         ]
-    rows.append(_row("varredura do ZAP (s)", _scan_seconds(a["runs"]), _scan_seconds(b["runs"])))
-    rules_a, rules_b = _rule_times(a["runs"]), _rule_times(b["runs"])
-    rules = [
-        _row(f"regra ZAP {name} (s)", rules_a.get(name), rules_b.get(name))
-        for name in {*rules_a, *rules_b}
+    runs_a, runs_b = _parsed_runs(a["runs"]), _parsed_runs(b["runs"])
+    rows += [
+        _row(
+            f"etapa da CLI {stage} (s)",
+            _stage_seconds(runs_a, stage),
+            _stage_seconds(runs_b, stage),
+        )
+        for stage in CLI_STAGES
     ]
-    rules.sort(key=lambda r: (-abs(r["diff"] or 0.0), r["metric"]))
-    return {"a": str(folder_a.name), "b": str(folder_b.name), "rows": rows + rules[:5]}
+    gaps_a, gaps_b = _gaps(runs_a), _gaps(runs_b)
+    rows.append(
+        _row(
+            "lacunas do proxy: total (s)",
+            _sum_known([g.total_seconds for g in gaps_a]),
+            _sum_known([g.total_seconds for g in gaps_b]),
+        )
+    )
+    return {
+        "a": str(folder_a.name),
+        "b": str(folder_b.name),
+        "rows": rows + _rule_rows(_rule_times(runs_a), _rule_times(runs_b)),
+    }
+
+
+def _rule_rows(
+    rules_a: dict[str, tuple[str | None, float]], rules_b: dict[str, tuple[str | None, float]]
+) -> list[dict[str, Any]]:
+    """As `TOP_RULES` regras com maior diferenca de tempo; regra so de um lado fica `n/d`."""
+    rows = []
+    for plugin_id in {*rules_a, *rules_b}:
+        name = (rules_b.get(plugin_id) or rules_a[plugin_id])[0]
+        left = rules_a[plugin_id][1] if plugin_id in rules_a else None
+        right = rules_b[plugin_id][1] if plugin_id in rules_b else None
+        rows.append(_row(_rule_label(plugin_id, name), left, right))
+    # Regra que so aparece de um lado nao tem diferenca: pesa pelo tempo que ela tem.
+    rows.sort(key=lambda r: (-abs(_weight(r)), r["metric"]))
+    return rows[:TOP_RULES]
+
+
+def _weight(row: dict[str, Any]) -> float:
+    if row["diff"] is not None:
+        return float(row["diff"])
+    return float(row["a"] if row["a"] is not None else row["b"])
 
 
 def render_comparison(result: dict[str, Any]) -> str:

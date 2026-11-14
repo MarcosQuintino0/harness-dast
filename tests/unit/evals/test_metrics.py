@@ -296,21 +296,38 @@ def test_output_has_no_argument_values_or_command_text(tmp_path: Path) -> None:
     assert "--password" in text
 
 
-def test_run_metrics_copy_only_scalars_and_skip_invalid_files(tmp_path: Path) -> None:
+def test_run_metrics_keep_only_the_typed_summary_and_skip_invalid_files(tmp_path: Path) -> None:
     metrics_dir = tmp_path / "trace" / "runs"
     write_json(
-        metrics_dir / "run-a" / "metrics.json", {"scan_seconds": 12.5, "rules": [1], "ok": True}
+        metrics_dir / "run-a" / "metrics.json",
+        {
+            "schema_version": 1,
+            "stages_seconds": {"probe": 4.5, "scan": 120, "report": None},
+            "rules": {"totals": [{"plugin_id": "40018", "name": "SQLi", "time_ms": 1500}]},
+            "traffic": {"gaps": {"count": 2, "total_seconds": 31, "longest_seconds": 20}},
+            "operations": [{"operation_id": "dado-do-alvo"}],
+        },
     )
     write(metrics_dir / "run-b" / "metrics.json", "{nao json")
     write_json(metrics_dir / "run-c" / "metrics.json", [1, 2])
+    write_json(metrics_dir / "run-d" / "metrics.json", {"schema_version": 9})
     b = Builder()
     b.call("uv run hdast doctor")
 
     metrics = metrics_of(b, tmp_path)
 
-    assert [(r.run_id, r.summary) for r in metrics.run_metrics] == [
-        ("run-a", {"scan_seconds": 12.5, "ok": True})
-    ]
+    assert [r.run_id for r in metrics.run_metrics] == ["run-a"]
+    run = metrics.run_metrics[0]
+    assert run.stages_seconds == {
+        "preflight": None,
+        "probe": 4.5,
+        "scan": 120.0,
+        "authz": None,
+        "report": None,
+    }
+    assert (run.gaps_count, run.gaps_total_seconds, run.gaps_longest_seconds) == (2, 31, 20)
+    assert [(r.plugin_id, r.name, r.time_ms) for r in run.rules] == [("40018", "SQLi", 1500)]
+    assert "dado-do-alvo" not in metrics.model_dump_json()
 
 
 def test_run_metrics_absent_gives_an_empty_list(tmp_path: Path) -> None:

@@ -30,7 +30,7 @@ def round_with_transcript(repo: Path, out: Path, builder: Builder | None = None)
 def test_save_copies_only_the_summary_files(repo: Path, out: Path, tmp_path: Path) -> None:
     round_with_transcript(repo, out)
     write_json(out / "score.json", {"case": "mini", "grade": 8.5})
-    write_json(out / "trace" / "runs" / "run-1" / "metrics.json", {"scan_seconds": 3})
+    write_json(out / "trace" / "runs" / "run-1" / "metrics.json", {"schema_version": 1})
     write(out / "trace" / "runs" / "run-1" / "audit.jsonl", "{}")
     write(out / "workspace" / "products" / "mini" / "target.yml", "perfil")
     root = tmp_path / "measurements"
@@ -183,42 +183,127 @@ def test_compare_shows_missing_data_as_nd_never_zero(tmp_path: Path) -> None:
     assert row(result, "nota")["a"] is None
     assert row(result, "nota")["diff"] is None
     assert "nota | n/d | 9 | n/d" in table
-    assert "varredura do ZAP (s) | n/d | n/d | n/d" in table
+    assert "etapa da CLI scan (s) | n/d | n/d | n/d" in table
 
 
-def test_compare_finds_scan_time_and_the_zap_rules_with_most_time_difference(
+def run_file(stages: dict[str, Any], rules: list[dict[str, Any]], gap_total: Any) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "stages_seconds": stages,
+        "rules": {"totals": rules},
+        "traffic": {"gaps": {"count": 1, "total_seconds": gap_total, "longest_seconds": gap_total}},
+    }
+
+
+def rule(plugin_id: str, time_ms: Any, name: str = "Regra") -> dict[str, Any]:
+    return {"plugin_id": plugin_id, "name": name, "time_ms": time_ms, "requests": 1, "alerts": 0}
+
+
+def test_compare_shows_cli_stages_gaps_and_the_ten_rules_with_most_time_difference(
     tmp_path: Path,
 ) -> None:
     builder = Builder()
     builder.call("uv run hdast probe mini")
-    runs_a = [{"scan_seconds": 100, "rule_times": {"40018": 5.0, "10021": 1.0}}]
-    runs_b = [
-        {
-            "scan_seconds": 160,
-            "rule_times": [{"rule": "40018", "seconds": 35.0}, {"rule": "7", "seconds": 2}],
-        }
-    ]
-    a = saved(tmp_path, "a", builder, 1.0, runs_a)
-    b = saved(tmp_path, "b", builder, 1.0, runs_b)
+    rules_a = [rule("40018", 5000, "SQL Injection"), rule("10021", 1000)]
+    rules_b = [rule("40018", 35000, "SQL Injection"), rule("7", 2000)]
+    rules_b += [rule(str(100 + n), 10 + n) for n in range(12)]
+    a = saved(
+        tmp_path,
+        "a",
+        builder,
+        1.0,
+        [run_file({"probe": 3, "scan": 100, "report": 1}, rules_a, 5)],
+    )
+    b = saved(
+        tmp_path,
+        "b",
+        builder,
+        1.0,
+        [run_file({"probe": 4, "scan": 160, "report": None}, rules_b, 45.5)],
+    )
 
     result = compare_measurements(a, b)
 
-    assert row(result, "varredura do ZAP (s)")["diff"] == 60
-    assert row(result, "regra ZAP 40018 (s)")["diff"] == 30
-    assert row(result, "regra ZAP 10021 (s)")["b"] is None
-    rules = [r["metric"] for r in result["rows"] if r["metric"].startswith("regra ZAP")]
-    assert rules[0] == "regra ZAP 40018 (s)"
+    assert row(result, "etapa da CLI scan (s)")["diff"] == 60
+    assert row(result, "etapa da CLI probe (s)")["diff"] == 1
+    assert row(result, "etapa da CLI report (s)")["b"] is None
+    assert row(result, "etapa da CLI preflight (s)")["a"] is None
+    assert row(result, "lacunas do proxy: total (s)")["diff"] == pytest.approx(40.5)
+    rules = [r for r in result["rows"] if r["metric"].startswith("regra ZAP")]
+    assert len(rules) == 10
+    assert rules[0]["metric"] == "regra ZAP 40018 SQL Injection (s)"
+    assert rules[0]["diff"] == 30
+    assert rules[1]["metric"] == "regra ZAP 7 Regra (s)"
+    assert rules[1]["a"] is None
 
 
-def test_compare_ignores_a_run_metrics_file_it_does_not_understand(tmp_path: Path) -> None:
+def test_compare_shows_nd_when_the_run_metrics_are_missing(tmp_path: Path) -> None:
     builder = Builder()
     builder.call("uv run hdast probe mini")
-    a = saved(tmp_path, "a", builder, 1.0, [{"outro": "formato"}])
-    b = saved(tmp_path, "b", builder, 1.0, [[1, 2]])
+    a = saved(tmp_path, "a", builder, 1.0)
+    b = saved(tmp_path, "b", builder, 1.0)
+
+    table = render_comparison(compare_measurements(a, b))
+
+    assert "etapa da CLI scan (s) | n/d | n/d | n/d" in table
+    assert "lacunas do proxy: total (s) | n/d | n/d | n/d" in table
+    assert "regra ZAP" not in table
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        {"outro": "formato"},
+        [1, 2],
+        {"schema_version": 2, "stages_seconds": {"scan": 9}},
+        {"schema_version": "1", "stages_seconds": {"scan": 9}},
+    ],
+)
+def test_compare_ignores_a_run_metrics_file_it_does_not_understand(
+    tmp_path: Path, content: Any
+) -> None:
+    builder = Builder()
+    builder.call("uv run hdast probe mini")
+    a = saved(tmp_path, "a", builder, 1.0, [content])
+    b = saved(tmp_path, "b", builder, 1.0, [content])
 
     result = compare_measurements(a, b)
 
-    assert row(result, "varredura do ZAP (s)")["a"] is None
+    assert row(result, "etapa da CLI scan (s)")["a"] is None
+    assert row(result, "etapa da CLI scan (s)")["diff"] is None
+
+
+def test_compare_ignores_a_malformed_run_metrics_file(tmp_path: Path) -> None:
+    builder = Builder()
+    builder.call("uv run hdast probe mini")
+    a = saved(tmp_path, "a", builder, 1.0)
+    write(a / "metrics-quebrado.json", "{nao json")
+
+    result = compare_measurements(a, a)
+
+    assert row(result, "etapa da CLI scan (s)")["a"] is None
+
+
+def test_compare_tolerates_wrong_types_inside_a_valid_run_metrics_file(tmp_path: Path) -> None:
+    builder = Builder()
+    builder.call("uv run hdast probe mini")
+    bad = {
+        "schema_version": 1,
+        "stages_seconds": {"scan": "muito", "probe": True, "authz": 7},
+        "rules": {"totals": [rule("1", "x"), "lixo", {"name": "sem id"}, rule("2", 3000)]},
+        "traffic": {"gaps": "nada"},
+    }
+    a = saved(tmp_path, "a", builder, 1.0, [bad])
+
+    result = compare_measurements(a, a)
+
+    assert row(result, "etapa da CLI scan (s)")["a"] is None
+    assert row(result, "etapa da CLI probe (s)")["a"] is None
+    assert row(result, "etapa da CLI authz (s)")["a"] == 7
+    assert row(result, "lacunas do proxy: total (s)")["a"] is None
+    assert [r["metric"] for r in result["rows"] if r["metric"].startswith("regra")] == [
+        "regra ZAP 2 Regra (s)"
+    ]
 
 
 def test_compare_needs_two_saved_measurements(tmp_path: Path) -> None:
