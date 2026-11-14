@@ -71,6 +71,14 @@ uv run hdast doctor vampi
 
 O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do passo 2b e mais o perfil, a autorização, a janela e se os segredos das contas existem, em variável de ambiente ou no cofre (só diz se existem, nunca o valor; para o cofre, diz o comando `hdast secret set NOME`). Dois **avisos** (não reprovam) olham o perfil: `scope.path_mode: wide` (o modo amplo só é seguro com `deny_paths` completo) e a falta de duas contas do mesmo papel (sem elas, o teste de autorização horizontal não consegue comparar contas). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
 
+## 4c. Aprovar o perfil (uma vez)
+
+```powershell
+uv run hdast profile approve vampi
+```
+
+Os comandos que tocam o alvo (`stack up`, `preflight`, `probe`, `scan`, `run`) recusam com `SCOPE_NOT_APPROVED` enquanto uma **pessoa** não aprovar o escopo. Rode o comando acima num terminal seu: ele mostra o resumo (endereço, o que pode, o que é proibido, janela, limites, contas, força) e pede que você digite o nome do produto (`vampi`). Só você aprova: o agente nunca roda esse comando. `uv run hdast --json profile approval vampi` mostra o estado (`approved`, `not_approved` ou `changed`). Se você editar depois `scope`, `limits`, `environment`, contas ou força, aprove de novo; `probe`, `auth.csrf` e `auth.account_map` não pedem.
+
 ## 5. Subir a pilha
 
 ```powershell
