@@ -355,3 +355,16 @@ def test_slice_for_run_inclui_o_stack_up_mesmo_com_o_run_id_da_pilha() -> None:
 
     assert [e.command for e in first] == ["stack up", "doctor", "run"]
     assert [e.command for e in second] == ["stack down", "stack up", "run"]
+
+
+def test_build_journal_entry_mantem_o_run_id_e_mascara_token_no_mesmo_campo() -> None:
+    token = "q7Xk29LmPz81VbNc40RtYw36"  # noqa: S105 - sentinela de teste
+    entry = _build(
+        command="report",
+        flags=[("--run", RUN_1), ("--note", f"{RUN_1} {token}")],
+        mask=lambda text: text,
+    )
+
+    values = {flag.name: flag.value for flag in entry.flags}
+    assert values["--run"] == RUN_1
+    assert values["--note"] == f"{RUN_1} {MASK}"

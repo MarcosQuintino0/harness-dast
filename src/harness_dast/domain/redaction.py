@@ -23,6 +23,7 @@ from collections.abc import Callable, Mapping
 from typing import Final
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
+from harness_dast.domain.run import is_run_id
 from harness_dast.domain.zap_messages import ZapMessage
 
 MASK: Final = "***"
@@ -131,15 +132,20 @@ def _mask_pair(match: re.Match[str]) -> str:
     return match.group(1) + match.group(2) + MASK
 
 
+def _mask_unless_run_id(match: re.Match[str]) -> str:
+    """O id de execução (`2026-11-14T02-14-18Z-produto-f087`) parece token, mas não é segredo."""
+    return match.group() if is_run_id(match.group()) else MASK
+
+
 def _mask_long_tokens(text: str) -> str:
     """Troca sequências longas parecidas com token, sem destruir o caminho de endereços."""
     parts: list[str] = []
     position = 0
     for url in _URLISH.finditer(text):
-        parts.append(_LONG_TOKEN.sub(MASK, text[position : url.start()]))
-        parts.append(_LONG_SEGMENT.sub(MASK, url.group()))
+        parts.append(_LONG_TOKEN.sub(_mask_unless_run_id, text[position : url.start()]))
+        parts.append(_LONG_SEGMENT.sub(_mask_unless_run_id, url.group()))
         position = url.end()
-    parts.append(_LONG_TOKEN.sub(MASK, text[position:]))
+    parts.append(_LONG_TOKEN.sub(_mask_unless_run_id, text[position:]))
     return "".join(parts)
 
 

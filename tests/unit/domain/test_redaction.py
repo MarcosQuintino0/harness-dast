@@ -324,3 +324,28 @@ def test_known_secret_never_survives_inside_or_outside_a_url(noise: str, secret:
 
     assert secret not in redact_text(text, hide)
     assert secret not in redact_header_block(f"GET {text} HTTP/1.1", hide)[0]
+
+
+RUN_ID = "2026-11-14T02-14-18Z-clinica-piloto-f087"
+LONG_TOKEN = "q7Xk29LmPz81VbNc40RtYw36"  # noqa: S105 - sentinela de teste
+
+
+def test_a_run_id_is_not_a_secret_and_survives_the_redaction() -> None:
+    assert redact_text(RUN_ID, lambda text: text) == RUN_ID
+    assert redact_text(f"--run {RUN_ID}", lambda text: text) == f"--run {RUN_ID}"
+
+
+def test_a_real_token_next_to_a_run_id_is_still_masked() -> None:
+    got = redact_text(f"{RUN_ID} {LONG_TOKEN}", lambda text: text)
+
+    assert got == f"{RUN_ID} {MASK}"
+
+
+def test_a_token_that_only_contains_a_run_id_is_masked() -> None:
+    assert RUN_ID not in redact_text(f"{RUN_ID}{LONG_TOKEN}", lambda text: text)
+
+
+def test_text_that_only_looks_like_a_run_id_is_masked() -> None:
+    fake = "2026-13-45T99-99-99Z-clinica-piloto-f087"
+
+    assert redact_text(fake, lambda text: text) == MASK

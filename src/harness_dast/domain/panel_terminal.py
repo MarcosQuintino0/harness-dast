@@ -41,7 +41,13 @@ def _time_cell(item: PanelCommand) -> str:
     return text
 
 
-def _command_row(item: PanelCommand) -> str:
+def _hour(item: PanelCommand, *, new_day: bool) -> str:
+    """A hora do comando; com a data (`15/11`) quando é o primeiro comando de um dia novo."""
+    clock = fmt_clock(item.at)
+    return f"{item.at:%d/%m} {clock}" if new_day and item.at is not None else clock
+
+
+def _command_row(item: PanelCommand, *, new_day: bool) -> str:
     tone, word = _STATUS[item.status]
     opened = item.status != "ok"
     response = ""
@@ -57,7 +63,7 @@ def _command_row(item: PanelCommand) -> str:
     )
     return (
         f'<div class="cmd"{style if opened else ""}>'
-        f'<span class="hr">{h.plain(fmt_clock(item.at))}</span>'
+        f'<span class="hr">{h.plain(_hour(item, new_day=new_day))}</span>'
         f"<code>$ {h.text(item.command, 300)}</code>"
         f"<span>{h.text(item.translation, 300)}</span>"
         f"<span>{chip(word, tone, dot=False)}</span>"
@@ -76,6 +82,7 @@ def _group_title(view: PanelView, stage: StageKey | None) -> str:
 
 def _groups(view: PanelView, commands: tuple[PanelCommand, ...]) -> str:
     parts: list[str] = []
+    day = commands[0].at.date() if commands and commands[0].at else None
     for stage, members in groupby(commands, key=lambda item: item.stage):
         group = list(members)
         known = [item.seconds for item in group if item.seconds is not None]
@@ -84,7 +91,10 @@ def _groups(view: PanelView, commands: tuple[PanelCommand, ...]) -> str:
             f'<p class="grp">{h.text(_group_title(view, stage), 80)} '
             f"<span>{h.plain(plural(len(group), 'comando', 'comandos'))}{h.plain(total)}</span></p>"
         )
-        parts.extend(_command_row(item) for item in group)
+        for item in group:
+            new_day = item.at is not None and day is not None and item.at.date() != day
+            parts.append(_command_row(item, new_day=new_day))
+            day = item.at.date() if item.at is not None else day
     return "".join(parts)
 
 
