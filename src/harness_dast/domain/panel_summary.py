@@ -17,6 +17,7 @@ from harness_dast.domain.panel_format import (
     fmt_date,
     fmt_duration,
     fmt_tokens,
+    pick,
     plural,
     x_of_y,
 )
@@ -91,12 +92,13 @@ def _hero_text(view: PanelView) -> tuple[str, str, str]:
         attacked, tried = verdict.functions_attacked, verdict.functions_attempted
         late = verdict.stopped_stage in _AFTER_SCAN
         count = (
-            f", com {x_of_y(attacked, tried)} funções atacadas"
+            f", com {x_of_y(attacked, tried)} {pick(tried, 'função atacada', 'funções atacadas')}"
             if late and attacked is not None and tried
             else ""
         )
         seen = (
-            f" Até ali apareceu {plural(severe, 'falha grave', 'falhas graves')}."
+            f" Até ali {pick(severe, 'apareceu', 'apareceram')} "
+            f"{plural(severe, 'falha grave', 'falhas graves')}."
             if severe is not None
             else ""
         )
@@ -149,7 +151,10 @@ def _stats(view: PanelView) -> str:
         first = stat(NO_DATA, "funções atacadas · não medido")
     traffic = view.traffic
     if view.traffic_measured and traffic is not None:
-        second = stat(fmt_count(traffic.allowed_outside_allow), "pedidos fora da carta")
+        outside = traffic.allowed_outside_allow
+        second = stat(
+            fmt_count(outside), pick(outside, "pedido fora da carta", "pedidos fora da carta")
+        )
     else:
         second = stat(NO_DATA, "pedidos fora da carta · não medido")
     third = stat(
@@ -249,7 +254,8 @@ def _minor_line(view: PanelView) -> str:
         return ""
     joined = ", ".join(present[:-1]) + (" e " if len(present) > 1 else "") + present[-1]
     causes = plural(counts.groups, "causa", "causas")
-    return f'<p class="sm mu">{h.plain(f"Mais {joined}, agrupados em {causes}.")}</p>'
+    grouped = pick(counts.groups, "agrupado", "agrupados")
+    return f'<p class="sm mu">{h.plain(f"Mais {joined}, {grouped} em {causes}.")}</p>'
 
 
 def _severe_card(view: PanelView) -> str:
@@ -338,7 +344,8 @@ def _fence_row(view: PanelView) -> str:
     total = traffic.allowed + traffic.denied
     return row(
         "gr" if outside else "ok",
-        f"<b>No agente:</b> {h.plain(x_of_y(outside, total))} pedidos fora da carta",
+        f"<b>No agente:</b> {h.plain(x_of_y(outside, total))} "
+        f"{pick(total, 'pedido', 'pedidos')} fora da carta",
     )
 
 

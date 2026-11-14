@@ -11,7 +11,6 @@ from typing import Final
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel_format import (
     STAGE_WORDS,
-    fmt_count,
     fmt_duration,
     fmt_tokens,
     plural,
@@ -57,7 +56,8 @@ def scan_extra(view: PanelView) -> str:
         return ""
     text = plural(attacked, "função", "funções")
     if view.traffic is not None and view.traffic.enabled:
-        text += f", {fmt_count(view.traffic.allowed + view.traffic.denied)} pedidos"
+        sent = view.traffic.allowed + view.traffic.denied
+        text += f", {plural(sent, 'pedido', 'pedidos')}"
     return text
 
 

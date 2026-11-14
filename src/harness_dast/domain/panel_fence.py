@@ -10,7 +10,7 @@ traço e a explicação, nunca zero. Módulo puro.
 from typing import Final
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.panel_format import NO_DATA, fmt_count, x_of_y
+from harness_dast.domain.panel_format import NO_DATA, fmt_count, pick, plural, x_of_y
 from harness_dast.domain.panel_layout import card, chip, not_measured
 from harness_dast.domain.panel_model import PanelView
 from harness_dast.domain.report_traffic import denied_rows, path_shape_warning
@@ -119,7 +119,7 @@ def _reasons(traffic: TrafficSummary) -> str:
     )
     more = len(rows) - _MAX_REASONS
     tail = (
-        f'<p class="sm mu">e mais {h.plain(fmt_count(more))} motivos menores.</p>'
+        f'<p class="sm mu">e mais {h.plain(plural(more, "motivo menor", "motivos menores"))}.</p>'
         if more > 0
         else ""
     )
@@ -144,7 +144,8 @@ def _partial_notice(traffic: TrafficSummary, *, strict: bool) -> str:
         else ""
     )
     text = (
-        f"{x_of_y(traffic.path_shape_denied, total)} pedidos foram barrados pela forma do "
+        f"{x_of_y(traffic.path_shape_denied, total)} "
+        f"{pick(total, 'pedido foi barrado', 'pedidos foram barrados')} pela forma do "
         "endereço. Os ataques que dependem dessas formas não chegaram ao sistema: a cobertura "
         f"de injeção em caminho foi parcial.{advice}"
     )

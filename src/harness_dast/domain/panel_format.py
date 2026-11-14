@@ -111,6 +111,14 @@ def plural(value: int, one: str, many: str) -> str:
     return f"{fmt_count(value)} {one if value == 1 else many}"
 
 
+def pick(value: int, one: str, many: str) -> str:
+    """A palavra (ou frase) certa para o número, sem o número: `pick(1, "foi", "foram")`.
+
+    É a irmã de `plural` para verbo e artigo que concordam com a contagem: o singular só para 1.
+    """
+    return one if value == 1 else many
+
+
 def capitalize_first(text: str) -> str:
     """Põe só a primeira letra em maiúscula (o resto do texto fica como está)."""
     return text[:1].upper() + text[1:]

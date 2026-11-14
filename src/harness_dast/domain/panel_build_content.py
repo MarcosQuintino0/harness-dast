@@ -18,6 +18,7 @@ from harness_dast.domain.panel_format import (
     FunctionStateKind,
     capitalize_first,
     count_word,
+    pick,
     plural,
 )
 from harness_dast.domain.panel_model import (
@@ -451,16 +452,30 @@ def build_steps(
         steps.append(
             PanelStep(
                 owner="owner",
-                text=f"Conferir se as {states['forbidden']} funções proibidas pela carta devem "
-                "mesmo ficar de fora. A ferramenta não amplia a carta sozinha.",
+                text=(
+                    "Conferir se "
+                    + pick(
+                        states["forbidden"],
+                        "a função proibida pela carta deve",
+                        f"as {states['forbidden']} funções proibidas pela carta devem",
+                    )
+                    + " mesmo ficar de fora. A ferramenta não amplia a carta sozinha."
+                ),
             )
         )
     if states["failed"]:
         steps.append(
             PanelStep(
                 owner="qa",
-                text=f"Pedir ao agente para melhorar o alcance das {states['failed']} funções que "
-                "não responderam e repetir o teste.",
+                text=(
+                    "Pedir ao agente para melhorar o alcance "
+                    + pick(
+                        states["failed"],
+                        "da função que não respondeu",
+                        f"das {states['failed']} funções que não responderam",
+                    )
+                    + " e repetir o teste."
+                ),
             )
         )
     if not severe and counts is not None and counts.total:

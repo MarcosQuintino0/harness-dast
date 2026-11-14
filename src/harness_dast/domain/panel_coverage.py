@@ -18,6 +18,7 @@ from harness_dast.domain.panel_format import (
     FUNCTION_STATE_WORDS,
     NO_DATA,
     fmt_count,
+    pick,
     plural,
     x_of_y,
 )
@@ -117,14 +118,30 @@ def _summary(view: PanelView) -> str:
     total = len(view.functions)
     aria = (
         f"{states['tested']} sem falha grave, {states['severe']} com falha grave, "
-        f"{waiting} não testadas, {states['forbidden']} proibidas"
+        f"{plural(waiting, 'não testada', 'não testadas')}, "
+        f"{plural(states['forbidden'], 'proibida', 'proibidas')}"
     )
     stats = (
-        stat(fmt_count(total), "funções no Swagger")
-        + stat(fmt_count(states["tested"]), "atacadas, sem falha grave", tone="ok")
-        + stat(fmt_count(states["severe"]), "atacadas, com falha grave", tone="gr")
-        + stat(fmt_count(waiting), "não testadas", tone="am")
-        + stat(fmt_count(states["forbidden"]), "proibidas pela carta", tone="mu")
+        stat(
+            fmt_count(total),
+            pick(total, "função do sistema (no Swagger)", "funções do sistema (no Swagger)"),
+        )
+        + stat(
+            fmt_count(states["tested"]),
+            pick(states["tested"], "atacada, sem falha grave", "atacadas, sem falha grave"),
+            tone="ok",
+        )
+        + stat(
+            fmt_count(states["severe"]),
+            pick(states["severe"], "atacada, com falha grave", "atacadas, com falha grave"),
+            tone="gr",
+        )
+        + stat(fmt_count(waiting), pick(waiting, "não testada", "não testadas"), tone="am")
+        + stat(
+            fmt_count(states["forbidden"]),
+            pick(states["forbidden"], "proibida pela carta", "proibidas pela carta"),
+            tone="mu",
+        )
     )
     return card(
         '<div class="g" style="gap: 16px 48px; align-items: center">'

@@ -82,7 +82,8 @@ def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
         else sum(item.requests for item in scan.entries)
     )
     text = (
-        f"{plural(attacked, 'função atacada', 'funções atacadas')}, {fmt_count(requests)} pedidos."
+        f"{plural(attacked, 'função atacada', 'funções atacadas')}, "
+        f"{plural(requests, 'pedido', 'pedidos')}."
     )
     if traffic.enabled:
         text += (

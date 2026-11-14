@@ -18,6 +18,7 @@ from harness_dast.domain.panel_format import (
     fmt_count,
     fmt_datetime,
     fmt_duration,
+    pick,
     plural,
     x_of_y,
 )
@@ -118,7 +119,7 @@ def _squares(view: LiveView) -> str:
         f'<span><i class="dotk k-no" style="border-radius: 2px"></i>na fila ({queue})</span>'
     )
     return card(
-        heading(f"As {total} funções")
+        heading(pick(total, "A única função", f"As {total} funções"))
         + f'<div class="grid" role="img" aria-label="{h.plain(aria)}">{cells}</div>'
         f'<div class="lg">{legend}</div>',
         style="flex: 1 1 280px",
@@ -126,23 +127,29 @@ def _squares(view: LiveView) -> str:
 
 
 def _requests_stats(view: LiveView) -> str:
-    def number(value: int | None, caption: str) -> str:
+    def number(value: int | None, caption: str, one: str | None = None) -> str:
         if value is None:
             return (
                 f'<div class="stat"><b class="mu">{NO_DATA}</b>'
                 f"<span>{h.plain(caption)}: não medido</span></div>"
             )
-        return stat(fmt_count(value), caption)
+        return stat(fmt_count(value), pick(value, one or caption, caption))
 
     reached = ""
     if view.functions_tried is not None and view.functions_reached is not None:
         reached = stat(
-            x_of_y(view.functions_reached, view.functions_tried), "funções responderam no alcance"
+            x_of_y(view.functions_reached, view.functions_tried),
+            pick(
+                view.functions_tried,
+                "função tentada respondeu no alcance",
+                "funções tentadas responderam no alcance",
+            ),
         )
     return (
         '<div class="stats" style="margin-top: 6px">'
-        f"{reached}{number(view.allowed, 'pedidos passaram pela cerca')}"
-        f"{number(view.denied, 'barrados pela cerca')}"
+        f"{reached}"
+        f"{number(view.allowed, 'pedidos passaram pela cerca', 'pedido passou pela cerca')}"
+        f"{number(view.denied, 'barrados pela cerca', 'barrado pela cerca')}"
         f"{number(view.outside_allow, 'fora da carta')}</div>"
     )
 
@@ -162,7 +169,10 @@ def _hero(view: LiveView) -> str:
         shown = min(done + 1, view.scan_total)
         name = h.text(view.current_function or "função em ataque", 200)
         percent = round(done / view.scan_total * 100)
-        aria = f"{done} de {view.scan_total} funções atacadas"
+        aria = (
+            f"{done} de {view.scan_total} "
+            f"{pick(view.scan_total, 'função atacada', 'funções atacadas')}"
+        )
         return card(
             f"<div>{chip('Atacando agora', 'run')}</div>"
             f'<h1 class="big">"{name}"</h1>'

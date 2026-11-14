@@ -13,7 +13,7 @@ página nunca diz "seguro" nem "aprovado".
 from typing import Final
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.panel_format import fmt_count, plural
+from harness_dast.domain.panel_format import fmt_count, pick, plural
 from harness_dast.domain.panel_layout import card, chip, meter, row
 from harness_dast.domain.panel_model import PanelFinding, PanelGroup, PanelView
 from harness_dast.domain.panel_repro import render_repro
@@ -317,7 +317,11 @@ def _finding_card(view: PanelView, item: PanelFinding) -> str:
 def _no_severe_card(view: PanelView) -> str:
     counts = view.counts
     tested = view.verdict.functions_attacked
-    scope = f"nas {fmt_count(tested)} funções testadas" if tested else "no que foi testado"
+    scope = (
+        pick(tested, "na única função testada", f"nas {fmt_count(tested)} funções testadas")
+        if tested
+        else "no que foi testado"
+    )
     return card(
         '<div><span class="chip ch-ok"><i></i>Nenhuma falha grave</span></div>'
         f'<h2 class="big">Nenhuma falha grave {h.plain(scope)}.</h2>'

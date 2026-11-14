@@ -398,7 +398,8 @@ def _oldest_card(rows: Sequence[RunRow]) -> str:
         return ""
     lines = "".join(
         f'<div class="r">{marker("gr")}<span>{h.text(item.title, 200)}</span>'
-        f'<span class="end">desde {h.plain(fmt_date(item.since)[:5])} · {item.tests} testes</span>'
+        f'<span class="end">desde {h.plain(fmt_date(item.since)[:5])} · '
+        f"{h.plain(plural(item.tests, 'teste', 'testes'))}</span>"
         "</div>"
         for item in found
     )

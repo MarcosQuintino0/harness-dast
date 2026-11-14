@@ -68,10 +68,10 @@ def test_the_page_is_no_longer_the_provisional_one() -> None:
 def test_the_numbers_card_counts_functions_by_state() -> None:
     text = main_text(coverage_html())
 
-    assert "5 funções no Swagger" in text
-    assert "1 atacadas, com falha grave" in text
+    assert "5 funções do sistema (no Swagger)" in text
+    assert "1 atacada, com falha grave" in text
     assert "3 não testadas" in text
-    assert "1 proibidas pela carta" in text
+    assert "1 proibida pela carta" in text
 
 
 def test_the_stack_bar_has_a_label_that_says_the_numbers() -> None:
@@ -79,7 +79,7 @@ def test_the_stack_bar_has_a_label_that_says_the_numbers() -> None:
 
     assert (
         'role="img" aria-label="0 sem falha grave, 1 com falha grave, 3 não testadas, '
-        '1 proibidas"' in page
+        '1 proibida"' in page
     )
 
 
@@ -250,7 +250,8 @@ def test_the_reasons_come_with_the_plain_name_and_the_code() -> None:
 
     assert "barra codificada no caminho (%2f) [path_encoded_slash] 2.608" in text
     assert "caminho fora do que a carta permite (scope.allow) [path_not_allowed] 1.087" in text
-    assert "e mais 1 motivos menores." in text
+    assert "e mais 1 motivo menor." in text
+    assert "motivos menores" not in text
 
 
 def test_the_partial_coverage_notice_appears_when_the_shape_of_the_path_blocked_requests() -> None:
