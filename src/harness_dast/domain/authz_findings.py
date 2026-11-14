@@ -8,6 +8,7 @@ agente nem o adaptador a escolhem:
 | authz_horizontal         | alta; média se só o NOME indica identificador de consulta |
 | authz_horizontal_write   | alta                                                    |
 | authz_vertical           | alta                                                    |
+| authz_access_matrix      | alta                                                    |
 | authz_mass_assignment    | alta (declarado, privilégio, saldo); média (preço, estado, outros) |
 | authz_excessive_data     | média; alta se algum campo tem nome de segredo/pessoal  |
 
@@ -36,6 +37,7 @@ TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
     "authz_anonymous_access": "Acesso sem login",
     "authz_tampered_token": "Token adulterado aceito",
     "authz_horizontal_write": "Escrita em recurso de outra conta do mesmo papel (BOLA)",
+    "authz_access_matrix": "Papel que a tabela quem pode o quê proíbe executou a operação (BFLA)",
 }
 """Nome legível de cada técnica, usado no relatório."""
 

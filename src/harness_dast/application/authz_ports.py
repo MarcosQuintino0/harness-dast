@@ -47,3 +47,19 @@ class AuthzArtifacts(Protocol):
             ConfigError: Falha de escrita.
         """
         ...
+
+
+class AuthzDraftWriter(Protocol):
+    """Grava o rascunho da tabela "quem pode o quê" na pasta do produto (ADR 0041)."""
+
+    def write_draft(self, product: str, text: str) -> str:
+        """Grava `authz-matrix.draft.yml` SEM sobrescrever nada.
+
+        Returns:
+            O caminho do arquivo gravado.
+
+        Raises:
+            ConfigError: Produto inexistente, arquivo já existente (nunca é sobrescrito) ou
+                falha de escrita.
+        """
+        ...

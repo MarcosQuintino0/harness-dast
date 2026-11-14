@@ -7,10 +7,13 @@ rede (cliente do alvo, cache de tokens) que `probe` e `scan` usam.
 from pathlib import Path
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
+from harness_dast.adapters.storage.authz_draft_writer import FileAuthzDraftWriter
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemSleeper
 from harness_dast.application.authz import Authz
+from harness_dast.application.authz_draft import AuthzDraft
 from harness_dast.cli.approval_composition import checked_profiles
 from harness_dast.cli.composition import (
     NetworkHandle,
@@ -47,4 +50,19 @@ def build_authz(
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
+    )
+
+
+def build_authz_draft(products_dir: Path | None) -> AuthzDraft:
+    """Monta o caso de uso `hdast authz --draft-matrix`: só lê perfil e OpenAPI, sem rede.
+
+    Usa o repositório de perfis SEM a conferência de aprovação (como o `spec inspect`): o
+    comando não toca o alvo e grava só um arquivo à parte, fora do perfil.
+    """
+    root = products_dir_or_default(products_dir)
+    return AuthzDraft(
+        profiles=FileProfileRepository(root),
+        specs=build_spec_loader(root),
+        artifacts=FileRunArtifacts(load_settings().runs_dir),
+        writer=FileAuthzDraftWriter(root),
     )

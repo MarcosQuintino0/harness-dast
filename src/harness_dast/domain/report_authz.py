@@ -8,6 +8,7 @@ campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módu
 from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.markdown_safe import code_span, escape_inline
+from harness_dast.domain.report_authz_matrix import matrix_lines
 from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL
 
 _MAX_NOT_TESTED = 40
@@ -87,6 +88,7 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         f"{row.tested} | {row.findings} |"
         for row in authz.checks
     ]
+    lines += matrix_lines(authz.access_matrix)
     if authz.findings:
         lines += ["", "### Achados de autorização", ""]
         for item in authz.findings:

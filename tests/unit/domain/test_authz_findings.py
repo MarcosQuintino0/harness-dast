@@ -178,6 +178,7 @@ def test_every_technique_has_a_label() -> None:
         "authz_tampered_token",
         "authz_mass_assignment",
         "authz_horizontal_write",
+        "authz_access_matrix",
     }
 
 
