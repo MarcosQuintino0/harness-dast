@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from harness_dast.domain.redaction import (
@@ -296,6 +296,8 @@ def test_long_token_outside_a_url_is_still_masked() -> None:
 _SEGMENT = st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=12)
 
 
+@example(host="h", port=80, segments=[], query=[("nome", "token")])
+@example(host="h", port=80, segments=[], query=[("q", "bearer")])
 @given(
     host=st.from_regex(r"[a-z][a-z-]{0,10}", fullmatch=True),
     port=st.integers(min_value=1, max_value=65535),
@@ -310,6 +312,18 @@ def test_url_without_secret_leaves_host_port_and_path_intact(
     url = f"http://{host}:{port}{path}" + (f"?{qs}" if qs else "")
 
     assert _request_line(url) == f"GET {url} HTTP/1.1"
+
+
+def test_query_value_that_looks_like_an_auth_scheme_keeps_the_protocol_version() -> None:
+    clean = _request_line("http://h:80/api/x?nome=token")
+
+    assert clean == "GET http://h:80/api/x?nome=token HTTP/1.1"
+
+
+def test_secret_after_a_space_in_the_request_line_is_still_masked() -> None:
+    clean = _request_line("http://h:80/api/x?a=b Bearer abcdefgh12345678")
+
+    assert "abcdefgh12345678" not in clean
 
 
 @given(
