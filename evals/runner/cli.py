@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from evals.runner import gitutil, scoring
+from evals.runner.approve import approve
 from evals.runner.cases import EvalError, RoundDirs
 from evals.runner.collect import collect
 from evals.runner.measurements import (
@@ -32,6 +33,10 @@ def build_parser() -> argparse.ArgumentParser:
     prep.add_argument("--seed", type=int, default=0)
     prep.add_argument("--out", type=Path, required=True)
     prep.add_argument("--allow-leaks", action="store_true")
+    approve_parser = sub.add_parser(
+        "approve", help="coordenador aprova o escopo do perfil da rodada (ADR 0037)"
+    )
+    approve_parser.add_argument("--out", type=Path, required=True)
     coll = sub.add_parser("collect", help="junta o rastro em <out>/trace")
     coll.add_argument("--out", type=Path, required=True)
     coll.add_argument("--state-dir", type=Path, default=None)
@@ -83,6 +88,9 @@ def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
             f"workspace: {result.workspace}\nlacre (NAO mostrar ao agente): {result.sealed}\n"
             f"exclusoes: {len(result.excluded)}; termos do gabarito na copia: {len(result.leaks)}"
         )
+    if args.command == "approve":
+        approved = approve(out)
+        return f"escopo de {approved.product} aprovado em {approved.approved_at}: {approved.file}"
     if args.command == "collect":
         collected = collect(out, state_dir=args.state_dir)
         return f"rastro: {collected.trace}; problemas: {list(collected.problems) or 'nenhum'}"

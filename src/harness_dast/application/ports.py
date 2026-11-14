@@ -39,6 +39,7 @@ from harness_dast.domain.run import RunId
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
 
 
@@ -262,6 +263,40 @@ class SecretPrompt(Protocol):
 
     def confirm_removal(self, name: str) -> bool:
         """Pede que a pessoa digite `name` para confirmar; `True` só se digitar igual."""
+        ...
+
+
+class ApprovalStore(Protocol):
+    """Guarda a aprovação humana do escopo, por produto (ADR 0037), fora da pasta do produto."""
+
+    def read(self, product: str) -> ScopeApproval | None:
+        """Lê a aprovação do produto; `None` se nunca foi aprovado.
+
+        Raises:
+            ScopeNotApproved: Arquivo ilegível, grande demais, de versão desconhecida, de outro
+                produto ou com resumos que não conferem (`state="invalid"`): falha fechada.
+            ConfigError: Nome de produto inválido.
+        """
+        ...
+
+    def write(self, approval: ScopeApproval) -> None:
+        """Grava (substitui) a aprovação do produto de forma atômica.
+
+        Raises:
+            ConfigError: Falha ao gravar na pasta de estado.
+        """
+        ...
+
+
+class ApprovalPrompt(Protocol):
+    """Confirmação de uma PESSOA, em terminal, diante do resumo dos blocos de proteção."""
+
+    def confirm(self, product: str, summary: tuple[str, ...], changes: tuple[str, ...]) -> bool:
+        """Mostra o resumo (e o que mudou desde a aprovação anterior) e pergunta.
+
+        Returns:
+            `True` só se a pessoa digitou exatamente o nome do produto.
+        """
         ...
 
 

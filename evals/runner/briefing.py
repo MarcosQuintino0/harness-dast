@@ -23,6 +23,10 @@ RULES = """\
   final.
 - Não leia `.env` nem arquivo ou variável com segredo; use só os apelidos de conta e as variáveis
   `secret_ref` que a carta cita.
+- Os comandos que tocam o alvo só rodam depois que uma **pessoa** aprova o escopo do perfil. Quando
+  o perfil validar, se um comando recusar com `SCOPE_NOT_APPROVED`, pare: registre no diário de
+  decisões que aguarda a aprovação (você não pode aprovar nem tentar contornar) e peça isso na
+  resposta. Quem coordena aprova e a rodada continua.
 - Não rode `hdast cleanup` nem escreva script de limpeza. Se houver o que limpar, diga qual comando
   uma pessoa deve rodar.
 - Você **não** precisa commitar nada: quem coleta o resultado tira o próprio instantâneo.

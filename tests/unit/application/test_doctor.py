@@ -18,6 +18,7 @@ from harness_dast.domain.errors import (
 )
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.observability.logging import SecretRegistry
+from tests.fakes.approvals import InMemoryApprovalStore
 from tests.fakes.host import FakeHost
 from tests.fakes.probe_ports import DictSecretProvider
 from tests.fakes.profile_repository import InMemoryProfileRepository
@@ -48,7 +49,7 @@ class Setup:
         self.doctor = Doctor(
             host=self.host,
             profiles=self.profiles,
-            validator=ValidateProfile(self.profiles, self.clock),
+            validator=ValidateProfile(self.profiles, self.clock, InMemoryApprovalStore()),
             secrets=DictSecretProvider(ENV if env is None else env),
             vault=self.vault,
             states=self.states,

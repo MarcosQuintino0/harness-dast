@@ -7,6 +7,7 @@ import pytest
 from harness_dast.application.validate_profile import ProfileReport, ValidateProfile
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
+from tests.fakes.approvals import InMemoryApprovalStore, approval_for
 from tests.fakes.clock import FixedClock, utc
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
@@ -25,7 +26,9 @@ def _validate(
     repository.add(
         profile, existing_files={"./openapi.json"} if existing_files is None else existing_files
     )
-    return ValidateProfile(repository, FixedClock(now)).execute(profile.product)
+    return ValidateProfile(repository, FixedClock(now), InMemoryApprovalStore()).execute(
+        profile.product
+    )
 
 
 def _profile(mutate: Any = None, *, with_cleanup: bool = False) -> ProductProfile:
@@ -167,7 +170,9 @@ def test_report_never_contains_secret_references_or_their_names() -> None:
 
 
 def test_validation_raises_config_error_when_profile_does_not_exist() -> None:
-    use_case = ValidateProfile(InMemoryProfileRepository(), FixedClock(NOON))
+    use_case = ValidateProfile(
+        InMemoryProfileRepository(), FixedClock(NOON), InMemoryApprovalStore()
+    )
 
     with pytest.raises(ConfigError):
         use_case.execute("inexistente")
@@ -179,7 +184,7 @@ def test_validation_raises_config_error_when_clock_has_no_timezone() -> None:
     naive = FixedClock(datetime(2026, 11, 10, 12))
 
     with pytest.raises(ConfigError):
-        ValidateProfile(repository, naive).execute("demo")
+        ValidateProfile(repository, naive, InMemoryApprovalStore()).execute("demo")
 
 
 def test_report_is_a_fresh_snapshot_when_the_clock_moves() -> None:
@@ -187,10 +192,27 @@ def test_report_is_a_fresh_snapshot_when_the_clock_moves() -> None:
     profile = _profile(lambda d: d["scope"].update(windows=["ter 11:00-13:00 UTC"]))
     repository.add(profile, existing_files={"./openapi.json"})
     clock = FixedClock(NOON)
-    use_case = ValidateProfile(repository, clock)
+    use_case = ValidateProfile(repository, clock, InMemoryApprovalStore())
 
     open_report = use_case.execute("demo")
     clock.advance_to(utc(2026, 11, 10, 14))
     closed_report = use_case.execute("demo")
 
     assert (open_report.window_open_now, closed_report.window_open_now) == (True, False)
+
+
+def test_report_carries_the_approval_state_without_touching_runnable() -> None:
+    repository = InMemoryProfileRepository()
+    profile = valid_profile()
+    repository.add(profile, existing_files={"./openapi.json"})
+    store = InMemoryApprovalStore()
+    use_case = ValidateProfile(repository, FixedClock(NOON), store)
+
+    before = use_case.execute("demo")
+    store.write(approval_for(profile))
+    after = use_case.execute("demo")
+
+    assert (before.approval.state, after.approval.state) == ("not_approved", "approved")
+    assert before.runnable is True
+    assert after.runnable is True
+    assert after.approval.approved_at is not None

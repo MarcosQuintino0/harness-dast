@@ -99,6 +99,44 @@ class ScopeViolation(HarnessError):
         self.reason = reason
 
 
+class ScopeNotApproved(HarnessError):
+    """Os blocos de proteção do perfil não têm a aprovação de uma pessoa (ADR 0037).
+
+    Falha fechada: sem aprovação, ou com o perfil alterado depois dela, nenhum comando que
+    toca o alvo roda. Usa a saída 3 (a mesma da cerca) e código próprio no envelope. Não herda de
+    `ScopeViolation` de propósito: nenhum `except ScopeViolation` existente (janela, cerca) pode
+    engolir a falta de aprovação.
+
+    Attributes:
+        state: `not_approved` (nunca aprovado), `changed` (perfil mudou desde a aprovação) ou
+            `invalid` (arquivo de aprovação ilegível, de versão desconhecida ou de outro produto).
+        changed_blocks: Identificadores dos blocos que mudaram (só com `state == "changed"`).
+    """
+
+    code = "SCOPE_NOT_APPROVED"
+    exit_code = ExitCode.SCOPE
+
+    def __init__(
+        self,
+        message: str,
+        hint: str | None = None,
+        *,
+        state: str = "not_approved",
+        changed_blocks: tuple[str, ...] = (),
+    ) -> None:
+        """Cria o erro.
+
+        Args:
+            message: O que aconteceu.
+            hint: O que fazer a respeito (opcional).
+            state: Estado da aprovação (veja a classe).
+            changed_blocks: Blocos alterados desde a aprovação.
+        """
+        super().__init__(message, hint)
+        self.state = state
+        self.changed_blocks = changed_blocks
+
+
 class PreflightError(HarnessError):
     """Verificação anterior à execução falhou."""
 

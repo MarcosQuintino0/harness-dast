@@ -20,10 +20,15 @@ from unittest.mock import patch
 import httpx
 import pytest
 
+from harness_dast.adapters.storage.approval_store import FileApprovalStore
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.application.cleanup import CleanupReport, CleanupRequest
 from harness_dast.cli.composition import build_cleanup
 from harness_dast.domain.cleanup_plan import CleanupPlan
+from harness_dast.domain.errors import ConfigError
 from harness_dast.observability.logging import SecretRegistry
+from tests.fakes.approvals import approval_for
 
 REPO = Path(__file__).resolve().parents[2]
 PILOT_PROFILE = REPO / "lab" / "pilot" / "product-profile"
@@ -125,12 +130,32 @@ class LabCli:
         env.update(extra_env)
         self.env = env
 
+    def approve_installed_products(self) -> None:
+        """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
+
+        O laboratório de integração prova o ZAP, o proxy e o alvo, não a aprovação (ela tem os
+        próprios testes de contrato). É chamado antes de cada comando; gravar de novo a
+        mesma aprovação é inofensivo, e o teste que edita o perfil depois de instalar não
+        precisa lembrar de aprovar de novo.
+        """
+        store = FileApprovalStore(default_state_dir(self.env))
+        repository = FileProfileRepository(self.products)
+        for folder in sorted(self.products.iterdir()):
+            if not (folder / "target.yml").is_file():
+                continue
+            try:
+                profile = repository.load(folder.name)
+            except ConfigError:
+                continue  # perfil inválido de propósito: a CLI o recusa pelo próprio erro
+            store.write(approval_for(profile))
+
     def confirm_cleanup_as_person(self, product: str, run_id: str, typed: str) -> CleanupReport:
         """Roda o caso de uso `cleanup` EM PROCESSO com a pessoa (dublê) num terminal interativo.
 
         A confirmação real exige terminal, que o subprocesso do teste não tem; por isso este
         caminho usa o mesmo caso de uso e o mesmo executor da CLI, com o ambiente do laboratório.
         """
+        self.approve_installed_products()
         with patch.dict(os.environ, self.env):
             use_case = build_cleanup(self.products, SecretRegistry(), TypedName(typed))
             return use_case.execute(
@@ -144,7 +169,8 @@ class LabCli:
             )
 
     def run(self, *args: str, timeout: int = CLI_TIMEOUT) -> CliResult:
-        """Executa a CLI e devolve código, envelope e saídas."""
+        """Executa a CLI e devolve código, envelope e saídas (antes, aprova os produtos)."""
+        self.approve_installed_products()
         done = subprocess.run(  # noqa: S603 - interpretador atual e módulo do próprio projeto
             [sys.executable, "-m", "harness_dast", "--json", *args],
             env=self.env,

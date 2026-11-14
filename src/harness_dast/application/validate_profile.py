@@ -11,7 +11,13 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict
 
-from harness_dast.application.ports import Clock, ProfileRepository, ReferencedFile
+from harness_dast.application.ports import (
+    ApprovalStore,
+    Clock,
+    ProfileRepository,
+    ReferencedFile,
+)
+from harness_dast.application.scope_approval import ApprovalInfo, current_check, info_of
 from harness_dast.application.secret_refs import profile_secret_refs
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.placeholders import (
@@ -113,6 +119,9 @@ class ProfileReport(BaseModel):
         checked_at: Instante da verificação (ISO 8601 com fuso).
         runnable: `True` quando não há nenhuma pendência em `issues`.
         issues: Pendências que impedem a execução agora.
+        approval: Estado da aprovação humana do escopo (ADR 0037). Informativo: não entra em
+            `runnable` nem em `issues` (a aprovação vem DEPOIS da validação do perfil), mas
+            nenhum comando que toca o alvo roda sem ela.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -134,6 +143,7 @@ class ProfileReport(BaseModel):
     checked_at: str
     runnable: bool
     issues: tuple[ReadinessIssue, ...]
+    approval: ApprovalInfo
 
 
 def _clock_text(minute: int) -> str:
@@ -237,15 +247,17 @@ def _summarize_accounts(profile: ProductProfile) -> tuple[AccountSummary, ...]:
 class ValidateProfile:
     """Valida o perfil de um produto e informa se ele pode ser executado agora."""
 
-    def __init__(self, profiles: ProfileRepository, clock: Clock) -> None:
+    def __init__(self, profiles: ProfileRepository, clock: Clock, approvals: ApprovalStore) -> None:
         """Cria o caso de uso.
 
         Args:
-            profiles: Fonte dos perfis.
+            profiles: Fonte dos perfis (a versão comum: validar não exige aprovação).
             clock: Relógio usado para conferir janela e validade da autorização.
+            approvals: Guarda das aprovações humanas do escopo (só leitura aqui).
         """
         self._profiles = profiles
         self._clock = clock
+        self._approvals = approvals
 
     def execute(self, product: str) -> ProfileReport:
         """Valida o perfil e monta o relatório.
@@ -296,4 +308,5 @@ class ValidateProfile:
             checked_at=now.isoformat(),
             runnable=not issues,
             issues=issues,
+            approval=info_of(current_check(self._approvals, profile)),
         )
