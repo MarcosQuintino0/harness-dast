@@ -36,6 +36,7 @@ class PanelSources:
         authorization_reference: Referência da carta, ou `None`.
         authorization_valid_until: Último dia de validade da carta, ou `None`.
         commands: Gancho do diário de comandos, ou `None`.
+        commands_skipped: Linhas corrompidas do diário que o gancho pulou.
         explanations: Gancho do catálogo de explicação, por `finding_id`.
         links: Destino dos dois primeiros pedaços do caminho.
     """
@@ -56,6 +57,7 @@ class PanelSources:
     authorization_reference: str | None = None
     authorization_valid_until: date | None = None
     commands: tuple[PanelCommand, ...] | None = None
+    commands_skipped: int = 0
     explanations: Mapping[str, PanelExplanation] = field(default_factory=dict)
     links: PanelLinks = field(default_factory=PanelLinks)
 

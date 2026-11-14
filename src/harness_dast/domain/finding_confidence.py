@@ -2,8 +2,12 @@
 
 - `a confirmar`: a ferramenta apontou, mas a resposta gravada não mostra a falha sozinha (ou o
   agente suspeita de falso positivo);
-- `prova forte`: a resposta gravada mostra a falha. Regra fixa, escrita aqui: há evidência
-  guardada, o ZAP apontou um trecho dela como prova e propôs confiança alta ou confirmada;
+- `prova forte`: a resposta gravada mostra a falha. Regra fixa e ÚNICA do projeto (o painel a
+  usa, e o ADR 0032 a descreve): há evidência guardada, o ZAP apontou um trecho dela como prova
+  e nem o ZAP nem o agente a marcaram como falso positivo. A confiança que o ZAP propõe
+  (`low`, `medium`, `high`) NÃO entra: um erro 500 depois de uma aspa costuma vir como `low` e a
+  resposta gravada prova a falha; medido na Clínica Piloto (execução f087), 2 dos 3 achados
+  graves são prova forte e 1 (falha por demora, sem trecho na resposta) fica a confirmar;
 - `confirmada`: uma pessoa repetiu e registrou que viu. NUNCA sai do cálculo sozinho.
 
 LACUNA DO CONTRATO: o `triage.json` (ADR 0022, `domain/triage.py`) tem só `fingerprint`, `note`,
@@ -23,7 +27,7 @@ from harness_dast.domain.finding import Finding, TriageNote
 ConfidenceStep = Literal["a confirmar", "prova forte", "confirmada"]
 """Lista fechada de `docs/design/execution-panel/system/formats.html`."""
 
-_STRONG_ZAP_CONFIDENCE: Final = frozenset({"high", "confirmed"})
+_ZAP_FALSE_POSITIVE: Final = "false_positive"
 
 
 def confidence_step(
@@ -41,7 +45,7 @@ def confidence_step(
             Hoje o `triage.json` não tem esse dado (veja a lacuna no docstring do módulo).
 
     Returns:
-        `confirmada` se uma pessoa confirmou; `a confirmar` se o agente suspeita de falso
+        `confirmada` se uma pessoa confirmou; `a confirmar` se o agente ou o ZAP indicam falso
         positivo ou se não há prova na resposta gravada; `prova forte` nos demais casos.
     """
     if confirmed_by_person:
@@ -51,6 +55,6 @@ def confidence_step(
         return "a confirmar"
     evidence = finding.evidence
     has_proof = evidence.available and bool(evidence.zap_evidence.strip())
-    if has_proof and finding.proposed_confidence in _STRONG_ZAP_CONFIDENCE:
+    if has_proof and finding.proposed_confidence != _ZAP_FALSE_POSITIVE:
         return "prova forte"
     return "a confirmar"

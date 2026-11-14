@@ -3,21 +3,20 @@
 Para acrescentar uma aba: crie o módulo `panel_NOME.py` com `render_NOME(view) -> str` (o
 conteúdo do `<main>`, já escapado) e troque a função da linha correspondente em `PAGES`; a
 casca, o menu e a gravação do arquivo vêm daqui. Os nomes dos arquivos são os do desenho
-(`docs/design/execution-panel/screens/`) e os links do menu nunca quebram: a aba sem módulo
-próprio usa a página provisória.
+(`docs/design/execution-panel/screens/`) e os links do menu nunca quebram.
 """
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from functools import partial
 from typing import Final
 
 from harness_dast.domain.panel_coverage import render_coverage
+from harness_dast.domain.panel_findings import render_findings
 from harness_dast.domain.panel_layout import TabItem, render_page
 from harness_dast.domain.panel_model import PanelView
-from harness_dast.domain.panel_pending import render_pending
 from harness_dast.domain.panel_stages import render_stages
 from harness_dast.domain.panel_summary import render_summary
+from harness_dast.domain.panel_terminal import render_terminal
 from harness_dast.domain.panel_time import render_time
 
 PageRenderer = Callable[[PanelView], str]
@@ -51,11 +50,9 @@ def severe_count(view: PanelView) -> int | None:
 PAGES: Final[tuple[PanelPage, ...]] = (
     PanelPage("summary.html", "Resumo", "Resumo do teste", render_summary),
     PanelPage("stages.html", "Etapas", "Etapas", render_stages),
-    PanelPage(
-        "findings.html", "Falhas", "Falhas", partial(render_pending, title="Falhas"), severe_count
-    ),
+    PanelPage("findings.html", "Falhas", "Falhas", render_findings, severe_count),
     PanelPage("coverage.html", "Cobertura", "Cobertura", render_coverage),
-    PanelPage("terminal.html", "Terminal", "Terminal", partial(render_pending, title="Terminal")),
+    PanelPage("terminal.html", "Terminal", "Terminal", render_terminal),
     PanelPage("time-and-tokens.html", "Tempo e tokens", "Tempo e tokens", render_time),
 )
 

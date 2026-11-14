@@ -8,13 +8,14 @@ import pytest
 from harness_dast.application.panel import Panel, PanelRequest
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation
+from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelJournal
 from harness_dast.domain.probe_result import RunManifest
 from harness_dast.domain.report_model import FindingsReport
 from tests.fakes.panel_ports import FakePanelFiles, FakeSpecLoader
 from tests.fakes.profile_data import valid_profile
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.unit.domain.panel_helpers import PRODUCT, sources, spec_operations
+from tests.unit.domain.panel_measure_helpers import agent_metrics
 from tests.unit.domain.report_helpers import RUN_ID
 
 OTHER_RUN = "2026-11-12T05-15-32Z-vampi-cd34"
@@ -24,9 +25,10 @@ class Hooks:
     def __init__(self) -> None:
         self.asked: list[str] = []
 
-    def commands(self, product: str, run_id: str) -> tuple[PanelCommand, ...] | None:
+    def commands(self, product: str, run_id: str) -> PanelJournal | None:
         self.asked.append(f"commands:{product}:{run_id}")
-        return (PanelCommand(command="hdast probe vampi", translation="Tentou as funções."),)
+        command = PanelCommand(command="hdast probe vampi", translation="Tentou as funções.")
+        return PanelJournal(commands=(command,), skipped_lines=2)
 
     def explanations(
         self, report: FindingsReport | None, authz: AuthzResult | None
@@ -95,6 +97,27 @@ def test_the_openapi_summary_and_the_profile_mode_reach_the_page() -> None:
     page = files.written[RUN_ID]["summary.html"]
     assert "Ver usuário" in page
     assert "Cerca: modo estrito" in page
+
+
+def test_the_agent_tokens_reach_the_time_and_tokens_page() -> None:
+    files = stocked()
+    files.agent_metrics[RUN_ID] = agent_metrics()
+
+    panel(files).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
+
+    page = files.written[RUN_ID]["time-and-tokens.html"]
+    assert "tokens (trabalho do agente de IA)" in page
+    assert "claude-sonnet-5-5" in page
+
+
+def test_without_agent_metrics_the_tokens_are_not_measured() -> None:
+    files = stocked()
+
+    panel(files).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
+
+    page = files.written[RUN_ID]["time-and-tokens.html"]
+    assert "tokens · não medido" in page
+    assert "tokens (trabalho do agente de IA)" not in page
 
 
 def test_without_a_run_the_latest_one_of_the_product_is_used() -> None:
@@ -186,6 +209,27 @@ def test_the_hooks_are_asked_and_their_answers_reach_the_page() -> None:
     assert hooks.asked == [f"commands:{PRODUCT}:{RUN_ID}"]
     assert "1 comando, todos visíveis" in page
     assert "Comando no banco" in page
+
+
+class BrokenJournalHooks(Hooks):
+    def commands(self, product: str, run_id: str) -> PanelJournal | None:
+        raise ConfigError("Não foi possível ler o diário de comandos.")
+
+
+def test_an_unreadable_diary_does_not_stop_the_panel_and_shows_the_empty_state() -> None:
+    files = stocked()
+
+    panel(files, hooks=BrokenJournalHooks()).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
+
+    assert "Sem diário de comandos para este teste." in files.written[RUN_ID]["terminal.html"]
+
+
+def test_skipped_diary_lines_reach_the_terminal_page() -> None:
+    files = stocked()
+
+    panel(files, hooks=Hooks()).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
+
+    assert "2 linhas do diário estavam corrompidas" in files.written[RUN_ID]["terminal.html"]
 
 
 def test_execute_propagates_a_write_failure_to_the_person() -> None:

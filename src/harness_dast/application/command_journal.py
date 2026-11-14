@@ -1,5 +1,7 @@
 """Caso de uso de leitura do diário de comandos para o painel (ADR 0033)."""
 
+from dataclasses import dataclass
+
 import structlog
 
 from harness_dast.application.ports import CommandJournalStore
@@ -8,9 +10,20 @@ from harness_dast.domain.command_journal import JournalEntry, slice_for_run
 _log = structlog.get_logger()
 
 
-def load_journal_for_run(
-    store: CommandJournalStore, product: str, run_id: str
-) -> tuple[JournalEntry, ...]:
+@dataclass(frozen=True)
+class RunJournal:
+    """Trecho do diário que pertence a um teste.
+
+    Attributes:
+        entries: Comandos do teste, em ordem cronológica.
+        skipped_lines: Linhas do diário do produto que estavam corrompidas e foram puladas.
+    """
+
+    entries: tuple[JournalEntry, ...]
+    skipped_lines: int
+
+
+def load_journal_for_run(store: CommandJournalStore, product: str, run_id: str) -> RunJournal:
     """Comandos que pertencem ao teste `run_id` do produto, em ordem cronológica.
 
     É o trecho do diário que vai da última linha do teste anterior até a última deste teste
@@ -24,7 +37,8 @@ def load_journal_for_run(
         run_id: Execução que o painel mostra.
 
     Returns:
-        As linhas do teste; vazia se o diário não existe ou não tem comando dessa execução.
+        As linhas do teste (vazias se o diário não existe ou não tem comando dessa execução) e
+        quantas linhas corrompidas foram puladas.
 
     Raises:
         ConfigError: O arquivo do diário existe, mas não pôde ser lido.
@@ -32,4 +46,4 @@ def load_journal_for_run(
     loaded = store.load(product)
     if loaded.skipped_lines:
         _log.warning("diario_linhas_puladas", produto=product, puladas=loaded.skipped_lines)
-    return slice_for_run(loaded.entries, run_id)
+    return RunJournal(slice_for_run(loaded.entries, run_id), loaded.skipped_lines)
