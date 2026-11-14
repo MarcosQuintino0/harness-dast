@@ -1,6 +1,7 @@
 # Relatório da versão 1.4.0
 
 Data: 2026-11-14. Branch: `feat/v1-4`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md).
+Versão em linguagem simples: <https://claude.ai/artifact/UP9qEq83feS5Aj7jmjERdi> (cópia em `C:\harness-dast-artefatos1.4elatorio-v1-4-artifact.html`).
 
 ## 1. Resumo
 
