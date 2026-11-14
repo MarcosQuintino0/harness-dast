@@ -24,6 +24,7 @@ from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
 from harness_dast.application.stack_models import StackState
+from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
 
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
@@ -90,6 +91,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         environ=os.environ,
         repo_root=default_repo_root(),
         running_scans=FileRunArtifacts(settings.runs_dir),
+        locks=open_stack_lock(),
     )
 
 

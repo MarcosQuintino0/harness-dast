@@ -21,6 +21,7 @@ from harness_dast.domain.errors import (
     HarnessError,
     PreflightError,
     ScopeViolation,
+    StackBusy,
     TargetError,
 )
 
@@ -93,6 +94,7 @@ def test_error_codes_are_unique_across_the_hierarchy() -> None:
         ExternalToolError,
         TargetError,
         CleanupError,
+        StackBusy,
     ]
 
     codes = [c.code for c in classes]
@@ -111,6 +113,7 @@ def test_exit_code_values_are_stable() -> None:
         "EXTERNAL_TOOL": 5,
         "TARGET": 6,
         "CLEANUP": 7,
+        "BUSY": 8,
         "INTERNAL": 10,
         "INTERRUPTED": 130,
     }

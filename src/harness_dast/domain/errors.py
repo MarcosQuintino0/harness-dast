@@ -15,7 +15,8 @@ class ExitCode(IntEnum):
     """Códigos de saída do processo `hdast`. Fazem parte do contrato público.
 
     5 é reservado a falha de ferramenta externa (ZAP, Docker); 6 é o alvo respondendo de
-    forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 130 é interrupção
+    forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 8 é a pilha ocupada por
+    outra execução (ADR 0035); 130 é interrupção
     pelo usuário (Ctrl+C), convenção de shell para SIGINT.
     """
 
@@ -27,6 +28,7 @@ class ExitCode(IntEnum):
     EXTERNAL_TOOL = 5
     TARGET = 6
     CLEANUP = 7
+    BUSY = 8
     INTERRUPTED = 130
     INTERNAL = 10
 
@@ -136,6 +138,17 @@ class CleanupError(HarnessError):
 
     code = "CLEANUP_FAILED"
     exit_code = ExitCode.CLEANUP
+
+
+class StackBusy(HarnessError):
+    """A pilha (ZAP e proxy) já está ocupada por outra execução (ADR 0035).
+
+    Falha fechada: duas execuções na mesma pilha se corromperiam (sessão do ZAP, regra de token
+    e histórico são globais). Não é falha do alvo nem da ferramenta: é só "tente depois".
+    """
+
+    code = "STACK_BUSY"
+    exit_code = ExitCode.BUSY
 
 
 class UserInterrupt(HarnessError):

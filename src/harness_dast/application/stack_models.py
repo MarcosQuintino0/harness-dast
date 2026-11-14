@@ -6,6 +6,7 @@ protegê-lo (ver `adapters/storage/stack_state.py`). Estes modelos são puros.
 """
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -113,6 +114,31 @@ class StackState(BaseModel):
         return value
 
 
+class StackLockInfo(BaseModel):
+    """Quem ocupa a pilha, como `stack status` conta (ADR 0035).
+
+    Attributes:
+        state: `held` (dono vivo), `orphan` (dono morto; a próxima execução a retoma) ou
+            `unreadable` (arquivo ilegível; a pessoa precisa conferir e apagar).
+        command: Comando dono, ou `None` com o arquivo ilegível.
+        product: Produto da execução dona.
+        lock_id: Identificador da tomada.
+        pid: Processo dono.
+        started_at: Início (ISO 8601).
+        message: Frase pronta para a pessoa, com o que fazer.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    state: Literal["held", "orphan", "unreadable"]
+    command: str | None = None
+    product: str | None = None
+    lock_id: str | None = None
+    pid: int | None = None
+    started_at: str | None = None
+    message: str
+
+
 class StackReport(BaseModel):
     """O que `stack up` e `stack status` contam ao agente. Nunca contém segredo.
 
@@ -132,6 +158,7 @@ class StackReport(BaseModel):
         target_urls: Endereços do alvo no host, quando publicados.
         state_file: Caminho do arquivo de estado da CLI.
         warnings: Avisos (por exemplo, pilha anterior que não pôde ser derrubada).
+        lock: Quem ocupa a pilha agora (trava exclusiva, ADR 0035); `None` com a pilha livre.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -151,6 +178,7 @@ class StackReport(BaseModel):
     target_urls: dict[str, str] = Field(default_factory=dict)
     state_file: str
     warnings: tuple[str, ...] = ()
+    lock: StackLockInfo | None = None
 
 
 class StopReport(BaseModel):

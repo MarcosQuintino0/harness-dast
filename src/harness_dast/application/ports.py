@@ -450,6 +450,61 @@ class StackStateStore(Protocol):
         ...
 
 
+class StackLockFile(Protocol):
+    """Arquivo de trava exclusiva da pilha, na pasta de estado (ADR 0035).
+
+    Só mexe em arquivo: quem decide se a trava está viva ou órfã é o domínio.
+    """
+
+    def location(self) -> Path:
+        """Caminho do arquivo de trava."""
+        ...
+
+    def create_exclusive(self, content: str) -> bool:
+        """Cria o arquivo com `content` de uma vez só; `False` se ele já existe.
+
+        O conteúdo aparece junto com o arquivo: ninguém nunca lê uma trava pela metade.
+
+        Raises:
+            ConfigError: Falha de escrita que não seja "já existe".
+        """
+        ...
+
+    def read(self) -> str | None:
+        """Texto do arquivo; `None` se não existe.
+
+        Raises:
+            ConfigError: O arquivo existe, mas não pôde ser lido.
+        """
+        ...
+
+    def remove_if_unchanged(self, expected: str) -> bool:
+        """Apaga o arquivo só se o conteúdo ainda for `expected`; `False` se mudou ou sumiu.
+
+        Garante que quem retoma uma trava órfã nunca apaga a trava nova de outra execução.
+
+        Raises:
+            ConfigError: Falha ao apagar.
+        """
+        ...
+
+
+class ProcessProbe(Protocol):
+    """O processo atual e a pergunta "este processo ainda está vivo?"."""
+
+    def current_pid(self) -> int:
+        """Número do processo em execução."""
+        ...
+
+    def is_alive(self, pid: int) -> bool:
+        """Se existe um processo vivo com esse número.
+
+        Na dúvida (sem permissão para consultar), responde `True`: a trava nunca é retomada
+        por engano.
+        """
+        ...
+
+
 class CommandJournalStore(Protocol):
     """Diário de comandos por produto, guardado fora do repositório e de `runs/` (ADR 0033)."""
 
