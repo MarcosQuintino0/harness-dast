@@ -20,6 +20,7 @@ from harness_dast.domain.api_schema import (
     effective_type,
     flatten_schema,
 )
+from harness_dast.domain.multipart_encoding import verify_synthetic_multipart
 
 DEFAULT_BUDGET_CHARS = 40_000
 MIN_BUDGET_CHARS = 2_000
@@ -78,6 +79,7 @@ class OperationSummary(ApiModel):
         optional_inputs: Quantidade de entradas opcionais (não listadas).
         produces: Campos da resposta que parecem identificadores.
         consumes: Entradas obrigatórias que parecem identificadores.
+        multipart_offline: Resultado da prova sintética se a operação declara multipart; senão None.
     """
 
     id: str
@@ -90,6 +92,7 @@ class OperationSummary(ApiModel):
     optional_inputs: int = 0
     produces: tuple[str, ...] = ()
     consumes: tuple[str, ...] = ()
+    multipart_offline: bool | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ApiSummary(ApiModel):
@@ -187,7 +190,9 @@ def _produced(schema: Schema | None, prefix: str, depth: int) -> list[str]:
     return found
 
 
-def summarize_operation(operation: Operation) -> OperationSummary:
+def summarize_operation(
+    operation: Operation, *, multipart_verified: bool | None = None
+) -> OperationSummary:
     """Resume uma operação (entradas obrigatórias, contagem de opcionais, ids)."""
     inputs = [
         _input(p.location, p.name, p.value_schema) for p in operation.parameters if p.required
@@ -199,6 +204,10 @@ def summarize_operation(operation: Operation) -> OperationSummary:
         inputs.extend(body)
         optional += body_optional
     consumes = tuple(item.name for item, is_id in inputs if is_id)
+    has_multipart = operation.request_body is not None and any(
+        item.media_type.split(";")[0].strip().lower() == "multipart/form-data"
+        for item in operation.request_body.media
+    )
     return OperationSummary(
         id=_cut(operation.operation_id, 120),
         method=operation.method.upper(),
@@ -210,6 +219,11 @@ def summarize_operation(operation: Operation) -> OperationSummary:
         optional_inputs=optional,
         produces=tuple(_produced(operation.success_schema(), "", 0)[:MAX_PRODUCED]),
         consumes=consumes[:MAX_PRODUCED],
+        multipart_offline=(
+            (verify_synthetic_multipart() if multipart_verified is None else multipart_verified)
+            if has_multipart
+            else None
+        ),
     )
 
 
@@ -228,8 +242,11 @@ def summarize(spec: ApiSpec, budget_chars: int = DEFAULT_BUDGET_CHARS) -> ApiSum
     budget = max(budget_chars, MIN_BUDGET_CHARS)
     used = _SLACK
     shown: list[OperationSummary] = []
+    multipart_verified: bool | None = None
     for operation in spec.operations:
-        item = summarize_operation(operation)
+        item = summarize_operation(operation, multipart_verified=multipart_verified)
+        if item.multipart_offline is not None:
+            multipart_verified = item.multipart_offline
         size = len(item.model_dump_json()) + 1
         if used + size > budget:
             break

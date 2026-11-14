@@ -141,3 +141,11 @@ def test_get_request_is_a_plain_get_on_the_chosen_route() -> None:
 
     assert (request.method, request.url, request.route) == ("GET", f"{BASE}/saude", "auth")
     assert request.body is None
+
+
+def test_built_multipart_request_remains_refused() -> None:
+    with pytest.raises(ConfigError):
+        encode_built_request(
+            built(body={"arquivo": "synthetic"}, body_media_type="multipart/form-data"),
+            base_url=BASE,
+        )

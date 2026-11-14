@@ -1,5 +1,6 @@
 import pytest
 
+from harness_dast.domain import api_summary
 from harness_dast.domain.api_model import (
     ApiSpec,
     MediaBody,
@@ -203,3 +204,60 @@ def test_summarize_enforces_a_minimum_budget() -> None:
 
 def test_summarize_is_deterministic() -> None:
     assert summarize(small_spec(50), 5_000) == summarize(small_spec(50), 5_000)
+
+
+def test_summary_detects_multipart_even_when_json_is_preferred() -> None:
+    operation = Operation(
+        operation_id="upload",
+        method="post",
+        path="/upload",
+        request_body=RequestBody(
+            media=(
+                MediaBody(media_type="application/json"),
+                MediaBody(media_type=" Multipart/Form-Data ; charset=utf-8"),
+            )
+        ),
+    )
+
+    result = summarize_operation(operation)
+
+    assert result.multipart_offline is True
+    assert result.model_dump()["multipart_offline"] is True
+
+
+def test_summary_marks_absent_multipart_as_none() -> None:
+    result = summarize_operation(create_patient())
+    assert result.multipart_offline is None
+    assert "multipart_offline" not in result.model_dump()
+    assert (
+        summarize_operation(Operation(operation_id="a", method="get", path="/a")).multipart_offline
+        is None
+    )
+
+
+def test_summary_runs_multipart_proof_once_for_multiple_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def verify() -> bool:
+        nonlocal calls
+        calls += 1
+        return False
+
+    monkeypatch.setattr(api_summary, "verify_synthetic_multipart", verify)
+    media = RequestBody(media=(MediaBody(media_type="multipart/form-data"),))
+    spec = ApiSpec(
+        title="A",
+        version="1",
+        operations=tuple(
+            Operation(operation_id=f"op{i}", method="post", path=f"/{i}", request_body=media)
+            for i in range(3)
+        ),
+    )
+
+    summary = summarize(spec)
+
+    assert calls == 1
+    assert [item.multipart_offline for item in summary.operations] == [False, False, False]
+    assert all(item.model_dump()["multipart_offline"] is False for item in summary.operations)
