@@ -6,6 +6,7 @@ sintetizado de forma determinística (com sufixo numérico se colidir com outro)
 
 import re
 from collections.abc import Mapping
+from itertools import islice
 
 from pydantic import ValidationError
 
@@ -33,6 +34,8 @@ HTTP_METHODS: tuple[HttpMethod, ...] = (
 _LOCATIONS: tuple[ParamLocation, ...] = ("path", "query", "header", "cookie")
 _MAX_TAGS = 20
 _MAX_SUMMARY = 200
+_MAX_MULTIPART_MEDIA_KEYS = 100
+_MAX_MULTIPART_KEY_LENGTH = 100
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -193,7 +196,7 @@ class OperationMapper:
         if not isinstance(content, Mapping):
             raise ConfigError(f"{where}/content: deve ser um objeto.")
         media: list[MediaBody] = []
-        for media_type, entry in list(content.items())[:MAX_MEDIA_TYPES]:
+        for media_type, entry in islice(content.items(), MAX_MEDIA_TYPES):
             media_where = f"{where}/content/{escape_pointer(str(media_type))}"
             body = self._object(entry, media_where) if entry is not None else {}
             schema = (
@@ -232,8 +235,14 @@ class OperationMapper:
         if raw is None:
             return None
         node = self._object(raw, where)
+        content = node.get("content")
+        media = self._media(content, where)
+        declared, incomplete = _inspect_multipart_keys(content)
         return RequestBody(
-            required=node.get("required") is True, media=self._media(node.get("content"), where)
+            required=node.get("required") is True,
+            media=media,
+            multipart_declared=declared,
+            multipart_inspection_incomplete=incomplete,
         )
 
     def _responses(self, raw: Raw, where: str) -> tuple[SuccessResponse, ...]:
@@ -255,6 +264,22 @@ class OperationMapper:
         if "security" not in node:
             return self._default_security
         return parse_security(node["security"], f"{where}/security")
+
+
+def _inspect_multipart_keys(content: Raw) -> tuple[bool, bool]:
+    if not isinstance(content, Mapping):
+        return False, False
+    declared = False
+    incomplete = len(content) > _MAX_MULTIPART_MEDIA_KEYS
+    for key in islice(content, _MAX_MULTIPART_MEDIA_KEYS):
+        if not isinstance(key, str):
+            incomplete = True
+            continue
+        if len(key) > _MAX_MULTIPART_KEY_LENGTH:
+            incomplete = True
+        elif key.split(";", 1)[0].strip().lower() == "multipart/form-data":
+            declared = True
+    return declared, incomplete
 
 
 def parse_security(raw: Raw, where: str) -> tuple[SecurityRequirement, ...]:

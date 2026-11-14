@@ -90,11 +90,15 @@ class RequestBody(ApiModel):
 
     Attributes:
         required: Se o corpo é obrigatório.
-        media: Um item por tipo de mídia, na ordem declarada.
+        media: Até 20 tipos de mídia representados, na ordem declarada.
+        multipart_declared: Multipart encontrado nas chaves, ou None se não inspecionadas.
+        multipart_inspection_incomplete: A inspeção de chaves foi limitada.
     """
 
     required: bool = False
     media: tuple[MediaBody, ...] = Field(default=(), max_length=MAX_MEDIA_TYPES)
+    multipart_declared: bool | None = Field(default=None, exclude=True)
+    multipart_inspection_incomplete: bool = Field(default=False, exclude=True)
 
     def preferred(self) -> MediaBody | None:
         """Escolhe o tipo de mídia a gerar: JSON primeiro; senão, o primeiro declarado."""
