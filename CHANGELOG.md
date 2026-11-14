@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado: índices do painel e página ao vivo (ADR 0034, proposto)
+
+- `hdast panel` agora também refaz `runs/index.html` (Produtos) e `runs/history-<produto>.html` (Histórico de um produto) sempre que gera um painel; `hdast report` e `hdast run` fazem o mesmo. Modo explícito: `hdast panel --index` (sozinho). Execução ilegível ou de versão antiga vira linha "sem dados" ou "dados incompletos", nunca some nem derruba o índice. "O que mudou desde o anterior" compara as falhas graves pelo código curto com o teste anterior do mesmo tipo.
+- O caminho do alto de toda página do painel (`hdast / Produto / data`) passou a ser link relativo (índice, histórico e Resumo).
+- `hdast run` regrava `panel/live.html` a cada etapa e a cada função da varredura, sem JavaScript, com `<meta http-equiv="refresh" content="15">` e o horário da última gravação; ao fim a regrava sem a recarga, ligando para `summary.html` e `stages.html`. Falha ao gravá-la nunca derruba o `run`. A política de conteúdo (CSP) do painel não mudou.
+- Portas novas `PanelIndexFiles`, `RunLive` e `ScanLive` (`application/panel_index_ports.py`); `RunnerDeps.on_progress`, `Scan(live=...)` e `RunPipeline(live=...)` opcionais.
+
 ### Adicionado: diário de comandos e dados auxiliares do painel (ADR 0033, V1.2)
 
 - Toda invocação do `hdast` grava uma linha em `<pasta de estado>/journal/<produto>.jsonl` (`HDAST_STATE_DIR`; fora do repositório e de `runs/`; comandos sem produto em `_sem-produto.jsonl`): início e fim, subcomando, flags (valor sensível `***`, texto livre redigido), produto, `run_id`, código de saída, estado (`ok`, `parcial`, `erro`), código do erro e um resumo curto do envelope (contagens e identificadores; nunca corpo do alvo). `secret set` e `secret delete` registram só o subcomando e o NOME. O registro é feito em `run_app`, o ponto único de todo comando; falha ao gravar vira aviso no log e nunca derruba o comando. Linha com `schema_version`; leitura tolerante (linha corrompida é pulada e contada).
