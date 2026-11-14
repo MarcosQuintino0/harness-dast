@@ -113,7 +113,7 @@ def test_collections_without_an_identifier_are_not_compared_between_accounts() -
     result = run_authz(AuthzRig(Clinic(bola=True)), checks=("horizontal",))
 
     reasons = {(n.operation_id, n.reason) for n in result.not_tested}
-    assert ("listarPacientes", "no_path_parameter") in reasons
+    assert ("listarPacientes", "no_object_identifier") in reasons
 
 
 def test_a_failing_baseline_is_not_tested_instead_of_green() -> None:
@@ -353,7 +353,7 @@ def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -
 
     assert result.findings == ()
     assert result.status == "completed"
-    assert [c.status for c in result.checks] == ["completed"] * 6
+    assert [c.status for c in result.checks] == ["completed"] * 6 + ["skipped"]
     assert result.not_tested
     assert "NÃO prova" in result.notice
 
@@ -467,8 +467,9 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
         "tampered_token",
         "vertical",
         "mass_assignment",
+        "horizontal_write",
     ]
-    assert [c.status for c in result.checks][1:] == ["disabled"] * 5
+    assert [c.status for c in result.checks][1:] == ["disabled"] * 6
 
 
 def test_checks_disabled_in_the_profile_never_run_even_when_asked() -> None:

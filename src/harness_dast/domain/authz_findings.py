@@ -5,7 +5,8 @@ agente nem o adaptador a escolhem:
 
 | técnica                  | severidade                                              |
 | ------------------------ | ------------------------------------------------------- |
-| authz_horizontal         | alta                                                    |
+| authz_horizontal         | alta; média se só o NOME indica identificador de consulta |
+| authz_horizontal_write   | alta                                                    |
 | authz_vertical           | alta                                                    |
 | authz_mass_assignment    | alta (declarado, privilégio, saldo); média (preço, estado, outros) |
 | authz_excessive_data     | média; alta se algum campo tem nome de segredo/pessoal  |
@@ -21,6 +22,7 @@ from typing import Final, Literal
 from harness_dast.domain.authz_candidates import mass_severity
 from harness_dast.domain.authz_fields import CandidateKind, CandidateSource
 from harness_dast.domain.authz_finding_build import build_finding
+from harness_dast.domain.authz_identifiers import IdentifierRef
 from harness_dast.domain.authz_result import AuthzFinding, AuthzTechnique
 from harness_dast.domain.authz_sensitive import classify_field_name
 from harness_dast.domain.finding import normalize_path_template
@@ -33,6 +35,7 @@ TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
     "authz_mass_assignment": "Atribuição em massa (campo extra aceito)",
     "authz_anonymous_access": "Acesso sem login",
     "authz_tampered_token": "Token adulterado aceito",
+    "authz_horizontal_write": "Escrita em recurso de outra conta do mesmo papel (BOLA)",
 }
 """Nome legível de cada técnica, usado no relatório."""
 
@@ -48,6 +51,32 @@ def severity_for_fields(paths: tuple[str, ...]) -> Severity:
     return "medium"
 
 
+def identifier_severity(path_template: str, identifiers: tuple[IdentifierRef, ...]) -> Severity:
+    """Severidade do BOLA de leitura: alta, ou média se só há identificador de consulta sem pista.
+
+    Identificador no caminho, ou de consulta com `owned_hint` (o valor aparece como
+    identificador de caminho da mesma conta dona), é alta. Só o NOME indicando identificador
+    de consulta (`name_only`) é média: filtro público parecido com `?categoriaId=3` é o falso
+    alarme típico (o remédio é `authz.public_operations`).
+    """
+    if "{" in path_template or not identifiers:
+        return "high"
+    return "high" if any(ref.confidence == "owned_hint" for ref in identifiers) else "medium"
+
+
+def _identifier_evidence(identifiers: tuple[IdentifierRef, ...]) -> str:
+    if not identifiers:
+        return ""
+    names = ", ".join(f"`{ref.name}`" for ref in identifiers)
+    hinted = any(ref.confidence == "owned_hint" for ref in identifiers)
+    how = (
+        "o valor também aparece como identificador de caminho da conta dona"
+        if hinted
+        else "só o nome indica identificador"
+    )
+    return f" Identificador na consulta: {names} ({how})."
+
+
 def horizontal_finding(
     *,
     product: str,
@@ -57,24 +86,32 @@ def horizontal_finding(
     actor: tuple[str, str | None],
     owner: tuple[str, str | None],
     statuses: tuple[int, int],
+    identifiers: tuple[IdentifierRef, ...] = (),
 ) -> AuthzFinding:
-    """Achado de BOLA: outra conta do mesmo papel leu o recurso com o mesmo conteúdo."""
+    """Achado de BOLA: outra conta do mesmo papel leu o recurso com o mesmo conteúdo.
+
+    `identifiers` são os de CONSULTA (ADR 0042): entram em `fields` como `query:<nome>` e na
+    severidade. Sem eles (identificador só no caminho) `fields` fica vazio e o fingerprint
+    é o de sempre.
+    """
+    where = " (identificador na consulta)" if identifiers else ""
     return build_finding(
         product=product,
         technique="authz_horizontal",
         title=f"{method.upper()} {normalize_path_template(path_template)} devolve o recurso "
-        "de uma conta a outra do mesmo papel",
-        severity="high",
+        f"de uma conta a outra do mesmo papel{where}",
+        severity=identifier_severity(path_template, identifiers),
         operation_id=operation_id,
         method=method,
         path_template=path_template,
         actor=actor,
         owner=owner,
         statuses=statuses,
-        fields=(),
+        fields=tuple(f"query:{ref.name}" for ref in identifiers),
         evidence=(
             f"A conta {owner[0]} e a conta {actor[0]} (mesmo papel) receberam resposta "
             f"{statuses[0]} e {statuses[1]} com corpo equivalente para o mesmo pedido."
+            + _identifier_evidence(identifiers)
         ),
         description=(
             "Um usuário consegue ler um recurso que pertence a outro usuário do mesmo papel, "

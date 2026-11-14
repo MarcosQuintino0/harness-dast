@@ -33,6 +33,18 @@ def mass_blocked_note() -> AuthzNotTested:
     )
 
 
+def horizontal_write_blocked_note() -> AuthzNotTested:
+    """Nota da escrita em recurso de outra conta que não rodou por falta de `allow_writes`."""
+    return AuthzNotTested(
+        check="horizontal_write",
+        reason=WRITES_NOT_AUTHORIZED,
+        message=(
+            "Escrita não autorizada pela carta: authz.allow_writes. A escrita em recurso de "
+            "outra conta (PUT e PATCH) altera o alvo e não foi feita; nenhum pedido foi enviado."
+        ),
+    )
+
+
 def vertical_dropped_note(methods: Sequence[str]) -> AuthzNotTested:
     """Nota dos métodos de escrita retirados da verificação vertical.
 

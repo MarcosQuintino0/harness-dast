@@ -10,7 +10,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
+from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_identifiers import IdentifierRef, find_identifiers
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
@@ -25,11 +27,14 @@ class ReplayTask:
         exchange: Pedido gravado pelo `probe`.
         owner: Apelido e papel da conta que o enviou.
         actor: Apelido e papel da conta que vai repeti-lo.
+        identifiers: Identificadores de CONSULTA do pedido (BOLA, ADR 0042); vazio quando o
+            identificador é só o do caminho (ou na verificação vertical).
     """
 
     exchange: ExchangeRecord
     owner: tuple[str, str]
     actor: tuple[str, str]
+    identifiers: tuple[IdentifierRef, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -66,18 +71,47 @@ def unique_exchanges(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecor
     return tuple(found)
 
 
+def no_identifier_note(
+    check: AuthzCheck, item: ExchangeRecord, ambiguous: tuple[str, ...]
+) -> AuthzNotTested:
+    """Anotação de pedido sem identificador de objeto reconhecido (ou com valor ambíguo)."""
+    if ambiguous:
+        names = ", ".join(ambiguous)
+        return skip_note(
+            check,
+            item,
+            "ambiguous_identifier",
+            f"O parâmetro de consulta {names} parece identificador, mas o valor enviado pelo "
+            "probe é vazio, repetido, em lista ou sem forma de identificador; o teste não "
+            "adivinha valor.",
+        )
+    return skip_note(
+        check,
+        item,
+        "no_object_identifier",
+        "Sem identificador de objeto (no caminho ou em parâmetro de consulta declarado no "
+        "OpenAPI): coleções não são comparadas entre contas. Se um parâmetro de consulta "
+        "identifica objeto, declare-o em authz.id_parameters.",
+    )
+
+
 def plan_horizontal(
     exchanges: Sequence[ExchangeRecord],
     roles: Mapping[str, str],
     public: frozenset[str],
+    operations: Sequence[Operation] = (),
+    id_parameters: Sequence[str] = (),
 ) -> Planned[ReplayTask]:
-    """BOLA: cada `GET` com identificador no caminho, repetido por contas do MESMO papel.
+    """BOLA: cada `GET` com identificador (caminho ou consulta), repetido por contas do MESMO papel.
 
     Args:
         exchanges: Pedidos com sucesso do `probe`.
         roles: Papel de cada conta (apelido -> papel), na ordem do perfil.
         public: Operações marcadas como públicas ou compartilhadas.
+        operations: Operações do OpenAPI (confirmam os parâmetros de consulta).
+        id_parameters: `authz.id_parameters`: nomes de consulta declarados como identificador.
     """
+    by_id = {op.operation_id: op for op in operations}
     tasks: list[ReplayTask] = []
     skips: list[AuthzNotTested] = []
     for item in unique_exchanges([e for e in exchanges if e.method == "GET"]):
@@ -86,15 +120,9 @@ def plan_horizontal(
                 skip_note("horizontal", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
-        if "{" not in item.path:
-            skips.append(
-                skip_note(
-                    "horizontal",
-                    item,
-                    "no_path_parameter",
-                    "Sem identificador no caminho: coleções não são comparadas entre contas.",
-                )
-            )
+        scan = find_identifiers(by_id.get(item.operation_id), item, exchanges, id_parameters)
+        if not scan.refs:
+            skips.append(no_identifier_note("horizontal", item, scan.ambiguous))
             continue
         owner_role = roles.get(item.account)
         peers = [a for a, r in roles.items() if r == owner_role and a != item.account]
@@ -110,7 +138,7 @@ def plan_horizontal(
             )
             continue
         tasks.extend(
-            ReplayTask(item, (item.account, owner_role), (peer, owner_role))
+            ReplayTask(item, (item.account, owner_role), (peer, owner_role), scan.query_refs)
             for peer in peers[:MAX_PEERS]
         )
     return Planned(tuple(tasks), tuple(skips))

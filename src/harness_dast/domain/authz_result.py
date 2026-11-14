@@ -25,6 +25,7 @@ AuthzTechnique = Literal[
     "authz_mass_assignment",
     "authz_anonymous_access",
     "authz_tampered_token",
+    "authz_horizontal_write",
 ]
 CheckStatus = Literal["completed", "partial", "skipped", "disabled"]
 
@@ -35,8 +36,9 @@ AUTHZ_NOTICE: Final = (
 )
 
 AUTHZ_LIMITS: Final[tuple[str, ...]] = (
-    "BOLA só em leituras (GET) com identificador no caminho; escritas sobre recurso de outra "
-    "conta não são repetidas.",
+    "BOLA em leituras (GET) com identificador no caminho ou na consulta; escritas só com "
+    "allow_writes (PUT e PATCH, um campo por pedido, nunca DELETE); identificador no corpo não "
+    "é testado.",
     "Exposição excessiva só em respostas de GET; respostas de POST, PUT e PATCH não são "
     "comparadas com o esquema.",
     "additionalProperties do OpenAPI não é modelado: objeto sem properties no esquema é tratado "
@@ -79,7 +81,9 @@ class AuthzFinding(ApiModel):
         owner_role: Papel da conta dona, ou `None`.
         baseline_status: Código HTTP da linha de base, quando existe.
         observed_status: Código HTTP observado na repetição.
-        fields: Caminhos de campo envolvidos (dado a mais; atribuição em massa). Só nomes.
+        fields: Caminhos de campo envolvidos (dado a mais; atribuição em massa; campo do
+            marcador da escrita em outra conta) e `query:<nome>` do BOLA com identificador de
+            consulta. Só nomes.
         candidate_source: De onde veio o campo testado (atribuição em massa), ou `None`. Fora
             do fingerprint.
         variants: Variantes de token aceitas pelo servidor (token adulterado). Só nomes: o

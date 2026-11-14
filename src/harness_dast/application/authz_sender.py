@@ -148,8 +148,12 @@ class ReplaySender:
         body: JsonValue = None,
         with_body: bool = False,
         method: str | None = None,
+        tag: str = "",
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
+
+        `tag` (por exemplo `write:`) entra no `operation_id` do pedido (`authz:<tag><operação>`),
+        para a auditoria distinguir a escrita em outra conta.
 
         Returns:
             A resposta; `Reply.problem` marca escopo recusado ou login recusado.
@@ -170,7 +174,7 @@ class ReplaySender:
             url=join_url(self._s.base_url, exchange.target),
             headers=headers,
             body=payload.encode("utf-8") if payload else None,
-            operation_id=f"authz:{exchange.operation_id}",
+            operation_id=f"authz:{tag}{exchange.operation_id}",
             account=account,
         )
         return self._dispatch(request, account)

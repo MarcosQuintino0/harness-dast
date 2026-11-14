@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from harness_dast.application.authz_checks_access import run_anonymous, run_tampered
 from harness_dast.application.authz_checks_mass import run_mass
 from harness_dast.application.authz_checks_read import run_excessive, run_horizontal, run_vertical
+from harness_dast.application.authz_checks_write import run_horizontal_write
 from harness_dast.application.authz_sender import (
     AuthzSettings,
     CheckContext,
@@ -27,6 +28,7 @@ from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_plan import Planned, ReplayTask
 from harness_dast.domain.authz_plan_mass import MassTask
+from harness_dast.domain.authz_plan_write import WriteTask
 from harness_dast.domain.authz_result import (
     AuthzFinding,
     AuthzNotTested,
@@ -75,6 +77,7 @@ class AuthzPlans:
     tampered: Planned[ExchangeRecord]
     vertical: Planned[ReplayTask]
     mass: Planned[MassTask]
+    horizontal_write: Planned[WriteTask]
 
 
 CheckRunner = Callable[[CheckContext, AuthzPlans], CheckResult]
@@ -86,6 +89,7 @@ CHECK_RUNNERS: dict[AuthzCheck, CheckRunner] = {
     "tampered_token": lambda ctx, plans: run_tampered(ctx, plans.tampered),
     "vertical": lambda ctx, plans: run_vertical(ctx, plans.vertical),
     "mass_assignment": lambda ctx, plans: run_mass(ctx, plans.mass),
+    "horizontal_write": lambda ctx, plans: run_horizontal_write(ctx, plans.horizontal_write),
 }
 """Função de cada verificação; uma verificação nova entra com uma linha aqui."""
 

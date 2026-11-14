@@ -516,3 +516,16 @@ def test_still_accepts_a_real_column_anchored_to_the_run(condition: str) -> None
 )
 def test_refuses_sequence_pseudo_columns_because_nextval_has_a_side_effect(condition: str) -> None:
     refused(f"DELETE FROM PEDIDO WHERE {condition};")
+
+
+@pytest.mark.parametrize("alias", ["DROP", "drop", "TRUNCATE", "GRANT", "UNION", "SELECT"])
+def test_parse_cleanup_script_rejects_reserved_word_as_table_alias_quando_vem_antes_do_where(
+    alias: str,
+) -> None:
+    script = (
+        f"DELETE FROM PEDIDO {alias}/* ; DROP TABLE X; */WHERE CREATED_AT >= :run_start "
+        "AND CREATED_BY IN (:account_1);"
+    )
+
+    with pytest.raises(ConfigError, match="não vale como apelido"):
+        parse_cleanup_script(script.encode("utf-8"), POLICY)

@@ -11,6 +11,8 @@ from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.profile import ProductProfile
 from tests.fakes.authz_rig import AuthzRig, Clinic, clinic_profile_data
 
+WRITE_CHECKS = ("mass_assignment", "horizontal_write")
+
 
 def run_authz(rig: AuthzRig, **changes: Any) -> AuthzResult:
     probe = rig.run_probe()
@@ -81,6 +83,7 @@ def test_the_default_run_without_writes_still_does_the_read_only_checks() -> Non
         "tampered_token",
         "vertical",
         "mass_assignment",
+        "horizontal_write",
     ]
 
 
@@ -170,7 +173,8 @@ def test_missing_exchanges_in_the_run_stage_become_not_tested_instead_of_an_erro
     assert result.requests_sent == 0
     for name in ("horizontal", "excessive_data", "anonymous_access", "tampered_token", "vertical"):
         assert notes(result, name, "exchanges_unavailable"), name
-    assert [c.status for c in result.checks if c.check != "mass_assignment"] == ["skipped"] * 5
+    skipped_all = [c for c in result.checks if c.check not in WRITE_CHECKS]
+    assert [c.status for c in skipped_all] == ["skipped"] * 5
     assert "exchanges" in notes(result, "horizontal", "exchanges_unavailable")[0].message
 
 

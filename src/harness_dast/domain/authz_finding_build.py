@@ -27,6 +27,7 @@ TECHNIQUE_CLASS: Final[dict[AuthzTechnique, tuple[int, str]]] = {
     "authz_mass_assignment": (915, "API3:2023 Broken Object Property Level Authorization"),
     "authz_anonymous_access": (306, "API2:2023 Broken Authentication"),
     "authz_tampered_token": (347, "API2:2023 Broken Authentication"),
+    "authz_horizontal_write": (639, "API1:2023 Broken Object Level Authorization"),
 }
 """CWE e categoria do OWASP API Top 10 2023 de cada técnica (sem inferência)."""
 

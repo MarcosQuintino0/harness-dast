@@ -56,10 +56,12 @@ from harness_dast.domain.authz_plan_mass import (
     describe_plan,
     plan_mass_assignment,
 )
+from harness_dast.domain.authz_plan_write import WriteTask, plan_horizontal_write
 from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
 from harness_dast.domain.authz_writes import (
     EXCHANGES_UNAVAILABLE,
     NO_EXCHANGES,
+    horizontal_write_blocked_note,
     mass_blocked_note,
     nothing_to_replay_notes,
     vertical_dropped_note,
@@ -318,15 +320,23 @@ def _plan(
             if config.allow_writes
             else Planned((), (mass_blocked_note(),))
         )
+    write: Planned[WriteTask] = Planned((), ())
+    if "horizontal_write" in checks:
+        write = (
+            plan_horizontal_write(exchanges, roles, public, operations, config.id_parameters)
+            if config.allow_writes
+            else Planned((), (horizontal_write_blocked_note(),))
+        )
     plans = AuthzPlans(
         anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
         tampered=_access("tampered_token", profile, exchanges, operations, checks),
-        horizontal=plan_horizontal(exchanges, roles, public)
+        horizontal=plan_horizontal(exchanges, roles, public, operations, config.id_parameters)
         if "horizontal" in checks
         else Planned((), ()),
         excessive=plan_excessive(exchanges) if "excessive_data" in checks else empty,
         vertical=vertical,
         mass=mass,
+        horizontal_write=write,
     )
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
 
@@ -385,6 +395,7 @@ def _nothing_to_replay(
         tampered=_noted(plans.tampered, *_note(notes, "tampered_token")),
         vertical=_noted(plans.vertical, *_note(notes, "vertical")),
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
+        horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
     )
 
 
@@ -400,6 +411,7 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
         "tampered_token": plans.tampered,
         "vertical": plans.vertical,
         "mass_assignment": plans.mass,
+        "horizontal_write": plans.horizontal_write,
     }
     summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
@@ -421,7 +433,8 @@ def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple
     by_name = {summary.check: summary for summary in ran}
     rows: list[CheckSummary] = []
     for check in CHECK_ORDER:
-        if check == "mass_assignment" and check in by_name and not profile.authz.allow_writes:
+        writes = check in ("mass_assignment", "horizontal_write")
+        if writes and check in by_name and not profile.authz.allow_writes:
             blocked = "Não rodou: escrita não autorizada pela carta (authz.allow_writes)."
             rows.append(by_name[check].model_copy(update={"message": blocked}))
         elif check in by_name:

@@ -68,6 +68,7 @@ def run_horizontal(ctx: CheckContext, plan: Planned[ReplayTask]) -> CheckResult:
                     actor=task.actor,
                     owner=task.owner,
                     statuses=(base.status, replay.status),
+                    identifiers=task.identifiers,
                 )
             )
     return out
