@@ -26,7 +26,7 @@ uv run hdast --json version
 Saída esperada do último comando (a versão pode mudar):
 
 ```json
-{"schema_version":1,"ok":true,"data":{"version":"1.2.0"}}
+{"schema_version":1,"ok":true,"data":{"version":"1.3.0"}}
 ```
 
 ## 2b. Primeiro passo: o `doctor`

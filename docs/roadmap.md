@@ -15,7 +15,7 @@ Fonte: documento de fundação técnica aprovado em 2026-11-13. O tamanho de cad
 | M6 Skills, documentação de uso e avaliação cega | As quatro skills, os dois subagentes, permissões, guias de operação, roteiro de avaliação das skills e **suíte de avaliação cega (evals)**, [ADR 0014](adr/0014-avaliacao-cega-como-eval.md) | Uma pessoa que nunca viu o projeto cadastra o lab e roda uma varredura seguindo só o README, e agentes cegos repetem isso com nota automática: zero requisição fora do escopo, alcançabilidade e achados medidos contra o gabarito (veja [M6](#m6-skills-documentação-de-uso-e-avaliação-cega)) | Médio |
 | M7 Piloto em um produto real | Proxy de saída, autorização formal, perfil do produto piloto, comparação ZAP cru contra ZAP configurado | Execução sem incidente, alcançabilidade medida e apresentada à liderança. É o ponto de decidir se a V2 acontece | Médio |
 
-Observação: a ordem M0 antes de M1 é a do desenho. O M1 foi iniciado antes do spike do M0, e a primeira metade do M2 (domínio) também, por não dependerem dele; o spike foi executado em 2026-11-13, antes do M3 ([relato](spikes/2026-11-13-m0-zap.md)). Estado dos marcos em 2026-11-14 (versão 1.2.0): M0 a M6 entregues; M7 não existe. Depois do M6 vieram a V1.1 e a V1.2, descritas abaixo.
+Observação: a ordem M0 antes de M1 é a do desenho. O M1 foi iniciado antes do spike do M0, e a primeira metade do M2 (domínio) também, por não dependerem dele; o spike foi executado em 2026-11-13, antes do M3 ([relato](spikes/2026-11-13-m0-zap.md)). Estado dos marcos em 2026-11-14 (versão 1.3.0): M0 a M6 entregues; M7 não existe. Depois do M6 vieram a V1.1, a V1.2 e a V1.3, descritas abaixo.
 
 As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings`; os subagentes são `spec-analyst` e `findings-triager`.
 
@@ -25,7 +25,7 @@ As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-s
 
 Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
 
-Estado refletido: repositório em 2026-11-14, versão 1.2.0 na `main` (pull requests #1 a #5 mesclados; o CI passou em todos os recentes). Os relatórios de revisão ([docs/reviews/](reviews/README.md)) são registros datados: a revisão de QA de 2026-11-13 viu o `pytest` falhar só nos 29 testes que demonstravam defeitos, e a rodada de correção está em [reviews/2026-11-13-qa-m1-m2-resposta.md](reviews/2026-11-13-qa-m1-m2-resposta.md). Cada linha desta tabela foi conferida de novo em 2026-11-14; o que não deu para confirmar diz "a confirmar".
+Estado refletido: repositório em 2026-11-14, versão 1.3.0 na branch `feat/v1-3` (a `main` ainda está na 1.2.0; pull requests #1 a #5 mesclados; o CI passou em todos os recentes). Os relatórios de revisão ([docs/reviews/](reviews/README.md)) são registros datados: a revisão de QA de 2026-11-13 viu o `pytest` falhar só nos 29 testes que demonstravam defeitos, e a rodada de correção está em [reviews/2026-11-13-qa-m1-m2-resposta.md](reviews/2026-11-13-qa-m1-m2-resposta.md). Cada linha desta tabela foi conferida de novo em 2026-11-14; o que não deu para confirmar diz "a confirmar".
 
 ### Fundação (M1)
 
@@ -45,7 +45,7 @@ Estado refletido: repositório em 2026-11-14, versão 1.2.0 na `main` (pull requ
 | CI com gates (estática, segurança, testes, integração) | `.github/workflows/ci.yml` | Implementado (M1); rodou nos pull requests #1 a #5 e passou nos mais recentes (`gh run list`). A integração com Docker não roda no CI |
 | `compose.yaml` (ZAP, proxy de escopo, pontes do ZAP e do proxy, alvos do lab) e `lab/` (VAmPI) | raiz, `docker/`, `lab/` | Implementado (M1); subida e isolamento verificados em tempo de execução em 2026-11-13 (veja [lab/README.md](../lab/README.md)) |
 | `products/_template/` (modelo de perfil) | `products/` | Implementado (M1); `target.yml` validado por teste contra o modelo de domínio |
-| Documentação e ADRs 0001 a 0034 (os 0026, 0032, 0033 e 0034 ainda estão "Proposto"; aceitar é decisão do dono) | `docs/`, raiz | Implementado |
+| Documentação e ADRs 0001 a 0037 (os 0026 e 0032 a 0037 ainda estão "Proposto"; aceitar é decisão do dono) | `docs/`, raiz | Implementado |
 | `LICENSE` | | Não existe de propósito: licença indefinida (P-14) |
 
 ### Domínio do perfil e do escopo (primeira metade do M2)
@@ -70,7 +70,7 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
+Existem `version`, `doctor`, `init`, `profile validate`, `profile approve`, `profile approval`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
@@ -82,6 +82,8 @@ Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `prefli
 | `hdast doctor` | Implementado (V1.1, [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)); avisa de `scope.path_mode: wide` e da falta de duas contas do mesmo papel; verificado com Docker real e com porta ocupada em 2026-11-13. Veja "V1.1" abaixo |
 | `hdast authz`, `hdast run --authz` | Implementado (V1.1, [ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); verificado só na Clínica Piloto local (H5, H6, H7), não contra produto real. Veja "V1.1" abaixo |
 | `hdast panel` | Implementado como código e testes (V1.2, [ADR 0032](adr/0032-painel-da-execucao.md), proposto): gera as páginas HTML do painel da execução; as seis abas (Resumo, Etapas, Falhas, Cobertura, Terminal, Tempo e tokens) estão feitas. Veja "V1.2" abaixo |
+| `hdast profile approve`, `hdast profile approval` | Implementado como código e testes (V1.3, [ADR 0037](adr/0037-aprovacao-humana-do-escopo.md), proposto); veja "V1.3" abaixo |
+| `hdast init --from-letter [--check]` | Implementado como código e testes (V1.3, [ADR 0036](adr/0036-carta-estruturada.md), proposto); veja "V1.3" abaixo |
 | `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as etapas (preflight, probe, scan, authz opcional e report) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
 
 ### V1.1: o que foi provado em laboratório e o que ainda NÃO foi verificado
@@ -139,6 +141,20 @@ O painel da 1.2.0 segue o desenho de `docs/design/execution-panel/`. O que o des
 - **Sem link "pular para o conteúdo"** no topo das páginas (acessibilidade por teclado).
 - **A página ao vivo só começa na varredura**, porque o preflight do `run` abre uma pasta própria (nota no ADR 0034).
 - **Reprodução à mão do teste entre contas:** a página diz que não há passo a passo; o `authz` não guarda pedido nem resposta inteiros.
+
+### V1.3: uso seguro e fácil (entregue em 1.3.0 como código e testes)
+
+Cinco itens, três com ADR (0035 a 0037, todos "Proposto"). Todos passam nos gates e nos testes unitários e de contrato; só a trava foi provada com Docker, uma vez, no laboratório. **Nada foi provado contra produto real.** Mudança incompatível de uso: todo perfil existente precisa ser aprovado uma vez por uma pessoa (`hdast profile approve`).
+
+| Entrega | Existe como código e testes | O que ainda NÃO foi verificado |
+| --- | --- | --- |
+| Trava exclusiva por pilha ([ADR 0035](adr/0035-trava-por-pilha.md)) | `stack.lock` na pasta de estado; `probe`, `scan`, `authz` (fora do `--dry-run`), `run`, `stack up` e `stack down` tomam; `STACK_BUSY` e saída 8; trava órfã retomada; `stop` e `stack status` nunca bloqueados; `data.lock` no `stack status` | **Provado com Docker uma vez** (`tests/integration/test_lab_stack_lock.py`, Clínica Piloto: segundo comando recusado com saída 8 e aceito depois do fim do primeiro). **Não verificado:** a consulta de processo vivo fora do Windows; mais de uma máquina na mesma pasta de estado; varreduras concorrentes (planejadas para a 1.7) |
+| Carta estruturada ([ADR 0036](adr/0036-carta-estruturada.md)) | `carta.yml`, `hdast init --from-letter [--check]`, `LETTER_REJECTED` com `data.issues`, `data.warnings`, `AUTHORIZATION_EXPIRED`, `data.example_data`; 49 cartas de borda no QA | O perfil gerado pela carta não foi rodado de ponta a ponta com Docker; carta de produto real |
+| Aprovação humana do escopo ([ADR 0037](adr/0037-aprovacao-humana-do-escopo.md)) | `hdast profile approve` e `profile approval`, `data.approval` no `profile validate`, `SCOPE_NOT_APPROVED` (saída 3) em `preflight`, `probe`, `scan`, `authz`, `run`, `cleanup` e `stack up`, impressão digital na versão 2 do cálculo, `python -m evals.runner approve` | `profile approve` num terminal interativo de verdade (os testes usam o dublê do terminal); o `evals.runner approve` só com o caso mínimo; o conteúdo do script de limpeza fora da impressão digital (decisão registrada no ADR) |
+| Entrevista inicial nas skills | Entrevista estruturada numa rodada, resumo antes de atacar, consulta da aprovação, tratamento de `STACK_BUSY`; teste de contrato confere os comandos e flags citados | Entrevista com uma pessoa de verdade; rodada cega no fluxo novo (a `test-product` segue sem rodada cega) |
+| Documentos desatualizados e verificador de links | Documentos corrigidos; `tests/contract/test_docs_links.py`; teste de vazamento do gabarito para a cópia cega (`tests/contract/test_letter_guide.py`) | Nada pendente além de itens "a confirmar" deixados nos documentos |
+
+Uma correção entrou junto: a redação de segredos não apaga mais a versão do protocolo quando o endereço termina em `token`, `basic` ou `bearer`. Relatório da versão: [reviews/relatorio-v1.3.md](reviews/relatorio-v1.3.md).
 
 ### Controles de segurança
 
@@ -198,9 +214,18 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
-## Ciclo V1.3 a V1.8 (planejado)
+## Ciclo V1.3 a V1.8 (1.3 entregue; 1.4 a 1.8 planejadas)
 
-Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). **Nada disso existe ainda**; este roadmap só passa a listar um item como entregue quando houver código e teste.
+Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
+
+| Versão | Tema | Estado |
+| --- | --- | --- |
+| 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
+| 1.4 | Achar mais: autorização | Planejada |
+| 1.5 | Achar mais: entrada e erros | Planejada |
+| 1.6 | Confirmar e relatar | Planejada |
+| 1.7 | Velocidade | Planejada |
+| 1.8 | Sessão do Claude | Planejada |
 
 ## Itens em aberto
 

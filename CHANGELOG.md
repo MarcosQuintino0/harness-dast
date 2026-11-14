@@ -6,6 +6,47 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-14
+
+Versão do uso seguro e fácil: uma trava por pilha, a carta de autorização em formulário, a aprovação do escopo por uma pessoa e a entrevista inicial nas skills. A trava foi provada com Docker uma vez, no laboratório; o resto foi verificado como código e testes, e **não** foi provado contra produto real, nem o `hdast profile approve` num terminal de verdade, nem a entrevista com uma pessoa, nem uma rodada cega no fluxo novo.
+
+### Mudança incompatível de uso: aprovação obrigatória
+
+- Todo perfil existente precisa ser aprovado **uma vez por uma pessoa** (`hdast profile approve <produto>`, em terminal interativo) antes de `preflight`, `probe`, `scan`, `authz`, `run`, `cleanup` e `stack up`; sem isso esses comandos recusam com `SCOPE_NOT_APPROVED` (saída 3). Não há flag, variável de ambiente nem modo "laboratório" que pule a conferência. A aprovação vale até um bloco de proteção mudar. No laboratório: `hdast profile approve clinica-piloto`. Os formatos de envelope e de perfil não mudaram (só campos novos).
+
+### Trava exclusiva por pilha (ADR 0035)
+
+- `stack.lock` na pasta de estado (`HDAST_STATE_DIR`), criado de forma atômica e exclusiva. `probe`, `scan`, `authz` (fora do `--dry-run`), `run`, `stack up` e `stack down` tomam a trava na partida, antes de tocar o alvo, e a soltam sempre (sucesso, erro, `KeyboardInterrupt`).
+- Pilha ocupada: erro `STACK_BUSY`, **código de saída 8 (`BUSY`, novo)**, com a mensagem dizendo quem ocupa (comando, produto, id, processo e início). Trava órfã (processo morto) é retomada com aviso; trava ilegível recusa. `hdast stop` e `hdast stack status` nunca são bloqueados; `stack status` ganha `data.lock` (`state` `held`, `orphan` ou `unreadable`, mais comando, produto, id, processo, início e mensagem; nulo com a pilha livre).
+- Domínio puro em `domain/stack_lock.py` (`judge_lock`); relógio e "processo vivo?" entram por porta. A consulta de processo vivo só foi implementada para o Windows.
+- Provada com Docker no laboratório uma vez: `tests/integration/test_lab_stack_lock.py` (segundo `probe` recusado com saída 8 enquanto um `scan --only` rodava na Clínica Piloto real; o mesmo comando depois do fim do primeiro saiu 0).
+
+### Carta estruturada (ADR 0036)
+
+- `carta.yml`: cada resposta tem a forma `{value, source}` com `source` `carta`, `pessoa` ou `desconhecido`. Comando novo `hdast init <produto> --from-letter <carta.yml> [--check]`: a CLI gera os blocos `environment`, `openapi`, `scope`, `limits`, `auth` e `scan.strength` do perfil; `--check` confere sem criar nada. O agente não escreve à mão o que a CLI gera.
+- Pendência recusa a carta inteira com `LETTER_REJECTED` (herda de `CONFIG_ERROR`, saída 2) e `data.issues` (`{field, code, message}`; códigos `MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`, `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH`, `PROFILE_REJECTED`, `AUTHORIZATION_EXPIRED`). Os portões (ambiente de teste, dados sintéticos, autorização vigente) respondidos "não" ou desconhecidos recusam tudo; `scope.path_mode: wide` só com `source: carta` e citação.
+- Carta com `valid_until` anterior a hoje (UTC; o último dia vale inteiro) é recusada com `AUTHORIZATION_EXPIRED`. A carta pronta traz `data.warnings` (não bloqueiam e não mudam o perfil: permissão em `/**`, `DELETE` autorizado, `deny_paths` vazio e validade acima de um ano) e `data.example_data` (valores de exemplo tirados da carta para as regras de dados).
+
+### Aprovação humana do escopo (ADR 0037)
+
+- `hdast profile approve <produto>`: só uma pessoa, em terminal interativo (`--json` e terminal ausente são recusados, nada é gravado); mostra o resumo dos blocos e o que mudou desde a aprovação anterior. `hdast profile approval <produto>` só lê e diz `approved`, `not_approved`, `changed` (com os blocos) ou `invalid`; o agente pode rodá-lo. `profile validate` ganha `data.approval`, informativo (não entra em `runnable`).
+- Impressão digital (SHA-256 de uma forma canônica, no `domain/scope_fingerprint.py`), na **versão 2 do cálculo**: entram `environment`, `scope` (permissões, caminhos proibidos, modo de caminho, autorização e janelas), `limits`, as partes de `auth` que dizem para onde vão as credenciais e com que contas, e `scan`, `authz` e `cleanup` inteiros. Ficam livres só os ajustes de alcançabilidade (`probe`, `auth.csrf`, `auth.account_map` e semelhantes, `openapi`). O conteúdo do script de limpeza não entra no cálculo (o script é de autoria humana e a leitura de arquivo não é do domínio). A aprovação mora em `approvals/<produto>.json` na pasta de estado, negada ao agente em `.claude/settings.json`.
+- A conferência está no ponto central de carga do perfil (`ApprovedProfileRepository`); erro `SCOPE_NOT_APPROVED` herda de `HarnessError`, sai com **3** (sem código de saída novo) e diz quais blocos mudaram. `stack down`, `stack status` e `stop` não são bloqueados. Portas novas `ApprovalStore` e `ApprovalPrompt`.
+- Avaliação cega: `python -m evals.runner approve --out <rodada>` (coordenador, fora do agente) confere o perfil contra a carta do caso e aprova; a rodada para no primeiro comando que toca o alvo.
+
+### Skills e guias
+
+- Entrevista estruturada numa rodada só nas skills (portões, endereço, escopo, modo do caminho, janela, limites, contas, força do ataque, dados de exemplo), resumo do que será atacado antes de atacar, consulta de `hdast profile approval` antes de tocar o alvo e tratamento de `STACK_BUSY` (esperar ou perguntar, nunca contornar). O guia de autorização passa a usar um produto fictício no exemplo; `primeiro-uso.md` ganha o passo de aprovar o perfil.
+
+### Documentos e verificadores
+
+- Documentos desatualizados corrigidos. `tests/contract/test_docs_links.py` falha com link relativo (arquivo ou âncora) que não existe. `tests/contract/test_letter_guide.py` e o teste de vazamento percorrem toda a cópia entregue ao agente cego e barram caminho proibido, isca e termo de gabarito de cada caso.
+
+### Correções
+
+- A redação de segredos apagava a versão do protocolo (`HTTP/1.1`) da linha de requisição quando o endereço terminava em `token`, `basic` ou `bearer`. Era perda de evidência, não vazamento.
+- Do QA independente (aprovado com ressalvas): `scan`, `authz` e `cleanup` inteiros entram na impressão digital (editar `fail_on`, `disable_rules`, `public_operations`, tetos de tempo ou o alvo da limpeza mantinha "aprovado"); a recusa da trava diz a verdade sobre `stop` e sobre PID reaproveitado; carta com autorização vencida é recusada; português das mensagens novas e das skills; o teste de vazamento cobre toda a cópia cega e tirou exemplos que citavam a isca; `.claude/settings.json` nega ao agente gravar na pasta de aprovações. Relatório: [docs/reviews/relatorio-v1.3.md](docs/reviews/relatorio-v1.3.md).
+
 ## [1.2.0] - 2026-11-14
 
 Versão do painel da execução, das medições e do diário de comandos. Tudo medido só em laboratório: nada disto foi provado contra um produto real, e a V1.2 não foi verificada com Docker nesta entrega.
