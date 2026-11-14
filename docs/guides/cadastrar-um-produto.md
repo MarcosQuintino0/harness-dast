@@ -10,7 +10,7 @@ A [carta de autorização](modelo-de-autorizacao.md) preenchida e assinada, mais
 - contas de teste, uma por papel necessário, com as senhas por canal seguro entregues a **você**;
 - se houver limpeza de dados: o script SQL, escrito e revisado por uma pessoa do time do produto (veja [limpeza-de-dados.md](limpeza-de-dados.md)).
 
-Sem a carta, não comece. `scope`, `limits`, `authorization` e janelas do perfil vêm só dela.
+Sem a carta, não comece. `scope`, `limits`, `authorization` e janelas do perfil vêm só dela, ou das suas respostas na entrevista (seção 5): o agente nunca os escreve; transcreve num `carta.yml` e a CLI gera.
 
 ## 2. Onde ficam os perfis
 
@@ -57,9 +57,27 @@ O que as permissões **não** garantem (o formato de regras do Claude Code não 
 - O ambiente do terminal (as senhas das contas de teste) é herdado pelo processo do agente; as regras negam `printenv` e a leitura de `.env`, mas não impedem toda forma de ler uma variável.
 - As regras valem também para quem desenvolve o projeto neste repositório (por exemplo, WebFetch e `curl` ficam negados).
 
-## 5. Os prompts
+## 5. A entrevista e a aprovação do escopo
 
-**Atalho: um pedido só (skill `test-product`).** A skill conduz as quatro etapas abaixo em sequência e só para quando precisa de você: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas são as mesmas.
+Ao cadastrar, o agente lê a carta e o Swagger, monta um `carta.yml` com o que a carta diz (cada resposta com a origem: `carta`, `pessoa` ou `desconhecido`) e roda `hdast init <produto> --from-letter carta.yml --check`, que lista o que falta. Em seguida ele faz **uma rodada de perguntas** com tudo o que faltou, nesta ordem (perguntas fechadas em múltipla escolha, sempre com "Não sei / não está na carta"; abertas em texto):
+
+1. **Portões:** o ambiente é de teste? Os dados são sintéticos? A autorização está vigente? Quem é o dono do produto? "Não" ou "não sei" encerra o cadastro.
+2. **Endereço base** do ambiente de teste.
+3. **O que pode e o que é proibido** (hosts, caminhos, métodos). Proibição usa curinga (`/api/admin/**`), nunca um id literal.
+4. **Modo do caminho:** estrito (padrão) ou amplo. O amplo só vale se a carta disser; o agente nunca o sugere.
+5. **Janela, validade e referência** da autorização.
+6. **Limites:** requisições por segundo, duração máxima, threads.
+7. **Contas:** apelido, papel e o **nome** do segredo (nunca a senha); se há duas contas do mesmo papel (o teste de autorização entre contas precisa).
+8. **Força do ataque:** leve, média ou forte. Mais força testa mais variações e demora mais; o limite por segundo e a janela continuam valendo. Sem escolha, vale o padrão do perfil.
+9. **Dados de exemplo** que existem no ambiente (um id, um nome de arquivo, um código válido). Sem eles, algumas funções não são alcançadas.
+
+O agente **não marca opção como recomendada** nem preenche escopo, limite, janela ou autorização por conta própria. "Não sei" entra como `desconhecido` e o agente para naquele campo: quem responde é o dono do produto. Com tudo respondido, a CLI gera `environment`, `scope`, `limits`, as contas e a força do ataque no `target.yml`; o agente escreve só o que a carta não traz (`probe`, `auth.csrf`, `auth.account_map`, `data-rules.yml`, `flows.yml`).
+
+**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força) e pede que **você** rode `<<COMANDO_DE_APROVACAO>> <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`<<CODIGO_SEM_APROVACAO>>`). O agente não roda esse comando, e nenhuma permissão o libera: leia o resumo antes de aprovar.
+
+## 6. Os prompts
+
+**Atalho: um pedido só (skill `test-product`).** A skill conduz as quatro etapas abaixo em sequência (começa pela entrevista da seção 5) e só para quando precisa de você: falta dado na carta, falta a sua aprovação do escopo, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas são as mesmas.
 
 ```text
 Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
@@ -73,13 +91,15 @@ Se preferir acompanhar etapa por etapa, ou retomar de uma etapa, use os prompts 
 
 Troque o que está entre `<>`. Cada etapa usa uma skill e deixa um diário de decisões.
 
-**Etapa 1. Cadastrar (skill `onboard-product`)**
+**Etapa 1. Cadastrar (skill `onboard-product`)** (conduz a entrevista da seção 5)
 
 ```text
 Use a skill onboard-product para cadastrar o produto "<produto>".
 A pasta de produtos é <pasta>. O OpenAPI está em <caminho ou URL>.
 A carta de autorização está em <caminho>; use SOMENTE o que ela diz para
-escopo, limites, autorização, janelas e limpeza. Se algo faltar, pergunte.
+escopo, limites, autorização, janelas e limpeza. O que faltar, pergunte numa
+rodada só (entrevista), sem sugerir valores. Termine pedindo a minha aprovação
+do escopo.
 Termine com "hdast profile validate" e "hdast spec inspect" limpos e registre
 as decisões em decision-log.md na pasta do produto.
 ```
@@ -114,7 +134,7 @@ suspeitas de falso positivo com o motivo e o que a varredura não cobre.
 
 **Uma pessoa revisa tudo.** O agente propõe; a severidade e a confiança do relatório são propostas, e todo achado exige triagem humana.
 
-## 6. Depois da varredura
+## 7. Depois da varredura
 
 - Abra `runs/<run_id>/report.html` no navegador (uma página só, sem internet, para ler e compartilhar; comece pelo resumo e por "O que fazer agora"). O mesmo conteúdo está em `report.md` e `findings.json` (comece por "O que este relatório não testou").
 - Para remover os dados de teste, siga [limpeza-de-dados.md](limpeza-de-dados.md): você roda, não o agente.

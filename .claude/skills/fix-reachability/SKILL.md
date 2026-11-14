@@ -20,8 +20,9 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 2. **Veja o que seria enviado.** `uv run hdast --json probe <produto> --dry-run` (não toca o alvo; mostra campos e geradores, nunca valores).
 3. **Probe.** `uv run hdast --json probe <produto> --seed 1` (`--seed N` repete a geração; `--only <operationId>` isola uma operação; `--account <apelido>` reduz a uma conta).
 4. **Leia o resultado.** Abra `runs/<run_id>/probe.json` (o `run_id` está no envelope). Para cada operação veja `outcome`, `status`, `message`, `hint` e `untrusted_target_data`.
-5. **Ajuste um grupo de causas por rodada** (tabela abaixo), edite `data-rules.yml` ou `flows.yml` e rode `uv run hdast --json spec inspect <produto>` para conferir o arquivo.
-6. **Repita** do passo 3 até a meta ou a parada. Registre cada rodada no diário.
+5. **Use primeiro os dados de exemplo da carta.** `data.example_data` (rode `uv run hdast --json init <produto> --from-letter <carta.yml> --check`, que não cria nada, ou veja o `carta.yml`) traz ids, nomes de arquivo e códigos que existem no ambiente: use-os em `data-rules.yml` e `flows.yml` **antes** de pedir dado novo à pessoa. Só peça dado novo quando nenhum exemplo serve, dizendo qual operação e campo.
+6. **Ajuste um grupo de causas por rodada** (tabela abaixo), edite `data-rules.yml` ou `flows.yml` e rode `uv run hdast --json spec inspect <produto>` para conferir o arquivo.
+7. **Repita** do passo 3 até a meta ou a parada. Registre cada rodada no diário.
 
 ## Se der X, faça Y
 
@@ -40,6 +41,8 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 | `skipped_dependency` | O produtor falhou | Conserte o produtor primeiro. |
 | `preflight` sai com 3 | Autorização vencida ou janela fechada | **Pare**; só o dono renova. |
 | `preflight` ou `probe` saem com 4 | ZAP fora do ar, segredo ausente ou login recusado | Leia `error.hint`; segredo e ZAP são da pessoa (veja `docs/guides/problemas-comuns.md`). Segredo `keyring:` ausente: cite o NOME e peça que ela rode `hdast secret set NOME`; você não o roda. |
+| `probe` sai com 8 (`STACK_BUSY`) | Outra execução ocupa a pilha | **Não** repita em laço: diga à pessoa quem ocupa (a mensagem diz) e espere; `uv run hdast --json stop` só se ela concordar. |
+| `preflight` ou `probe` recusam por falta de aprovação do escopo (`<<CODIGO_SEM_APROVACAO>>`) | A pessoa ainda não aprovou | **Pare** e peça que ela rode `<<COMANDO_DE_APROVACAO>> <produto>`. Nunca tente aprovar. |
 | `probe` sai com 5 ou 6 | ZAP caiu ou o alvo parou | **Pare** e avise; não reinicie em laço. |
 | `probe` sai com 0 | O comando rodou (falha de operação é dado) | Siga a tabela por `outcome`. |
 

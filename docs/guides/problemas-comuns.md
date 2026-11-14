@@ -12,6 +12,7 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | `5` | `EXTERNAL_TOOL_ERROR` | Docker ou ZAP falhou, ou caiu no meio | `uv run hdast --json stack status`; reinicie a pilha com `stack up` |
 | `6` | `TARGET_ERROR` | O alvo parou de responder | Verifique o alvo; não repita em laço |
 | `7` | `CLEANUP_FAILED` | Falha ou teto de linhas na limpeza | [limpeza-de-dados.md](limpeza-de-dados.md); a transação sofreu `ROLLBACK` |
+| `8` | `STACK_BUSY` | Outra execução ocupa a pilha (ZAP e proxy) | A mensagem diz quem ocupa (comando, produto, início). Espere terminar; se foi esquecida, `uv run hdast stop`. Não repita em laço |
 | `10` | `INTERNAL` | Erro inesperado | Guarde a saída de `stderr` e reporte ao mantenedor |
 | `130` | `INTERRUPTED` | Ctrl+C ou `hdast stop` | Esperado. Depois de `stop`, a pilha só volta com `stack up` |
 | `1` | (nenhum) | Achado no limiar do `--fail-on` ou `scan.fail_on` | Não é erro; leia o relatório |
@@ -37,6 +38,8 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | --- | --- | --- |
 | `init`: pasta de produtos inexistente | A CLI não cria a pasta | Crie-a, ou use `--products-dir`/`HDAST_PRODUCTS_DIR` |
 | `init`: produto já existe | `init` nunca sobrescreve | Edite a pasta existente ou escolha outro nome |
+| `init --from-letter` sai com `LETTER_REJECTED` | O `carta.yml` tem pendências (`data.issues`: campo e código) | Responda o que falta na entrevista e rode `--check` de novo. Portão "não" ou resposta desconhecida recusa tudo; valor de senha no lugar do nome do segredo é recusado |
+| Comando que toca o alvo recusa por falta de aprovação (`<<CODIGO_SEM_APROVACAO>>`) | A pessoa ainda não aprovou o escopo | Leia o resumo e rode `<<COMANDO_DE_APROVACAO>> <produto>` num terminal seu. O agente não aprova por você |
 | `runnable: false` com `PLACEHOLDER_HOST`, `PLACEHOLDER_AUTHORIZATION` ou `PLACEHOLDER_SECRET_REF` | Valor do modelo ainda no perfil | Preencha com os dados da carta de autorização |
 | `FILE_MISSING` | `openapi` ou script de limpeza não está na pasta do produto | Copie o arquivo para lá |
 | `AUTHORIZATION_EXPIRED` ou `WINDOW_CLOSED` | Fora da validade ou da janela | Veja saída `3` |
