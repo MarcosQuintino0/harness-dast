@@ -140,7 +140,7 @@ Regras:
 - **Aprovação do escopo no laboratório:** você não depende do dono, desde que use os caminhos de código do projeto (seção 6.2). Você e os subagentes nunca rodam `hdast profile approve`, nunca gravam à mão na pasta `approvals/` e nunca rodam `secret set` ou `secret delete`.
 - **Rodada cega (degrau 5):**
   - Use a suíte de `evals/`: `uv run python -m evals.runner prepare --case <caso> --mode random --seed <n> --out <pasta>` cria a cópia cega. O `evals.runner approve --out <pasta>` confere o perfil contra a carta do caso. Depois vêm `collect`, `score`, `classify` e `measure` (leia `evals/README.md`).
-  - O agente cego é um subagente novo que recebe **só** a pasta `workspace/` da cópia e o `EVAL-BRIEFING.md`. Ele não recebe este briefing, nem o gabarito (`evals/answer-keys/`), nem o histórico desta sessão, nem as notas do projeto.
+  - O agente cego é um subagente novo que recebe **só** a pasta `workspace/` da cópia e o `EVAL-BRIEFING.md`. Ele não recebe este briefing, nem os gabaritos dos casos (que ficam em `evals/`), nem o histórico desta sessão, nem as notas do projeto.
   - As skills do projeto ficam em `.claude/skills/*/SKILL.md` e foram escritas para o Claude Code. Veja a seção 6.3 para usá-las com um agente do Codex.
   - Registre no relatório que a rodada foi feita com outro modelo e outra ferramenta. A comparação com as rodadas anteriores (`docs/reviews/2026-11-13-rodadas-cegas.md`) precisa dessa ressalva.
   - Você não dá dica ao agente cego no meio da rodada.
