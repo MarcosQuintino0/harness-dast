@@ -136,7 +136,11 @@ def check_schema(schema: Schema, value: JsonValue) -> tuple[str, ...]:
         return ()
     kind = effective_type(schema)
     if value is None:
-        return () if schema.nullable or kind in (None, "null") else ("type",)
+        if not (schema.nullable or kind in (None, "null")):
+            return ("type",)
+        if schema.enum is not None and not (schema.enum_allows_null or None in schema.enum):
+            return ("enum",)
+        return ()
     if not _matches_type(kind, value):
         return ("type",)
     codes: list[str] = []

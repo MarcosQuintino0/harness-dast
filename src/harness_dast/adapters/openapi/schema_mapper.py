@@ -102,6 +102,7 @@ class SchemaMapper:
             type=schema_type,
             format=_opt_str(node, "format", where, 64),
             enum=enum,
+            enum_allows_null=enum_null,
             nullable=nullable or enum_null or node.get("nullable") is True,
             read_only=node.get("readOnly") is True,
             pattern=_opt_str(node, "pattern", where, MAX_STRING, drop_long=True),

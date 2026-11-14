@@ -141,3 +141,13 @@ def test_checks_restrictions_without_values(
     schema: Schema, value: JsonValue, expected: tuple[str, ...]
 ) -> None:
     assert check_schema(schema, value) == expected
+
+
+def test_offline_check_null_still_obeys_enum() -> None:
+    assert check_schema(Schema(type="string", nullable=True, enum=("a",)), None) == ("enum",)
+    assert check_schema(Schema(type="string", nullable=True, enum=("a", None)), None) == ()
+    assert (
+        check_schema(Schema(type="string", nullable=True, enum=("a",), enum_allows_null=True), None)
+        == ()
+    )
+    assert check_schema(Schema(type="string", enum=(None,)), None) == ("type",)
