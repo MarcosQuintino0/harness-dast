@@ -110,6 +110,7 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | `report.html` | O relatório numa página só (abra no navegador, funciona sem internet e em tema claro ou escuro): resumo, "o que fazer agora", achados por gravidade, o que não foi coberto, tráfego recusado |
 | `report.md` | O mesmo relatório em Markdown, para quem corrige |
 | `findings.json` | O mesmo, estruturado (cada achado e, em `groups`, os achados agrupados pela causa) |
+| `panel/` | O painel da execução, em páginas HTML (abra `panel/summary.html` no navegador; sem internet e sem script): resumo, etapas e, ainda como páginas provisórias, falhas, cobertura, terminal e tempo. Também sai de `hdast panel <produto>`; dado que falta aparece como "não medido" ([ADR 0032](../adr/0032-painel-da-execucao.md)) |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
 | `authz.json` | Só com `hdast run --authz` (ou `hdast authz`): teste de autorização entre contas. Veja [authz.md](../reference/authz.md) |
 | `audit.jsonl` | Trilha de cada requisição da CLI |

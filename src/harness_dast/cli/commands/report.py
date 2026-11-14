@@ -60,6 +60,15 @@ def _metrics_line(outcome: ReportOutcome) -> str:
     return f"\nMedição de tempo da execução: {outcome.metrics_file} (só números, sem dado do alvo)."
 
 
+def _panel_line(outcome: ReportOutcome) -> str:
+    if outcome.panel_file is None:
+        return ""
+    return (
+        f"\nPainel da execução: {outcome.report.run_id}/{outcome.panel_file} "
+        "(abra no navegador; sem internet e sem script)."
+    )
+
+
 # Passa de 40 linhas porque quase todas são a declaração das opções do Typer.
 def report_command(
     ctx: typer.Context,
@@ -95,6 +104,6 @@ def report_command(
     emit(
         build_success(digest.model_dump(mode="json"), digest.run_id),
         json_mode=state.json_mode,
-        human=_render(digest) + _metrics_line(outcome),
+        human=_render(digest) + _metrics_line(outcome) + _panel_line(outcome),
     )
     return int(ExitCode.FINDINGS if outcome.exceeds_threshold else ExitCode.OK)

@@ -1,0 +1,79 @@
+"""Registro das páginas do painel: arquivo, rótulo da aba e função que desenha o miolo. Módulo puro.
+
+Para acrescentar uma aba: crie o módulo `panel_NOME.py` com `render_NOME(view) -> str` (o
+conteúdo do `<main>`, já escapado) e troque a função da linha correspondente em `PAGES`; a
+casca, o menu e a gravação do arquivo vêm daqui. Os nomes dos arquivos são os do desenho
+(`docs/design/execution-panel/screens/`) e os links do menu nunca quebram: a aba sem módulo
+próprio usa a página provisória.
+"""
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from functools import partial
+from typing import Final
+
+from harness_dast.domain.panel_layout import TabItem, render_page
+from harness_dast.domain.panel_model import PanelView
+from harness_dast.domain.panel_pending import render_pending
+from harness_dast.domain.panel_stages import render_stages
+from harness_dast.domain.panel_summary import render_summary
+
+PageRenderer = Callable[[PanelView], str]
+TabCounter = Callable[[PanelView], int | None]
+
+
+@dataclass(frozen=True)
+class PanelPage:
+    """Uma página do painel.
+
+    Attributes:
+        file: Nome do arquivo gravado em `runs/<run_id>/panel/` (e do link do menu).
+        label: Texto da aba.
+        title: Título da página (`<title>`).
+        render: Desenha o miolo (`<main>`) a partir da visão; devolve HTML já escapado.
+        counter: Número que aparece ao lado da aba, ou `None` sem contador.
+    """
+
+    file: str
+    label: str
+    title: str
+    render: PageRenderer
+    counter: TabCounter | None = None
+
+
+def severe_count(view: PanelView) -> int | None:
+    """Contador da aba Falhas: as falhas graves (cinza se zero; `None` sem `findings.json`)."""
+    return view.verdict.severe_count
+
+
+PAGES: Final[tuple[PanelPage, ...]] = (
+    PanelPage("summary.html", "Resumo", "Resumo do teste", render_summary),
+    PanelPage("stages.html", "Etapas", "Etapas", render_stages),
+    PanelPage(
+        "findings.html", "Falhas", "Falhas", partial(render_pending, title="Falhas"), severe_count
+    ),
+    PanelPage(
+        "coverage.html", "Cobertura", "Cobertura", partial(render_pending, title="Cobertura")
+    ),
+    PanelPage("terminal.html", "Terminal", "Terminal", partial(render_pending, title="Terminal")),
+    PanelPage(
+        "time-and-tokens.html",
+        "Tempo e tokens",
+        "Tempo e tokens",
+        partial(render_pending, title="Tempo e tokens"),
+    ),
+)
+
+
+def render_panel(view: PanelView) -> Mapping[str, str]:
+    """Gera todas as páginas do teste: nome do arquivo -> HTML completo."""
+    tabs = tuple(
+        TabItem(page.file, page.label, page.counter(view) if page.counter else None)
+        for page in PAGES
+    )
+    return {
+        page.file: render_page(
+            view, current=page.file, tabs=tabs, title=page.title, main=page.render(view)
+        )
+        for page in PAGES
+    }

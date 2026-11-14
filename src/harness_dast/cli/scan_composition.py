@@ -36,6 +36,7 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
+from harness_dast.cli.panel_composition import build_panel
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -133,8 +134,9 @@ def build_run_pipeline(
         preflight=build_preflight(products_dir, secrets, net.network, shared),
         probe=build_probe(products_dir, secrets, net.network, shared),
         scan=build_scan(products_dir, secrets, net, shared),
-        report=build_report(products_dir),
+        report=build_report(products_dir, with_panel=False),
         metrics=build_metrics(products_dir),
+        panel=build_panel(products_dir),
         authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
@@ -145,8 +147,11 @@ def build_run_pipeline(
     )
 
 
-def build_report(products_dir: Path | None) -> Report:
-    """Monta o caso de uso `hdast report` (sem rede)."""
+def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Report:
+    """Monta o caso de uso `hdast report` (sem rede).
+
+    `with_panel=False` é para o `run`, que gera o painel por último, depois de gravar `run.json`.
+    """
     runs_dir = load_settings().runs_dir
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
@@ -159,6 +164,7 @@ def build_report(products_dir: Path | None) -> Report:
         clock=SystemClock(),
         harness_version=harness_version(),
         metrics=build_metrics(products_dir),
+        panel=build_panel(products_dir) if with_panel else None,
     )
 
 

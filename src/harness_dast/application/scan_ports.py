@@ -357,3 +357,20 @@ class RunMetricsRecorder(Protocol):
             O nome do arquivo gravado, ou `None` se não foi possível gravar.
         """
         ...
+
+
+class PanelRefresher(Protocol):
+    """Gera ou atualiza o painel da execução (ADR 0032) no fim de `report` e de `run`.
+
+    Garante: nunca levanta erro do harness. O painel é secundário: se não puder ser gerado, o
+    erro vai para o log estruturado e o comando que o chamou segue.
+    """
+
+    def refresh(self, product: str, run_id: str) -> str | None:
+        """Gera as páginas com o que a execução já tem.
+
+        Returns:
+            O caminho da página de entrada, relativo à pasta da execução, ou `None` se o painel
+            não pôde ser gerado.
+        """
+        ...

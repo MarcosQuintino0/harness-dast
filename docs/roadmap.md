@@ -70,7 +70,7 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
+Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
@@ -81,6 +81,7 @@ Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `prefli
 | `hdast cleanup` | Implementado (M5): `--dry-run`, confirmação digitada só em terminal interativo ([ADR 0025](adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
 | `hdast doctor` | Implementado (V1.1, [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)); avisa de `scope.path_mode: wide` e da falta de duas contas do mesmo papel; verificado com Docker real e com porta ocupada em 2026-11-13. Veja "V1.1" abaixo |
 | `hdast authz`, `hdast run --authz` | Implementado (V1.1, [ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); verificado só na Clínica Piloto local (H5, H6, H7), não contra produto real. Veja "V1.1" abaixo |
+| `hdast panel` | Implementado como código e testes (V1.2, [ADR 0032](adr/0032-painel-da-execucao.md), proposto): gera as páginas HTML do painel da execução; só as abas Resumo e Etapas estão feitas. Veja "V1.2" abaixo |
 | `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as etapas (preflight, probe, scan, authz opcional e report) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
 
 ### V1.1: o que foi provado em laboratório e o que ainda NÃO foi verificado
@@ -109,6 +110,19 @@ Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma co
 | Catálogo de explicação de falha, degrau de confiança e dados de "reproduzir à mão" | Código e testes (`domain/finding_explain.py`, `finding_confidence.py`, `manual_repro.py`); nenhuma tela os usa ainda |
 | Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
 | Painel (HTML), comando `panel`, índices de produtos e histórico | Em construção por outras frentes; não existem |
+
+### V1.2: painel da execução (em construção)
+
+O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/design/execution-panel/](design/execution-panel/README.md)); a CLI gera as páginas ([ADR 0032](adr/0032-painel-da-execucao.md), proposto). Estado por parte:
+
+| Parte | Existe como código e testes | O que falta |
+| --- | --- | --- |
+| Fundação | `hdast panel`, `PanelView` (modelo de visão com tudo que as seis abas precisam), registro de páginas, casca (CSP, caminho, menu, componentes), tokens do desenho com teste de paridade, formatos e palavras de estado, porta `PanelFiles`, geração no fim de `report` e `run` (falha nunca derruba) | Gerado só a partir de uma execução real guardada, sem Docker e sem varredura nova; ainda não visto por uma pessoa de QA |
+| Abas Resumo e Etapas | Fiéis ao desenho, com os estados "sem falha grave", "parou no meio" e "erro"; testadas com texto hostil em toda página | Conferir o que o desenho marca como exemplo (tipos de teste, tokens por etapa) quando existirem as fontes |
+| Abas Falhas, Cobertura, Terminal, Tempo e tokens | Páginas provisórias com a casca completa e o menu | As próprias abas; os dados já estão no `PanelView` |
+| Diário de comandos e catálogo de explicação de falha | Ganchos `commands` e `explanations` no modelo e no caso de uso | Os módulos que os entregam |
+| Tokens do agente | Campos `None` no modelo (a tela mostra "não medido") | A medição do agente (`agent-metrics.json`) fora da avaliação cega |
+| Índices de produtos e de histórico, "ao vivo", máscara de dados pessoais na prova | Nada | Tudo (o dono ainda não respondeu sobre a máscara) |
 
 ### Controles de segurança
 

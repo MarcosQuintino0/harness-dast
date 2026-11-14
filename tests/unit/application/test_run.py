@@ -14,7 +14,7 @@ from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run import RunPipeline, RunRequest, RunResult
 from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
-from harness_dast.application.scan_ports import RunMetricsRecorder
+from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report_model import FindingsReport, FindingsSummary
@@ -88,6 +88,7 @@ class Rig:
     scan: Callable[[], ScanResult] = _scan
     report: Callable[[], ReportOutcome] = _outcome
     metrics: RunMetricsRecorder | None = None
+    panel: PanelRefresher | None = None
 
     def run(self, request: RunRequest | None = None, *, cleanup: bool = True) -> RunResult:
         profiles = InMemoryProfileRepository()
@@ -129,6 +130,7 @@ class Rig:
             clock=self.clock,
             run_id_fallback="fallback-run",
             metrics=self.metrics,
+            panel=self.panel,
         )
         return pipeline.execute(request or RunRequest(product="demo"))
 
