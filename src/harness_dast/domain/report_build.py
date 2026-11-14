@@ -79,6 +79,11 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
         message = (
             skip.message if skip else (item.message or f"O probe terminou com {item.outcome}.")
         )
+        if item.status == 404:
+            if skip is None:
+                reason = "scan_sem_registro"
+                message = "Não há motivo de ausência de varredura registrado no scan."
+            message = f"O probe observou HTTP 404. {message}"
         found.append(
             NotTested(
                 operation_id=item.operation_id,
