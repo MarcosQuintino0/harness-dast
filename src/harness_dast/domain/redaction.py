@@ -112,6 +112,11 @@ def _is_sensitive_name(name: str) -> bool:
     return any(part in lowered for part in _SENSITIVE_KEY_PARTS)
 
 
+def is_sensitive_name(name: str) -> bool:
+    """Diz se o NOME de um campo, cabeçalho ou opção indica segredo (senha, token, cookie...)."""
+    return _is_sensitive_name(name)
+
+
 def redact_text(text: str, mask: Masker) -> str:
     """Troca segredos registrados e padrões conhecidos em texto livre (sem cortar)."""
     value = mask(text)

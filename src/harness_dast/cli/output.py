@@ -7,6 +7,9 @@ exige ADR e nova versão.
 """
 
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 import typer
@@ -16,6 +19,11 @@ from harness_dast.domain.errors import HarnessError
 from harness_dast.observability.logging import SecretRegistry
 
 SCHEMA_VERSION = 1
+
+# Coletor dos envelopes emitidos durante UMA invocação (ADR 0033): o diário de comandos lê dele
+# o resumo da resposta sem que cada comando precise saber do diário. O ContextVar em si nunca
+# muda; só o valor dentro do contexto da invocação (definido por `capture_envelopes`).
+_captured: ContextVar[list["Envelope"] | None] = ContextVar("hdast_captured", default=None)
 
 
 class ErrorInfo(BaseModel):
@@ -41,6 +49,21 @@ class Envelope(BaseModel):
     run_id: str | None = None
     data: dict[str, JsonValue] | None = None
     error: ErrorInfo | None = None
+
+
+@contextmanager
+def capture_envelopes() -> Iterator[list["Envelope"]]:
+    """Guarda, na lista devolvida, todo envelope emitido por `emit` dentro do bloco.
+
+    Yields:
+        A lista, preenchida na ordem de emissão.
+    """
+    sink: list[Envelope] = []
+    token = _captured.set(sink)
+    try:
+        yield sink
+    finally:
+        _captured.reset(token)
 
 
 @dataclass
@@ -143,6 +166,9 @@ def emit(envelope: Envelope, *, json_mode: bool, human: str | None = None) -> No
         json_mode: Se `True`, emite JSON.
         human: Texto legível do sucesso para o modo humano; sem ele, lista `campo: valor`.
     """
+    sink = _captured.get()
+    if sink is not None:
+        sink.append(envelope)
     if json_mode:
         sys.stdout.write(envelope.model_dump_json(exclude_none=True) + "\n")
     elif envelope.ok:

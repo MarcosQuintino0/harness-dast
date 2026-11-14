@@ -5,6 +5,7 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 import typer
@@ -322,7 +323,14 @@ def test_envelope_serializes_non_ascii_message_without_crashing(
     assert "ação" in json.loads(capsys.readouterr().out)["error"]["message"]
 
 
-def test_python_dash_m_runs_the_cli_and_exits_with_the_error_code() -> None:
+def test_python_dash_m_runs_the_cli_and_exits_with_the_error_code(tmp_path: Path) -> None:
+    # O diário de comandos grava na pasta de estado; o teste a isola e nunca toca a da máquina.
+    env = {
+        "PYTHONUTF8": "1",
+        "SYSTEMROOT": r"C:\Windows",
+        "PATH": "",
+        "HDAST_STATE_DIR": str(tmp_path / "state"),
+    }
     ok = subprocess.run(  # noqa: S603 - executável do próprio interpretador, argumentos fixos
         [sys.executable, "-m", "harness_dast", "--json", "version"],
         capture_output=True,
@@ -330,7 +338,7 @@ def test_python_dash_m_runs_the_cli_and_exits_with_the_error_code() -> None:
         encoding="utf-8",
         check=False,
         timeout=60,
-        env={"PYTHONUTF8": "1", "SYSTEMROOT": "C:\\Windows", "PATH": ""},
+        env=env,
     )
     bad = subprocess.run(  # noqa: S603
         [sys.executable, "-m", "harness_dast", "--json", "nada"],
@@ -339,7 +347,7 @@ def test_python_dash_m_runs_the_cli_and_exits_with_the_error_code() -> None:
         encoding="utf-8",
         check=False,
         timeout=60,
-        env={"PYTHONUTF8": "1", "SYSTEMROOT": "C:\\Windows", "PATH": ""},
+        env=env,
     )
 
     assert ok.returncode == 0

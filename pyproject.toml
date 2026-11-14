@@ -286,6 +286,11 @@ ignore_names = [
     # aceitar flags de redução de escopo e limites (M4).
     "narrow_limits",
     "narrow_scope",
+    # Painel da execução (ADR 0033, V1.2): API pública cujo consumidor é o painel (`panel`), que
+    # chega em outra entrega; cada nome perde a entrada quando o painel passar a chamá-lo.
+    "load_journal_for_run",
+    "translate_command",
+    "translated_commands",
 ]
 
 # ------------------------------------------------------------ commitizen

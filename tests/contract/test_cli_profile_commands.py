@@ -166,7 +166,9 @@ def test_init_fails_with_config_error_when_name_is_unsafe(
 
     assert code == 2
     assert envelope["error"]["code"] == "CONFIG_ERROR"
-    assert list(tmp_path.iterdir()) == [products]
+    # A pasta de estado isolada (diário de comandos) é do conftest; o resto não pode ter nada novo.
+    outside = [item for item in tmp_path.iterdir() if item.name != "isolated-hdast-state"]
+    assert outside == [products]
     assert list(products.iterdir()) == []
 
 
