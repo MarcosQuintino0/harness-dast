@@ -7,9 +7,13 @@ from typing import Any
 import pytest
 import yaml
 
-from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.auth import ApiKeyAuth, PasswordLoginAuth
+from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.profile import CleanupConfig, ProductProfile
+from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scope_fingerprint import (
     BLOCK_IDS,
+    FINGERPRINT_VERSION,
     block_digests,
     combine_digests,
     describe_block,
@@ -45,6 +49,20 @@ def mutated(mutation: Mutation) -> dict[str, Any]:
 
 def _swap_first_account_secret(data: dict[str, Any]) -> None:
     data["auth"]["accounts"][0]["password"] = {"secret_ref": "env:ACME_OUTRO_SEGREDO"}
+
+
+def _cleanup(**overrides: Any) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "type": "oracle_sql",
+        "script": "./cleanup/cleanup.sql",
+        "connection": {"secret_ref": "env:ACME_ORACLE_LIMPEZA"},
+        "requires_confirmation": True,
+        "user": {"secret_ref": "env:ACME_ORACLE_USER"},
+        "password": {"secret_ref": "env:ACME_ORACLE_SENHA"},
+        "allowed_tables": ["PEDIDOS"],
+        "max_rows": 100,
+    }
+    return {**base, **overrides}
 
 
 # (mutação, bloco que precisa mudar)
@@ -132,6 +150,61 @@ PROTECTED_CHANGES: list[tuple[str, Mutation, str]] = [
         lambda d: d.update(authz={"vertical_methods": ["GET", "POST"]}),
         "authz",
     ),
+    ("scan.threshold", lambda d: d.update(scan={"threshold": "HIGH"}), "scan"),
+    ("scan.fail_on", lambda d: d.update(scan={"fail_on": "high"}), "scan"),
+    ("scan.disable_rules", lambda d: d.update(scan={"disable_rules": [40018]}), "scan"),
+    ("scan.max_scan_minutes", lambda d: d.update(scan={"max_scan_minutes": 30}), "scan"),
+    ("scan.max_rule_minutes", lambda d: d.update(scan={"max_rule_minutes": 5}), "scan"),
+    (
+        "scan.token_refresh_seconds",
+        lambda d: d.update(scan={"token_refresh_seconds": 600}),
+        "scan",
+    ),
+    (
+        "authz.public_operations",
+        lambda d: d.update(authz={"public_operations": ["ler"]}),
+        "authz",
+    ),
+    (
+        "authz.disabled_checks",
+        lambda d: d.update(authz={"disabled_checks": ["vertical"]}),
+        "authz",
+    ),
+    (
+        "authz.mass_assignment_fields",
+        lambda d: d.update(authz={"mass_assignment_fields": [{"name": "tipo", "value": "x"}]}),
+        "authz",
+    ),
+    ("authz.role_order", lambda d: d.update(authz={"role_order": ["usuario", "admin"]}), "authz"),
+    (
+        "authz.volatile_fields",
+        lambda d: d.update(authz={"volatile_fields": ["criadoEm"]}),
+        "authz",
+    ),
+    ("cleanup.novo", lambda d: d.update(cleanup=_cleanup()), "cleanup"),
+    ("cleanup.script", lambda d: d.update(cleanup=_cleanup(script="./outro.sql")), "cleanup"),
+    (
+        "cleanup.connection",
+        lambda d: d.update(cleanup=_cleanup(connection={"secret_ref": "env:OUTRO_BANCO"})),
+        "cleanup",
+    ),
+    (
+        "cleanup.user",
+        lambda d: d.update(cleanup=_cleanup(user={"secret_ref": "env:U2"})),
+        "cleanup",
+    ),
+    (
+        "cleanup.password",
+        lambda d: d.update(cleanup=_cleanup(password={"secret_ref": "env:P2"})),
+        "cleanup",
+    ),
+    (
+        "cleanup.allowed_tables",
+        lambda d: d.update(cleanup=_cleanup(allowed_tables=["CLIENTES"])),
+        "cleanup",
+    ),
+    ("cleanup.max_rows", lambda d: d.update(cleanup=_cleanup(max_rows=999)), "cleanup"),
+    ("cleanup.db_schema", lambda d: d.update(cleanup=_cleanup(db_schema="OUTRO")), "cleanup"),
 ]
 
 # Ajustes que o agente faz depois da aprovação: nada disto pode invalidá-la.
@@ -146,22 +219,7 @@ UNPROTECTED_CHANGES: list[tuple[str, Mutation]] = [
         lambda d: d["auth"].update(token_expired={"field": "code", "value": "EXPIRADO"}),
     ),
     ("probe.health_path", lambda d: d.update(probe={"health_path": "/api/saude"})),
-    ("scan.threshold", lambda d: d.update(scan={"threshold": "HIGH"})),
-    ("scan.fail_on", lambda d: d.update(scan={"fail_on": "high"})),
-    ("scan.disable_rules", lambda d: d.update(scan={"disable_rules": [40018]})),
-    ("authz.public_operations", lambda d: d.update(authz={"public_operations": ["ler"]})),
-    ("authz.disabled_checks", lambda d: d.update(authz={"disabled_checks": ["vertical"]})),
-    (
-        "cleanup",
-        lambda d: d.update(
-            cleanup={
-                "type": "oracle_sql",
-                "script": "./cleanup/cleanup.sql",
-                "connection": {"secret_ref": "env:ACME_ORACLE_LIMPEZA"},
-                "requires_confirmation": True,
-            }
-        ),
-    ),
+    ("probe.setup_path", lambda d: d.update(probe={"setup_path": "/api/saude"})),
 ]
 
 
@@ -269,3 +327,94 @@ def test_overall_digest_depends_on_the_product_name() -> None:
 def test_describe_block_names_known_blocks_and_falls_back_to_the_identifier() -> None:
     assert "limites" in describe_block("limits")
     assert describe_block("bloco.novo") == "bloco.novo"
+
+
+def test_cleanup_changes_are_detected_against_an_existing_cleanup_block() -> None:
+    base = mutated(lambda d: d.update(cleanup=_cleanup()))
+    changed = mutated(lambda d: d.update(cleanup=_cleanup(max_rows=5000)))
+
+    before, after = digests(base), digests(changed)
+
+    assert [name for name in BLOCK_IDS if before[name] != after[name]] == ["cleanup"]
+
+
+def test_reordering_set_like_scan_and_authz_fields_does_not_change_the_digests() -> None:
+    first = mutated(
+        lambda d: d.update(
+            scan={"disable_rules": [40018, 40012], "mutating_methods": ["PUT", "PATCH"]},
+            authz={
+                "public_operations": ["a", "b"],
+                "disabled_checks": ["vertical", "horizontal"],
+                "volatile_fields": ["x", "y"],
+            },
+        )
+    )
+    second = copy.deepcopy(first)
+    second["scan"] = {"disable_rules": [40012, 40018], "mutating_methods": ["PATCH", "PUT"]}
+    second["authz"] = {
+        "public_operations": ["b", "a"],
+        "disabled_checks": ["horizontal", "vertical"],
+        "volatile_fields": ["y", "x"],
+    }
+
+    assert overall(first) == overall(second)
+
+
+def test_role_order_is_a_sequence_and_its_order_matters() -> None:
+    first = mutated(lambda d: d.update(authz={"role_order": ["usuario", "admin"]}))
+    second = mutated(lambda d: d.update(authz={"role_order": ["admin", "usuario"]}))
+
+    assert digests(first)["authz"] != digests(second)["authz"]
+
+
+def test_the_fingerprint_version_is_two_so_version_one_approvals_are_refused() -> None:
+    assert FINGERPRINT_VERSION == 2
+
+
+# Campos de `auth` que entram no bloco `auth`; os demais campos de `auth` ficam livres
+# (ADR 0037): só o agente os ajusta para alcançar operações e nenhum muda alcance, conta, carga,
+# duração nem o que é relatado.
+AUTH_PROTECTED: frozenset[str] = frozenset(
+    {"type", "token_path", "header_name", "accounts", "login_limit"}
+)
+AUTH_FREE: frozenset[str] = frozenset(
+    {
+        "csrf",
+        "account_map",
+        "default_account",
+        "token_expired",
+        "request_encoding",
+        "username_field",
+        "password_field",
+        "token_response_field",
+        "token_header",
+        "token_scheme",
+    }
+)
+# Blocos que entram inteiros (os campos de cada um estão no `model_dump` do bloco).
+TOP_LEVEL_PROTECTED: frozenset[str] = frozenset(
+    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "cleanup"}
+)
+TOP_LEVEL_FREE: frozenset[str] = frozenset({"schema_version", "openapi", "probe"})
+
+
+def test_every_top_level_profile_field_is_classified_as_protected_or_free() -> None:
+    fields = set(ProductProfile.model_fields)
+
+    assert fields == TOP_LEVEL_PROTECTED | TOP_LEVEL_FREE
+
+
+def test_every_auth_field_is_in_the_auth_block_or_in_the_free_list() -> None:
+    auth_fields = set(PasswordLoginAuth.model_fields) | set(ApiKeyAuth.model_fields)
+
+    assert auth_fields == AUTH_PROTECTED | AUTH_FREE
+
+
+def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block() -> None:
+    profile = ProductProfile.from_data(mutated(lambda d: d.update(cleanup=_cleanup())))
+    blocks = protected_blocks(profile)
+
+    for name, model in (("scan", ScanConfig), ("authz", AuthzConfig), ("cleanup", CleanupConfig)):
+        block = blocks[name]
+        assert isinstance(block, dict)
+        assert set(block) == set(model.model_fields), name

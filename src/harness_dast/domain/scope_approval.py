@@ -35,6 +35,12 @@ _MAX_LINE = 6000
 _HEX = frozenset("0123456789abcdef")
 
 
+def _block_label(block: str) -> str:
+    """Descrição em português seguida do identificador (um só nível de parênteses)."""
+    description = describe_block(block)
+    return block if description == block else f"{description} ({block})"
+
+
 def _is_sha256(value: str) -> bool:
     return len(value) == _SHA256_LENGTH and set(value) <= _HEX
 
@@ -53,7 +59,7 @@ class ScopeApproval(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1]
+    schema_version: Literal[2]
     product: str = Field(pattern=rf"^{SLUG_PATTERN}$")
     digest: str
     blocks: dict[str, str] = Field(max_length=len(BLOCK_IDS))
@@ -105,15 +111,15 @@ class ApprovalCheck:
         if self.state == "approved":
             return f"O escopo de {self.product} está aprovado ({self.approved_at})."
         if self.state == "changed":
-            names = "; ".join(f"{block} ({describe_block(block)})" for block in self.changed_blocks)
+            names = "; ".join(_block_label(block) for block in self.changed_blocks)
             return (
                 f"O perfil de {self.product} mudou desde a aprovação de {self.approved_at}. "
-                f"Blocos alterados: {names or 'resumo geral diferente'}."
+                f"O que mudou: {names or 'o resumo geral é diferente'}."
             )
         if self.state == "invalid":
             return (
                 f"A aprovação do escopo de {self.product} está ilegível, é de outra versão do "
-                "cálculo ou de outro produto; vale como NÃO aprovada."
+                "cálculo ou é de outro produto; por isso vale como não aprovada."
             )
         return f"O escopo de {self.product} ainda não foi aprovado por uma pessoa."
 

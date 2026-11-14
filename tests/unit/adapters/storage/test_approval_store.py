@@ -107,7 +107,7 @@ def test_file_of_another_product_is_invalid(store: FileApprovalStore) -> None:
 def test_file_with_an_unknown_schema_version_is_invalid(store: FileApprovalStore) -> None:
     store.write(approval_for(valid_profile()))
     data = json.loads(file_of(store).read_text(encoding="utf-8"))
-    data["schema_version"] = 2
+    data["schema_version"] = 1
     file_of(store).write_text(json.dumps(data), encoding="utf-8")
 
     with pytest.raises(ScopeNotApproved):

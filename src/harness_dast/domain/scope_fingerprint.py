@@ -9,14 +9,18 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
 - `limits`;
 - `auth`: tipo, caminho do login (ou cabeçalho da chave), contas (apelido, papel e NOMES de
   `secret_ref`) e `login_limit`;
-- `scan`: força, injeção em segmento de caminho e métodos `PUT`/`PATCH` sobre qualquer recurso;
-- `authz`: métodos repetidos na verificação vertical (os que escrevem no alvo).
+- `scan`: o bloco inteiro (força, limiar, regras desligadas, tetos de tempo, renovação de token,
+  gate de severidade, injeção em segmento de caminho e `PUT`/`PATCH` sobre qualquer recurso);
+- `authz`: o bloco inteiro (operações públicas, ordem de papéis, campos voláteis, métodos
+  repetidos, campos da atribuição em massa e verificações desligadas);
+- `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
+  de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
-Fica de fora, de propósito, o que o agente ajusta depois da aprovação para alcançar as operações
-e que só escolhe ENTRE o que já foi aprovado ou só estreita: `auth.csrf`, `auth.account_map`,
-`auth.default_account`, `auth.token_expired`, campos de codificação do login, `probe`, demais
-campos de `scan` e de `authz`, `cleanup` (tem a confirmação própria da pessoa, ADR 0025) e
-`openapi`. O motivo de cada um está no ADR 0037.
+Critério (ADR 0037): entra tudo que amplia o que é tocado, com que conta, com que carga ou por
+quanto tempo, E tudo que reduz o que é relatado. Fica de fora, de propósito, só o que o agente
+precisa ajustar depois da aprovação para alcançar as operações e que não muda nem o alcance nem
+o relato: `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, campos de
+codificação do login, `probe` e `openapi`. O motivo de cada campo está no ADR 0037.
 
 Mudar o que entra aqui muda a impressão digital de todo perfil: as aprovações existentes passam
 a ser "alteradas" e a pessoa aprova de novo (falha fechada). Este módulo é puro e determinístico.
@@ -31,20 +35,25 @@ from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.profile import ProductProfile
 
-FINGERPRINT_VERSION: Final = 1
-"""Versão do cálculo. Aprovação gravada com outra versão é recusada (`invalid`)."""
+FINGERPRINT_VERSION: Final = 2
+"""Versão do cálculo. Aprovação gravada com outra versão é recusada (`invalid`).
+
+Versão 2: `scan` e `authz` inteiros e o bloco `cleanup` passaram a entrar (QA da V1.3).
+Aprovação da versão 1 vale como não aprovada e uma pessoa aprova de novo.
+"""
 
 BLOCKS: Final[tuple[tuple[str, str], ...]] = (
     ("environment", "ambiente alvo"),
-    ("scope.allow", "o que pode ser alcançado (permissões)"),
+    ("scope.allow", "o que pode ser alcançado"),
     ("scope.deny_paths", "caminhos proibidos"),
     ("scope.path_mode", "modo de caminho"),
-    ("scope.authorization", "autorização (referência e validade)"),
+    ("scope.authorization", "autorização, com referência e validade"),
     ("scope.windows", "janelas de execução"),
     ("limits", "limites de carga"),
     ("auth", "contas e login"),
-    ("scan", "força e abrangência do ataque"),
-    ("authz", "métodos do teste de autorização"),
+    ("scan", "política da varredura e do gate de severidade"),
+    ("authz", "configuração do teste de autorização"),
+    ("cleanup", "limpeza do ambiente, com script, banco e tetos"),
 )
 """Blocos de proteção, em ordem de exibição: identificador e descrição em português."""
 
@@ -109,6 +118,29 @@ def _auth(profile: ProductProfile) -> JsonValue:
     return {"type": auth.type, "header_name": auth.header_name, "accounts": accounts}
 
 
+def _scan(profile: ProductProfile) -> JsonValue:
+    dumped = profile.scan.model_dump(mode="json")
+    # Conjuntos: a ordem em que o perfil os escreve não muda a política.
+    dumped["mutating_methods"] = _list(sorted(set(profile.scan.mutating_methods)))
+    dumped["disable_rules"] = _list(sorted(set(profile.scan.disable_rules)))
+    return dumped
+
+
+def _authz(profile: ProductProfile) -> JsonValue:
+    authz = profile.authz
+    dumped = authz.model_dump(mode="json")
+    # `role_order` é ordem de privilégio: mantém a do perfil. Os demais são conjuntos.
+    dumped["public_operations"] = _list(sorted(set(authz.public_operations)))
+    dumped["volatile_fields"] = _list(sorted(set(authz.volatile_fields)))
+    dumped["vertical_methods"] = _list(sorted(set(authz.vertical_methods)))
+    dumped["disabled_checks"] = _list(sorted(set(authz.disabled_checks)))
+    fields: list[JsonValue] = [
+        field.model_dump(mode="json") for field in authz.mass_assignment_fields
+    ]
+    dumped["mass_assignment_fields"] = _sorted_items(fields)
+    return dumped
+
+
 def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
     """Forma canônica de cada bloco de proteção, na ordem de `BLOCK_IDS`.
 
@@ -116,7 +148,6 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
     ordem importa (as contas) mantêm a ordem do perfil.
     """
     authorization = profile.scope.authorization
-    scan = profile.scan
     blocks: dict[str, JsonValue] = {
         "environment": profile.environment.model_dump(mode="json"),
         "scope.allow": _allow_rules(profile),
@@ -129,12 +160,9 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
         "scope.windows": _windows(profile),
         "limits": profile.limits.model_dump(mode="json"),
         "auth": _auth(profile),
-        "scan": {
-            "strength": scan.strength,
-            "url_path_injection": scan.url_path_injection,
-            "mutating_methods": _list(sorted(set(scan.mutating_methods))),
-        },
-        "authz": {"vertical_methods": _list(sorted(set(profile.authz.vertical_methods)))},
+        "scan": _scan(profile),
+        "authz": _authz(profile),
+        "cleanup": None if profile.cleanup is None else profile.cleanup.model_dump(mode="json"),
     }
     return {block_id: blocks[block_id] for block_id in BLOCK_IDS}
 

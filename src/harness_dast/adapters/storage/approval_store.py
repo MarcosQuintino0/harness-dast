@@ -29,7 +29,7 @@ _FILE_MODE = 0o600
 def _invalid(product: str) -> ScopeNotApproved:
     return ScopeNotApproved(
         f"O arquivo de aprovação do escopo de {product} está ilegível, é de outra versão do "
-        "cálculo ou de outro produto; vale como NÃO aprovado.",
+        "cálculo ou é de outro produto; por isso vale como não aprovado.",
         hint=f"Uma pessoa precisa revisar e aprovar de novo, num terminal: {APPROVE_COMMAND} "
         f"{product}. O agente de IA não aprova.",
         state="invalid",

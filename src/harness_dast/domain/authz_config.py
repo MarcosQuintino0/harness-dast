@@ -1,8 +1,10 @@
 """Bloco opcional `authz` do `target.yml`: como o teste de autorização entre contas se comporta.
 
-Tudo é declarativo e só REDUZ ou ajusta o que o estágio repete; nada aqui amplia escopo,
-métodos permitidos pelo escopo, limites ou janela (o `ScopeGuard` continua decidindo). Sem o
-bloco, valem os padrões conservadores abaixo. Este módulo é puro.
+Tudo é declarativo e nada aqui amplia escopo, métodos permitidos pelo escopo, limites ou janela
+(o `ScopeGuard` continua decidindo). Mas `vertical_methods` e `mass_assignment_fields` escrevem
+no alvo, e `public_operations`, `disabled_checks` e `volatile_fields` escondem achados: por isso
+o bloco inteiro entra na impressão digital da aprovação humana (ADR 0037). Sem o bloco, valem os
+padrões conservadores abaixo. Este módulo é puro.
 """
 
 import re
