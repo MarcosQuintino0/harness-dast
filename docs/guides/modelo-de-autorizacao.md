@@ -24,7 +24,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 
 3. Escopo
    Hosts autorizados:
-   Caminhos autorizados (ex.: /api/**):
+   Caminhos autorizados (ex.: /app/api/**):
    Métodos autorizados (liste só os necessários; DELETE só se escrito aqui):
    Caminhos PROIBIDOS, mesmo dentro dos autorizados (ações destrutivas,
    envio de e-mail ou SMS, integrações com terceiros, exclusão de conta):
@@ -106,18 +106,18 @@ Regras do formulário:
 - **`example_data`** (ids, nomes de arquivo, códigos que existem no ambiente) não vira regra: é informação para o agente escrever o `data-rules.yml`.
 - Campo desconhecido no arquivo é erro (confira a grafia).
 
-Exemplo comentado, com o laboratório local Clínica Piloto (dados de laboratório, sem empresa real):
+Exemplo comentado, com um produto fictício (uma "Livraria Exemplo" em homologação, sem empresa real; os valores servem só de ilustração, não os copie para outro produto):
 
 ```yaml
 schema_version: 1
-product: clinica-piloto            # igual ao nome dado ao hdast init
+product: livraria-exemplo          # igual ao nome dado ao hdast init
 
 # 1. Portões: sem os quatro respondidos, nada é gerado.
 gates:
   test_environment:
     value: true                    # true = é ambiente de teste (não é produção)
     source: carta
-    quote: "Ambiente de laboratório local, descartável."
+    quote: "Ambiente de homologação isolado da loja."
   synthetic_data:
     value: true                    # true = dados sintéticos, sem pessoas reais
     source: carta
@@ -125,78 +125,78 @@ gates:
     value: true                    # true = há autorização vigente do dono do produto
     source: pessoa
   product_owner:
-    value: "Time do laboratório (lab@laboratorio.local)"
+    value: "Equipe da loja fictícia (loja@livraria.local)"
     source: carta
 
 # 2. Endereço do ambiente de teste e onde está o OpenAPI (relativo à pasta do produto).
 environment:
-  name: { value: lab, source: carta }
-  base_url: { value: "http://clinica-piloto:8080", source: carta }
+  name: { value: homologacao, source: carta }
+  base_url: { value: "http://livraria-lab:8080", source: carta }
   openapi: { value: ./openapi.json, source: pessoa }
 
 # 3. Escopo: uma regra por host; só o que a carta lista.
 scope:
   allow:
     value:
-      - host: clinica-piloto
+      - host: livraria-lab
         scheme: http
         port: 8080
         allow_local: true          # só para host de laboratório (nome de contêiner, localhost, IP)
-        paths: ["/api/**", "/v3/api-docs"]
-        methods: [GET, POST, PUT, PATCH]   # DELETE fica de fora: a carta não o autoriza
+        paths: ["/loja/api/**", "/loja/docs"]
+        methods: [GET, POST, PUT]  # PATCH e DELETE ficam de fora: a carta não os autoriza
     source: carta
-    quote: "GET, POST, PUT e PATCH em /api/** e /v3/api-docs; DELETE não."
+    quote: "GET, POST e PUT em /loja/api/** e /loja/docs; PATCH e DELETE não."
   deny_paths:                      # proibidos mesmo dentro dos autorizados (lista vazia só se a pessoa disser "nenhum")
-    value: ["/api/notificacoes/**", "/api/isca/**"]
+    value: ["/loja/api/pagamentos/**", "/loja/api/conta/excluir"]
     source: carta
   path_mode: { value: strict, source: carta }   # opcional; wide só com source: carta e quote
 
 # 4. Referência, validade e janela(s).
 authorization:
-  reference: { value: "LAB-CLINICA-PILOTO", source: carta }
-  valid_until: { value: 2027-12-31, source: carta }
-  windows: { value: ["seg-dom 00:00-24:00 America/Sao_Paulo"], source: carta }
+  reference: { value: "LIVRARIA-HML-2027-01", source: carta }
+  valid_until: { value: 2027-06-30, source: carta }
+  windows: { value: ["seg-sex 19:00-06:00 America/Sao_Paulo"], source: carta }
 
 # 5. Limites de carga.
 limits:
-  requests_per_second: { value: 50, source: carta }
-  max_duration_minutes: { value: 30, source: carta }
-  zap_threads_per_host: { value: 8, source: carta }
+  requests_per_second: { value: 20, source: carta }
+  max_duration_minutes: { value: 45, source: carta }
+  zap_threads_per_host: { value: 4, source: carta }
 
 # 6. Como entrar e com quais contas (só NOMES de segredo, nunca a senha).
 auth:
   type: { value: login_password, source: pessoa }      # ou api_key (então use header_name)
-  token_path: { value: /api/auth/login, source: pessoa }
+  token_path: { value: /loja/api/sessao, source: pessoa }
   login_options:                                        # opcional
-    value: { request_encoding: json }
+    value: { request_encoding: form }
     source: pessoa
-  login_max_per_minute: { value: 5, source: carta }     # opcional
+  login_max_per_minute: { value: 3, source: carta }     # opcional
   accounts:
     source: carta
     value:
-      - alias: admin_a
-        role: admin
-        username: { secret_ref: "env:PILOT_ADMIN_USERNAME" }
-        password: { secret_ref: "env:PILOT_ADMIN_PASSWORD" }
-      - alias: paciente_a
-        role: paciente
-        username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }
-        password: { secret_ref: "env:PILOT_PACIENTE_A_PASSWORD" }
-      - alias: paciente_b
-        role: paciente
-        username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
-        password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
+      - alias: gerente_a
+        role: gerente
+        username: { secret_ref: "env:LIVRARIA_GERENTE_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_GERENTE_PASSWORD" }
+      - alias: cliente_a
+        role: cliente
+        username: { secret_ref: "env:LIVRARIA_CLIENTE_A_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_CLIENTE_A_PASSWORD" }
+      - alias: cliente_b
+        role: cliente
+        username: { secret_ref: "env:LIVRARIA_CLIENTE_B_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_CLIENTE_B_PASSWORD" }
 
 # 7. Intensidade do ataque (opcional): LOW, MEDIUM ou HIGH. Ausente = padrão do perfil.
 attack:
-  strength: { value: LOW, source: pessoa }
+  strength: { value: MEDIUM, source: pessoa }
 
 # 8. Dados que existem no ambiente (opcional): informação para o agente, não vira regra.
 example_data:
   source: carta
   value:
-    - { operation: baixarArquivo, field: nome, value: laudo-0001.txt, note: "arquivo da semente" }
-    - { operation: buscarMedicoPorCrm, field: crm, value: "12345-SP" }
+    - { operation: buscarLivroPorIsbn, field: isbn, value: "9780000000001", note: "livro da semente" }
+    - { operation: baixarCapa, field: arquivo, value: capa-0001.png }
 ```
 
 Do `carta.yml` ao `target.yml`, campo a campo:
