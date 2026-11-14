@@ -180,6 +180,34 @@ Cria `<products_dir>/<produto>/` copiando `products/_template/` e ajusta `produc
 
 Erros (`CONFIG_ERROR`, saída 2): nome inválido, pasta de produtos inexistente, produto já existente, modelo indisponível, falha de escrita.
 
+### `hdast init --from-letter` (carta estruturada, ADR 0036)
+
+```bash
+uv run hdast init meu-produto --from-letter carta.yml --check    # só confere; não cria nada
+uv run hdast --json init meu-produto --from-letter carta.yml     # confere e cria o produto
+```
+
+Gera o `target.yml` a partir do `carta.yml` (formulário de formato fechado, com a origem de cada resposta: `carta`, `pessoa` ou `desconhecido`; veja [modelo de autorização](../guides/modelo-de-autorizacao.md)), de modo que o agente não escreve `environment`, `openapi`, `scope`, `limits`, `auth` (tipo, login e contas) nem `scan.strength`. A criação da pasta segue as regras do `init` (nunca sobrescreve; `--with-cleanup` e `--products-dir` valem). Falha fechada: com qualquer pendência nada é criado.
+
+- `--from-letter <carta.yml>`: caminho da carta. A geração é determinística (mesma carta, mesmo texto; sem relógio nem dependência da ordem das chaves).
+- `--check`: só vale com `--from-letter`; confere a carta sem criar nada e não exige que o produto esteja livre. Sem `--from-letter` é erro de uso.
+
+Pendências recusam a carta: portão (ambiente de teste, dados sintéticos, autorização vigente) respondido "não" ou desconhecido recusa tudo; campo obrigatório ausente ou desconhecido; valor de modelo (`exemplo.com.br`, `SEC-0000`, `MEU_PRODUTO_*`, `CHANGE_ME`); valor recusado pelos modelos do perfil; valor de segredo no lugar do NOME (`env:NOME`/`keyring:NOME`); `path_mode: wide` sem `source: carta` e `quote`; carta de outro produto; perfil gerado recusado por `ProductProfile`. A vigência (`valid_until`) e a janela aberta não são conferidas aqui: são do `profile validate` e do `preflight`.
+
+`data` (sucesso e falha):
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `product` | texto | Nome do produto |
+| `ready` | booleano | Se a carta está completa e válida |
+| `check` | booleano | Se foi `--check` |
+| `generated_blocks` | lista de texto | Blocos do `target.yml` gerados da carta (`environment`, `openapi`, `scope`, `limits`, `auth`, `scan.strength`); vazia com pendência |
+| `issues` | lista de objetos | Pendências, uma por campo: `{field, code, message}`; `code` é `MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`, `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH` ou `PROFILE_REJECTED` |
+| `example_data` | lista de objetos | Dados de exemplo da carta, só informação para o agente (não viram regra) |
+| `directory`, `files` | texto, lista | Só quando o produto foi criado (como no `init` simples) |
+
+Com pendências: erro `LETTER_REJECTED` (herda de `CONFIG_ERROR`), saída 2, e o envelope traz `error` e `data` juntos. Carta ilegível ou com forma errada (YAML inválido, campo desconhecido, resposta fora de `{value, source}`): `CONFIG_ERROR`, saída 2, sem `data`.
+
 ## `hdast profile validate`
 
 ```bash

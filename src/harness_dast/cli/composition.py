@@ -18,6 +18,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.storage.letter_reader import FileLetterReader
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.product_scaffolder import (
@@ -32,6 +33,7 @@ from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.account_session import TokenCache
 from harness_dast.application.cleanup import Cleanup
 from harness_dast.application.doctor import Doctor
+from harness_dast.application.init_from_letter import InitFromLetter
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.login_budget import LoginBudget
@@ -66,6 +68,16 @@ def build_init_product(products_dir: Path | None) -> InitProduct:
     root = products_dir_or_default(products_dir)
     scaffolder = FileProductScaffolder(root, default_template_dir())
     return InitProduct(scaffolder)
+
+
+def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
+    """Monta o caso de uso `hdast init --from-letter`.
+
+    Args:
+        products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
+    """
+    root = products_dir_or_default(products_dir)
+    return InitFromLetter(FileLetterReader(), FileProductScaffolder(root, default_template_dir()))
 
 
 def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
