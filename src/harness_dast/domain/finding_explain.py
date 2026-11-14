@@ -628,7 +628,10 @@ _AUTHZ_MASS = FindingExplanation(
     title="O sistema aceita um campo que a pessoa não deveria poder mudar",
     what_happened=(
         "O teste mandou um campo extra, que o Swagger não prevê para quem chama, e o sistema "
-        "o aceitou. O teste guarda só o nome do campo."
+        "o aceitou. O campo vinha da lista do perfil ou do próprio Swagger (campo que só aparece "
+        "na resposta, marcado como somente leitura ou com nome de privilégio); o achado diz de "
+        "onde. O teste guarda só o nome do campo. Num cadastro, o recurso criado fica no "
+        "ambiente de teste."
     ),
     why_it_matters=(
         "Se o campo for sensível (como o papel da conta), uma pessoa pode dar a si mesma "
@@ -638,6 +641,7 @@ _AUTHZ_MASS = FindingExplanation(
         _open_ticket(),
         (_DEV, "Aceitar só os campos previstos e ignorar ou recusar o resto."),
         (_QA, "Conferir, com o time, se o ambiente de teste foi restaurado depois do teste."),
+        (_QA, "Apagar os recursos que o teste de cadastro criou (`hdast cleanup` ou o reset)."),
         _retest(),
     ),
     who=_DEV,

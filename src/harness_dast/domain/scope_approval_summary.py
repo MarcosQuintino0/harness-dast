@@ -7,6 +7,11 @@ Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
 from harness_dast.domain.auth import PasswordLoginAuth
+from harness_dast.domain.authz_config import (
+    DEFAULT_DERIVED_LIMIT,
+    DEFAULT_MASS_METHODS,
+    AuthzConfig,
+)
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope import ScopeRule
 from harness_dast.domain.window import ExecutionWindow
@@ -97,10 +102,28 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
         f"  - verificações desligadas: {disabled}",
         f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
     ]
+    lines += _authz_mass_lines(authz)
     if authz.allow_writes:
         lines.append(
             "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
             "alterar dados do ambiente (atribuição em massa e métodos de escrita acima)"
+        )
+    return lines
+
+
+def _authz_mass_lines(authz: AuthzConfig) -> list[str]:
+    """Linhas da atribuição em massa que fogem do padrão (ADR 0040); vazio no padrão."""
+    lines: list[str] = []
+    if not authz.derive_mass_candidates:
+        lines.append("  - campos derivados do OpenAPI na atribuição em massa: DESLIGADOS")
+    if authz.max_derived_candidates != DEFAULT_DERIVED_LIMIT:
+        lines.append(
+            f"  - máximo de campos derivados por operação: {authz.max_derived_candidates} "
+            f"(padrão {DEFAULT_DERIVED_LIMIT})"
+        )
+    if authz.mass_assignment_methods != DEFAULT_MASS_METHODS:
+        lines.append(
+            "  - atribuição em massa só nos métodos: " + ", ".join(authz.mass_assignment_methods)
         )
     return lines
 

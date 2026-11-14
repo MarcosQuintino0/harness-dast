@@ -59,21 +59,29 @@ class Reply:
         status: Código HTTP, ou `None` sem resposta.
         body: Corpo da resposta (nunca gravado).
         problem: `scope` (pedido recusado pelo escopo) ou `account` (login recusado), ou `None`.
+        location: Cabeçalho `Location` da resposta, se houve (identifica o recurso criado).
     """
 
     status: int | None
     body: bytes = b""
     problem: str | None = None
+    location: str | None = None
 
 
 @dataclass
 class CheckResult:
-    """Resultado acumulado de uma verificação."""
+    """Resultado acumulado de uma verificação.
+
+    `writes` conta os pedidos de escrita da atribuição em massa (vale o teto da execução) e
+    `created` os recursos que um `POST` de teste deixou no alvo.
+    """
 
     findings: list[AuthzFinding] = field(default_factory=list)
     not_tested: list[AuthzNotTested] = field(default_factory=list)
     candidates: int = 0
     tested: int = 0
+    writes: int = 0
+    created: int = 0
 
 
 @dataclass(frozen=True)
@@ -236,7 +244,7 @@ class ReplaySender:
             )
         if response is None:
             return Reply(None)
-        return Reply(response.status, response.body)
+        return Reply(response.status, response.body, location=response.location)
 
     def baseline(self, exchange: ExchangeRecord) -> Reply:
         """Resposta da conta dona ao pedido gravado (uma vez por conta e caminho)."""

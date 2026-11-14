@@ -1,12 +1,9 @@
 """Plano do teste de autorização: o que repetir, com qual conta, e o que fica sem teste."""
 
-import json
-
 from harness_dast.domain.authz_plan import (
     MAX_PEERS,
     plan_excessive,
     plan_horizontal,
-    plan_mass_assignment,
     plan_vertical,
 )
 from harness_dast.domain.probe_exchange import ExchangeRecord
@@ -205,48 +202,3 @@ def test_vertical_never_plans_delete_even_if_somehow_listed() -> None:
     )
 
     assert plan.tasks == ()
-
-
-# --- atribuição em massa -----------------------------------------------------------------------
-
-
-def test_mass_assignment_pairs_the_update_with_a_read_of_the_same_path_and_account() -> None:
-    body = json.dumps({"nome": "x"})
-    items = [
-        ex("ler", path="/api/me", target="/api/me"),
-        ex("ler_outro", path="/api/me", target="/api/me", account="a2"),
-        ex("atualizar", method="PUT", path="/api/me", target="/api/me", body=body),
-    ]
-
-    plan = plan_mass_assignment(items, frozenset())
-
-    assert [
-        (t.exchange.operation_id, t.read.operation_id if t.read else None) for t in plan.tasks
-    ] == [("atualizar", "ler")]
-
-
-def test_mass_assignment_without_a_read_uses_none() -> None:
-    plan = plan_mass_assignment([ex("up", method="PATCH", path="/api/me", body="{}")], frozenset())
-
-    assert plan.tasks[0].read is None
-
-
-def test_mass_assignment_needs_a_json_object_body_and_never_touches_delete_or_post() -> None:
-    items = [
-        ex("sem_corpo", method="PUT"),
-        ex("lista", method="PUT", body="[1]", path="/p2"),
-        ex("quebrado", method="PUT", body="{oops", path="/p3"),
-        ex("apaga", method="DELETE", body="{}"),
-        ex("cria", method="POST", body="{}"),
-        ex("pub", method="PUT", body="{}", path="/p4"),
-    ]
-
-    plan = plan_mass_assignment(items, frozenset({"pub"}))
-
-    assert plan.tasks == ()
-    assert {n.operation_id: n.reason for n in plan.not_tested} == {
-        "sem_corpo": "no_json_body",
-        "lista": "no_json_body",
-        "quebrado": "no_json_body",
-        "pub": "public_operation",
-    }

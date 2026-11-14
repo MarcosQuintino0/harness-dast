@@ -10,6 +10,7 @@ from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_fields import CandidateSource
 from harness_dast.domain.authz_token import TamperVariant
 from harness_dast.domain.probe_result import ProbeStatus
 from harness_dast.domain.zap_alert import Severity
@@ -42,7 +43,11 @@ AUTHZ_LIMITS: Final[tuple[str, ...]] = (
     "como livre.",
     "BFLA só em operações atribuídas por regra explícita de auth.account_map e nos métodos de "
     "authz.vertical_methods; exige authz.role_order.",
-    "Atribuição em massa só com os campos de authz.mass_assignment_fields, um por pedido.",
+    "Atribuição em massa: os campos de authz.mass_assignment_fields mais, por operação, até "
+    "authz.max_derived_candidates campos tirados do OpenAPI, um por pedido; só campos escalares "
+    "de primeiro nível, e dono do recurso (ownerId, tenantId) só se declarado. Num POST, cada "
+    "campo testado deixa um recurso criado no alvo (limpe com `hdast cleanup` ou o reset do "
+    "ambiente); valores únicos não são gerados de novo (409 vira create_conflict).",
     "Operações que o probe não alcançou com sucesso não são repetidas.",
     "Pedido sem login e token adulterado só em GET; autenticação só por cookie de sessão não é "
     "modelada, então 'sem achado' no pedido sem login não prova segurança.",
@@ -75,6 +80,8 @@ class AuthzFinding(ApiModel):
         baseline_status: Código HTTP da linha de base, quando existe.
         observed_status: Código HTTP observado na repetição.
         fields: Caminhos de campo envolvidos (dado a mais; atribuição em massa). Só nomes.
+        candidate_source: De onde veio o campo testado (atribuição em massa), ou `None`. Fora
+            do fingerprint.
         variants: Variantes de token aceitas pelo servidor (token adulterado). Só nomes: o
             valor de um token nunca é gravado. Fora do fingerprint.
         evidence: Frase que descreve o que foi observado, sem valores do alvo.
@@ -103,6 +110,7 @@ class AuthzFinding(ApiModel):
     observed_status: int | None = None
     fields: tuple[str, ...] = ()
     variants: tuple[TamperVariant, ...] = ()
+    candidate_source: CandidateSource | None = None
     evidence: str
     description: str
     solution: str
@@ -163,6 +171,8 @@ class AuthzResult(ApiModel):
         started_at: Início (ISO 8601).
         finished_at: Fim (ISO 8601).
         requests_sent: Requisições enviadas pelo estágio.
+        created_resources: Recursos que um `POST` de teste deixou no alvo (atribuição em massa;
+            o `DELETE` é proibido, então quem limpa é o `cleanup` ou o reset do ambiente).
         accounts: Apelidos das contas usadas.
         checks: Uma linha por verificação, na ordem fixa.
         findings: Achados de autorização.
@@ -180,6 +190,7 @@ class AuthzResult(ApiModel):
     started_at: str
     finished_at: str
     requests_sent: int = 0
+    created_resources: int = 0
     accounts: tuple[str, ...] = ()
     checks: tuple[CheckSummary, ...] = ()
     findings: tuple[AuthzFinding, ...] = ()

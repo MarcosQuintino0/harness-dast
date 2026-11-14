@@ -13,7 +13,13 @@ responde como um alvo seguro ou com a falha ligada:
   do JWT sem conferir assinatura nem `alg`) ou `any_token` (reconhece o apelido em qualquer parte
   do texto do token, até invertido);
 - `open_different`: o caminho aberto devolve outro corpo a quem não se identificou;
-- `unauth_status`: código devolvido a quem não se identificou (401 por padrão).
+- `unauth_status`: código devolvido a quem não se identificou (401 por padrão);
+- `stores`: campos extras que `PUT /api/me` guarda e devolve (atribuição em massa derivada do
+  OpenAPI: `nivelAcesso`, `saldo`);
+- `creates`: campos extras que `POST /api/medicos` guarda e `GET /api/medicos/{id}` devolve;
+  `location` (`path`, `absolute`, `other_host`, `traversal`, `none`) diz o que o POST devolve em
+  `Location`, `post_echo` se o corpo do POST traz o recurso criado, `id_in_body` se traz o `id`,
+  `conflict` faz o POST responder 409 e `readable` desliga o `GET /api/medicos/{id}`.
 
 `AuthzRig` monta o perfil, o OpenAPI e o armazém em memória; `run_probe()` roda o `probe` de
 verdade sobre o alvo falso e `authz()` devolve o caso de uso sobre o mesmo armazém.
@@ -25,7 +31,7 @@ from typing import Any
 
 from harness_dast.application.authz import Authz
 from harness_dast.application.probe import ProbeRequest
-from harness_dast.domain.api_model import ApiSpec
+from harness_dast.domain.api_model import ApiSpec, Operation
 from harness_dast.domain.api_schema import Schema
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
@@ -77,6 +83,13 @@ def _jwt_subject(token: str) -> str | None:
     return sub if sub in ROLES else None
 
 
+STORE_DEFAULTS: dict[str, Any] = {"nivelAcesso": "basico", "saldo": 10, "ativo": False}
+
+
+def _store_defaults(names: tuple[str, ...]) -> dict[str, Any]:
+    return {name: STORE_DEFAULTS[name] for name in names}
+
+
 class Clinic:
     """Alvo falso; cada falha é um interruptor."""
 
@@ -94,6 +107,13 @@ class Clinic:
         lax: str = "strict",
         open_different: bool = False,
         unauth_status: int = 401,
+        stores: tuple[str, ...] = (),
+        creates: tuple[str, ...] = (),
+        location: str = "path",
+        post_echo: bool = False,
+        id_in_body: bool = True,
+        conflict: bool = False,
+        readable: bool = True,
     ) -> None:
         self.bola = bola
         self.excess = excess
@@ -110,6 +130,15 @@ class Clinic:
         self.open_different = open_different
         self.unauth_status = unauth_status
         self.logins = 0
+        self.stores = stores
+        self.creates = creates
+        self.location = location
+        self.post_echo = post_echo
+        self.id_in_body = id_in_body
+        self.conflict = conflict
+        self.readable = readable
+        self.extra = {alias: _store_defaults(stores) for alias in ROLES}
+        self.medicos: dict[int, dict[str, Any]] = {}
 
     def issue(self, alias: str) -> str:
         return jwt_of(alias) if self.jwt else token_of(alias)
@@ -149,6 +178,8 @@ class Clinic:
         method = request.method
         if path == "api/me":
             return self._me(request, alias)
+        if path.startswith("api/medicos"):
+            return self._medicos(request, path)
         if method == "GET" and path.startswith("api/consultas/"):
             if not self.bola and alias != "pac_a":
                 return reply(403, {"code": "ACESSO_NEGADO"})
@@ -183,11 +214,48 @@ class Clinic:
             self.nome[alias] = str(body.get("nome", self.nome[alias]))
             if self.mass and "role" in body:
                 self.papel[alias] = str(body["role"])
-        return reply(200, {"id": 1, "nome": self.nome[alias], "papel": self.papel[alias]})
+            for name in self.stores:
+                if name in body:
+                    self.extra[alias][name] = body[name]
+        return reply(
+            200,
+            {"id": 1, "nome": self.nome[alias], "papel": self.papel[alias], **self.extra[alias]},
+        )
+
+    def _medicos(self, request: HttpRequest, path: str) -> HttpResponse:
+        if request.method == "POST" and path == "api/medicos":
+            if self.conflict:
+                return reply(409, {"code": "CONFLITO"})
+            body = json.loads(request.body or b"{}")
+            number = len(self.medicos) + 1
+            record: dict[str, Any] = {"id": number, "nome": str(body.get("nome", "x"))}
+            record.update(_store_defaults(self.creates))
+            record.update({name: body[name] for name in self.creates if name in body})
+            self.medicos[number] = record
+            sent: dict[str, Any] = dict(record) if self.post_echo else {}
+            if self.id_in_body:
+                sent["id"] = number
+            return reply(201, sent or None, location=self._location(number))
+        if request.method == "GET" and self.readable:
+            number = int(path.rsplit("/", 1)[1]) if path.rsplit("/", 1)[1].isdigit() else 0
+            return reply(200, self.medicos.get(number, {"id": number, "nome": "semente"}))
+        return reply(404, {"code": "NAO_ENCONTRADO"})
+
+    def _location(self, number: int) -> str | None:
+        return {
+            "path": f"/api/medicos/{number}",
+            "absolute": f"https://api.hml.acme-teste.net.br/api/medicos/{number}",
+            "other_host": f"https://outro.example.org/api/medicos/{number}",
+            "traversal": "/api/medicos/../me",
+            "none": None,
+        }[self.location]
 
 
-def clinic_spec() -> ApiSpec:
+def clinic_spec(*, derived: bool = False) -> ApiSpec:
+    """OpenAPI da clínica; `derived` acrescenta campos só de resposta e o cadastro de médicos."""
     me = {"id": INT, "nome": STR, "papel": STR}
+    if derived:
+        me = {**me, "nivelAcesso": STR, "saldo": INT}
     patients = {"items": Schema(type="array", items=Schema(type="object", properties=_resumo()))}
     return ApiSpec(
         title="Clinica",
@@ -235,6 +303,30 @@ def clinic_spec() -> ApiSpec:
                 required=("nome",),
                 produces={"id": INT},
             ),
+            *_doctor_operations(derived=derived),
+        ),
+    )
+
+
+def _doctor_operations(*, derived: bool) -> tuple[Operation, ...]:
+    if not derived:
+        return ()
+    doctor = {"id": INT, "nome": STR, "nivelAcesso": STR, "ativo": Schema(type="boolean")}
+    return (
+        operation(
+            "criarMedico",
+            "post",
+            "/api/medicos",
+            body={"nome": STR},
+            required=("nome",),
+            produces=doctor,
+        ),
+        operation(
+            "lerMedico",
+            "get",
+            "/api/medicos/{id}",
+            parameters=(parameter("id"),),
+            produces=doctor,
         ),
     )
 

@@ -57,6 +57,8 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    [ ] A carta autoriza o teste entre contas a escrever no ambiente
        Frase da carta que autoriza:
    Marque só se o ambiente aguentar. Sem a marca, o teste só lê.
+   Com a marca, o teste de cadastro (POST) cria recursos de teste no ambiente;
+   eles ficam lá até uma limpeza (cleanup) ou o reset do ambiente.
 
 7. Limpeza dos dados criados
    [ ] Não haverá limpeza automática (ambiente descartável ou recriado)
@@ -107,7 +109,7 @@ Regras do formulário:
 - **Segredos:** só o NOME (`env:NOME` ou `keyring:NOME`). Um valor de senha no lugar do nome é recusado, e a mensagem não o repete.
 - **`path_mode: wide`** só vale com `source: carta` e a frase da carta em `quote`. Sem `path_mode`, vale `strict`.
 - **`attack.strength`** é opcional; sem ele a CLI não escreve o bloco `scan` e vale o padrão do perfil.
-- **`attack.allow_authz_writes`** é opcional e vale `false` se ausente, nulo ou `desconhecido` ("não sei" é `false`). `true` só passa com `source: carta` e a frase da carta em `quote` (`AUTHZ_WRITES_NEEDS_LETTER` caso contrário), e só um booleano é aceito (o texto "sim" é recusado). Vira `authz.allow_writes: true` no `target.yml`, que libera a atribuição em massa e os métodos de escrita do teste entre contas; a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto. Sem ele, o teste entre contas só lê. As verificações de pedido sem login e de token adulterado ([ADR 0039](../adr/0039-pedido-sem-login-e-token-adulterado.md)) só leem `GET`, não dependem desse campo e rodam por padrão: elas repetem o pedido sem credencial e com o token da conta estragado de propósito (nunca válido, nunca gravado), sempre dentro do escopo e dos limites da carta; operações que o OpenAPI declara anônimas, e login, saúde e preparação, ficam de fora.
+- **`attack.allow_authz_writes`** é opcional e vale `false` se ausente, nulo ou `desconhecido` ("não sei" é `false`). `true` só passa com `source: carta` e a frase da carta em `quote` (`AUTHZ_WRITES_NEEDS_LETTER` caso contrário), e só um booleano é aceito (o texto "sim" é recusado). Vira `authz.allow_writes: true` no `target.yml`, que libera a atribuição em massa e os métodos de escrita do teste entre contas; a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto. Com ele, a atribuição em massa também testa campos tirados do próprio OpenAPI (`authz.derive_mass_candidates`, ADR 0040) e os cadastros (`POST`), e **cada campo testado num cadastro deixa um recurso criado no ambiente de teste**: o `DELETE` é proibido e quem limpa é o `hdast cleanup` ou o reset do ambiente. Dono do recurso (`ownerId`, `tenantId`) só é testado se alguém o declarar. Sem ele, o teste entre contas só lê. As verificações de pedido sem login e de token adulterado ([ADR 0039](../adr/0039-pedido-sem-login-e-token-adulterado.md)) só leem `GET`, não dependem desse campo e rodam por padrão: elas repetem o pedido sem credencial e com o token da conta estragado de propósito (nunca válido, nunca gravado), sempre dentro do escopo e dos limites da carta; operações que o OpenAPI declara anônimas, e login, saúde e preparação, ficam de fora.
 - **`example_data`** (ids, nomes de arquivo, códigos que existem no ambiente) não vira regra: é informação para o agente escrever o `data-rules.yml`.
 - Campo desconhecido no arquivo é erro (confira a grafia).
 

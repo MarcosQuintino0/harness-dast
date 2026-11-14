@@ -417,9 +417,15 @@ def test_every_auth_field_is_in_the_auth_block_or_in_the_free_list() -> None:
 
 
 def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block() -> None:
-    # Chaves novas do `authz` no padrão ficam de fora do cálculo; ligada, `allow_writes` entra.
+    # Chave nova do `authz` no padrão fica de fora do cálculo; fora do padrão, ela entra.
+    changed = {
+        "allow_writes": True,
+        "derive_mass_candidates": False,
+        "max_derived_candidates": 3,
+        "mass_assignment_methods": ["PUT"],
+    }
     profile = ProductProfile.from_data(
-        mutated(lambda d: d.update(cleanup=_cleanup(), authz={"allow_writes": True}))
+        mutated(lambda d: d.update(cleanup=_cleanup(), authz=changed))
     )
     blocks = protected_blocks(profile)
 
@@ -427,6 +433,37 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
         block = blocks[name]
         assert isinstance(block, dict)
         assert set(block) == set(model.model_fields), name
+
+
+@pytest.mark.parametrize(
+    "authz",
+    [
+        {},
+        {"derive_mass_candidates": True},
+        {"max_derived_candidates": 6},
+        {"mass_assignment_methods": ["PUT", "POST", "PATCH"]},
+    ],
+)
+def test_default_mass_keys_hash_like_a_profile_from_before_adr_0040(authz: dict[str, Any]) -> None:
+    explicit = mutated(lambda d: d.update(authz=authz))
+
+    assert digests(explicit) == digests(valid_profile_data())
+    assert overall(explicit) == overall(valid_profile_data())
+
+
+@pytest.mark.parametrize(
+    "authz",
+    [
+        {"derive_mass_candidates": False},
+        {"max_derived_candidates": 7},
+        {"mass_assignment_methods": ["PUT", "PATCH"]},
+    ],
+)
+def test_changing_a_mass_key_changes_only_the_authz_digest(authz: dict[str, Any]) -> None:
+    before = digests(valid_profile_data())
+    after = digests(mutated(lambda d: d.update(authz=authz)))
+
+    assert {name for name in before if before[name] != after[name]} == {"authz"}
 
 
 def test_allow_writes_false_hashes_like_a_profile_that_never_had_the_key() -> None:

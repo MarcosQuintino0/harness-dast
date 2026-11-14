@@ -12,6 +12,7 @@ escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com
 `--check mass_assignment` não liga a escrita (flags só reduzem).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -43,13 +44,17 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_plan import (
-    MassTask,
     Planned,
     ReplayTask,
     plan_excessive,
     plan_horizontal,
-    plan_mass_assignment,
     plan_vertical,
+)
+from harness_dast.domain.authz_plan_mass import (
+    MassTask,
+    count_candidates,
+    describe_plan,
+    plan_mass_assignment,
 )
 from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
 from harness_dast.domain.authz_writes import (
@@ -183,6 +188,7 @@ class Authz:
             started_at=started.isoformat(),
             finished_at=self._clock.now().isoformat(),
             requests_sent=outcome.requests_sent,
+            created_resources=outcome.created_resources,
             accounts=outcome.accounts,
             checks=_all_checks(outcome.checks, profile),
             findings=outcome.findings,
@@ -306,7 +312,9 @@ def _plan(
     mass: Planned[MassTask] = Planned((), ())
     if "mass_assignment" in checks:
         mass = (
-            plan_mass_assignment(exchanges, public)
+            plan_mass_assignment(
+                exchanges, public, config, operations, _infrastructure_paths(profile)
+            )
             if config.allow_writes
             else Planned((), (mass_blocked_note(),))
         )
@@ -323,6 +331,15 @@ def _plan(
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
 
 
+def _infrastructure_paths(profile: ProductProfile) -> frozenset[str]:
+    """Caminhos de login, saúde e preparação: não são operações de negócio."""
+    return frozenset(
+        path
+        for path in (profile.login_path, profile.probe.health_path, profile.probe.setup_path)
+        if path is not None
+    )
+
+
 def _access(
     check: Literal["anonymous_access", "tampered_token"],
     profile: ProductProfile,
@@ -333,11 +350,7 @@ def _access(
     """Plano de uma verificação de acesso (vazio se ela não foi pedida)."""
     if check not in checks:
         return Planned((), ())
-    infrastructure = frozenset(
-        path
-        for path in (profile.login_path, profile.probe.health_path, profile.probe.setup_path)
-        if path is not None
-    )
+    infrastructure = _infrastructure_paths(profile)
     return plan_access(
         check,
         exchanges,
@@ -388,17 +401,19 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
         "vertical": plans.vertical,
         "mass_assignment": plans.mass,
     }
-    summaries = tuple(
-        CheckSummary(
-            check=check,
-            status="skipped",
-            candidates=len(sizes[check].tasks),
-            message="Simulação (--dry-run): nada foi enviado.",
-        )
-        for check in checks
-    )
+    summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
+
+
+def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) -> CheckSummary:
+    message = "Simulação (--dry-run): nada foi enviado."
+    count = len(tasks)
+    if check == "mass_assignment":
+        count = count_candidates(plans.mass.tasks)
+        if plans.mass.tasks:
+            message += f" Campos por operação: {describe_plan(plans.mass.tasks)}."
+    return CheckSummary(check=check, status="skipped", candidates=count, message=message)
 
 
 def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple[CheckSummary, ...]:

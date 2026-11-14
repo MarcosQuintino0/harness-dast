@@ -5,7 +5,7 @@ Fica separada dos achados do ZAP: a técnica é a comparação determinística e
 campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módulo é puro.
 """
 
-from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.markdown_safe import code_span, escape_inline
 from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL
@@ -33,6 +33,10 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
     if item.fields:
         names = ", ".join(code_span(name, 80) for name in item.fields)
         lines.append(f"- **Campos (só nomes; os valores não foram gravados):** {names}.")
+    if item.candidate_source is not None:
+        lines.append(
+            f"- **Origem do campo testado:** {escape_inline(SOURCE_TEXT[item.candidate_source])}."
+        )
     if item.variants:
         names = ", ".join(code_span(name, 40) for name in item.variants)
         lines.append(
@@ -49,6 +53,17 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
     return lines
 
 
+def _created_lines(authz: AuthzResult) -> list[str]:
+    """Aviso dos recursos que um `POST` de teste deixou no alvo (vazio quando não houve)."""
+    if not authz.created_resources:
+        return []
+    return [
+        f"**O teste criou {authz.created_resources} recurso(s) no ambiente de teste** (`POST` da "
+        "atribuição em massa; `DELETE` é proibido). Use `hdast cleanup` ou o reset do ambiente.",
+        "",
+    ]
+
+
 def authz_lines(authz: AuthzResult | None) -> list[str]:
     """Linhas do Markdown da seção de autorização; vazio quando o estágio não rodou."""
     if authz is None:
@@ -63,6 +78,7 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         "",
         f"> {escape_inline(authz.notice, 600)}",
         "",
+        *_created_lines(authz),
         "| Verificação | Estado | Candidatos | Testados | Achados |",
         "|---|---|---|---|---|",
     ]

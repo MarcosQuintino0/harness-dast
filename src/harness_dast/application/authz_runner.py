@@ -25,7 +25,8 @@ from harness_dast.application.authz_sender import (
 )
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
-from harness_dast.domain.authz_plan import MassTask, Planned, ReplayTask
+from harness_dast.domain.authz_plan import Planned, ReplayTask
+from harness_dast.domain.authz_plan_mass import MassTask
 from harness_dast.domain.authz_result import (
     AuthzFinding,
     AuthzNotTested,
@@ -51,6 +52,7 @@ class AuthzOutcome:
         not_tested: O que não foi testado e por quê.
         requests_sent: Requisições enviadas.
         accounts: Contas que enviaram.
+        created_resources: Recursos que um `POST` de teste deixou no alvo (ADR 0040).
     """
 
     status: ProbeStatus
@@ -60,6 +62,7 @@ class AuthzOutcome:
     not_tested: tuple[AuthzNotTested, ...]
     requests_sent: int
     accounts: tuple[str, ...]
+    created_resources: int = 0
 
 
 @dataclass(frozen=True)
@@ -161,6 +164,7 @@ class AuthzRunner:
             not_tested=tuple(not_tested),
             requests_sent=self._sender.sent,
             accounts=self._sender.accounts,
+            created_resources=sum(item.created for item in results.values()),
         )
 
 

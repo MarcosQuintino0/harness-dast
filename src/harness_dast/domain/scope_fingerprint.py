@@ -145,9 +145,10 @@ def _authz(profile: ProductProfile) -> JsonValue:
     # Chave nova do `authz` (por exemplo `allow_writes`, ADR 0038) no valor padrão fica de fora:
     # assim o perfil que não a usa mantém a impressão digital de antes e a aprovação já feita
     # continua valendo; ligar a chave muda a impressão digital e exige aprovar de novo.
+    # O padrão sai do próprio modelo já serializado: tupla e lista só coincidem em JSON.
+    defaults = type(authz)().model_dump(mode="json")
     for key in [k for k in dumped if k not in _LEGACY_AUTHZ_KEYS]:
-        default = type(authz).model_fields[key].get_default(call_default_factory=True)
-        if dumped[key] == default:
+        if dumped[key] == defaults[key]:
             del dumped[key]
     # `role_order` é ordem de privilégio: mantém a do perfil. Os demais são conjuntos.
     dumped["public_operations"] = _list(sorted(set(authz.public_operations)))

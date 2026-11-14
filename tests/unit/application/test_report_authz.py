@@ -239,3 +239,47 @@ def test_the_findings_json_carries_the_access_techniques_and_variants() -> None:
     assert [item["variants"] for item in dumped] == [[], ["alg_none", "scrambled"]]
     by_severity = report.summary.authz_by_severity
     assert (by_severity["high"], by_severity["medium"]) == (1, 1)
+
+
+def derived_post_result() -> AuthzResult:
+    base = authz_result(findings=False)
+    finding = mass_assignment_finding(
+        product="agenda",
+        operation_id="criarMedico",
+        method="POST",
+        path_template="/api/medicos",
+        actor=("adm", "admin"),
+        sent_field="nivelAcesso",
+        changed=("nivelAcesso",),
+        status=201,
+        restored=None,
+        source="response_only",
+        kind="privilege",
+        observed_in="created_read",
+    )
+    return base.model_copy(update={"findings": (finding,), "created_resources": 3})
+
+
+def test_the_markdown_shows_the_source_of_the_field_and_the_created_resources() -> None:
+    text = render_markdown(report_with(scanned(), derived_post_result()))
+
+    assert "**Origem do campo testado:** campo que o OpenAPI só mostra na resposta" in text
+    assert "O teste criou 3 recurso(s) no ambiente de teste" in text
+    assert "hdast cleanup" in text
+
+
+def test_the_markdown_without_created_resources_has_no_such_line() -> None:
+    text = render_markdown(report_with(scanned(), authz_result()))
+
+    assert "O teste criou" not in text
+    assert "Origem do campo testado" in text  # o declarado também diz de onde veio
+
+
+def test_the_findings_json_carries_the_source_and_the_created_count() -> None:
+    report = report_with(scanned(), derived_post_result())
+
+    assert report.authz is not None
+    dumped = report.model_dump(mode="json")["authz"]
+    assert dumped["created_resources"] == 3
+    assert dumped["findings"][0]["candidate_source"] == "response_only"
+    assert dumped["findings"][0]["proposed_severity"] == "high"
