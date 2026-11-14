@@ -118,15 +118,20 @@ def _list_card(view: PanelView, commands: tuple[PanelCommand, ...]) -> str:
     )
 
 
-def _empty_card() -> str:
+def _empty_card(view: PanelView) -> str:
+    if view.commands is None:
+        reason = (
+            "<b>Sem diário de comandos para este teste.</b> O diário de comandos começou na "
+            "versão 1.2; este teste é anterior, ou foi rodado em outro computador."
+        )
+    else:
+        reason = (
+            "<b>O diário de comandos existe, mas não tem nenhum comando deste teste.</b> "
+            "Ele só guarda os comandos dados neste computador."
+        )
     return card(
         '<h2 class="h" style="font-size: 17px">Os comandos deste teste</h2>'
-        + row(
-            "no",
-            "<b>Sem diário de comandos para este teste.</b> O diário de comandos começou na "
-            "versão 1.2; este teste é anterior, ou foi rodado em outro computador.",
-            first=True,
-        )
+        + row("no", reason, first=True)
         + '<p class="sm mu">Nada foi inventado no lugar: o que cada etapa fez está na aba '
         "Etapas, e as falhas estão na aba Falhas.</p>",
         style="flex: 3 1 700px",
@@ -173,5 +178,5 @@ def _side(commands: tuple[PanelCommand, ...] | None) -> str:
 def render_terminal(view: PanelView) -> str:
     """Conteúdo do `<main>` da aba Terminal."""
     commands = view.commands
-    main = _list_card(view, commands) if commands else _empty_card()
+    main = _list_card(view, commands) if commands else _empty_card(view)
     return f'<h1 class="vh">Terminal</h1><div class="g">{main}{_side(commands)}</div>'

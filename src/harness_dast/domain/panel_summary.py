@@ -301,11 +301,16 @@ def _trust_card(view: PanelView) -> str:
 
 
 def _commands_row(view: PanelView) -> str:
-    if not view.commands:
+    if view.commands is None:
         return row(
             "am",
             "<b>No agente:</b> sem diário de comandos para este teste (o diário começou na "
             "versão 1.2)",
+        )
+    if not view.commands:
+        return row(
+            "am",
+            "<b>No agente:</b> o diário existe, mas não tem comando deste teste",
         )
     total = plural(len(view.commands), "comando", "comandos")
     skipped = (

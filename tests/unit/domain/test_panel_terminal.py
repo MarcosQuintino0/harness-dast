@@ -222,8 +222,12 @@ def test_without_a_diary_the_page_says_the_diary_started_in_version_1_2() -> Non
     assert "Como ler" in text
 
 
-def test_an_empty_diary_is_the_same_as_no_diary() -> None:
-    assert "começou na versão 1.2" in main_text(page_for(()))
+def test_a_diary_that_exists_without_a_command_of_this_test_says_exactly_that() -> None:
+    text = main_text(page_for(()))
+
+    assert "O diário de comandos existe, mas não tem nenhum comando deste teste." in text
+    assert "começou na versão 1.2" not in text
+    assert "anterior" not in text
 
 
 def test_skipped_lines_are_counted_on_the_page() -> None:

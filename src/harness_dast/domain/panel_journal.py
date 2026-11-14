@@ -104,14 +104,20 @@ def to_panel_command(entry: JournalEntry) -> PanelCommand:
     )
 
 
-def build_journal(entries: Sequence[JournalEntry], skipped_lines: int) -> PanelJournal | None:
-    """O diário do teste para o painel, ou `None` quando ele não tem nenhum comando.
+def build_journal(
+    entries: Sequence[JournalEntry], skipped_lines: int, *, has_diary: bool
+) -> PanelJournal | None:
+    """O diário do teste para o painel, ou `None` quando não há diário nenhum.
+
+    Diário que existe mas não tem comando deste teste vira um diário com zero comandos: o painel
+    diz isso, em vez de afirmar que o teste é anterior à versão 1.2.
 
     Args:
         entries: Trecho do diário que pertence ao teste, em ordem cronológica.
         skipped_lines: Linhas corrompidas que a leitura pulou.
+        has_diary: Se o diário do produto tem alguma linha, de qualquer teste.
     """
-    if not entries:
+    if not entries and not has_diary:
         return None
     return PanelJournal(
         commands=tuple(to_panel_command(item) for item in entries), skipped_lines=skipped_lines

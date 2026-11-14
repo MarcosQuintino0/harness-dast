@@ -8,8 +8,9 @@ import pytest
 from harness_dast.domain.panel_model import PanelCommand, PanelFunction, PanelView
 from harness_dast.domain.panel_pages import render_panel
 from harness_dast.domain.panel_stages import render_stages, render_track
-from harness_dast.domain.probe_result import ArtifactHashes, RunLimits, RunManifest
+from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.rule_stats import RuleTotal
+from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_summary import StageRecord
 from tests.unit.domain.panel_helpers import run_summary, sources, view
 from tests.unit.domain.test_panel_summary import EXTRA_CLASSES, analyse, main_text

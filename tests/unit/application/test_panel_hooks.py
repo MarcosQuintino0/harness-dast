@@ -52,11 +52,18 @@ def test_commands_are_the_diary_slice_of_the_run_converted_for_the_panel() -> No
     assert journal.skipped_lines == 2
 
 
-def test_commands_is_none_when_the_diary_has_nothing_of_this_run() -> None:
-    hooks = CatalogPanelHooks(MemoryJournal([entry(1, "run", RUN_1)]))
-
-    assert hooks.commands("clinica", RUN_2) is None
+def test_commands_is_none_only_when_there_is_no_diary_at_all() -> None:
     assert CatalogPanelHooks(MemoryJournal([])).commands("clinica", RUN_1) is None
+
+
+def test_a_diary_without_a_command_of_this_run_is_an_empty_journal_not_a_missing_one() -> None:
+    hooks = CatalogPanelHooks(MemoryJournal([entry(1, "run", RUN_1)], 1))
+
+    journal = hooks.commands("clinica", RUN_2)
+
+    assert journal is not None
+    assert journal.commands == ()
+    assert journal.skipped_lines == 1
 
 
 def test_explanations_come_from_the_catalog_by_finding_id() -> None:

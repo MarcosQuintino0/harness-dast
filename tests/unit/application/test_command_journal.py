@@ -59,5 +59,10 @@ def test_load_journal_for_run_com_linhas_puladas_ainda_devolve_o_que_leu() -> No
     assert got.skipped_lines == 3
 
 
+def test_load_journal_for_run_diz_se_o_diario_existe_mesmo_sem_comando_do_teste() -> None:
+    assert load_journal_for_run(_MemoryJournal([_entry(1, "doctor")]), "clinica", RUN_2).has_diary
+    assert not load_journal_for_run(_MemoryJournal([]), "clinica", RUN_2).has_diary
+
+
 def test_load_journal_for_run_sem_diario_devolve_vazio() -> None:
     assert load_journal_for_run(_MemoryJournal([]), "clinica", RUN_1).entries == ()

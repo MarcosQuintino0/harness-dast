@@ -330,6 +330,13 @@ def test_missing_data_is_a_dash_and_the_words_not_measured_never_zero() -> None:
     assert "— do começo ao fim" in text or "min do começo ao fim" in text
 
 
+def test_the_trust_panel_says_when_the_diary_exists_but_has_no_command_of_the_test() -> None:
+    text = main_text(render_panel(view(commands=()))["summary.html"])
+
+    assert "o diário existe, mas não tem comando deste teste" in text
+    assert "o diário começou na versão 1.2" not in text
+
+
 def test_the_trust_panel_marks_the_missing_command_diary_and_the_unmeasured_fence() -> None:
     text = main_text(summary_html())
 

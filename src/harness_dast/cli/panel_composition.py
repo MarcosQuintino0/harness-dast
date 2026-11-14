@@ -15,13 +15,18 @@ from harness_dast.adapters.storage.profile_repository import FileProfileReposito
 from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.application.panel import Panel
 from harness_dast.application.panel_hooks import CatalogPanelHooks
+from harness_dast.application.ports import CommandJournalStore
 from harness_dast.cli.composition import build_spec_loader, products_dir_or_default
 from harness_dast.config.settings import load_settings
 from harness_dast.domain.errors import ConfigError
 
 
-def build_panel(products_dir: Path | None) -> Panel:
+def build_panel(products_dir: Path | None, journal: CommandJournalStore | None = None) -> Panel:
     """Monta o caso de uso `hdast panel` (sem rede).
+
+    Args:
+        products_dir: Pasta de produtos, ou `None` para a padrão.
+        journal: Diário de comandos a ler; `None` usa o da pasta de estado.
 
     Raises:
         ConfigError: Configuração `HDAST_*` inválida, ou o sistema não informou o fuso local.
@@ -39,5 +44,5 @@ def build_panel(products_dir: Path | None) -> Panel:
         specs=build_spec_loader(root),
         files=FilePanelFiles(runs_dir),
         timezone=zone,
-        hooks=CatalogPanelHooks(FileCommandJournalStore(default_state_dir(os.environ))),
+        hooks=CatalogPanelHooks(journal or FileCommandJournalStore(default_state_dir(os.environ))),
     )

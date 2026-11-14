@@ -47,6 +47,7 @@ _SUMMARY_KEY: Final = re.compile(r"[A-Za-z0-9_.]{1,48}")
 _SUMMARY_TEXT: Final = re.compile(r"[A-Za-z0-9_.:-]{1,64}")
 _SLUG: Final = re.compile(SLUG_PATTERN)
 _SECRET_COMMANDS: Final = frozenset({"secret set", "secret delete"})
+_STACK_COMMANDS: Final = frozenset({"stack", "stop"})
 _OK_EXIT_CODES: Final = frozenset({0, 1})
 """0 é sucesso; 1 é "varredura terminou e há achados", que também é terminar como esperado."""
 
@@ -311,19 +312,30 @@ def slice_for_run(entries: Sequence[JournalEntry], run_id: str) -> tuple[Journal
         O trecho, em ordem cronológica; vazio se o diário não tem comando dessa execução.
     """
     ordered = sorted(entries, key=lambda item: item.started_at)
-    own = [i for i, item in enumerate(ordered) if item.run_id == run_id]
+    ids = [_test_run_id(item) for item in ordered]
+    own = [i for i, value in enumerate(ids) if value == run_id]
     if not own:
         return ()
     first = own[0]
-    newer = [
-        i for i, item in enumerate(ordered) if item.run_id is not None and item.run_id > run_id
-    ]
+    newer = [i for i, value in enumerate(ids) if value is not None and value > run_id]
     limit = min((i for i in newer if i > first), default=len(ordered))
     upper = max((i for i in own if i < limit), default=own[-1])
-    older = [
-        i
-        for i, item in enumerate(ordered)
-        if i < first and item.run_id is not None and item.run_id < run_id
-    ]
+    older = [i for i, value in enumerate(ids) if i < first and value is not None and value < run_id]
     lower = max(older, default=-1)
-    return tuple(item for item in ordered[lower + 1 : upper + 1] if item.run_id in (None, run_id))
+    return tuple(
+        item
+        for item, value in zip(
+            ordered[lower + 1 : upper + 1], ids[lower + 1 : upper + 1], strict=True
+        )
+        if value in (None, run_id)
+    )
+
+
+def _test_run_id(entry: JournalEntry) -> str | None:
+    """`run_id` do TESTE a que o comando pertence, ou `None` para o que não é de um teste.
+
+    O `stack up` e o `stack down` gravam o run_id da pilha, que nasce antes do teste e não é uma
+    execução: tratá-lo como "outro teste" tirava o `stack up` do recorte do teste que usou a
+    pilha.
+    """
+    return None if entry.command.split()[0] in _STACK_COMMANDS else entry.run_id
