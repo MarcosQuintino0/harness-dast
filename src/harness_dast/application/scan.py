@@ -45,6 +45,7 @@ from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_encoding import join_url
+from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_plan import (
@@ -264,7 +265,7 @@ class Scan:
         if context_id is None:  # garantido por _ensure_usable; protege o tipo
             raise ConfigError("O manifesto do probe não tem o contexto do ZAP.")
         base_url = prep.profile.environment.base_url
-        self._check_zap(request.run_id, context_id)
+        zap_version = self._check_zap(request.run_id, context_id)
         plan = self._plan(prep, base_url)
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
@@ -289,6 +290,7 @@ class Scan:
                 "traffic": self._traffic(prep),
             }
         )
+        self._write_rule_stats(request.run_id, zap_version, outcome)
         self._artifacts.write_scan(request.run_id, result)
         self._write_progress(request.run_id, "done", len(plan.targets), status=status)
         if not removed:
@@ -310,15 +312,28 @@ class Scan:
             path_mode=prep.profile.scope.path_mode,
         )
 
-    def _check_zap(self, run_id: str, context_id: int) -> None:
+    def _write_rule_stats(self, run_id: str, zap_version: str, outcome: RunOutcome) -> None:
+        """Grava `rule-stats.json`; é só medição, então uma falha de escrita não falha o scan."""
         try:
-            self._zap.version()
+            self._artifacts.write_rule_stats(
+                run_id,
+                RuleStatsFile(
+                    run_id=run_id, zap_version=zap_version[:40], operations=outcome.rule_stats
+                ),
+            )
+        except ConfigError as error:
+            _log.error("rule_stats_write_failed", run_id=run_id, reason=error.message)
+
+    def _check_zap(self, run_id: str, context_id: int) -> str:
+        try:
+            version = self._zap.version()
             self._scanner.verify_context(f"hdast-{run_id}", context_id)
         except ExternalToolError as error:
             raise PreflightError(
                 f"O ZAP não está pronto para o scan: {error.message}",
                 hint=error.hint or "Refaça o probe neste ZAP: o contexto da execução sumiu.",
             ) from None
+        return version
 
     def _plan(self, prep: _Prepared, base_url: str) -> ScanPlan:
         try:

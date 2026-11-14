@@ -37,7 +37,7 @@ from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
-from harness_dast.application.scan_ports import RunSummarySink
+from harness_dast.application.scan_ports import RunMetricsRecorder, RunSummarySink
 from harness_dast.application.stage_errors import (
     authz_stop_error,
     preflight_failure,
@@ -173,6 +173,7 @@ class RunPipeline:
         clock: Clock,
         run_id_fallback: str,
         authz: AuthzStage | None = None,
+        metrics: RunMetricsRecorder | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -188,6 +189,8 @@ class RunPipeline:
             run_id_fallback: Identificador usado se nenhum estágio criou pasta de execução.
             authz: Etapa de autorização entre contas; `None` quando a CLI não a montou (pedir
                 `--authz` assim é um erro de configuração).
+            metrics: Gravador do `metrics.json` (ADR 0031); o `run` o refaz no fim, com o tempo
+                de cada estágio (inclusive o `preflight`). `None` desliga a medição.
         """
         self._profiles = profiles
         self._authz_stage = authz
@@ -196,6 +199,7 @@ class RunPipeline:
         self._kill = kill_switch
         self._clock = clock
         self._fallback = run_id_fallback
+        self._metrics = metrics
 
     def execute(self, request: RunRequest) -> RunResult:
         """Roda os estágios em ordem e grava `run.json`, aconteça o que acontecer.
@@ -438,6 +442,7 @@ class RunPipeline:
             status, code = "findings", int(ExitCode.FINDINGS)
         run_id = progress.run_id or self._fallback
         finished = self._clock.now()
+        self._record_metrics(request.product, progress, started, finished)
         summary = RunSummary(
             product=request.product,
             run_id=run_id,
@@ -463,6 +468,19 @@ class RunPipeline:
         )
         self._sink.write_summary(run_id, summary)
         return RunResult(summary, error)
+
+    def _record_metrics(
+        self, product: str, progress: _Progress, started: datetime, finished: datetime
+    ) -> None:
+        """Refaz `metrics.json` com o tempo de cada estágio (sem pasta, nada a medir)."""
+        if self._metrics is None or progress.run_id is None:
+            return
+        self._metrics.refresh(
+            product,
+            progress.run_id,
+            stages=tuple(progress.records[name] for name in STAGES),
+            run_window=(started.isoformat(), finished.isoformat()),
+        )
 
     def _cleanup_command(self, product: str, run_id: str | None) -> str | None:
         if run_id is None or self._profiles.load(product).cleanup is None:

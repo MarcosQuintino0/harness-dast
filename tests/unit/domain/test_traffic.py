@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from harness_dast.domain.traffic import ProxyRow, summarize_traffic
+from harness_dast.domain.traffic import ProxyRow, find_gaps, summarize_traffic
 
 T0 = datetime(2026, 11, 13, 10, 0, 0, tzinfo=UTC)
 
@@ -56,3 +56,50 @@ def test_summary_of_nothing_is_zero_but_enabled() -> None:
 
     assert (summary.allowed, summary.denied, summary.peak_rps, summary.average_rps) == (0, 0, 0, 0)
     assert summary.enabled is True
+
+
+# ------------------------------------------------------------------ lacunas (ADR 0031)
+
+
+def test_gaps_count_only_the_silences_longer_than_the_threshold_between_two_requests() -> None:
+    rows = [row(0), row(3), row(30), row(31, "deny"), row(60)]
+
+    gaps = find_gaps(rows, start=T0, end=T0 + timedelta(seconds=100))
+
+    assert gaps.count == 2
+    assert gaps.total_seconds == 56.0
+    assert gaps.longest_seconds == 29.0
+
+
+def test_a_silence_equal_to_the_threshold_is_not_a_gap() -> None:
+    gaps = find_gaps([row(0), row(10)], start=T0, end=T0 + timedelta(seconds=20))
+
+    assert gaps.count == 0
+
+
+def test_time_before_the_first_and_after_the_last_request_is_not_a_gap() -> None:
+    gaps = find_gaps([row(50), row(51)], start=T0, end=T0 + timedelta(seconds=500))
+
+    assert gaps.count == 0
+    assert gaps.longest_seconds == 0.0
+
+
+def test_gaps_ignore_rows_outside_the_interval_and_unsorted_input() -> None:
+    rows = [row(200), row(40), row(0), row(-100)]
+
+    gaps = find_gaps(rows, start=T0, end=T0 + timedelta(seconds=100))
+
+    assert (gaps.count, gaps.total_seconds) == (1, 40.0)
+
+
+def test_no_rows_or_one_row_means_no_gaps() -> None:
+    assert find_gaps([], start=T0, end=T0 + timedelta(seconds=10)).count == 0
+    assert find_gaps([row(1)], start=T0, end=T0 + timedelta(seconds=10)).count == 0
+
+
+def test_the_threshold_can_be_changed() -> None:
+    gaps = find_gaps(
+        [row(0), row(4)], start=T0, end=T0 + timedelta(seconds=10), threshold_seconds=2.0
+    )
+
+    assert (gaps.count, gaps.threshold_seconds) == (1, 2.0)

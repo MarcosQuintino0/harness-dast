@@ -3,6 +3,7 @@ alvo, e o ZAP falso "aprende" as requisições dele."""
 
 from typing import Any
 
+from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
@@ -10,7 +11,7 @@ from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.rig import Rig
-from tests.fakes.scan_ports import FakeScanZap, InMemoryRunArtifacts
+from tests.fakes.scan_ports import FakeProxyAudit, FakeScanZap, InMemoryRunArtifacts
 
 
 class ListSink:
@@ -68,13 +69,23 @@ class ScanRig(Rig):
             sleeper=self.clock,
         )
 
-    def report(self) -> Report:
+    def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:
+        return MetricsRecorder(
+            profiles=self.profiles,
+            artifacts=self.artifacts,
+            proxy_audit=audit,
+            clock=self.clock,
+            harness_version="0.0-test",
+        )
+
+    def report(self, *, with_metrics: bool = False) -> Report:
         return Report(
             profiles=self.profiles,
             artifacts=self.artifacts,
             sinks=[self.sink],
             clock=self.clock,
             harness_version="0.0-test",
+            metrics=self.metrics_recorder() if with_metrics else None,
         )
 
     def run_scan(self, **changes: Any) -> ScanResult:

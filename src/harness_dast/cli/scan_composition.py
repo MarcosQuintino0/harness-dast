@@ -6,6 +6,8 @@ além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adap
 
 from pathlib import Path
 
+import structlog
+
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.reporting.sinks import (
     HtmlReportSink,
@@ -19,6 +21,7 @@ from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.scan_client import ZapScanClient
 from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
@@ -40,6 +43,7 @@ from harness_dast.cli.stack_composition import (
     open_proxy_audit,
 )
 from harness_dast.config.settings import load_settings
+from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.run import RunId
 from harness_dast.observability.logging import SecretRegistry
 
@@ -130,6 +134,7 @@ def build_run_pipeline(
         probe=build_probe(products_dir, secrets, net.network, shared),
         scan=build_scan(products_dir, secrets, net, shared),
         report=build_report(products_dir),
+        metrics=build_metrics(products_dir),
         authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
@@ -151,6 +156,25 @@ def build_report(products_dir: Path | None) -> Report:
             MarkdownReportSink(runs_dir),
             HtmlReportSink(runs_dir),
         ),
+        clock=SystemClock(),
+        harness_version=harness_version(),
+        metrics=build_metrics(products_dir),
+    )
+
+
+def build_metrics(products_dir: Path | None) -> MetricsRecorder:
+    """Monta o gravador do `metrics.json` (ADR 0031); sem pilha gerenciada não há lacunas."""
+    runs_dir = load_settings().runs_dir
+    try:
+        audit = open_proxy_audit()
+    except ConfigError as error:
+        # A medição é secundária: um estado de pilha ilegível só tira as lacunas do arquivo.
+        structlog.get_logger().warning("metrics_audit_unavailable", reason=error.message)
+        audit = None
+    return MetricsRecorder(
+        profiles=FileProfileRepository(products_dir_or_default(products_dir)),
+        artifacts=FileRunArtifacts(runs_dir),
+        proxy_audit=audit,
         clock=SystemClock(),
         harness_version=harness_version(),
     )

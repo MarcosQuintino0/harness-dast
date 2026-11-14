@@ -268,6 +268,17 @@ ignore_names = [
     "autocommit",
     "call_timeout",
     "stack_managed",
+    # Medição da execução (ADR 0031): campos de rule-stats.json e metrics.json lidos só pela
+    # serialização do pydantic, pelos testes e por quem analisa o arquivo depois.
+    "quality",
+    "skip_reason",
+    "rules_unavailable_reason",
+    "operations_measured",
+    "operations_unavailable",
+    "totals",
+    "gaps",
+    "stages_seconds",
+    "longest_seconds",
     # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
     # (`scan`, `report`, `cleanup`).
     "FINDINGS",

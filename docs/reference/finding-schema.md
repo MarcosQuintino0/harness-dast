@@ -14,6 +14,8 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `scan-progress.json` | `scan` | Andamento atual (fase, posição, operação, percentual). É o que `hdast stop` e o agente leem |
 | `alerts.raw.json` | `scan` | Alertas como o ZAP devolve, **depois** da redação |
 | `evidence.json` | `scan` | Requisição e resposta das mensagens de ataque mais graves e confiáveis (até 200), redigidas |
+| `rule-stats.json` | `scan` | Medição por regra do ZAP, por operação varrida: tempo, pedidos, alertas e estado (só números e ids; [ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
+| `metrics.json` | `report`, `run` | Onde o tempo foi: por etapa, por operação, por regra, tráfego e lacunas, regras desligadas (só números e ids; ADR 0031) |
 | `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
 | `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
@@ -171,6 +173,37 @@ Aplicada pelo `scan` antes de gravar e por `domain/redaction.py`:
 `evidence.json`: `{"schema_version": 1, "run_id": "...", "messages": [{message_id, request_header, request_body, response_header, response_body, truncated}]}`.
 
 As fixtures de `tests/fixtures/zap_alerts/` mostram as formas completas e são **reconstruídas do spike**, não capturadas.
+
+## `rule-stats.json` e `metrics.json` (medição, ADR 0031)
+
+**Só números e identificadores**: nenhuma URL, caminho, corpo, mensagem do alvo ou segredo. Servem para decidir, com dado, quais regras do ZAP não fazem sentido para um produto. A medição nunca derruba a varredura nem o relatório: se não puder ser feita, o motivo vai para o log (`rule_stats_unavailable`, `rule_stats_write_failed`, `metrics_not_written`) e o campo fica marcado como indisponível, nunca zero.
+
+`rule-stats.json` (gravado pelo `scan`, uma coleta de `ascan/view/scanProgress` ao fim de cada varredura de operação):
+
+```json
+{"schema_version": 1, "run_id": "...", "zap_version": "2.17.0",
+ "operations": [{"operation_id": "buscarConvenio", "scan_id": "0", "unavailable_reason": null,
+   "rules": [{"plugin_id": 40018, "name": "SQL Injection", "state": "completed",
+              "time_ms": 1273, "requests": 38, "alerts": 0, "skip_reason": null}]}]}
+```
+
+`state`: `completed`, `skipped` (com `skip_reason` `max_rule_time` ou `other`), `interrupted` (ainda rodava quando a varredura acabou ou foi parada), `pending`, `unknown`. Operação cuja coleta falhou tem `rules: []` e `unavailable_reason`.
+
+`metrics.json` (gravado pelo `report`; o `run` o refaz no fim com o tempo de cada estágio, inclusive o `preflight`):
+
+| Campo | Descrição |
+| --- | --- |
+| `schema_version` | `1`; só cresce com campos aditivos |
+| `run_id`, `product`, `harness_version`, `zap_version`, `path_mode` | Identificação. `zap_version` é `null` sem ZAP |
+| `started_at`, `finished_at`, `generated_at` | Início e fim da execução (`finished_at` `null` se não há fim conhecido) e instante da gravação (ISO 8601) |
+| `stages_seconds` | `preflight`, `probe`, `scan`, `authz`, `report` em segundos; `null` quando a etapa não rodou, foi pulada ou não foi medida. O `preflight` só existe dentro do `hdast run` |
+| `scan_status` | Estado final do `scan` (`completed` ou o motivo da parada), ou `null` |
+| `operations[]` | `operation_id`, `outcome`, `duration_seconds` e `requests` (os de `scan.json`), `rules_available`, `rules_unavailable_reason`, `rules[]` (como em `rule-stats.json`) |
+| `rules` | `operations_measured`, `operations_unavailable`, `totals[]`: uma linha por regra somada na execução (`plugin_id`, `name`, `time_ms`, `requests`, `alerts`, `operations`, `completed`, `skipped`, `interrupted`, `pending`, `unknown`), da mais lenta para a mais rápida |
+| `traffic` | `available`, `allowed`, `denied`, `denied_by_reason`, `denied_by_detail` (os de `scan.traffic`) e `gaps`: `threshold_seconds` (10), `count`, `total_seconds`, `longest_seconds` dos silêncios entre dois pedidos do proxy dentro do `scan`; `gaps` é `null` sem a auditoria do proxy (pilha derrubada) |
+| `disabled_rules[]` | Regras desligadas pela política: `plugin_id`, `name`, `reason`, `source` (`default` ou `profile`) |
+
+Um `scan` anterior a esta versão não tem `rule-stats.json`: cada operação sai com `rules_available: false` e o motivo.
 
 ## Onde o achado aparece e baseline
 

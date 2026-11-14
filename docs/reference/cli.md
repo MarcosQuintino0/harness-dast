@@ -67,7 +67,7 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
 | `options` | `seed`, `skip_scan`, `authz`, `fail_on`, `compare`, `max_minutes` efetivos |
 | `stages` | Sempre os cinco (`preflight`, `probe`, `scan`, `authz`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
-| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`...) |
+| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...) |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
 | `authz_findings_by_severity` | Achados do estágio `authz` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
