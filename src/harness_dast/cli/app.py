@@ -14,10 +14,13 @@ import structlog
 import typer
 from typer.exceptions import TyperException
 
+from harness_dast.adapters.system_clock import SystemClock
+from harness_dast.application.ports import Clock, CommandJournalStore
 from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.init import init_command
+from harness_dast.cli.commands.panel import panel_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
@@ -28,7 +31,8 @@ from harness_dast.cli.commands.secret import build_secret_app
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.version import version_command
-from harness_dast.cli.output import CliState, build_failure, emit, get_state
+from harness_dast.cli.journal_recording import record_invocation
+from harness_dast.cli.output import CliState, build_failure, capture_envelopes, emit, get_state
 from harness_dast.config.settings import load_settings
 from harness_dast.domain.errors import ConfigError, ExitCode, HarnessError, UserInterrupt
 from harness_dast.observability.logging import configure_logging
@@ -75,6 +79,7 @@ def build_app() -> typer.Typer:
     app.command("scan")(scan_command)
     app.command("authz")(authz_command)
     app.command("report")(report_command)
+    app.command("panel")(panel_command)
     app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
@@ -88,12 +93,23 @@ def _fail(error: HarnessError, state: CliState) -> int:
     return int(error.exit_code)
 
 
-def run_app(app: typer.Typer, args: Sequence[str] | None = None) -> int:
-    """Executa a aplicação e devolve o código de saída do processo.
+def run_app(
+    app: typer.Typer,
+    args: Sequence[str] | None = None,
+    *,
+    clock: Clock | None = None,
+    journal: CommandJournalStore | None = None,
+) -> int:
+    """Executa a aplicação, registra o comando no diário e devolve o código de saída.
+
+    O registro no diário (ADR 0033) acontece aqui, uma vez por invocação, depois do desfecho.
+    Falha ao gravar o diário nunca muda o código de saída.
 
     Args:
         app: Aplicação Typer a executar.
         args: Argumentos; `None` usa `sys.argv`.
+        clock: Relógio do diário; `None` usa o do sistema.
+        journal: Diário de comandos; `None` usa o da pasta de estado (`HDAST_STATE_DIR`).
 
     Returns:
         Código de saída conforme `ExitCode`.
@@ -106,6 +122,24 @@ def run_app(app: typer.Typer, args: Sequence[str] | None = None) -> int:
     state = CliState(json_mode=json_mode)
     # Antes de qualquer coisa: sem isso o structlog padrão escreveria no stdout.
     configure_logging("INFO", state.secrets)
+    now = (clock if clock is not None else SystemClock()).now
+    started_at = now()
+    with capture_envelopes() as envelopes:
+        exit_code = _execute(app, argv, state)
+    record_invocation(
+        store=journal,
+        app=app,
+        argv=argv,
+        state=state,
+        envelopes=envelopes,
+        exit_code=exit_code,
+        started_at=started_at,
+        finished_at=now(),
+    )
+    return exit_code
+
+
+def _execute(app: typer.Typer, argv: list[str], state: CliState) -> int:
     try:
         return _dispatch(app, argv, state)
     except HarnessError as error:

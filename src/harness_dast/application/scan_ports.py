@@ -15,7 +15,9 @@ from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
-from harness_dast.domain.run_summary import RunSummary
+from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
+from harness_dast.domain.run_metrics import RunMetrics
+from harness_dast.domain.run_summary import RunSummary, StageRecord
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanProgress, ScanResult, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
@@ -97,6 +99,15 @@ class ScanControl(Protocol):
 
         Raises:
             ExternalToolError: Falha da API, ou varredura desconhecida.
+        """
+        ...
+
+    def scan_rules(self, scan_id: str) -> tuple[RuleStat, ...]:
+        """Tempo, pedidos e alertas de cada regra de uma varredura (só medição, ADR 0031).
+
+        Raises:
+            ExternalToolError: Falha da API, varredura desconhecida ou resposta fora da forma
+                conhecida.
         """
         ...
 
@@ -251,6 +262,30 @@ class RunArtifacts(Protocol):
         """
         ...
 
+    def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
+        """Grava `rule-stats.json` (medição por regra do ZAP, ADR 0031) de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def read_rule_stats(self, run_id: str) -> RuleStatsFile | None:
+        """Lê `rule-stats.json`; `None` quando o `scan` não o gravou.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def write_metrics(self, run_id: str, metrics: RunMetrics) -> None:
+        """Grava `metrics.json` (ADR 0031) de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
 
 class RunningScans(Protocol):
     """Varreduras em andamento, lidas dos `scan-progress.json` (para `hdast stop`)."""
@@ -296,5 +331,46 @@ class ReportSink(Protocol):
 
         Raises:
             ConfigError: Falha de escrita.
+        """
+        ...
+
+
+class RunMetricsRecorder(Protocol):
+    """Grava ou atualiza o `metrics.json` de uma execução (ADR 0031).
+
+    Garante: nunca levanta erro do harness. A medição é secundária: se não puder ser montada
+    ou gravada, o erro vai para o log estruturado e o comando que a chamou segue.
+    """
+
+    def refresh(
+        self,
+        product: str,
+        run_id: str,
+        *,
+        report_seconds: float | None = None,
+        stages: Sequence[StageRecord] | None = None,
+        run_window: tuple[str, str] | None = None,
+    ) -> str | None:
+        """Monta `metrics.json` com o que a execução já tem e o grava.
+
+        Returns:
+            O nome do arquivo gravado, ou `None` se não foi possível gravar.
+        """
+        ...
+
+
+class PanelRefresher(Protocol):
+    """Gera ou atualiza o painel da execução (ADR 0032) no fim de `report` e de `run`.
+
+    Garante: nunca levanta erro do harness. O painel é secundário: se não puder ser gerado, o
+    erro vai para o log estruturado e o comando que o chamou segue.
+    """
+
+    def refresh(self, product: str, run_id: str) -> str | None:
+        """Gera as páginas com o que a execução já tem.
+
+        Returns:
+            O caminho da página de entrada, relativo à pasta da execução, ou `None` se o painel
+            não pôde ser gerado.
         """
         ...

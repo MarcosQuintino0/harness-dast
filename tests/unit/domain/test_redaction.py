@@ -236,3 +236,116 @@ def test_redaction_never_leaks_a_registered_secret_whatever_the_surrounding_text
     assert SECRET not in redact_text(text, known)
     assert SECRET not in redact_body(text, known)[0]
     assert SECRET not in redact_body(json.dumps({"k": text}), known)[0]
+
+
+def _request_line(url: str) -> str:
+    return redact_header_block(f"GET {url} HTTP/1.1", identity)[0]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://clinica-piloto:8080/api/x?nome=%27",
+        "http://clinica-piloto:8080/api/medicos/busca-por-nome?nome=%27",
+        "http://clinica-piloto:8080/api/pacientes/1019/consultas/2020/receitas",
+        "http://clinica-piloto:8080/api/pacientes?page=21658&size=39",
+        "http://clinica-piloto:8080/api/medicos/crm/'",
+        "http://token-service:8080/api/x",
+    ],
+)
+def test_url_without_secret_keeps_host_port_path_and_query(url: str) -> None:
+    assert _request_line(url) == f"GET {url} HTTP/1.1"
+
+
+def test_sensitive_query_name_is_masked_and_the_request_line_survives() -> None:
+    clean = _request_line("http://h:8080/api/x?token=abc123&nome=ana")
+
+    assert clean == f"GET http://h:8080/api/x?token={MASK}&nome=ana HTTP/1.1"
+
+
+def test_credentials_in_the_address_are_masked_but_host_and_path_stay() -> None:
+    clean = _request_line("http://user:senha123@h:8080/api/x")
+
+    assert "senha123" not in clean
+    assert clean.endswith("h:8080/api/x HTTP/1.1")
+
+
+def test_jwt_and_bearer_around_a_url_are_masked_and_the_url_stays() -> None:
+    text = f"veja http://h:8080/api/x?nome=%27 com Bearer abcdefghijkl1234 e {JWT}"
+
+    clean = redact_text(text, identity)
+
+    assert "http://h:8080/api/x?nome=%27" in clean
+    assert "abcdefghijkl1234" not in clean
+    assert "eyJ" not in clean
+
+
+def test_long_token_inside_a_url_path_segment_is_still_masked() -> None:
+    clean = _request_line("http://h:8080/api/x/abcdefghijklmnopqrstuvwx1234/y")
+
+    assert "abcdefghijklmnopqrstuvwx1234" not in clean
+    assert "http://h:8080/api/x/" in clean
+
+
+def test_long_token_outside_a_url_is_still_masked() -> None:
+    assert "abcdefghijklmnopqrstuvwx1234" not in redact_text(
+        "chave abcdefghijklmnopqrstuvwx1234", identity
+    )
+
+
+_SEGMENT = st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=12)
+
+
+@given(
+    host=st.from_regex(r"[a-z][a-z-]{0,10}", fullmatch=True),
+    port=st.integers(min_value=1, max_value=65535),
+    segments=st.lists(_SEGMENT, min_size=0, max_size=6),
+    query=st.lists(st.tuples(st.sampled_from(["nome", "page", "q"]), _SEGMENT), max_size=3),
+)
+def test_url_without_secret_leaves_host_port_and_path_intact(
+    host: str, port: int, segments: list[str], query: list[tuple[str, str]]
+) -> None:
+    path = "/" + "/".join(segments)
+    qs = "&".join(f"{k}={v}" for k, v in query)
+    url = f"http://{host}:{port}{path}" + (f"?{qs}" if qs else "")
+
+    assert _request_line(url) == f"GET {url} HTTP/1.1"
+
+
+@given(
+    noise=st.text(alphabet="abc /:?=&.", max_size=40),
+    secret=st.from_regex(r"[A-Za-z]{6}[0-9]{6}[A-Za-z]{6}", fullmatch=True),
+)
+def test_known_secret_never_survives_inside_or_outside_a_url(noise: str, secret: str) -> None:
+    def hide(text: str) -> str:
+        return text.replace(secret, MASK)
+
+    text = f"{noise}http://h:80/p/{secret}?k={secret}&x=1 {secret}{noise}"
+
+    assert secret not in redact_text(text, hide)
+    assert secret not in redact_header_block(f"GET {text} HTTP/1.1", hide)[0]
+
+
+RUN_ID = "2026-11-14T02-14-18Z-clinica-piloto-f087"
+LONG_TOKEN = "q7Xk29LmPz81VbNc40RtYw36"  # noqa: S105 - sentinela de teste
+
+
+def test_a_run_id_is_not_a_secret_and_survives_the_redaction() -> None:
+    assert redact_text(RUN_ID, lambda text: text) == RUN_ID
+    assert redact_text(f"--run {RUN_ID}", lambda text: text) == f"--run {RUN_ID}"
+
+
+def test_a_real_token_next_to_a_run_id_is_still_masked() -> None:
+    got = redact_text(f"{RUN_ID} {LONG_TOKEN}", lambda text: text)
+
+    assert got == f"{RUN_ID} {MASK}"
+
+
+def test_a_token_that_only_contains_a_run_id_is_masked() -> None:
+    assert RUN_ID not in redact_text(f"{RUN_ID}{LONG_TOKEN}", lambda text: text)
+
+
+def test_text_that_only_looks_like_a_run_id_is_masked() -> None:
+    fake = "2026-13-45T99-99-99Z-clinica-piloto-f087"
+
+    assert redact_text(fake, lambda text: text) == MASK

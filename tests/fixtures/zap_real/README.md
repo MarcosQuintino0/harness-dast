@@ -9,3 +9,10 @@ treino público e os dados são os de semente; nada aqui é de ambiente real.
 Servem para o teste de forma (`tests/unit/application/test_report_real_capture.py`): o `report`
 precisa ler alertas e evidência exatamente como o ZAP real os devolve. Os arquivos
 `../zap_alerts/` seguem sendo a referência reconstruída (e hostil) do relatório.
+
+`scan_progress_2_17_0.json` é a resposta REAL de `ascan/view/scanProgress` do ZAP 2.17.0 (varredura
+de `GET /api/convenios/{id}` na Clínica Piloto, 2026-11-14, ADR 0031): 44 regras, 43 `Complete` e
+uma `Skipped, failed to start or connect to the browser.`. Só o nome do host foi trocado por
+`http://alvo`. Os estados `Pending`, `Running` e `Skipped, exceeded max rule time.` NÃO aparecem
+nesta captura (vêm do código e da documentação do ZAP) e são cobertos por formas sintéticas nos
+testes.

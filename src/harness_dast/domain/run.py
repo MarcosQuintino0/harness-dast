@@ -31,6 +31,17 @@ _SUFFIX = re.compile(r"[0-9a-f]{4,8}")
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H-%M-%SZ"
 
 
+def is_run_id(text: str) -> bool:
+    """Se o texto é, por inteiro, um identificador de execução válido (formato e carimbo)."""
+    if not _RUN_ID.fullmatch(text):
+        return False
+    try:
+        datetime.strptime(text[:20], _TIMESTAMP_FORMAT)
+    except ValueError:
+        return False
+    return True
+
+
 class RunId(BaseModel):
     """Identificador de uma execução: ordenável, seguro como nome de pasta e único.
 

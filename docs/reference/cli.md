@@ -18,6 +18,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
 | `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Referência: [authz.md](authz.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json`, `report.md` e `report.html`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
+| `hdast panel <produto> [--run ID]` ou `hdast panel --index` | Gera as páginas HTML do painel da execução (`summary`, `stages`, `findings`, `coverage`, `terminal`, `time-and-tokens`) em `runs/<run_id>/panel/` e refaz os índices `runs/index.html` e `runs/history-<produto>.html`; `report` e `run` também os geram no fim, e o `run` grava `panel/live.html` durante o teste. Sem `--run`, usa a execução mais recente do produto. `--index` sozinho só refaz os índices | Não | Implementado ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto); as seis abas estão desenhadas. Seção abaixo |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
 | `hdast run <produto>` | Encadeia preflight, probe, scan, authz (opcional, `--authz`) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
@@ -26,6 +27,16 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
+
+## `hdast panel`
+
+`hdast panel <produto> [--run ID] [--products-dir DIR] [--json]` lê os arquivos da execução (`run.json`, `manifest.json`, `probe.json`, `scan.json`, `findings.json`, `authz.json`, `metrics.json`: todos opcionais), o perfil e o OpenAPI do produto e grava seis páginas HTML em `runs/<run_id>/panel/`. Sem rede, sem ZAP, sem JavaScript e sem recurso externo; todo texto do alvo é escapado. A página de entrada é `summary.html`; abra no navegador. A aba Terminal lê o diário de comandos da pasta de estado (`HDAST_STATE_DIR`); sem diário para o teste, ela diz que o diário começou na versão 1.2. Dado que falta aparece como "não medido", nunca como zero. Tema escuro, e o claro segue o aparelho.
+
+`data` do envelope: `run_id`, `product`, `directory` (`panel`), `entry` (`panel/summary.html`), `files`, `verdict` (`finished`, `partial` ou `error`: como o teste terminou, nunca "seguro"), `severe_findings` (ou `null` sem `findings.json`), `sources` (arquivos lidos) e `missing` (arquivos não encontrados). Saídas: `0` com as páginas gravadas; `2` para execução inexistente, de outro produto, sem nenhum arquivo conhecido, `run_id` inválido ou falha de escrita. Falha ao gerar o painel dentro de `report` ou `run` nunca muda o resultado deles: vai para o log.
+
+**Índices** ([ADR 0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md)): toda geração de painel refaz `runs/index.html` (um cartão por produto: último teste, falhas graves, validade da carta quando o perfil pode ser lido; mais os últimos dez testes) e `runs/history-<produto>.html` (data, hora, o que rodou, funções atacadas, falhas graves, o que mudou desde o teste anterior do mesmo tipo, duração, tokens e como terminou; gráfico das falhas graves por varredura). `hdast panel --index` (sozinho: sem produto e sem `--run`) refaz só os índices e devolve `data.indexes`; com o produto ou `--run` é erro (`2`). Execução ilegível ou de versão antiga vira linha "sem dados" (ou "dados incompletos"); nunca some nem derruba o índice. O caminho do alto de toda página (`hdast / Produto / data`) é link relativo para esses arquivos. `data.indexes` também sai no comando com produto.
+
+**Página ao vivo:** durante `hdast run`, a CLI regrava `runs/<run_id>/panel/live.html` a cada mudança de etapa e a cada função da varredura (a partir do fim do `preflight`, quando a pasta passa a existir). A página se recarrega sozinha (`<meta http-equiv="refresh" content="15">`, sem JavaScript), mostra o horário da última gravação e o aviso de como parar (`hdast stop`). Ao fim do `run` é regravada uma última vez, sem recarga, ligando para `summary.html` e `stages.html`. Falha ao gravá-la vai para o log (`panel_live_not_written`) e não muda o resultado do `run`.
 
 ## `hdast run`
 
@@ -67,7 +78,7 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
 | `options` | `seed`, `skip_scan`, `authz`, `fail_on`, `compare`, `max_minutes` efetivos |
 | `stages` | Sempre os cinco (`preflight`, `probe`, `scan`, `authz`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
-| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`...) |
+| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...). A pasta `panel/` não aparece aqui: é uma pasta, e o `run` a gera depois de gravar este arquivo |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
 | `authz_findings_by_severity` | Achados do estágio `authz` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
@@ -389,7 +400,7 @@ Objeto `error`:
 Exemplo de sucesso:
 
 ```json
-{"schema_version":1,"ok":true,"data":{"version":"1.1.0"}}
+{"schema_version":1,"ok":true,"data":{"version":"1.2.0"}}
 ```
 
 O valor de `version` acima é ilustrativo; ele vem do pacote instalado.

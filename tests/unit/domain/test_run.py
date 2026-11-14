@@ -205,3 +205,12 @@ def test_run_limits_hard_maxima_are_pinned_when_checked_at_the_boundary() -> Non
     ):
         with pytest.raises(ValidationError):
             RunLimits.model_validate({**at_max, field: above})
+
+
+def test_is_run_id_accepts_only_the_exact_format_with_a_real_timestamp() -> None:
+    from harness_dast.domain.run import is_run_id
+
+    assert is_run_id("2026-11-14T02-14-18Z-clinica-piloto-f087")
+    assert not is_run_id("2026-13-45T99-99-99Z-clinica-piloto-f087")
+    assert not is_run_id("x2026-11-14T02-14-18Z-clinica-piloto-f087")
+    assert not is_run_id("")

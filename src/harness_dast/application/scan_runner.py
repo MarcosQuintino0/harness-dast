@@ -8,6 +8,7 @@ e sobe. Um corte pelo teto de duração do ZAP aparece como `FINISHED` com menos
 marcado `truncated` (spike, Q4).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -19,6 +20,7 @@ from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl, ScanStart
 from harness_dast.application.scan_tokens import AccountTokens
 from harness_dast.domain.errors import ExternalToolError, PreflightError
+from harness_dast.domain.rule_stats import MAX_REASON, OperationRules
 from harness_dast.domain.scan_plan import ScanTarget
 from harness_dast.domain.scan_policy import POLL_SECONDS, ScanLimits, ScanPolicy, scan_cap_minutes
 from harness_dast.domain.scan_result import (
@@ -59,6 +61,8 @@ class RunnerDeps:
         limits: Limites do ZAP.
         deadline: Prazo absoluto de todas as varreduras.
         base_url: URL base do ambiente (listagem de alertas).
+        on_progress: Aviso opcional (`feitas`, `total`, próxima operação ou `None` no fim) para
+            a página ao vivo do painel. Quem o entrega garante que ele não levanta erro.
     """
 
     scanner: ScanControl
@@ -75,20 +79,23 @@ class RunnerDeps:
     limits: ScanLimits
     deadline: datetime
     base_url: str
+    on_progress: Callable[[int, int, str | None], None] | None = None
 
 
 @dataclass(frozen=True)
 class RunOutcome:
-    """Resultado do laço: varreduras feitas e o motivo do fim."""
+    """Resultado do laço: varreduras feitas, o motivo do fim e a medição por regra."""
 
     entries: tuple[ScanEntry, ...]
     status: ScanStatusName
     message: str | None
+    rule_stats: tuple[OperationRules, ...] = ()
 
 
 @dataclass
 class _State:
     entries: list[ScanEntry] = field(default_factory=list)
+    rule_stats: list[OperationRules] = field(default_factory=list)
     seen_alerts: set[str] = field(default_factory=set)
     last: ScanStatus | None = None
     index: int = 0
@@ -127,14 +134,22 @@ class ScanRunner:
             return self._stopped("stopped_auth", error.message)
         except ExternalToolError as error:
             return self._stopped("stopped_zap", error.message)
-        return RunOutcome(tuple(self._state.entries), "completed", None)
+        self._notify(len(targets), len(targets), None)
+        return self._stopped("completed", None)
 
-    def _stopped(self, status: ScanStatusName, message: str) -> RunOutcome:
-        return RunOutcome(tuple(self._state.entries), status, message)
+    def _stopped(self, status: ScanStatusName, message: str | None) -> RunOutcome:
+        return RunOutcome(
+            tuple(self._state.entries), status, message, tuple(self._state.rule_stats)
+        )
+
+    def _notify(self, done: int, total: int, operation_id: str | None) -> None:
+        if self._d.on_progress is not None:
+            self._d.on_progress(done, total, operation_id)
 
     def _scan_one(self, target: ScanTarget, total: int) -> None:
         d = self._d
         self._progress("scanning", total, target, 0)
+        self._notify(self._state.index - 1, total, target.operation_id)
         d.gate.check()
         d.health.ensure_alive()
         d.tokens.activate(target.account or d.default_account)
@@ -214,6 +229,7 @@ class ScanRunner:
     ) -> None:
         d = self._d
         outcome: EntryOutcome = interpret_finish(status, stop_requested=stop_requested)
+        self._state.rule_stats.append(self._rule_stats(target, scan_id))
         alert_ids = self._new_alert_ids(status)
         note = None
         if outcome == "truncated":
@@ -237,6 +253,21 @@ class ScanRunner:
                 note=note,
             )
         )
+
+    def _rule_stats(self, target: ScanTarget, scan_id: str) -> OperationRules:
+        """Mede as regras da varredura; falhar aqui NUNCA falha a varredura (ADR 0031)."""
+        try:
+            rules = self._d.scanner.scan_rules(scan_id)
+        except ExternalToolError as error:
+            _log.warning(
+                "rule_stats_unavailable", operation_id=target.operation_id, reason=error.message
+            )
+            return OperationRules(
+                operation_id=target.operation_id,
+                scan_id=scan_id,
+                unavailable_reason=error.message[:MAX_REASON],
+            )
+        return OperationRules(operation_id=target.operation_id, scan_id=scan_id, rules=rules)
 
     def _new_alert_ids(self, status: ScanStatus) -> tuple[str, ...]:
         if status.alerts <= 0:

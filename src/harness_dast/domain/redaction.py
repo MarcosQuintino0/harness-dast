@@ -23,6 +23,7 @@ from collections.abc import Callable, Mapping
 from typing import Final
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
+from harness_dast.domain.run import is_run_id
 from harness_dast.domain.zap_messages import ZapMessage
 
 MASK: Final = "***"
@@ -37,6 +38,11 @@ _SCHEME_TOKEN = re.compile(r"(?i)\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}
 _CPF = re.compile(r"(?<!\d)(?:\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11})(?!\d)")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _LONG_TOKEN = re.compile(r"(?<![A-Za-z0-9])(?=[A-Za-z0-9_+/=-]*\d)[A-Za-z0-9_+/=-]{24,}")
+# Dentro de endereço o `/` separa trechos do caminho, não faz parte de um token: sem isto, porta
+# e caminho juntos (`8080/api/pacientes/1019/x`) somavam 24 caracteres e viravam `***`.
+_LONG_SEGMENT = re.compile(r"(?<![A-Za-z0-9])(?=[A-Za-z0-9_+-]*\d)[A-Za-z0-9_+-]{24,}")
+_URLISH = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*://|(?<![^\s])/)[^\s\"'<>]*")
+_PORT_THEN_PATH = re.compile(r"\d{1,5}(?:[/?#]|$)")
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b.?")
 _PAIR = re.compile(
     r"(?i)(\b(?:[\w-]*(?:password|passwd|senha|pwd|secret|token|apikey|api[_-]key|csrf|xsrf|"
@@ -112,15 +118,46 @@ def _is_sensitive_name(name: str) -> bool:
     return any(part in lowered for part in _SENSITIVE_KEY_PARTS)
 
 
+def is_sensitive_name(name: str) -> bool:
+    """Diz se o NOME de um campo, cabeçalho ou opção indica segredo (senha, token, cookie...)."""
+    return _is_sensitive_name(name)
+
+
+def _mask_pair(match: re.Match[str]) -> str:
+    value = match.group(3)
+    # `servico-token:8080/api` é host:porta, não `nome: valor`: a porta e o caminho ficam, e o
+    # que vem depois ainda passa pelas regras de par (ex.: `?token=...`).
+    if match.group(1).endswith(":") and _PORT_THEN_PATH.match(value) and not match.group(2):
+        return match.group(1) + _PAIR.sub(_mask_pair, value)
+    return match.group(1) + match.group(2) + MASK
+
+
+def _mask_unless_run_id(match: re.Match[str]) -> str:
+    """O id de execução (`2026-11-14T02-14-18Z-produto-f087`) parece token, mas não é segredo."""
+    return match.group() if is_run_id(match.group()) else MASK
+
+
+def _mask_long_tokens(text: str) -> str:
+    """Troca sequências longas parecidas com token, sem destruir o caminho de endereços."""
+    parts: list[str] = []
+    position = 0
+    for url in _URLISH.finditer(text):
+        parts.append(_LONG_TOKEN.sub(_mask_unless_run_id, text[position : url.start()]))
+        parts.append(_LONG_SEGMENT.sub(_mask_unless_run_id, url.group()))
+        position = url.end()
+    parts.append(_LONG_TOKEN.sub(_mask_unless_run_id, text[position:]))
+    return "".join(parts)
+
+
 def redact_text(text: str, mask: Masker) -> str:
     """Troca segredos registrados e padrões conhecidos em texto livre (sem cortar)."""
     value = mask(text)
     # O esquema (`Bearer`, `Basic`...) fica; o que é trocado é a credencial que vem depois dele.
-    value = _PAIR.sub(lambda m: m.group(1) + m.group(2) + MASK, value)
+    value = _PAIR.sub(_mask_pair, value)
     value = _SCHEME_TOKEN.sub(lambda m: f"{m.group(1)} {MASK}", value)
-    for pattern in (_JWT, _EMAIL, _CPF, _LONG_TOKEN):
+    for pattern in (_JWT, _EMAIL, _CPF):
         value = pattern.sub(MASK, value)
-    return mask(value)
+    return mask(_mask_long_tokens(value))
 
 
 def _cut(text: str, size: int) -> tuple[str, bool]:
@@ -144,7 +181,9 @@ def _redact_json(value: JsonValue, key: str, mask: Masker, depth: int) -> JsonVa
 
 def redact_url(url: str, mask: Masker) -> str:
     """Redige uma URL: credenciais embutidas e valores de consulta sensíveis."""
-    base, sep, query = url.partition("?")
+    base, sep, rest = url.partition("?")
+    # O que vem depois do primeiro espaço (` HTTP/1.1` da linha de requisição) não é consulta.
+    query, space, tail = rest.partition(" ")
     base = re.sub(r"(?<=://)[^/@\s]*@", f"{MASK}@", base)
     if sep:
         pairs = []
@@ -153,7 +192,7 @@ def redact_url(url: str, mask: Masker) -> str:
             sensitive = any(word in name.lower() for word in _SENSITIVE_QUERY)
             pairs.append(f"{name}={MASK}" if eq and sensitive else part)
         query = "&".join(pairs)
-    return redact_text(base + sep + query, mask)
+    return redact_text(base + sep + query + space + tail, mask)
 
 
 def _redact_header_line(line: str, mask: Masker) -> str:

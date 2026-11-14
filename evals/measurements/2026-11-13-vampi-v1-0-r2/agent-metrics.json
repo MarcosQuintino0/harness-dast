@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "label": "v1-0-r2",
+  "model": "claude-sonnet-5-5",
+  "totals": {
+    "duration_seconds": 451.709,
+    "thinking_seconds": 118.375,
+    "waiting_seconds": 333.334,
+    "tokens": {
+      "input": 62,
+      "output": 14125,
+      "cache_creation": 89915,
+      "cache_read": 3143654
+    },
+    "turns": 31,
+    "tool_calls": 31,
+    "tool_calls_by_tool": {
+      "Bash": 29,
+      "Monitor": 1,
+      "SubagentHandback": 1
+    },
+    "hdast_commands": {
+      "init": 1,
+      "preflight": 1,
+      "probe": 4,
+      "profile validate": 2,
+      "report": 2,
+      "run": 2,
+      "spec inspect": 3,
+      "stack status": 1,
+      "stack up": 1
+    }
+  },
+  "stages": {
+    "leitura": {
+      "seconds": 5.735,
+      "thinking_seconds": 4.749,
+      "waiting_seconds": 0.986,
+      "tokens": {
+        "input": 6,
+        "output": 346,
+        "cache_creation": 25673,
+        "cache_read": 154440
+      },
+      "tool_calls": 3,
+      "hdast_commands": {}
+    },
+    "cadastro": {
+      "seconds": 27.432,
+      "thinking_seconds": 15.172,
+      "waiting_seconds": 12.26,
+      "tokens": {
+        "input": 8,
+        "output": 2055,
+        "cache_creation": 29203,
+        "cache_read": 298308
+      },
+      "tool_calls": 4,
+      "hdast_commands": {
+        "init": 1,
+        "profile validate": 2,
+        "spec inspect": 3
+      }
+    },
+    "alcance": {
+      "seconds": 52.939,
+      "thinking_seconds": 30.997,
+      "waiting_seconds": 21.942,
+      "tokens": {
+        "input": 14,
+        "output": 3780,
+        "cache_creation": 11120,
+        "cache_read": 709343
+      },
+      "tool_calls": 7,
+      "hdast_commands": {
+        "probe": 4
+      }
+    },
+    "varredura": {
+      "seconds": 305.543,
+      "thinking_seconds": 17.281,
+      "waiting_seconds": 288.262,
+      "tokens": {
+        "input": 10,
+        "output": 1951,
+        "cache_creation": 5880,
+        "cache_read": 544131
+      },
+      "tool_calls": 5,
+      "hdast_commands": {
+        "preflight": 1,
+        "run": 2,
+        "stack up": 1
+      }
+    },
+    "triagem": {
+      "seconds": 60.06,
+      "thinking_seconds": 50.176,
+      "waiting_seconds": 9.884,
+      "tokens": {
+        "input": 24,
+        "output": 5993,
+        "cache_creation": 18039,
+        "cache_read": 1437432
+      },
+      "tool_calls": 12,
+      "hdast_commands": {
+        "report": 2
+      }
+    },
+    "outro": {
+      "seconds": 0.0,
+      "thinking_seconds": 0.0,
+      "waiting_seconds": 0.0,
+      "tokens": null,
+      "tool_calls": 0,
+      "hdast_commands": {
+        "stack status": 1
+      }
+    }
+  },
+  "loops": {
+    "repeated_hdast_commands": [
+      {
+        "name": "probe --seed",
+        "count": 2
+      },
+      {
+        "name": "profile validate --products-dir",
+        "count": 1
+      },
+      {
+        "name": "report --run",
+        "count": 1
+      },
+      {
+        "name": "spec inspect --products-dir",
+        "count": 1
+      }
+    ],
+    "failed_then_retried": [
+      {
+        "name": "probe",
+        "count": 1
+      }
+    ],
+    "files_read_more_than_once": [
+      {
+        "name": "run_out.json",
+        "count": 3
+      }
+    ],
+    "failed_calls": 3
+  },
+  "quality": {
+    "events": 82,
+    "events_malformed": 0,
+    "events_without_timestamp": 0,
+    "messages_without_usage": 0
+  },
+  "run_metrics": []
+}

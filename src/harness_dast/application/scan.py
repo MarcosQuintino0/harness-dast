@@ -11,6 +11,7 @@ O `ScanResult` devolvido nunca contém URL concreta, corpo nem segredo.
 """
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
@@ -20,6 +21,7 @@ from pydantic import ValidationError
 from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.ports import (
     Clock,
     KillSwitch,
@@ -39,12 +41,18 @@ from harness_dast.application.scan_health import TargetHealth
 from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts, ScanControl
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
-from harness_dast.domain.errors import ConfigError, ExternalToolError, PreflightError
+from harness_dast.domain.errors import (
+    ConfigError,
+    ExternalToolError,
+    HarnessError,
+    PreflightError,
+)
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_encoding import join_url
+from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_plan import (
@@ -160,11 +168,13 @@ class Scan:
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
         proxy_audit: ProxyAudit | None = None,
+        live: ScanLive | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
         `token_cache`, `login_budget` e `kill_switch` são compartilhados com as outras etapas
-        quando o `run` encadeia tudo num processo só (cada conta faz login uma vez).
+        quando o `run` encadeia tudo num processo só (cada conta faz login uma vez). `live`
+        recebe o andamento (uma chamada por função) para a página ao vivo do painel.
         """
         self._profiles = profiles
         self._specs = specs
@@ -182,6 +192,7 @@ class Scan:
         self._login_budget = login_budget
         self._kill_switch = kill_switch
         self._proxy_audit = proxy_audit
+        self._live = live
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -264,7 +275,7 @@ class Scan:
         if context_id is None:  # garantido por _ensure_usable; protege o tipo
             raise ConfigError("O manifesto do probe não tem o contexto do ZAP.")
         base_url = prep.profile.environment.base_url
-        self._check_zap(request.run_id, context_id)
+        zap_version = self._check_zap(request.run_id, context_id)
         plan = self._plan(prep, base_url)
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
@@ -289,6 +300,7 @@ class Scan:
                 "traffic": self._traffic(prep),
             }
         )
+        self._write_rule_stats(request.run_id, zap_version, outcome)
         self._artifacts.write_scan(request.run_id, result)
         self._write_progress(request.run_id, "done", len(plan.targets), status=status)
         if not removed:
@@ -310,15 +322,28 @@ class Scan:
             path_mode=prep.profile.scope.path_mode,
         )
 
-    def _check_zap(self, run_id: str, context_id: int) -> None:
+    def _write_rule_stats(self, run_id: str, zap_version: str, outcome: RunOutcome) -> None:
+        """Grava `rule-stats.json`; é só medição, então uma falha de escrita não falha o scan."""
         try:
-            self._zap.version()
+            self._artifacts.write_rule_stats(
+                run_id,
+                RuleStatsFile(
+                    run_id=run_id, zap_version=zap_version[:40], operations=outcome.rule_stats
+                ),
+            )
+        except ConfigError as error:
+            _log.error("rule_stats_write_failed", run_id=run_id, reason=error.message)
+
+    def _check_zap(self, run_id: str, context_id: int) -> str:
+        try:
+            version = self._zap.version()
             self._scanner.verify_context(f"hdast-{run_id}", context_id)
         except ExternalToolError as error:
             raise PreflightError(
                 f"O ZAP não está pronto para o scan: {error.message}",
                 hint=error.hint or "Refaça o probe neste ZAP: o contexto da execução sumiu.",
             ) from None
+        return version
 
     def _plan(self, prep: _Prepared, base_url: str) -> ScanPlan:
         try:
@@ -420,7 +445,26 @@ class Scan:
             limits=prep.zap_limits,
             deadline=prep.deadline,
             base_url=prep.profile.environment.base_url,
+            on_progress=self._live_hook(prep, request),
         )
+
+    def _live_hook(
+        self, prep: _Prepared, request: ScanRequest
+    ) -> Callable[[int, int, str | None], None] | None:
+        """Aviso à página ao vivo a cada função; ler a auditoria falhar nunca para a varredura."""
+        live = self._live
+        if live is None:
+            return None
+
+        def notify(done: int, total: int, operation_id: str | None) -> None:
+            try:
+                traffic: TrafficSummary | None = self._traffic(prep)
+            except HarnessError as error:
+                _log.info("live_traffic_unavailable", reason=error.message)
+                traffic = None
+            live.scan_progress(request.run_id, done, total, operation_id, traffic)
+
+        return notify
 
     def _configure(self, prep: _Prepared) -> None:
         try:

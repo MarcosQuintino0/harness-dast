@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "harness-dast"
-version = "1.1.0"
+version = "1.2.0"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -88,6 +88,10 @@ convention = "google"
 "tests/**" = ["S101", "D"]
 # O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
 "evals/**" = ["D1"]
+# CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
+# a cópia continuar idêntica ao original.
+"src/harness_dast/domain/panel_style.py" = ["E501"]
+"src/harness_dast/domain/panel_tokens.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
@@ -268,13 +272,29 @@ ignore_names = [
     "autocommit",
     "call_timeout",
     "stack_managed",
-    # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
-    # (`scan`, `report`, `cleanup`).
-    "FINDINGS",
+    # Medição da execução (ADR 0031): campos de rule-stats.json e metrics.json lidos só pela
+    # serialização do pydantic, pelos testes e por quem analisa o arquivo depois.
+    "quality",
+    "skip_reason",
+    "rules_unavailable_reason",
+    "operations_measured",
+    "operations_unavailable",
+    "totals",
+    "gaps",
+    "stages_seconds",
+    "longest_seconds",
+    # Painel da execução (ADR 0032): campos do modelo de visão lidos só pela serialização e pelos
+    # testes.
+    "functions_total",
+    "owasp",
     # Sobrescritas que só estreitam (domain/overrides.py): ganham chamador quando a CLI
-    # aceitar flags de redução de escopo e limites (M4).
-    "narrow_limits",
+    # aceitar flags de redução de escopo (M4).
     "narrow_scope",
+    # Painel da execução (ADR 0033, V1.2): API pública do diário e do catálogo, usada hoje só
+    # pelos testes e pelo adaptador por outro caminho.
+    "translated_commands",
+    "catalog_entries",
+    "WHO_VALUES",
 ]
 
 # ------------------------------------------------------------ commitizen

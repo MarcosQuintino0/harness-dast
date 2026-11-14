@@ -103,6 +103,7 @@ class FakeScanZapServer:
         stubborn_rules: Regras que `disableScanners` não consegue desligar.
         rules: Regras do Replacer (descrição -> parâmetros).
         policies: Nomes de políticas existentes.
+        scan_progress: Resposta de `ascan/view/scanProgress` (a forma real do ZAP 2.17.0).
     """
 
     calls: list[tuple[str, dict[str, str]]] = field(default_factory=list)
@@ -130,6 +131,7 @@ class FakeScanZapServer:
     options: dict[str, str] = field(default_factory=dict)
     disabled: set[str] = field(default_factory=set)
     known_rules: frozenset[str] = frozenset(REAL_ACTIVE_RULES)
+    scan_progress: dict[str, object] = field(default_factory=dict)
     _polls: int = 0
 
     def endpoints(self) -> list[str]:
@@ -249,6 +251,11 @@ class FakeScanZapServer:
         state = self.scan_states[min(self._polls, len(self.scan_states) - 1)]
         self._polls += 1
         return ok({"scans": [state]})
+
+    def _ascan_view_scanProgress(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        if query.get("scanId") != "0":
+            return error("does_not_exist")
+        return ok(self.scan_progress)
 
     def _ascan_action_stop(self, query: dict[str, str]) -> Reply:
         return ok({"Result": "OK"})

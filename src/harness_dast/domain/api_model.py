@@ -143,6 +143,8 @@ class Operation(ApiModel):
         security: Alternativas de segurança (qualquer uma serve); vazio = sem exigência.
         tags: Etiquetas declaradas.
         deprecated: Marcada como obsoleta.
+        summary: Resumo curto declarado no OpenAPI (`summary`), ou `None`. Texto não confiável:
+            serve só de nome para mostrar no painel (V1.2).
     """
 
     operation_id: str = Field(min_length=1, max_length=200)
@@ -155,6 +157,7 @@ class Operation(ApiModel):
     security: tuple[SecurityRequirement, ...] = ()
     tags: tuple[str, ...] = Field(default=(), max_length=20)
     deprecated: bool = False
+    summary: str | None = Field(default=None, max_length=200)
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:

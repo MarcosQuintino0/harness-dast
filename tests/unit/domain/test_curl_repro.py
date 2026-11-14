@@ -4,6 +4,7 @@ import shlex
 
 from harness_dast.domain.curl_repro import build_curl
 from harness_dast.domain.finding import FindingEvidence
+from harness_dast.domain.redaction import redact_header_block
 
 AUTH = ("Authorization", "Bearer $TOKEN")
 
@@ -86,3 +87,27 @@ def test_root_path_and_missing_path_default_to_slash() -> None:
 
     assert command is not None
     assert shlex.split(command) == ["curl", "-i", "-X", "GET", "$BASE_URL/"]
+
+
+def test_curl_keeps_path_and_query_of_a_redacted_long_url() -> None:
+    header, _ = redact_header_block(
+        "GET http://clinica-piloto:8080/api/medicos/busca-por-nome?nome=%27 HTTP/1.1", lambda t: t
+    )
+
+    command = build_curl(
+        evidence(request_header=header), auth_header=AUTH, csrf_header="X-XSRF-TOKEN"
+    )
+
+    assert command is not None
+    assert command.startswith("curl -i -X GET \"$BASE_URL\"'/api/medicos/busca-por-nome?nome=%27'")
+
+
+def test_curl_survives_a_masked_query_value() -> None:
+    header, _ = redact_header_block("GET http://h:8080/api/x?token=abc HTTP/1.1", lambda t: t)
+
+    command = build_curl(
+        evidence(request_header=header), auth_header=AUTH, csrf_header="X-XSRF-TOKEN"
+    )
+
+    assert command is not None
+    assert "'/api/x?token=***'" in command

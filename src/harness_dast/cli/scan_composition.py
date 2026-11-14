@@ -6,6 +6,8 @@ além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adap
 
 from pathlib import Path
 
+import structlog
+
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.reporting.sinks import (
     HtmlReportSink,
@@ -19,6 +21,8 @@ from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.scan_client import ZapScanClient
 from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.metrics import MetricsRecorder
+from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
@@ -33,6 +37,7 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
+from harness_dast.cli.panel_index_composition import build_indexed_panel, build_live_board
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -40,6 +45,7 @@ from harness_dast.cli.stack_composition import (
     open_proxy_audit,
 )
 from harness_dast.config.settings import load_settings
+from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.run import RunId
 from harness_dast.observability.logging import SecretRegistry
 
@@ -82,6 +88,7 @@ def build_scan(
     secrets: SecretRegistry,
     net: ScanNetwork,
     shared: SharedServices | None = None,
+    live: ScanLive | None = None,
 ) -> Scan:
     """Monta o caso de uso `hdast scan` sobre a rede já aberta."""
     root = products_dir_or_default(products_dir)
@@ -104,6 +111,7 @@ def build_scan(
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
         proxy_audit=open_proxy_audit(),
+        live=live,
     )
 
 
@@ -124,12 +132,16 @@ def build_run_pipeline(
         kill_switch=kill_switch,
     )
     runs_dir = load_settings().runs_dir
+    board = build_live_board(products_dir, kill_switch)
     return RunPipeline(
         profiles=profiles,
         preflight=build_preflight(products_dir, secrets, net.network, shared),
         probe=build_probe(products_dir, secrets, net.network, shared),
-        scan=build_scan(products_dir, secrets, net, shared),
-        report=build_report(products_dir),
+        scan=build_scan(products_dir, secrets, net, shared, live=board),
+        report=build_report(products_dir, with_panel=False),
+        metrics=build_metrics(products_dir),
+        panel=build_indexed_panel(products_dir),
+        live=board,
         authz=build_authz(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
@@ -140,8 +152,11 @@ def build_run_pipeline(
     )
 
 
-def build_report(products_dir: Path | None) -> Report:
-    """Monta o caso de uso `hdast report` (sem rede)."""
+def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Report:
+    """Monta o caso de uso `hdast report` (sem rede).
+
+    `with_panel=False` é para o `run`, que gera o painel por último, depois de gravar `run.json`.
+    """
     runs_dir = load_settings().runs_dir
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
@@ -151,6 +166,26 @@ def build_report(products_dir: Path | None) -> Report:
             MarkdownReportSink(runs_dir),
             HtmlReportSink(runs_dir),
         ),
+        clock=SystemClock(),
+        harness_version=harness_version(),
+        metrics=build_metrics(products_dir),
+        panel=build_indexed_panel(products_dir) if with_panel else None,
+    )
+
+
+def build_metrics(products_dir: Path | None) -> MetricsRecorder:
+    """Monta o gravador do `metrics.json` (ADR 0031); sem pilha gerenciada não há lacunas."""
+    runs_dir = load_settings().runs_dir
+    try:
+        audit = open_proxy_audit()
+    except ConfigError as error:
+        # A medição é secundária: um estado de pilha ilegível só tira as lacunas do arquivo.
+        structlog.get_logger().warning("metrics_audit_unavailable", reason=error.message)
+        audit = None
+    return MetricsRecorder(
+        profiles=FileProfileRepository(products_dir_or_default(products_dir)),
+        artifacts=FileRunArtifacts(runs_dir),
+        proxy_audit=audit,
         clock=SystemClock(),
         harness_version=harness_version(),
     )

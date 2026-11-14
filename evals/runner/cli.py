@@ -3,17 +3,27 @@
 import argparse
 import json
 import sys
+from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 from evals.runner import gitutil, scoring
 from evals.runner.cases import EvalError, RoundDirs
 from evals.runner.collect import collect
+from evals.runner.measurements import (
+    MEASUREMENTS_DIR,
+    compare_measurements,
+    render_comparison,
+    save_measurement,
+    write_agent_metrics,
+)
+from evals.runner.metrics import measure_agent
 from evals.runner.prepare import MODES, prepare
 from evals.runner.render import failures, render_classify, render_score
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Parser com os subcomandos `prepare`, `collect`, `snapshot`, `score` e `classify`."""
+    """Parser dos subcomandos de `python -m evals.runner` (prepare, collect, score, measure...)."""
     parser = argparse.ArgumentParser(prog="python -m evals.runner", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     prep = sub.add_parser("prepare", help="cria o workspace cego e lacra o modo")
@@ -34,10 +44,38 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("--duration-seconds", type=int, default=None)
     classify = sub.add_parser("classify", help="modelo de classificacao das falhas")
     classify.add_argument("--out", type=Path, required=True)
+    measure = sub.add_parser("measure", help="tempo e tokens por etapa em <out>/agent-metrics.json")
+    measure.add_argument("--out", type=Path, required=True)
+    measure.add_argument("--label", default=None)
+    measure.add_argument("--save", default=None, metavar="ROTULO")
+    measure.add_argument("--date", type=date.fromisoformat, default=None)
+    measure.add_argument("--measurements-dir", type=Path, default=MEASUREMENTS_DIR)
+    compare = sub.add_parser("compare", help="diferencas entre duas medicoes salvas")
+    compare.add_argument("folder_a", type=Path)
+    compare.add_argument("folder_b", type=Path)
+    compare.add_argument("--json", action="store_true")
     return parser
 
 
-def _run(args: argparse.Namespace) -> str:
+def _measure(args: argparse.Namespace, today: Callable[[], date]) -> str:
+    out: Path = args.out
+    metrics = measure_agent(out, args.label or args.save)
+    path = write_agent_metrics(out, metrics)
+    message = f"medicao: {path}"
+    if args.save:
+        folder = save_measurement(
+            out, metrics, args.save, args.date or today(), root=args.measurements_dir
+        )
+        message += f"\nsalva em: {folder}"
+    return message
+
+
+def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
+    if args.command == "compare":
+        comparison = compare_measurements(args.folder_a, args.folder_b)
+        return json.dumps(comparison, indent=2) if args.json else render_comparison(comparison)
+    if args.command == "measure":
+        return _measure(args, today)
     out: Path = args.out
     if args.command == "prepare":
         result = prepare(args.case, args.mode, args.seed, out, allow_leaks=args.allow_leaks)
@@ -61,11 +99,14 @@ def _run(args: argparse.Namespace) -> str:
     return f"{len(failures(result_json))} falha(s) para classificar em {out / 'classify.md'}"
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Executa o subcomando. Devolve 0 em sucesso e 2 em erro de uso."""
+def main(argv: list[str] | None = None, today: Callable[[], date] = date.today) -> int:
+    """Executa o subcomando. Devolve 0 em sucesso e 2 em erro de uso.
+
+    `today` e o relogio da data das medicoes salvas; os testes injetam um fixo.
+    """
     args = build_parser().parse_args(argv)
     try:
-        message = _run(args)
+        message = _run(args, today)
     except EvalError as error:
         sys.stderr.write(f"erro: {error}\n")
         return 2

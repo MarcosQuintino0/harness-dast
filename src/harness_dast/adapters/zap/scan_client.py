@@ -10,6 +10,9 @@ precisam ser conferidos contra o ZAP real (a lista está no ADR 0022):
 - `ascan/view/scans` com `progress` e `state` como texto;
 - `core/view/messages` paginado por `start` e `count`.
 
+`ascan/view/scanProgress` (métricas por regra, ADR 0031) já foi conferido contra o ZAP 2.17.0
+real; a forma está em `scan_progress.py`.
+
 O valor do token vai na consulta de `replacer/action/addRule` (a API do ZAP é chamada por GET,
 como no spike), na rede de laço local. Nada disto é registrado em log.
 """
@@ -18,7 +21,9 @@ import json
 from typing import Final
 
 from harness_dast.adapters.zap.api_client import ZapApiClient
+from harness_dast.adapters.zap.scan_progress import parse_scan_progress
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.rule_stats import RuleStat
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanRefused, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
@@ -185,6 +190,11 @@ class ZapScanClient(ZapApiClient):
         raise ExternalToolError(
             "O ZAP não conhece a varredura iniciada.", hint="Confira se o ZAP foi reiniciado."
         )
+
+    def scan_rules(self, scan_id: str) -> tuple[RuleStat, ...]:
+        """Tempo, pedidos e alertas de cada regra de uma varredura (`ascan/view/scanProgress`)."""
+        body = self._call("ascan", "view", "scanProgress", {"scanId": scan_id})
+        return parse_scan_progress(body)
 
     def stop_scan(self, scan_id: str) -> None:
         """Para uma varredura (`ascan/action/stop`)."""

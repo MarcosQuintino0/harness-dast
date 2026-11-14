@@ -18,20 +18,27 @@ from harness_dast.application.stack_models import (
     StackDirectories,
     StackState,
 )
+from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
 from harness_dast.domain.cleanup_gate import CleanupStatement
 from harness_dast.domain.cleanup_plan import CleanupAuditLine, CleanupPlan, CleanupRecord
+from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.request_builder import ValueSource
 from harness_dast.domain.run import RunId
+from harness_dast.domain.run_metrics import RunMetrics
+from harness_dast.domain.run_summary import RunSummary
+from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.secret_ref import SecretRef
 
 
@@ -443,6 +450,28 @@ class StackStateStore(Protocol):
         ...
 
 
+class CommandJournalStore(Protocol):
+    """Diário de comandos por produto, guardado fora do repositório e de `runs/` (ADR 0033)."""
+
+    def append(self, product: str | None, entry: JournalEntry) -> None:
+        """Acrescenta uma linha ao diário do produto (`None`: comandos sem produto).
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def load(self, product: str | None) -> JournalLoad:
+        """Lê o diário do produto de forma tolerante: linha corrompida é pulada e contada.
+
+        Um diário que ainda não existe devolve zero linhas.
+
+        Raises:
+            ConfigError: O arquivo existe, mas não pôde ser lido.
+        """
+        ...
+
+
 class RandomSource(Protocol):
     """Aleatoriedade criptográfica para segredos descartáveis."""
 
@@ -642,4 +671,72 @@ class HostInspector(Protocol):
 
     def directory_exists(self, path: Path) -> bool:
         """Diz se `path` existe e é uma pasta."""
+        ...
+
+
+class PanelFiles(Protocol):
+    """Arquivos da execução que o painel lê e as páginas que ele grava (ADR 0032).
+
+    Todo arquivo de leitura é opcional: ausente ou ilegível devolve `None` (ilegível levanta
+    `ConfigError`, e o caso de uso trata os dois do mesmo jeito: "não medido"). Também acha a
+    execução mais recente de um produto e grava as páginas HTML em `runs/<run_id>/panel/`.
+    Nenhuma página grava fora dessa pasta.
+    """
+
+    def read_manifest(self, run_id: str) -> RunManifest | None:
+        """Lê `manifest.json`; `None` se não existe."""
+        ...
+
+    def read_probe(self, run_id: str) -> ProbeResult | None:
+        """Lê `probe.json`; `None` se não existe."""
+        ...
+
+    def read_scan(self, run_id: str) -> ScanResult | None:
+        """Lê `scan.json`; `None` se não existe."""
+        ...
+
+    def read_findings(self, run_id: str) -> FindingsReport | None:
+        """Lê `findings.json`; `None` se não existe."""
+        ...
+
+    def read_authz(self, run_id: str) -> AuthzResult | None:
+        """Lê `authz.json`; `None` se o estágio não rodou."""
+        ...
+
+    def read_summary(self, run_id: str) -> RunSummary | None:
+        """Lê `run.json`; `None` quando a execução não passou pelo `hdast run`.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_metrics(self, run_id: str) -> RunMetrics | None:
+        """Lê `metrics.json`; `None` quando não existe (execução anterior à medição).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_agent_metrics(self, run_id: str) -> AgentMetrics | None:
+        """Lê `agent-metrics.json` (tokens do agente, gravado pela avaliação cega).
+
+        Devolve `None` quando não existe ou não é usável (JSON inválido, versão de formato
+        desconhecida): o painel mostra "não medido" e nunca derruba a geração.
+        """
+        ...
+
+    def latest_run_id(self, product: str) -> str | None:
+        """Execução mais recente do produto (pelo carimbo do `run_id`), ou `None`."""
+        ...
+
+    def write_pages(self, run_id: str, pages: Mapping[str, str]) -> tuple[str, ...]:
+        """Grava as páginas (nome do arquivo -> HTML) e devolve os caminhos relativos à execução.
+
+        Garante: cada arquivo é gravado de forma atômica e o nome nunca sai da pasta do painel.
+
+        Raises:
+            ConfigError: Nome de página inválido ou falha de escrita.
+        """
         ...

@@ -1,6 +1,6 @@
 """`run`: encadeamento das etapas, parada na primeira falha, `run.json` e trava de emergência."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from types import SimpleNamespace
@@ -8,16 +8,18 @@ from typing import Literal, cast
 
 import pytest
 
+from harness_dast.application.panel_index_ports import RunLive
 from harness_dast.application.preflight_report import PreflightCheck, PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run import RunPipeline, RunRequest, RunResult
 from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
+from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report_model import FindingsReport, FindingsSummary
-from harness_dast.domain.run_summary import RunSummary
+from harness_dast.domain.run_summary import RunSummary, StageRecord
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.clock import FixedClock, utc
 from tests.fakes.profile_data import valid_profile
@@ -86,6 +88,9 @@ class Rig:
     probe: Callable[[], ProbeResult] = _probe
     scan: Callable[[], ScanResult] = _scan
     report: Callable[[], ReportOutcome] = _outcome
+    metrics: RunMetricsRecorder | None = None
+    panel: PanelRefresher | None = None
+    live: RunLive | None = None
 
     def run(self, request: RunRequest | None = None, *, cleanup: bool = True) -> RunResult:
         profiles = InMemoryProfileRepository()
@@ -126,6 +131,9 @@ class Rig:
             kill_switch=self.kill,
             clock=self.clock,
             run_id_fallback="fallback-run",
+            metrics=self.metrics,
+            panel=self.panel,
+            live=self.live,
         )
         return pipeline.execute(request or RunRequest(product="demo"))
 
@@ -410,3 +418,55 @@ def test_run_writes_the_summary_and_reraises_when_a_stage_fails_unexpectedly() -
     assert summary.status == "failed"
     assert summary.exit_code == 10
     assert _stage_status(summary_as_result(summary))["scan"] == "failed"
+
+
+# ------------------------------------------------------------------ medição (ADR 0031)
+
+
+@dataclass
+class RecordingMetrics:
+    """`RunMetricsRecorder` falso: guarda as chamadas e diz que gravou."""
+
+    calls: list[dict[str, object]] = field(default_factory=list)
+
+    def refresh(
+        self,
+        product: str,
+        run_id: str,
+        *,
+        report_seconds: float | None = None,
+        stages: Sequence[StageRecord] | None = None,
+        run_window: tuple[str, str] | None = None,
+    ) -> str | None:
+        self.calls.append(
+            {"product": product, "run_id": run_id, "stages": stages, "window": run_window}
+        )
+        return "metrics.json"
+
+
+def test_run_refreshes_metrics_at_the_end_with_every_stage_and_the_run_window() -> None:
+    metrics = RecordingMetrics()
+    rig = Rig(metrics=metrics)
+
+    result = rig.run()
+
+    (call,) = metrics.calls
+    assert (call["product"], call["run_id"]) == ("demo", RUN_ID)
+    assert call["window"] == (result.summary.started_at, result.summary.finished_at)
+    stages = cast(tuple[StageRecord, ...], call["stages"])
+    assert [stage.name for stage in stages] == ["preflight", "probe", "scan", "authz", "report"]
+    assert stages == result.summary.stages
+
+
+def test_run_refreshes_metrics_even_when_a_stage_fails() -> None:
+    metrics = RecordingMetrics()
+    rig = Rig(metrics=metrics, scan=lambda: _scan("stopped_zap"))
+
+    result = rig.run()
+
+    assert result.summary.status == "failed"
+    assert len(metrics.calls) == 1
+
+
+def test_run_without_a_recorder_still_works() -> None:
+    assert Rig().run().error is None

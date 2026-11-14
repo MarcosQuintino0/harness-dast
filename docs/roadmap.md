@@ -70,7 +70,7 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
+Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
@@ -81,6 +81,7 @@ Existem `version`, `doctor`, `init`, `profile validate`, `spec inspect`, `prefli
 | `hdast cleanup` | Implementado (M5): `--dry-run`, confirmação digitada só em terminal interativo ([ADR 0025](adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
 | `hdast doctor` | Implementado (V1.1, [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)); avisa de `scope.path_mode: wide` e da falta de duas contas do mesmo papel; verificado com Docker real e com porta ocupada em 2026-11-13. Veja "V1.1" abaixo |
 | `hdast authz`, `hdast run --authz` | Implementado (V1.1, [ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); verificado só na Clínica Piloto local (H5, H6, H7), não contra produto real. Veja "V1.1" abaixo |
+| `hdast panel` | Implementado como código e testes (V1.2, [ADR 0032](adr/0032-painel-da-execucao.md), proposto): gera as páginas HTML do painel da execução; as seis abas (Resumo, Etapas, Falhas, Cobertura, Terminal, Tempo e tokens) estão feitas. Veja "V1.2" abaixo |
 | `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as etapas (preflight, probe, scan, authz opcional e report) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
 
 ### V1.1: o que foi provado em laboratório e o que ainda NÃO foi verificado
@@ -93,9 +94,51 @@ Quatro entregas, cada uma com ADR, juntadas em `feat/v1-1` e costuradas entre si
 | Teste de autorização entre contas ([ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)) | `hdast authz`, `run --authz`, `exchanges.json` do `probe`, quatro verificações, `authz.json`, seção `authz` em `findings.json`, `report.md` e `report.html`, `summary.authz_by_severity` | **Provado na Clínica Piloto local:** H5, H6 e H7 achados no vulnerável e zero no seguro (55 e 51 pedidos), `exchanges.json` gravado por `probe` real, restauração do campo conferida pelo próprio `authz.json`. **Não verificado:** produto real; BFLA vertical e a interrupção após o `PUT` em alvo real; `report` com a seção `authz` (o `scan` não rodou); escritas sobre recurso de outra conta |
 | Facilitar o uso ([ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) | `hdast doctor` (com avisos de `path_mode: wide` e de falta de duas contas do mesmo papel), `probe.setup_path`, mensagem do `allow_local`, `init --with-cleanup`, validade da pilha | **Provado:** `doctor` com tudo certo e com porta 3128 ocupada; `setup_path` no VAmPI (migrado de `health_path: /createdb`, alcançabilidade 1,0); prazo da pilha com `max_duration_minutes: 3` em cópia. **Não verificado:** `doctor` com Docker parado; 30 minutos reais entre `stack up` e `run` |
 | Cofre de senhas local ([ADR 0030](adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) | `secret_ref: keyring:NOME`, `hdast secret set\|list\|delete` (só em terminal), `RoutingSecretProvider`, adaptador `keyring` com lista fixa de backends, presença no `preflight` e no `doctor`, redação igual à de `env:`, negação no `.claude/settings.json` | O cofre real do Windows, do macOS e do Linux (os testes usam backend em memória e nunca tocam o cofre da máquina); o `secret set` num terminal real com prompt oculto; o roteiro de prova está no relatório da entrega |
+| Medição da execução ([ADR 0031](adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) | `metrics.json` (tempo por etapa, operação e regra do ZAP, tráfego e lacunas, regras desligadas) e `rule-stats.json`, gravados por `report` e `run`; só números e ids | **Provado com Docker (2026-11-14):** um ataque direcionado na Clínica Piloto (`probe --only` e `scan --only` em `listarConvenios` e `buscarConvenio`, depois `report`) gravou `metrics.json` com 44 regras medidas por operação (tempo, pedidos, alertas e estado) e lacunas do proxy. **Não verificado:** `hdast run` completo; `preflight` no `metrics.json` fora do `run`; outra versão do ZAP além da 2.17.0; produto real |
 | Relatório agrupado, `report.html` e skill `test-product` ([ADR 0029](adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) | `groups`, notas de padrão esperado, `report.html` (sem JavaScript, CSP, escape), skill `test-product` com contrato testado | A página aberta em navegador de verdade (claro e escuro, celular, impressão); a rodada cega com a skill de um pedido só |
 
 As costuras entre as quatro (página com `authz` e com a cerca, doctor, mensagens de erro, guias e skills) foram fechadas em código e testes, também sem Docker.
+
+### V1.2: painel da execução (entregue em 1.2.0 como código e testes)
+
+Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma como código e testes unitários e de contrato, **sem Docker e sem prova contra alvo**:
+
+| Peça | Situação |
+| --- | --- |
+| Diário de comandos por produto ([ADR 0033](adr/0033-diario-de-comandos.md), Proposto) | Código e testes: `domain/command_journal.py`, `application/command_journal.py`, `adapters/storage/command_journal.py`, registro em `run_app`; referência em [reference/command-journal.md](reference/command-journal.md) |
+| Tradução de cada comando para português simples | Código e testes (`domain/command_translation.py`); teste falha se a CLI ganhar comando sem tradução |
+| Catálogo de explicação de falha, degrau de confiança e dados de "reproduzir à mão" | Código e testes (`domain/finding_explain.py`, `finding_confidence.py`, `manual_repro.py`); usados pelas abas Falhas e Terminal |
+| Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
+| Painel (HTML), comando `panel`, índices de produtos e histórico | O comando `panel` e as abas existem (veja a tabela abaixo); os índices e a página ao vivo estão feitos como código e testes ([ADR 0034](adr/0034-indices-do-painel-e-pagina-ao-vivo.md), proposto) |
+
+### V1.2: painel da execução, estado por parte (1.2.0)
+
+O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/design/execution-panel/](design/execution-panel/README.md)); a CLI gera as páginas ([ADR 0032](adr/0032-painel-da-execucao.md), proposto). Estado por parte:
+
+| Parte | Existe como código e testes | O que falta |
+| --- | --- | --- |
+| Fundação | `hdast panel`, `PanelView` (modelo de visão com tudo que as seis abas precisam), registro de páginas, casca (CSP, caminho, menu, componentes), tokens do desenho com teste de paridade, formatos e palavras de estado, porta `PanelFiles`, geração no fim de `report` e `run` (falha nunca derruba) | Gerado só a partir de uma execução real guardada, sem Docker e sem varredura nova; ainda não visto por uma pessoa de QA |
+| Abas Resumo e Etapas | Fiéis ao desenho, com os estados "sem falha grave", "parou no meio" e "erro"; testadas com texto hostil em toda página | Conferir o que o desenho marca como exemplo (tipos de teste, tokens por etapa) quando existirem as fontes |
+| Abas Falhas, Cobertura, Terminal, Tempo e tokens | Fiéis ao desenho, com os links por âncora entre abas verificados por teste; nenhuma página provisória sobra | Ver com uma pessoa de QA; Docker e varredura nova não foram usados |
+| Diário de comandos e catálogo de explicação de falha | Ganchos `commands` e `explanations` ligados (`application/panel_hooks.py`, `domain/panel_catalog.py`, `domain/panel_journal.py`) | Nada pendente além da prova contra alvo real |
+| Tokens do agente | `agent-metrics.json` lido pelo caso de uso e mostrado na aba Tempo e tokens; arquivo ausente vira "não medido" | Quem grave o arquivo fora da avaliação cega |
+| Índices de produtos e de histórico | `runs/index.html` e `runs/history-<produto>.html`, refeitos a cada painel e por `hdast panel --index`; links relativos no caminho do alto; estados "nenhum produto", "um teste só", "erro", "carta vencida" e "sem dados" | Gerados só a partir de execuções reais guardadas; sem prova com `hdast run` de verdade |
+| Página "ao vivo" | `panel/live.html` regravada a cada etapa e função, sem JavaScript, com recarga a cada 15 s; fecha sem recarga ao fim do `run` | Sem prova com `hdast run` de verdade (sem Docker); faltam "tipos de teste da função", "sinais de falha" e o terminal ao vivo, e o estado transitório "alvo fora do ar" |
+| Máscara de dados pessoais na prova | Nada | Tudo (o dono ainda não respondeu sobre a máscara) |
+
+### Diferenças entre o painel e o desenho
+
+O painel da 1.2.0 segue o desenho de `docs/design/execution-panel/`. O que o desenho mostra e a CLI ainda não tem, ou que ficou conferido só em parte (todos itens abertos, sem correção prevista nesta versão):
+
+- **Nomes das regras do ZAP em inglês no painel.** Falta uma tabela de tradução (regra do ZAP para nome em português); hoje a lista de grupos e as regras mais lentas mostram o nome que o ZAP dá.
+- **Chaves em inglês na resposta dos comandos do Terminal.** A resposta resumida mostra `chave: valor` com a chave do envelope da CLI (`run_id`, `operations_sent`...); falta traduzir as chaves como as frases dos comandos.
+- **Blocos do desenho do Ao vivo que não existem por falta de dado:** o terminal ao vivo, os tipos de teste de cada função, os sinais de falha até agora e os tokens até agora.
+- **Estado "sistema testado fora do ar".** O desenho prevê o estado transitório da página ao vivo; o código não o produz.
+- **Degrau "confirmada" sem registro de confirmação humana.** O `triage.json` não tem campo escrito por uma pessoa, então o terceiro degrau não é alcançável (já listado acima).
+- **Celular e tema claro conferidos só em parte.** Foram vistos o Resumo e a página ao vivo; as demais abas não foram abertas em celular de verdade nem no tema claro.
+- **Sem link "pular para o conteúdo"** no topo das páginas (acessibilidade por teclado).
+- **A página ao vivo só começa na varredura**, porque o preflight do `run` abre uma pasta própria (nota no ADR 0034).
+- **Reprodução à mão do teste entre contas:** a página diz que não há passo a passo; o `authz` não guarda pedido nem resposta inteiros.
 
 ### Controles de segurança
 

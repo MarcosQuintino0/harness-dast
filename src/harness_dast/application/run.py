@@ -31,13 +31,14 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from harness_dast.application.authz import AuthzRequest
+from harness_dast.application.panel_index_ports import RunLive
 from harness_dast.application.ports import Clock, KillSwitch, ProfileRepository
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
-from harness_dast.application.scan_ports import RunSummarySink
+from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder, RunSummarySink
 from harness_dast.application.stage_errors import (
     authz_stop_error,
     preflight_failure,
@@ -143,6 +144,9 @@ class RunResult:
 @dataclass
 class _Progress:
     records: dict[StageName, StageRecord]
+    product: str = ""
+    started: datetime | None = None
+    authz: bool = False
     run_id: str | None = None
     findings: dict[str, int] | None = None
     exceeds: bool = False
@@ -173,6 +177,9 @@ class RunPipeline:
         clock: Clock,
         run_id_fallback: str,
         authz: AuthzStage | None = None,
+        metrics: RunMetricsRecorder | None = None,
+        panel: PanelRefresher | None = None,
+        live: RunLive | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -188,6 +195,12 @@ class RunPipeline:
             run_id_fallback: Identificador usado se nenhum estágio criou pasta de execução.
             authz: Etapa de autorização entre contas; `None` quando a CLI não a montou (pedir
                 `--authz` assim é um erro de configuração).
+            metrics: Gravador do `metrics.json` (ADR 0031); o `run` o refaz no fim, com o tempo
+                de cada estágio (inclusive o `preflight`). `None` desliga a medição.
+            panel: Gerador do painel da execução (ADR 0032); o `run` o chama por último, depois
+                de gravar `run.json`. `None` desliga o painel.
+            live: Página ao vivo do painel (ADR 0034): avisada a cada etapa e, no fim, regrava a
+                página uma última vez. `None` desliga a página.
         """
         self._profiles = profiles
         self._authz_stage = authz
@@ -196,6 +209,9 @@ class RunPipeline:
         self._kill = kill_switch
         self._clock = clock
         self._fallback = run_id_fallback
+        self._metrics = metrics
+        self._panel = panel
+        self._live = live
 
     def execute(self, request: RunRequest) -> RunResult:
         """Roda os estágios em ordem e grava `run.json`, aconteça o que acontecer.
@@ -205,7 +221,10 @@ class RunPipeline:
         """
         started = self._clock.now()
         progress = _Progress(
-            records={name: StageRecord(name=name, status="not_run") for name in STAGES}
+            records={name: StageRecord(name=name, status="not_run") for name in STAGES},
+            product=request.product,
+            started=started,
+            authz=request.authz,
         )
         unexpected = True
         try:
@@ -300,7 +319,27 @@ class RunPipeline:
             return False
         return "scan.json" in self._sink.existing_files(progress.run_id)
 
+    def _announce(self, name: StageName, progress: _Progress) -> None:
+        """Avisa a página ao vivo que a etapa começou (só quando a pasta da execução já existe).
+
+        O preflight abre uma pasta só dele; a da execução de verdade é a do `probe`. Por isso a
+        página só começa na varredura: antes disso `progress.run_id` ainda é o do preflight.
+        """
+        if name in ("preflight", "probe"):
+            return
+        if self._live is None or progress.run_id is None or progress.started is None:
+            return
+        self._live.stage_started(
+            progress.product,
+            progress.run_id,
+            name,
+            tuple(progress.records[item] for item in STAGES),
+            started=progress.started,
+            authz=progress.authz,
+        )
+
     def _stage(self, name: StageName, progress: _Progress, action: _Action) -> None:
+        self._announce(name, progress)
         began = self._clock.now()
         completed = False
         try:
@@ -438,6 +477,7 @@ class RunPipeline:
             status, code = "findings", int(ExitCode.FINDINGS)
         run_id = progress.run_id or self._fallback
         finished = self._clock.now()
+        self._record_metrics(request.product, progress, started, finished)
         summary = RunSummary(
             product=request.product,
             run_id=run_id,
@@ -462,7 +502,24 @@ class RunPipeline:
             cleanup_command=self._cleanup_command(request.product, progress.run_id),
         )
         self._sink.write_summary(run_id, summary)
+        if self._panel is not None:
+            self._panel.refresh(request.product, run_id)
+        if self._live is not None and progress.run_id is not None:
+            self._live.run_finished(request.product, run_id, summary)
         return RunResult(summary, error)
+
+    def _record_metrics(
+        self, product: str, progress: _Progress, started: datetime, finished: datetime
+    ) -> None:
+        """Refaz `metrics.json` com o tempo de cada estágio (sem pasta, nada a medir)."""
+        if self._metrics is None or progress.run_id is None:
+            return
+        self._metrics.refresh(
+            product,
+            progress.run_id,
+            stages=tuple(progress.records[name] for name in STAGES),
+            run_window=(started.isoformat(), finished.isoformat()),
+        )
 
     def _cleanup_command(self, product: str, run_id: str | None) -> str | None:
         if run_id is None or self._profiles.load(product).cleanup is None:

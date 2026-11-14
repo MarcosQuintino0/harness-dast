@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Sistema de design: componentes, parte 2</title>
+<style>
+body{margin:0}
+.escuro{--bg:#0b0d10;--s1:#12161b;--s2:#1a2027;--ink:#eceff2;--mu:#98a1ab;--ln:#262d35;--run:#8fb8ff;--runs:#15233a;--ok:#6fd3a8;--oks:#11281f;--gr:#ff8e7a;--grs:#3a1c18;--am:#e6b84a;--ams:#33290f;--term:#07090b;--sel:#27405f}
+.claro{--bg:#f1f3f6;--s1:#ffffff;--s2:#eef1f4;--ink:#14181c;--mu:#56606a;--ln:#d5dbe1;--run:#1d55b8;--runs:#e2ebfb;--ok:#0f6b47;--oks:#dcf2e8;--gr:#b3261e;--grs:#fbe6e3;--am:#7a4b00;--ams:#f8ecd2;--term:#e6eaee;--sel:#cfe0fb}
+.tp{background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-variant-numeric:tabular-nums;min-height:900px}
+.tp *{box-sizing:border-box}
+.tp ::selection{background:var(--sel)}
+.tp h1,.tp h2,.tp h3,.tp p,.tp ul,.tp ol,.tp pre{margin:0}
+.tp ul,.tp ol{padding:0;list-style:none}
+.tp a{color:var(--run);text-underline-offset:3px}
+.tp a:hover{color:var(--ink)}
+.tp a:focus-visible{outline:2px solid var(--run);outline-offset:3px;border-radius:4px}
+.mu{color:var(--mu)}
+.sm{font-size:13.5px}
+.top{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;padding:0 clamp(14px,2vw,28px);background:var(--s1);border-bottom:1px solid var(--ln)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;padding:14px 0}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--run);display:block;position:relative}
+.brand i::after{content:"";position:absolute;inset:6px;border:2px solid var(--s1);border-radius:2px}
+.brand a{color:var(--mu);text-decoration:none;font-weight:600}
+.brand a:hover{color:var(--ink)}
+.brand .here{color:var(--ink)}
+.sep{color:var(--mu);font-weight:400}
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{text-align:left;font-size:13px;color:var(--mu);font-weight:600;padding:8px 14px 8px 0;border-bottom:1px solid var(--ln);white-space:nowrap}
+.tbl td{padding:12px 14px 12px 0;border-bottom:1px solid var(--ln);vertical-align:middle}
+.tbl tr.selrow td{background:var(--s2)}
+.tbl td:first-child,.tbl th:first-child{padding-left:10px;white-space:nowrap}
+.trend{display:flex;align-items:flex-end;gap:10px;height:96px;border-bottom:1px solid var(--ln)}
+.trend div{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:13px;font-weight:700}
+.trend i{display:block;width:100%;max-width:44px;background:var(--gr);border-radius:4px 4px 0 0;min-height:3px}
+.trendx{display:flex;gap:10px;font-size:12px;color:var(--mu);margin-top:6px}
+.trendx span{flex:1 1 0;text-align:center}
+.tp a.prod{flex:1 1 360px;text-decoration:none;color:var(--ink)}
+.tp a.prod:hover{border-color:var(--run)}
+.prod b.nm{display:block;font-size:20px}
+.stg{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:6px 18px;padding:18px 0;border-top:1px solid var(--ln);align-items:start}
+.stg .nb{width:34px;height:34px;border-radius:50%;background:var(--oks);color:var(--ok);font-weight:700;display:flex;align-items:center;justify-content:center}
+.stg .tm{text-align:right;white-space:nowrap}
+.stg .tm b{display:block;font-size:18px}
+.tabs{display:flex;flex-wrap:wrap;gap:0 4px;align-self:stretch}
+.tabs a{display:flex;align-items:center;gap:8px;padding:14px 14px 12px;text-decoration:none;color:var(--mu);font-weight:600;border-bottom:3px solid transparent}
+.tabs a:hover{color:var(--ink)}
+.tabs .on{color:var(--ink);border-bottom-color:var(--run)}
+.cnt{font-size:12px;font-weight:700;padding:0 7px;border-radius:99px;background:var(--grs);color:var(--gr)}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:3px 11px;border-radius:99px;white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.ch-run{background:var(--runs);color:var(--run)}
+.ch-ok{background:var(--oks);color:var(--ok)}
+.ch-gr{background:var(--grs);color:var(--gr)}
+.ch-am{background:var(--ams);color:var(--am)}
+.ch-mu{background:var(--s2);color:var(--mu)}
+.pg{padding:clamp(14px,2vw,24px) clamp(14px,2vw,28px) 32px;display:flex;flex-direction:column;gap:16px;max-width:1440px;margin:0 auto}
+.g{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:20px 22px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.h{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.h a,.h span{font-weight:400;font-size:13.5px}
+.big{font-size:clamp(24px,3vw,34px);line-height:1.18;font-weight:650;letter-spacing:-.012em;text-wrap:balance;max-width:24ch}
+.stats{display:flex;flex-wrap:wrap;gap:14px 34px}
+.stat b{display:block;font-size:24px;line-height:1.15;font-weight:650}
+.stat span{font-size:13px;color:var(--mu)}
+.r{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--ln)}
+.r>.end{margin-left:auto;white-space:nowrap;color:var(--mu);font-size:13.5px;padding-left:10px;text-align:right}
+.dotk{flex:none;width:10px;height:10px;margin-top:6px;border-radius:50%;display:block}
+.k-ok{background:var(--ok)}
+.k-gr{background:var(--gr);border-radius:1px;transform:rotate(45deg) scale(.9)}
+.k-am{border:2px solid var(--am)}
+.k-run{border:3px solid var(--run)}
+.k-no{border:1px solid var(--mu)}
+.k-out{border:1px dashed var(--mu);border-radius:2px}
+.bars{display:inline-flex;gap:3px;vertical-align:middle}
+.bars i{display:block;width:16px;height:7px;border-radius:2px;border:1px solid var(--mu)}
+.bars .f{background:var(--ink);border-color:var(--ink)}
+.who{flex:none;width:96px;font-size:13px;font-weight:700;color:var(--run)}
+.track{display:flex;gap:4px}
+.seg{min-width:0;padding-top:10px;border-top:6px solid var(--ok);display:flex;flex-direction:column;gap:1px;overflow:hidden;border-radius:2px 2px 0 0}
+.seg b{font-weight:600;white-space:nowrap;font-size:14px}
+.seg span{font-size:12.5px;color:var(--mu);white-space:nowrap}
+.seg-run{border-image:linear-gradient(90deg,var(--run) 0 42%,var(--ln) 42% 100%) 1}
+.seg-run b{color:var(--run)}
+.seg-no{border-top-color:var(--ln)}
+.seg-no b{color:var(--mu)}
+.prog{height:8px;background:var(--s2);border-radius:99px;overflow:hidden}
+.prog i{display:block;height:8px;background:var(--run);border-radius:99px}
+.term{background:var(--term);border:1px solid var(--ln);border-radius:8px;padding:14px 16px;font:13px/1.7 ui-monospace,"Cascadia Mono",Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.term .t,.term .o{color:var(--mu)}
+.term .c{color:var(--ink);font-weight:600}
+.term .rn{color:var(--run)}
+.cur{display:inline-block;width:8px;height:15px;background:var(--run);vertical-align:-2px}
+.hl{color:var(--gr);font-weight:700;background:var(--grs);padding:0 3px;border-radius:3px}
+.ex{font-size:11.5px;font-weight:600;color:var(--mu);border:1px dashed var(--mu);border-radius:4px;padding:0 5px;white-space:nowrap}
+.grid{display:flex;flex-wrap:wrap;gap:6px}
+.grid i{width:30px;height:30px;display:block;border:1px solid var(--mu);border-radius:5px;background:transparent}
+.grid .d{background:var(--ok);border-color:var(--ok)}
+.grid .s{background:var(--gr);border-color:var(--gr);border-radius:50%}
+.grid .n{border:3px solid var(--run);background:var(--runs)}
+.lg{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mu)}
+.lg span{display:flex;gap:7px;align-items:center}
+.lg .dotk{margin:0}
+.tp .pick{display:block;padding:12px 14px;border:1px solid var(--ln);border-radius:9px;text-decoration:none;color:var(--ink)}
+.pick b{display:block;font-weight:600;margin-bottom:5px}
+.pick-on{border-color:var(--run);background:var(--runs)}
+.area{flex:1 1 190px;min-width:0}
+.area h3{font-size:13.5px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--ln);margin-bottom:6px;display:flex;justify-content:space-between}
+.area h3 span{font-weight:400;color:var(--mu)}
+.fn{display:block;position:relative;padding:3px 0 3px 20px;font-size:14px;line-height:1.4}
+.fn .dotk{position:absolute;left:0;top:2px}
+.stack{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--s2)}
+.stack i{display:block}
+.cmd{display:grid;grid-template-columns:86px minmax(0,1.1fr) minmax(0,1.2fr) 74px 118px;gap:4px 18px;padding:10px 0;border-top:1px solid var(--ln);align-items:baseline}
+.cmd code{font:13px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere;font-weight:600}
+.cmd .tm{font-size:13px;color:var(--mu);white-space:nowrap;text-align:right}
+.cmd .hr{font:12.5px/1.6 ui-monospace,Consolas,monospace;color:var(--mu)}
+.grp{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;font-weight:700;padding:16px 0 8px}
+.grp span{font-weight:400;color:var(--mu)}
+.scroll{overflow-x:auto}
+.tbl td,.tbl th{white-space:nowrap}
+.copy{user-select:all}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.tp a.gl{color:inherit;text-decoration:none;border-bottom:1px dotted var(--mu)}
+.tp a.gl:hover{color:var(--run)}
+.tp a.end,.tp .h a{display:inline-block;padding:5px 0}
+.b-hatch{background:repeating-linear-gradient(135deg,var(--mu) 0 2px,transparent 2px 6px)}
+.kvl{flex:none;width:112px;color:var(--mu);font-size:13.5px;padding-top:1px}
+.mono{font:13px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+.stepn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--runs);color:var(--run);font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;margin-right:8px}
+.sub{background:var(--s2);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cost{display:grid;grid-template-columns:minmax(130px,200px) 1fr 1fr;gap:8px 22px;align-items:center;padding:10px 0;border-top:1px solid var(--ln)}
+.cb{display:flex;align-items:center;gap:10px;font-size:13.5px;white-space:nowrap}
+.cb i{display:block;height:10px;border-radius:99px;background:var(--ink);min-width:4px}
+.cb .tk{background:var(--mu)}
+
+.ds{padding:28px clamp(14px,2vw,32px) 40px;display:flex;flex-direction:column;gap:18px;max-width:1440px;margin:0 auto}
+.dsh{font-size:30px;line-height:1.2;font-weight:650;letter-spacing:-.012em}
+.lead{color:var(--mu);max-width:86ch}
+.sw{flex:none;width:44px;height:30px;border-radius:6px;border:1px solid var(--ln);display:block}
+.tok{display:grid;grid-template-columns:44px minmax(150px,1fr) 78px minmax(0,1.6fr);gap:4px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--ln);font-size:13.5px}
+.tok code,.spec code,.mono{font:12.5px/1.5 ui-monospace,"Cascadia Mono",Consolas,monospace}
+.pane{border-radius:12px;padding:20px 22px;background:var(--bg);border:1px solid var(--ln);color:var(--ink);flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.spec{width:100%;border-collapse:collapse;font-size:13.5px}
+.spec th{text-align:left;color:var(--mu);font-weight:600;font-size:12.5px;padding:6px 14px 6px 0;border-bottom:1px solid var(--ln);white-space:nowrap}
+.spec td{padding:10px 14px 10px 0;border-bottom:1px solid var(--ln);vertical-align:top}
+.cmp{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:10px;padding:16px 18px;border:1px solid var(--ln);border-radius:10px}
+.cmp h3{font-size:14px;font-weight:700;margin:0}
+.cmp p{font-size:13px;color:var(--mu)}
+.demo{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;min-height:34px}
+.rule{height:10px;background:var(--run);border-radius:2px;display:block}
+@keyframes ds-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes ds-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes ds-ring{0%,100%{box-shadow:0 0 0 0 var(--runs)}50%{box-shadow:0 0 0 5px var(--runs)}}
+@keyframes ds-fill{0%{width:0}100%{width:42%}}
+.a-pulse{animation:ds-pulse 1.6s ease-in-out infinite}
+.a-blink{animation:ds-blink 1s steps(1) infinite}
+.a-ring{animation:ds-ring 1.6s ease-in-out infinite}
+.a-fill{animation:ds-fill 2.4s cubic-bezier(.16,1,.3,1) infinite alternate}
+@media (prefers-reduced-motion:reduce){.a-pulse,.a-blink,.a-ring,.a-fill{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="tp escuro">
+<div class="ds">
+
+<h1 class="dsh">Componentes, parte 2, e estados de interação</h1>
+<p class="lead">As peças que estavam nas telas e faltavam no catálogo, e como cada peça clicável reage.</p>
+<section class="card"><div class="g" style="gap: 14px"><div class="cmp" style="flex-basis: 100%"><h3>Barra do alto</h3><div class="demo"><div class="top" style="width: 100%; border: 1px solid var(--ln); border-radius: 8px"><div class="brand"><i></i><a href="../screens/products.html">hdast</a><span class="sep">/</span><a href="../screens/product-history.html">Produto</a><span class="sep">/</span><a class="here" href="../screens/summary.html">13/11/2026 · 20:08</a></div><nav class="tabs"><a class="on" href="../screens/summary.html">Resumo</a><a href="../screens/findings.html">Falhas<span class="cnt">3</span></a></nav><div style="margin-left: auto; display: flex; gap: 12px; align-items: center"><span class="sm mu">Cerca: modo estrito</span><span class="chip ch-ok"><i></i>Terminado</span></div></div></div><p>Esquerda: caminho (produtos / produto / teste), cada pedaço é link. Meio: abas, sempre na mesma ordem; a 2ª é "Ao vivo" durante o teste e "Etapas" depois. Direita: modo da cerca (link para a tela Cobertura, onde ela é explicada) e estado. Quebra em linhas no celular.</p></div><div class="cmp" style="flex-basis: 640px"><h3>Tabela</h3><div class="demo"><div class="scroll" style="width: 100%"><table class="tbl" style="min-width: 520px"><tr><th>Quando</th><th>O que rodou</th><th>Falhas graves</th><th>Como terminou</th></tr><tr class="selrow"><td><a href="../screens/summary.html">13/11/2026 · 20:08</a></td><td>Varredura completa</td><td><b style="color: var(--gr)">3</b></td><td><span class="chip ch-ok">terminou</span></td></tr><tr><td><a href="../screens/summary.html">12/11/2026 · 17:02</a></td><td>Varredura completa</td><td><b style="color: var(--gr)">1</b></td><td><span class="chip ch-am">parou no meio</span></td></tr></table></div></div><p>Cabeçalho 13/600 cinza. Linha de 12 px em cima e embaixo. Nenhuma célula quebra linha; se não couber, a tabela rola dentro da caixa. Linha atual com fundo do terceiro tom. A primeira coluna é o link.</p></div><div class="cmp" style="flex-basis: 560px"><h3>Cartão de produto</h3><div class="demo"><a class="card prod" href="../screens/product-history.html" style="flex: 1 1 240px; gap: 8px"><b class="nm">Nome do produto</b><span class="sm mu">40 funções · ambiente de teste</span><span class="chip ch-gr" style="align-self: flex-start"><i></i>3 falhas graves abertas</span></a><div class="card" style="flex: 1 1 200px; border-style: dashed"><b>Testar um produto novo</b><span class="sm mu">Cartão de convite: borda tracejada, não é link.</span></div></div><p>O cartão inteiro é um link; ao passar o mouse, a borda fica azul. O convite tracejado é o estado vazio da tela de Produtos.</p></div><div class="cmp" style="flex-basis: 360px"><h3>Gráfico de colunas</h3><div class="demo"><div style="width: 100%"><div class="trend" role="img" aria-label="Falhas graves por varredura: 1, 4, 3"><div>1<i style="height: 20px"></i></div><div>4<i style="height: 70px"></i></div><div>3<i style="height: 52px"></i></div></div><div class="trendx"><span>12/11 · 17:02</span><span>13/11 · 08:50</span><span>13/11 · 20:08</span></div></div></div><p>Altura da coluna = valor ÷ maior valor × 70 px. Número sempre escrito em cima; data embaixo. No máximo 8 colunas: as mais recentes. Zero vira um traço de 3 px.</p></div><div class="cmp" style="flex-basis: 300px"><h3>Lista chave e valor</h3><div class="demo"><div style="width: 100%"><div class="r" style="border-top: 0"><span class="kvl">Método</span><span class="mono">GET</span></div><div class="r"><span class="kvl">Endereço (URL)</span><span class="mono">/api/pacientes/busca</span></div></div></div><p>Rótulo cinza de 112 px, valor ao lado. Valor técnico em letra de terminal.</p></div><div class="cmp" style="flex-basis: 420px"><h3>Bloco de código</h3><div class="demo"><pre class="term copy" style="width: 100%"><span class="c">GET <span class="hl" style="color: var(--am); background: var(--ams)">endereço do teste</span>/api/busca?nome=<span class="hl">'</span></span></pre></div><p>Vermelho com fundo = o ataque. Amarelo com fundo = o que a pessoa preenche. Um clique seleciona o bloco inteiro (user-select: all). Texto longo quebra em qualquer ponto; nunca rola de lado.</p></div><div class="cmp" style="flex-basis: 420px"><h3>Barras de tempo e tokens</h3><div class="demo"><div style="width: 100%"><div class="cost" style="border-top: 0"><span>Varredura</span><span class="cb"><i style="width: 68%"></i>19 min</span><span class="cb"><i class="tk" style="width: 15%"></i>22 mil</span></div></div></div><p>Tempo em branco, tokens em cinza: cor neutra, porque não é estado. Largura = valor ÷ total. Barra mínima de 4 px. O número vem sempre escrito.</p></div><div class="cmp" style="flex-basis: 300px"><h3>Contador da aba</h3><div class="demo"><span class="cnt">3</span> <span class="cnt" style="background: var(--s2); color: var(--mu)">0</span></div><p>Vermelho quando há falha grave; cinza quando é zero. Nunca some: zero também é informação.</p></div><div class="cmp" style="flex-basis: 420px"><h3>Linha que abre</h3><div class="demo"><div style="width: 100%"><div class="cmd" style="grid-template-columns: 86px 1fr 60px; border-top: 0"><span class="hr">+ 20:11:30</span><code>$ hdast probe</code><span class="chip ch-am">parcial</span></div><div class="cmd" style="grid-template-columns: 86px 1fr 60px"><span class="hr">− 20:12:44</span><code>$ hdast probe</code><span class="chip ch-am">parcial</span></div></div></div><p>É um details/summary. Fechada mostra "+", aberta mostra "−" e ganha fundo do terceiro tom com a resposta embaixo. Funciona com Enter e espaço.</p></div></div></section>
+<section class="card"><h2 class="h">Estados de interação</h2>
+<div class="scroll"><table class="spec" style="min-width: 980px">
+<tr><th>Peça</th><th>Normal</th><th>Mouse em cima</th><th>Foco pelo teclado</th><th>Atual ou escolhida</th><th>Já visitada</th></tr>
+<tr><td><b>Link no texto</b></td><td>azul, sublinhado</td><td>texto claro</td><td rowspan="5">contorno azul de 2 px, <b>afastado 3 px para fora</b>. É igual em tudo, e sempre por fora: assim não se confunde com a borda de "escolhido", que é por dentro e vem com fundo.</td><td>não se aplica</td><td>igual ao normal</td></tr>
+<tr><td><b>Aba</b></td><td>cinza 600</td><td>texto claro</td><td>texto claro, risco azul de 3 px, <code class="mono">aria-current="page"</code></td><td>igual</td></tr>
+<tr><td><b>Item escolhível</b></td><td>borda cinza</td><td>borda azul</td><td>borda azul + fundo azul suave, <code class="mono">aria-current="true"</code></td><td>igual</td></tr>
+<tr><td><b>Cartão de produto</b></td><td>borda cinza</td><td>borda azul</td><td>não se aplica</td><td>igual</td></tr>
+<tr><td><b>Linha que abre</b></td><td>"+" na frente</td><td>fundo do terceiro tom</td><td>"−" e fundo do terceiro tom</td><td>igual</td></tr>
+</table></div>
+<p class="sm mu">Não há estado "desativado": o que não pode ser clicado não é desenhado como link. Transição de cor: 120 ms.</p></section>
+<section class="card"><h2 class="h">Marcadores de estado: forma, cor e texto para leitor de tela</h2>
+<div class="scroll"><table class="spec" style="min-width: 860px">
+<tr><th>Marcador</th><th>Forma</th><th>Quer dizer</th><th>Texto escondido que o leitor de tela fala</th></tr>
+<tr><td><i class="dotk k-ok" style="margin: 0"></i></td><td>círculo cheio</td><td>feito, passou</td><td class="mono">&lt;span class="vh"&gt;ok: &lt;/span&gt;</td></tr>
+<tr><td><i class="dotk k-gr" style="margin: 0"></i></td><td>losango cheio</td><td>falha grave, erro</td><td class="mono">&lt;span class="vh"&gt;grave: &lt;/span&gt;</td></tr>
+<tr><td><i class="dotk k-am" style="margin: 0"></i></td><td>anel médio</td><td>atenção, a confirmar, não testado</td><td class="mono">&lt;span class="vh"&gt;atenção: &lt;/span&gt;</td></tr>
+<tr><td><i class="dotk k-run" style="margin: 0"></i></td><td>anel grosso</td><td>acontecendo agora</td><td class="mono">&lt;span class="vh"&gt;agora: &lt;/span&gt;</td></tr>
+<tr><td><i class="dotk k-no" style="margin: 0"></i></td><td>anel fino</td><td>neutro, não aconteceu</td><td class="mono">nenhum</td></tr>
+<tr><td><i class="dotk k-out" style="margin: 0"></i></td><td>quadrado tracejado</td><td>proibido pela carta</td><td class="mono">&lt;span class="vh"&gt;proibido: &lt;/span&gt;</td></tr>
+</table></div>
+<p class="sm mu">Os quadrados das funções seguem a mesma lógica: quadrado cheio = atacada, círculo = com falha, borda grossa = agora, contorno = na fila. Cada quadrado é um link com <code class="mono">aria-label</code> ("Cadastrar paciente: atacada, sem falha") que leva à linha da função na tela Cobertura.</p></section>
+
+</div>
+</div>
+</body>
+</html>
