@@ -218,3 +218,30 @@ def test_refresh_still_rebuilds_the_indexes_when_the_panel_was_not_written() -> 
 
     assert entry is None
     assert "sem painel" in rig.index_files.written["history-vampi.html"]
+
+
+def test_the_folder_the_preflight_of_a_run_opened_for_itself_is_not_listed_as_a_test() -> None:
+    rig = Rig()
+    orphan = "2026-11-13T20-07-00Z-vampi-0f0f"
+    rig.add_run(NEW, "vampi")
+    stages = list(run_summary().stages)
+    stages[0] = stages[0].model_copy(update={"run_id": orphan})
+    rig.files.summary[NEW] = run_summary(run_id=NEW, stages=tuple(stages))
+    rig.index_files.add(orphan, "vampi")
+
+    rig.indexer().rebuild()
+
+    history = rig.index_files.written["history-vampi.html"]
+    assert history.count("<tr") == 2
+    assert "1 teste feito" in rig.index_files.written["index.html"]
+
+
+def test_a_preflight_folder_that_no_run_cites_stays_listed_as_a_conference_only_test() -> None:
+    rig = Rig()
+    alone = "2026-11-13T20-07-00Z-vampi-0f0f"
+    rig.add_run(NEW, "vampi")
+    rig.index_files.add(alone, "vampi")
+
+    rig.indexer().rebuild()
+
+    assert rig.index_files.written["history-vampi.html"].count("<tr") == 3

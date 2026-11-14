@@ -6,7 +6,7 @@ incompletos"): nunca some e nunca derruba o índice. `IndexedPanel` envolve o `P
 índices sempre que um painel é gerado; `rebuild` é o modo explícito (`hdast panel --index`).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, tzinfo
 from typing import Protocol
@@ -119,9 +119,12 @@ class PanelIndexer:
         Raises:
             ConfigError: Falha de escrita dos índices. Execução ilegível NÃO é erro.
         """
+        folders = self._index_files.list_runs()
+        absorbed = self._absorbed(folders)
         by_product: dict[str, list[RunRow]] = {}
-        for folder in self._index_files.list_runs():
-            by_product.setdefault(folder.product, []).append(self._row(folder))
+        for folder in folders:
+            if folder.run_id not in absorbed:
+                by_product.setdefault(folder.product, []).append(self._row(folder))
         entries = [
             make_entry(product, self._info(product), rows)
             for product, rows in sorted(by_product.items())
@@ -130,6 +133,26 @@ class PanelIndexer:
         written = [self._index_files.write_index(INDEX_FILE, render_products(entries, today))]
         written += [self._write_history(entry, today) for entry in entries]
         return tuple(written)
+
+    def _absorbed(self, folders: Sequence[RunFolder]) -> frozenset[str]:
+        """Pastas que um `run.json` cita como etapa de outra pasta (a conferência do `run`).
+
+        O `run` faz o preflight numa pasta própria e a execução de verdade começa no `probe`, em
+        outra: a primeira não é um teste à parte, é a conferência da segunda.
+        """
+        cited: set[str] = set()
+        for folder in folders:
+            try:
+                summary = self._files.read_summary(folder.run_id)
+            except HarnessError:
+                continue
+            if summary is not None:
+                cited.update(
+                    stage.run_id
+                    for stage in summary.stages
+                    if stage.run_id is not None and stage.run_id != summary.run_id
+                )
+        return frozenset(cited)
 
     def _write_history(self, entry: ProductEntry, today: date) -> str:
         name = history_file(entry.product)

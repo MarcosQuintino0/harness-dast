@@ -58,10 +58,9 @@ def test_the_run_rewrites_the_page_on_each_stage_change_and_once_more_at_the_end
 
     pages = setup.pages()
     assert result.error is None
-    assert len(pages) == 4
-    assert "Alcance · agora" in pages[0]
-    assert "Varredura · agora" in pages[1]
-    assert "Achados · agora" in pages[2]
+    assert len(pages) == 3
+    assert "Varredura · agora" in pages[0]
+    assert "Achados · agora" in pages[1]
 
 
 def test_the_page_reloads_during_the_run_and_not_after_it() -> None:
@@ -226,9 +225,25 @@ def test_the_run_announces_each_stage_and_the_end_to_the_live_port() -> None:
 
     rig.run()
 
-    assert live.stages == ["probe", "scan", "report"]
+    assert live.stages == ["scan", "report"]
     assert len(live.finished) == 1
     assert live.finished[0].run_id == RUN_ID
+
+
+def test_the_live_page_never_uses_the_folder_the_preflight_opened_for_itself() -> None:
+    """O preflight abre uma pasta própria; o probe abre a da execução de verdade."""
+    live = RecordingLive()
+    rig = Rig(
+        live=live,
+        preflight=lambda: PreflightReport(
+            product="demo", ready=True, checks=(), run_id="2026-11-13T09-59-00Z-demo-bbbb"
+        ),
+        report=_outcome,
+    )
+
+    rig.run()
+
+    assert set(live.run_ids) == {RUN_ID}
 
 
 def test_the_scan_announces_each_function_and_the_end() -> None:
