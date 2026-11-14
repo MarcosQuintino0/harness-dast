@@ -135,3 +135,18 @@ def load_transcript(out: Path) -> Transcript | None:
     if not found:
         return None
     return parse_transcript(found[0].read_text(encoding="utf-8", errors="replace"))
+
+
+def load_conversation_events(out: Path) -> list[dict[str, Any]] | None:
+    """Eventos de conversa (`assistant` e `user`, sem repetidos) de `<out>/transcript.*`.
+
+    Devolve `None` se nao ha transcript ou se o texto nao e JSON nem JSONL; lista vazia se o
+    arquivo e JSON mas nao tem evento de conversa. Os eventos mantem a ordem do arquivo.
+    """
+    found = sorted(out.glob("transcript.*"))
+    if not found:
+        return None
+    documents = _parse_json_documents(found[0].read_text(encoding="utf-8", errors="replace"))
+    if documents is None:
+        return None
+    return [doc for doc in _conversation_only(documents) if _is_conversation_event(doc)]

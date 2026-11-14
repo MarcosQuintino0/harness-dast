@@ -8,7 +8,8 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 | --- | --- |
 | `answer-keys/` | Gabaritos em texto (hoje `clinica-piloto.md`). **Nunca** vão para a cópia |
 | `cases/<caso>/case.yml` e `authorization.md` | Um caso: alvo, modos, carta, perfil esperado, gabarito em forma de máquina, orçamento |
-| `runner/` | `python -m evals.runner prepare, snapshot, collect, score, classify` |
+| `runner/` | `python -m evals.runner prepare, snapshot, collect, score, classify, measure, compare` |
+| `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](measurements/README.md) |
 
 Casos: `clinica-piloto` (alvo próprio, com falhas plantadas, que nenhum modelo viu), `vampi` (público; pode estar na memória dos modelos, então serve de linha de base) e `crapi` ([OWASP crAPI](../lab/crapi/README.md), público, só vulnerável, **fora** do `hdast stack up`: veja [O caso crAPI](#o-caso-crapi)). Outro caso entra só com uma pasta nova (veja [Criar um caso](#criar-um-caso)).
 
@@ -110,7 +111,7 @@ Duas formas de lançar:
   Verificado contra um `.output` real de 213 linhas e 55 chamadas de ferramenta: o parser contou 55 (sem o filtro, as cópias de telemetria somavam 6 chamadas repetidas e o texto bruto triplicava).
 - **Não interativo** (a forma que carrega o ambiente sem truque; **não testada** aqui porque gasta modelo): `claude -p "<prompt>" --output-format stream-json --verbose --permission-mode acceptEdits > $out\transcript.jsonl`, dentro do workspace. O `settings.json` do workspace vale: as regras de negação vencem o modo.
 
-Sem transcript **estruturado** (JSON ou JSONL com `tool_use`), as verificações de comando (HTTP direto, limpeza, leitura de `.env`) ficam `n/a` e a nota avisa: confira à mão. Anote os **tokens** e a **duração** que o Claude Code informar.
+Sem transcript **estruturado** (JSON ou JSONL com `tool_use`), as verificações de comando (HTTP direto, limpeza, leitura de `.env`) ficam `n/a` e a nota avisa: confira à mão. Anote os **tokens** e a **duração** que o Claude Code informar (ou deixe o passo 6, `measure`, calcular tudo isso do transcript).
 
 Durante a rodada, `uv run python -m evals.runner snapshot --out $out --label "depois do cadastro"` guarda um instantâneo do perfil (opcional; o `collect` sempre tira um).
 
@@ -126,6 +127,36 @@ uv run python -m evals.runner classify --out $out
 ```
 
 `collect` grava em `$out\trace\`: `runs/` (tudo que o agente produziu), `profile/final/` e `profile/history/` (um commit por instantâneo, com o patch de `products/`), `proxy-audit/` (auditoria do proxy de escopo), `target-state.json` (porta de gestão do piloto, `GET /internal/eval/state`, lida só pelo executor), `tamper.json` (caminhos protegidos alterados) e o transcript. `score` grava `score.json` e `score.md`; `classify`, `classify.md`.
+
+### 6. Medir tempo e tokens por etapa (opcional, depois do transcript)
+
+```powershell
+uv run python -m evals.runner measure --out $out [--label "texto"]
+uv run python -m evals.runner measure --out $out --save v1-1 [--date 2026-11-14]   # copia o resumo para evals/measurements/
+uv run python -m evals.runner compare evals\measurements\<pastaA> evals\measurements\<pastaB> [--json]
+```
+
+`measure` lê só `<out>\transcript.jsonl` (o mesmo arquivo do passo 4; o `trace\runs\*\metrics.json`, se existir, entra como resumo opcional) e grava `<out>\agent-metrics.json` (`schema_version` 1). Não chama modelo e não substitui o `score`: o `--tokens` e o `--duration-seconds` do `score` continuam manuais. O arquivo traz:
+
+- **Totais:** duração (primeiro ao último evento com carimbo de tempo), tokens de entrada, saída, criação de cache e leitura de cache (do `usage` de cada mensagem do agente, uma vez por `message.id`), turnos (mensagens do agente), chamadas de ferramenta por ferramenta, contagem de cada subcomando `hdast`.
+- **Por etapa** (`leitura`, `cadastro`, `alcance`, `varredura`, `triagem`, `outro`): segundos, segundos "pensando" e "esperando ferramenta", tokens, chamadas e contagem dos subcomandos (por exemplo `probe: 4`).
+- **Voltas:** comandos `hdast` repetidos idênticos, comandos que falharam e foram tentados de novo, arquivos lidos mais de uma vez (`Read` e `cat`/`head`/`type`/`Get-Content`; `tail` não conta, porque é espera). Só nomes e contagens, até 20 por lista; nunca conteúdo de arquivo, saída de comando, raciocínio nem valor de argumento (de cada comando sai só o subcomando e o nome das flags). Antes de gravar, o texto é conferido contra `sealed/secrets.json` e a gravação é recusada se um segredo aparecer.
+- **Qualidade:** eventos lidos, malformados, sem carimbo de tempo, mensagens sem `usage`. Dado que o transcript não tem vira `null` (impresso `n/d`), nunca zero.
+
+**Regra das etapas** (determinística, em `runner/metrics_stages.py`):
+
+| Regra | Etapa |
+| --- | --- |
+| Tudo antes do primeiro comando `hdast` | `leitura` |
+| `doctor`, `init`, `profile *`, `spec *`; chamadas sem `hdast` até o primeiro `profile validate` com sucesso (saída 0) | `cadastro` |
+| `probe`; chamadas sem `hdast` depois do cadastro e antes de outro comando | `alcance` |
+| `stack up`, `preflight`, `run`, `scan`, `authz`; chamadas sem `hdast` depois deles | `varredura` |
+| `report`, `triage`; e, depois de um `run` ou `scan`, a primeira chamada que cita `findings.json`, `report.md`/`report.html` ou `triage`, e tudo depois | `triagem` |
+| `stack down`, `stack status`, `stop`, `cleanup`, `secret *`, `version` (a fase de quem vem depois não muda) | `outro` |
+
+Uma chamada com vários comandos `hdast` tem a etapa do mais adiantado. O tempo de **espera** é o intervalo até o resultado de uma ferramenta em aberto (inclui a espera de permissão) e vai para a etapa da chamada; o de **pensar** é todo outro intervalo e vai para a etapa da mensagem seguinte. Os segundos das etapas somam a duração total. Limites: o carimbo de tempo é o da chegada do evento, então o "pensando" inclui a latência da API; chamadas paralelas na mesma mensagem dividem o tempo por ordem de chegada; uma chamada composta (`a && b | tail`) conta como falha se o shell devolveu saída diferente de 0, mesmo que só um dos comandos tenha falhado; `profile validate` que não foi rodado (o agente só usou `spec inspect`) deixa o cadastro valer até o próximo comando de outra etapa.
+
+`--save <rótulo>` copia para `evals/measurements/<AAAA-MM-DD>-<caso>-<rótulo>/` só os resumos e recusa sobrescrever (a data vem de `--date` ou do relógio da CLI). `compare` imprime a tabela de diferenças (B menos A); campo ausente aparece como `n/d`. O tempo de varredura e o tempo por regra do ZAP saem do `metrics.json` das execuções por heurística de nome de campo (`*scan*seconds*`, `*rule*`) até o esquema desse arquivo ser fixado; sem ele, `n/d`.
 
 Repetições e orçamento por rodada ainda não estão fixados (pendência do roadmap). Cada caso traz um orçamento inicial em `budget` (tokens e segundos); trate-o como ponto de partida.
 
