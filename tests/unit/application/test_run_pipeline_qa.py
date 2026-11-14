@@ -100,7 +100,7 @@ class Rig:
         )
 
     def run(self, **kwargs: Any) -> Any:
-        return self.pipeline.execute(RunRequest(product="demo", **kwargs))
+        return self.pipeline.execute(RunRequest(product="demo", **{"authz": False, **kwargs}))
 
 
 def stage_names(summary: RunSummary) -> list[tuple[str, str]]:

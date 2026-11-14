@@ -212,6 +212,9 @@ def clinic_profile_data(**authz: Any) -> dict[str, Any]:
     data["authz"] = {
         "role_order": ["paciente", "admin"],
         "public_operations": ["lerCatalogo"],
+        # A clínica falsa liga a escrita (como uma carta que a autoriza); os testes de ADR 0038
+        # a desligam com `allow_writes=False`.
+        "allow_writes": True,
         **authz,
     }
     return data

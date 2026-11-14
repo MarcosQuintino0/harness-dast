@@ -1,4 +1,4 @@
-"""Comando `hdast run`: preflight, probe, scan, authz (opcional) e report em um só processo."""
+"""Comando `hdast run`: preflight, probe, scan, authz (ligado por padrão) e report."""
 
 from pathlib import Path
 from typing import Annotated
@@ -70,12 +70,13 @@ def run_command(
     authz: Annotated[
         bool,
         typer.Option(
-            "--authz",
-            help="Inclui o teste de autorização entre contas (depois do scan): repete pedidos "
-            "do probe com outras contas. Manda requisições a mais e escreve no alvo. Não roda "
-            "com --skip-scan (o estágio vem depois do scan).",
+            "--authz/--no-authz",
+            help="O teste de autorização entre contas (depois do scan) vem LIGADO: repete "
+            "pedidos do probe com outras contas, só lendo (escrita exige authz.allow_writes no "
+            "perfil, que vem da carta). --no-authz o pula; --authz é aceito por compatibilidade "
+            "e não muda nada. Não roda com --skip-scan.",
         ),
-    ] = False,
+    ] = True,
     fail_on: Annotated[
         FailOn | None,
         typer.Option(
@@ -101,7 +102,7 @@ def run_command(
         ),
     ] = None,
 ) -> int:
-    """Encadeia preflight, probe, scan e report; nunca roda a limpeza."""
+    """Encadeia preflight, probe, scan, authz (só leitura) e report; nunca roda a limpeza."""
     state = get_state(ctx)
     # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
     # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).

@@ -20,6 +20,7 @@ INVALID_VALUE: Final = "INVALID_VALUE"
 PLACEHOLDER: Final = "PLACEHOLDER"
 GATE_DENIED: Final = "GATE_DENIED"
 WIDE_NEEDS_LETTER: Final = "WIDE_NEEDS_LETTER"
+AUTHZ_WRITES_NEEDS_LETTER: Final = "AUTHZ_WRITES_NEEDS_LETTER"
 PRODUCT_MISMATCH: Final = "PRODUCT_MISMATCH"
 PROFILE_REJECTED: Final = "PROFILE_REJECTED"
 
@@ -38,9 +39,10 @@ class LetterIssue(BaseModel):
     Attributes:
         field: Caminho do campo no carta.yml (`scope.allow[0].host`).
         code: Identificador estável (`MISSING`, `UNKNOWN`, `INVALID_VALUE`, `PLACEHOLDER`,
-            `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `PRODUCT_MISMATCH`, `PROFILE_REJECTED`,
+            `GATE_DENIED`, `WIDE_NEEDS_LETTER`, `AUTHZ_WRITES_NEEDS_LETTER`, `PRODUCT_MISMATCH`,
+            `PROFILE_REJECTED`,
             `AUTHORIZATION_EXPIRED`; nos avisos: `ALLOW_ROOT_WILDCARD`, `DELETE_AUTHORIZED`,
-            `DENY_PATHS_EMPTY`, `VALIDITY_OVER_ONE_YEAR`).
+            `DENY_PATHS_EMPTY`, `VALIDITY_OVER_ONE_YEAR`, `AUTHZ_WRITES_AUTHORIZED`).
         message: O que está pendente e o que fazer.
     """
 

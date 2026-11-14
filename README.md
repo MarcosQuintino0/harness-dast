@@ -79,12 +79,12 @@ export HDAST_PRODUCTS_DIR=./meus-produtos          # com lab/vampi/product-profi
 # variáveis VAMPI_* do perfil: veja lab/README.md
 uv run hdast stack up vampi                         # ZAP, proxy de escopo e alvo
 uv run hdast --json run vampi                       # preflight, probe, scan e report num processo
-uv run hdast --json run vampi --authz               # opcional: inclui o teste de autorização entre contas (precisa de duas contas do mesmo papel)
+uv run hdast --json run vampi                       # já inclui o teste de autorização entre contas (só lê; precisa de duas contas do mesmo papel; --no-authz o pula, --authz é aceito e redundante)
 uv run hdast cleanup vampi --run <run_id> --dry-run  # só se o perfil tiver cleanup; uma pessoa confirma
 uv run hdast stack down
 ```
 
-O `run` grava `runs/<run_id>/run.json`, `findings.json`, `report.md` e `report.html` (e `authz.json` com `--authz`). Rode `uv run hdast doctor` antes: ele é o primeiro passo e avisa de problemas do ambiente e do perfil. O modo amplo de caminho (`scope.path_mode: wide`) só entra no perfil se a carta de autorização do dono do produto disser; nem o agente nem uma flag o ligam. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
+O `run` grava `runs/<run_id>/run.json`, `findings.json`, `report.md` e `report.html` (e `authz.json`, salvo com `--no-authz`). Rode `uv run hdast doctor` antes: ele é o primeiro passo e avisa de problemas do ambiente e do perfil. O modo amplo de caminho (`scope.path_mode: wide`) só entra no perfil se a carta de autorização do dono do produto disser; nem o agente nem uma flag o ligam. Ctrl+C ou `hdast stop` (em outro terminal) encerram com segurança.
 
 O segundo comando imprime em stdout um envelope JSON com `schema_version`, `ok` e o resultado do comando. O formato do envelope está em [docs/reference/cli.md](docs/reference/cli.md) e [docs/architecture.md](docs/architecture.md).
 

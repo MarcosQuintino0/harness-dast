@@ -49,10 +49,14 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Apelido | Papel | Nome da variável de ambiente do usuário | da senha
    (a carta traz os NOMES das variáveis; as senhas são entregues por canal
    seguro direto a quem opera e nunca ao agente)
-   Para o teste de autorização entre contas (`hdast run --authz`), liste ao
-   menos DUAS contas do MESMO papel; sem elas esse teste não compara contas.
-   Esse teste manda requisições a mais e escreve no alvo (atribuição em massa):
-   autorize só se o ambiente aguentar.
+   O teste de autorização entre contas roda por padrão no `hdast run` (só lê).
+   Para ele comparar contas, liste ao menos DUAS contas do MESMO papel; sem
+   elas ele diz o que não pôde testar.
+   Esse teste manda requisições a mais. Ele só ESCREVE no alvo (atribuição em
+   massa, métodos de escrita) se esta carta autorizar:
+   [ ] A carta autoriza o teste entre contas a escrever no ambiente
+       Frase da carta que autoriza:
+   Marque só se o ambiente aguentar. Sem a marca, o teste só lê.
 
 7. Limpeza dos dados criados
    [ ] Não haverá limpeza automática (ambiente descartável ou recriado)
@@ -103,6 +107,7 @@ Regras do formulário:
 - **Segredos:** só o NOME (`env:NOME` ou `keyring:NOME`). Um valor de senha no lugar do nome é recusado, e a mensagem não o repete.
 - **`path_mode: wide`** só vale com `source: carta` e a frase da carta em `quote`. Sem `path_mode`, vale `strict`.
 - **`attack.strength`** é opcional; sem ele a CLI não escreve o bloco `scan` e vale o padrão do perfil.
+- **`attack.allow_authz_writes`** é opcional e vale `false` se ausente, nulo ou `desconhecido` ("não sei" é `false`). `true` só passa com `source: carta` e a frase da carta em `quote` (`AUTHZ_WRITES_NEEDS_LETTER` caso contrário), e só um booleano é aceito (o texto "sim" é recusado). Vira `authz.allow_writes: true` no `target.yml`, que libera a atribuição em massa e os métodos de escrita do teste entre contas; a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto. Sem ele, o teste entre contas só lê.
 - **`example_data`** (ids, nomes de arquivo, códigos que existem no ambiente) não vira regra: é informação para o agente escrever o `data-rules.yml`.
 - Campo desconhecido no arquivo é erro (confira a grafia).
 
@@ -213,6 +218,7 @@ Do `carta.yml` ao `target.yml`, campo a campo:
 | `auth.login_max_per_minute` | `auth.login_limit.max_per_minute` |
 | `auth.accounts` | `auth.accounts` |
 | `attack.strength` | `scan.strength` (só se informado) |
+| `attack.allow_authz_writes` | `authz.allow_writes: true` (só se `true` com `source: carta` e `quote`) |
 | `gates.*`, `example_data` | não viram campo do perfil |
 
 O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes.

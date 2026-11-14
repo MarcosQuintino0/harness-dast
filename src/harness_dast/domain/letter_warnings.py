@@ -20,6 +20,7 @@ ALLOW_ROOT_WILDCARD: Final = "ALLOW_ROOT_WILDCARD"
 DELETE_AUTHORIZED: Final = "DELETE_AUTHORIZED"
 DENY_PATHS_EMPTY: Final = "DENY_PATHS_EMPTY"
 VALIDITY_OVER_ONE_YEAR: Final = "VALIDITY_OVER_ONE_YEAR"
+AUTHZ_WRITES_AUTHORIZED: Final = "AUTHZ_WRITES_AUTHORIZED"
 
 _ROOT_WILDCARD: Final = "/**"
 _ONE_YEAR: Final = timedelta(days=365)
@@ -49,7 +50,7 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
     """Avisos sobre o perfil gerado da carta (não bloqueiam, não mudam o que é gerado).
 
     Avisa: permissão com `/**` na raiz, método `DELETE` autorizado, nenhum caminho proibido e
-    validade a mais de um ano.
+    validade a mais de um ano e escrita do teste entre contas autorizada pela carta.
     """
     warnings: list[LetterIssue] = []
     for index, rule in enumerate(profile.scope.allow):
@@ -98,6 +99,19 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                 message=(
                     f"A autorização vale por mais de um ano (até {valid_until.isoformat()}). "
                     "Confirme com o dono do produto que a validade está certa."
+                ),
+            )
+        )
+    if profile.authz.allow_writes:
+        warnings.append(
+            LetterIssue(
+                field="attack.allow_authz_writes",
+                code=AUTHZ_WRITES_AUTHORIZED,
+                message=(
+                    "A carta autoriza o teste entre contas a ESCREVER no alvo (atribuição em "
+                    "massa e métodos de escrita na verificação vertical): ele pode alterar dados "
+                    "do ambiente. Confirme com o dono do produto que a carta diz isso e que o "
+                    "ambiente é de teste com dados sintéticos."
                 ),
             )
         )

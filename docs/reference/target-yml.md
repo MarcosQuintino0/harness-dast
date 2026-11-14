@@ -430,16 +430,17 @@ scan:
 
 ## `authz` (opcional)
 
-Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
+Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`, que vem ligado por padrão; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
 | `public_operations` | lista de `operationId` (até 200) | vazia | Operações legitimamente públicas ou compartilhadas entre contas: BOLA e BFLA as ignoram (sem isto, um recurso público viraria alarme falso). Operação que não existe no OpenAPI é erro de configuração |
 | `role_order` | lista de papéis (até 20) | vazia | Papéis do MENOR para o MAIOR privilégio (os `role` de `auth.accounts`). Necessário para a verificação vertical; sem ele o estágio diz que não pôde testar |
 | `volatile_fields` | lista de nomes de campo (até 50) | vazia | Campos ignorados ao comparar respostas, além de `timestamp`, `requestId`, `traceId`, `correlationId`, `date`, `now`, `elapsed`, `etag`, `nonce` (a comparação ignora maiúsculas e separadores) |
-| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Escrita só entra se o perfil listar |
+| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Os de escrita (`POST`, `PUT`, `PATCH`) só entram no plano com `allow_writes: true`; sem ele são retirados e o resultado traz a nota (`writes_not_authorized`) |
 | `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa. `value` é texto, inteiro ou booleano |
 | `disabled_checks` | lista de `horizontal`, `excessive_data`, `vertical`, `mass_assignment` | vazia | Verificações desligadas |
+| `allow_writes` | booleano | `false` | A carta de autorização permite que o teste entre contas **escreva** no alvo ([ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)). Com `false`, a atribuição em massa vai para `not_tested` ("escrita não autorizada pela carta: authz.allow_writes") e os métodos de escrita de `vertical_methods` ficam fora do plano; `--check mass_assignment` não o liga. Só `hdast init --from-letter` o escreve (`attack.allow_authz_writes` com `source: carta` e `quote`); texto como `"sim"` é recusado. Entra na impressão digital da aprovação: mudar exige aprovar de novo |
 
 ```yaml
 authz:

@@ -1,13 +1,16 @@
 # `hdast authz`: teste de autorização entre contas
 
-Decisão: [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md). O ZAP varre uma requisição por vez, com uma identidade, e não conhece o esquema de resposta do produto; por isso não acha BOLA, BFLA, atribuição em massa nem exposição excessiva de dados. O `authz` é um estágio **determinístico, sem ZAP**, que roda depois do `probe` e repete com outras contas os pedidos que o `probe` já provou com sucesso.
+Decisões: [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md) e [ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md) (estágio ligado por padrão no `run` e escrita só com a carta). O ZAP varre uma requisição por vez, com uma identidade, e não conhece o esquema de resposta do produto; por isso não acha BOLA, BFLA, atribuição em massa nem exposição excessiva de dados. O `authz` é um estágio **determinístico, sem ZAP**, que roda depois do `probe` e repete com outras contas os pedidos que o `probe` já provou com sucesso.
 
 ```bash
 uv run hdast --json authz meu-produto --run <run_id do probe>
 uv run hdast authz meu-produto --run <run_id> --dry-run                  # só o plano e o que não pode ser testado
 uv run hdast authz meu-produto --run <run_id> --check horizontal         # só uma verificação (repetível)
-uv run hdast run meu-produto --authz                                     # dentro do run: depois do scan, antes do report
+uv run hdast run meu-produto                                             # dentro do run: depois do scan, antes do report (ligado por padrão)
+uv run hdast run meu-produto --no-authz                                  # pula o estágio (é redução)
 ```
+
+**No `run` o estágio vem ligado** (ADR 0038) e, por padrão, só LÊ: `horizontal`, `excessive_data` e `vertical` restrita a `GET` e `HEAD`. A flag `--authz` continua aceita por compatibilidade e não muda nada. Com `--skip-scan` o estágio fica `skipped`. Sem contas ou pedidos suficientes ele **não derruba o `run`**: cada verificação que não pôde rodar vai para `not_tested` com o motivo.
 
 | Flag | Efeito |
 | --- | --- |
@@ -18,9 +21,21 @@ uv run hdast run meu-produto --authz                                     # dentr
 
 As contas vêm do perfil (`auth.accounts`), nunca de flag: o agente só cita apelidos.
 
+## Escrita só com a carta (`authz.allow_writes`)
+
+A atribuição em massa e os métodos de escrita (`POST`, `PUT`, `PATCH`) de `authz.vertical_methods` **escrevem no alvo** e por isso só rodam com `authz.allow_writes: true` no perfil. Esse campo nasce da carta de autorização: `attack.allow_authz_writes` do `carta.yml`, com `source: carta` e a frase da carta em `quote`, vira `authz.allow_writes: true` em `hdast init --from-letter` (e a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto). Ausente, `null`, `desconhecido` ou `false` valem `false`.
+
+Sem `allow_writes`, em `hdast authz` e no `run`:
+
+- `mass_assignment` não envia nada: vai para `not_tested` com `reason: writes_not_authorized` e a mensagem "escrita não autorizada pela carta: authz.allow_writes" (o resumo da verificação sai `skipped`);
+- os métodos de escrita de `vertical_methods` saem do plano (só `GET` e `HEAD` são repetidos) e `not_tested` ganha uma nota `writes_not_authorized` da verificação `vertical` dizendo quais saíram;
+- `--check mass_assignment` **não liga a escrita** (flags só reduzem): o resultado é o mesmo `not_tested`, não um erro.
+
+O bloco `authz` inteiro entra na impressão digital da aprovação humana ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md)): ligar ou desligar `allow_writes` exige aprovar o escopo de novo.
+
 ## O que cada verificação faz
 
-Ordem fixa, do que não escreve no alvo para o que escreve.
+Ordem fixa, do que não escreve no alvo para o que escreve. As que escrevem (`mass_assignment` e os métodos de escrita da `vertical`) só rodam com `authz.allow_writes`.
 
 | Verificação | Pedido repetido | Achado quando | Severidade |
 | --- | --- | --- | --- |
@@ -48,6 +63,9 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 | `no_peer_account` | Não há outra conta do mesmo papel da dona do pedido | Cadastre uma segunda conta do mesmo papel em `auth.accounts` e roteie a operação para uma delas em `auth.account_map` |
 | `no_path_parameter` | `GET` sem identificador no caminho (coleção) | Nada: coleções não são comparadas entre contas |
 | `public_operation` | A operação está em `authz.public_operations` | Nada (declarado) |
+| `writes_not_authorized` | `mass_assignment` (ou métodos de escrita de `vertical_methods`) pedido sem `authz.allow_writes` no perfil | Nada: a carta não autorizou escrita. Se o dono do produto autoriza, a pessoa registra em `attack.allow_authz_writes` da carta, gera o perfil de novo e aprova o escopo |
+| `no_exchanges` | O `probe` não registrou nenhum pedido com sucesso (`exchanges.json` vazio): vale para cada verificação | Faça o `probe` alcançar operações (`fix-reachability`) |
+| `exchanges_unavailable` | No estágio do `run`, `exchanges.json` ausente ou ilegível: o estágio não derruba a execução e cada verificação diz isto | Rode o `probe` de novo; o comando `hdast authz` solto recusa essa situação como erro de configuração |
 | `no_role_order` | `authz.role_order` ausente (vale para toda a verificação vertical) | Declare os papéis do menor ao maior |
 | `role_not_ranked` | O papel da conta dona não está em `role_order` | Inclua o papel |
 | `no_lower_role_account` | Não há conta de papel menor | Cadastre uma conta de papel menor |
@@ -64,11 +82,11 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 
 ## Limites conhecidos (também em `limits` do `authz.json`)
 
-BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas, salvo quando o perfil lista métodos de escrita em `authz.vertical_methods`. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
+BOLA só em leituras (`GET`) com identificador no caminho; escritas sobre recurso de outra conta não são repetidas, salvo quando o perfil lista métodos de escrita em `authz.vertical_methods` **e** `authz.allow_writes` está ligado. Exposição excessiva só em respostas de `GET`. `additionalProperties` do OpenAPI não é modelado (objeto sem `properties` é tratado como livre). BFLA só em operações atribuídas por regra explícita de `auth.account_map` e nos métodos de `authz.vertical_methods` (padrão `GET`, `HEAD`). Atribuição em massa só com os campos declarados, um por pedido; a restauração é de melhor esforço (o `cleanup` e o reset do ambiente seguem sendo a garantia). Achados de autorização não entram em `--compare` nem na triagem (`triage.json`). O `report` ainda exige `scan.json`: para ter `findings.json` com a seção `authz`, rode `scan` antes do `report`.
 
 ## Bloco `authz` do perfil
 
-Opcional e aditivo na `schema_version` 1. Veja [target-yml.md](target-yml.md#authz-opcional).
+Opcional e aditivo na `schema_version` 1 (`allow_writes`, ADR 0038, também). Veja [target-yml.md](target-yml.md#authz-opcional).
 
 ## `data` do envelope e `authz.json`
 

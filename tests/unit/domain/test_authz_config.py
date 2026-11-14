@@ -99,3 +99,49 @@ def test_a_public_operation_that_is_not_in_the_spec_is_a_config_error() -> None:
     with pytest.raises(ConfigError, match="naoExiste"):
         config.ensure_operations_exist(["lerCatalogo"])
     config.ensure_operations_exist(["lerCatalogo", "naoExiste"])
+
+
+# --- escrita só com a carta (ADR 0038) -------------------------------------------------------
+
+
+def test_writes_are_off_by_default_and_the_effective_methods_are_only_the_read_ones() -> None:
+    config = AuthzConfig(vertical_methods=("GET", "HEAD", "POST", "PUT", "PATCH"))
+
+    assert config.allow_writes is False
+    assert config.effective_vertical_methods() == frozenset({"GET", "HEAD"})
+    assert config.dropped_write_methods() == ("PATCH", "POST", "PUT")
+
+
+def test_with_writes_allowed_every_declared_method_stays_in_the_plan() -> None:
+    config = AuthzConfig(vertical_methods=("GET", "POST"), allow_writes=True)
+
+    assert config.effective_vertical_methods() == frozenset({"GET", "POST"})
+    assert config.dropped_write_methods() == ()
+
+
+def test_the_default_methods_drop_nothing_without_writes() -> None:
+    config = AuthzConfig()
+
+    assert config.effective_vertical_methods() == frozenset({"GET", "HEAD"})
+    assert config.dropped_write_methods() == ()
+
+
+@pytest.mark.parametrize("value", ["sim", "true", 1, 0, None, ["x"]])
+def test_allow_writes_accepts_only_a_real_boolean(value: Any) -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig(allow_writes=value)
+
+
+def test_a_profile_with_allow_writes_true_is_loaded() -> None:
+    data = valid_profile_data()
+    data["authz"] = {"allow_writes": True}
+
+    assert ProductProfile.from_data(data).authz.allow_writes is True
+
+
+def test_a_profile_with_a_non_boolean_allow_writes_is_refused_as_a_config_error() -> None:
+    data = valid_profile_data()
+    data["authz"] = {"allow_writes": "sim"}
+
+    with pytest.raises(ConfigError):
+        ProductProfile.from_data(data)

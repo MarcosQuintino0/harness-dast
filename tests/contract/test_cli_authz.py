@@ -348,3 +348,31 @@ def test_authz_of_a_run_without_probe_json_is_refused(
 
     assert code == ExitCode.USAGE
     assert "probe.json" in json.dumps(envelope)
+
+
+def test_authz_check_mass_assignment_without_the_letter_is_not_tested_and_not_an_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "mass_assignment",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    assert envelope["ok"] is True
+    data = envelope["data"]
+    assert data["findings"] == []
+    assert data["requests_sent"] == 0
+    reasons = {(n["check"], n["reason"]) for n in data["not_tested"]}
+    assert ("mass_assignment", "writes_not_authorized") in reasons
+    mass = next(c for c in data["checks"] if c["check"] == "mass_assignment")
+    assert mass["status"] == "skipped"

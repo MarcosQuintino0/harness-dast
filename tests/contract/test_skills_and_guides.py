@@ -298,15 +298,29 @@ def test_test_product_hands_over_the_html_report_and_groups() -> None:
     assert "groups" in text
 
 
-def test_test_product_starts_with_doctor_and_offers_authz_only_with_two_same_role_accounts() -> (
-    None
-):
+def test_test_product_starts_with_doctor_and_runs_authz_by_default_read_only() -> None:
     text = _skill_text("test-product")
 
     assert text.index("hdast doctor") < text.index("## Passos")
-    assert "run <produto> --authz" in text
+    assert "--no-authz" in text
+    assert "authz.allow_writes" in text
     assert "duas contas do mesmo papel" in text
     assert "--skip-scan" in text
+
+
+def test_onboard_product_asks_whether_the_letter_authorizes_authz_writes() -> None:
+    text = _skill_text("onboard-product")
+
+    assert "allow_authz_writes" in text
+    assert "AUTHZ_WRITES_AUTHORIZED" in text
+    assert "Não sei" in text
+
+
+def test_run_scan_says_authz_comes_on_and_never_turns_writes_on() -> None:
+    text = _skill_text("run-scan")
+
+    assert "--no-authz" in text
+    assert "authz.allow_writes" in text
 
 
 def test_test_product_never_turns_wide_path_mode_on_by_itself() -> None:
