@@ -214,14 +214,29 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
-## Ciclo V1.3 a V1.8 (1.3 entregue; 1.4 a 1.8 planejadas)
+### V1.4: achar mais, autorização (entregue em 1.4.0)
+
+Seis entregas, cinco com ADR (0038 a 0042, todos "Proposto"). Todas passam nos gates e nos testes unitários, de contrato e do QA independente, e foram rodadas com Docker na Clínica Piloto, vulnerável e seguro (`tests/integration/test_lab_authz.py`). **Nada foi provado contra produto real.**
+
+| Entrega | Existe como código e testes | O que ainda NÃO foi verificado |
+| --- | --- | --- |
+| `authz` por padrão no `run` e escrita só pela carta ([ADR 0038](adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)) | `--no-authz`, modo tolerante no `run`, `attack.allow_authz_writes` e `authz.allow_writes`, chaves novas no padrão fora da impressão digital | O `run` completo (com varredura) e o `authz` padrão de ponta a ponta com Docker; só `run --skip-scan` e `--no-authz` foram rodados no laboratório |
+| Pedido sem login e token adulterado ([ADR 0039](adr/0039-pedido-sem-login-e-token-adulterado.md)) | `anonymous_access`, `tampered_token`, `allow_reauth`, token nunca gravado | Rodado no laboratório; veja o relatório da versão para o resultado e as ressalvas |
+| Candidatos do OpenAPI e `POST` ([ADR 0040](adr/0040-candidatos-de-campo-proibido-do-openapi.md)) | Candidatos derivados, classes, valor de teste, leitura do recurso criado, `created_resources`, teto de escritas | Rodado no laboratório; veja o relatório da versão |
+| Tabela "quem pode o quê" ([ADR 0041](adr/0041-tabela-quem-pode-o-que.md)) | `authz.access_matrix`, verificação `access_matrix`, `--draft-matrix`, `AUTHZ_CONFIG_INVALID`, subseção no relatório | Uma pessoa conferindo a tabela no `profile approve` de verdade |
+| Escrita em recurso de outra conta e id na consulta ([ADR 0042](adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)) | `horizontal_write`, `authz.id_parameters`, BOLA com id na consulta, restaurador comum | Veja o relatório da versão (o laboratório não tem duas contas do mesmo papel nas escritas) |
+| Correção no portão da limpeza | Palavra reservada não vale como apelido da tabela | Nada pendente |
+
+Relatório da versão: [reviews/relatorio-v1.4.md](reviews/relatorio-v1.4.md).
+
+## Ciclo V1.3 a V1.8 (1.3 e 1.4 entregues; 1.5 a 1.8 planejadas)
 
 Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
 
 | Versão | Tema | Estado |
 | --- | --- | --- |
 | 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
-| 1.4 | Achar mais: autorização | Planejada |
+| 1.4 | Achar mais: autorização | **Entregue em código e testes**, provada no laboratório (ADRs 0038 a 0042); veja "V1.4" acima |
 | 1.5 | Achar mais: entrada e erros | Planejada |
 | 1.6 | Confirmar e relatar | Planejada |
 | 1.7 | Velocidade | Planejada |

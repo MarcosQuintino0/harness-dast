@@ -6,6 +6,54 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-14
+
+Versão do "achar mais: autorização". O teste de autorização entre contas passa a rodar sempre que se roda o `hdast run`, só lendo, e ganha seis verificações novas. Tudo que escreve no alvo continua desligado até a carta autorizar. Provado por testes unitários, de contrato e de QA independente, e com Docker na Clínica Piloto (vulnerável e seguro) por um teste de integração novo. **Nada foi provado contra produto real.**
+
+### Teste de autorização por padrão e escrita só pela carta (ADR 0038)
+
+- `hdast run` roda o estágio `authz` por padrão, com as verificações que só leem (`horizontal`, `excessive_data`, `vertical` em `GET`/`HEAD`, `anonymous_access`, `tampered_token`, `access_matrix` em leitura). `--no-authz` desliga; `--authz` continua aceito e é redundante. Com `--skip-scan` o estágio segue `skipped`.
+- No `run`, falta de dado não derruba a execução: `exchanges.json` ausente ou ilegível vira `not_tested` (`exchanges_unavailable`), vazio vira `no_exchanges` e uma conta só vira `no_peer_account`. O `hdast authz` solto continua recusando `exchanges.json` ausente.
+- Campo novo da carta `attack.allow_authz_writes`: ausente, nulo, `desconhecido` ou `false` valem `false`; `true` só com `source: carta` e a frase em `quote` (senão `AUTHZ_WRITES_NEEDS_LETTER`). Vira `authz.allow_writes: true` no perfil gerado por `hdast init --from-letter`, com o aviso `AUTHZ_WRITES_AUTHORIZED`. Sem ele, nada que escreve é enviado (`writes_not_authorized`), mesmo pedindo `--check mass_assignment`.
+- Impressão digital da aprovação: as chaves novas do `authz` no valor padrão ficam fora do cálculo, então nenhuma aprovação existente se perde; ligar a escrita ou preencher qualquer chave nova muda o bloco `authz` e exige aprovar de novo. Conjuntos (`id_parameters`, `mass_assignment_methods`, a tabela) não dependem da ordem.
+
+### Pedido sem login e token adulterado (ADR 0039)
+
+- Verificações novas, só de leitura: `anonymous_access` (o mesmo `GET` sem credencial nem cookie) e `tampered_token` (JWT sem assinatura, com `alg: none` e com uma reivindicação a mais; token opaco ou chave embaralhados). Técnicas `authz_anonymous_access` (alta se o OpenAPI exige autenticação, média se não declara) e `authz_tampered_token` (alta; CWE 347 ou 287). Campo `variants` nos achados.
+- Um 401 do token adulterado não faz novo login (`allow_reauth` no despachante). O token, original ou adulterado, nunca é gravado. Operações públicas, as declaradas anônimas e login, saúde e preparação ficam de fora.
+
+### Campos proibidos tirados do OpenAPI e cadastro (ADR 0040)
+
+- A atribuição em massa junta os campos declarados com candidatos derivados do OpenAPI (`readonly_in_input`, `response_only`, `name_in_input`; classes privilégio, saldo, preço, estado e outros). Campo de dono (`ownerId`, `tenantId`) nunca é derivado, só declarado. Valor de teste por tipo, que nunca tranca a conta. Teto de 400 escritas por execução.
+- Também em `POST`: o efeito é lido pelo `GET` do recurso criado (id do `Location` ou do corpo) ou pela resposta do próprio `POST`. **Cada candidato testado num cadastro deixa um recurso criado no ambiente de teste** (`created_resources`); quem limpa é o `hdast cleanup` ou o reset do ambiente. 409 vira `create_conflict`.
+- Campos novos do perfil: `authz.derive_mass_candidates`, `max_derived_candidates` e `mass_assignment_methods`. Severidade por classe (alta para declarado, privilégio e saldo; média para o resto).
+
+### Escrita em recurso de outra conta e identificador na consulta (ADR 0042)
+
+- Verificação `horizontal_write`: a conta par repete o `PUT`/`PATCH` sobre o recurso da conta dona com um campo marcador, a dona confere numa leitura e restaura. Só com `allow_writes`; nunca `DELETE` nem `POST`. 401, 403 e 404 contam como negação; 2xx sem efeito vira `accepted_without_visible_effect`; parada no meio vira `possible_unrestored_change`. Técnica `authz_horizontal_write` (CWE 639).
+- O BOLA de leitura passa a trocar de conta também com o identificador na consulta (`/consultas?pacienteId=2`), com valores que o `probe` viu, nunca inventados. Campo novo `authz.id_parameters`. O motivo `no_path_parameter` passa a se chamar `no_object_identifier`.
+
+### Tabela "quem pode o quê" (ADR 0041)
+
+- Bloco novo `authz.access_matrix` (por operação, os papéis que podem e os que não podem), aprovado por uma pessoa no `profile approve`, cujo resumo lista a tabela inteira. Verificação `access_matrix`: cada célula "não pode" é testada com uma conta do papel; 401/403 passam, 2xx falha (técnica `authz_access_matrix`, CWE 285). Papel fora da tabela não é testado. A `vertical` pula as operações cobertas pela tabela.
+- `hdast authz PRODUTO --draft-matrix [--run ID]` grava um rascunho (`authz-matrix.draft.yml`) na pasta do produto, fora do perfil: não envia nada ao alvo e nunca preenche "não pode". Erro novo `AUTHZ_CONFIG_INVALID` (saída 2) para operação ou papel inexistente. Subseção "Tabela quem pode o quê" no `report.md` e no `report.html`.
+
+### Refatoração
+
+- `application/authz_runner.py` (693 linhas) dividido em envio, verificações de leitura, atribuição em massa e um mapa de verificações (`CHECK_RUNNERS`), sem mudar comportamento.
+
+### Correções
+
+- Portão do script de limpeza: palavra reservada (`DROP`, `TRUNCATE`...) não vale mais como apelido da tabela. Um teste de propriedade achou `DELETE FROM PEDIDO DROP/* ... */WHERE ...` aceito; o comentário não chegava ao banco e o Oracle recusaria, mas o portão precisa falhar fechado sozinho.
+- Do QA independente (nenhum defeito grave nem médio): a ordem de `id_parameters` mudava a impressão digital; a `|` vinda do OpenAPI quebrava as tabelas do `report.md` (agora escapada em toda célula); o rascunho da tabela estragava caracteres acima de U+FFFF.
+- Textos do `doctor`, do painel e do relatório que diziam que o teste entre contas era opcional.
+
+### Documentos e testes
+
+- Guia novo [docs/escada-de-testes.md](docs/escada-de-testes.md): até que degrau testar cada mudança e os comandos do ataque direcionado.
+- Teste de integração novo `tests/integration/test_lab_authz.py` (`lab_fast`): o `authz` completo na Clínica Piloto, vulnerável e seguro, com a escrita ligada numa cópia descartável do perfil.
+- Relatório da versão: [docs/reviews/relatorio-v1.4.md](docs/reviews/relatorio-v1.4.md).
+
 ## [1.3.0] - 2026-11-14
 
 Versão do uso seguro e fácil: uma trava por pilha, a carta de autorização em formulário, a aprovação do escopo por uma pessoa e a entrevista inicial nas skills. A trava foi provada com Docker uma vez, no laboratório; o resto foi verificado como código e testes, e **não** foi provado contra produto real, nem o `hdast profile approve` num terminal de verdade, nem a entrevista com uma pessoa, nem uma rodada cega no fluxo novo.
