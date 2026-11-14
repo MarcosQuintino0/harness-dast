@@ -250,3 +250,14 @@ def test_page_shows_the_access_findings_with_labels_and_variant_names() -> None:
     assert TECHNIQUE_LABEL["authz_tampered_token"] in page
     assert "<code>alg_none</code>" in page
     assert "o token não foi gravado" in page
+
+
+def test_page_shows_the_source_of_the_field_and_the_created_resources() -> None:
+    from tests.unit.application.test_report_authz import derived_post_result
+
+    base = with_authz(findings=False)
+    result = derived_post_result()
+    page = render_html(base.model_copy(update={"authz": result}))
+
+    assert "Origem do campo testado:</b> campo que o OpenAPI só mostra na resposta" in page
+    assert "O teste criou 3 recurso(s) no ambiente de teste" in page

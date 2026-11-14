@@ -9,7 +9,7 @@ por técnica. Todo texto que pode vir do alvo (nomes de campo, caminhos, mensage
 """
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested, AuthzResult
 from harness_dast.domain.report_labels import (
     CHECK_LABEL,
@@ -57,6 +57,11 @@ def _finding(item: AuthzFinding) -> str:
         if item.fields
         else ""
     )
+    origin = (
+        f"<p><b>Origem do campo testado:</b> {h.text(SOURCE_TEXT[item.candidate_source], 160)}.</p>"
+        if item.candidate_source is not None
+        else ""
+    )
     variants = (
         "<p><b>Variantes de token aceitas (só nomes; o token não foi gravado):</b> "
         + ", ".join(f"<code>{h.text(name, 40)}</code>" for name in item.variants)
@@ -72,7 +77,7 @@ def _finding(item: AuthzFinding) -> str:
         f"não é achado do ZAP. Achado {h.ident(item.finding_id)}; "
         f"CWE-{item.cwe}, {h.text(item.owasp_api_2023, 120)}.</p>"
         f"<p><b>Onde:</b> <code>{h.ident(item.method + ' ' + item.path_template)}</code>, "
-        f"operação {h.ident(item.operation_id)}, {_who(item)}.</p>{fields}{variants}"
+        f"operação {h.ident(item.operation_id)}, {_who(item)}.</p>{fields}{origin}{variants}"
         f"<p><b>O que foi observado:</b> {h.text(item.evidence, 600)}</p>"
         f"<p><b>O que significa:</b> {h.text(item.description, 600)}</p>"
         "<p><b>Direção de correção (sugestão genérica, não verificada):</b> "
@@ -146,10 +151,17 @@ def authz_section(report: FindingsReport) -> str:
         else "<p>Nenhum achado de autorização. Leia o que NÃO foi testado antes de concluir.</p>"
     )
     limits = "".join(f"<li>{h.text(text, 300)}</li>" for text in authz.limits)
+    created = (
+        f'<p class="note"><b>O teste criou {authz.created_resources} recurso(s) no ambiente de '
+        "teste</b> (<code>POST</code> da atribuição em massa; <code>DELETE</code> é proibido). "
+        "Use <code>hdast cleanup</code> ou o reset do ambiente.</p>"
+        if authz.created_resources
+        else ""
+    )
     return (
         "<h2>Autorização entre contas (técnica própria, determinística)</h2>"
         f"<p>Estado: {h.ident(authz.status)}.{stop} Requisições enviadas pelo estágio: "
         f"{authz.requests_sent}. Contas usadas: {accounts}.</p>"
-        f'<p class="note">{h.text(authz.notice, 600)}</p>{_checks(authz)}{body}'
+        f'<p class="note">{h.text(authz.notice, 600)}</p>{created}{_checks(authz)}{body}'
         f"{_not_tested(authz)}<p><b>Limites desta técnica:</b></p><ul>{limits}</ul>"
     )

@@ -1,16 +1,23 @@
 """Verificação de atribuição em massa e a restauração do que ela altera.
 
-Esta é a única verificação que ESCREVE no alvo: envia um `PUT` com um campo extra e confere,
-na leitura seguinte, se o valor injetado pegou. Quando pegou, tenta devolver o valor anterior
-e confere. Se uma parada (janela, prazo, ZAP, alvo sem resposta) vier depois do `PUT`, a
-restauração ainda é tentada pelo mesmo caminho guardado; se não houver como confirmá-la, o
-aviso `possible_unrestored_change` vai para `not_tested`. Nada disso é engolido: a parada
-volta a ser levantada para o laço.
+Esta é a única verificação que ESCREVE no alvo: envia um `PUT` ou `PATCH` com um campo extra
+(declarado ou derivado do OpenAPI, ADR 0040) e confere, na leitura seguinte, se o valor
+injetado pegou. Quando pegou, tenta devolver o valor anterior e confere. Se uma parada (janela,
+prazo, ZAP, alvo sem resposta) vier depois do envio, a restauração ainda é tentada pelo mesmo
+caminho guardado; se não houver como confirmá-la, o aviso `possible_unrestored_change` vai para
+`not_tested`. Nada disso é engolido: a parada volta a ser levantada para o laço. O `POST` que
+cria recurso tem fluxo próprio (`authz_mass_post`: nada a restaurar). Nunca `DELETE`.
 """
 
-import json
 from dataclasses import dataclass
 
+from harness_dast.application.authz_mass_common import (
+    as_object,
+    choose_injection,
+    current_value,
+    no_body_note,
+)
+from harness_dast.application.authz_mass_post import run_post_candidate
 from harness_dast.application.authz_sender import (
     INTERRUPTIONS,
     CheckContext,
@@ -21,15 +28,16 @@ from harness_dast.application.authz_sender import (
     problem_note,
 )
 from harness_dast.domain.api_schema import JsonValue
+from harness_dast.domain.authz_candidates import Candidate, Injection
 from harness_dast.domain.authz_compare import (
     holds_value,
     injected_effect,
     is_success_status,
     parse_json,
 )
-from harness_dast.domain.authz_config import MassAssignmentField
 from harness_dast.domain.authz_findings import mass_assignment_finding
-from harness_dast.domain.authz_plan import MassTask, Planned
+from harness_dast.domain.authz_plan import Planned
+from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS, MassTask
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
@@ -44,41 +52,70 @@ class _Pending:
 
 
 def run_mass(ctx: CheckContext, plan: Planned[MassTask]) -> CheckResult:
-    """Envia cada campo extra declarado em cada operação de escrita planejada."""
-    fields = ctx.settings.config.mass_assignment_fields
+    """Envia cada campo candidato em cada operação de escrita planejada, um por pedido."""
     out = ctx.begin(
         "mass_assignment",
-        CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks) * len(fields)),
+        CheckResult(
+            not_tested=list(plan.not_tested),
+            candidates=sum(len(task.candidates) for task in plan.tasks),
+        ),
     )
     for task in plan.tasks:
-        for extra in fields:
-            _mass_one(ctx, task, extra, out)
+        _mass_task(ctx, task, out)
     return out
 
 
+def _mass_task(ctx: CheckContext, task: MassTask, out: CheckResult) -> None:
+    original = as_object(task.exchange.body)
+    if original is None:
+        out.not_tested.append(no_body_note(task.exchange))
+        return
+    for candidate in task.candidates:
+        if out.writes >= MAX_MASS_REQUESTS:
+            out.not_tested.append(_budget_note(task))
+            return
+        if task.created:
+            if not run_post_candidate(ctx, task, original, candidate, out):
+                return
+        else:
+            _mass_one(ctx, task, original, candidate, out)
+
+
+def _budget_note(task: MassTask) -> AuthzNotTested:
+    return note(
+        "mass_assignment",
+        task.exchange,
+        "budget_exhausted",
+        f"O teto de {MAX_MASS_REQUESTS} pedidos de escrita por execução foi atingido; os "
+        "campos restantes desta operação ficaram sem teste.",
+    )
+
+
 def _mass_one(
-    ctx: CheckContext, task: MassTask, extra: MassAssignmentField, out: CheckResult
+    ctx: CheckContext,
+    task: MassTask,
+    original: dict[str, JsonValue],
+    candidate: Candidate,
+    out: CheckResult,
 ) -> None:
     exchange = task.exchange
-    original = _as_object(exchange.body)
-    if original is None or _already_sent(original, extra):
-        out.not_tested.append(
-            note(
-                "mass_assignment",
-                exchange,
-                "same_value_in_body",
-                f"O probe já enviou '{extra.name}' com o valor de teste; não dá para "
-                "distinguir. Fixe o campo do probe com uma regra em data-rules.yml ou "
-                "declare outro valor em authz.mass_assignment_fields.",
-            )
+    if candidate.source == "declared":
+        # O valor declarado não depende do estado: um valor repetido é recusado sem ler.
+        chosen = choose_injection(exchange, original, candidate, None)
+        before = _read(ctx, task) if isinstance(chosen, Injection) else None
+    else:
+        before = _read(ctx, task)
+        chosen = choose_injection(
+            exchange, original, candidate, current_value(before, candidate.name)
         )
+    if not isinstance(chosen, Injection):
+        out.not_tested.append(chosen)
         return
-    before = _read(ctx, task)
     pending = _Pending()
     try:
-        _mass_apply(ctx, task, original, extra, before, out, pending)
+        _mass_apply(ctx, task, original, (candidate, chosen), before, out, pending)
     except INTERRUPTIONS:
-        _after_interruption(ctx, task, original, extra, before, pending, out)
+        _after_interruption(ctx, task, original, chosen, before, pending, out)
         raise
 
 
@@ -86,13 +123,15 @@ def _mass_apply(
     ctx: CheckContext,
     task: MassTask,
     original: dict[str, JsonValue],
-    extra: MassAssignmentField,
+    chosen: tuple[Candidate, Injection],
     before: JsonValue | None,
     out: CheckResult,
     pending: _Pending,
 ) -> None:
+    candidate, extra = chosen
     exchange = task.exchange
     pending.attempted = True
+    out.writes += 1
     put = ctx.sender.send(
         exchange, exchange.account, body={**original, extra.name: extra.value}, with_body=True
     )
@@ -113,6 +152,7 @@ def _mass_apply(
         pending.attempted = False
         return
     pending.previous, pending.known = previous, True
+    out.writes += 1
     restored = _restore(ctx, task, original, extra, changed, previous)
     pending.attempted = False
     if restored is not True:
@@ -129,6 +169,8 @@ def _mass_apply(
             changed=changed,
             status=put.status,
             restored=restored,
+            source=candidate.source,
+            kind=candidate.kind,
         )
     )
 
@@ -137,7 +179,7 @@ def _after_interruption(
     ctx: CheckContext,
     task: MassTask,
     original: dict[str, JsonValue],
-    extra: MassAssignmentField,
+    extra: Injection,
     before: JsonValue | None,
     pending: _Pending,
     out: CheckResult,
@@ -158,7 +200,7 @@ def _try_restore(
     ctx: CheckContext,
     task: MassTask,
     original: dict[str, JsonValue],
-    extra: MassAssignmentField,
+    extra: Injection,
     previous: JsonValue,
 ) -> bool:
     if previous is None or isinstance(previous, dict | list):
@@ -201,7 +243,7 @@ def _restore(
     ctx: CheckContext,
     task: MassTask,
     original: dict[str, JsonValue],
-    extra: MassAssignmentField,
+    extra: Injection,
     changed: tuple[str, ...],
     previous: JsonValue,
 ) -> bool | None:
@@ -219,21 +261,3 @@ def _restore(
 def _previous_value(before: JsonValue | None, name: str) -> JsonValue:
     """Valor da leitura anterior com o mesmo nome do campo enviado (`None` se não há)."""
     return before.get(name) if isinstance(before, dict) else None
-
-
-def _already_sent(original: dict[str, JsonValue], extra: MassAssignmentField) -> bool:
-    """O corpo do probe já leva o campo com EXATAMENTE o valor de teste (mesmo tipo)."""
-    if extra.name not in original:
-        return False
-    sent = original[extra.name]
-    return type(sent) is type(extra.value) and sent == extra.value
-
-
-def _as_object(text: str | None) -> dict[str, JsonValue] | None:
-    if text is None:
-        return None
-    try:
-        parsed: JsonValue = json.loads(text)
-    except (ValueError, RecursionError):
-        return None
-    return parsed if isinstance(parsed, dict) else None

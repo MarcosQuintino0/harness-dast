@@ -10,6 +10,7 @@ módulo é puro e não escolhe severidade nem texto: recebe tudo pronto.
 import hashlib
 from typing import Final
 
+from harness_dast.domain.authz_fields import CandidateSource
 from harness_dast.domain.authz_result import (
     AUTHZ_FINGERPRINT_VERSION,
     AuthzFinding,
@@ -69,9 +70,11 @@ def build_finding(
     solution: str,
     variants: tuple[TamperVariant, ...] = (),
     cwe: int | None = None,
+    candidate_source: CandidateSource | None = None,
 ) -> AuthzFinding:
     """Monta o achado com fingerprint, `finding_id` e classe derivados da técnica.
 
+    `candidate_source` (só da atribuição em massa) também fica fora do fingerprint.
     `variants` não entra no fingerprint (o mesmo problema segue o mesmo achado entre execuções).
     `cwe` só substitui o CWE padrão da técnica quando o domínio decide outro (token adulterado).
     """
@@ -102,6 +105,7 @@ def build_finding(
         observed_status=statuses[1],
         fields=fields,
         variants=variants,
+        candidate_source=candidate_source,
         evidence=evidence,
         description=description,
         solution=solution,

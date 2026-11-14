@@ -6,18 +6,15 @@ vira um `AuthzNotTested` com o motivo, para que a ausência de achado nunca seja
 "testado e seguro". Este módulo é puro.
 """
 
-import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 MAX_PEERS: Final = 2
-WRITE_METHODS: Final = frozenset({"PUT", "PATCH"})
 
 
 @dataclass(frozen=True)
@@ -36,20 +33,6 @@ class ReplayTask:
 
 
 @dataclass(frozen=True)
-class MassTask:
-    """Enviar campos extras num `PUT` ou `PATCH` provado pelo `probe`.
-
-    Attributes:
-        exchange: O pedido de atualização.
-        read: Leitura (`GET` do mesmo modelo de caminho, mesma conta) para conferir o efeito,
-            ou `None` (vale a própria resposta da atualização).
-    """
-
-    exchange: ExchangeRecord
-    read: ExchangeRecord | None
-
-
-@dataclass(frozen=True)
 class Planned[T]:
     """Tarefas escolhidas e o que ficou sem teste."""
 
@@ -57,9 +40,10 @@ class Planned[T]:
     not_tested: tuple[AuthzNotTested, ...]
 
 
-def _skip(
+def skip_note(
     check: AuthzCheck, exchange: ExchangeRecord | None, reason: str, message: str
 ) -> AuthzNotTested:
+    """Anotação de operação (ou verificação inteira, sem `exchange`) que não foi testada."""
     return AuthzNotTested(
         check=check,
         operation_id=exchange.operation_id if exchange else None,
@@ -70,7 +54,8 @@ def _skip(
     )
 
 
-def _unique(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
+def unique_exchanges(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
+    """Pedidos sem repetição de (método, alvo, conta), na ordem original."""
     seen: set[tuple[str, str, str]] = set()
     found: list[ExchangeRecord] = []
     for item in exchanges:
@@ -95,15 +80,15 @@ def plan_horizontal(
     """
     tasks: list[ReplayTask] = []
     skips: list[AuthzNotTested] = []
-    for item in _unique([e for e in exchanges if e.method == "GET"]):
+    for item in unique_exchanges([e for e in exchanges if e.method == "GET"]):
         if item.operation_id in public:
             skips.append(
-                _skip("horizontal", item, "public_operation", "Marcada como pública no perfil.")
+                skip_note("horizontal", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
         if "{" not in item.path:
             skips.append(
-                _skip(
+                skip_note(
                     "horizontal",
                     item,
                     "no_path_parameter",
@@ -115,7 +100,7 @@ def plan_horizontal(
         peers = [a for a, r in roles.items() if r == owner_role and a != item.account]
         if owner_role is None or not peers:
             skips.append(
-                _skip(
+                skip_note(
                     "horizontal",
                     item,
                     "no_peer_account",
@@ -133,7 +118,7 @@ def plan_horizontal(
 
 def plan_excessive(exchanges: Sequence[ExchangeRecord]) -> Planned[ExchangeRecord]:
     """Dado a mais: cada `GET` com sucesso (o esquema de resposta é conferido pelo caso de uso)."""
-    return Planned(tuple(_unique([e for e in exchanges if e.method == "GET"])), ())
+    return Planned(tuple(unique_exchanges([e for e in exchanges if e.method == "GET"])), ())
 
 
 def plan_vertical(
@@ -158,7 +143,7 @@ def plan_vertical(
         return Planned(
             (),
             (
-                _skip(
+                skip_note(
                     "vertical",
                     None,
                     "no_role_order",
@@ -170,10 +155,10 @@ def plan_vertical(
     rank = {role: index for index, role in enumerate(role_order)}
     tasks: list[ReplayTask] = []
     skips: list[AuthzNotTested] = []
-    for item in _unique([e for e in exchanges if e.method in methods]):
+    for item in unique_exchanges([e for e in exchanges if e.method in methods]):
         if item.operation_id in public:
             skips.append(
-                _skip("vertical", item, "public_operation", "Marcada como pública no perfil.")
+                skip_note("vertical", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
         if assigned(item) != item.account:
@@ -181,7 +166,7 @@ def plan_vertical(
         owner_role = roles.get(item.account)
         if owner_role not in rank:
             skips.append(
-                _skip(
+                skip_note(
                     "vertical",
                     item,
                     "role_not_ranked",
@@ -192,7 +177,7 @@ def plan_vertical(
         lower = _lower_accounts(roles, rank, rank[owner_role])
         if not lower:
             skips.append(
-                _skip(
+                skip_note(
                     "vertical",
                     item,
                     "no_lower_role_account",
@@ -212,41 +197,3 @@ def _lower_accounts(
         if role in rank and rank[role] < owner_rank and role not in chosen:
             chosen[role] = alias
     return tuple((alias, role) for role, alias in chosen.items())
-
-
-def _is_json_object(text: str | None) -> bool:
-    if text is None:
-        return False
-    try:
-        return isinstance(json.loads(text), dict)
-    except (ValueError, RecursionError):
-        return False
-
-
-def plan_mass_assignment(
-    exchanges: Sequence[ExchangeRecord], public: frozenset[str]
-) -> Planned[MassTask]:
-    """Atribuição em massa: cada `PUT` ou `PATCH` com corpo JSON (objeto) provado pelo `probe`."""
-    tasks: list[MassTask] = []
-    skips: list[AuthzNotTested] = []
-    reads = [e for e in exchanges if e.method == "GET" and is_success_status(e.status)]
-    for item in _unique([e for e in exchanges if e.method in WRITE_METHODS]):
-        if item.operation_id in public:
-            skips.append(
-                _skip("mass_assignment", item, "public_operation", "Marcada como pública.")
-            )
-        elif not _is_json_object(item.body):
-            skips.append(
-                _skip(
-                    "mass_assignment",
-                    item,
-                    "no_json_body",
-                    "O probe não guardou um corpo JSON (objeto) para esta operação.",
-                )
-            )
-        else:
-            same = [r for r in reads if r.path == item.path and r.account == item.account]
-            exact = [r for r in same if r.target == item.target]
-            chosen = exact or same
-            tasks.append(MassTask(item, chosen[0] if chosen else None))
-    return Planned(tuple(tasks), tuple(skips))

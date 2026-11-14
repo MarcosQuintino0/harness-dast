@@ -175,3 +175,58 @@ def test_the_access_checks_can_be_disabled_and_requested_alone() -> None:
 def test_unknown_check_name_in_disabled_checks_is_refused() -> None:
     with pytest.raises(ValidationError):
         AuthzConfig.model_validate({"disabled_checks": ["token_forjado"]})
+
+
+# --- campos do ADR 0040 -------------------------------------------------------------------
+
+
+def test_the_mass_defaults_derive_six_fields_in_the_three_write_methods() -> None:
+    config = AuthzConfig()
+
+    assert config.derive_mass_candidates is True
+    assert config.max_derived_candidates == 6
+    assert config.mass_assignment_methods == ("PATCH", "POST", "PUT")
+
+
+@pytest.mark.parametrize("value", [0, 21, -1, 6.5, "6", True, None])
+def test_max_derived_candidates_outside_one_to_twenty_or_not_an_integer_is_refused(
+    value: Any,
+) -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig(max_derived_candidates=value)
+
+
+@pytest.mark.parametrize("value", [1, 20])
+def test_max_derived_candidates_accepts_the_limits(value: int) -> None:
+    assert AuthzConfig(max_derived_candidates=value).max_derived_candidates == value
+
+
+@pytest.mark.parametrize("value", [[], ["DELETE"], ["PUT", "DELETE"], ["GET"], ["put"], "PUT", [1]])
+def test_mass_assignment_methods_refuses_empty_delete_and_unknown(value: Any) -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig(mass_assignment_methods=value)
+
+
+def test_mass_assignment_methods_is_sorted_and_deduplicated() -> None:
+    config = AuthzConfig(mass_assignment_methods=("PUT", "PATCH", "PUT"))
+
+    assert config.mass_assignment_methods == ("PATCH", "PUT")
+
+
+@pytest.mark.parametrize("value", ["sim", 1, None, []])
+def test_derive_mass_candidates_must_be_a_boolean(value: Any) -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig(derive_mass_candidates=value)
+
+
+def test_an_unknown_authz_key_is_still_refused() -> None:
+    with pytest.raises(ValidationError):
+        AuthzConfig(derive_everything=True)  # type: ignore[call-arg]
+
+
+def test_a_profile_with_a_bad_mass_key_is_a_config_error() -> None:
+    data = valid_profile_data()
+    data["authz"] = {"mass_assignment_methods": ["DELETE"]}
+
+    with pytest.raises(ConfigError):
+        ProductProfile.from_data(data)

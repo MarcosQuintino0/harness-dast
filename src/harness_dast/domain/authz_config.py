@@ -59,6 +59,10 @@ DEFAULT_VOLATILE_FIELDS: Final = (
 """Nomes (minúsculas, sem separador) ignorados ao comparar respostas, além dos do perfil."""
 
 MAX_MASS_FIELDS: Final = 10
+MASS_METHODS_ALLOWED: Final = frozenset({"PATCH", "POST", "PUT"})
+DEFAULT_MASS_METHODS: Final = ("PATCH", "POST", "PUT")
+MAX_DERIVED_LIMIT: Final = 20
+DEFAULT_DERIVED_LIMIT: Final = 6
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _ROLE = re.compile(r"[^\s]{1,64}")
 
@@ -113,6 +117,12 @@ class AuthzConfig(ProfileModel):
             de escrita de `vertical_methods` ficam fora do plano. Só `hdast init --from-letter`
             o liga, a partir de uma resposta `source: carta` com a frase de origem; nenhuma flag
             da CLI o liga.
+        derive_mass_candidates: Junta à lista declarada os campos que o OpenAPI sugere (ADR
+            0040). Falso volta a testar só `mass_assignment_fields`. Só reduz o que se testa.
+        max_derived_candidates: Máximo de campos derivados por operação (1 a 20).
+        mass_assignment_methods: Métodos testados na atribuição em massa (subconjunto de
+            `PATCH`, `POST` e `PUT`). Sem `POST`, o cadastro não é testado. Só vale com
+            `allow_writes`.
     """
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
@@ -124,6 +134,11 @@ class AuthzConfig(ProfileModel):
     )
     disabled_checks: tuple[AuthzCheck, ...] = ()
     allow_writes: StrictBool = False
+    derive_mass_candidates: StrictBool = True
+    max_derived_candidates: StrictInt = Field(
+        default=DEFAULT_DERIVED_LIMIT, ge=1, le=MAX_DERIVED_LIMIT
+    )
+    mass_assignment_methods: tuple[str, ...] = DEFAULT_MASS_METHODS
 
     @field_validator("role_order")
     @classmethod
@@ -148,6 +163,17 @@ class AuthzConfig(ProfileModel):
         if not value or not set(value) <= VERTICAL_METHODS_ALLOWED:
             raise ValueError(
                 "vertical_methods aceita só GET, HEAD, POST, PUT e PATCH (nunca DELETE)"
+            )
+        return tuple(sorted(set(value)))
+
+    @field_validator("mass_assignment_methods")
+    @classmethod
+    def validate_mass_methods(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Só PATCH, POST e PUT, ao menos um; DELETE e desconhecidos são recusados."""
+        if not value or not set(value) <= MASS_METHODS_ALLOWED:
+            raise ValueError(
+                "mass_assignment_methods aceita só PATCH, POST e PUT (nunca DELETE) e não "
+                "pode ficar vazio"
             )
         return tuple(sorted(set(value)))
 

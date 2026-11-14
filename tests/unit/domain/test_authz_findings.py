@@ -1,5 +1,7 @@
 """Taxonomia dos achados de autorização: severidade, CWE, OWASP e fingerprint."""
 
+from typing import Any
+
 import pytest
 
 from harness_dast.domain.api_model import Operation, SecurityRequirement
@@ -274,3 +276,58 @@ def test_access_findings_carry_no_token_text() -> None:
 
     assert "Bearer" not in text
     assert "eyJ" not in text
+
+
+def mass(source: Any, kind: Any, method: str = "PUT") -> AuthzFinding:
+    return mass_assignment_finding(
+        product="p",
+        operation_id="up",
+        method=method,
+        path_template="/api/me",
+        actor=("pac_a", "paciente"),
+        sent_field="saldo",
+        changed=("saldo",),
+        status=200,
+        restored=None if method == "POST" else True,
+        source=source,
+        kind=kind,
+        observed_in="created_read" if method == "POST" else "update",
+    )
+
+
+def test_the_mass_finding_carries_its_source_and_names_it_in_title_and_evidence() -> None:
+    declared = mass("declared", "balance")
+    derived = mass("response_only", "balance")
+
+    assert declared.candidate_source == "declared"
+    assert "OpenAPI" not in declared.title
+    assert derived.candidate_source == "response_only"
+    assert "campo tirado do OpenAPI" in derived.title
+    assert "só mostra na resposta" in derived.evidence
+
+
+@pytest.mark.parametrize(
+    ("source", "kind", "severity"),
+    [
+        ("declared", "other", "high"),
+        ("response_only", "privilege", "high"),
+        ("readonly_in_input", "balance", "high"),
+        ("response_only", "price", "medium"),
+        ("name_in_input", "state", "medium"),
+        ("response_only", "other", "medium"),
+    ],
+)
+def test_the_mass_severity_follows_the_class(source: Any, kind: Any, severity: str) -> None:
+    assert mass(source, kind).proposed_severity == severity
+
+
+def test_a_post_finding_says_the_created_resource_stays_and_where_it_was_seen() -> None:
+    finding = mass("response_only", "privilege", method="POST")
+
+    assert "continua no ambiente" in finding.evidence
+    assert "leitura do recurso criado" in finding.evidence
+    assert "ao criar o recurso" in finding.evidence
+
+
+def test_the_source_does_not_change_the_fingerprint() -> None:
+    assert mass("declared", "balance").fingerprint == mass("response_only", "price").fingerprint

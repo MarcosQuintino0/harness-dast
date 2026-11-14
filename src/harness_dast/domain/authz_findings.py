@@ -7,7 +7,7 @@ agente nem o adaptador a escolhem:
 | ------------------------ | ------------------------------------------------------- |
 | authz_horizontal         | alta                                                    |
 | authz_vertical           | alta                                                    |
-| authz_mass_assignment    | alta                                                    |
+| authz_mass_assignment    | alta (declarado, privilégio, saldo); média (preço, estado, outros) |
 | authz_excessive_data     | média; alta se algum campo tem nome de segredo/pessoal  |
 
 O CWE, a categoria do OWASP API Top 10 2023 e o fingerprint saem de `build_finding`
@@ -16,8 +16,10 @@ as contas nem os códigos HTTP: o mesmo problema é o mesmo achado entre execuç
 é puro.
 """
 
-from typing import Final
+from typing import Final, Literal
 
+from harness_dast.domain.authz_candidates import mass_severity
+from harness_dast.domain.authz_fields import CandidateKind, CandidateSource
 from harness_dast.domain.authz_finding_build import build_finding
 from harness_dast.domain.authz_result import AuthzFinding, AuthzTechnique
 from harness_dast.domain.authz_sensitive import classify_field_name
@@ -163,6 +165,23 @@ def excessive_data_finding(
     )
 
 
+SOURCE_TEXT: Final[dict[CandidateSource, str]] = {
+    "declared": "campo declarado em authz.mass_assignment_fields",
+    "readonly_in_input": "campo que o OpenAPI marca como somente leitura no corpo de entrada",
+    "response_only": "campo que o OpenAPI só mostra na resposta, não no corpo de entrada",
+    "name_in_input": "campo do corpo de entrada com nome de privilégio",
+}
+"""De onde veio o campo testado, em português (vai no título e na evidência do achado)."""
+
+MassObservation = Literal["update", "created_read", "post_response"]
+_OBSERVED: Final[dict[MassObservation, str]] = {
+    "update": "a leitura seguinte do recurso",
+    "created_read": "a leitura do recurso criado",
+    "post_response": "a resposta do próprio POST",
+}
+
+
+# Passa de 40 linhas porque quase todas são os textos fixos do achado (título, evidência, correção).
 def mass_assignment_finding(
     *,
     product: str,
@@ -174,19 +193,36 @@ def mass_assignment_finding(
     changed: tuple[str, ...],
     status: int,
     restored: bool | None,
+    source: CandidateSource = "declared",
+    kind: CandidateKind = "other",
+    observed_in: MassObservation = "update",
 ) -> AuthzFinding:
-    """Achado de atribuição em massa: o campo extra enviado mudou o estado do recurso."""
-    state = {
-        True: "O valor anterior foi restaurado e conferido.",
-        False: "Não foi possível restaurar o valor anterior: confira o estado da conta.",
-        None: "Não havia valor anterior para restaurar.",
-    }[restored]
+    """Achado de atribuição em massa: o campo extra enviado mudou o estado do recurso.
+
+    A severidade é alta para o campo declarado e para as classes `privilege` e `balance`, e média
+    para as demais (`mass_severity`). Num `POST` não há o que restaurar: o recurso criado com o
+    campo atribuído permanece no alvo, e a evidência diz isso.
+    """
+    created = method.upper() == "POST"
+    if created:
+        state = (
+            "Nada foi restaurado: o recurso criado com o campo atribuído continua no ambiente "
+            "de teste (use `hdast cleanup` ou o reset do ambiente)."
+        )
+    else:
+        state = {
+            True: "O valor anterior foi restaurado e conferido.",
+            False: "Não foi possível restaurar o valor anterior: confira o estado da conta.",
+            None: "Não havia valor anterior para restaurar.",
+        }[restored]
+    origin = "" if source == "declared" else f" (origem: {SOURCE_TEXT[source]})"
+    action = "ao criar o recurso " if created else ""
     return build_finding(
         product=product,
         technique="authz_mass_assignment",
         title=f"{method.upper()} {normalize_path_template(path_template)} aceita o campo "
-        f"extra '{sent_field}'",
-        severity="high",
+        f"extra '{sent_field}'{'' if source == 'declared' else ' (campo tirado do OpenAPI)'}",
+        severity=mass_severity(source, kind),
         operation_id=operation_id,
         method=method,
         path_template=path_template,
@@ -195,8 +231,9 @@ def mass_assignment_finding(
         statuses=(None, status),
         fields=(sent_field, *changed),
         evidence=(
-            f"Ao enviar o campo '{sent_field}' junto do corpo válido, a leitura seguinte "
-            f"mostrou o valor injetado em: {', '.join(changed)}. {state}"
+            f"Ao enviar o campo '{sent_field}' {action}junto do corpo válido{origin}, "
+            f"{_OBSERVED[observed_in]} mostrou o valor injetado em: {', '.join(changed)}. "
+            f"{state}"
         ),
         description=(
             "A API copia campos do corpo para o objeto sem lista de campos permitidos; um "
@@ -206,4 +243,5 @@ def mass_assignment_finding(
             "Usar um objeto de entrada com só os campos editáveis e ignorar ou recusar os "
             "demais; nunca ligar o corpo diretamente à entidade."
         ),
+        candidate_source=source,
     )

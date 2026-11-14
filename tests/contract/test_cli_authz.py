@@ -172,6 +172,7 @@ AUTHZ_KEYS = {
     "started_at",
     "finished_at",
     "requests_sent",
+    "created_resources",
     "accounts",
     "checks",
     "findings",
