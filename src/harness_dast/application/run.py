@@ -37,7 +37,7 @@ from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
 from harness_dast.application.scan import ScanRequest
-from harness_dast.application.scan_ports import RunMetricsRecorder, RunSummarySink
+from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder, RunSummarySink
 from harness_dast.application.stage_errors import (
     authz_stop_error,
     preflight_failure,
@@ -174,6 +174,7 @@ class RunPipeline:
         run_id_fallback: str,
         authz: AuthzStage | None = None,
         metrics: RunMetricsRecorder | None = None,
+        panel: PanelRefresher | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -191,6 +192,8 @@ class RunPipeline:
                 `--authz` assim é um erro de configuração).
             metrics: Gravador do `metrics.json` (ADR 0031); o `run` o refaz no fim, com o tempo
                 de cada estágio (inclusive o `preflight`). `None` desliga a medição.
+            panel: Gerador do painel da execução (ADR 0032); o `run` o chama por último, depois
+                de gravar `run.json`. `None` desliga o painel.
         """
         self._profiles = profiles
         self._authz_stage = authz
@@ -200,6 +203,7 @@ class RunPipeline:
         self._clock = clock
         self._fallback = run_id_fallback
         self._metrics = metrics
+        self._panel = panel
 
     def execute(self, request: RunRequest) -> RunResult:
         """Roda os estágios em ordem e grava `run.json`, aconteça o que acontecer.
@@ -467,6 +471,8 @@ class RunPipeline:
             cleanup_command=self._cleanup_command(request.product, progress.run_id),
         )
         self._sink.write_summary(run_id, summary)
+        if self._panel is not None:
+            self._panel.refresh(request.product, run_id)
         return RunResult(summary, error)
 
     def _record_metrics(

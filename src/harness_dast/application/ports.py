@@ -20,6 +20,7 @@ from harness_dast.application.stack_models import (
 )
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
 from harness_dast.domain.cleanup_gate import CleanupStatement
@@ -30,8 +31,12 @@ from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.request_builder import ValueSource
 from harness_dast.domain.run import RunId
+from harness_dast.domain.run_metrics import RunMetrics
+from harness_dast.domain.run_summary import RunSummary
+from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.secret_ref import SecretRef
 
 
@@ -642,4 +647,64 @@ class HostInspector(Protocol):
 
     def directory_exists(self, path: Path) -> bool:
         """Diz se `path` existe e é uma pasta."""
+        ...
+
+
+class PanelFiles(Protocol):
+    """Arquivos da execução que o painel lê e as páginas que ele grava (ADR 0032).
+
+    Todo arquivo de leitura é opcional: ausente ou ilegível devolve `None` (ilegível levanta
+    `ConfigError`, e o caso de uso trata os dois do mesmo jeito: "não medido"). Também acha a
+    execução mais recente de um produto e grava as páginas HTML em `runs/<run_id>/panel/`.
+    Nenhuma página grava fora dessa pasta.
+    """
+
+    def read_manifest(self, run_id: str) -> RunManifest | None:
+        """Lê `manifest.json`; `None` se não existe."""
+        ...
+
+    def read_probe(self, run_id: str) -> ProbeResult | None:
+        """Lê `probe.json`; `None` se não existe."""
+        ...
+
+    def read_scan(self, run_id: str) -> ScanResult | None:
+        """Lê `scan.json`; `None` se não existe."""
+        ...
+
+    def read_findings(self, run_id: str) -> FindingsReport | None:
+        """Lê `findings.json`; `None` se não existe."""
+        ...
+
+    def read_authz(self, run_id: str) -> AuthzResult | None:
+        """Lê `authz.json`; `None` se o estágio não rodou."""
+        ...
+
+    def read_summary(self, run_id: str) -> RunSummary | None:
+        """Lê `run.json`; `None` quando a execução não passou pelo `hdast run`.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_metrics(self, run_id: str) -> RunMetrics | None:
+        """Lê `metrics.json`; `None` quando não existe (execução anterior à medição).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def latest_run_id(self, product: str) -> str | None:
+        """Execução mais recente do produto (pelo carimbo do `run_id`), ou `None`."""
+        ...
+
+    def write_pages(self, run_id: str, pages: Mapping[str, str]) -> tuple[str, ...]:
+        """Grava as páginas (nome do arquivo -> HTML) e devolve os caminhos relativos à execução.
+
+        Garante: cada arquivo é gravado de forma atômica e o nome nunca sai da pasta do painel.
+
+        Raises:
+            ConfigError: Nome de página inválido ou falha de escrita.
+        """
         ...

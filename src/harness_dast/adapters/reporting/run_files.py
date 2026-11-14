@@ -127,6 +127,18 @@ class FileRunArtifacts:
         """Grava `metrics.json`."""
         self._write(run_id, METRICS_FILE, metrics.model_dump_json(indent=2))
 
+    def read_metrics(self, run_id: str) -> RunMetrics | None:
+        """Lê `metrics.json`; `None` se a execução é anterior à medição."""
+        if not (self._directory(run_id) / METRICS_FILE).exists():
+            return None
+        return self._model(run_id, METRICS_FILE, RunMetrics, "o report")
+
+    def read_summary(self, run_id: str) -> RunSummary | None:
+        """Lê `run.json`; `None` se a execução não passou pelo `hdast run`."""
+        if not (self._directory(run_id) / SUMMARY_FILE).exists():
+            return None
+        return self._model(run_id, SUMMARY_FILE, RunSummary, "o run")
+
     def read_audit(self, run_id: str) -> tuple[AuditEntry, ...]:
         """Lê `audit.jsonl`; uma linha ilegível é erro (a trilha não pode ser adivinhada)."""
         text = self._read_text(run_id, "audit.jsonl", "o probe")

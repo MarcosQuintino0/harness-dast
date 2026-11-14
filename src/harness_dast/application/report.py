@@ -16,7 +16,12 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from harness_dast.application.ports import Clock, ProfileRepository
-from harness_dast.application.scan_ports import ReportSink, RunArtifacts, RunMetricsRecorder
+from harness_dast.application.scan_ports import (
+    PanelRefresher,
+    ReportSink,
+    RunArtifacts,
+    RunMetricsRecorder,
+)
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
@@ -56,6 +61,7 @@ class ReportOutcome:
         threshold: Limiar aplicado (`none` = sem gate).
         exceeds_threshold: Se há achado com severidade proposta no limiar ou acima.
         metrics_file: Arquivo de medição (`metrics.json`, ADR 0031) gravado junto, ou `None`.
+        panel_file: Página de entrada do painel (ADR 0032) gerada junto, ou `None`.
     """
 
     report: FindingsReport
@@ -63,6 +69,7 @@ class ReportOutcome:
     threshold: FailOn
     exceeds_threshold: bool
     metrics_file: str | None = None
+    panel_file: str | None = None
 
 
 class Report:
@@ -77,10 +84,12 @@ class Report:
         clock: Clock,
         harness_version: str,
         metrics: RunMetricsRecorder | None = None,
+        panel: PanelRefresher | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
-        `metrics` grava o `metrics.json` depois dos relatórios; sem ele não há medição.
+        `metrics` grava o `metrics.json` depois dos relatórios; sem ele não há medição. `panel`
+        gera o painel da execução por último (ADR 0032); sem ele não há painel.
         """
         self._profiles = profiles
         self._artifacts = artifacts
@@ -88,6 +97,7 @@ class Report:
         self._clock = clock
         self._version = harness_version
         self._metrics = metrics
+        self._panel = panel
 
     def execute(self, request: ReportRequest) -> ReportOutcome:
         """Gera o relatório.
@@ -131,7 +141,10 @@ class Report:
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
         threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
         metrics_file = self._record_metrics(request, run_id, began)
-        return ReportOutcome(report, files, threshold, exceeds(report, threshold), metrics_file)
+        panel_file = self._panel.refresh(request.product, run_id) if self._panel else None
+        return ReportOutcome(
+            report, files, threshold, exceeds(report, threshold), metrics_file, panel_file
+        )
 
     def _record_metrics(self, request: ReportRequest, run_id: str, began: datetime) -> str | None:
         if self._metrics is None:

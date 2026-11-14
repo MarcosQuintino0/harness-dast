@@ -18,6 +18,7 @@ from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.init import init_command
+from harness_dast.cli.commands.panel import panel_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
@@ -75,6 +76,7 @@ def build_app() -> typer.Typer:
     app.command("scan")(scan_command)
     app.command("authz")(authz_command)
     app.command("report")(report_command)
+    app.command("panel")(panel_command)
     app.command("run")(run_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
