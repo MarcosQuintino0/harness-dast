@@ -16,6 +16,7 @@ from harness_dast.domain.panel_build_content import (
     build_severe,
     build_steps,
     function_names,
+    function_paths,
 )
 from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
 from harness_dast.domain.panel_build_stages import build_stages, build_verdict, settle_stopped
@@ -107,7 +108,8 @@ def build_panel_view(src: PanelSources) -> PanelView:
         de fora, próximos passos e medições. Dado ausente fica `None` ou vazio.
     """
     names = function_names(src.operations)
-    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe)
+    paths = function_paths(src.operations)
+    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe, paths)
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz)
     measurements = build_measurements(src.metrics, src.agent_metrics)
@@ -124,7 +126,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         traffic=src.scan.traffic if src.scan else None,
         traffic_measured=bool(src.scan and src.scan.traffic.enabled),
         counts=counts,
-        groups=build_groups(src.findings),
+        groups=build_groups(src.findings, paths),
         severe=severe,
         left_out=build_left_out(
             functions, src.scan, src.authz, authz_skipped_by_choice=skipped_by_choice

@@ -10,6 +10,7 @@ agente ou do OpenAPI sai por `h.text` ou `h.ident`. O medidor de confiança nunc
 página nunca diz "seguro" nem "aprovado".
 """
 
+from collections import Counter
 from typing import Final
 
 from harness_dast.domain import html_safe as h
@@ -71,13 +72,22 @@ def _found(count: int) -> str:
     return plural(count, "achado", "achados")
 
 
+def _group_label(group: PanelGroup, repeated: frozenset[str]) -> str:
+    """Título do grupo; quando outro grupo tem o mesmo título, diz o campo que os separa."""
+    if group.title in repeated and group.parameter:
+        return f"{group.title} (campo {group.parameter})"
+    return group.title
+
+
 def _group_rows(groups: tuple[PanelGroup, ...]) -> str:
     minor = [group for group in groups if group.severity != "high"]
     shown = minor[:_MAX_GROUPS]
+    titles = Counter(group.title for group in minor)
+    repeated = frozenset(title for title, count in titles.items() if count > 1)
     rows = [
         row(
             "no",
-            h.text(group.title, 120),
+            h.text(_group_label(group, repeated), 160),
             end=f'<span class="end">{h.plain(_found(group.findings_count))}</span>',
             first=index == 0,
         )

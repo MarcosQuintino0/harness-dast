@@ -282,6 +282,8 @@ class PanelGroup(ApiModel):
         cwe: CWE comum, ou `None`.
         locations: Onde aparece, como (método, caminho, id do achado).
         expected_note: Nota fixa quando o padrão costuma ser esperado, ou `None`.
+        parameter: Campo ou parâmetro que a regra apontou (`XSRF-TOKEN`): é o que separa dois
+            grupos de mesmo título.
     """
 
     group_id: str
@@ -292,6 +294,7 @@ class PanelGroup(ApiModel):
     cwe: int | None = None
     locations: tuple[tuple[str, str, str], ...] = ()
     expected_note: str | None = None
+    parameter: str = ""
 
 
 class FindingCounts(ApiModel):

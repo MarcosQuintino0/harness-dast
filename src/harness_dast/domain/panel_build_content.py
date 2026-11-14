@@ -5,6 +5,7 @@ Funções puras sobre os modelos que os arquivos da execução já têm. Cada de
 severidade, apaga achado ou diz "seguro". Módulo puro.
 """
 
+import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Final
@@ -97,6 +98,7 @@ def _zap_finding(
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
     accounts: Mapping[str, str],
+    paths: Mapping[str, str],
 ) -> PanelFinding:
     note = item.triage
     return PanelFinding(
@@ -107,7 +109,7 @@ def _zap_finding(
         confidence=_confidence(item),
         proposed_confidence=item.proposed_confidence,
         method=item.method,
-        path_template=item.path_template,
+        path_template=restore_path(item.path_template, item.operation_id, paths),
         operation_id=item.operation_id,
         function_name=names.get(item.operation_id or ""),
         parameter=item.parameter,
@@ -131,6 +133,7 @@ def _authz_finding(
     item: AuthzFinding,
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
+    paths: Mapping[str, str],
 ) -> PanelFinding:
     return PanelFinding(
         finding_id=item.finding_id,
@@ -139,7 +142,7 @@ def _authz_finding(
         severity=item.proposed_severity,
         confidence=STRONG,
         method=item.method,
-        path_template=item.path_template,
+        path_template=restore_path(item.path_template, item.operation_id, paths),
         operation_id=item.operation_id,
         function_name=names.get(item.operation_id),
         parameter=", ".join(item.fields),
@@ -158,23 +161,26 @@ def build_severe(
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
     probe: ProbeResult | None = None,
+    paths: Mapping[str, str] | None = None,
 ) -> tuple[PanelFinding, ...]:
     """Falhas graves (severidade proposta `high`), da prova mais forte para a mais fraca.
 
-    O `probe` dá o apelido da conta que enviou cada operação (para "Como reproduzir à mão").
+    O `probe` dá o apelido da conta que enviou cada operação (para "Como reproduzir à mão");
+    `paths` devolve o nome dos parâmetros do endereço.
     """
+    known = paths or {}
     accounts = {
         result.operation_id: result.account
         for result in (probe.operations if probe else ())
         if result.account
     }
     found = [
-        _zap_finding(item, names, explanations, accounts)
+        _zap_finding(item, names, explanations, accounts, known)
         for item in (report.findings if report else ())
         if item.proposed_severity == "high"
     ]
     found += [
-        _authz_finding(item, names, explanations)
+        _authz_finding(item, names, explanations, known)
         for item in (authz.findings if authz else ())
         if item.proposed_severity == "high"
     ]
@@ -197,10 +203,14 @@ def build_counts(report: FindingsReport | None, authz: AuthzResult | None) -> Fi
     )
 
 
-def build_groups(report: FindingsReport | None) -> tuple[PanelGroup, ...]:
+def build_groups(
+    report: FindingsReport | None, paths: Mapping[str, str] | None = None
+) -> tuple[PanelGroup, ...]:
     """Grupos do `findings.json` (cada achado em exatamente um)."""
     if report is None:
         return ()
+    operation_of = {item.finding_id: item.operation_id for item in report.findings}
+    known = paths or {}
     return tuple(
         PanelGroup(
             group_id=group.group_id,
@@ -210,12 +220,39 @@ def build_groups(report: FindingsReport | None) -> tuple[PanelGroup, ...]:
             occurrences=group.occurrences,
             cwe=group.cwe,
             locations=tuple(
-                (loc.method, loc.path_template, loc.finding_id) for loc in group.locations
+                (
+                    loc.method,
+                    restore_path(loc.path_template, operation_of.get(loc.finding_id), known),
+                    loc.finding_id,
+                )
+                for loc in group.locations
             ),
             expected_note=group.expected_note,
+            parameter=group.parameter,
         )
         for group in report.groups
     )
+
+
+_PLACEHOLDER: Final = re.compile(r"\{[^{}]*\}")
+
+
+def function_paths(operations: Sequence[Operation]) -> dict[str, str]:
+    """Caminho do Swagger por `operation_id` (com o nome de cada parâmetro: `{crm}`)."""
+    return {item.operation_id: item.path for item in operations}
+
+
+def restore_path(template: str, operation_id: str | None, paths: Mapping[str, str]) -> str:
+    """Devolve o nome do parâmetro que o relatório apagou (`/crm/{}` vira `/crm/{crm}`).
+
+    O relatório guarda o endereço com chaves vazias. Só troca quando o caminho do Swagger da
+    mesma operação, com as chaves esvaziadas, é exatamente o gravado: senão fica o que foi
+    gravado.
+    """
+    real = paths.get(operation_id or "")
+    if real is None or "{}" not in template:
+        return template
+    return real if _PLACEHOLDER.sub("{}", real) == template else template
 
 
 def function_names(operations: Sequence[Operation]) -> dict[str, str]:

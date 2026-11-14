@@ -552,3 +552,38 @@ def test_render_findings_is_a_pure_function_of_the_view() -> None:
     panel_view: PanelView = view()
 
     assert render_findings(panel_view) == render_findings(panel_view)
+
+
+def test_two_groups_with_the_same_title_say_what_tells_them_apart() -> None:
+    groups = (
+        PanelGroup(
+            group_id="G-1",
+            title="Session Management Response Identified",
+            severity="informational",
+            findings_count=29,
+            occurrences=30,
+            parameter="XSRF-TOKEN",
+        ),
+        PanelGroup(
+            group_id="G-2",
+            title="Session Management Response Identified",
+            severity="informational",
+            findings_count=1,
+            occurrences=1,
+            parameter="token",
+        ),
+        PanelGroup(
+            group_id="G-3",
+            title="Cookie No HttpOnly Flag",
+            severity="low",
+            findings_count=30,
+            occurrences=30,
+            parameter="XSRF-TOKEN",
+        ),
+    )
+
+    text = main_text(page_for(finding(), groups=groups))
+
+    assert "Session Management Response Identified (campo XSRF-TOKEN) 29 achados" in text
+    assert "Session Management Response Identified (campo token) 1 achado" in text
+    assert "Cookie No HttpOnly Flag 30 achados" in text

@@ -6,7 +6,7 @@ import pytest
 
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.panel_build import build_panel_view
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation
+from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelView
 from harness_dast.domain.panel_sources import parse_moment
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_summary import StageRecord
@@ -522,3 +522,53 @@ def test_a_probe_with_no_operations_does_not_break_the_view() -> None:
     assert panel_view.functions == ()
     assert panel_view.verdict.functions_attacked == 0
     assert operation("x", "GET", "/x").operation_id == "x"
+
+
+# ---------------------------------------------------------------- endereço com nome de parâmetro
+
+
+def with_empty_placeholder() -> PanelView:
+    """O relatório guarda o endereço como `/users/v1/{}`; o Swagger sabe que é `{username}`."""
+    base = sources()
+    assert base.findings is not None
+    items = tuple(
+        item.model_copy(update={"path_template": "/users/v1/{}"}) for item in base.findings.findings
+    )
+    groups = tuple(
+        group.model_copy(
+            update={
+                "locations": tuple(
+                    loc.model_copy(update={"path_template": "/users/v1/{}"})
+                    for loc in group.locations
+                )
+            }
+        )
+        for group in base.findings.groups
+    )
+    report = base.findings.model_copy(update={"findings": items, "groups": groups})
+    return build_panel_view(sources(findings=report))
+
+
+def test_an_address_with_empty_braces_gets_the_parameter_name_back_from_the_swagger() -> None:
+    panel_view = with_empty_placeholder()
+
+    assert panel_view.severe[0].path_template == "/users/v1/{username}"
+    assert all(
+        path == "/users/v1/{username}"
+        for group in panel_view.groups
+        for _, path, _ in group.locations
+        if path.startswith("/users/v1/")
+    )
+
+
+def test_an_address_that_does_not_match_the_swagger_keeps_what_was_recorded() -> None:
+    base = sources()
+    assert base.findings is not None
+    items = tuple(
+        item.model_copy(update={"path_template": "/outra/{}"}) for item in base.findings.findings
+    )
+    panel_view = build_panel_view(
+        sources(findings=base.findings.model_copy(update={"findings": items}))
+    )
+
+    assert panel_view.severe[0].path_template == "/outra/{}"
