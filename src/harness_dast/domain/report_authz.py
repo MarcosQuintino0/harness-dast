@@ -5,9 +5,10 @@ Fica separada dos achados do ZAP: a técnica é a comparação determinística e
 campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módulo é puro.
 """
 
-from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
-from harness_dast.domain.markdown_safe import code_span, escape_inline
+from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline
+from harness_dast.domain.report_authz_matrix import matrix_lines
 from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL
 
 _MAX_NOT_TESTED = 40
@@ -33,6 +34,15 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
     if item.fields:
         names = ", ".join(code_span(name, 80) for name in item.fields)
         lines.append(f"- **Campos (só nomes; os valores não foram gravados):** {names}.")
+    if item.candidate_source is not None:
+        lines.append(
+            f"- **Origem do campo testado:** {escape_inline(SOURCE_TEXT[item.candidate_source])}."
+        )
+    if item.variants:
+        names = ", ".join(code_span(name, 40) for name in item.variants)
+        lines.append(
+            f"- **Variantes de token aceitas (só nomes; o token não foi gravado):** {names}."
+        )
     lines += [
         f"- **Fingerprint:** {code_span(item.fingerprint)}.",
         "",
@@ -42,6 +52,17 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
         f"**Direção de correção (sugestão genérica):** {escape_inline(item.solution, 400)}",
     ]
     return lines
+
+
+def _created_lines(authz: AuthzResult) -> list[str]:
+    """Aviso dos recursos que um `POST` de teste deixou no alvo (vazio quando não houve)."""
+    if not authz.created_resources:
+        return []
+    return [
+        f"**O teste criou {authz.created_resources} recurso(s) no ambiente de teste** (`POST` da "
+        "atribuição em massa; `DELETE` é proibido). Use `hdast cleanup` ou o reset do ambiente.",
+        "",
+    ]
 
 
 def authz_lines(authz: AuthzResult | None) -> list[str]:
@@ -58,6 +79,7 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         "",
         f"> {escape_inline(authz.notice, 600)}",
         "",
+        *_created_lines(authz),
         "| Verificação | Estado | Candidatos | Testados | Achados |",
         "|---|---|---|---|---|",
     ]
@@ -66,6 +88,7 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         f"{row.tested} | {row.findings} |"
         for row in authz.checks
     ]
+    lines += matrix_lines(authz.access_matrix)
     if authz.findings:
         lines += ["", "### Achados de autorização", ""]
         for item in authz.findings:
@@ -84,9 +107,9 @@ def _not_tested_lines(authz: AuthzResult) -> list[str]:
     lines = ["", "### O que o teste de autorização não pôde testar", ""]
     lines += ["| Verificação | Operação | Motivo | O que fazer |", "|---|---|---|---|"]
     for item in authz.not_tested[:_MAX_NOT_TESTED]:
-        where = code_span(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
+        where = cell_code(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
         lines.append(
-            f"| {CHECK_LABEL[item.check]} | {where} | {code_span(item.reason)} | "
+            f"| {CHECK_LABEL[item.check]} | {where} | {cell_code(item.reason)} | "
             f"{escape_inline(item.message, 200)} |"
         )
     hidden = len(authz.not_tested) - _MAX_NOT_TESTED

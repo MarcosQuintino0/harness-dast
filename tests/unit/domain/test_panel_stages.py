@@ -191,7 +191,7 @@ def test_when_nothing_got_stuck_the_panel_says_so() -> None:
 def test_a_skipped_authz_stage_explains_it_is_optional_and_up_to_the_owner() -> None:
     text = main_text(stages_html())
 
-    assert "O teste entre contas é opcional (hdast run --authz) e o dono do produto decide" in text
+    assert "roda por padrão no hdast run (só leitura); foi desligado com --no-authz" in text
 
 
 # ---------------------------------------------------------------- medição

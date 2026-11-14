@@ -1,28 +1,30 @@
-"""Taxonomia e construção dos achados de autorização: severidade, CWE, OWASP e fingerprint.
+"""Construtores dos achados de autorização por técnica: severidade, rótulo e texto.
 
 A severidade é decidida AQUI, em código, a partir da técnica e do NOME dos campos; nem o
 agente nem o adaptador a escolhem:
 
 | técnica                  | severidade                                              |
 | ------------------------ | ------------------------------------------------------- |
-| authz_horizontal         | alta                                                    |
+| authz_horizontal         | alta; média se só o NOME indica identificador de consulta |
+| authz_horizontal_write   | alta                                                    |
 | authz_vertical           | alta                                                    |
-| authz_mass_assignment    | alta                                                    |
+| authz_access_matrix      | alta                                                    |
+| authz_mass_assignment    | alta (declarado, privilégio, saldo); média (preço, estado, outros) |
 | authz_excessive_data     | média; alta se algum campo tem nome de segredo/pessoal  |
 
-Para as técnicas próprias o CWE e a categoria do OWASP API Top 10 2023 são os da própria
-técnica (não há inferência a partir de um CWE ambíguo). O fingerprint não inclui as contas
-nem os códigos HTTP: o mesmo problema é o mesmo achado entre execuções. Este módulo é puro.
+O CWE, a categoria do OWASP API Top 10 2023 e o fingerprint saem de `build_finding`
+(`authz_finding_build`): são os da própria técnica, sem inferência. O fingerprint não inclui
+as contas nem os códigos HTTP: o mesmo problema é o mesmo achado entre execuções. Este módulo
+é puro.
 """
 
-import hashlib
-from typing import Final
+from typing import Final, Literal
 
-from harness_dast.domain.authz_result import (
-    AUTHZ_FINGERPRINT_VERSION,
-    AuthzFinding,
-    AuthzTechnique,
-)
+from harness_dast.domain.authz_candidates import mass_severity
+from harness_dast.domain.authz_fields import CandidateKind, CandidateSource
+from harness_dast.domain.authz_finding_build import build_finding
+from harness_dast.domain.authz_identifiers import IdentifierRef
+from harness_dast.domain.authz_result import AuthzFinding, AuthzTechnique
 from harness_dast.domain.authz_sensitive import classify_field_name
 from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.zap_alert import Severity
@@ -32,15 +34,13 @@ TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
     "authz_vertical": "Acesso vertical: papel menor chama operação de papel maior (BFLA)",
     "authz_excessive_data": "Exposição excessiva de dados (campos fora do esquema)",
     "authz_mass_assignment": "Atribuição em massa (campo extra aceito)",
+    "authz_anonymous_access": "Acesso sem login",
+    "authz_tampered_token": "Token adulterado aceito",
+    "authz_horizontal_write": "Escrita em recurso de outra conta do mesmo papel (BOLA)",
+    "authz_access_matrix": "Papel que a tabela quem pode o quê proíbe executou a operação (BFLA)",
 }
 """Nome legível de cada técnica, usado no relatório."""
 
-_CLASS: Final[dict[AuthzTechnique, tuple[int, str]]] = {
-    "authz_horizontal": (639, "API1:2023 Broken Object Level Authorization"),
-    "authz_vertical": (285, "API5:2023 Broken Function Level Authorization"),
-    "authz_excessive_data": (213, "API3:2023 Broken Object Property Level Authorization"),
-    "authz_mass_assignment": (915, "API3:2023 Broken Object Property Level Authorization"),
-}
 _MAX_NAMES_IN_TITLE: Final = 3
 
 
@@ -53,74 +53,30 @@ def severity_for_fields(paths: tuple[str, ...]) -> Severity:
     return "medium"
 
 
-def authz_fingerprint(
-    *,
-    product: str,
-    technique: AuthzTechnique,
-    method: str,
-    path_template: str,
-    fields: tuple[str, ...],
-) -> str:
-    """SHA-256 (hex) do achado: técnica, produto, método, modelo de caminho e campos."""
-    parts = (
-        f"hdast-authz-v{AUTHZ_FINGERPRINT_VERSION}",
-        product,
-        technique,
-        method.upper(),
-        normalize_path_template(path_template),
-        ",".join(sorted(fields)),
-    )
-    payload = "".join(f"{len(part)}:{part}" for part in parts)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+def identifier_severity(path_template: str, identifiers: tuple[IdentifierRef, ...]) -> Severity:
+    """Severidade do BOLA de leitura: alta, ou média se só há identificador de consulta sem pista.
+
+    Identificador no caminho, ou de consulta com `owned_hint` (o valor aparece como
+    identificador de caminho da mesma conta dona), é alta. Só o NOME indicando identificador
+    de consulta (`name_only`) é média: filtro público parecido com `?categoriaId=3` é o falso
+    alarme típico (o remédio é `authz.public_operations`).
+    """
+    if "{" in path_template or not identifiers:
+        return "high"
+    return "high" if any(ref.confidence == "owned_hint" for ref in identifiers) else "medium"
 
 
-def _build(
-    *,
-    product: str,
-    technique: AuthzTechnique,
-    title: str,
-    severity: Severity,
-    operation_id: str,
-    method: str,
-    path_template: str,
-    actor: tuple[str, str | None],
-    owner: tuple[str, str | None] | None,
-    statuses: tuple[int | None, int | None],
-    fields: tuple[str, ...],
-    evidence: str,
-    description: str,
-    solution: str,
-) -> AuthzFinding:
-    fingerprint = authz_fingerprint(
-        product=product,
-        technique=technique,
-        method=method,
-        path_template=path_template,
-        fields=fields,
+def _identifier_evidence(identifiers: tuple[IdentifierRef, ...]) -> str:
+    if not identifiers:
+        return ""
+    names = ", ".join(f"`{ref.name}`" for ref in identifiers)
+    hinted = any(ref.confidence == "owned_hint" for ref in identifiers)
+    how = (
+        "o valor também aparece como identificador de caminho da conta dona"
+        if hinted
+        else "só o nome indica identificador"
     )
-    cwe, category = _CLASS[technique]
-    return AuthzFinding(
-        finding_id=f"A-{fingerprint[:8]}",
-        fingerprint=fingerprint,
-        technique=technique,
-        title=title,
-        proposed_severity=severity,
-        cwe=cwe,
-        owasp_api_2023=category,
-        operation_id=operation_id,
-        method=method.upper(),
-        path_template=normalize_path_template(path_template),
-        actor_account=actor[0],
-        actor_role=actor[1],
-        owner_account=owner[0] if owner else None,
-        owner_role=owner[1] if owner else None,
-        baseline_status=statuses[0],
-        observed_status=statuses[1],
-        fields=fields,
-        evidence=evidence,
-        description=description,
-        solution=solution,
-    )
+    return f" Identificador na consulta: {names} ({how})."
 
 
 def horizontal_finding(
@@ -132,24 +88,32 @@ def horizontal_finding(
     actor: tuple[str, str | None],
     owner: tuple[str, str | None],
     statuses: tuple[int, int],
+    identifiers: tuple[IdentifierRef, ...] = (),
 ) -> AuthzFinding:
-    """Achado de BOLA: outra conta do mesmo papel leu o recurso com o mesmo conteúdo."""
-    return _build(
+    """Achado de BOLA: outra conta do mesmo papel leu o recurso com o mesmo conteúdo.
+
+    `identifiers` são os de CONSULTA (ADR 0042): entram em `fields` como `query:<nome>` e na
+    severidade. Sem eles (identificador só no caminho) `fields` fica vazio e o fingerprint
+    é o de sempre.
+    """
+    where = " (identificador na consulta)" if identifiers else ""
+    return build_finding(
         product=product,
         technique="authz_horizontal",
         title=f"{method.upper()} {normalize_path_template(path_template)} devolve o recurso "
-        "de uma conta a outra do mesmo papel",
-        severity="high",
+        f"de uma conta a outra do mesmo papel{where}",
+        severity=identifier_severity(path_template, identifiers),
         operation_id=operation_id,
         method=method,
         path_template=path_template,
         actor=actor,
         owner=owner,
         statuses=statuses,
-        fields=(),
+        fields=tuple(f"query:{ref.name}" for ref in identifiers),
         evidence=(
             f"A conta {owner[0]} e a conta {actor[0]} (mesmo papel) receberam resposta "
             f"{statuses[0]} e {statuses[1]} com corpo equivalente para o mesmo pedido."
+            + _identifier_evidence(identifiers)
         ),
         description=(
             "Um usuário consegue ler um recurso que pertence a outro usuário do mesmo papel, "
@@ -173,7 +137,7 @@ def vertical_finding(
     statuses: tuple[int, int],
 ) -> AuthzFinding:
     """Achado de BFLA: conta de papel menor executou operação atribuída a papel maior."""
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_vertical",
         title=f"{method.upper()} {normalize_path_template(path_template)} aceita conta de "
@@ -212,7 +176,7 @@ def excessive_data_finding(
     shown = ", ".join(fields[:_MAX_NAMES_IN_TITLE])
     more = len(fields) - _MAX_NAMES_IN_TITLE
     suffix = f" e mais {more}" if more > 0 else ""
-    return _build(
+    return build_finding(
         product=product,
         technique="authz_excessive_data",
         title=f"{method.upper()} {normalize_path_template(path_template)} devolve campos fora "
@@ -240,6 +204,23 @@ def excessive_data_finding(
     )
 
 
+SOURCE_TEXT: Final[dict[CandidateSource, str]] = {
+    "declared": "campo declarado em authz.mass_assignment_fields",
+    "readonly_in_input": "campo que o OpenAPI marca como somente leitura no corpo de entrada",
+    "response_only": "campo que o OpenAPI só mostra na resposta, não no corpo de entrada",
+    "name_in_input": "campo do corpo de entrada com nome de privilégio",
+}
+"""De onde veio o campo testado, em português (vai no título e na evidência do achado)."""
+
+MassObservation = Literal["update", "created_read", "post_response"]
+_OBSERVED: Final[dict[MassObservation, str]] = {
+    "update": "a leitura seguinte do recurso",
+    "created_read": "a leitura do recurso criado",
+    "post_response": "a resposta do próprio POST",
+}
+
+
+# Passa de 40 linhas porque quase todas são os textos fixos do achado (título, evidência, correção).
 def mass_assignment_finding(
     *,
     product: str,
@@ -251,29 +232,47 @@ def mass_assignment_finding(
     changed: tuple[str, ...],
     status: int,
     restored: bool | None,
+    source: CandidateSource = "declared",
+    kind: CandidateKind = "other",
+    observed_in: MassObservation = "update",
 ) -> AuthzFinding:
-    """Achado de atribuição em massa: o campo extra enviado mudou o estado do recurso."""
-    state = {
-        True: "O valor anterior foi restaurado e conferido.",
-        False: "Não foi possível restaurar o valor anterior: confira o estado da conta.",
-        None: "Não havia valor anterior para restaurar.",
-    }[restored]
-    return _build(
+    """Achado de atribuição em massa: o campo extra enviado mudou o estado do recurso.
+
+    A severidade é alta para o campo declarado e para as classes `privilege` e `balance`, e média
+    para as demais (`mass_severity`). Num `POST` não há o que restaurar: o recurso criado com o
+    campo atribuído permanece no alvo, e a evidência diz isso.
+    """
+    created = method.upper() == "POST"
+    if created:
+        state = (
+            "Nada foi restaurado: o recurso criado com o campo atribuído continua no ambiente "
+            "de teste (use `hdast cleanup` ou o reset do ambiente)."
+        )
+    else:
+        state = {
+            True: "O valor anterior foi restaurado e conferido.",
+            False: "Não foi possível restaurar o valor anterior: confira o estado da conta.",
+            None: "Não havia valor anterior para restaurar.",
+        }[restored]
+    origin = "" if source == "declared" else f" (origem: {SOURCE_TEXT[source]})"
+    action = "ao criar o recurso " if created else ""
+    return build_finding(
         product=product,
         technique="authz_mass_assignment",
         title=f"{method.upper()} {normalize_path_template(path_template)} aceita o campo "
-        f"extra '{sent_field}'",
-        severity="high",
+        f"extra '{sent_field}'{'' if source == 'declared' else ' (campo tirado do OpenAPI)'}",
+        severity=mass_severity(source, kind),
         operation_id=operation_id,
         method=method,
         path_template=path_template,
         actor=actor,
         owner=None,
         statuses=(None, status),
-        fields=(sent_field, *changed),
+        fields=(sent_field, *(path for path in changed if path != sent_field)),
         evidence=(
-            f"Ao enviar o campo '{sent_field}' junto do corpo válido, a leitura seguinte "
-            f"mostrou o valor injetado em: {', '.join(changed)}. {state}"
+            f"Ao enviar o campo '{sent_field}' {action}junto do corpo válido{origin}, "
+            f"{_OBSERVED[observed_in]} mostrou o valor injetado em: {', '.join(changed)}. "
+            f"{state}"
         ),
         description=(
             "A API copia campos do corpo para o objeto sem lista de campos permitidos; um "
@@ -283,4 +282,5 @@ def mass_assignment_finding(
             "Usar um objeto de entrada com só os campos editáveis e ignorar ou recusar os "
             "demais; nunca ligar o corpo diretamente à entidade."
         ),
+        candidate_source=source,
     )

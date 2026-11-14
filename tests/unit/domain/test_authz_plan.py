@@ -1,15 +1,15 @@
 """Plano do teste de autorização: o que repetir, com qual conta, e o que fica sem teste."""
 
-import json
-
+from harness_dast.domain.api_model import Operation
+from harness_dast.domain.authz_identifiers import IdentifierRef
 from harness_dast.domain.authz_plan import (
     MAX_PEERS,
     plan_excessive,
     plan_horizontal,
-    plan_mass_assignment,
     plan_vertical,
 )
 from harness_dast.domain.probe_exchange import ExchangeRecord
+from tests.fakes.rig import INT, operation, parameter
 
 ROLES = {"a1": "paciente", "a2": "paciente", "a3": "paciente", "boss": "admin", "doc": "medico"}
 ORDER = ("paciente", "medico", "admin")
@@ -61,8 +61,80 @@ def test_horizontal_skips_public_collections_and_writes() -> None:
     assert plan.tasks == ()
     assert {n.operation_id: n.reason for n in plan.not_tested} == {
         "pub": "public_operation",
-        "lista": "no_path_parameter",
+        "lista": "no_object_identifier",
     }
+
+
+def query_list_op() -> Operation:
+    return operation(
+        "lista",
+        "get",
+        "/api/consultas",
+        parameters=(parameter("pacienteId", INT, "query"), parameter("page", INT, "query")),
+    )
+
+
+def test_horizontal_a_get_with_an_identifier_in_the_query_enters_with_the_reference() -> None:
+    item = ex("lista", path="/api/consultas", target="/api/consultas?pacienteId=2&page=1")
+
+    plan = plan_horizontal([item], ROLES, frozenset(), [query_list_op()])
+
+    assert [t.identifiers for t in plan.tasks] == [
+        (IdentifierRef("query", "pacienteId", "name_only"),)
+    ] * 2
+
+
+def test_horizontal_a_path_identifier_keeps_the_query_references_empty() -> None:
+    plan = plan_horizontal([ex("ver")], ROLES, frozenset())
+
+    assert [t.identifiers for t in plan.tasks] == [()] * 2
+
+
+def test_horizontal_a_collection_without_a_declared_identifier_is_no_object_identifier() -> None:
+    item = ex("lista", path="/api/consultas", target="/api/consultas?pacienteId=2")
+
+    without_spec = plan_horizontal([item], ROLES, frozenset())
+    only_page = plan_horizontal(
+        [ex("lista", path="/api/consultas", target="/api/consultas?page=1")],
+        ROLES,
+        frozenset(),
+        [query_list_op()],
+    )
+
+    assert without_spec.tasks == ()
+    assert only_page.tasks == ()
+    assert [n.reason for n in without_spec.not_tested] == ["no_object_identifier"]
+    assert [n.reason for n in only_page.not_tested] == ["no_object_identifier"]
+
+
+def test_horizontal_a_query_identifier_with_an_odd_value_is_ambiguous_not_guessed() -> None:
+    item = ex("lista", path="/api/consultas", target="/api/consultas?pacienteId=1,2")
+
+    plan = plan_horizontal([item], ROLES, frozenset(), [query_list_op()])
+
+    assert plan.tasks == ()
+    assert [n.reason for n in plan.not_tested] == ["ambiguous_identifier"]
+    assert "pacienteId" in plan.not_tested[0].message
+
+
+def test_horizontal_a_declared_id_parameter_adds_a_read_candidate() -> None:
+    op = operation("lista", "get", "/api/consultas", parameters=(parameter("cpf", INT, "query"),))
+    item = ex("lista", path="/api/consultas", target="/api/consultas?cpf=123")
+
+    plan = plan_horizontal([item], ROLES, frozenset(), [op], ("cpf",))
+
+    assert len(plan.tasks) == 2
+
+
+def test_horizontal_a_query_identifier_respects_public_operations_and_peers() -> None:
+    item = ex("lista", path="/api/consultas", target="/api/consultas?pacienteId=2")
+    lone = ex("lista", path="/api/consultas", target="/api/consultas?pacienteId=2", account="boss")
+
+    public = plan_horizontal([item], ROLES, frozenset({"lista"}), [query_list_op()])
+    alone = plan_horizontal([lone], ROLES, frozenset(), [query_list_op()])
+
+    assert [n.reason for n in public.not_tested] == ["public_operation"]
+    assert [n.reason for n in alone.not_tested] == ["no_peer_account"]
 
 
 def test_horizontal_reports_a_role_with_a_single_account() -> None:
@@ -205,48 +277,3 @@ def test_vertical_never_plans_delete_even_if_somehow_listed() -> None:
     )
 
     assert plan.tasks == ()
-
-
-# --- atribuição em massa -----------------------------------------------------------------------
-
-
-def test_mass_assignment_pairs_the_update_with_a_read_of_the_same_path_and_account() -> None:
-    body = json.dumps({"nome": "x"})
-    items = [
-        ex("ler", path="/api/me", target="/api/me"),
-        ex("ler_outro", path="/api/me", target="/api/me", account="a2"),
-        ex("atualizar", method="PUT", path="/api/me", target="/api/me", body=body),
-    ]
-
-    plan = plan_mass_assignment(items, frozenset())
-
-    assert [
-        (t.exchange.operation_id, t.read.operation_id if t.read else None) for t in plan.tasks
-    ] == [("atualizar", "ler")]
-
-
-def test_mass_assignment_without_a_read_uses_none() -> None:
-    plan = plan_mass_assignment([ex("up", method="PATCH", path="/api/me", body="{}")], frozenset())
-
-    assert plan.tasks[0].read is None
-
-
-def test_mass_assignment_needs_a_json_object_body_and_never_touches_delete_or_post() -> None:
-    items = [
-        ex("sem_corpo", method="PUT"),
-        ex("lista", method="PUT", body="[1]", path="/p2"),
-        ex("quebrado", method="PUT", body="{oops", path="/p3"),
-        ex("apaga", method="DELETE", body="{}"),
-        ex("cria", method="POST", body="{}"),
-        ex("pub", method="PUT", body="{}", path="/p4"),
-    ]
-
-    plan = plan_mass_assignment(items, frozenset({"pub"}))
-
-    assert plan.tasks == ()
-    assert {n.operation_id: n.reason for n in plan.not_tested} == {
-        "sem_corpo": "no_json_body",
-        "lista": "no_json_body",
-        "quebrado": "no_json_body",
-        "pub": "public_operation",
-    }

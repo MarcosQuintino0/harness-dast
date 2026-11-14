@@ -135,7 +135,7 @@ class Rig:
             panel=self.panel,
             live=self.live,
         )
-        return pipeline.execute(request or RunRequest(product="demo"))
+        return pipeline.execute(request or RunRequest(product="demo", authz=False))
 
 
 def _stage_status(result: RunResult) -> dict[str, str]:
@@ -181,7 +181,7 @@ def test_run_has_no_cleanup_command_when_the_profile_has_no_cleanup() -> None:
 def test_run_exits_with_findings_code_when_report_exceeds_threshold() -> None:
     rig = Rig(report=lambda: _outcome(exceeds=True))
 
-    result = rig.run(RunRequest(product="demo", fail_on="high"))
+    result = rig.run(RunRequest(product="demo", authz=False, fail_on="high"))
 
     assert result.error is None
     assert result.summary.exit_code == 1
@@ -240,7 +240,7 @@ def test_run_stops_when_a_stage_raises_a_harness_error() -> None:
 def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> None:
     rig = Rig()
 
-    result = rig.run(RunRequest(product="demo", skip_scan=True))
+    result = rig.run(RunRequest(product="demo", authz=False, skip_scan=True))
 
     assert rig.calls == ["preflight", "probe"]
     assert result.summary.exit_code == 0
@@ -251,7 +251,7 @@ def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> Non
 def test_run_discounts_elapsed_time_from_max_minutes_given_to_scan() -> None:
     rig = Rig()
 
-    rig.run(RunRequest(product="demo", max_minutes=10))
+    rig.run(RunRequest(product="demo", authz=False, max_minutes=10))
 
     assert rig.scan_requests[0].max_minutes == 9
 
@@ -259,7 +259,7 @@ def test_run_discounts_elapsed_time_from_max_minutes_given_to_scan() -> None:
 def test_run_never_gives_scan_less_than_one_minute() -> None:
     rig = Rig()
 
-    rig.run(RunRequest(product="demo", max_minutes=1))
+    rig.run(RunRequest(product="demo", authz=False, max_minutes=1))
 
     assert rig.scan_requests[0].max_minutes == 1
 
@@ -347,7 +347,7 @@ def test_run_deadline_is_reduced_by_max_minutes_and_never_widened() -> None:
     rig = Rig()
     started = rig.clock.now()
 
-    rig.run(RunRequest(product="demo", max_minutes=5))
+    rig.run(RunRequest(product="demo", authz=False, max_minutes=5))
 
     assert rig.scan_requests[0].deadline == started + timedelta(minutes=5)
 

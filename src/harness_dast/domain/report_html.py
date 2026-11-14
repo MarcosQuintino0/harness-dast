@@ -89,7 +89,10 @@ def _summary(report: FindingsReport) -> str:
 def _authz_bullet(report: FindingsReport) -> str:
     authz = report.authz
     if authz is None:
-        return "<li>Autorização entre contas: não rodou (use hdast run --authz).</li>"
+        return (
+            "<li>Autorização entre contas: não rodou "
+            "(o hdast run o roda por padrão; foi pulado).</li>"
+        )
     return (
         f"<li>Autorização entre contas: estado {h.ident(authz.status)}, "
         f"{len(authz.findings)} achado(s), {len(authz.not_tested)} item(ns) não testado(s).</li>"

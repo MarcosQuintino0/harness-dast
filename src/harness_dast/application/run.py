@@ -4,10 +4,14 @@ Para no primeiro estágio que falha, com o código de saída DELE, e sempre grav
 (estágios, estados, tempos, código de saída e artefatos). Nunca roda a limpeza: o dado de teste
 só é apagado por `hdast cleanup`, com confirmação humana; o resumo traz o comando exato.
 
-Estágio opcional `authz` (ADR 0027, `--authz`): depois do `scan` e antes do `report`, repete com
-outras contas os pedidos que o `probe` provou (BOLA, BFLA, dado a mais, atribuição em massa).
-Sem `--authz` ele consta como `skipped` em `run.json`. Se o `authz` parar antes do fim, o
-`report` ainda roda sobre o que existe e o código de saída continua sendo o do `authz`.
+Estágio `authz` (ADR 0027), LIGADO por padrão desde a V1.4 (ADR 0038): depois do `scan` e antes
+do `report`, repete com outras contas os pedidos que o `probe` provou. Por padrão só LÊ (BOLA,
+dado a mais e BFLA em `GET` e `HEAD`); a atribuição em massa e os métodos de escrita da
+verificação vertical só rodam com `authz.allow_writes: true`, que vem da carta. `--no-authz` o
+pula (`skipped` em `run.json`); `--authz` continua aceito e é redundante. Sem contas ou pedidos
+suficientes o estágio NÃO derruba o `run`: cada verificação vai para `not_tested` com o motivo.
+Se o `authz` parar antes do fim, o `report` ainda roda sobre o que existe e o código de saída
+continua sendo o do `authz`.
 
 Prazo: `limits.max_duration_minutes` do perfil (reduzido por `--max-minutes`) vale para a
 execução INTEIRA. O `run` calcula um único prazo absoluto no início do `probe` e o repassa ao
@@ -112,8 +116,9 @@ class RunRequest:
         seed: Semente dos geradores do `probe`.
         skip_scan: Para depois do `probe` (útil para o laço de regras de dados).
         authz: Roda o estágio `authz` (teste de autorização entre contas) depois do `scan` e
-            antes do `report`. Desligado por padrão: manda requisições a mais e, na atribuição
-            em massa, escreve no alvo. Com `skip_scan` o estágio também é pulado.
+            antes do `report`. Ligado por padrão (ADR 0038): manda requisições a mais, mas só
+            lê; escrever exige `authz.allow_writes` no perfil (vem da carta). `False` equivale
+            a `--no-authz`. Com `skip_scan` o estágio também é pulado.
         fail_on: Limiar do `report` (sobrepõe o perfil).
         compare: Execução anterior para a comparação do `report`.
         max_minutes: Reduz o prazo do `scan` (conta o tempo já gasto); nunca amplia o perfil.
@@ -122,7 +127,7 @@ class RunRequest:
     product: str
     seed: int | None = None
     skip_scan: bool = False
-    authz: bool = False
+    authz: bool = True
     fail_on: FailOn | None = None
     compare: str | None = None
     max_minutes: int | None = None
@@ -257,7 +262,7 @@ class RunPipeline:
                     "Tire --skip-scan, ou rode 'hdast authz PRODUTO --run RUN_ID' sobre este "
                     "probe."
                     if request.authz
-                    else "Pedido com --skip-scan."
+                    else "Pedido com --skip-scan e --no-authz."
                 ),
             )
             progress.records["report"] = StageRecord(
@@ -278,7 +283,7 @@ class RunPipeline:
     ) -> None:
         if not request.authz:
             progress.records["authz"] = StageRecord(
-                name="authz", status="skipped", message="Não pedido (use --authz)."
+                name="authz", status="skipped", message="Desligado por --no-authz."
             )
         else:
             try:
@@ -303,6 +308,7 @@ class RunPipeline:
                 product=request.product,
                 run_id=_require(progress.run_id),
                 deadline=progress.deadline,
+                tolerate_missing_exchanges=True,
             )
         )
         counts = Counter(item.proposed_severity for item in result.findings)

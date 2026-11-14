@@ -6,10 +6,16 @@ pedidos pelo MESMO caminho do `probe` (`OperationDispatcher` sobre `GuardedSende
 `authz.json`. Determinístico: não usa o ZAP, não inventa caminho, não troca método e não
 adivinha identificador. Achado é dado para o agente (não vira erro do comando); só paradas no
 meio (janela, prazo, ZAP, alvo sem resposta) viram código de saída, como no `probe`.
+
+Escrita só com a carta (ADR 0038): sem `authz.allow_writes` a atribuição em massa e os métodos de
+escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com o motivo; pedir
+`--check mass_assignment` não liga a escrita (flags só reduzem).
 """
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from datetime import datetime
+from typing import Literal
 
 from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.authz_ports import AuthzArtifacts
@@ -35,15 +41,32 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
+from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
+from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
 from harness_dast.domain.authz_plan import (
     Planned,
+    ReplayTask,
     plan_excessive,
     plan_horizontal,
-    plan_mass_assignment,
     plan_vertical,
 )
-from harness_dast.domain.authz_result import AuthzResult, CheckSummary
+from harness_dast.domain.authz_plan_mass import (
+    MassTask,
+    count_candidates,
+    describe_plan,
+    plan_mass_assignment,
+)
+from harness_dast.domain.authz_plan_write import WriteTask, plan_horizontal_write
+from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
+from harness_dast.domain.authz_writes import (
+    EXCHANGES_UNAVAILABLE,
+    NO_EXCHANGES,
+    horizontal_write_blocked_note,
+    mass_blocked_note,
+    nothing_to_replay_notes,
+    vertical_dropped_note,
+)
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
@@ -62,6 +85,9 @@ class AuthzRequest:
         dry_run: Só planeja (o que seria repetido e o que fica sem teste); nada é enviado nem
             gravado.
         deadline: Prazo absoluto herdado do `run` encadeado; só reduz o prazo do perfil.
+        tolerate_missing_exchanges: Usado pelo estágio do `run`: se `exchanges.json` não puder
+            ser lido, o estágio não derruba a execução; cada verificação vai para `not_tested`
+            com o motivo. O comando `hdast authz` solto continua recusando (erro de configuração).
     """
 
     product: str
@@ -69,6 +95,7 @@ class AuthzRequest:
     checks: tuple[AuthzCheck, ...] = ()
     dry_run: bool = False
     deadline: datetime | None = None
+    tolerate_missing_exchanges: bool = False
 
 
 class _ContinuingTrail(AuditTrail):
@@ -136,8 +163,7 @@ class Authz:
         profile.ensure_runnable(started)
         run_id = require_run_id(request.run_id)
         probe = self._artifacts.read_probe(run_id)
-        log = self._artifacts.read_exchanges(run_id)
-        if probe.product != profile.product or log.product != profile.product:
+        if probe.product != profile.product:
             raise ConfigError(
                 "A execução informada é de outro produto.",
                 hint="Use o run_id do probe deste produto.",
@@ -147,10 +173,13 @@ class Authz:
                 "O probe desta execução foi uma simulação (--dry-run): não há pedidos a repetir.",
                 hint="Rode o probe sem --dry-run e use o run_id dele.",
             )
+        exchanges, unavailable = self._read_exchanges(request, run_id, profile)
         spec = self._specs.load(request.product, profile)
-        profile.authz.ensure_operations_exist([op.operation_id for op in spec.operations])
+        operation_ids = [op.operation_id for op in spec.operations]
+        profile.authz.ensure_operations_exist(operation_ids)
+        profile.authz.ensure_matrix_valid(operation_ids, [a.role for a in profile.auth.accounts])
         checks = profile.authz.enabled_checks(request.checks)
-        plans = _plan(profile, log.exchanges, checks)
+        plans = _plan(profile, exchanges, checks, spec.operations, unavailable)
         if request.dry_run:
             outcome = _dry_outcome(checks, plans)
         else:
@@ -164,7 +193,9 @@ class Authz:
             started_at=started.isoformat(),
             finished_at=self._clock.now().isoformat(),
             requests_sent=outcome.requests_sent,
+            created_resources=outcome.created_resources,
             accounts=outcome.accounts,
+            access_matrix=outcome.access_matrix,
             checks=_all_checks(outcome.checks, profile),
             findings=outcome.findings,
             not_tested=outcome.not_tested,
@@ -172,6 +203,28 @@ class Authz:
         if not request.dry_run:
             self._artifacts.write_authz(run_id, result)
         return result
+
+    def _read_exchanges(
+        self, request: AuthzRequest, run_id: str, profile: ProductProfile
+    ) -> tuple[tuple[ExchangeRecord, ...], str | None]:
+        """Pedidos do `probe` e, se indisponíveis no modo tolerante, o porquê.
+
+        Raises:
+            ConfigError: `exchanges.json` ausente ou inválido fora do modo tolerante, ou de outro
+                produto.
+        """
+        try:
+            log = self._artifacts.read_exchanges(run_id)
+        except ConfigError as error:
+            if not request.tolerate_missing_exchanges:
+                raise
+            return (), error.message
+        if log.product != profile.product:
+            raise ConfigError(
+                "A execução informada é de outro produto.",
+                hint="Use o run_id do probe deste produto.",
+            )
+        return log.exchanges, None
 
     def _run(
         self,
@@ -214,6 +267,7 @@ class Authz:
                 operations={op.operation_id: op for op in operations},
                 dispatcher=dispatcher,
                 sessions=pool,
+                vault=self._vault,
             )
         )
         return runner.run(checks, plans)
@@ -234,7 +288,11 @@ class Authz:
 
 
 def _plan(
-    profile: ProductProfile, exchanges: tuple[ExchangeRecord, ...], checks: tuple[AuthzCheck, ...]
+    profile: ProductProfile,
+    exchanges: tuple[ExchangeRecord, ...],
+    checks: tuple[AuthzCheck, ...],
+    operations: tuple[Operation, ...],
+    unavailable: str | None = None,
 ) -> AuthzPlans:
     config = profile.authz
     roles = {account.alias: account.role for account in profile.auth.accounts}
@@ -244,45 +302,158 @@ def _plan(
     def assigned(item: ExchangeRecord) -> str | None:
         return profile.auth.explicit_account(item.operation_id, item.method, item.path)
 
-    return AuthzPlans(
-        horizontal=plan_horizontal(exchanges, roles, public)
-        if "horizontal" in checks
-        else Planned((), ()),
-        excessive=plan_excessive(exchanges) if "excessive_data" in checks else empty,
-        vertical=plan_vertical(
+    matrix = MatrixPlan()
+    if "access_matrix" in checks and config.access_matrix:
+        matrix = plan_access_matrix(
+            config.access_matrix,
+            exchanges,
+            roles,
+            config.role_order,
+            {op.operation_id: op for op in operations},
+            allow_writes=config.allow_writes,
+        )
+    vertical: Planned[ReplayTask] = Planned((), ())
+    if "vertical" in checks:
+        vertical = plan_vertical(
             exchanges,
             roles,
             config.role_order,
             assigned,
-            frozenset(config.vertical_methods),
+            config.effective_vertical_methods(),
             public,
+            frozenset(rule.operation for rule in config.access_matrix)
+            if "access_matrix" in checks
+            else frozenset(),
         )
-        if "vertical" in checks
+        dropped = config.dropped_write_methods()
+        if dropped:
+            vertical = _noted(vertical, vertical_dropped_note(dropped))
+    mass: Planned[MassTask] = Planned((), ())
+    if "mass_assignment" in checks:
+        mass = (
+            plan_mass_assignment(
+                exchanges, public, config, operations, _infrastructure_paths(profile)
+            )
+            if config.allow_writes
+            else Planned((), (mass_blocked_note(),))
+        )
+    write: Planned[WriteTask] = Planned((), ())
+    if "horizontal_write" in checks:
+        write = (
+            plan_horizontal_write(exchanges, roles, public, operations, config.id_parameters)
+            if config.allow_writes
+            else Planned((), (horizontal_write_blocked_note(),))
+        )
+    plans = AuthzPlans(
+        anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
+        tampered=_access("tampered_token", profile, exchanges, operations, checks),
+        horizontal=plan_horizontal(exchanges, roles, public, operations, config.id_parameters)
+        if "horizontal" in checks
         else Planned((), ()),
-        mass=plan_mass_assignment(exchanges, public)
-        if "mass_assignment" in checks
-        else Planned((), ()),
+        excessive=plan_excessive(exchanges) if "excessive_data" in checks else empty,
+        vertical=vertical,
+        matrix=matrix,
+        mass=mass,
+        horizontal_write=write,
     )
+    return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
+
+
+def _infrastructure_paths(profile: ProductProfile) -> frozenset[str]:
+    """Caminhos de login, saúde e preparação: não são operações de negócio."""
+    return frozenset(
+        path
+        for path in (profile.login_path, profile.probe.health_path, profile.probe.setup_path)
+        if path is not None
+    )
+
+
+def _access(
+    check: Literal["anonymous_access", "tampered_token"],
+    profile: ProductProfile,
+    exchanges: tuple[ExchangeRecord, ...],
+    operations: tuple[Operation, ...],
+    checks: tuple[AuthzCheck, ...],
+) -> Planned[ExchangeRecord]:
+    """Plano de uma verificação de acesso (vazio se ela não foi pedida)."""
+    if check not in checks:
+        return Planned((), ())
+    infrastructure = _infrastructure_paths(profile)
+    return plan_access(
+        check,
+        exchanges,
+        {op.operation_id: op for op in operations},
+        frozenset(profile.authz.public_operations),
+        infrastructure,
+    )
+
+
+def _noted[T](plan: Planned[T], *notes: AuthzNotTested) -> Planned[T]:
+    return Planned(plan.tasks, (*plan.not_tested, *notes))
+
+
+def _nothing_to_replay(
+    plans: AuthzPlans, checks: tuple[AuthzCheck, ...], unavailable: str | None
+) -> AuthzPlans:
+    """Sem pedido do `probe`, cada verificação diz o porquê em vez de sumir."""
+    if unavailable is None:
+        reason = NO_EXCHANGES
+        why = (
+            "O probe não registrou nenhum pedido com sucesso (exchanges.json vazio): não há "
+            "o que repetir. Faça o probe alcançar operações (fix-reachability) e rode de novo."
+        )
+    else:
+        reason = EXCHANGES_UNAVAILABLE
+        why = f"Os pedidos do probe não puderam ser lidos ({unavailable}): nada foi repetido."
+    notes = nothing_to_replay_notes(checks, reason=reason, why=why)
+    return AuthzPlans(
+        horizontal=_noted(plans.horizontal, *_note(notes, "horizontal")),
+        excessive=_noted(plans.excessive, *_note(notes, "excessive_data")),
+        anonymous=_noted(plans.anonymous, *_note(notes, "anonymous_access")),
+        tampered=_noted(plans.tampered, *_note(notes, "tampered_token")),
+        vertical=_noted(plans.vertical, *_note(notes, "vertical")),
+        matrix=replace(plans.matrix, notes=(*plans.matrix.notes, *_note(notes, "access_matrix"))),
+        mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
+        horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
+    )
+
+
+def _note(notes: dict[AuthzCheck, AuthzNotTested], check: AuthzCheck) -> tuple[AuthzNotTested, ...]:
+    return (notes[check],) if check in notes else ()
 
 
 def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutcome:
     sizes = {
         "horizontal": plans.horizontal,
         "excessive_data": plans.excessive,
+        "anonymous_access": plans.anonymous,
+        "tampered_token": plans.tampered,
         "vertical": plans.vertical,
+        "access_matrix": plans.matrix.planned,
         "mass_assignment": plans.mass,
+        "horizontal_write": plans.horizontal_write,
     }
-    summaries = tuple(
-        CheckSummary(
-            check=check,
-            status="skipped",
-            candidates=len(sizes[check].tasks),
-            message="Simulação (--dry-run): nada foi enviado.",
-        )
-        for check in checks
-    )
+    summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
+    summaries = tuple(_dry_matrix(item, plans) for item in summaries)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
+
+
+def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) -> CheckSummary:
+    message = "Simulação (--dry-run): nada foi enviado."
+    count = len(tasks)
+    if check == "mass_assignment":
+        count = count_candidates(plans.mass.tasks)
+        if plans.mass.tasks:
+            message += f" Campos por operação: {describe_plan(plans.mass.tasks)}."
+    return CheckSummary(check=check, status="skipped", candidates=count, message=message)
+
+
+def _dry_matrix(summary: CheckSummary, plans: AuthzPlans) -> CheckSummary:
+    """Na simulação, os candidatos da tabela são as células proibidas, não os pedidos a enviar."""
+    if summary.check != "access_matrix":
+        return summary
+    return summary.model_copy(update={"candidates": plans.matrix.candidates})
 
 
 def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple[CheckSummary, ...]:
@@ -290,7 +461,14 @@ def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple
     by_name = {summary.check: summary for summary in ran}
     rows: list[CheckSummary] = []
     for check in CHECK_ORDER:
-        if check in by_name:
+        writes = check in ("mass_assignment", "horizontal_write")
+        if writes and check in by_name and not profile.authz.allow_writes:
+            blocked = "Não rodou: escrita não autorizada pela carta (authz.allow_writes)."
+            rows.append(by_name[check].model_copy(update={"message": blocked}))
+        elif check == "access_matrix" and check in by_name and not profile.authz.access_matrix:
+            empty = "Perfil sem authz.access_matrix: nada a testar."
+            rows.append(by_name[check].model_copy(update={"message": empty}))
+        elif check in by_name:
             rows.append(by_name[check])
         else:
             why = (

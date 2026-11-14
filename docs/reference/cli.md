@@ -18,12 +18,12 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
-| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Referência: [authz.md](authz.md) |
+| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA, tabela "quem pode o quê"), confere campos fora do esquema e testa atribuição em massa; grava `authz.json`. **`--draft-matrix`** (com `--run` opcional) não envia nada: grava um rascunho da tabela "quem pode o quê" em `products/<produto>/authz-matrix.draft.yml` ([ADR 0041](../adr/0041-tabela-quem-pode-o-que.md)) | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); verificado na Clínica Piloto local (H5, H6, H7); BFLA vertical sem prova. Referência: [authz.md](authz.md) |
 | `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json`, `report.md` e `report.html`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast panel <produto> [--run ID]` ou `hdast panel --index` | Gera as páginas HTML do painel da execução (`summary`, `stages`, `findings`, `coverage`, `terminal`, `time-and-tokens`) em `runs/<run_id>/panel/` e refaz os índices `runs/index.html` e `runs/history-<produto>.html`; `report` e `run` também os geram no fim, e o `run` grava `panel/live.html` durante o teste. Sem `--run`, usa a execução mais recente do produto. `--index` sozinho só refaz os índices | Não | Implementado ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto); as seis abas estão desenhadas. Seção abaixo |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
-| `hdast run <produto>` | Encadeia preflight, probe, scan, authz (opcional, `--authz`) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
+| `hdast run <produto>` | Encadeia preflight, probe, scan, authz (ligado por padrão, `--no-authz` o pula) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
@@ -51,13 +51,13 @@ uv run hdast run meu-produto --fail-on high --compare <run_id>  # gate de severi
 uv run hdast run meu-produto --max-minutes 20
 ```
 
-Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `authz` (opcional) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
+Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `authz` (ligado por padrão desde a V1.4, [ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
 
 | Flag | Efeito |
 | --- | --- |
 | `--seed N` | Semente dos geradores do `probe` |
 | `--skip-scan` | Para depois do `probe`; `scan`, `authz` e `report` ficam `skipped` |
-| `--authz` | Inclui o estágio `authz` (teste de autorização entre contas) depois do `scan` e antes do `report`: [authz.md](authz.md). Desligado por padrão, porque manda requisições a mais e escreve no alvo (atribuição em massa); sem a flag o estágio consta como `skipped`. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
+| `--authz` / `--no-authz` | O estágio `authz` (teste de autorização entre contas), depois do `scan` e antes do `report` ([authz.md](authz.md)), **vem ligado**: por padrão só lê (`horizontal`, `excessive_data` e `vertical` em `GET`/`HEAD`); a atribuição em massa e os métodos de escrita só rodam com `authz.allow_writes` no perfil, que vem da carta. `--no-authz` o pula (consta como `skipped`; é redução). `--authz` continua aceito por compatibilidade e é redundante. Com `--skip-scan` ele também fica `skipped`. Sem contas ou pedidos suficientes o estágio não derruba o `run`: as verificações vão para `not_tested` com o motivo. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
 | `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
@@ -157,7 +157,7 @@ Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`
 | `authorization`, `window` | Com produto: mesma regra do `preflight` | `fail` (tipo `scope`) |
 | `secrets:<apelido>` | Com produto: os segredos de `secret_ref` de cada conta existem, como variável de ambiente (`env:`) ou no cofre do sistema (`keyring:`). O nome só aparece no texto, nunca no JSON; para `keyring:` o texto traz o comando `hdast secret set NOME`. Cofre inutilizável também reprova, com a dica | `fail` |
 | `path_mode` | Com produto: só aparece se o perfil tem `scope.path_mode: wide` | `warn`: o modo amplo só é seguro com `deny_paths` completo e só vale se a carta o autoriza |
-| `authz_peers` | Com produto: nenhum papel tem duas contas em `auth.accounts` | `warn`: o teste de autorização horizontal (`run --authz`, `authz`) não poderá comparar contas; sem `--authz` nada muda |
+| `authz_peers` | Com produto: nenhum papel tem duas contas em `auth.accounts` | `warn`: o teste de autorização horizontal (`run`, `authz`) não poderá comparar contas; com `--no-authz` nada muda |
 
 Cada reprovação traz em `detail`, numa linha, o que houve e o que fazer. `ready` é `true` quando nada reprovou (avisos não contam).
 
@@ -487,6 +487,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | `code` | Erro | Código de saída |
 | --- | --- | --- |
 | `CONFIG_ERROR` | `ConfigError`: configuração, perfil ou argumento inválido (inclui erro de uso da linha de comando) | 2 |
+| `AUTHZ_CONFIG_INVALID` | `AuthzConfigError` (herda de `ConfigError`, mesma saída 2; [ADR 0041](../adr/0041-tabela-quem-pode-o-que.md)): o bloco `authz` cita operação que não existe no OpenAPI, papel sem conta em `auth.accounts`, ou a mesma operação em `access_matrix` e `public_operations`; a dica diz o que corrigir | 2 |
 | `SCOPE_VIOLATION` | `ScopeViolation`: ação fora do escopo, dos limites ou da janela | 3 |
 | `SCOPE_NOT_APPROVED` | `ScopeNotApproved`: nenhuma pessoa aprovou os blocos de proteção do perfil, ou eles mudaram desde a aprovação ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md)); a mensagem diz quais blocos mudaram | 3 |
 | `PREFLIGHT_FAILED` | `PreflightError`: verificação anterior à execução falhou | 4 |

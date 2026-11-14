@@ -524,7 +524,7 @@ def test_warns_when_the_profile_has_no_two_accounts_of_the_same_role(tmp_path: P
 
     assert check.status == "warn"
     assert "duas contas do mesmo papel" in check.detail
-    assert "hdast run --authz" in check.detail
+    assert "hdast run, que o roda por padrão" in check.detail
 
 
 def test_no_peer_warning_when_two_accounts_share_a_role(tmp_path: Path) -> None:

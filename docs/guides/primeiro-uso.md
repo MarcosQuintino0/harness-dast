@@ -106,7 +106,7 @@ O `preflight` confere autorização, janela, segredos, ZAP, saúde do alvo e log
 uv run hdast run vampi
 ```
 
-Leva cerca de 15 minutos. Opcional: `uv run hdast run vampi --authz` inclui, depois da varredura, o teste de autorização entre contas (acesso a dado de outra conta, função de papel maior, campo a mais, dado a mais). Use quando o perfil tiver **duas contas do mesmo papel** (o VAmPI tem `user_a` e `user_b`); ele manda requisições a mais e escreve no alvo, então só com o dono do ambiente de acordo, e não combina com `--skip-scan`. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
+Leva cerca de 15 minutos. O `run` já inclui, depois da varredura, o teste de autorização entre contas (acesso a dado de outra conta, função de papel maior, dado a mais, resposta sem login e token adulterado aceito), só de leitura; `--no-authz` o pula e `--authz` ainda é aceito (não muda nada). A comparação entre contas só acontece quando o perfil tem **duas contas do mesmo papel** (o VAmPI tem `user_a` e `user_b`); sem elas diz o que não pôde testar. A parte que escreve no alvo (atribuição em massa) só roda se a carta de autorização a permitir (`authz.allow_writes`), e o teste não roda com `--skip-scan`. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
 
 ## 8. Ler o resultado
 
@@ -120,14 +120,14 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | `findings.json` | O mesmo, estruturado (cada achado e, em `groups`, os achados agrupados pela causa) |
 | `panel/` | O painel da execução, em páginas HTML (abra `panel/summary.html` no navegador; sem internet e sem script): resumo, etapas, falhas, cobertura, terminal e tempo e tokens. Também sai de `hdast panel <produto>`; dado que falta aparece como "não medido" ([ADR 0032](../adr/0032-painel-da-execucao.md)) |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
-| `authz.json` | Só com `hdast run --authz` (ou `hdast authz`): teste de autorização entre contas. Veja [authz.md](../reference/authz.md) |
+| `authz.json` | Teste de autorização entre contas (`hdast run`, salvo `--no-authz`, ou `hdast authz`). Veja [authz.md](../reference/authz.md) |
 | `audit.jsonl` | Trilha de cada requisição da CLI |
 
 Os achados com a mesma regra e o mesmo parâmetro aparecem **agrupados pela causa** (por exemplo, o mesmo cookie sem `HttpOnly` em 26 caminhos vira um grupo com a lista de onde aparece); nenhum achado some e nenhuma gravidade muda. Alguns grupos trazem uma nota fixa explicando por que o padrão costuma ser esperado (o cookie de XSRF por duplo envio, que o JavaScript precisa ler).
 
 No `report.html` ou no `report.md`, **leia o que a varredura não testou**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
 
-Com `hdast run --authz`, parte dessas lacunas (acesso entre contas, campo a mais e dado a mais) passa a ser testada por um estágio próprio: veja [authz.md](../reference/authz.md).
+Com o estágio `authz` (ligado por padrão no `hdast run`), parte dessas lacunas (acesso entre contas, campo a mais e dado a mais) passa a ser testada por um estágio próprio: veja [authz.md](../reference/authz.md).
 
 ## 9. Encerrar
 

@@ -163,14 +163,20 @@ class AuthSection(ProfileModel):
 
 
 class AttackSection(ProfileModel):
-    """Intensidade do ataque (opcional).
+    """Intensidade do ataque e permissão de escrita do teste entre contas (opcionais).
 
     Attributes:
         strength: `LOW`, `MEDIUM` ou `HIGH` -> `scan.strength`. Ausente mantém o padrão do
             perfil (a CLI não decide por conta própria).
+        allow_authz_writes: A carta permite que o teste de autorização entre contas ESCREVA no
+            alvo (atribuição em massa, alteração de recurso de outra conta e métodos de escrita da
+            verificação vertical e da tabela quem pode o quê)? Booleano
+            -> `authz.allow_writes`. Ausente, nulo ou `desconhecido` valem `false`; `true` só
+            com `source: carta` e a frase de origem em `quote` (ADR 0038).
     """
 
     strength: Answer | None = None
+    allow_authz_writes: Answer | None = None
 
 
 class Letter(ProfileModel):

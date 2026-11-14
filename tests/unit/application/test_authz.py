@@ -25,6 +25,10 @@ def probed(rig: AuthzRig) -> ProbeResult:
     return rig.run_probe()
 
 
+# Estes testes miram só os campos declarados num PUT: sem o cadastro e sem campos do OpenAPI.
+PUT_ONLY: dict[str, Any] = {"mass_assignment_methods": ["PUT"], "derive_mass_candidates": False}
+
+
 def run_authz(rig: AuthzRig, **changes: Any) -> AuthzResult:
     probe = probed(rig)
     return rig.authz().execute(AuthzRequest(product="agenda", run_id=probe.run_id, **changes))
@@ -109,7 +113,7 @@ def test_collections_without_an_identifier_are_not_compared_between_accounts() -
     result = run_authz(AuthzRig(Clinic(bola=True)), checks=("horizontal",))
 
     reasons = {(n.operation_id, n.reason) for n in result.not_tested}
-    assert ("listarPacientes", "no_path_parameter") in reasons
+    assert ("listarPacientes", "no_object_identifier") in reasons
 
 
 def test_a_failing_baseline_is_not_tested_instead_of_green() -> None:
@@ -261,7 +265,7 @@ def test_restores_the_previous_value_after_a_mass_assignment_finding() -> None:
 
 
 def test_does_not_accuse_when_the_extra_field_is_ignored() -> None:
-    rig = AuthzRig(Clinic(mass=False))
+    rig = AuthzRig(Clinic(mass=False), authz=PUT_ONLY)
 
     result = run_authz(rig, checks=("mass_assignment",))
 
@@ -270,7 +274,7 @@ def test_does_not_accuse_when_the_extra_field_is_ignored() -> None:
 
 
 def test_a_target_that_rejects_unknown_fields_is_a_tested_negative() -> None:
-    rig = AuthzRig(Clinic(mass=False, reject_extra_fields=True))
+    rig = AuthzRig(Clinic(mass=False, reject_extra_fields=True), authz=PUT_ONLY)
 
     result = run_authz(rig, checks=("mass_assignment",))
 
@@ -281,7 +285,10 @@ def test_a_target_that_rejects_unknown_fields_is_a_tested_negative() -> None:
 def test_a_field_the_probe_already_sent_with_the_test_value_is_not_tested() -> None:
     rig = AuthzRig(
         Clinic(mass=True),
-        authz={"mass_assignment_fields": [{"name": "role", "value": "paciente"}]},
+        authz={
+            "mass_assignment_fields": [{"name": "role", "value": "paciente"}],
+            **PUT_ONLY,
+        },
     )
 
     result = run_authz(rig, checks=("mass_assignment",))
@@ -304,7 +311,10 @@ def test_a_declared_field_that_the_probe_sent_with_another_value_is_overridden()
 def test_only_the_declared_extra_fields_are_sent() -> None:
     rig = AuthzRig(
         Clinic(mass=True),
-        authz={"mass_assignment_fields": [{"name": "role", "value": "admin"}]},
+        authz={
+            "mass_assignment_fields": [{"name": "role", "value": "admin"}],
+            "derive_mass_candidates": False,
+        },
     )
 
     run_authz(rig, checks=("mass_assignment",))
@@ -343,7 +353,12 @@ def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -
 
     assert result.findings == ()
     assert result.status == "completed"
-    assert [c.status for c in result.checks] == ["completed"] * 4
+    # A tabela vazia (access_matrix) e a escrita em outra conta (sem leitor) não têm o que testar.
+    assert [c.status for c in result.checks] == ["completed"] * 5 + [
+        "skipped",
+        "completed",
+        "skipped",
+    ]
     assert result.not_tested
     assert "NÃO prova" in result.notice
 
@@ -453,10 +468,14 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
     assert [c.check for c in result.checks] == [
         "horizontal",
         "excessive_data",
+        "anonymous_access",
+        "tampered_token",
         "vertical",
+        "access_matrix",
         "mass_assignment",
+        "horizontal_write",
     ]
-    assert [c.status for c in result.checks][1:] == ["disabled"] * 3
+    assert [c.status for c in result.checks][1:] == ["disabled"] * 7
 
 
 def test_checks_disabled_in_the_profile_never_run_even_when_asked() -> None:

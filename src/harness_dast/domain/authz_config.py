@@ -4,7 +4,11 @@ Tudo é declarativo e nada aqui amplia escopo, métodos permitidos pelo escopo, 
 (o `ScopeGuard` continua decidindo). Mas `vertical_methods` e `mass_assignment_fields` escrevem
 no alvo, e `public_operations`, `disabled_checks` e `volatile_fields` escondem achados: por isso
 o bloco inteiro entra na impressão digital da aprovação humana (ADR 0037). Sem o bloco, valem os
-padrões conservadores abaixo. Este módulo é puro.
+padrões conservadores abaixo.
+
+Escrita no alvo só com `allow_writes: true` (ADR 0038), que vem da carta de autorização: sem ele a
+atribuição em massa não roda e os métodos de escrita de `vertical_methods` saem do plano. Este
+módulo é puro.
 """
 
 import re
@@ -14,20 +18,36 @@ from typing import Final, Literal, Self
 from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 from harness_dast.domain.api_model import safe_identifier
+from harness_dast.domain.authz_matrix import AccessRule, ensure_matrix_valid, validate_matrix_rules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import ProfileModel
 
-AuthzCheck = Literal["horizontal", "excessive_data", "vertical", "mass_assignment"]
+AuthzCheck = Literal[
+    "horizontal",
+    "excessive_data",
+    "anonymous_access",
+    "tampered_token",
+    "vertical",
+    "access_matrix",
+    "mass_assignment",
+    "horizontal_write",
+]
 CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
     "horizontal",
     "excessive_data",
+    "anonymous_access",
+    "tampered_token",
     "vertical",
+    "access_matrix",
     "mass_assignment",
+    "horizontal_write",
 )
 """Ordem de execução: do que não escreve no alvo para o que escreve."""
 
 VERTICAL_METHODS_ALLOWED: Final = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH"})
 DEFAULT_VERTICAL_METHODS: Final = ("GET", "HEAD")
+READ_METHODS: Final = frozenset({"GET", "HEAD"})
+"""Métodos que só leem: valem na verificação vertical mesmo sem `allow_writes`."""
 DEFAULT_VOLATILE_FIELDS: Final = (
     "timestamp",
     "servertime",
@@ -44,6 +64,11 @@ DEFAULT_VOLATILE_FIELDS: Final = (
 """Nomes (minúsculas, sem separador) ignorados ao comparar respostas, além dos do perfil."""
 
 MAX_MASS_FIELDS: Final = 10
+MASS_METHODS_ALLOWED: Final = frozenset({"PATCH", "POST", "PUT"})
+DEFAULT_MASS_METHODS: Final = ("PATCH", "POST", "PUT")
+MAX_DERIVED_LIMIT: Final = 20
+MAX_ID_PARAMETERS: Final = 20
+DEFAULT_DERIVED_LIMIT: Final = 6
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _ROLE = re.compile(r"[^\s]{1,64}")
 
@@ -93,6 +118,24 @@ class AuthzConfig(ProfileModel):
         vertical_methods: Métodos repetidos na verificação vertical. `DELETE` nunca.
         mass_assignment_fields: Campos extras (e valor de teste) da atribuição em massa.
         disabled_checks: Verificações desligadas pelo perfil.
+        allow_writes: A carta de autorização permite ao teste entre contas ESCREVER no alvo
+            (ADR 0038). Falso por padrão: a atribuição em massa vira `not_tested` e os métodos
+            de escrita de `vertical_methods` ficam fora do plano. Só `hdast init --from-letter`
+            o liga, a partir de uma resposta `source: carta` com a frase de origem; nenhuma flag
+            da CLI o liga.
+        derive_mass_candidates: Junta à lista declarada os campos que o OpenAPI sugere (ADR
+            0040). Falso volta a testar só `mass_assignment_fields`. Só reduz o que se testa.
+        max_derived_candidates: Máximo de campos derivados por operação (1 a 20).
+        mass_assignment_methods: Métodos testados na atribuição em massa (subconjunto de
+            `PATCH`, `POST` e `PUT`). Sem `POST`, o cadastro não é testado. Só vale com
+            `allow_writes`.
+        id_parameters: Nomes de parâmetro de CONSULTA que o dono do produto declara como
+            identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; ADR 0042).
+            Só acrescenta candidatos de leitura do BOLA; o `ScopeGuard` segue decidindo.
+        access_matrix: Tabela "quem pode o quê" (ADR 0041): por operação, os papéis que podem
+            e os que NÃO podem (cada um destes é testado). Declaração humana, aprovada no
+            `profile approve`; papel fora da tabela é `unspecified` e não é testado. A
+            verificação `vertical` pula a operação que a tabela cobre.
     """
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
@@ -103,6 +146,31 @@ class AuthzConfig(ProfileModel):
         default=DEFAULT_MASS_FIELDS, max_length=MAX_MASS_FIELDS
     )
     disabled_checks: tuple[AuthzCheck, ...] = ()
+    allow_writes: StrictBool = False
+    derive_mass_candidates: StrictBool = True
+    max_derived_candidates: StrictInt = Field(
+        default=DEFAULT_DERIVED_LIMIT, ge=1, le=MAX_DERIVED_LIMIT
+    )
+    mass_assignment_methods: tuple[str, ...] = DEFAULT_MASS_METHODS
+    id_parameters: tuple[str, ...] = Field(default=(), max_length=MAX_ID_PARAMETERS)
+    access_matrix: tuple[AccessRule, ...] = ()
+
+    @field_validator("access_matrix")
+    @classmethod
+    def validate_access_matrix(cls, value: tuple[AccessRule, ...]) -> tuple[AccessRule, ...]:
+        """No máximo 500 regras e uma por operação."""
+        validate_matrix_rules(value)
+        return value
+
+    @field_validator("id_parameters")
+    @classmethod
+    def validate_id_parameters(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Nomes simples de parâmetro, sem repetição."""
+        if not all(_NAME.fullmatch(name) for name in value) or len(set(value)) != len(value):
+            raise ValueError(
+                "id_parameters precisa de nomes simples (letras, dígitos, '_'), únicos"
+            )
+        return value
 
     @field_validator("role_order")
     @classmethod
@@ -130,6 +198,17 @@ class AuthzConfig(ProfileModel):
             )
         return tuple(sorted(set(value)))
 
+    @field_validator("mass_assignment_methods")
+    @classmethod
+    def validate_mass_methods(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Só PATCH, POST e PUT, ao menos um; DELETE e desconhecidos são recusados."""
+        if not value or not set(value) <= MASS_METHODS_ALLOWED:
+            raise ValueError(
+                "mass_assignment_methods aceita só PATCH, POST e PUT (nunca DELETE) e não "
+                "pode ficar vazio"
+            )
+        return tuple(sorted(set(value)))
+
     @model_validator(mode="after")
     def validate_unique_fields(self) -> Self:
         """Campos extras sem repetição."""
@@ -150,6 +229,17 @@ class AuthzConfig(ProfileModel):
             check for check in CHECK_ORDER if check in wanted and check not in self.disabled_checks
         )
 
+    def effective_vertical_methods(self) -> frozenset[str]:
+        """Métodos que a verificação vertical repete: só os de leitura sem `allow_writes`."""
+        methods = frozenset(self.vertical_methods)
+        return methods if self.allow_writes else methods & READ_METHODS
+
+    def dropped_write_methods(self) -> tuple[str, ...]:
+        """Métodos de escrita de `vertical_methods` fora do plano por falta de `allow_writes`."""
+        if self.allow_writes:
+            return ()
+        return tuple(sorted(set(self.vertical_methods) - READ_METHODS))
+
     def ensure_operations_exist(self, operation_ids: Sequence[str]) -> None:
         """Garante que toda operação pública citada existe no OpenAPI.
 
@@ -164,3 +254,12 @@ class AuthzConfig(ProfileModel):
                     "que não existe no OpenAPI.",
                     hint="Corrija public_operations em authz (veja spec inspect).",
                 )
+
+    def ensure_matrix_valid(self, operation_ids: Sequence[str], roles: Sequence[str]) -> None:
+        """Garante que a tabela cita só operações e papéis que existem (ADR 0041).
+
+        Raises:
+            AuthzConfigError: Operação fora do OpenAPI, papel sem conta ou operação também em
+                `public_operations`.
+        """
+        ensure_matrix_valid(self.access_matrix, self.public_operations, operation_ids, roles)

@@ -582,6 +582,28 @@ _AUTHZ_HORIZONTAL = FindingExplanation(
     technical_name="Acesso indevido a dado de outra conta (BOLA, IDOR, CWE-639)",
 )
 
+_AUTHZ_HORIZONTAL_WRITE = FindingExplanation(
+    key="authz_horizontal_write",
+    title="Uma pessoa consegue alterar dados que pertencem a outra pessoa do mesmo tipo de conta",
+    what_happened=(
+        "O teste mandou, com outra conta do mesmo papel, a gravação que a primeira conta fez, "
+        "trocando só o identificador do dado e um campo. A primeira conta leu depois e o campo "
+        "tinha mudado."
+    ),
+    why_it_matters=(
+        "Se isso for real, qualquer pessoa com login consegue alterar os dados de todas as "
+        "outras, bastando mudar o número no endereço."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_DEV, "Conferir no servidor que o dado pertence a quem grava antes de salvar."),
+        (_OWNER, "Conferir no ambiente de teste se o valor foi mesmo restaurado."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Alteração indevida de dado de outra conta (BOLA, IDOR, CWE-639)",
+)
+
 _AUTHZ_VERTICAL = FindingExplanation(
     key="authz_vertical",
     title="Uma conta comum consegue fazer uma função reservada a um papel maior",
@@ -600,6 +622,28 @@ _AUTHZ_VERTICAL = FindingExplanation(
     ),
     who=_DEV,
     technical_name="Acesso indevido a função de outro papel (BFLA, CWE-285)",
+)
+
+_AUTHZ_ACCESS_MATRIX = FindingExplanation(
+    key="authz_access_matrix",
+    title="Um tipo de conta que a tabela proíbe conseguiu fazer a função",
+    what_happened=(
+        "O dono do produto escreveu, na tabela quem pode o quê, que um tipo de conta não pode "
+        "usar esta função. O teste repetiu o pedido com uma conta desse tipo e o sistema o "
+        "aceitou (ou o teste anterior já tinha mostrado isso)."
+    ),
+    why_it_matters=(
+        "Se isso for real, quem tem esse tipo de conta consegue executar uma função que o "
+        "próprio dono do produto disse que não deveria estar ao alcance dele."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_OWNER, "Conferir se a tabela está certa para esta função e este tipo de conta."),
+        (_DEV, "Exigir o papel necessário na própria função e recusar os demais."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Acesso indevido a função de outro papel (BFLA, CWE-285), pela tabela",
 )
 
 _AUTHZ_EXCESSIVE = FindingExplanation(
@@ -628,7 +672,10 @@ _AUTHZ_MASS = FindingExplanation(
     title="O sistema aceita um campo que a pessoa não deveria poder mudar",
     what_happened=(
         "O teste mandou um campo extra, que o Swagger não prevê para quem chama, e o sistema "
-        "o aceitou. O teste guarda só o nome do campo."
+        "o aceitou. O campo vinha da lista do perfil ou do próprio Swagger (campo que só aparece "
+        "na resposta, marcado como somente leitura ou com nome de privilégio); o achado diz de "
+        "onde. O teste guarda só o nome do campo. Num cadastro, o recurso criado fica no "
+        "ambiente de teste."
     ),
     why_it_matters=(
         "Se o campo for sensível (como o papel da conta), uma pessoa pode dar a si mesma "
@@ -638,10 +685,54 @@ _AUTHZ_MASS = FindingExplanation(
         _open_ticket(),
         (_DEV, "Aceitar só os campos previstos e ignorar ou recusar o resto."),
         (_QA, "Conferir, com o time, se o ambiente de teste foi restaurado depois do teste."),
+        (_QA, "Apagar os recursos que o teste de cadastro criou (`hdast cleanup` ou o reset)."),
         _retest(),
     ),
     who=_DEV,
     technical_name="Atribuição em massa (Mass Assignment, CWE-915)",
+)
+
+_AUTHZ_ANONYMOUS = FindingExplanation(
+    key="authz_anonymous_access",
+    title="O sistema responde a quem não fez login",
+    what_happened=(
+        "O teste repetiu um pedido de leitura sem enviar nenhuma credencial e o sistema "
+        "devolveu o mesmo conteúdo que entregou a quem estava logado."
+    ),
+    why_it_matters=(
+        "Se a função devia ser protegida, qualquer pessoa na internet (ou na rede) lê esses "
+        "dados sem precisar de conta. Se ela é pública de propósito, é só registrar isso."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_OWNER, "Dizer se essa função deve ser pública; se for, registrá-la como pública."),
+        (_DEV, "Exigir login na função e responder 401 a quem não enviou credencial válida."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Acesso sem autenticação (Broken Authentication, CWE-306)",
+)
+
+_AUTHZ_TAMPERED = FindingExplanation(
+    key="authz_tampered_token",
+    title="O sistema aceita uma credencial de login que foi estragada de propósito",
+    what_happened=(
+        "O teste pegou a credencial de uma conta, tirou ou estragou a parte que a protege "
+        "(a assinatura, ou o próprio texto) e repetiu um pedido de leitura. O sistema aceitou. "
+        "A credencial estragada nunca é gravada."
+    ),
+    why_it_matters=(
+        "Se o sistema não confere a credencial de verdade, qualquer pessoa consegue fabricar "
+        "uma e entrar como outra."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_DEV, "Conferir a assinatura e o algoritmo da credencial em toda requisição."),
+        (_DEV, "Recusar credencial sem assinatura ou com algoritmo none, com resposta 401."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Token adulterado aceito (Broken Authentication, CWE-347 ou CWE-287)",
 )
 
 _SQL_TIME = FindingExplanation(
@@ -762,9 +853,13 @@ _BY_CWE: Final[dict[int, FindingExplanation]] = {
 
 _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
     "authz_horizontal": _AUTHZ_HORIZONTAL,
+    "authz_horizontal_write": _AUTHZ_HORIZONTAL_WRITE,
     "authz_vertical": _AUTHZ_VERTICAL,
+    "authz_access_matrix": _AUTHZ_ACCESS_MATRIX,
     "authz_excessive_data": _AUTHZ_EXCESSIVE,
     "authz_mass_assignment": _AUTHZ_MASS,
+    "authz_anonymous_access": _AUTHZ_ANONYMOUS,
+    "authz_tampered_token": _AUTHZ_TAMPERED,
 }
 
 

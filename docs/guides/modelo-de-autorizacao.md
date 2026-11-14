@@ -49,10 +49,17 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Apelido | Papel | Nome da variável de ambiente do usuário | da senha
    (a carta traz os NOMES das variáveis; as senhas são entregues por canal
    seguro direto a quem opera e nunca ao agente)
-   Para o teste de autorização entre contas (`hdast run --authz`), liste ao
-   menos DUAS contas do MESMO papel; sem elas esse teste não compara contas.
-   Esse teste manda requisições a mais e escreve no alvo (atribuição em massa):
-   autorize só se o ambiente aguentar.
+   O teste de autorização entre contas roda por padrão no `hdast run` (só lê).
+   Para ele comparar contas, liste ao menos DUAS contas do MESMO papel; sem
+   elas ele diz o que não pôde testar.
+   Esse teste manda requisições a mais. Ele só ESCREVE no alvo (atribuição em
+   massa, alteração de recurso de outra conta, métodos de escrita) se esta
+   carta autorizar:
+   [ ] A carta autoriza o teste entre contas a escrever no ambiente
+       Frase da carta que autoriza:
+   Marque só se o ambiente aguentar. Sem a marca, o teste só lê.
+   Com a marca, o teste de cadastro (POST) cria recursos de teste no ambiente;
+   eles ficam lá até uma limpeza (cleanup) ou o reset do ambiente.
 
 7. Limpeza dos dados criados
    [ ] Não haverá limpeza automática (ambiente descartável ou recriado)
@@ -79,6 +86,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 | Limites | `limits.requests_per_second`, `max_duration_minutes`, `zap_threads_per_host` |
 | Logins por minuto | `auth.login_limit.max_per_minute` |
 | Contas e nomes dos segredos | `auth.accounts` (`alias`, `role`, `secret_ref: "env:NOME"` ou `"keyring:NOME"`). A carta lista só os **nomes**, nunca a senha: quem a guarda é o time de QA, na própria máquina |
+| Quem pode o quê (papéis que podem e que NÃO podem cada função) | **Não vem da carta.** É a tabela `authz.access_matrix` do `target.yml`: conhecimento do produto, decidido por uma pessoa (o dono) e conferido por ela no `hdast profile approve`. O agente só rascunha (`hdast authz <produto> --draft-matrix`); o rascunho não vale nada até a pessoa levá-lo ao perfil e aprovar |
 | Limpeza | bloco `cleanup` (escrito pela pessoa; o agente nunca o inventa) |
 | OpenAPI | `openapi` |
 | Contato de emergência | fora do perfil: quem para a execução (`hdast stop`) e quem autoriza ampliações |
@@ -103,6 +111,7 @@ Regras do formulário:
 - **Segredos:** só o NOME (`env:NOME` ou `keyring:NOME`). Um valor de senha no lugar do nome é recusado, e a mensagem não o repete.
 - **`path_mode: wide`** só vale com `source: carta` e a frase da carta em `quote`. Sem `path_mode`, vale `strict`.
 - **`attack.strength`** é opcional; sem ele a CLI não escreve o bloco `scan` e vale o padrão do perfil.
+- **`attack.allow_authz_writes`** é opcional e vale `false` se ausente, nulo ou `desconhecido` ("não sei" é `false`). `true` só passa com `source: carta` e a frase da carta em `quote` (`AUTHZ_WRITES_NEEDS_LETTER` caso contrário), e só um booleano é aceito (o texto "sim" é recusado). Vira `authz.allow_writes: true` no `target.yml`, que libera a atribuição em massa e os métodos de escrita do teste entre contas; a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto. Com ele, a atribuição em massa também testa campos tirados do próprio OpenAPI (`authz.derive_mass_candidates`, ADR 0040) e os cadastros (`POST`), e **cada campo testado num cadastro deixa um recurso criado no ambiente de teste**: o `DELETE` é proibido e quem limpa é o `hdast cleanup` ou o reset do ambiente. Dono do recurso (`ownerId`, `tenantId`) só é testado se alguém o declarar. Com ele, a verificação `horizontal_write` ([ADR 0042](../adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)) também tenta, com uma conta do mesmo papel, **alterar** o recurso de outra conta por `PUT` e `PATCH` (um campo por pedido, nunca `DELETE`) e a conta dona restaura o valor anterior; se uma parada impedir a restauração, o relatório avisa (`possible_unrestored_change`) e o ambiente de teste precisa ser conferido. A leitura com identificador na consulta (`?pacienteId=2`) não depende deste campo. Sem ele, o teste entre contas só lê. As verificações de pedido sem login e de token adulterado ([ADR 0039](../adr/0039-pedido-sem-login-e-token-adulterado.md)) só leem `GET`, não dependem desse campo e rodam por padrão: elas repetem o pedido sem credencial e com o token da conta estragado de propósito (nunca válido, nunca gravado), sempre dentro do escopo e dos limites da carta; operações que o OpenAPI declara anônimas, e login, saúde e preparação, ficam de fora.
 - **`example_data`** (ids, nomes de arquivo, códigos que existem no ambiente) não vira regra: é informação para o agente escrever o `data-rules.yml`.
 - Campo desconhecido no arquivo é erro (confira a grafia).
 
@@ -213,9 +222,10 @@ Do `carta.yml` ao `target.yml`, campo a campo:
 | `auth.login_max_per_minute` | `auth.login_limit.max_per_minute` |
 | `auth.accounts` | `auth.accounts` |
 | `attack.strength` | `scan.strength` (só se informado) |
+| `attack.allow_authz_writes` | `authz.allow_writes: true` (só se `true` com `source: carta` e `quote`) |
 | `gates.*`, `example_data` | não viram campo do perfil |
 
-O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes.
+O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes. Isso inclui a tabela "quem pode o quê" (`authz.access_matrix`): a carta registra a autorização para tocar o alvo, e a tabela é o que o dono do produto sabe sobre os papéis; por isso não há campo dela na carta.
 
 ## Regras
 

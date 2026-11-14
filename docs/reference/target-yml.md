@@ -430,22 +430,32 @@ scan:
 
 ## `authz` (opcional)
 
-Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
+Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`, que vem ligado por padrão; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
 | `public_operations` | lista de `operationId` (até 200) | vazia | Operações legitimamente públicas ou compartilhadas entre contas: BOLA e BFLA as ignoram (sem isto, um recurso público viraria alarme falso). Operação que não existe no OpenAPI é erro de configuração |
 | `role_order` | lista de papéis (até 20) | vazia | Papéis do MENOR para o MAIOR privilégio (os `role` de `auth.accounts`). Necessário para a verificação vertical; sem ele o estágio diz que não pôde testar |
 | `volatile_fields` | lista de nomes de campo (até 50) | vazia | Campos ignorados ao comparar respostas, além de `timestamp`, `requestId`, `traceId`, `correlationId`, `date`, `now`, `elapsed`, `etag`, `nonce` (a comparação ignora maiúsculas e separadores) |
-| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Escrita só entra se o perfil listar |
-| `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa. `value` é texto, inteiro ou booleano |
-| `disabled_checks` | lista de `horizontal`, `excessive_data`, `vertical`, `mass_assignment` | vazia | Verificações desligadas |
+| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Os de escrita (`POST`, `PUT`, `PATCH`) só entram no plano com `allow_writes: true`; sem ele são retirados e o resultado traz a nota (`writes_not_authorized`) |
+| `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa; sempre entram, antes dos derivados do OpenAPI. `value` é texto, inteiro ou booleano |
+| `derive_mass_candidates` | booleano | `true` | Junta aos campos declarados os que o OpenAPI sugere (somente leitura na entrada, só na resposta, ou nome de privilégio na entrada; [ADR 0040](../adr/0040-candidatos-de-campo-proibido-do-openapi.md)). `false` volta a testar só os declarados. Dono do recurso (`ownerId`, `tenantId`) nunca é derivado. Só vale com `allow_writes`. Fora do padrão, entra na impressão digital da aprovação |
+| `max_derived_candidates` | inteiro de 1 a 20 | `6` | Máximo de campos derivados por operação (no `POST`, no máximo 4 derivados). O excesso vai para `not_tested` (`candidates_limited`). 0, 21, texto e decimal são recusados |
+| `mass_assignment_methods` | lista de `PATCH`, `POST`, `PUT` | `[PATCH, POST, PUT]` | Métodos testados na atribuição em massa. Tirar `POST` desliga o teste de cadastro, que **deixa um recurso criado por campo testado** no ambiente de teste (limpe com `hdast cleanup` ou o reset). Lista vazia, `DELETE` ou outro método é recusado (`CONFIG_ERROR`) |
+| `id_parameters` | lista de nomes (até 20; letras, dígitos e `_`, começando por letra; sem repetição) | vazia | Nomes de parâmetro de **consulta** que o dono do produto declara como identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; [ADR 0042](../adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)). Só acrescenta candidatos de leitura ao BOLA (`horizontal`) e à escrita em outra conta; o parâmetro precisa estar declarado no OpenAPI e o `ScopeGuard` segue decidindo. Nome inválido, repetido, mais de 20 ou tipo errado é `CONFIG_ERROR`. Fora do padrão (vazio), entra na impressão digital da aprovação e aparece no resumo do `profile approve` |
+| `access_matrix` | lista de regras `{operation, allow, deny}` (até 500; uma por operação) | vazia | Tabela "quem pode o quê" ([ADR 0041](../adr/0041-tabela-quem-pode-o-que.md)): por operação (`operationId` do OpenAPI), os papéis que **podem** (`allow`) e os que **NÃO podem** (`deny`, cada um é testado). Cada lista tem até 20 papéis, sem repetição e sem espaço; o mesmo papel não pode estar nas duas; `deny` vazio só documenta (a linha sai sem teste). **Declaração do dono do produto**: a ferramenta nunca a completa; papel de `auth.accounts` que não aparece na linha fica `unspecified` e **não é testado** (nunca é presumido proibido). Campo extra, tipo errado, regra repetida, mais de 500 regras, ou lista com mais de 20 papéis é `CONFIG_ERROR` (saída 2). Operação que não existe no OpenAPI, papel sem conta em `auth.accounts` ou operação também em `public_operations` é `AUTHZ_CONFIG_INVALID` (saída 2), conferido quando o `authz` roda (e no `--dry-run`). Método `GET` e `HEAD` por padrão; `POST`, `PUT`, `PATCH` só com `allow_writes: true`; `DELETE` nunca. Fora do padrão, **entra na impressão digital**: preencher ou mudar a tabela exige nova aprovação (`hdast profile approve`), que lista a tabela inteira; a ordem das regras e dos papéis não conta. Só vive no `target.yml` (a carta não tem campo para isso). O `hdast authz --draft-matrix` ajuda a rascunhar, fora do perfil |
+| `disabled_checks` | lista de `horizontal`, `excessive_data`, `anonymous_access`, `tampered_token`, `vertical`, `access_matrix`, `mass_assignment`, `horizontal_write` | vazia | Verificações desligadas |
+| `allow_writes` | booleano | `false` | A carta de autorização permite que o teste entre contas **escreva** no alvo ([ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)). Com `false`, a atribuição em massa e a escrita em recurso de outra conta (`horizontal_write`, `PUT`/`PATCH`) vão para `not_tested` ("escrita não autorizada pela carta: authz.allow_writes") e os métodos de escrita de `vertical_methods` ficam fora do plano; `--check mass_assignment` não o liga. Só `hdast init --from-letter` o escreve (`attack.allow_authz_writes` com `source: carta` e `quote`); texto como `"sim"` é recusado. Entra na impressão digital da aprovação: mudar exige aprovar de novo |
 
 ```yaml
 authz:
   role_order: [paciente, medico, admin]
   public_operations: [lerCatalogo]
   volatile_fields: [versaoDoItem]
+  access_matrix:
+    - operation: criarMedico        # operationId do OpenAPI
+      allow: [admin]                # podem
+      deny: [paciente, recepcao]    # NÃO podem (cada um é testado)
 ```
 
 Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do mesmo papel em `auth.accounts`, e a operação precisa ser roteada (`auth.account_map`) para uma delas; sem isso o estágio registra `no_peer_account` em vez de dar verde.

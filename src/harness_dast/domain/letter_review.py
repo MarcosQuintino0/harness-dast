@@ -36,11 +36,23 @@ from harness_dast.domain.letter_sections import (
     read_strength,
 )
 from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
+from harness_dast.domain.letter_writes import read_allow_writes
 from harness_dast.domain.letter_yaml import render_yaml
 from harness_dast.domain.profile import ProductProfile
 
-GENERATED_BLOCKS: Final = ("environment", "openapi", "scope", "limits", "auth", "scan.strength")
-"""Blocos do `target.yml` que a CLI escreve a partir da carta (`scan.strength` só se informada)."""
+GENERATED_BLOCKS: Final = (
+    "environment",
+    "openapi",
+    "scope",
+    "limits",
+    "auth",
+    "scan.strength",
+    "authz.allow_writes",
+)
+"""Blocos do `target.yml` que a CLI escreve a partir da carta.
+
+`scan.strength` só se informada; `authz.allow_writes` só quando a carta o autoriza (ADR 0038).
+"""
 
 _GATE_DENIED_TEXT = (
     "Respondido 'não'. Sem esta condição o teste não pode ser feito: nada foi gerado. "
@@ -51,6 +63,9 @@ _HEADER = (
     "# Blocos gerados da carta (o agente não os escreve nem os altera): "
     "environment, openapi, scope, limits, auth, scan.strength.\n"
     "# Para mudar algum deles, a pessoa muda a carta e o perfil é gerado de novo.\n"
+)
+_HEADER_WRITES = (
+    "# Também gerado da carta (ADR 0038): authz.allow_writes, que só a carta autoriza.\n"
 )
 
 
@@ -110,6 +125,7 @@ def _profile_data(
     limits = read_limits(c, letter.limits)
     auth = read_auth(c, letter.auth)
     strength = read_strength(c, letter.attack.strength)
+    allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
     examples = read_example_data(c, letter.example_data)
     if (
         c.issues
@@ -138,6 +154,8 @@ def _profile_data(
     }
     if strength is not None:
         data["scan"] = {"strength": strength}
+    if allow_writes:
+        data["authz"] = {"allow_writes": True}
     return data, examples
 
 
@@ -175,7 +193,9 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
     blocks = tuple(name for name in GENERATED_BLOCKS if name.split(".")[0] in data)
     return LetterReview(
         issues=(),
-        profile_text=_HEADER + render_yaml(data),
+        profile_text=_HEADER
+        + (_HEADER_WRITES if profile.authz.allow_writes else "")
+        + render_yaml(data),
         blocks=blocks,
         example_data=examples,
         warnings=letter_warnings(profile, today),

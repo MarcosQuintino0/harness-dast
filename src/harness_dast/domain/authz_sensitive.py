@@ -75,7 +75,8 @@ _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _SEPARATORS = re.compile(r"[^A-Za-z0-9]+")
 
 
-def _words(name: str) -> tuple[str, ...]:
+def field_words(name: str) -> tuple[str, ...]:
+    """Palavras do nome em minúsculas (`isAdmin` e `is_admin` viram `is`, `admin`)."""
     spaced = _CAMEL.sub(" ", name)
     return tuple(word.lower() for word in _SEPARATORS.sub(" ", spaced).split() if word)
 
@@ -85,7 +86,7 @@ def classify_field_name(name: str) -> FieldClass:
 
     Segredo vence dado pessoal (`emailToken` é segredo). A decisão usa só o nome.
     """
-    words = _words(name)
+    words = field_words(name)
     joined = "".join(words)
     if any(word in SECRET_WORDS for word in words) or any(c in joined for c in SECRET_COMPOUNDS):
         return "secret"

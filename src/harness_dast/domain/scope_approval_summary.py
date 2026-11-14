@@ -7,7 +7,13 @@ Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
 from harness_dast.domain.auth import PasswordLoginAuth
+from harness_dast.domain.authz_config import (
+    DEFAULT_DERIVED_LIMIT,
+    DEFAULT_MASS_METHODS,
+    AuthzConfig,
+)
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.redaction import strip_control
 from harness_dast.domain.scope import ScopeRule
 from harness_dast.domain.window import ExecutionWindow
 
@@ -91,12 +97,69 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
     disabled = ", ".join(sorted(authz.disabled_checks)) or "nenhuma"
     mass = ", ".join(field.name for field in authz.mass_assignment_fields) or "nenhum"
     roles = " < ".join(authz.role_order) or "não declarada"
-    return [
+    lines = [
         "Teste de autorização repete com os métodos: " + ", ".join(authz.vertical_methods),
         f"  - operações tratadas como públicas (não geram achado): {public}",
         f"  - verificações desligadas: {disabled}",
         f"  - campos da atribuição em massa: {mass}; ordem de papéis: {roles}",
     ]
+    lines += _authz_mass_lines(authz)
+    lines += _authz_matrix_lines(authz)
+    if authz.id_parameters:
+        lines.append(
+            "  - parâmetros de consulta tratados como identificador de objeto (BOLA de leitura): "
+            + ", ".join(authz.id_parameters)
+        )
+    if authz.allow_writes:
+        lines.append(
+            "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
+            "alterar dados do ambiente (atribuição em massa, métodos de escrita acima e PUT/PATCH "
+            "em recurso de outra conta)"
+        )
+    return lines
+
+
+def _authz_matrix_lines(authz: AuthzConfig) -> list[str]:
+    """Toda a tabela "quem pode o quê" (ADR 0041), uma linha por operação; vazio sem tabela.
+
+    A pessoa só aprova o que viu: por isso a lista é inteira, sem corte, em ordem alfabética.
+    """
+    if not authz.access_matrix:
+        return []
+
+    def shown(roles: tuple[str, ...]) -> str:
+        return (
+            ", ".join(sorted(strip_control(role, keep_newlines=False) for role in roles))
+            or "ninguém"
+        )
+
+    lines = [
+        f"  - tabela quem pode o quê ({len(authz.access_matrix)} operação(ões)); papel que não "
+        "aparece numa linha não é testado:"
+    ]
+    for rule in sorted(authz.access_matrix, key=lambda item: item.operation):
+        name = strip_control(rule.operation, keep_newlines=False)
+        lines.append(
+            f"    - operação {name}: podem {shown(rule.allow)}; não podem {shown(rule.deny)}"
+        )
+    return lines
+
+
+def _authz_mass_lines(authz: AuthzConfig) -> list[str]:
+    """Linhas da atribuição em massa que fogem do padrão (ADR 0040); vazio no padrão."""
+    lines: list[str] = []
+    if not authz.derive_mass_candidates:
+        lines.append("  - campos derivados do OpenAPI na atribuição em massa: DESLIGADOS")
+    if authz.max_derived_candidates != DEFAULT_DERIVED_LIMIT:
+        lines.append(
+            f"  - máximo de campos derivados por operação: {authz.max_derived_candidates} "
+            f"(padrão {DEFAULT_DERIVED_LIMIT})"
+        )
+    if authz.mass_assignment_methods != DEFAULT_MASS_METHODS:
+        lines.append(
+            "  - atribuição em massa só nos métodos: " + ", ".join(authz.mass_assignment_methods)
+        )
+    return lines
 
 
 def _cleanup_lines(profile: ProductProfile) -> list[str]:

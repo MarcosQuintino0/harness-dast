@@ -278,3 +278,102 @@ def test_changed_message_names_each_block_in_plain_language_without_nested_paren
     assert "limites de carga (limits)" in message
     assert "((" not in message
     assert message.count("(") == message.count(")")
+
+
+def test_summary_shows_the_authorized_writes_only_when_they_are_on() -> None:
+    off_profile = profile_with(lambda d: d.update(authz={}))
+    on_profile = profile_with(lambda d: d.update(authz={"allow_writes": True}))
+    off = " | ".join(describe_protection(off_profile))
+    on = " | ".join(describe_protection(on_profile))
+
+    assert "ESCRITA AUTORIZADA" not in off
+    assert "ESCRITA AUTORIZADA (authz.allow_writes: true)" in on
+
+
+def test_summary_shows_the_id_parameters_only_when_declared() -> None:
+    off = " | ".join(describe_protection(profile_with(lambda d: d.update(authz={}))))
+    on = " | ".join(
+        describe_protection(
+            profile_with(lambda d: d.update(authz={"id_parameters": ["cpf", "matricula"]}))
+        )
+    )
+
+    assert "identificador de objeto" not in off
+    assert "identificador de objeto (BOLA de leitura): cpf, matricula" in on
+
+
+def test_turning_allow_writes_on_after_approval_makes_it_changed_and_off_keeps_it_approved() -> (
+    None
+):
+    approval = approval_for(valid_profile())
+
+    still = check_approval(
+        profile_with(lambda d: d.update(authz={"allow_writes": False})), approval
+    )
+    changed = check_approval(
+        profile_with(lambda d: d.update(authz={"allow_writes": True})), approval
+    )
+
+    assert still.state == "approved"
+    assert changed.state == "changed"
+    assert "authz" in changed.changed_blocks
+
+
+MATRIX = [
+    {"operation": "criarMedico", "allow": ["admin"], "deny": ["paciente", "recepcao"]},
+    {"operation": "getConsulta", "allow": ["paciente"], "deny": []},
+]
+
+
+def test_summary_lists_the_whole_access_matrix_one_line_per_operation() -> None:
+    profile = profile_with(lambda d: d.update(authz={"access_matrix": MATRIX}))
+
+    lines = describe_protection(profile)
+    text = "\n".join(lines)
+
+    assert "tabela quem pode o quê (2 operação(ões))" in text
+    assert "operação criarMedico: podem admin; não podem paciente, recepcao" in text
+    assert "operação getConsulta: podem paciente; não podem ninguém" in text
+    assert sum("    - operação " in line for line in lines) == 2
+
+
+def test_summary_without_a_table_has_no_matrix_line() -> None:
+    text = "\n".join(describe_protection(valid_profile()))
+
+    assert "tabela quem pode o quê" not in text
+
+
+def test_a_summary_with_500_rules_still_fits_the_approval_record() -> None:
+    rules = [{"operation": f"op{n}", "allow": ["a"], "deny": ["b"]} for n in range(500)]
+    profile = profile_with(lambda d: d.update(authz={"access_matrix": rules}))
+
+    approval = create_approval(
+        profile, datetime(2026, 11, 14, tzinfo=UTC), describe_protection(profile)
+    )
+
+    assert sum("operação op" in line for line in approval.summary) == 500
+
+
+def test_a_control_character_in_an_operation_name_never_reaches_the_summary() -> None:
+    rules = [{"operation": "x\x1b[31mFORJADO\nnova linha", "allow": [], "deny": ["b"]}]
+    profile = profile_with(lambda d: d.update(authz={"access_matrix": rules}))
+
+    lines = describe_protection(profile)
+
+    assert all("\x1b" not in line and "\n" not in line for line in lines)
+
+
+def test_changing_the_table_after_approval_makes_it_changed_only_in_authz() -> None:
+    approved = approval_for(profile_with(lambda d: d.update(authz={"access_matrix": MATRIX})))
+    edited = [dict(MATRIX[0], deny=["paciente"]), MATRIX[1]]
+
+    same = check_approval(
+        profile_with(lambda d: d.update(authz={"access_matrix": MATRIX})), approved
+    )
+    changed = check_approval(
+        profile_with(lambda d: d.update(authz={"access_matrix": edited})), approved
+    )
+
+    assert same.state == "approved"
+    assert changed.state == "changed"
+    assert changed.changed_blocks == ("authz",)

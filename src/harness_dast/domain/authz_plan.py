@@ -6,18 +6,17 @@ vira um `AuthzNotTested` com o motivo, para que a ausência de achado nunca seja
 "testado e seguro". Este módulo é puro.
 """
 
-import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from harness_dast.domain.authz_compare import is_success_status
+from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_identifiers import IdentifierRef, find_identifiers
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 MAX_PEERS: Final = 2
-WRITE_METHODS: Final = frozenset({"PUT", "PATCH"})
 
 
 @dataclass(frozen=True)
@@ -28,25 +27,14 @@ class ReplayTask:
         exchange: Pedido gravado pelo `probe`.
         owner: Apelido e papel da conta que o enviou.
         actor: Apelido e papel da conta que vai repeti-lo.
+        identifiers: Identificadores de CONSULTA do pedido (BOLA, ADR 0042); vazio quando o
+            identificador é só o do caminho (ou na verificação vertical).
     """
 
     exchange: ExchangeRecord
     owner: tuple[str, str]
     actor: tuple[str, str]
-
-
-@dataclass(frozen=True)
-class MassTask:
-    """Enviar campos extras num `PUT` ou `PATCH` provado pelo `probe`.
-
-    Attributes:
-        exchange: O pedido de atualização.
-        read: Leitura (`GET` do mesmo modelo de caminho, mesma conta) para conferir o efeito,
-            ou `None` (vale a própria resposta da atualização).
-    """
-
-    exchange: ExchangeRecord
-    read: ExchangeRecord | None
+    identifiers: tuple[IdentifierRef, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -57,9 +45,10 @@ class Planned[T]:
     not_tested: tuple[AuthzNotTested, ...]
 
 
-def _skip(
+def skip_note(
     check: AuthzCheck, exchange: ExchangeRecord | None, reason: str, message: str
 ) -> AuthzNotTested:
+    """Anotação de operação (ou verificação inteira, sem `exchange`) que não foi testada."""
     return AuthzNotTested(
         check=check,
         operation_id=exchange.operation_id if exchange else None,
@@ -70,7 +59,8 @@ def _skip(
     )
 
 
-def _unique(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
+def unique_exchanges(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
+    """Pedidos sem repetição de (método, alvo, conta), na ordem original."""
     seen: set[tuple[str, str, str]] = set()
     found: list[ExchangeRecord] = []
     for item in exchanges:
@@ -81,41 +71,64 @@ def _unique(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
     return tuple(found)
 
 
+def no_identifier_note(
+    check: AuthzCheck, item: ExchangeRecord, ambiguous: tuple[str, ...]
+) -> AuthzNotTested:
+    """Anotação de pedido sem identificador de objeto reconhecido (ou com valor ambíguo)."""
+    if ambiguous:
+        names = ", ".join(ambiguous)
+        return skip_note(
+            check,
+            item,
+            "ambiguous_identifier",
+            f"O parâmetro de consulta {names} parece identificador, mas o valor enviado pelo "
+            "probe é vazio, repetido, em lista ou sem forma de identificador; o teste não "
+            "adivinha valor.",
+        )
+    return skip_note(
+        check,
+        item,
+        "no_object_identifier",
+        "Sem identificador de objeto (no caminho ou em parâmetro de consulta declarado no "
+        "OpenAPI): coleções não são comparadas entre contas. Se um parâmetro de consulta "
+        "identifica objeto, declare-o em authz.id_parameters.",
+    )
+
+
 def plan_horizontal(
     exchanges: Sequence[ExchangeRecord],
     roles: Mapping[str, str],
     public: frozenset[str],
+    operations: Sequence[Operation] = (),
+    id_parameters: Sequence[str] = (),
 ) -> Planned[ReplayTask]:
-    """BOLA: cada `GET` com identificador no caminho, repetido por contas do MESMO papel.
+    """BOLA: cada `GET` com identificador (caminho ou consulta), repetido por contas do MESMO papel.
 
     Args:
         exchanges: Pedidos com sucesso do `probe`.
         roles: Papel de cada conta (apelido -> papel), na ordem do perfil.
         public: Operações marcadas como públicas ou compartilhadas.
+        operations: Operações do OpenAPI (confirmam os parâmetros de consulta).
+        id_parameters: `authz.id_parameters`: nomes de consulta declarados como identificador.
     """
+    by_id = {op.operation_id: op for op in operations}
     tasks: list[ReplayTask] = []
     skips: list[AuthzNotTested] = []
-    for item in _unique([e for e in exchanges if e.method == "GET"]):
+    for item in unique_exchanges([e for e in exchanges if e.method == "GET"]):
         if item.operation_id in public:
             skips.append(
-                _skip("horizontal", item, "public_operation", "Marcada como pública no perfil.")
+                skip_note("horizontal", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
-        if "{" not in item.path:
-            skips.append(
-                _skip(
-                    "horizontal",
-                    item,
-                    "no_path_parameter",
-                    "Sem identificador no caminho: coleções não são comparadas entre contas.",
-                )
-            )
+        scan = find_identifiers(by_id.get(item.operation_id), item, exchanges, id_parameters)
+        if not scan.refs:
+            skips.append(no_identifier_note("horizontal", item, scan.ambiguous))
             continue
         owner_role = roles.get(item.account)
         peers = [a for a, r in roles.items() if r == owner_role and a != item.account]
         if owner_role is None or not peers:
             skips.append(
-                _skip(
+                skip_note(
                     "horizontal",
                     item,
                     "no_peer_account",
@@ -125,7 +138,7 @@ def plan_horizontal(
             )
             continue
         tasks.extend(
-            ReplayTask(item, (item.account, owner_role), (peer, owner_role))
+            ReplayTask(item, (item.account, owner_role), (peer, owner_role), scan.query_refs)
             for peer in peers[:MAX_PEERS]
         )
     return Planned(tuple(tasks), tuple(skips))
@@ -133,7 +146,7 @@ def plan_horizontal(
 
 def plan_excessive(exchanges: Sequence[ExchangeRecord]) -> Planned[ExchangeRecord]:
     """Dado a mais: cada `GET` com sucesso (o esquema de resposta é conferido pelo caso de uso)."""
-    return Planned(tuple(_unique([e for e in exchanges if e.method == "GET"])), ())
+    return Planned(tuple(unique_exchanges([e for e in exchanges if e.method == "GET"])), ())
 
 
 def plan_vertical(
@@ -143,6 +156,7 @@ def plan_vertical(
     assigned: Callable[[ExchangeRecord], str | None],
     methods: frozenset[str],
     public: frozenset[str],
+    covered: frozenset[str] = frozenset(),
 ) -> Planned[ReplayTask]:
     """BFLA: operações atribuídas a um papel maior, repetidas por uma conta de cada papel menor.
 
@@ -153,12 +167,14 @@ def plan_vertical(
         assigned: Apelido atribuído por regra EXPLÍCITA do `account_map`, ou `None`.
         methods: Métodos repetidos (`authz.vertical_methods`).
         public: Operações marcadas como públicas ou compartilhadas.
+        covered: Operações que a tabela `authz.access_matrix` cobre (ADR 0041): a `vertical` as
+            pula, porque a tabela não supõe uma escada de papéis.
     """
     if not role_order:
         return Planned(
             (),
             (
-                _skip(
+                skip_note(
                     "vertical",
                     None,
                     "no_role_order",
@@ -170,18 +186,29 @@ def plan_vertical(
     rank = {role: index for index, role in enumerate(role_order)}
     tasks: list[ReplayTask] = []
     skips: list[AuthzNotTested] = []
-    for item in _unique([e for e in exchanges if e.method in methods]):
+    for item in unique_exchanges([e for e in exchanges if e.method in methods]):
         if item.operation_id in public:
             skips.append(
-                _skip("vertical", item, "public_operation", "Marcada como pública no perfil.")
+                skip_note("vertical", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
         if assigned(item) != item.account:
             continue
+        if item.operation_id in covered:
+            skips.append(
+                skip_note(
+                    "vertical",
+                    item,
+                    "covered_by_access_matrix",
+                    "A tabela authz.access_matrix cobre esta operação e é mais precisa: a "
+                    "verificação access_matrix a testa.",
+                )
+            )
+            continue
         owner_role = roles.get(item.account)
         if owner_role not in rank:
             skips.append(
-                _skip(
+                skip_note(
                     "vertical",
                     item,
                     "role_not_ranked",
@@ -192,7 +219,7 @@ def plan_vertical(
         lower = _lower_accounts(roles, rank, rank[owner_role])
         if not lower:
             skips.append(
-                _skip(
+                skip_note(
                     "vertical",
                     item,
                     "no_lower_role_account",
@@ -212,41 +239,3 @@ def _lower_accounts(
         if role in rank and rank[role] < owner_rank and role not in chosen:
             chosen[role] = alias
     return tuple((alias, role) for role, alias in chosen.items())
-
-
-def _is_json_object(text: str | None) -> bool:
-    if text is None:
-        return False
-    try:
-        return isinstance(json.loads(text), dict)
-    except (ValueError, RecursionError):
-        return False
-
-
-def plan_mass_assignment(
-    exchanges: Sequence[ExchangeRecord], public: frozenset[str]
-) -> Planned[MassTask]:
-    """Atribuição em massa: cada `PUT` ou `PATCH` com corpo JSON (objeto) provado pelo `probe`."""
-    tasks: list[MassTask] = []
-    skips: list[AuthzNotTested] = []
-    reads = [e for e in exchanges if e.method == "GET" and is_success_status(e.status)]
-    for item in _unique([e for e in exchanges if e.method in WRITE_METHODS]):
-        if item.operation_id in public:
-            skips.append(
-                _skip("mass_assignment", item, "public_operation", "Marcada como pública.")
-            )
-        elif not _is_json_object(item.body):
-            skips.append(
-                _skip(
-                    "mass_assignment",
-                    item,
-                    "no_json_body",
-                    "O probe não guardou um corpo JSON (objeto) para esta operação.",
-                )
-            )
-        else:
-            same = [r for r in reads if r.path == item.path and r.account == item.account]
-            exact = [r for r in same if r.target == item.target]
-            chosen = exact or same
-            tasks.append(MassTask(item, chosen[0] if chosen else None))
-    return Planned(tuple(tasks), tuple(skips))

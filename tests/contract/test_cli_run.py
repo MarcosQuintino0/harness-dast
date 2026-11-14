@@ -58,11 +58,15 @@ def _summary(status: RunStatus, code: int, *, stop: bool = False) -> RunSummary:
     )
 
 
+SEEN: list[RunRequest] = []
+
+
 @dataclass
 class _Pipeline:
     result: RunResult
 
     def execute(self, request: RunRequest) -> RunResult:
+        SEEN.append(request)
         return self.result
 
 
@@ -139,3 +143,22 @@ def test_run_rejects_an_unknown_fail_on_value_with_a_usage_error(
 
     assert code == int(ExitCode.USAGE)
     assert envelope["error"]["code"] == "CONFIG_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [((), True), (("--authz",), True), (("--no-authz",), False)],
+)
+def test_run_has_the_authz_stage_on_by_default_and_no_authz_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flags: tuple[str, ...],
+    expected: bool,
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, _ = _call(capsys, "run", "demo", "--json", *flags)
+
+    assert code == int(ExitCode.OK)
+    assert [request.authz for request in SEEN] == [expected]

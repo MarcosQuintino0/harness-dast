@@ -12,7 +12,8 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
 - `scan`: o bloco inteiro (força, limiar, regras desligadas, tetos de tempo, renovação de token,
   gate de severidade, injeção em segmento de caminho e `PUT`/`PATCH` sobre qualquer recurso);
 - `authz`: o bloco inteiro (operações públicas, ordem de papéis, campos voláteis, métodos
-  repetidos, campos da atribuição em massa e verificações desligadas);
+  repetidos, campos da atribuição em massa, verificações desligadas e a tabela "quem pode o quê",
+  normalizada: a ordem das regras e dos papéis não conta, e tabela vazia fica de fora);
 - `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
   de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
@@ -126,9 +127,42 @@ def _scan(profile: ProductProfile) -> JsonValue:
     return dumped
 
 
+_LEGACY_AUTHZ_KEYS: Final = frozenset(
+    {
+        "public_operations",
+        "role_order",
+        "volatile_fields",
+        "vertical_methods",
+        "mass_assignment_fields",
+        "disabled_checks",
+    }
+)
+"""Chaves do `authz` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
+
+
+_NEW_SET_KEYS: Final = ("id_parameters", "mass_assignment_methods")
+
+
+def _texts(value: JsonValue) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
 def _authz(profile: ProductProfile) -> JsonValue:
     authz = profile.authz
     dumped = authz.model_dump(mode="json")
+    # Chave nova do `authz` (por exemplo `allow_writes`, ADR 0038) no valor padrão fica de fora:
+    # assim o perfil que não a usa mantém a impressão digital de antes e a aprovação já feita
+    # continua valendo; ligar a chave muda a impressão digital e exige aprovar de novo.
+    # O padrão sai do próprio modelo já serializado: tupla e lista só coincidem em JSON.
+    defaults = type(authz)().model_dump(mode="json")
+    # Chaves novas que são conjuntos: a ordem não muda o que é testado, então não muda a
+    # impressão digital (nem a comparação com o padrão).
+    for key in _NEW_SET_KEYS:
+        dumped[key] = _list(sorted(set(_texts(dumped[key]))))
+        defaults[key] = _list(sorted(set(_texts(defaults[key]))))
+    for key in [k for k in dumped if k not in _LEGACY_AUTHZ_KEYS]:
+        if dumped[key] == defaults[key]:
+            del dumped[key]
     # `role_order` é ordem de privilégio: mantém a do perfil. Os demais são conjuntos.
     dumped["public_operations"] = _list(sorted(set(authz.public_operations)))
     dumped["volatile_fields"] = _list(sorted(set(authz.volatile_fields)))
@@ -138,6 +172,18 @@ def _authz(profile: ProductProfile) -> JsonValue:
         field.model_dump(mode="json") for field in authz.mass_assignment_fields
     ]
     dumped["mass_assignment_fields"] = _sorted_items(fields)
+    if authz.access_matrix:
+        # Tabela "quem pode o quê" (ADR 0041): a ordem das regras e dos papéis não muda o que é
+        # testado, então não muda a impressão digital. Tabela vazia já saiu acima (valor padrão).
+        rules: list[JsonValue] = [
+            {
+                "operation": rule.operation,
+                "allow": _list(sorted(rule.allow)),
+                "deny": _list(sorted(rule.deny)),
+            }
+            for rule in sorted(authz.access_matrix, key=lambda rule: rule.operation)
+        ]
+        dumped["access_matrix"] = rules
     return dumped
 
 

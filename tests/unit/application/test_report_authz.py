@@ -8,6 +8,8 @@ from harness_dast.domain.authz_findings import (
     horizontal_finding,
     mass_assignment_finding,
 )
+from harness_dast.domain.authz_findings_access import anonymous_finding, tampered_finding
+from harness_dast.domain.authz_findings_write import horizontal_write_finding
 from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.report_markdown import render_markdown
@@ -186,3 +188,149 @@ def test_no_value_of_a_suspect_field_reaches_the_report() -> None:
     text = report.model_dump_json() + render_markdown(report)
 
     assert "$2b$" not in text
+
+
+def access_result() -> AuthzResult:
+    base = authz_result(findings=False)
+    findings = (
+        anonymous_finding(
+            product="agenda",
+            operation_id="lista",
+            method="GET",
+            path_template="/api/y",
+            actor=("adm", "admin"),
+            operation=None,
+            statuses=(200, 200),
+        ),
+        tampered_finding(
+            product="agenda",
+            operation_id="lista",
+            method="GET",
+            path_template="/api/y",
+            actor=("adm", "admin"),
+            variants=("alg_none", "scrambled"),
+            statuses=(200, 200),
+        ),
+    )
+    return base.model_copy(update={"findings": findings})
+
+
+def test_the_markdown_shows_the_access_findings_with_label_and_variants_but_no_token() -> None:
+    report = report_with(scanned(), access_result())
+
+    text = render_markdown(report)
+
+    assert "Acesso sem login" in text
+    assert "Token adulterado aceito" in text
+    assert "`authz_anonymous_access`" in text
+    assert "`alg_none`" in text
+    assert "CWE-347" in text
+    assert "eyJ" not in text
+
+
+def test_the_findings_json_carries_the_access_techniques_and_variants() -> None:
+    report = report_with(scanned(), access_result())
+
+    assert report.authz is not None
+    dumped = report.model_dump(mode="json")["authz"]["findings"]
+    assert {item["technique"] for item in dumped} == {
+        "authz_anonymous_access",
+        "authz_tampered_token",
+    }
+    assert [item["variants"] for item in dumped] == [[], ["alg_none", "scrambled"]]
+    by_severity = report.summary.authz_by_severity
+    assert (by_severity["high"], by_severity["medium"]) == (1, 1)
+
+
+def derived_post_result() -> AuthzResult:
+    base = authz_result(findings=False)
+    finding = mass_assignment_finding(
+        product="agenda",
+        operation_id="criarMedico",
+        method="POST",
+        path_template="/api/medicos",
+        actor=("adm", "admin"),
+        sent_field="nivelAcesso",
+        changed=("nivelAcesso",),
+        status=201,
+        restored=None,
+        source="response_only",
+        kind="privilege",
+        observed_in="created_read",
+    )
+    return base.model_copy(update={"findings": (finding,), "created_resources": 3})
+
+
+def test_the_markdown_shows_the_source_of_the_field_and_the_created_resources() -> None:
+    text = render_markdown(report_with(scanned(), derived_post_result()))
+
+    assert "**Origem do campo testado:** campo que o OpenAPI só mostra na resposta" in text
+    assert "O teste criou 3 recurso(s) no ambiente de teste" in text
+    assert "hdast cleanup" in text
+
+
+def test_the_markdown_without_created_resources_has_no_such_line() -> None:
+    text = render_markdown(report_with(scanned(), authz_result()))
+
+    assert "O teste criou" not in text
+    assert "Origem do campo testado" in text  # o declarado também diz de onde veio
+
+
+def test_the_findings_json_carries_the_source_and_the_created_count() -> None:
+    report = report_with(scanned(), derived_post_result())
+
+    assert report.authz is not None
+    dumped = report.model_dump(mode="json")["authz"]
+    assert dumped["created_resources"] == 3
+    assert dumped["findings"][0]["candidate_source"] == "response_only"
+    assert dumped["findings"][0]["proposed_severity"] == "high"
+
+
+def write_result() -> AuthzResult:
+    finding = horizontal_write_finding(
+        product="agenda",
+        operation_id="salvarNota",
+        method="PUT",
+        path_template="/api/notas/{id}",
+        actor=("b", "paciente"),
+        owner=("a", "paciente"),
+        status=200,
+        field="titulo",
+        restored=True,
+    )
+    return authz_result(findings=False).model_copy(
+        update={
+            "findings": (finding,),
+            "checks": (
+                CheckSummary(
+                    check="horizontal_write", status="completed", candidates=1, tested=1, findings=1
+                ),
+            ),
+        }
+    )
+
+
+def test_the_markdown_and_the_html_show_the_write_technique_and_the_field_name() -> None:
+    from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+    from harness_dast.domain.report_html import render_html
+
+    report = report_with(scanned(), write_result())
+
+    text = render_markdown(report)
+    page = render_html(report)
+
+    for output in (text, page):
+        assert "authz_horizontal_write" in output
+        assert TECHNIQUE_LABEL["authz_horizontal_write"].split(" (")[0] in output
+        assert "titulo" in output
+    assert "com identificador no caminho ou na consulta" in text
+
+
+def test_the_findings_json_carries_the_write_technique_with_the_field() -> None:
+    report = report_with(scanned(), write_result())
+
+    assert report.authz is not None
+    dumped = report.model_dump(mode="json")["authz"]["findings"][0]
+    assert dumped["technique"] == "authz_horizontal_write"
+    assert dumped["fields"] == ["titulo"]
+    assert dumped["owasp_api_2023"].startswith("API1:2023")

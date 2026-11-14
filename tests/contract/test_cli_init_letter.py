@@ -496,3 +496,41 @@ def test_warnings_go_in_the_envelope_and_do_not_block_or_change_the_profile(
         "VALIDITY_OVER_ONE_YEAR",
     }
     assert all({"field", "code", "message"} == set(w) for w in envelope["data"]["warnings"])
+
+
+def test_init_from_letter_writes_allow_writes_and_warns_only_when_the_letter_authorizes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    products = _products(tmp_path)
+    data = valid_letter_data("demo")
+    data["attack"] = {
+        "allow_authz_writes": answer(True, "carta", "A carta autoriza escrita do teste.")
+    }
+    letter = _letter_file(tmp_path, data)
+
+    code, envelope = _run_json(
+        capsys, "init", "demo", "--from-letter", str(letter), "--products-dir", str(products)
+    )
+
+    assert code == ExitCode.OK
+    assert "authz.allow_writes" in envelope["data"]["generated_blocks"]
+    assert "AUTHZ_WRITES_AUTHORIZED" in [w["code"] for w in envelope["data"]["warnings"]]
+    target = (products / "demo" / "target.yml").read_text(encoding="utf-8")
+    assert "authz:\n  allow_writes: true\n" in target
+
+
+def test_init_from_letter_refuses_writes_answered_by_a_person_without_the_letter(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    products = _products(tmp_path)
+    data = valid_letter_data("demo")
+    data["attack"] = {"allow_authz_writes": answer(True, "pessoa")}
+    letter = _letter_file(tmp_path, data)
+
+    code, envelope = _run_json(
+        capsys, "init", "demo", "--from-letter", str(letter), "--products-dir", str(products)
+    )
+
+    assert code == ExitCode.USAGE
+    assert [i["code"] for i in envelope["data"]["issues"]] == ["AUTHZ_WRITES_NEEDS_LETTER"]
+    assert list(products.iterdir()) == []

@@ -214,14 +214,30 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
-## Ciclo V1.3 a V1.8 (1.3 entregue; 1.4 a 1.8 planejadas)
+### V1.4: achar mais, autorização (entregue em 1.4.0)
+
+Seis entregas, com os ADRs 0038 a 0043 (todos "Proposto"; o 0043 registra dois defeitos achados no laboratório). Todas passam nos gates e nos testes unitários, de contrato e do QA independente, e foram rodadas com Docker na Clínica Piloto, vulnerável e seguro (`tests/integration/test_lab_authz.py`). **Nada foi provado contra produto real.**
+
+| Entrega | Existe como código e testes | O que ainda NÃO foi verificado |
+| --- | --- | --- |
+| `authz` por padrão no `run` e escrita só pela carta ([ADR 0038](adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)) | `--no-authz`, modo tolerante no `run`, `attack.allow_authz_writes` e `authz.allow_writes`, chaves novas no padrão fora da impressão digital | O `run` completo (com varredura) e o `authz` padrão de ponta a ponta com Docker; só `run --skip-scan` e `--no-authz` foram rodados no laboratório |
+| Pedido sem login e token adulterado ([ADR 0039](adr/0039-pedido-sem-login-e-token-adulterado.md)) | `anonymous_access`, `tampered_token`, `allow_reauth`, token nunca gravado | **Provado na Clínica Piloto:** 19 de 19 operações sem login e 18 de 19 com token adulterado no modo vulnerável, sem achado nos dois modos; antes da correção do proxy (ADR 0043) um pedido em seis estourava o tempo |
+| Candidatos do OpenAPI e `POST` ([ADR 0040](adr/0040-candidatos-de-campo-proibido-do-openapi.md)) | Candidatos derivados, classes, valor de teste, leitura do recurso criado, `created_resources`, teto de escritas | **Provado na Clínica Piloto:** achado alto no vulnerável e nenhum no seguro, depois de corrigido um falso positivo (ADR 0043); 11 recursos criados por modo |
+| Tabela "quem pode o quê" ([ADR 0041](adr/0041-tabela-quem-pode-o-que.md)) | `authz.access_matrix`, verificação `access_matrix`, `--draft-matrix`, `AUTHZ_CONFIG_INVALID`, subseção no relatório | **Provado na Clínica Piloto** com 5 regras: as 5 células "não pode" recusadas com 403 nos dois modos. **Não verificado:** célula que falha; uma pessoa conferindo a tabela no `profile approve` de verdade |
+| Escrita em recurso de outra conta e id na consulta ([ADR 0042](adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)) | `horizontal_write`, `authz.id_parameters`, BOLA com id na consulta, restaurador comum | **Não provado no laboratório:** a Clínica Piloto não tem duas contas do mesmo papel com escrita sobre recurso com id; só testes unitários |
+| Correção no portão da limpeza | Palavra reservada não vale como apelido da tabela | Nada pendente |
+| Defeitos do laboratório ([ADR 0043](adr/0043-defeitos-do-laboratorio-da-v1-4-proxy-e-campo-ja-aceito.md)) | Proxy com uma conexão por requisição (exige `stack up --build`); candidato por nome só de privilégio | A correção do proxy numa varredura longa (`lab_full`) |
+
+Relatório da versão: [reviews/relatorio-v1.4.md](reviews/relatorio-v1.4.md).
+
+## Ciclo V1.3 a V1.8 (1.3 e 1.4 entregues; 1.5 a 1.8 planejadas)
 
 Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
 
 | Versão | Tema | Estado |
 | --- | --- | --- |
 | 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
-| 1.4 | Achar mais: autorização | Planejada |
+| 1.4 | Achar mais: autorização | **Entregue em código e testes**, provada no laboratório (ADRs 0038 a 0042); veja "V1.4" acima |
 | 1.5 | Achar mais: entrada e erros | Planejada |
 | 1.6 | Confirmar e relatar | Planejada |
 | 1.7 | Velocidade | Planejada |
@@ -263,7 +279,7 @@ Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans
 | V1.1-a | Coerção de tipo do parâmetro de caminho (`01`, `+1`, `%2b1`, `0x1`, dígitos Unicode como `%D9%A1`) alcança o mesmo recurso e fica fora do modelo da cerca, nos dois modos | Aberto, **pede ADR** (canonizar segmentos numéricos nos dois guardas muda o contrato do `ScopeGuard`). Mitigação: negar com curinga em `deny_paths`. Detalhe na seção 6 do [relatório da cerca](reviews/2026-11-13-lab-v1-1-cerca.md) |
 | V1.1-b | Repetir estrito x amplo para medir a variância (hoje 1 repetição por célula) | Aberto |
 | V1.1-c | BFLA vertical e interrupção após o `PUT` do H6 sem prova em alvo real (a vertical ficou `skipped` por falta de conta de papel menor) | Aberto |
-| V1.1-d | "Escada de testes" mais rápida e menos sujeita a falso verde: (1) a imagem do proxy tem de bater com o código antes de teste de laboratório (hoje `--build` é opcional e nenhum teste de integração o pede: risco de falso verde); (2) desligar a regra SSRF 40046 no perfil de lab (hipótese, ainda inferida: explicaria ~500 s de espera no modo amplo); (3) pytest-xdist (medido 223 s para 52 s; pede ADR); (4) pular `tests/unit/evals/` no laço local; (5) documentar o ataque direcionado com `probe --only` e `scan --only`; (6) pilhas em paralelo | Aberto |
+| V1.1-d | "Escada de testes" mais rápida e menos sujeita a falso verde: (1) a imagem do proxy tem de bater com o código antes de teste de laboratório (hoje `--build` é opcional e nenhum teste de integração o pede: risco de falso verde); (2) desligar a regra SSRF 40046 no perfil de lab (hipótese, ainda inferida: explicaria ~500 s de espera no modo amplo); (3) pytest-xdist (medido 223 s para 52 s; pede ADR); (4) pular `tests/unit/evals/` no laço local; (5) documentar o ataque direcionado com `probe --only` e `scan --only` (feito em 2026-11-14: [escada-de-testes.md](escada-de-testes.md)); (6) pilhas em paralelo | Aberto (item 5 feito) |
 | V1.1-e | Funções acima de 40 linhas sem justificativa: módulos de authz, `report_actions.next_steps`, `report_build.assemble_report` e `cli/commands/run.py:run_command` (apontado pelo QA) | Aberto: justificar ou dividir |
 | V1.1-f | `except Exception` em `adapters/secrets/keyring_store.py` é desvio consciente da regra "sem `except` genérico fora do tratador da CLI" (a biblioteca `keyring` levanta tipos variados por backend) | Registrado como nota; não é pendência de código |
 
