@@ -42,6 +42,15 @@ def code_span(text: str, limit: int = _MAX_INLINE) -> str:
     return f"{ticks}{padded}{ticks}" if flat else "``"
 
 
+def cell_code(text: str, limit: int = _MAX_INLINE) -> str:
+    """Trecho de código numa célula de tabela: como `code_span`, com a barra vertical escapada.
+
+    Numa tabela do GFM a `|` separa células mesmo dentro de crases; escapada com barra invertida,
+    ela fica no texto e a linha mantém o número de colunas.
+    """
+    return code_span(text, limit).replace("|", r"\|")
+
+
 def fenced(text: str, language: str = "") -> str:
     """Bloco de código cercado por uma cerca mais longa que qualquer sequência de crases dentro."""
     body = strip_control(text, keep_newlines=True).rstrip("\n")

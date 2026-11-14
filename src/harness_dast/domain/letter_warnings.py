@@ -109,7 +109,8 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                 code=AUTHZ_WRITES_AUTHORIZED,
                 message=(
                     "A carta autoriza o teste entre contas a ESCREVER no alvo (atribuição em "
-                    "massa e métodos de escrita na verificação vertical): ele pode alterar dados "
+                    "massa, alteração de recurso de outra conta e métodos de escrita): ele pode "
+                    "alterar dados e criar recursos "
                     "do ambiente. Confirme com o dono do produto que a carta diz isso e que o "
                     "ambiente é de teste com dados sintéticos."
                 ),

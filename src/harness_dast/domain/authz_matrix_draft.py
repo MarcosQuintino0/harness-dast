@@ -75,7 +75,12 @@ def draft_items(
 
 
 def _quoted(value: str) -> str:
-    return json.dumps(value, ensure_ascii=True)
+    # String YAML de aspas duplas, só ASCII. Acima de U+FFFF o JSON escreveria um par substituto
+    # que o YAML não junta de volta; ali vai o escape `\U` de oito dígitos, que o YAML entende.
+    parts = [
+        f"\\U{ord(char):08X}" if ord(char) > 0xFFFF else json.dumps(char)[1:-1] for char in value
+    ]
+    return '"' + "".join(parts) + '"'
 
 
 def _item_lines(item: DraftItem) -> list[str]:

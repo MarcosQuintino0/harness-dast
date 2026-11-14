@@ -43,6 +43,12 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0035](0035-trava-por-pilha.md) | Trava exclusiva por pilha (`STACK_BUSY`, saída 8) | Proposto | 2026-11-14 | Revisão do consultor; duas execuções na mesma pilha se corrompiam |
 | [0036](0036-carta-estruturada.md) | Carta de autorização estruturada (`carta.yml`) e `hdast init --from-letter` | Proposto | 2026-11-14 | O agente deixa de escrever os blocos de proteção do perfil |
 | [0037](0037-aprovacao-humana-do-escopo.md) | Aprovação humana do escopo (`hdast profile approve`, `SCOPE_NOT_APPROVED`) | Proposto | 2026-11-14 | Completa o 0036; só pessoa aprova, como no 0030 |
+| [0038](0038-authz-padrao-no-run-e-escrita-pela-carta.md) | `authz` por padrão no `run` (só leitura) e escrita só pela carta (`authz.allow_writes`) | Proposto | 2026-11-14 | Rodada cega sem `--authz` perdeu as falhas de autorização |
+| [0039](0039-pedido-sem-login-e-token-adulterado.md) | Pedido sem login e token adulterado (`anonymous_access`, `tampered_token`) | Proposto | 2026-11-14 | Revisão do consultor (Tema 1) |
+| [0040](0040-candidatos-de-campo-proibido-do-openapi.md) | Candidatos de campo proibido tirados do OpenAPI e atribuição em massa em `POST` | Proposto | 2026-11-14 | Lista fixa de quatro nomes achava pouco |
+| [0041](0041-tabela-quem-pode-o-que.md) | Tabela "quem pode o quê" (`authz.access_matrix`, `--draft-matrix`) | Proposto | 2026-11-14 | Papel menor usando função de papel maior não tinha prova |
+| [0042](0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md) | Escrita em recurso de outra conta (`horizontal_write`) e identificador na consulta | Proposto | 2026-11-14 | O BOLA só testava leitura com id no caminho |
+| [0043](0043-defeitos-do-laboratorio-da-v1-4-proxy-e-campo-ja-aceito.md) | Defeitos do laboratório da V1.4: conexão do proxy e campo que a entrada já aceita | Proposto | 2026-11-14 | Pedidos sem sessão estouravam o tempo; falso positivo de `valor` |
 | [0045](0045-sinais-passivos-de-erro-interno.md) | Sinais passivos de erro interno nas evidências redigidas | Proposto | 2026-11-14 | Relatório da V1.5 |
 | [0046](0046-cobertura-de-operacoes-com-404.md) | Cobertura de operações sem varredura que responderam HTTP 404 | Proposto | 2026-11-14 | Relatório da V1.5 |
 | [0047](0047-validacao-offline-de-exemplos-openapi.md) | Validação offline de exemplos do OpenAPI | Proposto | 2026-11-14 | Inspeção da V1.5 |

@@ -214,15 +214,31 @@ O `scan`, o `report` e o `run` rodaram contra o ZAP 2.17.0, o proxy de escopo e 
 
 `preflight` e `probe` rodaram contra o ZAP 2.17.0 real, o proxy de escopo real e dois alvos (VAmPI e Clínica Piloto), com testes `integration` (`tests/integration/test_lab_vampi.py` e `test_lab_pilot.py`). **Confirmado:** `newSession`, `newContext`, `includeInContext`, `excludeFromContext` e `replacer/view/rules` têm as formas que o cliente espera; as requisições da rota `zap` aparecem no histórico do ZAP (mensagens de tipo 1) dentro do contexto da execução; o login e o token CSRF, pela rota `auth` e pelo proxy de escopo, não entram no histórico do ZAP; as trilhas do proxy e da CLI concordam e não há requisição fora do escopo; o cookie XSRF de um Spring Security real e a renovação por vencimento do token funcionam; o código de erro do corpo classifica 400, 409, 422 e 403. **Corrigido a partir da verificação:** o ZAP fecha a conexão (não devolve `bad_api_key`) com chave errada; conexões persistentes atrás do ZAP e do proxy travavam a terceira requisição do Spring Boot (o cliente não reaproveita mais conexões). **Ainda não verificado:** HTTPS pelo proxy do ZAP (`HDAST_ZAP_CA_FILE`), a heurística de 403 de CSRF sem `error_codes` contra um 403 de autorização real do Spring, e o comportamento com o Oracle.
 
-## Ciclo V1.3 a V1.8
+### V1.4: achar mais, autorização (entregue em 1.4.0)
+
+Seis entregas, com os ADRs 0038 a 0043 (todos "Proposto"; o 0043 registra dois defeitos achados no laboratório). Todas passam nos gates e nos testes unitários, de contrato e do QA independente, e foram rodadas com Docker na Clínica Piloto, vulnerável e seguro (`tests/integration/test_lab_authz.py`). **Nada foi provado contra produto real.**
+
+| Entrega | Existe como código e testes | O que ainda NÃO foi verificado |
+| --- | --- | --- |
+| `authz` por padrão no `run` e escrita só pela carta ([ADR 0038](adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)) | `--no-authz`, modo tolerante no `run`, `attack.allow_authz_writes` e `authz.allow_writes`, chaves novas no padrão fora da impressão digital | O `run` completo (com varredura) e o `authz` padrão de ponta a ponta com Docker; só `run --skip-scan` e `--no-authz` foram rodados no laboratório |
+| Pedido sem login e token adulterado ([ADR 0039](adr/0039-pedido-sem-login-e-token-adulterado.md)) | `anonymous_access`, `tampered_token`, `allow_reauth`, token nunca gravado | **Provado na Clínica Piloto:** 19 de 19 operações sem login e 18 de 19 com token adulterado no modo vulnerável, sem achado nos dois modos; antes da correção do proxy (ADR 0043) um pedido em seis estourava o tempo |
+| Candidatos do OpenAPI e `POST` ([ADR 0040](adr/0040-candidatos-de-campo-proibido-do-openapi.md)) | Candidatos derivados, classes, valor de teste, leitura do recurso criado, `created_resources`, teto de escritas | **Provado na Clínica Piloto:** achado alto no vulnerável e nenhum no seguro, depois de corrigido um falso positivo (ADR 0043); 11 recursos criados por modo |
+| Tabela "quem pode o quê" ([ADR 0041](adr/0041-tabela-quem-pode-o-que.md)) | `authz.access_matrix`, verificação `access_matrix`, `--draft-matrix`, `AUTHZ_CONFIG_INVALID`, subseção no relatório | **Provado na Clínica Piloto** com 5 regras: as 5 células "não pode" recusadas com 403 nos dois modos. **Não verificado:** célula que falha; uma pessoa conferindo a tabela no `profile approve` de verdade |
+| Escrita em recurso de outra conta e id na consulta ([ADR 0042](adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)) | `horizontal_write`, `authz.id_parameters`, BOLA com id na consulta, restaurador comum | **Não provado no laboratório:** a Clínica Piloto não tem duas contas do mesmo papel com escrita sobre recurso com id; só testes unitários |
+| Correção no portão da limpeza | Palavra reservada não vale como apelido da tabela | Nada pendente |
+| Defeitos do laboratório ([ADR 0043](adr/0043-defeitos-do-laboratorio-da-v1-4-proxy-e-campo-ja-aceito.md)) | Proxy com uma conexão por requisição (exige `stack up --build`); candidato por nome só de privilégio | A correção do proxy numa varredura longa (`lab_full`) |
+
+Relatório da versão: [reviews/relatorio-v1.4.md](reviews/relatorio-v1.4.md).
+
+## Ciclo V1.3 a V1.8 (1.3 e 1.4 entregues; 1.5 entregue em parte; 1.6 a 1.8 planejadas)
 
 Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
 
 | Versão | Tema | Estado |
 | --- | --- | --- |
 | 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
-| 1.4 | Achar mais: autorização | Planejada |
-| 1.5 | Diagnósticos de entrada, erros e cobertura | Candidato 1.5.0 com análise passiva, inspeção offline e prova sintética de multipart. Veja [o relatório](reviews/relatorio-v1.5.md) |
+| 1.4 | Achar mais: autorização | **Entregue em código e testes**, provada no laboratório (ADRs 0038 a 0042); veja "V1.4" acima |
+| 1.5 | Diagnósticos de entrada, erros e cobertura | **Entregue em parte (1.5.0):** análise passiva, inspeção offline e prova sintética de multipart. Veja [o relatório](reviews/relatorio-v1.5.md) |
 | 1.6 | Confirmar e relatar | Planejada |
 | 1.7 | Velocidade | Planejada |
 | 1.8 | Sessão do Claude | Planejada |

@@ -127,6 +127,22 @@ def test_mass_assignment_evidence_tells_what_happened_to_the_state(
     assert finding.fields == ("role", "papel")
 
 
+def test_a_mass_assignment_finding_does_not_repeat_the_sent_field_in_fields() -> None:
+    finding = mass_assignment_finding(
+        product="p",
+        operation_id="criar",
+        method="POST",
+        path_template="/api/consultas",
+        actor=("admin", "admin"),
+        sent_field="valor",
+        changed=("valor",),
+        status=201,
+        restored=None,
+    )
+
+    assert finding.fields == ("valor",)
+
+
 def test_the_fingerprint_is_stable_and_ignores_accounts_and_status_codes() -> None:
     first = horizontal()
     other = horizontal_finding(

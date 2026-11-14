@@ -79,3 +79,13 @@ Os degraus de teste ativo e varredura completa previstos para a versão original
 Esta branch é uma candidata. A base traz `origin/feat/v1-4` (`d9d1780`), enquanto `origin/develop` estava em `03320af` na validação. A integração da V1.4 é pré-requisito do PR da V1.5. A publicação também precisa passar pelo CI e pelas revisões aplicáveis.
 
 Programação e QA usaram GPT-6.1 Terra. Três programadores trabalharam em high e um em xhigh, para multipart. A portabilidade usou GPT-6.1 Terra high. A coordenação usou GPT-6.1 Sol e o exercício cego offline usou GPT-6.1 Terra high em sessão sem histórico. Ao todo, sete subagentes distintos (quatro de programação, um de documentação, um de QA e um de exercício cego).
+
+## 10. Integração com a V1.4 (coordenador)
+
+Depois de a V1.4 entrar na `develop` (PR #7), a `develop` foi juntada nesta branch. Houve conflitos só na versão, no lock, no `CHANGELOG.md`, no roadmap, no índice de ADRs e num import de `report_markdown.py` (as células de tabela passaram a usar `cell_code`, da V1.4). Gates sobre o resultado: ruff sem problemas, 853 arquivos formatados, mypy sem problemas em 708 arquivos nas duas plataformas, 6 contratos do import-linter, vulture limpo e pytest com 7875 aprovados e 4 pulados.
+
+A V1.5 fica registrada no roadmap como **entregue em parte**. Ficaram fora, para uma próxima entrega:
+- a cerca lendo as respostas em busca de sinais de erro interno;
+- atacar as funções que deram "não encontrado" (`scan.include_outcomes` no `run`, vindo da carta);
+- enviar ao alvo valores que o esquema proíbe;
+- o `multipart` aplicado ao `probe` e ao `scan`.

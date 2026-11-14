@@ -2,7 +2,7 @@
 
 Operações nas linhas, papéis nas colunas e uma palavra curta em cada quadradinho (nunca só
 cor): `pode`, `provado`, `passou`, `FALHOU`, `não testado: <motivo>` e `-`. Nome de operação,
-de papel e de motivo vêm do OpenAPI e do perfil e passam por `escape_inline`, `code_span` e
+de papel e de motivo vêm do OpenAPI e do perfil e passam por `escape_inline`, `cell_code` e
 `html_safe`. O Markdown mostra no máximo 100 linhas; o resto está em `authz.json`.
 """
 
@@ -10,7 +10,7 @@ from typing import Final
 
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport, CellResult, MatrixCell
-from harness_dast.domain.markdown_safe import code_span, escape_inline
+from harness_dast.domain.markdown_safe import cell_code, escape_inline
 
 MAX_MARKDOWN_ROWS: Final = 100
 MAX_HTML_ROWS: Final = 500
@@ -69,7 +69,7 @@ def matrix_lines(matrix: AccessMatrixReport | None) -> list[str]:
     ]
     for row in matrix.rows[:MAX_MARKDOWN_ROWS]:
         where = f"{row.method} {row.path}" if row.method and row.path else row.operation_id
-        name = f"{code_span(row.operation_id, 80)} {code_span(where, 120)}"
+        name = f"{cell_code(row.operation_id, 80)} {cell_code(where, 120)}"
         cells = " | ".join(escape_inline(_cell_text(cell), 80) for cell in row.cells)
         lines.append(f"| {name} | {cells} |")
     hidden = len(matrix.rows) - MAX_MARKDOWN_ROWS
