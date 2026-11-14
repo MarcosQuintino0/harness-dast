@@ -32,7 +32,7 @@ Você conduz a entrevista e transcreve; a CLI gera e valida. Escopo, limite e ja
    | 9 | Dados de exemplo que existem no ambiente (um id, um nome de arquivo, um código válido) | aberta | Sem eles, algumas funções não são alcançadas |
 
    Em pergunta de escopo, limite, janela, autorização ou modo amplo: **nunca marque opção como recomendada nem pré-preencha** com valor do Swagger, do modelo ou "razoável". A resposta entra como `source: pessoa`; "não sei" entra como `source: desconhecido` e você **para naquele campo**: diga qual é e que só o dono do produto responde.
-6. **Confira de novo.** Transcreva as respostas e rode `--check` até `ready: true`.
+6. **Confira de novo.** Transcreva as respostas e rode `--check` até `ready: true`. **Avisos.** Se `data.warnings` vier com itens (`ALLOW_ROOT_WILDCARD`, `DELETE_AUTHORIZED`, `DENY_PATHS_EMPTY`, `VALIDITY_OVER_ONE_YEAR`), **mostre-os à pessoa** na entrevista, um por um, e peça que ela confirme com o dono do produto. Aviso não bloqueia, e você não muda a carta nem o perfil por causa dele.
 7. **Crie o produto.** Mesmo comando sem `--check`. Guarde `data.example_data` (para o `data-rules.yml`). `--with-cleanup` só se a carta prevê limpeza e uma pessoa pede. Não edite à mão os blocos gerados; para mudá-los, corrija o `carta.yml` com a pessoa e peça que ela remova a pasta do produto: o `init` nunca sobrescreve.
 8. **OpenAPI.** Coloque-o na pasta do produto (o caminho em `openapi:` é relativo a ela). Use Read e Write; se não puder, peça à pessoa.
 9. **O que a CLI não gera** (`docs/reference/target-yml.md`): `probe`, `auth.csrf`, `auth.account_map`, `authz` e `cleanup`. Só escreva `probe`, `auth.csrf` e `auth.account_map` com base no Swagger e no que a pessoa informou. Segredo `keyring:`: cite os NOMES e peça que ela rode `hdast secret set NOME` num terminal dela; `hdast secret list <produto>` você pode rodar.
@@ -44,7 +44,7 @@ Você conduz a entrevista e transcreve; a CLI gera e valida. Escopo, limite e ja
 
 | Sinal | O que fazer |
 | --- | --- |
-| `init` sai com 2 e `LETTER_REJECTED` | Leia `data.issues` (`MISSING`, `UNKNOWN`, `GATE_DENIED`, `PLACEHOLDER`, `INVALID_VALUE`, `WIDE_NEEDS_LETTER`...): volte à entrevista só para esses campos. Não force. |
+| `init` sai com 2 e `LETTER_REJECTED` | Leia `data.issues` (`MISSING`, `UNKNOWN`, `GATE_DENIED`, `PLACEHOLDER`, `INVALID_VALUE`, `WIDE_NEEDS_LETTER`, `AUTHORIZATION_EXPIRED`...): volte à entrevista só para esses campos. Não force. |
 | `GATE_DENIED` ou portão "não sei" | **Pare.** Sem ambiente de teste, dados sintéticos e autorização vigente, não há perfil. |
 | `WIDE_NEEDS_LETTER` | Tirou `wide` sem carta: use `strict` (ou deixe o campo fora) e avise que o modo amplo só vem da carta do dono. |
 | Pessoa respondeu um valor de senha no lugar do NOME | Não grave nem repita; peça só o nome do segredo. |
@@ -58,7 +58,7 @@ Você conduz a entrevista e transcreve; a CLI gera e valida. Escopo, limite e ja
 | Pessoa quer o teste entre contas, mas a carta não traz hierarquia de papéis nem operações públicas | Não escreva o bloco `authz` por palpite: `role_order` e `public_operations` vêm do dono (ADR 0027). Escritas em `authz.vertical_methods` só se a pessoa mandar. |
 | A pessoa diz que existe um GET que prepara os dados do ambiente | Só então escreva `probe.setup_path` com esse caminho (já em `scope.allow`, fora de `deny_paths`). |
 | A cerca recusa demais, ou o escopo parece curto | **Pare** e peça ao dono do produto. Nunca ligue `wide` nem alargue. |
-| `profile validate` ou comando que toca o alvo recusa por falta de aprovação (`SCOPE_NOT_APPROVED`) | **Pare**: peça à pessoa que rode `hdast profile approve <produto>`. Não tente aprovar nem contornar. |
+| Comando que toca o alvo (`preflight`, `probe`, `scan`, `run`, `stack up`) recusa por falta de aprovação (`SCOPE_NOT_APPROVED`) | **Pare**: peça à pessoa que rode `hdast profile approve <produto>`. Não tente aprovar nem contornar. O `profile validate` nunca recusa por aprovação: ele só mostra `data.approval`. |
 
 ## Diário de decisões
 

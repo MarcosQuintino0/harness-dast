@@ -138,3 +138,23 @@ def test_from_data_error_never_repeats_the_received_secret() -> None:
         Letter.from_data(data)
 
     assert "SenhaLiteral-123" not in caught.value.message
+
+
+def test_from_data_error_uses_the_feminine_form_for_the_letter() -> None:
+    data = valid_letter_data()
+    data["escopo_extra"] = {}
+
+    with pytest.raises(ConfigError) as caught:
+        Letter.from_data(data)
+
+    assert caught.value.message.startswith("Carta inválida (1 problema(s)):")
+
+
+def test_from_data_unknown_answer_with_value_says_the_answer_cannot_carry_a_value() -> None:
+    data = valid_letter_data()
+    data["limits"]["requests_per_second"] = {"value": 5, "source": "desconhecido"}
+
+    with pytest.raises(ConfigError) as caught:
+        Letter.from_data(data)
+
+    assert "uma resposta desconhecida não pode ter value" in caught.value.message

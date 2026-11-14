@@ -261,3 +261,20 @@ def test_agent_edit_after_approval_to_scan_or_authz_makes_it_changed(
 
     assert check.state == "changed"
     assert check.changed_blocks == (key,)
+
+
+def test_changed_message_names_each_block_in_plain_language_without_nested_parentheses() -> None:
+    approval = approval_for(valid_profile())
+    changed = profile_with(
+        lambda d: (
+            d["scope"]["allow"][0]["methods"].append("DELETE"),
+            d["limits"].update(requests_per_second=9),
+        )
+    )
+
+    message = check_approval(changed, approval).message()
+
+    assert "o que pode ser alcançado (scope.allow)" in message
+    assert "limites de carga (limits)" in message
+    assert "((" not in message
+    assert message.count("(") == message.count(")")

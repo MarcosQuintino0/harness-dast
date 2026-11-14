@@ -97,7 +97,9 @@ def describe_problems(error: ValidationError) -> tuple[tuple[tuple[int | str, ..
     return tuple(sorted(pairs, key=lambda pair: (_format_location(pair[0]), pair[1])))
 
 
-def to_config_error(error: ValidationError, *, hint: str, subject: str = "Perfil") -> ConfigError:
+def to_config_error(
+    error: ValidationError, *, hint: str, subject: str = "Perfil", feminine: bool = False
+) -> ConfigError:
     """Converte o `ValidationError` do pydantic em `ConfigError` em português.
 
     Cada problema vira uma linha `- caminho.do.campo: explicação`. Garantia de segurança: a
@@ -108,6 +110,7 @@ def to_config_error(error: ValidationError, *, hint: str, subject: str = "Perfil
         error: Erro de validação do pydantic.
         hint: Orientação do que fazer, repetida na dica do erro.
         subject: Documento que falhou ("Perfil", "Carta"), no início da mensagem.
+        feminine: Se o documento é feminino em português ("Carta inválida", não "inválido").
 
     Returns:
         O erro de configuração a ser levantado pelo chamador.
@@ -117,8 +120,9 @@ def to_config_error(error: ValidationError, *, hint: str, subject: str = "Perfil
     details = _drop_derived_errors(error.errors())
     problems = sorted({f"{_format_location(e['loc'])}: {_describe(e)}" for e in details})
     lines = "\n".join(f"- {problem}" for problem in problems)
+    adjective = "inválida" if feminine else "inválido"
     return ConfigError(
-        f"{subject} inválido ({len(problems)} problema(s)):\n{lines}",
+        f"{subject} {adjective} ({len(problems)} problema(s)):\n{lines}",
         hint=_hint_for(details, hint),
     )
 
