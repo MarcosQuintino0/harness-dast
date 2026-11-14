@@ -43,12 +43,12 @@ _STEP_LEVEL: Final[dict[str, int]] = {"a confirmar": 1, "prova forte": STRONG, "
 _NOT_ATTACKED: Final = frozenset({"refused"})
 _FORBIDDEN_OUTCOMES: Final = {
     "skipped_scope": "Fora do escopo da carta.",
-    "skipped_denied": "Caminho proibido na carta (deny_paths).",
+    "skipped_denied": "Caminho que a carta proíbe, na lista `deny_paths`.",
     "skipped_destructive": "Função que apaga dados (DELETE): a ferramenta nunca a ataca.",
 }
 _FORBIDDEN_SKIPS: Final = {
     "scope": "Fora do escopo da carta.",
-    "denied": "Caminho proibido na carta (deny_paths).",
+    "denied": "Caminho que a carta proíbe, na lista `deny_paths`.",
     "delete": "Função que apaga dados (DELETE): a ferramenta nunca a ataca.",
     "login": "Entrada (login): não é atacada, para não bloquear a conta de teste.",
 }
@@ -234,6 +234,7 @@ def build_groups(
     )
 
 
+_NAME_CAP: Final = 40
 _PLACEHOLDER: Final = re.compile(r"\{[^{}]*\}")
 
 
@@ -256,8 +257,25 @@ def restore_path(template: str, operation_id: str | None, paths: Mapping[str, st
 
 
 def function_names(operations: Sequence[Operation]) -> dict[str, str]:
-    """Nome simples por `operation_id`: o `summary` do OpenAPI, senão o próprio id."""
-    return {item.operation_id: item.summary or item.operation_id for item in operations}
+    """Nome simples por `operation_id`: o `summary` do OpenAPI, senão o próprio id.
+
+    Duas funções com o mesmo nome ganham o método e o caminho ao lado, para a lista nunca ter
+    linhas idênticas.
+    """
+    plain = {item.operation_id: item.summary or item.operation_id for item in operations}
+    repeated = {name for name, count in Counter(plain.values()).items() if count > 1}
+    return {
+        item.operation_id: (
+            f"{_shorten(plain[item.operation_id])} ({item.method.upper()} {item.path})"
+            if plain[item.operation_id] in repeated
+            else plain[item.operation_id]
+        )
+        for item in operations
+    }
+
+
+def _shorten(name: str) -> str:
+    return name if len(name) <= _NAME_CAP else name[: _NAME_CAP - 1].rstrip() + "…"
 
 
 def _decide(

@@ -7,6 +7,7 @@ Sem a auditoria do proxy não há como saber quantos pedidos foram barrados: o q
 traço e a explicação, nunca zero. Módulo puro.
 """
 
+import re
 from typing import Final
 
 from harness_dast.domain import html_safe as h
@@ -107,13 +108,25 @@ def _rows(traffic: TrafficSummary, wide: bool) -> str:
     return f"<div>{''.join(rows)}</div>"
 
 
+_CODE_IN_LABEL: Final = re.compile(r"\s*\(([a-z_]+(?:\.[a-z_]+)*)\)$")
+
+
+def _reason_label(label: str, code: str) -> str:
+    """A frase simples primeiro; o termo do perfil e o código da auditoria, em etiquetas."""
+    found = _CODE_IN_LABEL.search(label)
+    phrase = label[: found.start()] if found else label
+    tags = [found.group(1)] if found else []
+    chips = "".join(f' <span class="chip ch-mu">{h.ident(tag)}</span>' for tag in (*tags, code))
+    return f"{h.ident(phrase)}{chips}"
+
+
 def _reasons(traffic: TrafficSummary) -> str:
     """Os motivos em detalhe: o nome em português e, ao lado, o código da auditoria."""
     rows = denied_rows(traffic)
     if not rows:
         return ""
     shown = "".join(
-        f'<div class="r"><span>{h.ident(label)} <span class="mu">[{h.ident(code)}]</span></span>'
+        f'<div class="r"><span>{_reason_label(label, code)}</span>'
         f'<span class="end">{h.plain(fmt_count(count))}</span></div>'
         for label, code, count in rows[:_MAX_REASONS]
     )

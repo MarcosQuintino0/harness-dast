@@ -130,7 +130,7 @@ def _stage_block(view: PanelView, number: int, stage: PanelStage, *, last: bool)
     grid = _squares(view) if stage.key == "scan" and stage.state != "pending" else ""
     return (
         f'<div class="stg"{border}><span class="nb{_NB_CLASS[stage.state]}">{number}</span>'
-        f'<div><b>{h.plain(_TITLES[stage.key])}</b><p class="mu">{h.plain(stage.summary)}</p>'
+        f'<div><b>{h.plain(_TITLES[stage.key])}</b><p class="mu">{h.tagged(stage.summary)}</p>'
         f"{message}{grid}{_stage_links(view, stage)}</div>{side}</div>"
     )
 

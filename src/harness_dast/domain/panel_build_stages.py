@@ -97,8 +97,8 @@ def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
         text += (
             " Nenhum chegou a lugar proibido."
             if not traffic.allowed_outside_allow
-            else f" {fmt_count(traffic.allowed_outside_allow)} passaram com leitura fora de "
-            "scope.allow (modo amplo)."
+            else f" {fmt_count(traffic.allowed_outside_allow)} passaram com leitura do caminho "
+            "fora do que a carta permite (`scope.allow`, modo amplo)."
         )
     return text
 

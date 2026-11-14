@@ -10,10 +10,12 @@ nunca vira marcação.
 """
 
 import html
+import re
 from typing import Final
 
 from harness_dast.domain.redaction import redact_text, strip_control
 
+_CODE: Final = re.compile(r"`([A-Za-z0-9_.-]{1,40})`")
 _DEFAULT_INLINE: Final = 400
 _DEFAULT_BLOCK: Final = 2400
 
@@ -46,6 +48,18 @@ def ident(value: str, limit: int = _DEFAULT_INLINE) -> str:
     """
     flat = " ".join(strip_control(value, keep_newlines=False).split())
     return html.escape(_cut(flat, limit), quote=True)
+
+
+def tagged(value: str) -> str:
+    """Texto NOSSO com termos técnicos entre crases: cada um vira uma etiqueta cinza.
+
+    A frase vem primeiro e o código fica ao lado, na etiqueta (`deny_paths`). Só entra em
+    etiqueta um nome curto de letras, dígitos, ponto, sublinhado e hífen: nada de marcação.
+    """
+    return _CODE.sub(
+        lambda found: f'<span class="chip ch-mu">{found.group(1)}</span>',
+        html.escape(value, quote=True),
+    )
 
 
 def plain(value: str) -> str:

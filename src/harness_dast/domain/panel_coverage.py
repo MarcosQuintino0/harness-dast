@@ -80,7 +80,7 @@ def _function_line(item: PanelFunction) -> str:
         css, body = "fn", name
     # A proibida não repete o motivo aqui: ele já está em "O que ficou de fora", agrupado.
     if item.state in ("failed", "not_tried") and item.reason:
-        body += f'<span class="sm mu" style="display: block">{h.plain(item.reason)}</span>'
+        body += f'<span class="sm mu" style="display: block">{h.tagged(item.reason)}</span>'
     return f'<span class="{css}">{mark}{body}</span>'
 
 
@@ -151,7 +151,7 @@ def _summary(view: PanelView) -> str:
 
 
 def _names(items: Sequence[PanelFunction]) -> str:
-    unique = list(dict.fromkeys(h.text(item.name, 60) for item in items))
+    unique = list(dict.fromkeys(h.text(item.name, 100) for item in items))
     text = ", ".join(unique[:_MAX_NAMES])
     rest = len(unique) - _MAX_NAMES
     return text + (f" e mais {h.plain(fmt_count(rest))}" if rest > 0 else "")
@@ -167,7 +167,7 @@ def _function_items(view: PanelView) -> list[tuple[MarkerKind, str]]:
     rows: list[tuple[MarkerKind, str]] = []
     for (state, reason), items in list(groups.items())[:_MAX_GROUPS]:
         count = h.plain(plural(len(items), "função", "funções"))
-        why = f"{h.plain(reason)} " if reason else ""
+        why = f"{h.tagged(reason)} " if reason else ""
         rows.append(
             (
                 "am",
@@ -183,7 +183,7 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
     rows = _function_items(view)
     wide = view.identity.fence_mode == _MODE_WIDE
     for item in view.left_out:
-        text = h.plain(item.text)
+        text = h.tagged(item.text)
         if item.kind == "authz":
             rows.append(
                 (
@@ -218,7 +218,7 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
 def _left_out(view: PanelView) -> str:
     found = _left_out_rows(view) or [("ok", f"<b>{h.plain(_NOTHING_LEFT)}</b>")]
     blind: list[tuple[MarkerKind, str]] = [
-        ("no", h.plain(item.text)) for item in view.left_out if item.kind == "blind"
+        ("no", h.tagged(item.text)) for item in view.left_out if item.kind == "blind"
     ]
     rows = "".join(
         row(kind, body, first=index == 0) for index, (kind, body) in enumerate([*found, *blind])

@@ -44,7 +44,7 @@ def test_the_page_uses_only_the_design_classes_plus_the_known_additions() -> Non
     design = analyse((DESIGN / "coverage.html").read_text(encoding="utf-8"))
     generated = analyse(coverage_html(build_panel_view(with_traffic())))
 
-    assert generated.classes <= design.classes | EXTRA_CLASSES | {"cnt", "k-no"}
+    assert generated.classes <= design.classes | EXTRA_CLASSES | {"cnt", "k-no", "ch-mu"}
     assert {"stats", "stack", "area", "fn", "lg", "dotk", "k-ok", "k-gr", "k-am", "k-out"} <= (
         generated.classes
     )
@@ -248,8 +248,8 @@ def test_the_fence_bar_says_the_numbers_for_a_screen_reader() -> None:
 def test_the_reasons_come_with_the_plain_name_and_the_code() -> None:
     text = main_text(coverage_html(build_panel_view(with_traffic())))
 
-    assert "barra codificada no caminho (%2f) [path_encoded_slash] 2.608" in text
-    assert "caminho fora do que a carta permite (scope.allow) [path_not_allowed] 1.087" in text
+    assert "barra codificada no caminho (%2f) path_encoded_slash 2.608" in text
+    assert "caminho fora do que a carta permite scope.allow path_not_allowed 1.087" in text
     assert "e mais 1 motivo menor." in text
     assert "motivos menores" not in text
 
@@ -331,7 +331,7 @@ def test_barred_requests_with_an_unknown_reason_go_to_other_reasons() -> None:
     text = main_text(coverage_html(build_panel_view(odd)))
 
     assert "Barrados: outros motivos 100" in text
-    assert "parada de emergência acionada [kill_switch] 100" in text
+    assert "parada de emergência acionada kill_switch 100" in text
 
 
 # ---------------------------------------------------------------- texto hostil
