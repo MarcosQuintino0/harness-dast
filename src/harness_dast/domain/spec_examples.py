@@ -1,4 +1,4 @@
-"""Inspeção offline dos exemplos escalares preservados no modelo de API."""
+"""Inspeção offline dos exemplos JSON preservados no modelo de API."""
 
 from collections.abc import Iterator
 

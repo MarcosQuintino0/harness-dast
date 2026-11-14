@@ -217,7 +217,11 @@ class OperationMapper:
                     ref = entry["$ref"]
                     if not isinstance(ref, str) or not ref.startswith("#/"):
                         continue
-                    _, entry = self._resolver.resolve(ref, where)
+                    try:
+                        _, entry = self._resolver.resolve(ref, where)
+                    except ConfigError:
+                        # Exemplos são metadados opcionais e antes não bloqueavam a carga.
+                        continue
                 if isinstance(entry, Mapping) and "value" in entry:
                     examples.extend(read_schema_examples({"example": entry["value"]}))
         return schema.model_copy(

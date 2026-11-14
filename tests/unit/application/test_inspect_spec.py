@@ -285,3 +285,29 @@ paths:
     ]
     assert "segredo" not in result.model_dump_json()
     assert "xyz" not in result.model_dump_json()
+
+
+def test_invalid_example_reference_does_not_block_spec_loading(tmp_path: Path) -> None:
+    document = tmp_path / "spec.yml"
+    document.write_text(
+        """openapi: 3.0.0
+info: {title: Teste, version: '1'}
+paths:
+  /api/x:
+    get:
+      parameters:
+        - name: id
+          in: query
+          schema: {type: string}
+          examples:
+            ausente: {$ref: '#/components/examples/ausente'}
+            remoto: {$ref: 'https://invalid.example/exemplo'}
+      responses:
+        '200': {description: ok}
+""",
+        encoding="utf8",
+    )
+
+    result = inspect(Rig(spec=load_spec(document)))
+
+    assert result.issues == ()
