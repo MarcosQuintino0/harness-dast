@@ -8,6 +8,8 @@ pedidos o varredor tentou fora do escopo.
 from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime
+from itertools import pairwise
+from typing import Final
 
 from pydantic import ConfigDict, Field
 
@@ -109,4 +111,47 @@ def summarize_traffic(
         average_rps=round(len(allowed) / span, 2) if span > 0 else 0.0,
         peak_rps=max(per_second.values(), default=0),
         limit_rps=limit_rps,
+    )
+
+
+GAP_THRESHOLD_SECONDS: Final = 10.0
+"""Silêncio, entre dois pedidos que passaram pelo proxy, a partir do qual há uma "lacuna"."""
+
+
+class TrafficGaps(ApiModel):
+    """Intervalos em que nenhum pedido passou pelo proxy (ADR 0031).
+
+    Uma regra do ZAP que espera resposta externa (que o proxy nega) deixa o tráfego parado: a
+    lacuna é o rastro disso. Só conta o silêncio ENTRE dois pedidos dentro do intervalo medido;
+    o tempo antes do primeiro e depois do último não é lacuna.
+
+    Attributes:
+        threshold_seconds: Silêncio mínimo para contar como lacuna.
+        count: Quantas lacunas.
+        total_seconds: Soma da duração das lacunas.
+        longest_seconds: A maior lacuna.
+    """
+
+    threshold_seconds: float = GAP_THRESHOLD_SECONDS
+    count: int = 0
+    total_seconds: float = 0.0
+    longest_seconds: float = 0.0
+
+
+def find_gaps(
+    rows: Sequence[ProxyRow],
+    *,
+    start: datetime,
+    end: datetime,
+    threshold_seconds: float = GAP_THRESHOLD_SECONDS,
+) -> TrafficGaps:
+    """Mede as lacunas (liberados e negados contam como atividade) no intervalo `[start, end]`."""
+    moments = sorted(row.at for row in rows if start <= row.at <= end)
+    silences = [(later - earlier).total_seconds() for earlier, later in pairwise(moments)]
+    long = [value for value in silences if value > threshold_seconds]
+    return TrafficGaps(
+        threshold_seconds=threshold_seconds,
+        count=len(long),
+        total_seconds=round(sum(long), 3),
+        longest_seconds=round(max(long, default=0.0), 3),
     )

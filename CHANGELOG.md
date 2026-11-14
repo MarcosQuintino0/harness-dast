@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado: medição da execução (ADR 0031)
+
+- Toda execução que chega ao `hdast report` ou ao `hdast run` grava `runs/<run_id>/metrics.json`: tempo por etapa (`preflight` só no `run`; etapa não executada é `null`), por operação varrida (reaproveita `scan.json`), **por regra do ZAP** (tempo em ms, pedidos, alertas e estado, somados na execução e por operação), tráfego do proxy (liberados, recusados por motivo) com as "lacunas" de mais de 10 s sem pedido e as regras desligadas pela política com o motivo. Só números e identificadores; sem dado do alvo nem segredo. `hdast report` cita o arquivo na saída humana.
+- O `scan` grava `rule-stats.json` (dado bruto por regra e por operação, lido de `ascan/view/scanProgress` ao fim de cada varredura; forma real do ZAP 2.17.0). Falha na coleta ou na gravação não derruba a varredura: a operação fica marcada como indisponível, com o motivo, e o log estruturado registra. `scan.json` não mudou.
+- `ScanControl.scan_rules`, `RunArtifacts.write_rule_stats`, `read_rule_stats` e `write_metrics`, porta `RunMetricsRecorder`; `run.json` passa a listar `rule-stats.json` e `metrics.json` em `artifacts` quando existem.
+
 ## [1.1.0] - 2026-11-13
 
 A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/reviews/2026-11-13-lab-v1-1-cerca.md](docs/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/reviews/2026-11-13-lab-v1-1-authz.md](docs/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).

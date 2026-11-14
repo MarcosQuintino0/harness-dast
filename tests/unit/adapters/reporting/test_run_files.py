@@ -8,7 +8,11 @@ import pytest
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
+from harness_dast.domain.rule_stats import OperationRules, RuleStat, RuleStatsFile
+from harness_dast.domain.run import RunLimits
+from harness_dast.domain.run_metrics import build_run_metrics
 from harness_dast.domain.scan_result import ScanProgress
 from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
 
@@ -288,3 +292,87 @@ def test_non_utf8_exchanges_and_authz_are_refused(tmp_path: Path, store: FileRun
         store.read_exchanges(RUN_ID)
     with pytest.raises(ConfigError, match="ilegível"):
         store.read_authz(RUN_ID)
+
+
+# ------------------------------------------------------------------ medição (ADR 0031)
+
+
+def _rule_stats() -> RuleStatsFile:
+    rule = RuleStat(plugin_id=6, name="Path Traversal", state="completed", time_ms=1175)
+    return RuleStatsFile(
+        run_id=RUN_ID,
+        zap_version="2.17.0",
+        operations=(OperationRules(operation_id="obter", scan_id="0", rules=(rule,)),),
+    )
+
+
+def test_rule_stats_round_trip_and_the_file_is_listed_as_a_known_artifact(
+    tmp_path: Path, store: FileRunArtifacts
+) -> None:
+    store.write_rule_stats(RUN_ID, _rule_stats())
+
+    assert store.read_rule_stats(RUN_ID) == _rule_stats()
+    assert "rule-stats.json" in store.existing_files(RUN_ID)
+    assert sorted(p.name for p in run_dir(tmp_path).iterdir()) == ["rule-stats.json"]
+
+
+def test_missing_rule_stats_means_the_scan_did_not_write_them(store: FileRunArtifacts) -> None:
+    run_dir(store._runs_dir)  # a pasta existe, o arquivo não
+
+    assert store.read_rule_stats(RUN_ID) is None
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{",
+        "[]",
+        '{"run_id": "x", "operations": "y"}',
+        '{"run_id": "x", "operations": [{"operation_id": "a", "scan_id": "0", "rules": [{}]}]}',
+    ],
+)
+def test_corrupt_or_malformed_rule_stats_are_config_errors(
+    tmp_path: Path, store: FileRunArtifacts, content: str
+) -> None:
+    (run_dir(tmp_path) / "rule-stats.json").write_text(content, encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=r"rule-stats.json"):
+        store.read_rule_stats(RUN_ID)
+
+
+def test_metrics_are_written_as_valid_json_and_listed_as_a_known_artifact(
+    tmp_path: Path, store: FileRunArtifacts
+) -> None:
+    metrics = build_run_metrics(
+        manifest=RunManifest(
+            run_id=RUN_ID,
+            command="probe",
+            product="vampi",
+            harness_version="1",
+            hashes=ArtifactHashes(),
+            limits=RunLimits(
+                requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2
+            ),
+            seed=1,
+            started_at="2026-11-13T05:15:30+00:00",
+        ),
+        probe=None,
+        scan=None,
+        authz=None,
+        rule_stats=None,
+        proxy_rows=None,
+        stages=None,
+        run_window=None,
+        report_seconds=None,
+        path_mode="strict",
+        harness_version="1",
+        generated_at="2026-11-13T05:30:00+00:00",
+    )
+
+    store.write_metrics(RUN_ID, metrics)
+
+    written = json.loads((run_dir(tmp_path) / "metrics.json").read_text(encoding="utf-8"))
+    assert written["schema_version"] == 1
+    assert written["run_id"] == RUN_ID
+    assert written["stages_seconds"]["scan"] is None
+    assert "metrics.json" in store.existing_files(RUN_ID)

@@ -19,11 +19,25 @@ from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
+from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanProgress, ScanRefused, ScanResult, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
+from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
 from tests.fakes.probe_ports import FakeTarget, FakeZap, InMemoryRunStore
+
+DEFAULT_RULE_STATS = (
+    RuleStat(plugin_id=40018, name="SQL Injection", state="completed", time_ms=1200, requests=40),
+    RuleStat(
+        plugin_id=40026,
+        name="Cross Site Scripting (DOM Based)",
+        state="skipped",
+        time_ms=25,
+        skip_reason="other",
+    ),
+)
 
 type AlertFactory = Callable[[ScanStart, "FakeScanZap"], list[dict[str, str]]]
 
@@ -57,6 +71,7 @@ class FakeScanZap(FakeZap):
         failures: Falha a levantar na chamada com este nome de método.
         let_through: Quantas chamadas daquele método passam antes de a falha começar.
         policy_state: Regras que o ZAP "esquece" de desligar (testa a verificação).
+        rule_stats: Medição por regra que `scan_rules` devolve para toda varredura.
     """
 
     calls: list[str] = field(default_factory=list)
@@ -79,6 +94,7 @@ class FakeScanZap(FakeZap):
     applied: list[tuple[ScanPolicy, ScanLimits]] = field(default_factory=list)
     options_before_first_scan: bool = False
     let_through: dict[str, int] = field(default_factory=dict)
+    rule_stats: tuple[RuleStat, ...] = DEFAULT_RULE_STATS
     _scans: dict[str, _Scan] = field(default_factory=dict)
     _seen: dict[str, int] = field(default_factory=dict)
 
@@ -170,6 +186,12 @@ class FakeScanZap(FakeZap):
             alerts=scan.alerts,
         )
 
+    def scan_rules(self, scan_id: str) -> tuple[RuleStat, ...]:
+        self._fail("scan_rules")
+        if scan_id not in self._scans:
+            raise ExternalToolError("Varredura desconhecida.")
+        return self.rule_stats
+
     def stop_scan(self, scan_id: str) -> None:
         self._fail("stop_scan")
         self._scans[scan_id].stopped = True
@@ -212,6 +234,19 @@ class FakeScanZap(FakeZap):
         return [sid for sid, scan in self._scans.items() if not scan.stopped and scan.polls == 0]
 
 
+class FakeProxyAudit:
+    """`ProxyAudit` falso: devolve as linhas dadas, ou levanta o erro dado."""
+
+    def __init__(self, rows: tuple[ProxyRow, ...] = (), error: ConfigError | None = None) -> None:
+        self._rows = rows
+        self._error = error
+
+    def rows(self) -> tuple[ProxyRow, ...]:
+        if self._error is not None:
+            raise self._error
+        return self._rows
+
+
 class InMemoryRunArtifacts:
     """`RunArtifacts` falso sobre o `InMemoryRunStore` do `probe`."""
 
@@ -224,6 +259,9 @@ class InMemoryRunArtifacts:
         self.triage: dict[str, object] = {}
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
+        self.rule_stats: dict[str, RuleStatsFile] = {}
+        self.metrics: dict[str, RunMetrics] = {}
+        self.failing_writes: set[str] = set()
 
     def read_manifest(self, run_id: str) -> RunManifest:
         if run_id not in self._store.manifests:
@@ -277,6 +315,19 @@ class InMemoryRunArtifacts:
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         self.authz[run_id] = result
 
+    def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
+        if "rule_stats" in self.failing_writes:
+            raise ConfigError("disco cheio")
+        self.rule_stats[run_id] = stats
+
+    def read_rule_stats(self, run_id: str) -> RuleStatsFile | None:
+        return self.rule_stats.get(run_id)
+
+    def write_metrics(self, run_id: str, metrics: RunMetrics) -> None:
+        if "metrics" in self.failing_writes:
+            raise ConfigError("disco cheio")
+        self.metrics[run_id] = metrics
+
     def read_exchanges(self, run_id: str) -> ExchangeLog:
         if run_id not in self._store.exchanges:
             raise ConfigError("A execução não tem exchanges.json.")
@@ -289,4 +340,6 @@ class InMemoryRunArtifacts:
         parts += [json.dumps(a) for alerts in self.alerts.values() for a in alerts]
         parts += [m.model_dump_json() for ms in self.evidence.values() for m in ms]
         parts += [a.model_dump_json() for a in self.authz.values()]
+        parts += [r.model_dump_json() for r in self.rule_stats.values()]
+        parts += [m.model_dump_json() for m in self.metrics.values()]
         return "\n".join(parts)
