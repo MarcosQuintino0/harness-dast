@@ -6,7 +6,6 @@ Sem terminal, recusam. `list` só mostra nomes e se existem; nenhum comando most
 tamanho.
 """
 
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -19,6 +18,7 @@ from harness_dast.application.secret_admin import (
 )
 from harness_dast.cli.composition import build_secret_admin
 from harness_dast.cli.output import build_success, emit, get_state
+from harness_dast.cli.terminal import is_interactive
 
 _PRODUCTS_DIR = typer.Option(
     "--products-dir",
@@ -28,7 +28,7 @@ _PRODUCTS_DIR = typer.Option(
 
 
 def _is_interactive() -> bool:
-    return sys.stdin.isatty() and sys.stderr.isatty()
+    return is_interactive()
 
 
 class TerminalSecretPrompt:

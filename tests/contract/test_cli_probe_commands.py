@@ -18,6 +18,7 @@ import yaml
 from harness_dast.cli import composition
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.domain.errors import ExitCode
+from tests.fakes.approvals import approve_product_on_disk
 from tests.fakes.local_server import LocalServer, Received, Reply, free_port, serve
 from tests.fakes.profile_data import valid_profile_data
 from tests.fakes.runtime import ManualClock
@@ -121,6 +122,7 @@ def write_product(products: Path, server: LocalServer, **profile_changes: Any) -
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "target.yml").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     (folder / "openapi.yml").write_text(yaml.safe_dump(OPENAPI), encoding="utf-8")
+    approve_product_on_disk(products, "demo")  # o que uma pessoa faria no terminal
 
 
 @contextmanager

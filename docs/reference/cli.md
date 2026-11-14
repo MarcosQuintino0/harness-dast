@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz`, a cerca da V1.1 e a medição foram medidos em laboratório em 2026-11-13 e 2026-11-14 ([cerca](../reviews/2026-11-13-lab-v1-1-cerca.md), [authz](../reviews/2026-11-13-lab-v1-1-authz.md)); `panel`, o diário de comandos, os índices e a página ao vivo (V1.2) existem como código e testes, **sem prova com Docker** (veja as seções V1.1 e V1.2 do [roadmap](../roadmap.md)). Nada foi provado contra produto real.
+`version`, `doctor`, `init`, `profile validate`, `profile approve`, `profile approval`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz`, a cerca da V1.1 e a medição foram medidos em laboratório em 2026-11-13 e 2026-11-14 ([cerca](../reviews/2026-11-13-lab-v1-1-cerca.md), [authz](../reviews/2026-11-13-lab-v1-1-authz.md)); `panel`, o diário de comandos, os índices e a página ao vivo (V1.2) existem como código e testes, **sem prova com Docker** (veja as seções V1.1 e V1.2 do [roadmap](../roadmap.md)). Nada foi provado contra produto real.
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
@@ -12,6 +12,8 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast doctor [produto]` | Responde "está tudo pronto para começar?": Python, `uv`, pasta de produtos, Docker, imagens, portas fixas, validade da pilha atual e, com produto, perfil, autorização, janela e presença das variáveis de segredo | Não (só lê a máquina) | Implementado ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)). Seção abaixo |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
+| `hdast profile approve <produto>` | A PESSOA aprova os blocos de proteção do perfil (endereço, o que pode, o que é proibido, modo de caminho, janela, validade, limites, contas e papéis, força): mostra o resumo e exige que ela digite o nome do produto. Só em terminal interativo, sem `--json`. Sem ela, os comandos que tocam o alvo recusam | Não | Implementado (V1.3, [ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md), proposto). Seção abaixo |
+| `hdast profile approval <produto>` | Diz se o escopo está aprovado, alterado desde a aprovação (e quais blocos) ou nunca aprovado; só lê, liberado ao agente | Não | Implementado (V1.3, ADR 0037) |
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
@@ -27,6 +29,8 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
+
+**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
 
 ## `hdast panel`
 
@@ -242,6 +246,7 @@ Lê `<products_dir>/<produto>/target.yml` e responde a duas perguntas separadas:
 | `checked_at` | texto | Instante da verificação (ISO 8601, UTC) |
 | `runnable` | booleano | `true` só se `issues` estiver vazio |
 | `issues` | lista de `{code, field, message}` | Pendências, abaixo |
+| `approval` | objeto | Estado da aprovação humana do escopo (ADR 0037): `{state, approved_at, changed_blocks, message}`; veja `hdast profile approval`. **Informativo**: não entra em `runnable` nem em `issues` e nunca faz o comando falhar |
 
 Códigos de `issues[].code`: `PLACEHOLDER_HOST` (host ainda do modelo, como `exemplo.com.br`), `PLACEHOLDER_AUTHORIZATION` (referência `SEC-0000`), `PLACEHOLDER_SECRET_REF` (nome de variável `MEU_PRODUTO_*`), `FILE_MISSING` (`openapi` ou `cleanup.script` ainda não existe), `AUTHORIZATION_EXPIRED` e `WINDOW_CLOSED`. A existência das variáveis de ambiente dos segredos **não** é conferida aqui (o provedor de segredos é do M3). Para o modelo recém-criado por `hdast init`, o resultado é "estrutura válida, não executável", com a lista exata do que preencher.
 
@@ -250,6 +255,27 @@ Exemplo (resumido) para o modelo intocado:
 ```json
 {"schema_version":1,"ok":true,"data":{"product":"demo","runnable":false,"issues":[{"code":"PLACEHOLDER_HOST","field":"environment.base_url","message":"..."},{"code":"FILE_MISSING","field":"openapi","message":"..."}]}}
 ```
+
+## `hdast profile approve` e `hdast profile approval`
+
+```bash
+uv run hdast profile approve meu-produto                       # a PESSOA, num terminal
+uv run hdast --json profile approval meu-produto               # só leitura (liberado ao agente)
+```
+
+Decisão: [ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md) (proposto). Uma pessoa aprova os **blocos de proteção** do perfil; a CLI recusa tocar o alvo se eles mudaram desde a aprovação.
+
+**O que a aprovação trava** (impressão digital SHA-256 do perfil já validado e normalizado, um resumo por bloco; comentário, espaço e ordem de chave do YAML não contam): `environment` (nome, `base_url`, `verify_tls`), `scope.allow`, `scope.deny_paths`, `scope.path_mode`, `scope.authorization`, `scope.windows`, `limits`, `auth` (tipo, caminho do login ou cabeçalho da chave, contas por apelido, papel e **nome** de `secret_ref`, `login_limit`), `scan` (`strength`, `url_path_injection`, `mutating_methods`) e `authz` (`vertical_methods`). **Não** entram, porque só ajustam alcançabilidade ou estreitam: `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login, `probe`, os demais campos de `scan` e de `authz` e `cleanup` (a limpeza tem a confirmação própria da pessoa). A tabela completa e o motivo de cada campo estão no ADR.
+
+**`profile approve <produto>`**: só funciona em terminal interativo (entrada e stderr), **sem `--json`**; sem terminal ou com `--json` recusa com `CONFIG_ERROR` (saída `2`) e não grava nada. Mostra o resumo (endereço, o que pode, o que é proibido, modo de caminho, autorização, janelas, limites, contas e papéis, força, métodos do teste de autorização) e, se havia aprovação anterior, o que mudou; a pessoa precisa **digitar o nome do produto** (outra coisa cancela: saída `0` com `approved: false`, nada gravado). Não existe flag, arquivo nem variável de ambiente que confirme no lugar dela. Perfil já aprovado e inalterado: diz isso e não pergunta. A aprovação é gravada na pasta de estado (`HDAST_STATE_DIR`), em `approvals/<produto>.json` (fora da pasta do produto e de `runs/`; sem segredo; contém produto, resumos, instante e o resumo legível).
+
+`data` de `profile approve`: `product`, `approved` (booleano), `already_approved`, `approved_at` (ou `null`), `changed_blocks` (lista de identificadores) e `summary` (as linhas mostradas à pessoa).
+
+**`profile approval <produto>`**: só lê. `data`: `product`, `state`, `approved_at`, `changed_blocks`, `message`. `state` é `approved`, `not_approved`, `changed` (o perfil mudou desde a aprovação; `changed_blocks` lista quais) ou `invalid` (arquivo ilegível, de versão desconhecida, de outro produto ou com resumos que não conferem: vale como não aprovado). O mesmo objeto vem em `data.approval` do `profile validate`, que não falha por causa dele.
+
+Identificadores de bloco (`changed_blocks`): `environment`, `scope.allow`, `scope.deny_paths`, `scope.path_mode`, `scope.authorization`, `scope.windows`, `limits`, `auth`, `scan`, `authz`.
+
+**Quem confere:** `preflight`, `probe`, `scan`, `authz`, `run`, `cleanup` e `stack up`. Sem aprovação ou com o perfil alterado, o erro é `SCOPE_NOT_APPROVED` (saída `3`, a mesma da cerca; nenhum código de saída novo), com a mensagem `O perfil de <produto> mudou desde a aprovação de <instante>. Blocos alterados: scope.allow (o que pode ser alcançado)` (ou "ainda não foi aprovado por uma pessoa") e a dica de que **uma pessoa** precisa rodar `hdast profile approve <produto>`. A conferência acontece ao carregar o perfil, antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` não são bloqueados.
 
 ## `hdast spec inspect`
 
@@ -459,6 +485,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | --- | --- | --- |
 | `CONFIG_ERROR` | `ConfigError`: configuração, perfil ou argumento inválido (inclui erro de uso da linha de comando) | 2 |
 | `SCOPE_VIOLATION` | `ScopeViolation`: ação fora do escopo, dos limites ou da janela | 3 |
+| `SCOPE_NOT_APPROVED` | `ScopeNotApproved`: nenhuma pessoa aprovou os blocos de proteção do perfil, ou eles mudaram desde a aprovação ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md)); a mensagem diz quais blocos mudaram | 3 |
 | `PREFLIGHT_FAILED` | `PreflightError`: verificação anterior à execução falhou | 4 |
 | `SECRET_BACKEND_ERROR` | `SecretBackendError`: o cofre de credenciais do sistema (`keyring:`) não está utilizável | 4 |
 | `EXTERNAL_TOOL_ERROR` | `ExternalToolError`: ferramenta externa (ZAP, Docker) indisponível ou com resposta inválida | 5 |

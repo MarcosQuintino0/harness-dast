@@ -27,6 +27,10 @@ O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste r
 - `schema_version` é conferido antes de tudo: ausente, não inteiro, ou diferente de `1` falha com mensagem própria.
 - Caminhos de arquivo (`openapi`, `cleanup.script`) são validados **sem tocar o disco**.
 
+## Blocos de proteção e aprovação humana
+
+Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, em `scan` a `strength`, a `url_path_injection` e os `mutating_methods`, e em `authz` os `vertical_methods`. **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login, `probe`, os demais campos de `scan` e de `authz`, e `cleanup`. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
+
 ## Exemplo completo
 
 ```yaml

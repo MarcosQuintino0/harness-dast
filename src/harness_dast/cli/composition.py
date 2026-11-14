@@ -42,6 +42,7 @@ from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
 from harness_dast.application.validate_profile import ValidateProfile
+from harness_dast.cli.approval_composition import checked_profiles, open_approval_store
 from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -87,7 +88,7 @@ def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
         products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
     """
     repository = FileProfileRepository(products_dir_or_default(products_dir))
-    return ValidateProfile(repository, SystemClock())
+    return ValidateProfile(repository, SystemClock(), open_approval_store())
 
 
 def harness_version() -> str:
@@ -174,7 +175,7 @@ def open_network(product: str, products_dir: Path | None, secrets: SecretRegistr
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profile = FileProfileRepository(root).load(product)
+    profile = checked_profiles(root).load(product)
     settings = load_effective_settings()
     return NetworkHandle(settings, secrets, verify_tls=profile.environment.verify_tls)
 
@@ -189,7 +190,7 @@ def build_preflight(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Preflight(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
@@ -215,7 +216,7 @@ def build_probe(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Probe(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -240,7 +241,7 @@ def build_cleanup(
     """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
     root = products_dir_or_default(products_dir)
     return Cleanup(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         scripts=FileCleanupScripts(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),
@@ -278,7 +279,7 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
     return Doctor(
         host=SystemHost(os.environ),
         profiles=profiles,
-        validator=ValidateProfile(profiles, clock),
+        validator=ValidateProfile(profiles, clock, open_approval_store()),
         secrets=build_secret_provider(),
         vault=secrets,
         states=open_state_store(),

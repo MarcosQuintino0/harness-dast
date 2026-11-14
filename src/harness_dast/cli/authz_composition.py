@@ -7,11 +7,11 @@ rede (cliente do alvo, cache de tokens) que `probe` e `scan` usam.
 from pathlib import Path
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
-from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemSleeper
 from harness_dast.application.authz import Authz
+from harness_dast.cli.approval_composition import checked_profiles
 from harness_dast.cli.composition import (
     NetworkHandle,
     SharedServices,
@@ -35,7 +35,7 @@ def build_authz(
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Authz(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         specs=build_spec_loader(root),
         secrets=build_secret_provider(),
         vault=secrets,

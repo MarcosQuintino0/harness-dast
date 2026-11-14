@@ -40,6 +40,8 @@ _ERROR_MEANING: Final[dict[str, str]] = {
     "CONFIG_ERROR": "Algo no pedido, no perfil ou na configuração está errado: corrija e rode "
     "de novo.",
     "SCOPE_VIOLATION": "A cerca barrou o pedido: ele ficaria fora do que a carta permite.",
+    "SCOPE_NOT_APPROVED": "Uma pessoa ainda não aprovou o escopo, ou ele mudou depois da "
+    "aprovação: a ferramenta não toca o sistema testado até lá.",
     "PREFLIGHT_FAILED": "As contas de teste não conseguiram entrar.",
     "SECRET_BACKEND_ERROR": "O cofre de credenciais do sistema não respondeu.",
     "EXTERNAL_TOOL_ERROR": "Uma ferramenta de apoio (ZAP ou Docker) falhou.",

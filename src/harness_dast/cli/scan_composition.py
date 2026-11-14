@@ -26,6 +26,7 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
+from harness_dast.cli.approval_composition import checked_profiles
 from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import (
     NetworkHandle,
@@ -95,7 +96,7 @@ def build_scan(
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Scan(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -124,7 +125,7 @@ def build_run_pipeline(
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profiles = FileProfileRepository(root)
+    profiles = checked_profiles(root)
     clock = SystemClock()
     kill_switch = open_kill_switch()
     shared = SharedServices(

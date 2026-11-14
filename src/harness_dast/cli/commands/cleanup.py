@@ -6,7 +6,6 @@ confirme no lugar dela; sem terminal (stdin e stderr) a limpeza de verdade é re
 `--dry-run` não apaga nada, roda sem terminal e não emite token. Ver ADR 0025.
 """
 
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -15,6 +14,7 @@ import typer
 from harness_dast.application.cleanup import CleanupReport, CleanupRequest
 from harness_dast.cli.composition import build_cleanup
 from harness_dast.cli.output import build_success, emit, get_state
+from harness_dast.cli.terminal import is_interactive
 from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ExitCode
 
@@ -27,7 +27,7 @@ _STATUS_TEXT = {
 
 
 def _is_interactive() -> bool:
-    return sys.stdin.isatty() and sys.stderr.isatty()
+    return is_interactive()
 
 
 def _plan_lines(

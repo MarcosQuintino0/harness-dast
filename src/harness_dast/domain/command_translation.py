@@ -14,6 +14,8 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "doctor": "Conferiu se estava tudo pronto para começar.",
     "init": "Criou a pasta do produto com os arquivos de perfil para preencher.",
     "profile validate": "Conferiu se o que foi copiado da carta está completo e coerente.",
+    "profile approve": "Pediu a uma pessoa que revisasse e aprovasse a cerca e os limites.",
+    "profile approval": "Conferiu se uma pessoa já aprovou a cerca e os limites do perfil.",
     "spec inspect": "Leu o Swagger e contou as funções do sistema.",
     "preflight": "Conferiu se as contas de teste conseguem entrar.",
     "probe": "Tentou fazer cada função do sistema responder de verdade.",
