@@ -37,6 +37,7 @@ from harness_dast.domain.probe_plan import PlannedOperation, looks_destructive, 
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.scope import ScopeGuard
+from harness_dast.domain.spec_examples import inspect_examples
 
 _BUILD_CHECK_SEED = 0
 _BUILD_CHECK_TAG = "0000"
@@ -133,6 +134,12 @@ class InspectSpec:
             lambda: profile.auth.ensure_operations_exist([o.operation_id for o in spec.operations]),
             "ACCOUNT_MAP_MISMATCH",
             issues,
+        )
+        issues.extend(
+            InspectIssue(
+                code="EXAMPLE_" + code.upper(), message=f"{where}: exemplo incompatível ({code})."
+            )
+            for where, code in inspect_examples(spec)
         )
         return SpecInspection(
             product=product,

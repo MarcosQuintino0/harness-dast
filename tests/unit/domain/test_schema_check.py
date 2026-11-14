@@ -1,7 +1,7 @@
 import pytest
 
 from harness_dast.domain.api_schema import JsonValue, Schema
-from harness_dast.domain.schema_check import violations
+from harness_dast.domain.schema_check import check_schema, violations
 
 
 def check(schema: Schema, value: JsonValue) -> tuple[str, ...]:
@@ -122,3 +122,22 @@ def test_violations_accepts_value_when_pattern_is_outside_the_safe_subset() -> N
 def test_violations_accepts_anything_when_schema_has_no_type() -> None:
     assert check(Schema(), "x") == ()
     assert check(Schema(), None) == ()
+
+
+@pytest.mark.parametrize(
+    ("schema", "value", "expected"),
+    [
+        (Schema(type="integer"), True, ("type",)),
+        (Schema(type="number", minimum=2, exclusive_minimum=True), 2, ("range",)),
+        (Schema(type="string", min_length=3), "ab", ("length",)),
+        (Schema(type="string", enum=("a",)), "segredo", ("enum",)),
+        (Schema(type="object", required=("id",)), {}, ("required",)),
+        (Schema(type="array", max_items=1), [1, 2], ("length",)),
+        (Schema(type="string", nullable=True), None, ()),
+        (Schema(type="integer", truncated=True), "qualquer", ()),
+    ],
+)
+def test_checks_restrictions_without_values(
+    schema: Schema, value: JsonValue, expected: tuple[str, ...]
+) -> None:
+    assert check_schema(schema, value) == expected
