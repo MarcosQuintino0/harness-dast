@@ -88,6 +88,10 @@ convention = "google"
 "tests/**" = ["S101", "D"]
 # O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
 "evals/**" = ["D1"]
+# CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
+# a cópia continuar idêntica ao original.
+"src/harness_dast/domain/panel_style.py" = ["E501"]
+"src/harness_dast/domain/panel_tokens.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
@@ -279,6 +283,25 @@ ignore_names = [
     "gaps",
     "stages_seconds",
     "longest_seconds",
+    # Painel da execução (ADR 0032): campos e formatos que o modelo de visão já carrega para as
+    # abas que ainda não existem (Falhas, Cobertura, Terminal, Tempo e tokens) e para os ganchos
+    # do diário de comandos e do catálogo de explicação. Cada um perde a entrada quando a aba
+    # que o desenha for escrita.
+    "FUNCTION_STATE_WORDS",
+    "fmt_clock",
+    "functions_total",
+    "technical_name",
+    "what_happened",
+    "what_to_do",
+    "owasp",
+    "authz_evidence",
+    "triage_note",
+    "rules_measured",
+    "rules_unavailable",
+    "tokens_by_stage",
+    "translation",
+    "output",
+    "left_out",
     # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
     # (`scan`, `report`, `cleanup`).
     "FINDINGS",
