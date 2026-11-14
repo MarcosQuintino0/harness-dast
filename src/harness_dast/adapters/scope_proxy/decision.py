@@ -10,7 +10,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from harness_dast.domain.errors import ScopeViolation
-from harness_dast.domain.scope import OutboundRequest, Scope, ScopeGuard
+from harness_dast.domain.scope import OutboundRequest, PathMode, Scope, ScopeGuard
+from harness_dast.domain.scope_reason import WIDE_READING_OUTSIDE_ALLOW
+from harness_dast.domain.wide_guard import WideScopeGuard
 
 
 class Reason(StrEnum):
@@ -40,41 +42,43 @@ class Verdict:
 
     Attributes:
         allowed: `True` só quando todas as checagens aplicáveis passaram.
-        reason: Código do motivo (`ALLOWED` quando permitido).
+        reason: Código do motivo (`ALLOWED` quando permitido). Para recusa por forma da URL ou
+            do caminho é sempre o agrupador `MALFORMED_REQUEST` (contrato antigo).
+        detail: Código granular (`ScopeReason`) da recusa por forma, por exemplo
+            `path_encoded_slash`; `WIDE_READING_OUTSIDE_ALLOW` numa liberação do modo amplo em que
+            alguma leitura do caminho sai de `scope.allow`. `None` nos demais casos.
     """
 
     allowed: bool
     reason: Reason
+    detail: str | None = None
 
 
 ALLOW = Verdict(allowed=True, reason=Reason.ALLOWED)
 
 
-def deny(reason: Reason) -> Verdict:
-    """Cria uma recusa com o motivo dado."""
-    return Verdict(allowed=False, reason=reason)
-
-
-# O ScopeGuard não expõe código de motivo, só a mensagem. Estes padrões são fixados pelos
-# testes (que usam o ScopeGuard real). Qualquer outra mensagem vem da normalização da URL e
-# vira MALFORMED_REQUEST; uma mensagem nova ou alterada só perde precisão do motivo, nunca
-# abre acesso, porque a recusa vem da exceção e não da classificação.
-_SCOPE_MESSAGES: tuple[tuple[str, str, Reason], ...] = (
-    ("O caminho da requisição está em scope.deny_paths", "", Reason.DENY_PATH),
-    ("Esquema ou porta de", "", Reason.ORIGIN_NOT_ALLOWED),
-    ("O host ", "não está em scope.allow.", Reason.HOST_NOT_ALLOWED),
-    ("O caminho da requisição não está coberto", "", Reason.PATH_NOT_ALLOWED),
-    ("O método ", "não é permitido para este caminho em", Reason.METHOD_NOT_ALLOWED),
-)
+def deny(reason: Reason, detail: str | None = None) -> Verdict:
+    """Cria uma recusa com o motivo dado (e o código granular, se houver)."""
+    return Verdict(allowed=False, reason=reason, detail=detail)
 
 
 def classify(error: ScopeViolation) -> Reason:
-    """Traduz a mensagem de uma `ScopeViolation` em código de motivo."""
-    message = error.message
-    for prefix, marker, reason in _SCOPE_MESSAGES:
-        if message.startswith(prefix) and marker in message:
-            return reason
-    return Reason.MALFORMED_REQUEST
+    """Traduz o código de uma `ScopeViolation` no motivo do proxy.
+
+    Violação sem código (ou de forma) vira `MALFORMED_REQUEST`; uma violação nova sem código
+    só perde precisão do motivo, nunca abre acesso, porque a recusa vem da exceção.
+    """
+    reason = error.reason
+    if reason is None or reason.is_malformed:
+        return Reason.MALFORMED_REQUEST
+    return Reason(reason.value)
+
+
+def verdict_from(error: ScopeViolation) -> Verdict:
+    """Recusa com o agrupador compatível em `reason` e o código granular em `detail`."""
+    reason = error.reason
+    detail = reason.value if reason is not None and reason.is_malformed else None
+    return deny(classify(error), detail)
 
 
 _CONNECT_HOST_FORBIDDEN = frozenset(r"/?#@\%")
@@ -83,13 +87,16 @@ _CONNECT_HOST_FORBIDDEN = frozenset(r"/?#@\%")
 class ScopeDecider:
     """Aplica o escopo da política a requisições e a túneis `CONNECT`."""
 
-    def __init__(self, scope: Scope) -> None:
-        """Compila o escopo no `ScopeGuard`.
+    def __init__(self, scope: Scope, path_mode: PathMode = "strict") -> None:
+        """Compila o escopo no guarda do modo escolhido.
 
         Args:
             scope: Escopo já validado da política.
+            path_mode: `strict` usa o `ScopeGuard`; `wide` usa o `WideScopeGuard` (só aqui,
+                no proxy; ver `domain/wide_guard.py`).
         """
         self._guard = ScopeGuard(scope)
+        self._wide = WideScopeGuard(scope) if path_mode == "wide" else None
 
     def decide_request(self, method: str, url: str) -> Verdict:
         """Decide uma requisição completa (método e URL absoluta).
@@ -99,12 +106,19 @@ class ScopeDecider:
             url: URL absoluta com o destino real da conexão.
 
         Returns:
-            `ALLOW` se o `ScopeGuard` aceitou; senão recusa com o motivo classificado.
+            `ALLOW` se o guarda aceitou; senão recusa com o motivo classificado. No modo amplo,
+            a liberação com leitura fora de `allow` traz `WIDE_READING_OUTSIDE_ALLOW`.
         """
+        outbound = OutboundRequest(method=method, url=url)
         try:
-            self._guard.ensure_allowed(OutboundRequest(method=method, url=url))
+            if self._wide is None:
+                self._guard.ensure_allowed(outbound)
+                return ALLOW
+            outcome = self._wide.ensure_allowed(outbound)
         except ScopeViolation as error:
-            return deny(classify(error))
+            return verdict_from(error)
+        if outcome.leaves_allow:
+            return Verdict(allowed=True, reason=Reason.ALLOWED, detail=WIDE_READING_OUTSIDE_ALLOW)
         return ALLOW
 
     def decide_connect(self, host: str, port: int) -> Verdict:
@@ -121,5 +135,5 @@ class ScopeDecider:
         try:
             self._guard.ensure_origin_allowed(f"https://{bracketed}:{port}/")
         except ScopeViolation as error:
-            return deny(classify(error))
+            return verdict_from(error)
         return ALLOW

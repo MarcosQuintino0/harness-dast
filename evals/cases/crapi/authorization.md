@@ -27,6 +27,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
      /identity/api/v2/vehicle/resend_email
      /workshop/api/merchant/contact_mechanic
      /workshop/api/mechanic/signup
+   Modo de leitura de caminhos pela cerca: ESTRITO (o modo amplo NÃO é autorizado)
    OpenAPI: inputs/openapi.json
 
 4. Janela de execução: seg-dom 00:00-24:00 America/Sao_Paulo

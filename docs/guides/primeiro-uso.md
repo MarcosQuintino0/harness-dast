@@ -29,6 +29,14 @@ Saída esperada do último comando (a versão pode mudar):
 {"schema_version":1,"ok":true,"data":{"version":"0.1.0"}}
 ```
 
+## 2b. Primeiro passo: o `doctor`
+
+```powershell
+uv run hdast doctor
+```
+
+Confere Python, `uv`, Docker, imagens e as portas 8080 e 3128, sem tocar nenhum alvo e sem subir nada. Esperado: "Tudo pronto para começar." (aviso de imagem ausente é normal na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo. Mais adiante, `hdast doctor vampi` confere também o perfil (veja 4b).
+
 ## 3. Copiar o perfil do laboratório
 
 O perfil do VAmPI vem pronto em `lab/vampi/product-profile/`. A pasta do produto precisa ter o nome do produto (`vampi`).
@@ -52,6 +60,16 @@ $env:VAMPI_USER_A_USERNAME = "name1";  $env:VAMPI_USER_A_PASSWORD = "pass1"
 $env:VAMPI_USER_B_USERNAME = "name2";  $env:VAMPI_USER_B_PASSWORD = "pass2"
 $env:VAMPI_ADMIN_USERNAME  = "admin";  $env:VAMPI_ADMIN_PASSWORD  = "pass1"
 ```
+
+No dia a dia, com contas de um produto de verdade, prefira o cofre do sistema (você digita cada senha uma vez, sem ela aparecer na tela nem no histórico): troque `env:NOME` por `keyring:NOME` no `target.yml` e rode, num terminal seu, `uv run hdast secret set NOME` para cada nome. `uv run hdast secret list <produto>` mostra o que já existe. Para o VAmPI, de senhas públicas, as variáveis acima bastam.
+
+## 4b. Conferir se está tudo pronto
+
+```powershell
+uv run hdast doctor vampi
+```
+
+O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do passo 2b e mais o perfil, a autorização, a janela e se os segredos das contas existem, em variável de ambiente ou no cofre (só diz se existem, nunca o valor; para o cofre, diz o comando `hdast secret set NOME`). Dois **avisos** (não reprovam) olham o perfil: `scope.path_mode: wide` (o modo amplo só é seguro com `deny_paths` completo) e a falta de duas contas do mesmo papel (sem elas, o teste de autorização horizontal não consegue comparar contas). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
 
 ## 5. Subir a pilha
 
@@ -80,7 +98,7 @@ O `preflight` confere autorização, janela, segredos, ZAP, saúde do alvo e log
 uv run hdast run vampi
 ```
 
-Leva cerca de 15 minutos. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
+Leva cerca de 15 minutos. Opcional: `uv run hdast run vampi --authz` inclui, depois da varredura, o teste de autorização entre contas (acesso a dado de outra conta, função de papel maior, campo a mais, dado a mais). Use quando o perfil tiver **duas contas do mesmo papel** (o VAmPI tem `user_a` e `user_b`); ele manda requisições a mais e escreve no alvo, então só com o dono do ambiente de acordo, e não combina com `--skip-scan`. Em outro terminal você pode acompanhar `runs\<run_id>\scan-progress.json`. Para parar com segurança: `uv run hdast stop`. Ao fim, o comando sai com `0` (nada acima do limiar), `1` (há achado no limiar, não é erro) ou outro código ([exit-codes.md](../reference/exit-codes.md)).
 
 ## 8. Ler o resultado
 
@@ -89,12 +107,18 @@ Tudo fica em `runs\<run_id>\` (o `run_id` aparece no fim do comando):
 | Arquivo | Para quê |
 | --- | --- |
 | `run.json` | Estágios, código de saída, tempos, achados por severidade |
-| `report.md` | O relatório, para quem corrige |
-| `findings.json` | O mesmo, estruturado |
+| `report.html` | O relatório numa página só (abra no navegador, funciona sem internet e em tema claro ou escuro): resumo, "o que fazer agora", achados por gravidade, o que não foi coberto, tráfego recusado |
+| `report.md` | O mesmo relatório em Markdown, para quem corrige |
+| `findings.json` | O mesmo, estruturado (cada achado e, em `groups`, os achados agrupados pela causa) |
 | `probe.json` | O que o `probe` enviou e como cada operação respondeu |
+| `authz.json` | Só com `hdast run --authz` (ou `hdast authz`): teste de autorização entre contas. Veja [authz.md](../reference/authz.md) |
 | `audit.jsonl` | Trilha de cada requisição da CLI |
 
-No `report.md`, **comece pela seção "O que este relatório não testou"**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
+Os achados com a mesma regra e o mesmo parâmetro aparecem **agrupados pela causa** (por exemplo, o mesmo cookie sem `HttpOnly` em 26 caminhos vira um grupo com a lista de onde aparece); nenhum achado some e nenhuma gravidade muda. Alguns grupos trazem uma nota fixa explicando por que o padrão costuma ser esperado (o cookie de XSRF por duplo envio, que o JavaScript precisa ler).
+
+No `report.html` ou no `report.md`, **leia o que a varredura não testou**: autorização entre contas (BOLA, BFLA), atribuição em massa e exposição excessiva de dados estão fora do que uma varredura ativa do ZAP detecta. Um relatório sem achados **não** prova que a API é segura. Severidade e confiança são propostas; todo achado exige triagem humana.
+
+Com `hdast run --authz`, parte dessas lacunas (acesso entre contas, campo a mais e dado a mais) passa a ser testada por um estágio próprio: veja [authz.md](../reference/authz.md).
 
 ## 9. Encerrar
 
@@ -102,4 +126,18 @@ No `report.md`, **comece pela seção "O que este relatório não testou"**: aut
 uv run hdast --json stack down
 ```
 
-Depois, o próximo passo é o [cadastro de um produto](cadastrar-um-produto.md) com o Claude Code, ou repetir este guia com `uv run hdast stack up vampi --secure` para ver o modo seguro do laboratório.
+## 10. Um produto de verdade, com um pedido só
+
+Depois do laboratório, para testar um produto real com o Claude Code você não precisa fazer quatro pedidos: abra o `claude` na raiz do repositório e peça uma vez, entregando o Swagger e a carta de autorização:
+
+```text
+Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
+O OpenAPI está em <caminho>. A carta de autorização está em <caminho>.
+É ambiente de teste com dados sintéticos e a autorização vale agora.
+```
+
+A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
+
+## Próximos passos
+
+O próximo passo é o [cadastro de um produto](cadastrar-um-produto.md) com o Claude Code, ou repetir este guia com `uv run hdast stack up vampi --secure` para ver o modo seguro do laboratório.

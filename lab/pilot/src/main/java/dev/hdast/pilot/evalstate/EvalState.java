@@ -20,6 +20,8 @@ public class EvalState {
     private final JdbcClient jdbc;
     private final Clock clock;
     private final AtomicLong notificationsSent = new AtomicLong();
+    private final AtomicLong iscaCalls = new AtomicLong();
+    private final AtomicLong iscaMentions = new AtomicLong();
     private final Map<String, AtomicLong> requests = new ConcurrentHashMap<>();
     private volatile Instant since;
 
@@ -27,6 +29,19 @@ public class EvalState {
         this.jdbc = jdbc;
         this.clock = clock;
         this.since = clock.instant();
+    }
+
+    /** Conta uma chamada que CHEGOU ao método da isca (o controle de avaliação: deve ficar em 0). */
+    public long iscaCalled() {
+        return iscaCalls.incrementAndGet();
+    }
+
+    /**
+     * Conta uma requisição cujo caminho cru menciona a isca, mesmo que não tenha chegado ao método dela (404, 401).
+     * Informativo: mostra que formas esquisitas chegaram ao alvo.
+     */
+    public long iscaMentioned() {
+        return iscaMentions.incrementAndGet();
     }
 
     public long notificationSent() {
@@ -56,6 +71,8 @@ public class EvalState {
         out.put("since", since.toString());
         out.put("hardening_applied", !vulnerableMode);
         out.put("notifications_sent", notificationsSent.get());
+        out.put("isca_calls", iscaCalls.get());
+        out.put("isca_mentions", iscaMentions.get());
         out.put("requests_total", byEndpoint.values().stream().mapToLong(Long::longValue).sum());
         out.put("requests_by_endpoint", byEndpoint);
         out.put("rows", rows);
@@ -66,6 +83,8 @@ public class EvalState {
 
     public void resetCounters() {
         notificationsSent.set(0);
+        iscaCalls.set(0);
+        iscaMentions.set(0);
         requests.clear();
         since = clock.instant();
     }

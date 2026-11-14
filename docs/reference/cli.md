@@ -4,20 +4,23 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `report`, `run`, `cleanup`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)).
+`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz` e o que os ADRs 0026 a 0029 acrescentam existem como código e testes e **ainda não foram verificados em laboratório** (veja a seção V1.1 do [roadmap](../roadmap.md)).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
 | `hdast version` | Mostra a versão instalada do harness | Não | Implementado (M1) |
+| `hdast doctor [produto]` | Responde "está tudo pronto para começar?": Python, `uv`, pasta de produtos, Docker, imagens, portas fixas, validade da pilha atual e, com produto, perfil, autorização, janela e presença das variáveis de segredo | Não (só lê a máquina) | Implementado ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)). Seção abaixo |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
 | `hdast preflight <produto>` | Confere autorização, janela, segredos, ZAP, saúde do alvo, login e token CSRF de cada conta | Sim, mínimo | Implementado (M3) |
 | `hdast probe <produto>` | Envia uma requisição válida por operação pelo ZAP e mede a alcançabilidade | Sim | Implementado (M3); verificado contra o ZAP real (VAmPI e Clínica Piloto) |
 | `hdast scan <produto> --run ID` | Varre com o ZAP, uma requisição aprendida por vez, as operações que o `probe` alcançou, com limites e política fixados antes | Sim | Implementado (M4); verificado contra o ZAP 2.17 real. Referência: [scan.md](scan.md) |
-| `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json` e `report.md`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
+| `hdast authz <produto> --run ID` | Teste de autorização entre contas, determinístico e sem ZAP: repete com outras contas os pedidos que o `probe` provou (BOLA, BFLA), confere campos fora do esquema e testa atribuição em massa; grava `authz.json` | Sim | Implementado ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)); ainda não verificado contra a Clínica Piloto real. Referência: [authz.md](authz.md) |
+| `hdast report <produto> --run ID` | Normaliza os alertas em achados e gera `findings.json`, `report.md` e `report.html`; dono do código de saída `1` | Não | Implementado (M4). Referência: [relatorio.md](relatorio.md); formatos: [finding-schema.md](finding-schema.md) |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
-| `hdast run <produto>` | Encadeia preflight, probe, scan e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
+| `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
+| `hdast run <produto>` | Encadeia preflight, probe, scan, authz (opcional, `--authz`) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
 | `hdast stop` | Trava de emergência: cria o `KILL` do proxy e para as varreduras do ZAP; funciona com o ZAP fora do ar | Não | Implementado |
@@ -33,18 +36,19 @@ uv run hdast run meu-produto --fail-on high --compare <run_id>  # gate de severi
 uv run hdast run meu-produto --max-minutes 20
 ```
 
-Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan` e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
+Caso de uso `RunPipeline` ([ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `authz` (opcional) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
 
 | Flag | Efeito |
 | --- | --- |
 | `--seed N` | Semente dos geradores do `probe` |
-| `--skip-scan` | Para depois do `probe`; `scan` e `report` ficam `skipped` |
+| `--skip-scan` | Para depois do `probe`; `scan`, `authz` e `report` ficam `skipped` |
+| `--authz` | Inclui o estágio `authz` (teste de autorização entre contas) depois do `scan` e antes do `report`: [authz.md](authz.md). Desligado por padrão, porque manda requisições a mais e escreve no alvo (atribuição em massa); sem a flag o estágio consta como `skipped`. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
 | `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
 | `--products-dir` | Pasta de produtos |
 
-**Prazo único.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira**: o `run` calcula um só prazo absoluto no início do `probe` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem.
+**Prazo único por execução.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira** e conta do início DELA (`run`, `probe` ou `scan`), não da subida da pilha: o `run` calcula um só prazo absoluto no início do `preflight` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem. O tempo gasto ajustando o `probe` antes do `run` não come o prazo da varredura. A pilha tem validade própria (veja `stack up`).
 
 **Parada do `scan` não perde o relatório.** Se o `scan` parar antes do fim (prazo, janela, login, ZAP ou alvo) e tiver gravado `scan.json`, o `report` roda mesmo assim sobre o que foi coletado (`coverage.partial: true` e aviso no topo de `report.md`) e a saída final continua sendo a do estágio que parou (por exemplo `3` no prazo). Com Ctrl+C ou `hdast stop` (`130`) o `report` não roda. Com a trava acionada, só vira `130` o erro que a própria trava causou; um erro de outra origem mantém o código dele e `stop_requested: true` registra a trava.
 
@@ -61,10 +65,11 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `fail_on`, `compare`, `max_minutes` efetivos |
-| `stages` | Sempre os quatro, em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
-| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`...) |
-| `findings_by_severity` | Achados por severidade proposta (só se o `report` rodou) |
+| `options` | `seed`, `skip_scan`, `authz`, `fail_on`, `compare`, `max_minutes` efetivos |
+| `stages` | Sempre os cinco (`preflight`, `probe`, `scan`, `authz`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
+| `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`...) |
+| `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
+| `authz_findings_by_severity` | Achados do estágio `authz` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
 | `cleanup_command` | Comando de limpeza a rodar por uma pessoa, ou `null` |
 
@@ -91,7 +96,7 @@ uv run hdast --json stack down
 
 Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de laboratório (sem nenhuma, vale o padrão dele); `--token-ttl` fixa a vida do token do alvo em segundos; `--build` reconstrói as imagens locais antes de subir (necessário depois de mudar `docker/` ou o alvo); `--oracle` e `--timeout` estão abaixo; `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
 
-`stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = menor entre a duração máxima, o fim da autorização e o fechamento da janela), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
+`stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = a VALIDADE DA PILHA: menor entre a duração máxima mais 60 minutos de folga para o ajuste do `probe`, o fim da autorização e o fechamento da janela; ela não é o prazo de uma varredura, que conta do início de cada execução e nunca passa de `max_duration_minutes`; passou de `not_after`, o proxy nega tudo e é preciso um novo `stack up`), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 
@@ -112,16 +117,47 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 
 Como os comandos seguintes obtêm a chave, a URL do ZAP, o proxy de login e as senhas do alvo: do ambiente `HDAST_*` quando definido; senão do `stack.json` em `HDAST_STATE_DIR` (veja [env-vars.md](env-vars.md)).
 
+## `hdast doctor`
+
+```bash
+uv run hdast doctor                   # só a máquina
+uv run hdast --json doctor meu-produto --products-dir ./meus-produtos
+```
+
+Responde "está tudo pronto para começar?" ANTES de qualquer contato com o alvo. O nome segue o costume de outras ferramentas (`brew doctor`, `flutter doctor`): diagnostica o ambiente e diz como consertar. Não envia requisição ao alvo, não sobe contêiner e nunca mostra o valor de um segredo: só diz se a variável existe. O `preflight` continua sendo a conferência COM rede (ZAP, saúde do alvo, logins); o `doctor` vem antes e não precisa da pilha no ar.
+
+Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`, `warn` ou `fail`):
+
+| `id` | O que confere | Reprova (`fail`) / avisa (`warn`) |
+| --- | --- | --- |
+| `python` | Python 3.12 ou mais novo | `fail`, com o comando para instalar |
+| `uv` | `uv` no PATH | `warn` (os comandos `uv run hdast ...` não funcionariam) |
+| `products_dir` | A pasta de produtos existe (`HDAST_PRODUCTS_DIR` ou `--products-dir`) | `fail` (tipo `config`) |
+| `docker` | O Docker responde (`docker version`, prazo de 20 s) | `fail` |
+| `images` | As imagens do `compose.yaml` (ZAP, pontes, proxy de escopo e, para o VAmPI, o alvo) já estão no Docker | `warn`: serão baixadas ou construídas no primeiro `stack up` |
+| `port:<n>` | As portas fixas 8080 (ZAP) e 3128 (proxy) em 127.0.0.1 (ou as de `HDAST_ZAP_HOST_PORT` e `HDAST_PROXY_HOST_PORT`) estão livres; para a Clínica Piloto, também 28080 e 29091. Com pilha gerenciada no ar, porta em uso é esperada | `fail`; porta configurada que não é número de 1 a 65535 é `fail` tipo `config` |
+| `stack` | Só com pilha gerenciada: se ainda vale (`not_after`) | `warn` se venceu |
+| `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |
+| `authorization`, `window` | Com produto: mesma regra do `preflight` | `fail` (tipo `scope`) |
+| `secrets:<apelido>` | Com produto: os segredos de `secret_ref` de cada conta existem, como variável de ambiente (`env:`) ou no cofre do sistema (`keyring:`). O nome só aparece no texto, nunca no JSON; para `keyring:` o texto traz o comando `hdast secret set NOME`. Cofre inutilizável também reprova, com a dica | `fail` |
+| `path_mode` | Com produto: só aparece se o perfil tem `scope.path_mode: wide` | `warn`: o modo amplo só é seguro com `deny_paths` completo e só vale se a carta o autoriza |
+| `authz_peers` | Com produto: nenhum papel tem duas contas em `auth.accounts` | `warn`: o teste de autorização horizontal (`run --authz`, `authz`) não poderá comparar contas; sem `--authz` nada muda |
+
+Cada reprovação traz em `detail`, numa linha, o que houve e o que fazer. `ready` é `true` quando nada reprovou (avisos não contam).
+
+`data`: `{product, ready, checks: [{id, status, detail, kind}], summary: {ok, warn, fail}}`. Código de saída: `0` pronto; se algo reprovou, o da primeira reprovação nesta prioridade: `scope` = `3` (`SCOPE_VIOLATION`), `config` = `2` (`CONFIG_ERROR`), demais = `4` (`PREFLIGHT_FAILED`). O envelope de falha traz `error` e `data` juntos, como no `preflight`.
+
 ## `hdast init`
 
 ```bash
 uv run hdast init meu-produto                    # usa HDAST_PRODUCTS_DIR (padrão: products)
 uv run hdast --json init meu-produto --products-dir ./meus-produtos
+uv run hdast init meu-produto --with-cleanup    # cria também a pasta cleanup/ (limpeza de dados)
 ```
 
 Cria `<products_dir>/<produto>/` copiando `products/_template/` e ajusta `product:` do `target.yml` para o nome da pasta. Regras: o nome é um slug (minúsculas, dígitos e `-`, 1 a 40 caracteres; nomes reservados do Windows como `con` são recusados); a pasta de produtos precisa existir (o comando não a cria); **nunca sobrescreve** um produto existente; nada é criado fora de `products_dir`; falha no meio da cópia remove a pasta parcial. O modelo é procurado em `products/_template` na raiz do repositório, relativo ao pacote instalado: funciona com `uv run` e instalação editável (`uv sync`); uma instalação por wheel não leva a pasta `products/` e o erro orienta a rodar a partir do repositório.
 
-`--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`. Flags só escolhem a pasta; não ampliam escopo, limites nem janela.
+`--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`. `--with-cleanup` copia também `cleanup/` (README e exemplo do script); por padrão a pasta NÃO é criada, porque a limpeza de dados é opcional e o script é de autoria humana (o bloco `cleanup` do `target.yml` do modelo continua lá: remova-o se não houver limpeza). Flags só escolhem a pasta; não ampliam escopo, limites nem janela.
 
 `data` em sucesso:
 
@@ -208,7 +244,7 @@ uv run hdast --json preflight meu-produto
 
 Confere, sem varrer, se o `probe` pode começar. Cada verificação é um item de `data.checks`; falha de verificação NÃO é exceção. Requer `HDAST_ZAP_BASE_URL` e `HDAST_ZAP_API_KEY` (quando o ZAP a exige) e as variáveis de ambiente dos segredos do perfil. Cada requisição enviada passa pelo `ScopeGuard` e fica em `runs/<run_id>/audit.jsonl` (o preflight tem pasta de execução própria).
 
-Verificações, na ordem: `authorization` e `window` (tipo `scope`); `secrets:<apelido>`; `zap` (versão, via API com a chave); `target_health` (um GET em `probe.health_path`, ou na raiz da `base_url`, pela rota do `probe`; sucesso é qualquer resposta abaixo de 500); por conta, `csrf:<apelido>` (quando o perfil declara `auth.csrf`) e `login:<apelido>` (só em `login_password`; o token é obtido e nunca mostrado). Se autorização ou janela falham, nenhuma requisição é enviada e as de rede aparecem como não executadas.
+Antes dele, `hdast doctor <produto>` confere a máquina e o perfil sem rede. Verificações, na ordem: `authorization` e `window` (tipo `scope`); `secrets:<apelido>`; `zap` (versão, via API com a chave); `target_health` (um GET em `probe.health_path`, ou na raiz da `base_url`, pela rota do `probe`; sucesso é qualquer resposta abaixo de 500); `target_setup` (só se o perfil declara `probe.setup_path`: um GET idempotente que prepara os dados, chamado uma vez, antes dos logins; reprova em 4xx e 5xx); por conta, `csrf:<apelido>` (quando o perfil declara `auth.csrf`) e `login:<apelido>` (só em `login_password`; o token é obtido e nunca mostrado). Se autorização ou janela falham, nenhuma requisição é enviada e as de rede aparecem como não executadas.
 
 `data`:
 
@@ -308,6 +344,28 @@ Sem `--dry-run`, só roda com terminal interativo (entrada e saída de erro): a 
 
 **Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/`: `cleanup.json` (o mesmo `data`), `cleanup-audit.jsonl` (linhas `started` e `finished`, também numa exceção inesperada) e `cleanup-confirmation.json` (resíduo: só o hash de um token que a CLI não expõe).
 
+## `hdast secret`
+
+```bash
+uv run hdast secret set AGENDA_USER_A_SENHA
+uv run hdast secret list meu-produto
+uv run hdast secret delete AGENDA_USER_A_SENHA
+```
+
+Guarda as senhas das contas de teste no cofre de credenciais do sistema operacional, para `secret_ref: "keyring:NOME"` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)). **O agente de IA não grava nem remove segredo**: `set` e `delete` só funcionam em terminal interativo (entrada e saída de erro) e `.claude/settings.json` os nega ao agente. Nenhum subcomando mostra o valor nem o tamanho.
+
+| Subcomando | O que faz |
+| --- | --- |
+| `set NOME` | Pede o valor num prompt **oculto**, duas vezes. Nunca por argumento, variável nem entrada redirecionada; não existe `--value`. Sem terminal: recusa (`CONFIG_ERROR`, saída `2`). Valor vazio é recusado. Substitui o que já houver |
+| `list PRODUTO` | Para cada `keyring:` que o perfil do produto cita: o `NOME`, os campos que o usam (`used_by`) e `present` (existe e não está vazio). Só leitura, funciona sem terminal e fica liberado ao agente. `env:` não aparece (veja o `doctor`) |
+| `delete NOME` | Pede que você **digite o NOME** para confirmar. Sem terminal: recusa. Nome inexistente não pede nada e diz que não existe |
+
+`NOME` segue o formato de `secret_ref` (maiúsculas, dígitos e `_`; sem prefixo `HDAST_`). Todos aceitam `--products-dir` (usado só pelo `list`, para achar o perfil).
+
+`data` de `set`: `{name, replaced}`. De `delete`: `{name, removed, existed}`. De `list`: `{product, entries: [{name, used_by, present}]}`.
+
+Só o cofre do próprio sistema é aceito (Windows Credential Manager, macOS Keychain, Secret Service ou KWallet no Linux). Sem ele (contêiner, CI), o erro é `SECRET_BACKEND_ERROR` (saída `4`) com a dica de usar `env:NOME`; nada cai em silêncio para variável de ambiente ou arquivo.
+
 ## Envelope JSON
 
 Com `--json`, o resultado vai para `stdout` como uma linha JSON. Campos sem valor são omitidos.
@@ -362,6 +420,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | `CONFIG_ERROR` | `ConfigError`: configuração, perfil ou argumento inválido (inclui erro de uso da linha de comando) | 2 |
 | `SCOPE_VIOLATION` | `ScopeViolation`: ação fora do escopo, dos limites ou da janela | 3 |
 | `PREFLIGHT_FAILED` | `PreflightError`: verificação anterior à execução falhou | 4 |
+| `SECRET_BACKEND_ERROR` | `SecretBackendError`: o cofre de credenciais do sistema (`keyring:`) não está utilizável | 4 |
 | `EXTERNAL_TOOL_ERROR` | `ExternalToolError`: ferramenta externa (ZAP, Docker) indisponível ou com resposta inválida | 5 |
 | `TARGET_ERROR` | `TargetError`: o alvo respondeu de forma que impede o prosseguimento | 6 |
 | `CLEANUP_FAILED` | `CleanupError`: a limpeza falhou | 7 |

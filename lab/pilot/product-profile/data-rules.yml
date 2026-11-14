@@ -36,3 +36,13 @@ rules:
   - match: { operation: atualizarStatusConsulta, field: status }
     generator: constant
     args: { value: REALIZADA }
+  # Parametros de caminho das falhas H8 a H10 (V1.1): valores que existem na semente, para o pedido base dar 200.
+  - match: { operation: buscarConvenioPorCodigo, field: codigo }
+    generator: constant
+    args: { value: "00000001" }
+  - match: { operation: baixarArquivo, field: nome }
+    generator: constant
+    args: { value: laudo-0001.txt }
+  - match: { operation: buscarMedicoPorCrm, field: crm }
+    generator: constant
+    args: { value: 12345-SP }

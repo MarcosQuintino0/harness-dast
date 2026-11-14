@@ -16,12 +16,13 @@ from typing import Literal, Self
 from pydantic import Field, StrictBool, StrictInt, ValidationError, field_validator, model_validator
 
 from harness_dast.domain.auth import Account, AuthConfig, LoginLimit, PasswordLoginAuth
+from harness_dast.domain.authz_config import AuthzConfig
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
 from harness_dast.domain.run import SLUG_PATTERN, RunLimits
 from harness_dast.domain.scan_config import ScanConfig
-from harness_dast.domain.scope import OutboundRequest, Scope, ScopeGuard
+from harness_dast.domain.scope import OutboundRequest, PathMode, Scope, ScopeGuard
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
 from harness_dast.domain.urlnorm import normalize_request
 from harness_dast.domain.window import (
@@ -110,11 +111,16 @@ class ProfileScope(Scope):
 
     Attributes:
         authorization: Referência e validade da autorização formal.
+        path_mode: `strict` (padrão) ou `wide`. `wide` só vale para o proxy de escopo e precisa
+            estar na carta de autorização (ADR 0026): afrouxa a liberação de caminhos
+            ambíguos e mantém a negação paranoica. Nenhuma flag o liga; `probe`, `preflight`
+            e o plano da CLI continuam estritos.
         windows: Janelas de execução (forma compacta no YAML); ao menos uma. A execução é
             permitida quando QUALQUER uma está aberta.
     """
 
     authorization: Authorization
+    path_mode: PathMode = "strict"
     windows: tuple[ExecutionWindow, ...] = Field(min_length=1, max_length=20)
 
     @field_validator("windows", mode="before")
@@ -230,6 +236,7 @@ class ProductProfile(ProfileModel):
         cleanup: Limpeza, opcional.
         probe: Critério de sucesso e caminho de saúde, opcional (aditivo na schema v1).
         scan: Política da varredura ativa e gate de severidade, opcional (aditivo na schema v1).
+        authz: Teste de autorização entre contas (ADR 0027), opcional (aditivo na schema v1).
     """
 
     schema_version: Literal[1]
@@ -242,6 +249,7 @@ class ProductProfile(ProfileModel):
     cleanup: CleanupConfig | None = None
     probe: ProbeConfig = ProbeConfig()
     scan: ScanConfig = ScanConfig()
+    authz: AuthzConfig = AuthzConfig()
 
     @field_validator("product")
     @classmethod
@@ -279,6 +287,8 @@ class ProductProfile(ProfileModel):
             )
         if self.probe.health_path is not None:
             _ensure_in_scope(guard, "GET", base + self.probe.health_path, "probe.health_path")
+        if self.probe.setup_path is not None:
+            _ensure_in_scope(guard, "GET", base + self.probe.setup_path, "probe.setup_path")
         if not self.environment.verify_tls and not _is_local_base(self.environment.base_url):
             raise ValueError(
                 "environment.verify_tls: false só é aceito para host local "

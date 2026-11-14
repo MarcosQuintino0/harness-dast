@@ -27,6 +27,16 @@ def _render(digest: ReportDigest) -> str:
             f"  {item.proposed_severity:<13} {item.finding_id} {item.method} "
             f"{item.path_template} {item.title}{mark}"
         )
+    if digest.authz is not None:
+        lines.append(
+            f"Autorização entre contas (técnica própria, não é o ZAP): "
+            f"{len(digest.authz.findings)} achado(s)."
+        )
+        lines += [
+            f"  {item.proposed_severity:<13} {item.finding_id} {item.technique} "
+            f"{item.method} {item.path_template}"
+            for item in digest.authz.findings
+        ]
     if digest.comparison:
         lines.append(
             f"Comparação com {digest.comparison.baseline_run_id}: novos {digest.comparison.new}, "
@@ -70,7 +80,7 @@ def report_command(
         ),
     ] = None,
 ) -> int:
-    """Transforma os alertas do scan em achados e grava findings.json e report.md."""
+    """Transforma os alertas do scan em achados e grava findings.json, report.md e report.html."""
     state = get_state(ctx)
     outcome = build_report(products_dir).execute(
         ReportRequest(product=product, run_id=run, compare=compare, fail_on=fail_on)

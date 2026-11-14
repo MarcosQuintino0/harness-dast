@@ -30,3 +30,6 @@ runs/
 # Perfis reais ficam fora do repositório; só o modelo é versionado
 products/*
 !products/_template/
+
+# Worktrees de agentes (locais)
+.claude/worktrees/

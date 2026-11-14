@@ -8,6 +8,8 @@ A CLI traduz esses erros em envelope JSON e código de saída; nada aqui faz I/O
 from enum import IntEnum
 from typing import ClassVar
 
+from harness_dast.domain.scope_reason import ScopeReason
+
 
 class ExitCode(IntEnum):
     """Códigos de saída do processo `hdast`. Fazem parte do contrato público.
@@ -62,16 +64,44 @@ class ConfigError(HarnessError):
 
 
 class ScopeViolation(HarnessError):
-    """Ação fora do escopo, dos limites ou da janela autorizados."""
+    """Ação fora do escopo, dos limites ou da janela autorizados.
+
+    Attributes:
+        reason: Código estável do motivo quando a recusa vem da normalização ou do
+            `ScopeGuard`; `None` nas demais (janela, autorização).
+    """
 
     code = "SCOPE_VIOLATION"
     exit_code = ExitCode.SCOPE
+
+    def __init__(
+        self, message: str, hint: str | None = None, *, reason: ScopeReason | None = None
+    ) -> None:
+        """Cria a violação.
+
+        Args:
+            message: O que aconteceu.
+            hint: O que fazer a respeito (opcional).
+            reason: Código estável do motivo (opcional).
+        """
+        super().__init__(message, hint)
+        self.reason = reason
 
 
 class PreflightError(HarnessError):
     """Verificação anterior à execução falhou."""
 
     code = "PREFLIGHT_FAILED"
+    exit_code = ExitCode.PREFLIGHT
+
+
+class SecretBackendError(HarnessError):
+    """O cofre de credenciais do sistema não está utilizável (ADR 0030).
+
+    Nunca cai em silêncio para outro lugar (variável de ambiente, arquivo).
+    """
+
+    code = "SECRET_BACKEND_ERROR"
     exit_code = ExitCode.PREFLIGHT
 
 

@@ -17,12 +17,14 @@ from pydantic import BaseModel, ValidationError
 
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.run import RunId
 
 AUDIT_FILE = "audit.jsonl"
 MANIFEST_FILE = "manifest.json"
 PROBE_FILE = "probe.json"
+EXCHANGES_FILE = "exchanges.json"
 
 
 class FileRunStore:
@@ -43,6 +45,10 @@ class FileRunStore:
     def write_probe(self, run_id: str, result: ProbeResult) -> None:
         """Grava `probe.json` de forma atômica."""
         self._write_json(run_id, PROBE_FILE, result)
+
+    def write_exchanges(self, run_id: str, log: ExchangeLog) -> None:
+        """Grava `exchanges.json` de forma atômica."""
+        self._write_json(run_id, EXCHANGES_FILE, log)
 
     def append_audit(self, run_id: str, entry: AuditEntry) -> None:
         """Acrescenta uma linha a `audit.jsonl` e a persiste antes de retornar."""

@@ -19,7 +19,7 @@ Para cada pedido, nesta ordem, e a primeira recusa encerra:
 |---|---|---|
 | 1 | Trava de emergência acionada, prazo vencido ou auditoria falhou | `kill_switch`, `run_expired`, `audit_failure` |
 | 2 | `Upgrade` (WebSocket, h2c) no pedido | `upgrade_refused` |
-| 3 | `ScopeGuard.ensure_allowed(método, URL)`: host, esquema, porta, caminho, método, `deny_paths`, URL ambígua | `malformed_request`, `deny_path`, `host_not_allowed`, `origin_not_allowed`, `path_not_allowed`, `method_not_allowed` |
+| 3 | `ScopeGuard.ensure_allowed(método, URL)` (ou o guarda do modo amplo, se a política pedir): host, esquema, porta, caminho, método, `deny_paths`, URL ambígua | `malformed_request` (com `detail` granular), `deny_path`, `host_not_allowed`, `origin_not_allowed`, `path_not_allowed`, `method_not_allowed` |
 | 4 | Cabeçalho `Host` diferente do destino da URL | `host_header_mismatch` |
 | 5 | Taxa: se acima de `requests_per_second`, o pedido **espera na fila** (não falha); fila cheia = 429 | `rate_queue_full` |
 | 6 | Ao conectar: o nome é resolvido, os endereços são conferidos e o IP conferido é **fixado** na conexão | `address_forbidden`, `dns_failure` |
@@ -87,7 +87,8 @@ mensagem `RECUSANDO INICIAR` no log). Não existe política padrão e nunca há 
 | `run_id` | Formato de `RunId` (`AAAA-MM-DDTHH-MM-SSZ-<produto>-<hex>`). Vai em toda linha de auditoria. |
 | `scope` | **Mesmo formato do `scope` do perfil**: `allow` (host exato sem curinga, `scheme`, `port`, `paths`, `methods`, `allow_local`) e `deny_paths`. Validado pelos modelos do domínio. |
 | `limits` | Os `limits` do perfil. O proxy usa `requests_per_second` (teto 50) e `max_duration_minutes` (teto 480). |
-| `not_after` | Texto ISO 8601 **com fuso**. Depois dele tudo é negado. O prazo efetivo é o menor entre `not_after` e (início do proxy + `max_duration_minutes`). |
+| `not_after` | Texto ISO 8601 **com fuso**. Depois dele tudo é negado. É a validade da pilha, não o prazo de uma varredura. O prazo efetivo é o menor entre `not_after` e (início do proxy + `stack_minutes`). |
+| `stack_minutes` | Opcional, 1 a 540. Validade da pilha em minutos desde a partida do proxy. Ausente, vale `max_duration_minutes` (política escrita à mão mantém a cerca antiga). A CLI grava a duração máxima do perfil mais 60 minutos de folga; o prazo de cada execução (`limits.max_duration_minutes`) é imposto pela CLI, contado do início dela. |
 | `tls_verify_upstream` | Padrão `true`: o certificado do destino é verificado. `false` só é aceito se **toda** regra tiver `allow_local: true`. |
 | `max_queued_requests` | 1 a 1000 (padrão 100): quantos pedidos podem esperar pela taxa. |
 
@@ -98,7 +99,7 @@ contêiner (e isso zera a fila, a taxa e o prazo de duração).
 **Geração:** `hdast stack up <produto>` gera este arquivo por execução (`adapters/scope_proxy/generate.py`) a partir de `scope` e
 `limits` do perfil, numa pasta por execução (`<HDAST_STATE_DIR>/stacks/<run_id>/policy`, passada ao compose como
 `HDAST_SCOPE_POLICY_DIR`). O escopo e os limites são **iguais** aos do perfil, nunca mais largos; `not_after` é o menor entre a
-duração máxima, o fim da autorização e o fechamento da janela; `tls_verify_upstream` só é `false` quando o perfil desliga a
+duração máxima mais a folga do ajuste do `probe`, o fim da autorização e o fechamento da janela; `tls_verify_upstream` só é `false` quando o perfil desliga a
 verificação E toda regra é local. A CLI relê o arquivo com o validador abaixo antes de gravar. Quem opera o lab à mão ainda pode
 escrever o arquivo.
 
@@ -187,8 +188,14 @@ entre conferir e conectar; em HTTPS o SNI e a verificação do certificado conti
   (request smuggling) além do que o parser HTTP/1 do mitmproxy já recusa.
 - **Dados do alvo**: o proxy vê e processa corpos em claro (interceptação). Teto de 20 MiB por corpo (`body_size_limit`); o
   comportamento acima disso é o do mitmproxy e não foi testado aqui. Corpos e cabeçalhos não são gravados em lugar nenhum, mas ficam na memória do contêiner.
-- **O motivo é por texto**: o `ScopeGuard` não expõe código de motivo; o proxy classifica pela mensagem. Uma mensagem
-  alterada só reduz a precisão do motivo (cai em `malformed_request`); a recusa em si vem da exceção e não é afetada.
+- **O motivo vem de um código estável** (`ScopeViolation.reason`, ADR 0026), não do texto da mensagem. `reason` continua
+  `malformed_request` para toda recusa por forma da URL ou do caminho; o código granular (`path_encoded_slash`,
+  `path_matrix_param`, `url_forbidden_char`...) vai no campo `detail` da linha de auditoria, que só aparece quando existe.
+- **Modo de caminho (`path_mode` na política, ADR 0026).** `strict` (padrão) é o comportamento descrito acima. `wide`
+  libera `;`, `%2f`, `%5c`, dupla codificação, `//` e ponto ou espaço finais pela leitura literal e nega se QUALQUER
+  leitura do caminho casar com `deny_paths`. Risco aceito: uma leitura fora de `scope.allow` que não casa `deny_paths`
+  é liberada (marcada em `detail: wide_reading_outside_allow`). A imagem precisa ser reconstruída para ler o campo.
+- **Caminho na auditoria** vai inteiro até 2048 caracteres (escapado em ASCII); acima disso é cortado com `...[cortado]`.
 - **A política só é lida ao iniciar.** Mudar `policy.json` com o proxy no ar não tem efeito até reiniciar.
 - **A trava não corta conexões em andamento** e depende de o arquivo `KILL` ser criado no diretório montado.
 - mitmproxy é código de terceiros: mantenha versão e digest atualizados (`requirements.in`, `Dockerfile`).

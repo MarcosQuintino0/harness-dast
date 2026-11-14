@@ -83,4 +83,34 @@ class WeaknessesHardenedModeTest extends ApiTestBase {
         assertThat(r.body().get("items").get(0).has("nome")).isTrue();
     }
 
+    private Reply getRaw(String token, String rawPath) throws Exception {
+        return send(MockMvcRequestBuilders.get(java.net.URI.create(rawPath)).header("Authorization", "Bearer " + token));
+    }
+
+    @Test
+    void h8_codigoNoCaminhoEValidado() throws Exception {
+        String token = login(ADMIN);
+        assertThat(getRaw(token, "/api/convenios/codigo/00000001").status()).isEqualTo(200);
+        long t0 = System.nanoTime();
+        Reply r = getRaw(token, "/api/convenios/codigo/1'%20and%20sleep(2)%20--%20");
+        assertThat(r.status()).isEqualTo(400);
+        assertThat((System.nanoTime() - t0) / 1_000_000).isLessThan(1500);
+    }
+
+    @Test
+    void h9_nomeDeArquivoNoCaminhoEValidadoEBarraCodificadaERecusada() throws Exception {
+        String token = login(ADMIN);
+        assertThat(getRaw(token, "/api/arquivos/laudo-0001.txt").status()).isEqualTo(200);
+        Reply passwd = getRaw(token, "/api/arquivos/..%2f..%2fetc%2fpasswd");
+        assertThat(passwd.raw().getResponse().getContentAsString()).doesNotContain("root:x:0:0:");
+        assertThat(passwd.status()).isIn(400, 404);
+    }
+
+    @Test
+    void h10_crmNoCaminhoEParametrizado() throws Exception {
+        String token = login(ADMIN);
+        assertThat(getRaw(token, "/api/medicos/crm/%27").status()).isEqualTo(400);
+        assertThat(getRaw(token, "/api/medicos/crm/12345-SP").status()).isEqualTo(200);
+    }
+
 }

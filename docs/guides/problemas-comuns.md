@@ -16,6 +16,21 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | `130` | `INTERRUPTED` | Ctrl+C ou `hdast stop` | Esperado. Depois de `stop`, a pilha só volta com `stack up` |
 | `1` | (nenhum) | Achado no limiar do `--fail-on` ou `scan.fail_on` | Não é erro; leia o relatório |
 
+## Antes de começar: `doctor`
+
+Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista Python, `uv`, Docker, imagens, portas, pilha, perfil, autorização, janela e segredos, cada um com o que fazer.
+
+| Conferência | Causa | O que fazer |
+| --- | --- | --- |
+| `docker` falha | Docker Desktop fechado, travado ou sem terminar de subir | Abra-o, espere ficar "running" (ou reinicie) e rode o `doctor` de novo |
+| `images` avisa | Imagens ainda não baixadas ou construídas | Normal na primeira vez; o `stack up` cuida (precisa de internet) |
+| `port:8080` ou `port:3128` falha | Outro programa usa a porta | Feche-o, ou defina `HDAST_ZAP_HOST_PORT` / `HDAST_PROXY_HOST_PORT` com outra porta |
+| `stack` avisa que venceu | A validade da pilha acabou (duração máxima mais 60 minutos de folga, ou fim da janela ou da autorização) | `hdast stack up` de novo |
+| `profile` falha | Perfil inválido ou com valores do modelo (`PLACEHOLDER_*`) | `hdast profile validate <produto>` mostra o que preencher |
+| `secrets:<apelido>` falha | Segredo não definido: variável de ambiente (`env:`) ausente neste terminal, ou nome (`keyring:`) ainda não gravado no cofre | Para `env:`, defina a variável e abra o terminal de novo. Para `keyring:`, rode num terminal seu `uv run hdast secret set NOME` (o nome aparece no texto, nunca no JSON) |
+| `secrets:<apelido>` ou outro comando falha com `SECRET_BACKEND_ERROR` | O cofre do sistema não está utilizável: contêiner, CI, Linux sem serviço de segredos, cofre bloqueado, ou backend que o harness não aceita | Em contêiner ou CI, use `secret_ref: env:NOME`. No Linux, instale e desbloqueie o GNOME Keyring ou o KWallet. No Windows e no macOS, confira se a sessão está desbloqueada |
+| `hdast secret set` recusa: "só uma pessoa, num terminal interativo" | Rodou sem terminal (agente, script, entrada redirecionada) | Abra um terminal seu e rode o comando lá. Não há flag que o dispense |
+
 ## Cadastro e perfil
 
 | Sintoma | Causa | O que fazer |
@@ -35,9 +50,10 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | --- | --- | --- |
 | `secrets:<apelido>` falha | Variável de ambiente do segredo não definida neste terminal | Defina a variável (o nome está no perfil e na carta) e abra o terminal/Claude Code de novo |
 | `zap` falha ou "chave de API errada" | ZAP fora do ar ou chave diferente da pilha | `stack up` de novo; não misture pilha antiga com variáveis `HDAST_ZAP_*` de outra |
+| `target_setup` falha | O GET de `probe.setup_path` respondeu 4xx ou 5xx, ou o alvo não respondeu | Confira o caminho no perfil e se a carta autoriza esse GET; o caminho precisa estar em `scope.allow` |
 | `target_health` falha | Alvo fora do ar ou `probe.health_path` errado | Suba o alvo; confira o caminho no perfil |
 | `login:<apelido>` falha | Usuário ou senha errados, ou limite de logins por minuto | Confira a conta; espere um minuto; declare `auth.login_limit` se o alvo limita |
-| `login:<apelido>` diz "não traz o token esperado" e o alvo respondeu 200 | Campo do token errado, ou a conta ainda não existe no banco (ambiente recém-subido, sem dados de exemplo) | Confira `auth.token_response_field`. Se a carta autoriza um GET que recria os dados de exemplo, use-o em `probe.health_path`: o `preflight` o chama antes dos logins. Não chame o alvo por fora da CLI |
+| `login:<apelido>` diz "não traz o token esperado" e o alvo respondeu 200 | Campo do token errado, ou a conta ainda não existe no banco (ambiente recém-subido, sem dados de exemplo) | Confira `auth.token_response_field`. Se a carta autoriza um GET idempotente que recria os dados de exemplo, declare-o em `probe.setup_path`: o `preflight` e o `run` o chamam antes dos logins. Não chame o alvo por fora da CLI |
 | `csrf:<apelido>` falha | Rota ou nomes de cookie e cabeçalho do CSRF errados | Confira o bloco `auth.csrf` com a documentação do produto |
 | "O comando docker não foi encontrado" | Docker fora do PATH | Instale ou abra o Docker Desktop |
 | "O Docker não terminou de subir o projeto..." | Docker Desktop lento ou travado | Confira `docker ps`; rode `stack up` de novo (`--timeout N` aumenta o prazo) |

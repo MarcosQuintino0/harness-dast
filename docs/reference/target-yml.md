@@ -47,6 +47,7 @@ scope:
   authorization:
     reference: "SEC-1234"
     valid_until: 2027-01-31
+  path_mode: strict          # padrão; "wide" só com autorização escrita na carta
   windows: ["seg-sex 20:00-06:00 America/Sao_Paulo"]
 limits:
   requests_per_second: 5
@@ -87,6 +88,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `cleanup` | bloco | Não | Padrão: ausente |
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 | `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
+| `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -109,6 +111,7 @@ A consistência entre `base_url` e o escopo é conferida ao montar o perfil. O c
 | `allow` | lista de regras | De 1 a 100 regras |
 | `deny_paths` | lista de padrões | Padrão: vazia. Até 200. Valem para **qualquer host** |
 | `authorization` | bloco | Veja abaixo |
+| `path_mode` | `strict` ou `wide` | Padrão `strict`. Como o proxy de escopo lê caminhos ambíguos (veja `scope.path_mode`). **Só vale se a carta de autorização o autoriza**; o agente nunca escolhe `wide` |
 | `windows` | lista de janelas | De 1 a 20. A execução é permitida quando **qualquer** janela está aberta |
 
 ### `scope.allow[]` (regra de permissão)
@@ -123,6 +126,23 @@ A consistência entre `base_url` e o escopo é conferida ao montar o perfil. O c
 | `allow_local` | booleano | `false` | Autorização explícita para host local (veja abaixo) |
 
 #### Quais hosts exigem `allow_local: true`
+
+O erro mais comum de quem começa: o alvo do laboratório tem nome de contêiner Docker sem ponto (`clinica-piloto`, `vampi`), e isso conta como host **local**. A mensagem do perfil diz `scope.allow[0]: este host conta como local e exige allow_local: true nesta regra`. A correção, no laboratório:
+
+```yaml
+environment:
+  base_url: http://vampi:5000
+scope:
+  allow:
+    - host: vampi
+      scheme: http          # o alvo do laboratório não tem TLS
+      port: 5000
+      allow_local: true     # obrigatório para nome sem ponto, localhost e IP
+      paths: ["/**"]
+      methods: [GET, POST]
+```
+
+Em um ambiente real de teste, o oposto: use o nome DNS completo (`meu-produto.hml.exemplo.com.br`, com ponto) e **não** escreva `allow_local`. A regra não muda; só a mensagem e a dica ficaram mais claras.
 
 `allow_local` existe para o laboratório local, onde o alvo roda em contêiner Docker. Esses hosts são o caminho clássico de SSRF (requisição forjada do lado do servidor, usada para alcançar a rede interna), por isso são recusados a menos que a regra os declare.
 
@@ -167,6 +187,21 @@ Para cada requisição, depois da normalização, na ordem:
 4. O método precisa estar na lista de uma regra que casou a origem e o caminho.
 
 Tudo que não é explicitamente permitido é recusado (falha fechada).
+
+### `scope.path_mode`
+
+Decide só como o **proxy de escopo** (a cerca por onde passa todo pedido do ZAP) lê o caminho. Valores: `strict` (padrão) e `wide`. Qualquer outro valor, número, lista ou `null` é recusado (`CONFIG_ERROR`). Não existe flag de linha de comando que o ligue. Decisão e risco: [ADR 0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md).
+
+| Modo | Caminho com `;`, `%2f`, `%5c`, `%252e`, `//`, `%` solto, ponto ou espaço final | `deny_paths` |
+| --- | --- | --- |
+| `strict` | Recusado (`malformed_request`; o código granular vai em `detail`) | Conferido sobre a forma canônica |
+| `wide` | Liberado se a **leitura literal** (decodificada uma vez, separada pelas barras cruas) casar com `scope.allow` e com o método | Recusa se **qualquer** leitura que um servidor poderia fazer do caminho casar (`%2f` como barra, `;param` removido, ponto e espaço aparados, decodificação repetida, `.`/`..` resolvidos, `//` colapsado, caixa, NFKC, sufixo de formato como `.json`) |
+
+No modo `wide` continuam recusados: segmento `.` ou `..` (cru ou codificado uma vez), NUL e caracteres de controle, UTF-8 inválido, credenciais na URL, e tudo de host, porta, esquema, método e tamanho da URL. Só o proxy usa o modo: `probe`, `preflight`, o cliente do alvo, redirecionamentos e o plano da CLI continuam estritos.
+
+**Risco aceito no modo `wide`:** uma leitura do caminho que caia fora de `scope.allow` sem casar `deny_paths` **não** é recusada. O pedido liberado pode chegar a outro caminho do mesmo host (host e porta nunca mudam). O que não pode ser tocado precisa estar em `deny_paths`. O relatório conta quantos pedidos liberados tiveram essa leitura (`traffic.allowed_outside_allow`).
+
+Sufixo de formato: no modo `strict`, `deny_paths: /api/admin` não cobre `/api/admin.json` (a comparação é por segmento inteiro). Negue a grafia que importa, ou use `wide`, que confere o sufixo removido.
 
 ### `scope.authorization`
 
@@ -332,12 +367,14 @@ auth:
 | Campo | Tipo | Regra |
 | --- | --- | --- |
 | `success.json_field_absent_or_not_equal` | `{field, value}` | Sucesso além do código HTTP: uma resposta 2xx só conta como sucesso se o campo (caminho pontuado, `status` ou `data.result`) estiver ausente OU tiver valor diferente do de FALHA informado em `value` (texto, inteiro ou booleano; o tipo importa: `1` não é `true`). Sem o bloco, vale 2xx. Existe porque há alvos que respondem 200 com `{"status":"fail"}` (spike do M0) |
-| `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow`. O `preflight` chama este GET **antes** dos logins: se a carta autoriza um GET idempotente que recria os dados de exemplo do ambiente (as contas de teste incluídas), aponte `health_path` para ele, porque nenhum outro comando chama o alvo antes de logar |
+| `health_path` | texto | Caminho literal de um GET leve que o `preflight` usa para checar a saúde do alvo; precisa estar no escopo. Sem ele, o `preflight` tenta a raiz da `base_url`, que costuma estar fora de `scope.allow`. A varredura também o usa como GET de saúde entre as varreduras |
+| `setup_path` | texto | Caminho literal de um GET **idempotente** que prepara os dados do alvo antes dos logins (por exemplo, recria as contas de exemplo de um ambiente recém-subido). O `preflight` o chama uma vez, depois do `target_health` e antes dos logins; o `run` herda, porque começa pelo `preflight`. Passa pelo mesmo `ScopeGuard`, pelo limitador de taxa e pela auditoria dos outros envios, e precisa estar em `scope.allow` (método `GET`, fora de `deny_paths`). Só use se a carta de autorização permitir esse GET; ausente, nada é chamado. `probe` sozinho não o chama (rode o `preflight` antes). Resposta 4xx ou 5xx reprova a verificação `target_setup`. Antes existia só o truque de apontar `health_path` para esse GET; ele continua funcionando, mas `setup_path` é o jeito explícito |
 | `error_codes` | `{field, outcomes}` | Classificação exata pelo código de erro do corpo JSON (veja abaixo). Sem ele, a classificação usa só o status HTTP |
 
 ```yaml
 probe:
   health_path: /api/saude
+  setup_path: /api/dados-de-exemplo   # opcional: GET idempotente que prepara o alvo antes dos logins
   success:
     json_field_absent_or_not_equal: { field: status, value: fail }
 ```
@@ -387,6 +424,28 @@ scan:
   fail_on: high
 ```
 
+## `authz` (opcional)
+
+Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
+
+| Campo | Tipo | Padrão | Regra |
+| --- | --- | --- | --- |
+| `public_operations` | lista de `operationId` (até 200) | vazia | Operações legitimamente públicas ou compartilhadas entre contas: BOLA e BFLA as ignoram (sem isto, um recurso público viraria alarme falso). Operação que não existe no OpenAPI é erro de configuração |
+| `role_order` | lista de papéis (até 20) | vazia | Papéis do MENOR para o MAIOR privilégio (os `role` de `auth.accounts`). Necessário para a verificação vertical; sem ele o estágio diz que não pôde testar |
+| `volatile_fields` | lista de nomes de campo (até 50) | vazia | Campos ignorados ao comparar respostas, além de `timestamp`, `requestId`, `traceId`, `correlationId`, `date`, `now`, `elapsed`, `etag`, `nonce` (a comparação ignora maiúsculas e separadores) |
+| `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Escrita só entra se o perfil listar |
+| `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa. `value` é texto, inteiro ou booleano |
+| `disabled_checks` | lista de `horizontal`, `excessive_data`, `vertical`, `mass_assignment` | vazia | Verificações desligadas |
+
+```yaml
+authz:
+  role_order: [paciente, medico, admin]
+  public_operations: [lerCatalogo]
+  volatile_fields: [versaoDoItem]
+```
+
+Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do mesmo papel em `auth.accounts`, e a operação precisa ser roteada (`auth.account_map`) para uma delas; sem isso o estágio registra `no_peer_account` em vez de dar verde.
+
 ## Segredos: `secret_ref`
 
 Nomes `HDAST_*` são recusados: são variáveis do próprio harness (chave do ZAP, pastas, proxy) e um perfil escrito pelo agente poderia mandá-las ao alvo como senha. Use um nome do produto, como `AGENDA_USER_A_SENHA`.
@@ -397,7 +456,26 @@ Todo valor sensível é uma referência, nunca o valor:
 password: { secret_ref: "env:AGENDA_USER_A_SENHA" }
 ```
 
-Só a forma `env:NOME` é aceita, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres. Um valor literal (senha, token) não casa com o formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`, desde o M3), nunca o agente. Valor ausente ou vazio na variável é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md).
+Duas formas são aceitas, com `NOME` em maiúsculas, dígitos e `_`, começando por letra, até 128 caracteres:
+
+| Forma | De onde vem o valor | Quando usar |
+| --- | --- | --- |
+| `env:NOME` | Variável de ambiente `NOME` do terminal que roda o `hdast` | CI, contêiner, avaliação cega e quem prefere variável |
+| `keyring:NOME` | Cofre de credenciais do sistema operacional (Gerenciador de Credenciais do Windows, Keychain do macOS, Secret Service do Linux), sob o serviço `harness-dast` e o nome `NOME` | Uso diário de uma pessoa: grava-se uma vez e vale em todo terminal |
+
+```yaml
+password: { secret_ref: "keyring:AGENDA_USER_A_SENHA" }
+```
+
+Um valor literal (senha, token) não casa com nenhum formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`), nunca o agente. Valor ausente ou vazio é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md) e [ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md).
+
+Sobre `keyring:`:
+
+- **Quem grava é uma pessoa**, num terminal: `hdast secret set NOME` (prompt oculto; ver [cli.md](cli.md#hdast-secret)). O agente só cita o NOME e orienta a pessoa a rodar o comando.
+- Os dois formatos nunca se substituem: `keyring:NOME` não lê a variável `NOME` e `env:NOME` não lê o cofre. Sem cofre utilizável (contêiner, CI, Linux sem serviço de segredos) o erro é `SECRET_BACKEND_ERROR` com a dica de usar `env:NOME`.
+- Para não colidir entre produtos, comece o NOME pelo produto (`AGENDA_USER_A_SENHA`), como no `env:`. O cofre é por usuário do sistema e por máquina.
+- No Windows o valor guardado não passa de cerca de 1280 caracteres: serve para senha, não para um DSN muito longo (que pode seguir em `env:`).
+- Vale também para `cleanup.connection`, `cleanup.user` e `cleanup.password`.
 
 ## `cleanup`
 

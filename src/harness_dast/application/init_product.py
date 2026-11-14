@@ -14,11 +14,12 @@ class InitProduct:
         """
         self._scaffolder = scaffolder
 
-    def execute(self, product: str) -> ScaffoldedProduct:
+    def execute(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
         """Cria o produto.
 
         Args:
             product: Nome (slug) do produto.
+            with_cleanup: Copia também a pasta `cleanup/` do modelo; por padrão ela não é criada.
 
         Returns:
             A pasta criada e os arquivos copiados.
@@ -27,4 +28,4 @@ class InitProduct:
             ConfigError: Se o nome for inválido ou o produto já existir (veja
                 `ProductScaffolder.scaffold`).
         """
-        return self._scaffolder.scaffold(product)
+        return self._scaffolder.scaffold(product, with_cleanup=with_cleanup)

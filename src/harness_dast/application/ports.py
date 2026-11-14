@@ -27,6 +27,7 @@ from harness_dast.domain.cleanup_plan import CleanupAuditLine, CleanupPlan, Clea
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import ValueSource
@@ -100,8 +101,11 @@ class ProfileRepository(Protocol):
 class ProductScaffolder(Protocol):
     """Criador da pasta de um produto novo a partir do modelo."""
 
-    def scaffold(self, product: str) -> ScaffoldedProduct:
+    def scaffold(self, product: str, *, with_cleanup: bool = False) -> ScaffoldedProduct:
         """Cria a pasta do produto com os arquivos do modelo.
+
+        Por padrão a subpasta `cleanup/` do modelo NÃO é copiada: a limpeza de dados é opcional
+        e o script é de autoria humana. `with_cleanup=True` a copia (README e exemplo).
 
         Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
         produtos; em caso de falha no meio da cópia, não deixa pasta parcial.
@@ -205,6 +209,38 @@ class SecretProvider(Protocol):
         ...
 
 
+class CredentialStore(Protocol):
+    """Cofre de credenciais do sistema operacional (`secret_ref: keyring:NOME`, ADR 0030).
+
+    Os três métodos levantam `SecretBackendError` se o cofre não está utilizável; nenhum
+    registra nem inclui o valor em exceção.
+    """
+
+    def read(self, name: str) -> str | None:
+        """Devolve o valor guardado sob `name`, ou `None` se não existe ou está vazio."""
+        ...
+
+    def write(self, name: str, value: str) -> None:
+        """Guarda `value` sob `name`, substituindo o que houver."""
+        ...
+
+    def remove(self, name: str) -> bool:
+        """Apaga `name`. Devolve `False` se não existia."""
+        ...
+
+
+class SecretPrompt(Protocol):
+    """Prompt de terminal para a PESSOA gerir o cofre; o valor nunca é mostrado."""
+
+    def read_value(self, name: str) -> str:
+        """Lê o valor de `name` por prompt oculto, pedindo duas vezes (confirmação)."""
+        ...
+
+    def confirm_removal(self, name: str) -> bool:
+        """Pede que a pessoa digite `name` para confirmar; `True` só se digitar igual."""
+        ...
+
+
 class SecretVault(Protocol):
     """Registro de valores secretos conhecidos, para que sejam mascarados onde aparecerem."""
 
@@ -297,6 +333,14 @@ class RunStore(Protocol):
 
     def write_probe(self, run_id: str, result: ProbeResult) -> None:
         """Grava `probe.json` de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
+    def write_exchanges(self, run_id: str, log: ExchangeLog) -> None:
+        """Grava `exchanges.json` (pedidos com sucesso, sem segredo) de forma atômica.
 
         Raises:
             ConfigError: Falha de escrita.
@@ -555,4 +599,47 @@ class OperatorPrompt(Protocol):
 
     def confirm(self, plan: CleanupPlan) -> bool:
         """Mostra o plano e pergunta; `True` só se a pessoa confirmou digitando o produto."""
+        ...
+
+
+class HostInspector(Protocol):
+    """Olhos do `doctor` sobre a máquina: Docker, imagens, portas, pastas e ferramentas.
+
+    Só lê. Nenhum método toca o alvo, sobe contêiner ou altera arquivo.
+    """
+
+    def docker_version(self) -> str:
+        """Versão do servidor Docker que respondeu.
+
+        Raises:
+            ExternalToolError: Docker ausente, parado ou sem resposta no prazo.
+        """
+        ...
+
+    def compose_images(self, services: tuple[str, ...]) -> tuple[str, ...]:
+        """Imagens que o `compose.yaml` do repositório usa para os serviços indicados.
+
+        Raises:
+            ConfigError: O `compose.yaml` não foi encontrado ou é ilegível.
+        """
+        ...
+
+    def image_present(self, reference: str) -> bool:
+        """Diz se a imagem já está no Docker local.
+
+        Raises:
+            ExternalToolError: Docker ausente, parado ou sem resposta no prazo.
+        """
+        ...
+
+    def port_is_free(self, port: int) -> bool:
+        """Diz se a porta TCP de 127.0.0.1 está livre para publicar."""
+        ...
+
+    def uv_version(self) -> str | None:
+        """Versão do `uv` no PATH, ou `None` se não está instalado."""
+        ...
+
+    def directory_exists(self, path: Path) -> bool:
+        """Diz se `path` existe e é uma pasta."""
         ...

@@ -31,7 +31,7 @@ Flags de linha de comando só podem **reduzir** escopo e limites, nunca ampliar.
 ## Política de segredos (AD-12, ADR 0009)
 
 - O perfil guarda só referências (`secret_ref: env:NOME`), nunca o valor. O modelo do perfil já recusa valor literal e não o repete na mensagem de erro.
-- O valor vem de variável de ambiente ou de um `.env` ignorado pelo git. **Nunca** versione `.env`.
+- O valor vem de variável de ambiente (`env:NOME`), de um `.env` ignorado pelo git ou do cofre de credenciais do sistema operacional (`keyring:NOME`, [ADR 0030](docs/adr/0030-cofre-de-credenciais-do-sistema-keyring.md)). **Nunca** versione `.env`. O cofre só é gravado por uma pessoa (`hdast secret set`, prompt oculto, só em terminal interativo; o agente não o roda) e só aceita backends do próprio sistema: nunca um arquivo em texto claro. Ele protege contra histórico de shell e arquivo esquecido, **não** contra um programa na mesma conta de usuário, que lê o cofre. Os valores do cofre entram no mesmo mascaramento dos de ambiente.
 - A CLI resolve o segredo, obtém o token e o entrega ao ZAP. O agente vê apenas apelidos de conta (`user_a`).
 - As permissões do Claude Code negam a leitura de `.env` (planejado, M6).
 - Depois de uma execução completa, os testes de integração procuram as senhas, os tokens Bearer, o token XSRF e a chave do ZAP reais da execução em todos os artefatos da pasta, na auditoria do proxy, no `stdout` e no `stderr` da CLI: zero ocorrências é o critério (`tests/integration/test_lab_run.py`).

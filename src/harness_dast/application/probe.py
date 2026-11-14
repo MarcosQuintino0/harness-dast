@@ -44,6 +44,7 @@ from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ExternalToolError, HarnessError, PreflightError
 from harness_dast.domain.flow import FlowSpec
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_plan import PlannedOperation, plan_probe
 from harness_dast.domain.probe_result import ProbeResult, RunManifest, summarize_results
 from harness_dast.domain.profile import ProductProfile
@@ -271,6 +272,14 @@ class Probe:
         outcome = ProbeRunner(self._settings(run, dispatcher, pool)).run(run.plan)
         result = self._result(run, outcome)
         self._store.write_probe(run.run_id.value, result)
+        self._store.write_exchanges(
+            run.run_id.value,
+            ExchangeLog(
+                run_id=run.run_id.value,
+                product=run.profile.product,
+                exchanges=outcome.exchanges,
+            ),
+        )
         self._finish_manifest(run, manifest, result.status)
         return result
 

@@ -98,6 +98,12 @@ class Report:
                 "A execução informada é de outro produto.",
                 hint="Use o run_id do probe e do scan deste produto.",
             )
+        authz = self._artifacts.read_authz(run_id)
+        if authz is not None and authz.product != profile.product:
+            raise ConfigError(
+                "O authz.json da execução é de outro produto.",
+                hint="Use o run_id do probe, do scan e do authz deste produto.",
+            )
         baseline = self._baseline(request.compare, run_id)
         auth_header, csrf_header = _placeholders(profile)
         report = assemble_report(
@@ -111,6 +117,7 @@ class Report:
             harness_version=self._version,
             auth_header=auth_header,
             csrf_header=csrf_header,
+            authz=authz,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
         threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
@@ -135,16 +142,18 @@ class Report:
 def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca).
 
+    Conta os achados do ZAP e os de autorização entre contas (`report.authz`).
+
     Severidade que a CLI não soube classificar (`unknown`: `Critical`, um ZAP em outro idioma,
     vazio) conta como acima de qualquer limiar diferente de `none`: o gate falha fechado.
     """
     if threshold == "none":
         return False
     floor = SEVERITY_RANK[threshold]
-    return any(
-        item.proposed_severity == "unknown" or SEVERITY_RANK[item.proposed_severity] >= floor
-        for item in report.findings
-    )
+    severities = [item.proposed_severity for item in report.findings]
+    if report.authz is not None:
+        severities += [item.proposed_severity for item in report.authz.findings]
+    return any(severity == "unknown" or SEVERITY_RANK[severity] >= floor for severity in severities)
 
 
 def _placeholders(profile: ProductProfile) -> tuple[tuple[str, str] | None, str | None]:

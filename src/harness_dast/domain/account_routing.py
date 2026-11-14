@@ -130,6 +130,17 @@ class AccountRouting(ProfileModel):
                 return rule.account
         return self.default_account or aliases[0]
 
+    def explicit_account(self, operation_id: str, method: str, path: str) -> str | None:
+        """Apelido atribuído por uma regra de `account_map`, ou `None` se só o padrão vale.
+
+        Diferente de `route`, não cai em `default_account`: diz se a operação foi atribuída a
+        uma conta de propósito (usado pelo teste de acesso vertical).
+        """
+        for rule in self.account_map:
+            if rule.covers(operation_id, method, path):
+                return rule.account
+        return None
+
     def ensure_operations_exist(self, operation_ids: Sequence[str]) -> None:
         """Garante que toda operação citada em `account_map` existe no OpenAPI.
 

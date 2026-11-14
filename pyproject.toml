@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml>=6.0",
     "httpx>=0.28.1",
     "oracledb>=3.4",
+    "keyring>=25.7",
 ]
 
 [project.scripts]
@@ -154,7 +155,7 @@ forbidden_modules = [
 name = "domain nao importa dependencias externas alem de pydantic e stdlib"
 type = "forbidden"
 source_modules = ["harness_dast.domain"]
-forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore", "oracledb"]
+forbidden_modules = ["typer", "click", "structlog", "pydantic_settings", "yaml", "tzdata", "httpx", "httpcore", "oracledb", "keyring"]
 
 [[tool.importlinter.contracts]]
 name = "application so importa domain"
@@ -250,6 +251,11 @@ ignore_names = [
     "untrusted_target_data",
     "zap_context_id",
     "updated_at",
+    # Teste de autorização (ADR 0027): campos de authz.json e exchanges.json lidos só pela
+    # serialização do pydantic, pelos testes e pelo agente.
+    "baseline_status",
+    "observed_status",
+    "omitted_fields",
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",

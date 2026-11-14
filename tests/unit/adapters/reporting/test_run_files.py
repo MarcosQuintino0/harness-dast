@@ -102,6 +102,18 @@ def test_missing_files_are_config_errors_that_name_the_command_to_rerun(
     assert "Rode" in info.value.hint
 
 
+def test_missing_scan_json_says_the_report_needs_it_and_how_to_get_it(
+    store: FileRunArtifacts,
+) -> None:
+    with pytest.raises(ConfigError) as info:
+        store.read_scan(RUN_ID)
+
+    hint = info.value.hint or ""
+    assert "O report precisa do scan.json" in hint
+    assert "--skip-scan" in hint
+    assert "hdast scan PRODUTO --run RUN_ID" in hint
+
+
 def test_optional_files_are_empty_or_none_when_absent(store: FileRunArtifacts) -> None:
     assert store.read_evidence(RUN_ID) == ()
     assert store.read_triage(RUN_ID) is None

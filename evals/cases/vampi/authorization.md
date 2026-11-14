@@ -16,6 +16,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Caminhos autorizados: /, /createdb, /me, /users/** e /books/**
    Métodos autorizados: GET, POST e PUT (DELETE NÃO é autorizado)
    Caminhos PROIBIDOS: nenhum além dos não listados acima
+   Modo de leitura de caminhos pela cerca: ESTRITO (o modo amplo NÃO é autorizado)
    OpenAPI: inputs/openapi3.yml
 
 4. Janela de execução: seg-dom 00:00-24:00 America/Sao_Paulo

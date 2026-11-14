@@ -6,7 +6,11 @@ from pathlib import Path
 import pytest
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
-from harness_dast.adapters.reporting.sinks import JsonFindingsSink, MarkdownReportSink
+from harness_dast.adapters.reporting.sinks import (
+    HtmlReportSink,
+    JsonFindingsSink,
+    MarkdownReportSink,
+)
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.report_build import assemble_report
 from harness_dast.domain.report_model import FindingsReport
@@ -54,7 +58,7 @@ def test_markdown_sink_writes_utf_8_with_unix_newlines(tmp_path: Path) -> None:
     assert sorted(p.name for p in (tmp_path / RUN_ID).iterdir()) == ["report.md"]
 
 
-@pytest.mark.parametrize("sink", [JsonFindingsSink, MarkdownReportSink])
+@pytest.mark.parametrize("sink", [JsonFindingsSink, MarkdownReportSink, HtmlReportSink])
 def test_sinks_validate_the_run_id_and_report_write_failures(sink: type, tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="inválido"):
         sink(tmp_path).write("../fora", make_report())
@@ -63,3 +67,15 @@ def test_sinks_validate_the_run_id_and_report_write_failures(sink: type, tmp_pat
     blocked.write_text("x", encoding="utf-8")
     with pytest.raises(ConfigError, match="Não foi possível gravar"):
         sink(blocked).write(RUN_ID, make_report())
+
+
+def test_html_sink_writes_a_single_self_contained_utf_8_page(tmp_path: Path) -> None:
+    name = HtmlReportSink(tmp_path).write(RUN_ID, make_report())
+
+    raw = (tmp_path / RUN_ID / name).read_bytes()
+    assert name == "report.html"
+    assert raw.startswith(b"<!doctype html>")
+    assert b"\r\n" not in raw
+    assert b"<script" not in raw
+    assert "Relatório de varredura".encode() in raw
+    assert sorted(p.name for p in (tmp_path / RUN_ID).iterdir()) == ["report.html"]
