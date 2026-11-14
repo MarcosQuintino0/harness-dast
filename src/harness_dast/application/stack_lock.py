@@ -105,7 +105,7 @@ class StackLockService:
                 "A próxima execução a retoma."
             )
         else:
-            message = busy_message(holder, now)[0]
+            message = busy_message(holder, now, str(self._store.location()))[0]
         return StackLockInfo(
             state="orphan" if verdict is LockVerdict.ORPHAN else "held",
             command=holder.command,
@@ -137,7 +137,7 @@ class StackLockService:
             message, hint = unreadable_message(str(self._store.location()))
             raise StackBusy(message, hint=hint)
         if verdict is LockVerdict.HELD:
-            message, hint = busy_message(holder, self._clock.now())
+            message, hint = busy_message(holder, self._clock.now(), str(self._store.location()))
             raise StackBusy(message, hint=hint)
         _log.warning(
             "stack_lock_orphan_taken_over",
