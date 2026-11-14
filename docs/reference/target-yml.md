@@ -46,7 +46,7 @@ scope:
       paths: ["/api/**"]
       methods: [GET, POST, PUT, PATCH]
   deny_paths:
-    - "/api/notificacoes/**"
+    - "/api/interno/**"
     - "/api/conta/excluir"
   authorization:
     reference: "SEC-1234"

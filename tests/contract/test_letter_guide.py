@@ -5,14 +5,15 @@ o guia vai na cópia entregue ao agente cego, e o perfil esperado de um caso nã
 """
 
 import re
+import shutil
 from datetime import date
 from pathlib import Path
 
 import pytest
 
 from evals.runner.cases import load_case
-from evals.runner.exclusions import ALWAYS, decide
-from evals.runner.leaks import scan_leaks
+from evals.runner.exclusions import exclusions_for, walk_kept
+from evals.runner.leaks import MAX_BYTES, scan_leaks
 from harness_dast.adapters.storage.strict_yaml import parse_yaml_document
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_review import review_letter
@@ -60,31 +61,55 @@ def _answer_terms(case_name: str) -> tuple[str, ...]:
     return tuple(sorted(terms))
 
 
-def _delivered_text_files() -> list[Path]:
-    """Guias, skills e subagentes que ficam na cópia entregue ao agente cego."""
-    found = [
-        *sorted((ROOT / "docs" / "guides").glob("*.md")),
-        *sorted((ROOT / ".claude").glob("**/*.md")),
-        ROOT / "README.md",
-    ]
-    return [path for path in found if decide(path.relative_to(ROOT).as_posix(), ALWAYS) is None]
+def _secret_terms(case_name: str) -> tuple[str, ...]:
+    """O que só o dono do produto sabe: caminhos proibidos, a isca e as falhas plantadas.
+
+    Termos genéricos do caso (`/api/**`, apelidos de conta, variáveis do laboratório) existem de
+    propósito no código e nos testes do repositório e não entram aqui; a busca nos guias e nas
+    skills, com a lista completa, é o teste acima.
+    """
+    case = load_case(case_name, CASES)
+    terms = {*case.leak_terms, *case.expected.deny_paths, *case.forbidden.zero_counters}
+    terms.update(prefix for prefix in case.forbidden.path_prefixes if len(prefix) > 1)
+    return tuple(sorted(terms))
 
 
-def test_delivered_guides_and_skills_do_not_contain_the_expected_profile_of_any_case(
-    tmp_path: Path,
-) -> None:
-    delivered = _delivered_text_files()
-    assert GUIDE in delivered
-    for path in delivered:
-        target = tmp_path / path.relative_to(ROOT)
+def _copy_delivered(case_name: str, destination: Path) -> int:
+    """Copia, para `destination`, todo arquivo que o `evals/runner` entregaria ao agente cego.
+
+    A decisão de o que sai é a do próprio executor (`exclusions_for` e `walk_kept`): nenhuma
+    regra é repetida aqui. Devolve quantos arquivos foram copiados.
+    """
+    case = load_case(case_name, CASES)
+    copied = 0
+    for file, rel in walk_kept(ROOT, exclusions_for(case)):
+        if file.stat().st_size > MAX_BYTES:
+            continue
+        target = destination / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
-    cases = sorted(entry.name for entry in CASES.iterdir() if entry.is_dir())
+        shutil.copyfile(file, target)
+        copied += 1
+    return copied
+
+
+CASE_NAMES = sorted(entry.name for entry in CASES.iterdir() if entry.is_dir())
+
+
+@pytest.mark.parametrize("case_name", CASE_NAMES)
+def test_the_copy_delivered_to_the_blind_agent_has_no_answer_of_the_case(
+    case_name: str, tmp_path: Path
+) -> None:
+    """Nenhum arquivo da cópia cega (guias, skills, docs, código, testes) traz o gabarito do caso.
+
+    Vale para todo arquivo que o executor entrega, não só guias e skills: um exemplo de `docs/`
+    com o caminho proibido ou a isca do caso entrega a resposta.
+    """
+    assert _copy_delivered(case_name, tmp_path) > 0
+    assert (tmp_path / "docs" / "guides" / GUIDE.name).exists()
 
     leaks = [
-        f"{case}: {hit.path} linha {hit.line}: {hit.term}"
-        for case in cases
-        for hit in scan_leaks(tmp_path, _answer_terms(case))
+        f"{hit.path} linha {hit.line}: {hit.term}"
+        for hit in scan_leaks(tmp_path, _secret_terms(case_name))
     ]
 
-    assert not leaks, "\n".join(leaks)
+    assert not leaks, case_name + ":\n" + "\n".join(leaks)
