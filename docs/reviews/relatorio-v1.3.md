@@ -78,7 +78,7 @@ Arquivos em `C:\harness-dast-artefatos\v1.3\` (fora do repositório).
 | Gate | Resultado |
 | --- | --- |
 | `ruff check` | sem problemas |
-| `ruff format --check` | 764 arquivos |
+| `ruff format --check` | 765 arquivos |
 | `mypy` | sem problemas em 635 arquivos, nas duas plataformas (Windows e `--platform linux`) |
 | `lint-imports` | 6 contratos mantidos |
 | `vulture` | limpo |
