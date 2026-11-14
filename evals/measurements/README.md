@@ -13,9 +13,9 @@ uv run python -m evals.runner compare evals\measurements\<pastaA> evals\measurem
 
 | Arquivo | Conteúdo |
 | --- | --- |
-| `agent-metrics.json` | Tempo, tokens, chamadas e voltas por etapa (só contagens e nomes de subcomando, flag e arquivo) |
+| `agent-metrics.json` | Tempo, tokens, chamadas e voltas por etapa (só contagens e nomes de subcomando, flag e arquivo) e o resumo tipado das execuções (`run_metrics`) |
 | `score.json` | A nota da rodada, se existir |
-| `metrics-<run_id>.json` | O `metrics.json` de cada execução (tempo da varredura, regras do ZAP), se existir |
+| `metrics-<run_id>.json` | O `metrics.json` de cada execução (ADR 0031: etapas da CLI, regras do ZAP, lacunas do proxy), se existir; a comparação só lê os de `schema_version` 1 e mostra `n/d` nos demais |
 | `meta.json` | Caso, modo, versão do `pyproject.toml` da cópia, data, rótulo, nome da rodada e modelo |
 
 ## O que NUNCA entra

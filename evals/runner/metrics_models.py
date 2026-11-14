@@ -121,11 +121,28 @@ class Quality(Frozen):
     messages_without_usage: int
 
 
+class RuleTime(Frozen):
+    """Uma regra do ZAP somada na execucao (`rules.totals[]` do `metrics.json`)."""
+
+    plugin_id: str
+    name: str | None
+    time_ms: float | None
+    requests: float | None
+    alerts: float | None
+
+
 class RunMetricsSummary(Frozen):
-    """Resumo de um `metrics.json` de execucao: so campos escalares do topo (sem esquema fixo)."""
+    """Resumo tipado de um `metrics.json` de execucao (ADR 0031, `schema_version: 1`).
+
+    `None` significa que o arquivo nao trouxe o dado (impresso `n/d`), nunca zero.
+    """
 
     run_id: str
-    summary: dict[str, str | int | float | bool]
+    stages_seconds: dict[str, float | None]
+    gaps_count: float | None
+    gaps_total_seconds: float | None
+    gaps_longest_seconds: float | None
+    rules: list[RuleTime]
 
 
 class AgentMetrics(Frozen):

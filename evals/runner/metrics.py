@@ -30,6 +30,7 @@ from evals.runner.metrics_models import (
     EventIn,
     Loops,
     Quality,
+    RuleTime,
     RunMetricsSummary,
     StageMetrics,
     TokenCounts,
@@ -37,6 +38,7 @@ from evals.runner.metrics_models import (
     UsageIn,
 )
 from evals.runner.metrics_stages import Invocation, StageTracker, parse_hdast, shell_read_paths
+from evals.runner.run_metrics import CLI_STAGES, parse_run_metrics
 from evals.runner.transcript import SHELL_TOOLS, ToolCall, load_conversation_events
 
 MAX_LISTED = 20
@@ -275,22 +277,40 @@ def _loops(walker: _Walker) -> Loops:
 
 
 def summarize_run_metrics(out: Path) -> list[RunMetricsSummary]:
-    """Campos escalares do topo de cada `trace/runs/*/metrics.json` valido. Sem esquema fixo."""
+    """Resumo tipado de cada `trace/runs/*/metrics.json` de `schema_version` 1 (ADR 0031).
+
+    Arquivo ausente, malformado ou de versao desconhecida e ignorado: nao entra na lista.
+    """
     rows: list[RunMetricsSummary] = []
     for path in sorted((out / "trace" / "runs").glob("*/metrics.json")):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if not isinstance(data, dict):
+        parsed = parse_run_metrics(data)
+        if parsed is None:
             continue
-        summary = {
-            str(key): value
-            for key, value in data.items()
-            if isinstance(value, bool | int | float)
-            or (isinstance(value, str) and len(value) <= 80)
-        }
-        rows.append(RunMetricsSummary(run_id=path.parent.name, summary=summary))
+        gaps = parsed.traffic.gaps if parsed.traffic else None
+        totals = parsed.rules.totals if parsed.rules else []
+        rows.append(
+            RunMetricsSummary(
+                run_id=path.parent.name,
+                stages_seconds={s: parsed.stages_seconds.get(s) for s in CLI_STAGES},
+                gaps_count=gaps.count if gaps else None,
+                gaps_total_seconds=gaps.total_seconds if gaps else None,
+                gaps_longest_seconds=gaps.longest_seconds if gaps else None,
+                rules=[
+                    RuleTime(
+                        plugin_id=str(rule.plugin_id),
+                        name=rule.name,
+                        time_ms=rule.time_ms,
+                        requests=rule.requests,
+                        alerts=rule.alerts,
+                    )
+                    for rule in totals
+                ],
+            )
+        )
     return rows
 
 
