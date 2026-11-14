@@ -44,6 +44,7 @@ class Schema(ApiModel):
         format: Formato declarado (`date`, `uuid`, `int64`...).
         enum: Valores permitidos, sem `null` no modelo carregado.
         enum_allows_null: A enumeração declarada inclui `null`.
+        type_allows_null: Nulabilidade do tipo antes da normalização legada, se conhecida.
         minimum: Limite inferior numérico (`exclusive_minimum` diz se ele é aberto).
         maximum: Limite superior numérico.
         min_length: Tamanho mínimo de texto.
@@ -68,6 +69,7 @@ class Schema(ApiModel):
     format: str | None = Field(default=None, max_length=64)
     enum: tuple[JsonScalar, ...] | None = Field(default=None, max_length=MAX_ENUM_VALUES)
     enum_allows_null: bool = Field(default=False, exclude=True)
+    type_allows_null: bool | None = Field(default=None, exclude=True)
     minimum: int | float | None = None
     maximum: int | float | None = None
     exclusive_minimum: bool = False
