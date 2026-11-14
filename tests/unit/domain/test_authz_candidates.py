@@ -105,6 +105,15 @@ def test_a_privilege_name_in_the_input_is_a_name_in_input_candidate() -> None:
     assert names(build_candidates(put, [put], config())) == [("role", "name_in_input")]
 
 
+@pytest.mark.parametrize("name", ["valor", "price", "saldo", "ativo", "nome"])
+def test_a_non_privilege_field_the_input_already_declares_is_not_a_candidate(name: str) -> None:
+    post = op(
+        "criar", "post", "/api/consultas", body=obj(**{name: INT}), returns=obj(**{name: INT})
+    )
+
+    assert names(build_candidates(post, [post], config(), post=True)) == []
+
+
 def test_a_field_in_both_without_a_privilege_name_is_not_a_candidate() -> None:
     put = op("up", "put", "/api/me", body=obj(nome=STR), returns=obj(nome=STR))
 

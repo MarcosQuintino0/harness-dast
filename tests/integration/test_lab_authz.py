@@ -42,6 +42,16 @@ pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 PILOT_BASE = "http://clinica-piloto:8080"
 MODES = ("vulnerable", "secure")
 ROLE_ORDER_LINE = "  role_order: [paciente, medico, admin]"
+# Tabela tirada do `auth.account_map` do próprio perfil: o que ele atribui só a admin ou a médico
+# não é do paciente. Declaração de laboratório; quem a faria num produto real é o dono.
+MATRIX_YAML = """
+  access_matrix:
+    - { operation: criarConvenio, allow: [admin], deny: [paciente] }
+    - { operation: atualizarConvenio, allow: [admin], deny: [paciente] }
+    - { operation: criarMedico, allow: [admin], deny: [paciente] }
+    - { operation: criarPaciente, allow: [medico], deny: [paciente] }
+    - { operation: criarReceita, allow: [medico], deny: [paciente] }
+"""
 HIGH_TECHNIQUES = ("authz_horizontal", "authz_mass_assignment", "authz_excessive_data")
 NEW_CHECKS = (
     "anonymous_access",
@@ -63,6 +73,7 @@ class AuthzLab:
     secret_hits: list[str]
     seconds: dict[str, float]
     runs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    report_text: str = ""
 
     def authz_rows(self, phase: str) -> list[dict[str, Any]]:
         """Linhas da trilha da CLI que pertencem ao `authz` (operation_id com prefixo `authz:`)."""
@@ -89,7 +100,7 @@ def _install_with_writes(cli: LabCli) -> None:
     text = installed.read_text(encoding="utf-8")
     assert ROLE_ORDER_LINE in text, "o perfil do piloto deixou de declarar authz.role_order"
     installed.write_text(
-        text.replace(ROLE_ORDER_LINE, ROLE_ORDER_LINE + "\n  allow_writes: true"),
+        text.replace(ROLE_ORDER_LINE, ROLE_ORDER_LINE + "\n  allow_writes: true" + MATRIX_YAML),
         encoding="utf-8",
     )
 
@@ -139,11 +150,23 @@ def _measure(cli: LabCli, mode: str) -> AuthzLab:
         if any(n in p.read_text(encoding="utf-8", errors="replace") for n in needles)
     ]
     lab = AuthzLab(mode, authz, run_audit(cli, run_id), proxy_rows, hits, seconds)
+    lab.report_text = _report_text(cli, run_id)
     started = time.monotonic()
     lab.runs["skip_scan"] = _run_summary(cli, "--skip-scan")
     lab.runs["skip_scan_no_authz"] = _run_summary(cli, "--skip-scan", "--no-authz")
     timed("run_skip_scan_pair", started)
     return lab
+
+
+def _report_text(cli: LabCli, run_id: str) -> str:
+    """Varre uma operação de leitura e gera o `report.md` da execução do `authz`."""
+    scan = cli.run(
+        "scan", "clinica-piloto", "--run", run_id, "--only", "buscarPacientesPorNome",
+        "--max-minutes", "3", timeout=900,
+    )  # fmt: skip
+    assert scan.code in {0, 3}, scan.stdout[-500:]
+    assert cli.run("report", "clinica-piloto", "--run", run_id).code in {0, 1}
+    return (cli.runs / run_id / "report.md").read_text(encoding="utf-8")
 
 
 def _observations(lab: AuthzLab) -> dict[str, Any]:
@@ -191,7 +214,8 @@ def _observations(lab: AuthzLab) -> dict[str, Any]:
         ),
         "authz_result_statuses": dict(Counter(str(r["status"]) for r in lab.authz_rows("result"))),
         "runs": lab.runs,
-        "access_matrix_present": authz["access_matrix"] is not None,
+        "access_matrix": authz["access_matrix"],
+        "report_has_matrix_section": "Tabela quem pode o quê" in lab.report_text,
     }
 
 
@@ -205,7 +229,7 @@ def lab(
     _install_with_writes(cli)
     try:
         measured = _measure(cli, mode)
-        record_metrics(f"lab-authz-{mode}", _observations(measured))
+        record_metrics(f"lab-authz-{mode}-v2", _observations(measured))
         yield measured
     finally:
         cli.stack_down()
@@ -293,3 +317,28 @@ def test_run_skip_scan_records_the_authz_stage_as_skipped_with_the_right_reason(
     assert switched_off["status"] == "skipped"
     assert "--no-authz" in switched_off["message"]
     assert asked["message"] != switched_off["message"]
+
+
+def test_every_denied_cell_of_the_access_matrix_has_a_verdict_and_allowed_cells_are_not_tested(
+    lab: AuthzLab,
+) -> None:
+    matrix = lab.authz["access_matrix"]
+    assert matrix is not None
+    assert len(matrix["rows"]) == 5
+    cells = [cell for row in matrix["rows"] for cell in row["cells"]]
+    denied = [c for c in cells if c["declared"] == "deny"]
+    assert denied
+    assert {c["result"] for c in denied} <= {"passed", "failed", "not_tested"}
+    allowed = [c for c in cells if c["declared"] == "allow"]
+    assert {c["result"] for c in allowed} <= {"declared_allowed", "proved_allowed"}
+    summary = next(c for c in lab.authz["checks"] if c["check"] == "access_matrix")
+    assert summary["status"] != "disabled"
+
+
+def test_the_report_has_the_access_matrix_section(lab: AuthzLab) -> None:
+    assert "Tabela quem pode o quê" in lab.report_text
+
+
+def test_no_authz_request_timed_out_on_the_way_to_the_target(lab: AuthzLab) -> None:
+    errors = [r["error"] for r in lab.authz_rows("result") if r["error"]]
+    assert errors == []

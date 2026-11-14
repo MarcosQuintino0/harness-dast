@@ -51,7 +51,6 @@ class ScopeProxyAddon:
     def __init__(self, engine: ScopeProxyEngine) -> None:
         """Guarda o motor, já construído com política válida."""
         self._engine = engine
-        self._original_address: dict[str, tuple[str, int]] = {}
 
     def load(self, loader: Loader) -> None:
         """Aplica a política de TLS: só a política decide se o certificado é verificado."""
@@ -132,19 +131,17 @@ class ScopeProxyAddon:
         if not _is_ip(host):
             data.server.sni = data.server.sni or data.client.sni or host
         data.server.address = (addresses[0], port)
-        self._original_address[data.server.id] = (host, port)
-
-    def server_connected(self, data: ServerConnectionHookData) -> None:
-        """Devolve o nome ao endereço da conexão, para que ela possa ser reaproveitada."""
-        original = self._original_address.pop(data.server.id, None)
-        if original is not None:
-            data.server.address = original
 
     # ------------------------------------------------------------- resposta
     def response(self, flow: http.HTTPFlow) -> None:
         """Registra a requisição liberada com status, bytes e duração."""
         if flow.metadata.get(_AUDITED) or flow.response is None:
             return
+        # Uma conexão por requisição entre o ZAP e este proxy. Como o endereço da conexão de saída
+        # é o IP conferido (não dá para devolver o nome numa conexão aberta), nenhuma conexão de
+        # saída é reaproveitada, e o ZAP, ao reaproveitar a de entrada, travava na sexta
+        # requisição (medido no laboratório: 20 s e `Failed to read` no log do ZAP).
+        flow.response.headers["Connection"] = "close"
         body = flow.response.raw_content
         size = len(body) if body is not None else None
         self._log(flow, ALLOW, status=flow.response.status_code, size=size)

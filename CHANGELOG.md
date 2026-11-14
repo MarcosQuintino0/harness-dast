@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Corrigido (provado no laboratório, ADR 0043)
+
+- Proxy de escopo: a conexão de saída não deixa mais o ZAP travar na sexta requisição (um pedido sem sessão em seis estourava 15 s). `anonymous_access` passou de 16 para 19 operações testadas e `tampered_token` de 8 para 18 na Clínica Piloto.
+- Atribuição em massa: campo que o corpo de entrada já declara só vira candidato com nome de privilégio (falso positivo em `valor`), e `fields` do achado não repete mais o campo enviado.
+
 ## [1.3.0] - 2026-11-14
 
 Versão do uso seguro e fácil: uma trava por pilha, a carta de autorização em formulário, a aprovação do escopo por uma pessoa e a entrevista inicial nas skills. A trava foi provada com Docker uma vez, no laboratório; o resto foi verificado como código e testes, e **não** foi provado contra produto real, nem o `hdast profile approve` num terminal de verdade, nem a entrevista com uma pessoa, nem uma rodada cega no fluxo novo.
