@@ -8,6 +8,8 @@
       "Read(**/.env*)",
       "Read(!.env.example)",
       "Read(//**/hdast/stack.json)",
+      "Edit(//**/hdast/approvals/**)",
+      "Write(//**/hdast/approvals/**)",
       "Bash(curl:*)",
       "Bash(wget:*)",
       "Bash(printenv:*)",
