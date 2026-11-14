@@ -82,6 +82,7 @@ class Schema(ApiModel):
     read_only: bool = False
     default: JsonScalar = None
     example: JsonScalar = None
+    declared_examples: tuple[JsonValue, ...] = Field(default=(), exclude=True, repr=False)
     one_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)
     any_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)
     all_of: tuple["Schema", ...] = Field(default=(), max_length=MAX_BRANCHES)

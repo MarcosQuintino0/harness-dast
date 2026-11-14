@@ -1,9 +1,11 @@
 """Caso de uso `spec inspect`: resumo e verificações cruzadas para o agente."""
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from harness_dast.adapters.openapi import load_spec
 from harness_dast.application.inspect_report import SpecInspection
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.api_schema import Schema
@@ -227,3 +229,85 @@ def test_an_account_map_with_an_unknown_operation_becomes_an_issue() -> None:
     result = inspect(Rig(profile=profile))
 
     assert [issue.code for issue in result.issues] == ["ACCOUNT_MAP_MISMATCH"]
+
+
+def test_invalid_declared_example_is_reported_without_its_value() -> None:
+    schema = Schema(type="string", min_length=10, declared_examples=("secreto",))
+    spec = ApiSpec(
+        title="T",
+        version="1",
+        operations=(operation("criar", "post", "/api/x", body={"nome": schema}),),
+    )
+
+    result = inspect(Rig(spec=spec))
+
+    assert [issue.code for issue in result.issues] == ["EXAMPLE_LENGTH"]
+    assert "secreto" not in result.model_dump_json()
+
+
+def test_local_openapi_examples_reach_inspection(tmp_path: Path) -> None:
+    document = tmp_path / "spec.yml"
+    document.write_text(
+        """openapi: 3.1.0
+info: {title: Teste, version: '1'}
+paths:
+  /api/x:
+    post:
+      operationId: criar
+      parameters:
+        - name: codigo
+          in: query
+          schema: {type: integer}
+          example: segredo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                nome: {type: string, minLength: 5}
+            examples:
+              invalido:
+                value: {nome: xyz}
+      responses:
+        '200': {description: ok}
+""",
+        encoding="utf8",
+    )
+
+    result = inspect(Rig(spec=load_spec(document)))
+
+    assert [issue.code for issue in result.issues] == [
+        "EXAMPLE_TYPE",
+        "EXAMPLE_REQUIRED",
+        "EXAMPLE_LENGTH",
+    ]
+    assert "segredo" not in result.model_dump_json()
+    assert "xyz" not in result.model_dump_json()
+
+
+def test_invalid_example_reference_does_not_block_spec_loading(tmp_path: Path) -> None:
+    document = tmp_path / "spec.yml"
+    document.write_text(
+        """openapi: 3.0.0
+info: {title: Teste, version: '1'}
+paths:
+  /api/x:
+    get:
+      parameters:
+        - name: id
+          in: query
+          schema: {type: string}
+          examples:
+            ausente: {$ref: '#/components/examples/ausente'}
+            remoto: {$ref: 'https://invalid.example/exemplo'}
+      responses:
+        '200': {description: ok}
+""",
+        encoding="utf8",
+    )
+
+    result = inspect(Rig(spec=load_spec(document)))
+
+    assert result.issues == ()

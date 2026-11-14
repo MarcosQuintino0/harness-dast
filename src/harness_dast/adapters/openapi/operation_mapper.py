@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from pydantic import ValidationError
 
 from harness_dast.adapters.openapi.refs import Raw, RefResolver, escape_pointer
-from harness_dast.adapters.openapi.schema_mapper import SchemaMapper
+from harness_dast.adapters.openapi.schema_mapper import SchemaMapper, read_schema_examples
 from harness_dast.domain.api_model import (
     MAX_MEDIA_TYPES,
     HttpMethod,
@@ -174,7 +174,9 @@ class OperationMapper:
         content = node.get("content")
         if schema is None and isinstance(content, Mapping):
             schema = _first_media_schema(content)
-        converted = self._schemas.convert(schema, f"{where}/schema")
+        converted = self._with_examples(
+            self._schemas.convert(schema, f"{where}/schema"), node, where
+        )
         try:
             return Parameter(
                 name=name,
@@ -199,8 +201,32 @@ class OperationMapper:
                 if "schema" in body
                 else None
             )
+            if schema is not None:
+                schema = self._with_examples(schema, body, media_where)
             media.append(MediaBody(media_type=str(media_type)[:100], body_schema=schema))
         return tuple(media)
+
+    def _with_examples(self, schema: Schema, node: Mapping[str, Raw], where: str) -> Schema:
+        examples = list(
+            read_schema_examples({"example": node["example"]}) if "example" in node else ()
+        )
+        named = node.get("examples")
+        if isinstance(named, Mapping):
+            for entry in list(named.values())[:100]:
+                if isinstance(entry, Mapping) and "$ref" in entry:
+                    ref = entry["$ref"]
+                    if not isinstance(ref, str) or not ref.startswith("#/"):
+                        continue
+                    try:
+                        _, entry = self._resolver.resolve(ref, where)
+                    except ConfigError:
+                        # Exemplos são metadados opcionais e antes não bloqueavam a carga.
+                        continue
+                if isinstance(entry, Mapping) and "value" in entry:
+                    examples.extend(read_schema_examples({"example": entry["value"]}))
+        return schema.model_copy(
+            update={"declared_examples": (*schema.declared_examples, *examples)}
+        )
 
     def _request_body(self, raw: Raw, where: str) -> RequestBody | None:
         if raw is None:
