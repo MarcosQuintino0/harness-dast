@@ -23,6 +23,7 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
 | `report.md` | `report` | Relatório para quem corrige ([relatorio.md](relatorio.md)) |
 | `report.html` | `report` | O mesmo relatório numa página única, sem JavaScript nem recurso externo ([ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) |
+| `panel/*.html` | `report`, `run`, `panel` | O painel da execução: seis páginas (`summary`, `stages`, `findings`, `coverage`, `terminal`, `time-and-tokens`), sem JavaScript nem recurso externo. Não é contrato de leitura por máquina: leia os arquivos acima ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto) |
 
 ## `findings.json`
 
