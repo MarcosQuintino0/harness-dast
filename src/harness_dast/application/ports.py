@@ -18,6 +18,7 @@ from harness_dast.application.stack_models import (
     StackDirectories,
     StackState,
 )
+from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz_result import AuthzResult
@@ -715,6 +716,14 @@ class PanelFiles(Protocol):
 
         Raises:
             ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_agent_metrics(self, run_id: str) -> AgentMetrics | None:
+        """Lê `agent-metrics.json` (tokens do agente, gravado pela avaliação cega).
+
+        Devolve `None` quando não existe ou não é usável (JSON inválido, versão de formato
+        desconhecida): o painel mostra "não medido" e nunca derruba a geração.
         """
         ...
 

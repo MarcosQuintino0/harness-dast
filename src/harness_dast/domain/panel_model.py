@@ -20,7 +20,7 @@ from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.panel_format import FunctionStateKind, RunStateKind
 from harness_dast.domain.rule_stats import RuleTotal
-from harness_dast.domain.run_metrics import OperationMetric
+from harness_dast.domain.run_metrics import DisabledRuleMetric, OperationMetric
 from harness_dast.domain.traffic import TrafficGaps, TrafficSummary
 
 PANEL_DIR: Final = "panel"
@@ -298,6 +298,22 @@ class PanelStep(ApiModel):
     text: str
 
 
+class PanelTokens(ApiModel):
+    """Tokens do agente no teste todo, separados como o arquivo os traz.
+
+    Attributes:
+        input: Entrada (sem cache).
+        output: Saída.
+        cache_written: Entrada gravada no cache.
+        cache_read: Entrada relida do cache (não entra na soma de "tokens").
+    """
+
+    input: int = 0
+    output: int = 0
+    cache_written: int = 0
+    cache_read: int = 0
+
+
 class PanelMeasurements(ApiModel):
     """Medição do teste (`metrics.json`); tokens ainda não existem.
 
@@ -308,8 +324,12 @@ class PanelMeasurements(ApiModel):
         rules_measured: Varreduras com medição por regra.
         rules_unavailable: Varreduras sem a medição.
         gaps: Silêncios longos do tráfego, ou `None` sem auditoria do proxy.
-        tokens_total: Tokens do agente no teste todo, ou `None` (ainda não medido).
-        tokens_by_stage: Tokens por etapa, ou `None`.
+        disabled_rules: Regras que a política do `scan` desligou, com o motivo.
+        tokens_total: Tokens do agente no teste todo, ou `None` (sem `agent-metrics.json`).
+        tokens_by_stage: Tokens por etapa da CLI (`preflight`, `probe`, `scan`, `report`) e
+            `other` (o que o agente fez fora delas), ou `None` sem o arquivo.
+        tokens_breakdown: Tokens do teste todo separados, ou `None`.
+        agent_model: Modelo do agente que gravou a medição, ou `None`.
     """
 
     metrics_available: bool = False
@@ -318,8 +338,11 @@ class PanelMeasurements(ApiModel):
     rules_measured: int = 0
     rules_unavailable: int = 0
     gaps: TrafficGaps | None = None
+    disabled_rules: tuple[DisabledRuleMetric, ...] = ()
     tokens_total: int | None = None
     tokens_by_stage: dict[str, int] | None = None
+    tokens_breakdown: PanelTokens | None = None
+    agent_model: str | None = None
 
 
 class PanelCommand(ApiModel):
