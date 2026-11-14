@@ -30,7 +30,9 @@ from harness_dast.domain.window import ensure_aware
 ApprovalState = Literal["approved", "not_approved", "changed", "invalid"]
 APPROVE_COMMAND = "hdast profile approve"
 _SHA256_LENGTH = 64
-_MAX_SUMMARY_LINES = 300
+# 300 linhas do resumo comum mais uma por regra da tabela "quem pode o quê" (até 500, ADR 0041):
+# a pessoa só aprova o que viu, então a tabela inteira entra no resumo gravado.
+_MAX_SUMMARY_LINES = 900
 _MAX_LINE = 6000
 _HEX = frozenset("0123456789abcdef")
 

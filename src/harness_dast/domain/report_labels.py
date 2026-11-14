@@ -19,6 +19,7 @@ CHECK_LABEL: Final = {
     "anonymous_access": "Acesso sem login",
     "tampered_token": "Token adulterado aceito",
     "vertical": "Acesso vertical (BFLA)",
+    "access_matrix": "Tabela quem pode o quê (BFLA)",
     "mass_assignment": "Campo a mais (atribuição em massa)",
     "horizontal_write": "Escrita em recurso de outra conta (BOLA)",
 }

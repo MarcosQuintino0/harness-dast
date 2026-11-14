@@ -7,6 +7,7 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | Saída | `error.code` | Causa mais comum | O que fazer |
 | --- | --- | --- | --- |
 | `2` | `CONFIG_ERROR` | Perfil, YAML, argumento ou pasta inválidos | Leia a lista de campos; corrija o arquivo. `profile validate` mostra a lista por caminho |
+| `2` | `AUTHZ_CONFIG_INVALID` | A tabela "quem pode o quê" (`authz.access_matrix`) cita uma operação que não existe no OpenAPI, um papel que nenhuma conta tem, ou uma operação que também está em `public_operations` | A mensagem diz qual; corrija o `target.yml` (a tabela é da pessoa que aprova, não do agente) e peça nova aprovação do escopo |
 | `3` | `SCOPE_VIOLATION` | Autorização vencida, janela fechada ou prazo esgotado | Não há flag que contorne. Janela: espere. Autorização: o dono do produto renova e você atualiza o perfil |
 | `4` | `PREFLIGHT_FAILED` | Segredo ausente, ZAP fora do ar, login recusado ou alvo não saudável | Veja a tabela de verificações abaixo |
 | `5` | `EXTERNAL_TOOL_ERROR` | Docker ou ZAP falhou, ou caiu no meio | `uv run hdast --json stack status`; reinicie a pilha com `stack up` |

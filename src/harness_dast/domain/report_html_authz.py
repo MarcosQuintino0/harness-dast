@@ -11,6 +11,7 @@ por técnica. Todo texto que pode vir do alvo (nomes de campo, caminhos, mensage
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested, AuthzResult
+from harness_dast.domain.report_authz_matrix import matrix_html
 from harness_dast.domain.report_labels import (
     CHECK_LABEL,
     CHECK_STATUS_LABEL,
@@ -162,6 +163,7 @@ def authz_section(report: FindingsReport) -> str:
         "<h2>Autorização entre contas (técnica própria, determinística)</h2>"
         f"<p>Estado: {h.ident(authz.status)}.{stop} Requisições enviadas pelo estágio: "
         f"{authz.requests_sent}. Contas usadas: {accounts}.</p>"
-        f'<p class="note">{h.text(authz.notice, 600)}</p>{created}{_checks(authz)}{body}'
+        f'<p class="note">{h.text(authz.notice, 600)}</p>{created}{_checks(authz)}'
+        f"{matrix_html(authz.access_matrix)}{body}"
         f"{_not_tested(authz)}<p><b>Limites desta técnica:</b></p><ul>{limits}</ul>"
     )

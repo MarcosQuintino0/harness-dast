@@ -30,12 +30,10 @@ from harness_dast.domain.authz_findings import (
     horizontal_finding,
     vertical_finding,
 )
+from harness_dast.domain.authz_matrix_cells import DENIED_STATUSES
 from harness_dast.domain.authz_plan import Planned, ReplayTask
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
-
-DENIED_STATUSES = frozenset({401, 403})
-"""No acesso vertical só 401 e 403 provam que o servidor negou; 400, 404 e 409 são ambíguos."""
 
 
 def run_horizontal(ctx: CheckContext, plan: Planned[ReplayTask]) -> CheckResult:

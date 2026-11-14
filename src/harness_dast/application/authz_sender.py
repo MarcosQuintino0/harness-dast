@@ -23,6 +23,7 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
+from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
@@ -73,7 +74,8 @@ class CheckResult:
     """Resultado acumulado de uma verificação.
 
     `writes` conta os pedidos de escrita da atribuição em massa (vale o teto da execução) e
-    `created` os recursos que um `POST` de teste deixou no alvo.
+    `created` os recursos que um `POST` de teste deixou no alvo. `matrix` é a tabela "quem
+    pode o quê" da verificação `access_matrix` (ADR 0041), preenchida também numa parada.
     """
 
     findings: list[AuthzFinding] = field(default_factory=list)
@@ -82,6 +84,7 @@ class CheckResult:
     tested: int = 0
     writes: int = 0
     created: int = 0
+    matrix: AccessMatrixReport | None = None
 
 
 @dataclass(frozen=True)

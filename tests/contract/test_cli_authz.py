@@ -174,6 +174,7 @@ AUTHZ_KEYS = {
     "requests_sent",
     "created_resources",
     "accounts",
+    "access_matrix",
     "checks",
     "findings",
     "not_tested",
@@ -207,6 +208,7 @@ def test_authz_finds_bola_and_excessive_data_and_writes_authz_json(
         "anonymous_access",
         "tampered_token",
         "vertical",
+        "access_matrix",
         "mass_assignment",
         "horizontal_write",
     ]

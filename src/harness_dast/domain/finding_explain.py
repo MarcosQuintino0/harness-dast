@@ -624,6 +624,28 @@ _AUTHZ_VERTICAL = FindingExplanation(
     technical_name="Acesso indevido a função de outro papel (BFLA, CWE-285)",
 )
 
+_AUTHZ_ACCESS_MATRIX = FindingExplanation(
+    key="authz_access_matrix",
+    title="Um tipo de conta que a tabela proíbe conseguiu fazer a função",
+    what_happened=(
+        "O dono do produto escreveu, na tabela quem pode o quê, que um tipo de conta não pode "
+        "usar esta função. O teste repetiu o pedido com uma conta desse tipo e o sistema o "
+        "aceitou (ou o teste anterior já tinha mostrado isso)."
+    ),
+    why_it_matters=(
+        "Se isso for real, quem tem esse tipo de conta consegue executar uma função que o "
+        "próprio dono do produto disse que não deveria estar ao alcance dele."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_OWNER, "Conferir se a tabela está certa para esta função e este tipo de conta."),
+        (_DEV, "Exigir o papel necessário na própria função e recusar os demais."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Acesso indevido a função de outro papel (BFLA, CWE-285), pela tabela",
+)
+
 _AUTHZ_EXCESSIVE = FindingExplanation(
     key="authz_excessive_data",
     title="O sistema devolve campos que a documentação dele não prevê",
@@ -833,6 +855,7 @@ _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
     "authz_horizontal": _AUTHZ_HORIZONTAL,
     "authz_horizontal_write": _AUTHZ_HORIZONTAL_WRITE,
     "authz_vertical": _AUTHZ_VERTICAL,
+    "authz_access_matrix": _AUTHZ_ACCESS_MATRIX,
     "authz_excessive_data": _AUTHZ_EXCESSIVE,
     "authz_mass_assignment": _AUTHZ_MASS,
     "authz_anonymous_access": _AUTHZ_ANONYMOUS,

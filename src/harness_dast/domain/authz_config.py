@@ -18,6 +18,7 @@ from typing import Final, Literal, Self
 from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 from harness_dast.domain.api_model import safe_identifier
+from harness_dast.domain.authz_matrix import AccessRule, ensure_matrix_valid, validate_matrix_rules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import ProfileModel
 
@@ -27,6 +28,7 @@ AuthzCheck = Literal[
     "anonymous_access",
     "tampered_token",
     "vertical",
+    "access_matrix",
     "mass_assignment",
     "horizontal_write",
 ]
@@ -36,6 +38,7 @@ CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
     "anonymous_access",
     "tampered_token",
     "vertical",
+    "access_matrix",
     "mass_assignment",
     "horizontal_write",
 )
@@ -129,6 +132,10 @@ class AuthzConfig(ProfileModel):
         id_parameters: Nomes de parâmetro de CONSULTA que o dono do produto declara como
             identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; ADR 0042).
             Só acrescenta candidatos de leitura do BOLA; o `ScopeGuard` segue decidindo.
+        access_matrix: Tabela "quem pode o quê" (ADR 0041): por operação, os papéis que podem
+            e os que NÃO podem (cada um destes é testado). Declaração humana, aprovada no
+            `profile approve`; papel fora da tabela é `unspecified` e não é testado. A
+            verificação `vertical` pula a operação que a tabela cobre.
     """
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
@@ -146,6 +153,14 @@ class AuthzConfig(ProfileModel):
     )
     mass_assignment_methods: tuple[str, ...] = DEFAULT_MASS_METHODS
     id_parameters: tuple[str, ...] = Field(default=(), max_length=MAX_ID_PARAMETERS)
+    access_matrix: tuple[AccessRule, ...] = ()
+
+    @field_validator("access_matrix")
+    @classmethod
+    def validate_access_matrix(cls, value: tuple[AccessRule, ...]) -> tuple[AccessRule, ...]:
+        """No máximo 500 regras e uma por operação."""
+        validate_matrix_rules(value)
+        return value
 
     @field_validator("id_parameters")
     @classmethod
@@ -239,3 +254,12 @@ class AuthzConfig(ProfileModel):
                     "que não existe no OpenAPI.",
                     hint="Corrija public_operations em authz (veja spec inspect).",
                 )
+
+    def ensure_matrix_valid(self, operation_ids: Sequence[str], roles: Sequence[str]) -> None:
+        """Garante que a tabela cita só operações e papéis que existem (ADR 0041).
+
+        Raises:
+            AuthzConfigError: Operação fora do OpenAPI, papel sem conta ou operação também em
+                `public_operations`.
+        """
+        ensure_matrix_valid(self.access_matrix, self.public_operations, operation_ids, roles)

@@ -11,6 +11,7 @@ from typing import Final, Literal
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_fields import CandidateSource
+from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_token import TamperVariant
 from harness_dast.domain.probe_result import ProbeStatus
 from harness_dast.domain.zap_alert import Severity
@@ -26,6 +27,7 @@ AuthzTechnique = Literal[
     "authz_anonymous_access",
     "authz_tampered_token",
     "authz_horizontal_write",
+    "authz_access_matrix",
 ]
 CheckStatus = Literal["completed", "partial", "skipped", "disabled"]
 
@@ -53,6 +55,11 @@ AUTHZ_LIMITS: Final[tuple[str, ...]] = (
     "Operações que o probe não alcançou com sucesso não são repetidas.",
     "Pedido sem login e token adulterado só em GET; autenticação só por cookie de sessão não é "
     "modelada, então 'sem achado' no pedido sem login não prova segurança.",
+    "Tabela quem pode o quê (authz.access_matrix): só proibições são testadas, um pedido por "
+    "papel proibido e por operação, com a primeira conta do papel; só 401 e 403 provam a "
+    "negação (404 e 400 são 'não testado'); papel fora da tabela não é testado nem presumido "
+    "proibido; POST e PUT e PATCH só com allow_writes e DELETE nunca; um POST aceito deixa um "
+    "recurso criado no alvo.",
     "Token adulterado: só JWT (remover assinatura, alg none, uma reivindicação a mais) e texto "
     "embaralhado; nunca se forja assinatura nem se troca identidade. 2xx com corpo diferente não "
     "é achado.",
@@ -178,6 +185,8 @@ class AuthzResult(ApiModel):
         created_resources: Recursos que um `POST` de teste deixou no alvo (atribuição em massa;
             o `DELETE` é proibido, então quem limpa é o `cleanup` ou o reset do ambiente).
         accounts: Apelidos das contas usadas.
+        access_matrix: A tabela "quem pode o quê" com o resultado de cada célula (ADR 0041), ou
+            `None` quando o perfil não declara `authz.access_matrix` ou foi uma simulação.
         checks: Uma linha por verificação, na ordem fixa.
         findings: Achados de autorização.
         not_tested: O que não foi testado e por quê.
@@ -196,6 +205,7 @@ class AuthzResult(ApiModel):
     requests_sent: int = 0
     created_resources: int = 0
     accounts: tuple[str, ...] = ()
+    access_matrix: AccessMatrixReport | None = None
     checks: tuple[CheckSummary, ...] = ()
     findings: tuple[AuthzFinding, ...] = ()
     not_tested: tuple[AuthzNotTested, ...] = ()

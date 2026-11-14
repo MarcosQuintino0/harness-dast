@@ -85,6 +85,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 | Limites | `limits.requests_per_second`, `max_duration_minutes`, `zap_threads_per_host` |
 | Logins por minuto | `auth.login_limit.max_per_minute` |
 | Contas e nomes dos segredos | `auth.accounts` (`alias`, `role`, `secret_ref: "env:NOME"` ou `"keyring:NOME"`). A carta lista só os **nomes**, nunca a senha: quem a guarda é o time de QA, na própria máquina |
+| Quem pode o quê (papéis que podem e que NÃO podem cada função) | **Não vem da carta.** É a tabela `authz.access_matrix` do `target.yml`: conhecimento do produto, decidido por uma pessoa (o dono) e conferido por ela no `hdast profile approve`. O agente só rascunha (`hdast authz <produto> --draft-matrix`); o rascunho não vale nada até a pessoa levá-lo ao perfil e aprovar |
 | Limpeza | bloco `cleanup` (escrito pela pessoa; o agente nunca o inventa) |
 | OpenAPI | `openapi` |
 | Contato de emergência | fora do perfil: quem para a execução (`hdast stop`) e quem autoriza ampliações |
@@ -223,7 +224,7 @@ Do `carta.yml` ao `target.yml`, campo a campo:
 | `attack.allow_authz_writes` | `authz.allow_writes: true` (só se `true` com `source: carta` e `quote`) |
 | `gates.*`, `example_data` | não viram campo do perfil |
 
-O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes.
+O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes. Isso inclui a tabela "quem pode o quê" (`authz.access_matrix`): a carta registra a autorização para tocar o alvo, e a tabela é o que o dono do produto sabe sobre os papéis; por isso não há campo dela na carta.
 
 ## Regras
 

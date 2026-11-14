@@ -13,7 +13,7 @@ escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Literal
 
@@ -43,6 +43,7 @@ from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
+from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
 from harness_dast.domain.authz_plan import (
     Planned,
     ReplayTask,
@@ -174,7 +175,9 @@ class Authz:
             )
         exchanges, unavailable = self._read_exchanges(request, run_id, profile)
         spec = self._specs.load(request.product, profile)
-        profile.authz.ensure_operations_exist([op.operation_id for op in spec.operations])
+        operation_ids = [op.operation_id for op in spec.operations]
+        profile.authz.ensure_operations_exist(operation_ids)
+        profile.authz.ensure_matrix_valid(operation_ids, [a.role for a in profile.auth.accounts])
         checks = profile.authz.enabled_checks(request.checks)
         plans = _plan(profile, exchanges, checks, spec.operations, unavailable)
         if request.dry_run:
@@ -192,6 +195,7 @@ class Authz:
             requests_sent=outcome.requests_sent,
             created_resources=outcome.created_resources,
             accounts=outcome.accounts,
+            access_matrix=outcome.access_matrix,
             checks=_all_checks(outcome.checks, profile),
             findings=outcome.findings,
             not_tested=outcome.not_tested,
@@ -298,6 +302,16 @@ def _plan(
     def assigned(item: ExchangeRecord) -> str | None:
         return profile.auth.explicit_account(item.operation_id, item.method, item.path)
 
+    matrix = MatrixPlan()
+    if "access_matrix" in checks and config.access_matrix:
+        matrix = plan_access_matrix(
+            config.access_matrix,
+            exchanges,
+            roles,
+            config.role_order,
+            {op.operation_id: op for op in operations},
+            allow_writes=config.allow_writes,
+        )
     vertical: Planned[ReplayTask] = Planned((), ())
     if "vertical" in checks:
         vertical = plan_vertical(
@@ -307,6 +321,9 @@ def _plan(
             assigned,
             config.effective_vertical_methods(),
             public,
+            frozenset(rule.operation for rule in config.access_matrix)
+            if "access_matrix" in checks
+            else frozenset(),
         )
         dropped = config.dropped_write_methods()
         if dropped:
@@ -335,6 +352,7 @@ def _plan(
         else Planned((), ()),
         excessive=plan_excessive(exchanges) if "excessive_data" in checks else empty,
         vertical=vertical,
+        matrix=matrix,
         mass=mass,
         horizontal_write=write,
     )
@@ -394,6 +412,7 @@ def _nothing_to_replay(
         anonymous=_noted(plans.anonymous, *_note(notes, "anonymous_access")),
         tampered=_noted(plans.tampered, *_note(notes, "tampered_token")),
         vertical=_noted(plans.vertical, *_note(notes, "vertical")),
+        matrix=replace(plans.matrix, notes=(*plans.matrix.notes, *_note(notes, "access_matrix"))),
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
         horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
     )
@@ -410,10 +429,12 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
         "anonymous_access": plans.anonymous,
         "tampered_token": plans.tampered,
         "vertical": plans.vertical,
+        "access_matrix": plans.matrix.planned,
         "mass_assignment": plans.mass,
         "horizontal_write": plans.horizontal_write,
     }
     summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
+    summaries = tuple(_dry_matrix(item, plans) for item in summaries)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
 
@@ -428,6 +449,13 @@ def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) 
     return CheckSummary(check=check, status="skipped", candidates=count, message=message)
 
 
+def _dry_matrix(summary: CheckSummary, plans: AuthzPlans) -> CheckSummary:
+    """Na simulação, os candidatos da tabela são as células proibidas, não os pedidos a enviar."""
+    if summary.check != "access_matrix":
+        return summary
+    return summary.model_copy(update={"candidates": plans.matrix.candidates})
+
+
 def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple[CheckSummary, ...]:
     """Uma linha por verificação, na ordem fixa; as não rodadas aparecem como `disabled`."""
     by_name = {summary.check: summary for summary in ran}
@@ -437,6 +465,9 @@ def _all_checks(ran: tuple[CheckSummary, ...], profile: ProductProfile) -> tuple
         if writes and check in by_name and not profile.authz.allow_writes:
             blocked = "Não rodou: escrita não autorizada pela carta (authz.allow_writes)."
             rows.append(by_name[check].model_copy(update={"message": blocked}))
+        elif check == "access_matrix" and check in by_name and not profile.authz.access_matrix:
+            empty = "Perfil sem authz.access_matrix: nada a testar."
+            rows.append(by_name[check].model_copy(update={"message": empty}))
         elif check in by_name:
             rows.append(by_name[check])
         else:
