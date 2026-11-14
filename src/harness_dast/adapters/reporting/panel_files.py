@@ -1,6 +1,7 @@
 """Arquivos do painel da execução em `<runs_dir>/<run_id>/panel/` (implementa `PanelFiles`).
 
-Lê `run.json` e `metrics.json` (pelo mesmo armazém dos outros arquivos de execução), acha a
+Lê `run.json` e `metrics.json` (pelo mesmo armazém dos outros arquivos de execução) e, de forma
+tolerante, `agent-metrics.json` (tokens do agente), acha a
 execução mais recente de um produto pelo nome da pasta e grava as páginas HTML de forma atômica
 (arquivo temporário e `os.replace`). Só grava dentro da pasta `panel/` da execução: o nome da
 página é conferido (sem barra, ponto-ponto nem letra fora de `[a-z0-9.-]`).
@@ -12,7 +13,10 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Final
 
-from harness_dast.adapters.reporting.run_files import FileRunArtifacts
+from pydantic import ValidationError
+
+from harness_dast.adapters.reporting.run_files import MAX_FILE_BYTES, FileRunArtifacts
+from harness_dast.domain.agent_metrics import AGENT_METRICS_SCHEMA_VERSION, AgentMetrics
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.panel_model import PANEL_DIR
@@ -24,6 +28,7 @@ from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 
+AGENT_METRICS_FILE: Final = "agent-metrics.json"
 _PAGE_NAME: Final = re.compile(r"[a-z0-9][a-z0-9-]*\.html")
 _RUN_FOLDER: Final = re.compile(
     r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z-"
@@ -70,6 +75,17 @@ class FilePanelFiles:
     def read_metrics(self, run_id: str) -> RunMetrics | None:
         """Lê `metrics.json`; `None` se não existe."""
         return self._artifacts.read_metrics(run_id)
+
+    def read_agent_metrics(self, run_id: str) -> AgentMetrics | None:
+        """Lê `agent-metrics.json`; ausente, grande, inválido ou de outra versão vira `None`."""
+        path = self._runs_dir / require_run_id(run_id) / AGENT_METRICS_FILE
+        try:
+            if not path.is_file() or path.stat().st_size > MAX_FILE_BYTES:
+                return None
+            found = AgentMetrics.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, ValidationError):
+            return None
+        return found if found.schema_version == AGENT_METRICS_SCHEMA_VERSION else None
 
     def _exists(self, run_id: str, name: str) -> bool:
         return (self._runs_dir / require_run_id(run_id) / name).is_file()

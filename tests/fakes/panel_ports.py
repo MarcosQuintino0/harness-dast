@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 
+from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import ApiSpec, Operation
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
@@ -24,6 +25,7 @@ class FakePanelFiles:
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
         self.metrics: dict[str, RunMetrics] = {}
+        self.agent_metrics: dict[str, AgentMetrics] = {}
         self.runs: list[str] = []
         self.written: dict[str, dict[str, str]] = {}
         self.unreadable: set[str] = set()
@@ -54,6 +56,9 @@ class FakePanelFiles:
 
     def read_metrics(self, run_id: str) -> RunMetrics | None:
         return self._read(self.metrics, "metrics.json", run_id)
+
+    def read_agent_metrics(self, run_id: str) -> AgentMetrics | None:
+        return self.agent_metrics.get(run_id)
 
     def latest_run_id(self, product: str) -> str | None:
         mine = [run for run in self.runs if f"-{product}-" in run]

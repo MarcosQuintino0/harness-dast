@@ -201,10 +201,10 @@ def test_hostile_finding_id_cannot_break_out_of_the_link_attribute() -> None:
     assert '"><script' not in summary
 
 
-def test_the_four_tabs_without_a_module_use_the_provisional_page_with_the_full_shell() -> None:
+def test_the_tabs_without_a_module_use_the_provisional_page_with_the_full_shell() -> None:
     rendered = render_panel(build_panel_view(sources()))
 
-    for name in ("findings.html", "coverage.html", "terminal.html", "time-and-tokens.html"):
+    for name in ("findings.html", "terminal.html"):
         text = rendered[name]
         assert PENDING_TEXT in text
         assert 'class="tabs"' in text

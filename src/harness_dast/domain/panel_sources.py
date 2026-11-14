@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, tzinfo
 
+from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelLinks
@@ -29,6 +30,7 @@ class PanelSources:
         findings: `findings.json` (já traz a triagem mesclada).
         authz: `authz.json`.
         metrics: `metrics.json`.
+        agent_metrics: `agent-metrics.json` (tokens do agente), ou `None`.
         operations: Operações do OpenAPI, ou vazio se não foi possível ler o arquivo.
         fence_mode: Modo da cerca no perfil (só para mostrar), ou `None` sem perfil.
         authorization_reference: Referência da carta, ou `None`.
@@ -48,6 +50,7 @@ class PanelSources:
     findings: FindingsReport | None = None
     authz: AuthzResult | None = None
     metrics: RunMetrics | None = None
+    agent_metrics: AgentMetrics | None = None
     operations: Sequence[Operation] = ()
     fence_mode: str | None = None
     authorization_reference: str | None = None

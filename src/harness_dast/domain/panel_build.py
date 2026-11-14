@@ -17,11 +17,11 @@ from harness_dast.domain.panel_build_content import (
     build_steps,
     function_names,
 )
+from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
 from harness_dast.domain.panel_build_stages import build_stages, build_verdict
 from harness_dast.domain.panel_format import product_title
-from harness_dast.domain.panel_model import PanelIdentity, PanelMeasurements, PanelView
+from harness_dast.domain.panel_model import PanelIdentity, PanelView
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
-from harness_dast.domain.run_metrics import RunMetrics
 
 
 def _stamp_moment(run_id: str, zone: tzinfo) -> datetime | None:
@@ -85,19 +85,6 @@ def _identity(src: PanelSources) -> PanelIdentity:
     )
 
 
-def _measurements(metrics: RunMetrics | None) -> PanelMeasurements:
-    if metrics is None:
-        return PanelMeasurements()
-    return PanelMeasurements(
-        metrics_available=True,
-        operations=metrics.operations,
-        rules=metrics.rules.totals,
-        rules_measured=metrics.rules.operations_measured,
-        rules_unavailable=metrics.rules.operations_unavailable,
-        gaps=metrics.traffic.gaps,
-    )
-
-
 def build_panel_view(src: PanelSources) -> PanelView:
     """Monta a visão completa de UM teste.
 
@@ -112,7 +99,8 @@ def build_panel_view(src: PanelSources) -> PanelView:
     severe = build_severe(src.findings, src.authz, names, src.explanations)
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz)
-    stages = build_stages(src, functions, counts)
+    measurements = build_measurements(src.metrics, src.agent_metrics)
+    stages = with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
     verdict = build_verdict(src, stages, functions, severe)
     skipped_by_choice = any(item.key == "authz" and item.state == "skipped" for item in stages)
     return PanelView(
@@ -135,7 +123,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
             authz=src.authz,
             partial=verdict.kind != "finished",
         ),
-        measurements=_measurements(src.metrics),
+        measurements=measurements,
         commands=src.commands,
         links=src.links,
     )
