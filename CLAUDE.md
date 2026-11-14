@@ -37,6 +37,7 @@ Estado: M1 a M5 entregues e verificados contra o ZAP 2.17 real, e M6 (skills, pe
 - Todo defeito corrigido chega com o teste que o reproduzia. Toda entrada externa tem teste com dado inválido, ausente e malformado.
 - Nenhum teste depende de ordem, relógio real ou rede externa.
 - Detalhes e casos obrigatórios do ScopeGuard: `docs/testing.md`.
+- Teste cada mudança só até o degrau que ela exige (`docs/escada-de-testes.md`); varredura completa e rodada cega só no fechamento de versão.
 
 ### Comentários e docstrings
 - Docstring estilo Google, obrigatória em módulo, porta e item público de `domain` e `application`. Descreve contrato: o que garante, o que levanta, o que não faz.

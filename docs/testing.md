@@ -16,6 +16,8 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 
 ## Como rodar
 
+Até que degrau testar cada mudança (checagens, unitários, ataque direcionado, varredura completa, rodada cega) e os comandos de cada um: [escada-de-testes.md](escada-de-testes.md).
+
 ```bash
 uv run pytest                  # só os testes que não exigem Docker
 uv run pytest -m integration   # exige Docker; horas (cada varredura leva 12 a 30 min)
