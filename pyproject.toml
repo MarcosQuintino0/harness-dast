@@ -283,51 +283,18 @@ ignore_names = [
     "gaps",
     "stages_seconds",
     "longest_seconds",
-    # Painel da execução (ADR 0032): campos e formatos que o modelo de visão já carrega para as
-    # abas que ainda não existem (Falhas, Cobertura, Terminal, Tempo e tokens) e para os ganchos
-    # do diário de comandos e do catálogo de explicação. Cada um perde a entrada quando a aba
-    # que o desenha for escrita.
-    "fmt_clock",
+    # Painel da execução (ADR 0032): campos do modelo de visão lidos só pela serialização e pelos
+    # testes.
     "functions_total",
-    "technical_name",
-    "what_happened",
-    "what_to_do",
     "owasp",
-    "authz_evidence",
-    "triage_note",
-    "translation",
-    "output",
-    # Contrato da hierarquia de erros e dos códigos de saída: produzidos pelos marcos M4 e M5
-    # (`scan`, `report`, `cleanup`).
-    "FINDINGS",
     # Sobrescritas que só estreitam (domain/overrides.py): ganham chamador quando a CLI
-    # aceitar flags de redução de escopo e limites (M4).
-    "narrow_limits",
+    # aceitar flags de redução de escopo (M4).
     "narrow_scope",
-    # Painel da execução (ADR 0033, V1.2): API pública cujo consumidor é o painel (`panel`), que
-    # chega em outra entrega; cada nome perde a entrada quando o painel passar a chamá-lo.
-    "load_journal_for_run",
-    "translate_command",
+    # Painel da execução (ADR 0033, V1.2): API pública do diário e do catálogo, usada hoje só
+    # pelos testes e pelo adaptador por outro caminho.
     "translated_commands",
-    "confidence_step",
     "catalog_entries",
-    "explain_authz_technique",
-    "explain_finding",
-    "build_manual_repro",
     "WHO_VALUES",
-    # Campos dos modelos do painel lidos só pelo painel, pela serialização e pelos testes.
-    "what_happened",
-    "why_it_matters",
-    "what_to_do",
-    "technical_name",
-    "received_status",
-    "response_excerpt",
-    "response_total_lines",
-    "response_cut",
-    "personal_data_masked",
-    # Leitura de agent-metrics.json (tokens do agente): porta, adaptador e fake prontos; o
-    # chamador (`application/panel.py`) a liga na entrega que junta as abas da V1.2.
-    "read_agent_metrics",
 ]
 
 # ------------------------------------------------------------ commitizen

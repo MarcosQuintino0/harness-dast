@@ -20,7 +20,7 @@ from harness_dast.domain.panel_build_content import (
 from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
 from harness_dast.domain.panel_build_stages import build_stages, build_verdict
 from harness_dast.domain.panel_format import product_title
-from harness_dast.domain.panel_model import PanelIdentity, PanelView
+from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
 
 
@@ -85,6 +85,17 @@ def _identity(src: PanelSources) -> PanelIdentity:
     )
 
 
+def _commands_in_zone(src: PanelSources) -> tuple[PanelCommand, ...] | None:
+    """Põe a hora de cada comando no fuso do painel (o diário guarda a hora com o fuso dele)."""
+    if src.commands is None:
+        return None
+    zone = src.timezone
+    return tuple(
+        item if item.at is None else item.model_copy(update={"at": item.at.astimezone(zone)})
+        for item in src.commands
+    )
+
+
 def build_panel_view(src: PanelSources) -> PanelView:
     """Monta a visão completa de UM teste.
 
@@ -96,7 +107,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         de fora, próximos passos e medições. Dado ausente fica `None` ou vazio.
     """
     names = function_names(src.operations)
-    severe = build_severe(src.findings, src.authz, names, src.explanations)
+    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe)
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz)
     measurements = build_measurements(src.metrics, src.agent_metrics)
@@ -124,6 +135,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
             partial=verdict.kind != "finished",
         ),
         measurements=measurements,
-        commands=src.commands,
-        links=src.links,
+        commands=_commands_in_zone(src),
+        commands_skipped=src.commands_skipped,
+        links=panel_links(src.product),
     )

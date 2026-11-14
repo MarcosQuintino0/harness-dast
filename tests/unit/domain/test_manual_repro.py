@@ -182,3 +182,43 @@ def test_mask_personal_data_deixa_numero_solto_que_nao_e_cpf() -> None:
     text, changed = mask_personal_data("id 1234567890 e 2026-11-14T10-00-00Z")
 
     assert (text, changed) == ("id 1234567890 e 2026-11-14T10-00-00Z", False)
+
+
+_DAMAGED_QUERY = (
+    "GET http://clinica-piloto:***?nome=%27 HTTP/1.1\nHost: clinica-piloto:8080\nAccept: */*"
+)
+_DAMAGED_PATH = "GET http://clinica-piloto:***%20when%20x HTTP/1.1\nHost: clinica-piloto:8080"
+
+
+def test_build_manual_repro_refaz_o_caminho_perdido_pela_reducao_com_a_consulta() -> None:
+    repro = build_manual_repro(_finding(request_header=_DAMAGED_QUERY))
+
+    assert repro is not None
+    assert repro.target == "/api/pacientes/busca?nome=%27"
+    assert repro.target_damaged is True
+    assert "clinica-piloto" not in repro.model_dump_json()
+
+
+def test_build_manual_repro_sem_dano_nao_marca_o_endereco() -> None:
+    repro = build_manual_repro(_finding())
+
+    assert repro is not None
+    assert repro.target_damaged is False
+
+
+def test_build_manual_repro_poe_a_carga_no_marcador_do_caminho_quando_ele_foi_perdido() -> None:
+    finding = _finding(request_header=_DAMAGED_PATH, attack="' or 1=1")
+    finding = finding.model_copy(update={"path_template": "/api/medicos/crm/{crm}"})
+
+    repro = build_manual_repro(finding)
+
+    assert repro is not None
+    assert repro.target == "/api/medicos/crm/%27%20or%201%3D1"
+    assert repro.target_damaged is True
+
+
+def test_build_manual_repro_guarda_a_carga_do_ataque_sem_controle() -> None:
+    repro = build_manual_repro(_finding(attack="'\x1b[31m"))
+
+    assert repro is not None
+    assert repro.attack == "'"

@@ -333,7 +333,7 @@ def test_missing_data_is_a_dash_and_the_words_not_measured_never_zero() -> None:
 def test_the_trust_panel_marks_the_missing_command_diary_and_the_unmeasured_fence() -> None:
     text = main_text(summary_html())
 
-    assert "o diário de comandos não existe nesta execução" in text
+    assert "sem diário de comandos para este teste (o diário começou na versão 1.2)" in text
     assert "pedidos fora da carta não medidos" in text
     assert "nenhuma confirmada por pessoa ainda" in text
     assert "o teste entre contas não rodou" in text
@@ -348,6 +348,14 @@ def test_with_the_command_diary_the_trust_panel_counts_and_links_the_terminal() 
 
     assert "10 comandos, todos visíveis" in page
     assert '<a class="end" href="terminal.html">terminal</a>' in page
+
+
+def test_the_trust_panel_says_how_many_diary_lines_were_skipped() -> None:
+    from harness_dast.domain.panel_model import PanelCommand
+
+    page = summary_html(view(commands=(PanelCommand(command="hdast v"),), commands_skipped=2))
+
+    assert "1 comando, todos visíveis; 2 linhas corrompidas foram puladas" in page
 
 
 def test_the_next_steps_panel_lists_each_step_with_its_owner() -> None:

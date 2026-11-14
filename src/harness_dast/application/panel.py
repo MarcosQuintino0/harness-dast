@@ -24,7 +24,7 @@ from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError, HarnessError
 from harness_dast.domain.panel_build import build_panel_view
 from harness_dast.domain.panel_format import RunStateKind
-from harness_dast.domain.panel_model import PANEL_DIR, PanelCommand, PanelExplanation
+from harness_dast.domain.panel_model import PANEL_DIR, PanelExplanation, PanelJournal
 from harness_dast.domain.panel_pages import PAGES, render_panel
 from harness_dast.domain.panel_sources import PanelSources
 from harness_dast.domain.profile import ProductProfile
@@ -39,12 +39,13 @@ _log = structlog.get_logger()
 class PanelHooks(Protocol):
     """Ganchos opcionais que enriquecem o painel (diário de comandos e catálogo de explicação).
 
-    Ainda sem implementação real: quem os entregar devolve listas e dicionários já prontos, e
-    o painel funciona sem eles (aba Terminal e explicações ficam provisórias).
+    A implementação real é `CatalogPanelHooks` (`application/panel_hooks.py`). Quem os entrega
+    devolve modelos já prontos, e o painel funciona sem eles (a aba Terminal mostra o estado
+    vazio e as falhas ficam sem a explicação do catálogo).
     """
 
-    def commands(self, product: str, run_id: str) -> tuple[PanelCommand, ...] | None:
-        """Comandos do agente nesta execução, ou `None` se não há diário."""
+    def commands(self, product: str, run_id: str) -> PanelJournal | None:
+        """Comandos do agente nesta execução, ou `None` se não há diário deste teste."""
         ...
 
     def explanations(
@@ -178,6 +179,7 @@ class Panel:
         findings = self._optional(run_id, "findings.json", read.read_findings)
         authz = self._optional(run_id, "authz.json", read.read_authz)
         metrics = self._optional(run_id, "metrics.json", self._files.read_metrics)
+        agent_metrics = self._optional(run_id, "agent-metrics.json", read.read_agent_metrics)
         named = {
             "run.json": summary,
             "manifest.json": manifest,
@@ -190,6 +192,7 @@ class Panel:
         present = tuple(name for name, item in named.items() if item is not None)
         _require_same_product(product, [item for item in named.values() if item is not None])
         authorization = profile.scope.authorization if profile else None
+        journal = self._journal(product, run_id)
         sources = PanelSources(
             product=product,
             run_id=run_id,
@@ -201,14 +204,28 @@ class Panel:
             findings=findings,
             authz=authz,
             metrics=metrics,
+            agent_metrics=agent_metrics,
             operations=self._operations(product, run_id, profile),
             fence_mode=profile.scope.path_mode if profile else None,
             authorization_reference=authorization.reference if authorization else None,
             authorization_valid_until=authorization.valid_until if authorization else None,
-            commands=self._hooks.commands(product, run_id) if self._hooks else None,
+            commands=journal.commands if journal else None,
+            commands_skipped=journal.skipped_lines if journal else 0,
             explanations=self._hooks.explanations(findings, authz) if self._hooks else {},
         )
         return _Found(sources, present, tuple(name for name in named if name not in present))
+
+    def _journal(self, product: str, run_id: str) -> PanelJournal | None:
+        """Diário do teste; ilegível ou ausente vira `None` (o painel mostra o estado vazio)."""
+        if self._hooks is None:
+            return None
+        try:
+            return self._hooks.commands(product, run_id)
+        except HarnessError as error:
+            _log.info(
+                "panel_input_unavailable", run_id=run_id, file="journal", reason=error.message
+            )
+            return None
 
     def _operations(
         self, product: str, run_id: str, profile: ProductProfile | None

@@ -39,6 +39,7 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0031](0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) | Medição da execução: `metrics.json` e o tempo por regra do ZAP | Aceito | 2026-11-14 | Artefato novo; usa os arquivos do 0024 |
 | [0032](0032-painel-da-execucao.md) | Painel da execução: páginas HTML estáticas por teste, `hdast panel` e a porta `PanelFiles` | Proposto | 2026-11-14 | Desenho final do painel aprovado pelo dono; estende o 0029 e usa os arquivos dos 0024 e 0031 |
 | [0033](0033-diario-de-comandos.md) | Diário de comandos por produto | Proposto | 2026-11-14 | Dado da aba Terminal do painel (0032) |
+| [0034](0034-indices-do-painel-e-pagina-ao-vivo.md) | Índices do painel (produtos e histórico) e a página ao vivo | Proposto | 2026-11-14 | Completa o 0032; portas `PanelIndexFiles`, `RunLive` e `ScanLive` |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

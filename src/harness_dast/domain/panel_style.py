@@ -39,7 +39,7 @@ body{margin:0}
 .tbl td:first-child,.tbl th:first-child{padding-left:10px;white-space:nowrap}
 .trend{display:flex;align-items:flex-end;gap:10px;height:96px;border-bottom:1px solid var(--ln)}
 .trend div{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:13px;font-weight:700}
-.trend i{display:block;width:100%;max-width:44px;background:var(--gr);border-radius:4px 4px 0 0;min-height:3px}
+.trend i{display:block;width:100%;max-width:44px;background:var(--ink);border-radius:4px 4px 0 0;min-height:3px}
 .trendx{display:flex;gap:10px;font-size:12px;color:var(--mu);margin-top:6px}
 .trendx span{flex:1 1 0;text-align:center}
 .tp a.prod{flex:1 1 360px;text-decoration:none;color:var(--ink)}
@@ -148,6 +148,7 @@ body{margin:0}
 .nb-cut{background:var(--ams);color:var(--am)}
 .nb-no{background:var(--s2);color:var(--mu)}
 .grid.sm i{width:20px;height:20px}
+.tabs .off{display:flex;align-items:center;gap:8px;padding:14px 14px 12px;color:var(--mu);font-weight:600;border-bottom:3px solid transparent;opacity:.55}
 """
 
 STYLE: Final = TOKENS_CSS + COMPONENTS_CSS

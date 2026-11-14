@@ -179,4 +179,4 @@ def test_diario_de_um_teste_atravessa_o_adaptador_e_o_recorte(tmp_path: Path) ->
 
     got = load_journal_for_run(store, "clinica", run_id)
 
-    assert [e.command for e in got] == ["profile validate", "probe"]
+    assert [e.command for e in got.entries] == ["profile validate", "probe"]

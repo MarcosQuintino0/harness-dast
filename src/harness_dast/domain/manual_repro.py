@@ -12,6 +12,9 @@ Sai só da evidência que o `findings.json` já guarda (requisição e resposta,
 - CPF, e-mail e telefone na evidência são mascarados por padrão, mesmo em ambiente de teste
   (decisão do painel; a redação do `findings.json` já cobre CPF e e-mail, e aqui entra também o
   telefone formatado e a garantia de que a regra vale para qualquer evidência);
+- o endereço gravado pode ter perdido o caminho quando a redação do `findings.json` confundiu
+  `:porta/caminho` com um segredo (`host:***`); nesse caso o caminho é refeito a partir do
+  modelo da função e o dado traz `target_damaged=True`, para a página avisar;
 - a resposta recebida é resumida: código de status, no máximo 40 linhas do corpo e o tamanho.
 
 Sem evidência guardada, devolve `None`. Texto da evidência é dado do alvo: o painel o mostra
@@ -20,7 +23,7 @@ sempre como texto. Este módulo é puro.
 
 import re
 from typing import Final
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import Finding
@@ -31,6 +34,8 @@ TOKEN_MARKER: Final = "$TOKEN"  # noqa: S105 - marcador de texto, nunca um segre
 CSRF_MARKER: Final = "$CSRF_TOKEN"
 RESPONSE_LINE_CAP: Final = 40
 _ROW_CAP: Final = 600
+_DAMAGED_HOST: Final = ":***"
+_PLACEHOLDER: Final = re.compile(r"\{[^{}]*\}")
 
 _REQUEST_LINE: Final = re.compile(r"^([A-Z]{3,10}) (\S+) HTTP/\d(?:\.\d)?$")
 _STATUS_LINE: Final = re.compile(r"^HTTP/\d(?:\.\d)?\s+(\d{3})\b")
@@ -88,6 +93,9 @@ class ManualRepro(ApiModel):
         response_total_lines: Quantas linhas o corpo gravado tem.
         response_cut: Se o trecho foi cortado (por tamanho gravado ou pelo limite de linhas).
         personal_data_masked: Se algum CPF, e-mail ou telefone foi mascarado.
+        attack: A carga que o teste enviou (já redigida), para a página destacá-la.
+        target_damaged: Se o endereço gravado perdeu o caminho e este foi refeito pelo modelo
+            da função (a página avisa; o endereço pode não ser exatamente o que foi enviado).
     """
 
     method: str
@@ -101,6 +109,8 @@ class ManualRepro(ApiModel):
     response_total_lines: int = 0
     response_cut: bool = False
     personal_data_masked: bool = False
+    attack: str = ""
+    target_damaged: bool = False
 
 
 def mask_personal_data(text: str) -> tuple[str, bool]:
@@ -122,6 +132,22 @@ def _target_of(raw: str) -> str:
     parts = urlsplit(raw)
     path = parts.path or "/"
     return f"{path}?{parts.query}" if parts.query else path
+
+
+def _rebuild_target(raw: str, template: str, attack: str) -> str:
+    """Refaz o endereço quando a redação comeu o caminho (`host:***...`).
+
+    Com consulta (`?nome=%27`), vale o modelo mais a consulta que sobrou. Sem ela, o último
+    marcador do modelo (`{id}`) recebe a carga do ataque, que é o que o teste fez no caminho.
+    """
+    rest = raw.partition(_DAMAGED_HOST)[2]
+    if rest.startswith("?"):
+        return template + rest
+    holders = list(_PLACEHOLDER.finditer(template))
+    if holders and attack:
+        last = holders[-1]
+        return template[: last.start()] + quote(attack, safe="") + template[last.end() :]
+    return template
 
 
 def _marker_for(name: str, value: str) -> str | None:
@@ -181,7 +207,13 @@ def build_manual_repro(finding: Finding, *, account: str | None = None) -> Manua
     match = _REQUEST_LINE.match(lines[0].strip()) if lines else None
     if not evidence.available or match is None:
         return None
-    target, target_masked = mask_personal_data(strip_control(_target_of(match.group(2))))
+    damaged = _DAMAGED_HOST in match.group(2)
+    raw_target = (
+        _rebuild_target(match.group(2), finding.path_template, evidence.attack)
+        if damaged
+        else _target_of(match.group(2))
+    )
+    target, target_masked = mask_personal_data(strip_control(raw_target))
     body_text = evidence.request_body
     body, body_masked = mask_personal_data(strip_control(body_text)) if body_text else (None, False)
     response, response_masked = mask_personal_data(evidence.response_body)
@@ -197,4 +229,6 @@ def build_manual_repro(finding: Finding, *, account: str | None = None) -> Manua
         response_total_lines=total,
         response_cut=cut,
         personal_data_masked=target_masked or body_masked or response_masked,
+        attack=strip_control(evidence.attack, keep_newlines=False),
+        target_damaged=damaged,
     )
