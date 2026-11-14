@@ -64,6 +64,16 @@ A referência campo a campo do perfil está em [../reference/target-yml.md](../r
 
 Também existem, desde o M4 e o M5: `finding.py` (`Finding`, `compute_fingerprint`), `run.py` e `probe_result.py` (`RunManifest`), `routing_headers.py` (cabeçalhos que só o cliente HTTP define) e `scan_config.py` (`effective_fail_on`). A distribuição por marco segue o [roadmap](../roadmap.md).
 
+A tabela acima cobre o M1 ao M5. As versões 1.1 e 1.2 acrescentaram famílias de módulos, todas puras e testadas; o contrato de cada uma está no docstring do módulo e no ADR citado. Esta lista não é exaustiva (o diretório é a fonte):
+
+| Família | Módulos | ADR |
+| --- | --- | --- |
+| Cerca com motivo granular e modo amplo | `scope_reason.py`, `scope_labels.py`, `widepath.py`, `wide_guard.py`, `traffic.py` | [0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) |
+| Teste de autorização entre contas | `authz_config.py`, `authz_plan.py`, `authz_compare.py`, `authz_result.py`, `authz_findings.py`, `authz_sensitive.py`, `probe_exchange.py` | [0027](../adr/0027-teste-de-autorizacao-entre-contas.md) |
+| Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report_*.py`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
+| Medição da execução | `run_metrics.py`, `rule_stats.py`, `run_summary.py` | [0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) |
+| Painel, diário de comandos e explicação de falha | `panel_*.py`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../adr/0032-painel-da-execucao.md), [0033](../adr/0033-diario-de-comandos.md), [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
+
 ## Pode importar
 
 Somente a biblioteca padrão e pydantic.
@@ -83,4 +93,4 @@ Somente a biblioteca padrão e pydantic.
 
 ## Status
 
-Os módulos da tabela "Existem" estão implementados e testados (cobertura de `domain` de 100%) e são usados por `init`, `profile validate`, `spec inspect`, `preflight` e `probe`. Os módulos planejados não existem. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
+Os módulos listados estão implementados e testados e são usados pelos comandos da CLI. O número de cobertura (100% na revisão de 2026-11-13) envelhece: a fonte é o relatório do CI. Módulo planejado que ainda não existe não aparece nesta página. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).

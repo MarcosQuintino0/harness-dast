@@ -32,3 +32,7 @@ Vamos tratar a limpeza como hook escrito por pessoa, por execução, com confirm
 - Exige que os dados criados sejam identificáveis.
 - A conexão com o Oracle de testes é validada no spike do M0.
 - Planejado para o M5; nada disso existe hoje.
+
+## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
+
+Itens "planejado para o M5; nada disso existe hoje" e "ainda não consta em `pyproject.toml`" valiam em 2026-11-13, antes do M5. A dependência `oracledb` consta em `pyproject.toml` (modo thin) e a limpeza existe (`hdast cleanup`), com o portão de SQL e a confirmação humana detalhados nos ADRs [0020](0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md) e [0025](0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md), e foi verificada contra um Oracle Free real.

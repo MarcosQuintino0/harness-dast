@@ -21,7 +21,7 @@ Portas previstas no desenho aprovado:
 | `RunStore` | Sistema de arquivos | Dublê em memória nos testes |
 | `Clock` | Relógio do sistema | Janela de execução testável sem esperar |
 
-Casos de uso previstos: `inspect_spec`, `preflight`, `probe_reachability`, `run_scan`, `build_report`, `cleanup`, `run_pipeline`.
+Casos de uso do desenho: `inspect_spec`, `preflight`, `probe_reachability`, `run_scan`, `build_report`, `cleanup`, `run_pipeline`. Todos existem, com nomes de classe próprios (`InspectSpec`, `Preflight`, `Probe`, `Scan`, `Report`, `Cleanup`, `RunPipeline`); a lista real está nas tabelas de status abaixo.
 
 ## Pode importar
 
@@ -84,3 +84,14 @@ Implementado no M5 ([ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-hum
 | `run.py` | `RunPipeline`: `preflight`, `probe`, `scan` e `report` num processo, parada no primeiro estágio que falha, `run.json`, interrupção por Ctrl+C ou `hdast stop` (saída 130) |
 | `stage_errors.py` | Tradução do estado final de cada etapa no erro e código de saída, usada pelos comandos soltos e pelo `run` |
 | `run_support.py` (ampliado) | `RunGate` também consulta a porta `KillSwitch` (`KillSwitchEngaged`) |
+
+Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a fonte):
+
+| Módulo | Conteúdo |
+| --- | --- |
+| `authz.py`, `authz_ports.py`, `authz_runner.py` | `Authz`: o teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)) |
+| `doctor.py`, `doctor_checks.py`, `doctor_report.py` | `Doctor`: confere ambiente e perfil sem tocar o alvo ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) |
+| `secret_admin.py`, `secret_refs.py`, `secret_router.py` | `hdast secret` e o roteamento de `env:` e `keyring:` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
+| `metrics.py` | Montagem do `metrics.json` ([ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
+| `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel_live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
+| `command_journal.py` | Diário de comandos por produto ([ADR 0033](../adr/0033-diario-de-comandos.md), Proposto) |

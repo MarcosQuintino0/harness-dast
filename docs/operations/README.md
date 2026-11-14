@@ -9,11 +9,11 @@ Antes de qualquer uso, leia o aviso de uso autorizado no [README](../../README.m
 | Documento | Conteúdo | Status |
 | --- | --- | --- |
 | [authorization-and-scope.md](authorization-and-scope.md) | O que a autorização formal precisa conter e como vira `scope`, `limits` e `authorization` no perfil | Escrito (a validação é aplicada por `preflight`, `probe`, `scan` e `run`) |
-| [threat-model.md](threat-model.md) | Cenários de abuso e mitigação de cada um | Escrito (mitigações em parte no domínio e no `compose.yaml`; o resto planejado) |
+| [threat-model.md](threat-model.md) | Cenários de abuso e mitigação de cada um | Escrito (mitigações no código, no proxy de escopo e no `compose.yaml`; os itens sem implementação estão marcados no próprio documento) |
 | [../guides/cadastrar-um-produto.md](../guides/cadastrar-um-produto.md) | Cadastrar um produto: carta de autorização, perfil, segredos e prompts por etapa para o agente | Escrito (M6) |
 | Rodar uma varredura | `hdast run` (ou `preflight`, `probe`, `scan` e `report` um a um): [reference/cli.md](../reference/cli.md#hdast-run), [reference/scan.md](../reference/scan.md), [reference/relatorio.md](../reference/relatorio.md); passo a passo em [../guides/primeiro-uso.md](../guides/primeiro-uso.md) | Escrito (M6) |
 | [cleanup.md](cleanup.md) | Rodar `hdast cleanup` com confirmação humana | Escrito |
-| O que fazer se algo sair errado | `hdast stop` (trava de emergência), `hdast stack down`, regras `hdast-` sobrando no Replacer: [reference/cli.md](../reference/cli.md#hdast-stack-e-hdast-stop) e [reference/scan.md](../reference/scan.md#parada-prazo-e-saúde-do-alvo) | Referência escrita; guia planejado (M6) |
+| O que fazer se algo sair errado | `hdast stop` (trava de emergência), `hdast stack down`, regras `hdast-` sobrando no Replacer: [reference/cli.md](../reference/cli.md#hdast-stack-e-hdast-stop) e [reference/scan.md](../reference/scan.md#parada-prazo-e-saúde-do-alvo) | Referência escrita; sem guia próprio (o fluxo está em [../guides/problemas-comuns.md](../guides/problemas-comuns.md)) |
 
 ## Regras que valem desde já
 

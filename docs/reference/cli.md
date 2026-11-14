@@ -4,7 +4,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 ## Comandos
 
-`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 está implementado e foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz` e o que os ADRs 0026 a 0029 acrescentam existem como código e testes e **ainda não foram verificados em laboratório** (veja a seção V1.1 do [roadmap](../roadmap.md)).
+`version`, `doctor`, `init`, `profile validate`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop` existem hoje: o fluxo completo (preflight, probe, scan, report) dos marcos M1 a M5 foi verificado contra o ZAP 2.17 real ([relatório do lab](../reviews/2026-11-13-e2e-lab.md)); `doctor`, `authz`, a cerca da V1.1 e a medição foram medidos em laboratório em 2026-11-13 e 2026-11-14 ([cerca](../reviews/2026-11-13-lab-v1-1-cerca.md), [authz](../reviews/2026-11-13-lab-v1-1-authz.md)); `panel`, o diário de comandos, os índices e a página ao vivo (V1.2) existem como código e testes, **sem prova com Docker** (veja as seções V1.1 e V1.2 do [roadmap](../roadmap.md)). Nada foi provado contra produto real.
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |

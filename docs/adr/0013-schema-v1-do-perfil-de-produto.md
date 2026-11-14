@@ -67,3 +67,7 @@ Os valores são escolhas iniciais, a calibrar com o piloto (M7). O teto vale par
 - Os tetos podem ser revistos no M7; mudar um teto é mudança de contrato e pede ADR novo.
 - O carregador de YAML e o comando `hdast profile validate` ainda não existem. Dependência: [ADR 0012](0012-dependencias-tzdata-e-pyyaml.md).
 - As limitações da normalização (sem DNS, `%` literal, cabeçalhos e corpo não conferidos, caminhos de IIS) estão em [../reference/target-yml.md](../reference/target-yml.md#limitações-conhecidas).
+
+## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
+
+A consequência "o carregador de YAML e o comando `hdast profile validate` ainda não existem" valia antes do fim do M2. Os dois existem ([ADR 0015](0015-portas-do-perfil-e-carregador-de-yaml.md)). O schema evoluiu só por adição desde então: [ADR 0021](0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md), [0026](0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) (`scope.path_mode`), [0027](0027-teste-de-autorizacao-entre-contas.md) (`authz`), [0028](0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md) (`probe.setup_path`) e [0030](0030-cofre-de-credenciais-do-sistema-keyring.md) (`keyring:`). A referência vigente é [reference/target-yml.md](../reference/target-yml.md).

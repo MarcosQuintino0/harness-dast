@@ -76,7 +76,7 @@ O autor passa por esta lista antes de pedir revisão; o revisor passa por ela de
 - Mudanças em **escopo, segredos, limpeza e permissões do agente** exigem também um **segundo par de olhos humano**, definido em `CODEOWNERS` (`.github/CODEOWNERS`).
 - Revisão por IA encontra muita coisa, mas não substitui responsabilidade humana nos pontos que podem causar dano real ao ambiente da empresa.
 
-**Aberto:** o segundo revisor humano ainda não foi nomeado (pendência P-09, decidir até o M2; a recomendação é alguém do time de segurança). Até lá, mudanças nessas áreas críticas não devem ser mescladas sem essa pessoa. Atenção: o domínio já contém o `ScopeGuard` (`domain/scope.py`, `urlnorm.py`, `host.py`), as janelas e o formato de `secret_ref`, todos áreas críticas. Mudanças nesses arquivos pedem o segundo par de olhos assim que ele for nomeado. O código existente ainda não toca limpeza nem resolve segredos.
+**Aberto:** o segundo revisor humano ainda não foi nomeado, até onde a documentação mostra (pendência P-09, prevista para o M2; a recomendação é alguém do time de segurança; a confirmar com o dono). O `CODEOWNERS` lista só o dono. Até lá, mudanças nessas áreas críticas (`domain`, `adapters/secrets`, `adapters/cleanup`, `.claude/`, `.github/`) não devem ser mescladas sem essa pessoa. Atenção: o código já cobre escopo, segredos (`env:` e `keyring:`) e limpeza, todos áreas críticas.
 
 ## Definition of Done
 
@@ -110,7 +110,7 @@ Auditoria de vulnerabilidades das dependências (`pip-audit`, sobre o `uv.lock`)
 - Qualquer mudança que altere uma fronteira ou camada.
 - Aprendizado de um spike que mude um rumo.
 
-ADR aceito é imutável; para mudar de rumo, escreva um ADR novo que o substitua. (Enquanto nada foi commitado, a imutabilidade ainda não começou: veja a exceção em [docs/adr/README.md](docs/adr/README.md#ciclo-de-vida).) Ciclo de vida e índice em [docs/adr/README.md](docs/adr/README.md).
+ADR aceito é imutável; para mudar de rumo, escreva um ADR novo que o substitua. (A imutabilidade vale desde o primeiro pull request, em 2026-11-13; a exceção do período anterior está em [docs/adr/README.md](docs/adr/README.md#ciclo-de-vida). Mudança de rumo de ADR aceito ou nota sobre ele, depois de aceito, entra como seção datada no fim do arquivo, sem mexer no texto da decisão.) Ciclo de vida e índice em [docs/adr/README.md](docs/adr/README.md).
 
 ## Documentação
 
