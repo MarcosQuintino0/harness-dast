@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "case": "vampi",
+  "mode": "vulnerable",
+  "hdast_version": "0.1.0",
+  "date": "2026-11-13",
+  "label": "v1-0-r2",
+  "round": "cega-vampi-002",
+  "model": "claude-sonnet-5-5"
+}
