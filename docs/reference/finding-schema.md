@@ -209,3 +209,7 @@ Um `scan` anterior a esta versão não tem `rule-stats.json`: cada operação sa
 ## Onde o achado aparece e baseline
 
 Em `runs/<run_id>/`, junto de `audit.jsonl`, `manifest.json` e `probe.json`. A pasta `runs/` fica fora do git. O conjunto de achados esperados no VAmPI (teste de ponta a ponta) e o limite de severidade do modo seguro ficam para o teste contra o lab ([../testing.md](../testing.md)). Retenção das evidências em `runs/`: em aberto.
+
+### Sinais passivos de erro interno
+
+`internal_error_signals` é aditivo e pode ser `null` ou ausente em relatórios anteriores. Em relatórios novos, `messages_examined` conta mensagens distintas de evidência já redigidas; `truncated_messages` conta mensagens com algum campo cortado. `counts` contém as categorias fixas `http_5xx`, `stack_trace` e `sql_error`, cada uma contando mensagens distintas com o sinal, não ocorrências textuais. Uma mensagem pode aparecer em várias categorias. Nenhum trecho ou identificador é incluído. São indícios sujeitos a falsos positivos e omissões; zero não demonstra ausência de erro ou cobertura completa. Veja ADR 0045.

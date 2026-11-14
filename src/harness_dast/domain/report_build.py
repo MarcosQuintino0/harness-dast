@@ -14,6 +14,7 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
 from harness_dast.domain.finding_group import group_findings
+from harness_dast.domain.internal_error_signals import classify_internal_error_signals
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_model import (
@@ -185,5 +186,6 @@ def assemble_report(
         comparison=comparison,
         triage_orphans=orphans,
         authz=authz,
+        internal_error_signals=classify_internal_error_signals(evidence),
         not_tested_statements=NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ,
     )

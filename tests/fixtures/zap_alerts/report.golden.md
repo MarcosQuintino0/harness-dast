@@ -60,6 +60,15 @@ Severidade e confiança abaixo são PROPOSTAS pelo ZAP.
 | `F-275f10e3` | Baixa | medium | X-Content-Type-Options Header Missing | `GET /books/v1` | 1 | - |
 | `F-317171ee` | Informativa | medium | User Agent Fuzzer | `GET /users/v1/_debug` | 1 | - |
 
+## Sinais passivos de erro interno
+
+Mensagens distintas examinadas: 3; com campos cortados: 0.
+Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; não são achados confirmados nem cobertura completa. Ausência de sinal não prova ausência de erros.
+
+- Resposta HTTP 5xx: 1 mensagem(ns).
+- Possível rastreamento de exceção: 0 mensagem(ns).
+- Possível erro de banco de dados: 0 mensagem(ns).
+
 ## Achados agrupados pela causa
 
 Visão a mais: nenhum achado some e nenhuma severidade muda. Achados com a mesma regra, o mesmo parâmetro e a mesma severidade proposta ficam juntos.

@@ -13,6 +13,7 @@ from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
+from harness_dast.domain.internal_error_signals import InternalErrorSignals
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
 from harness_dast.domain.traffic import TrafficSummary
 
@@ -182,6 +183,7 @@ class FindingsReport(ApiModel):
     """`findings.json`.
 
     Attributes:
+        internal_error_signals: Sinais passivos nas evidências, ou `None` em relatório anterior.
         schema_version: Versão do formato (1).
         fingerprint_version: Versão do algoritmo do fingerprint.
         run_id: Execução.
@@ -202,6 +204,7 @@ class FindingsReport(ApiModel):
             mistura com `findings` (do ZAP).
     """
 
+    internal_error_signals: InternalErrorSignals | None = None
     schema_version: int = REPORT_SCHEMA_VERSION
     fingerprint_version: int = FINGERPRINT_VERSION
     run_id: str
@@ -259,6 +262,7 @@ class ReportDigest(ApiModel):
     """`data` do envelope de `hdast report`.
 
     Attributes:
+        internal_error_signals: Sinais passivos nas evidências, ou `None` em relatório anterior.
         run_id: Execução.
         product: Produto.
         files: Arquivos gerados na pasta da execução.
@@ -275,6 +279,7 @@ class ReportDigest(ApiModel):
         authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
     """
 
+    internal_error_signals: InternalErrorSignals | None = None
     run_id: str
     product: str
     files: tuple[str, ...]
@@ -330,4 +335,5 @@ def build_digest(
         comparison=report.comparison,
         triage_orphans=report.triage_orphans,
         authz=report.authz,
+        internal_error_signals=report.internal_error_signals,
     )
