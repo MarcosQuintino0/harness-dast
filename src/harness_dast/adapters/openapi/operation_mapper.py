@@ -4,6 +4,7 @@ Também aplica as regras de identidade: `operationId` declarado repetido é erro
 sintetizado de forma determinística (com sufixo numérico se colidir com outro).
 """
 
+import re
 from collections.abc import Mapping
 
 from pydantic import ValidationError
@@ -31,6 +32,8 @@ HTTP_METHODS: tuple[HttpMethod, ...] = (
 )  # fmt: skip
 _LOCATIONS: tuple[ParamLocation, ...] = ("path", "query", "header", "cookie")
 _MAX_TAGS = 20
+_MAX_SUMMARY = 200
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
 class OperationMapper:
@@ -115,6 +118,7 @@ class OperationMapper:
                 security=self._security(node, where),
                 tags=_tags(node.get("tags")),
                 deprecated=node.get("deprecated") is True,
+                summary=_summary(node.get("summary")),
             )
         except ValidationError as error:
             first = error.errors()[0]
@@ -245,6 +249,14 @@ def _tags(raw: Raw) -> tuple[str, ...]:
     if not isinstance(raw, list):
         return ()
     return tuple(str(tag)[:100] for tag in raw[:_MAX_TAGS] if isinstance(tag, str))
+
+
+def _summary(raw: Raw) -> str | None:
+    """Resumo curto da operação, sem controle e com no máximo 200 caracteres (ou `None`)."""
+    if not isinstance(raw, str):
+        return None
+    cleaned = " ".join(_CONTROL_CHARS.sub(" ", raw).split())
+    return cleaned[:_MAX_SUMMARY] or None
 
 
 def _first_media_schema(content: Mapping[str, Raw]) -> Raw:
