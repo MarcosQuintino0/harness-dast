@@ -13,6 +13,7 @@ from harness_dast.domain.panel_format import (
     STAGE_WORDS,
     fmt_duration,
     fmt_tokens,
+    plain_stop_reason,
     plural,
 )
 from harness_dast.domain.panel_layout import bar, card, heading, not_measured, row, terminal
@@ -139,7 +140,7 @@ def _stuck(view: PanelView) -> str:
     rows: list[str] = []
     for stage in view.stages:
         if stage.state == "cut":
-            reason = h.text(stage.message or _NO_REASON, 300)
+            reason = h.text(plain_stop_reason(stage.message or _NO_REASON, None), 300)
             rows.append(row("am", f"<b>{h.plain(stage.label)}:</b> parou aqui. {reason}"))
     failed = [item for item in view.functions if item.state == "failed"]
     if failed:

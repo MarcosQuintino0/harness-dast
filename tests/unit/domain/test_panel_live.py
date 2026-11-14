@@ -4,6 +4,7 @@ import re
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 
+from harness_dast.domain.panel_format import plain_stop_reason
 from harness_dast.domain.panel_layout import CSP
 from harness_dast.domain.panel_live import REFRESH_SECONDS, render_live
 from harness_dast.domain.panel_live_model import LivePhase, LiveStage, LiveStageState, LiveView
@@ -261,3 +262,55 @@ def test_the_page_never_says_safe_or_approved() -> None:
     for phase in ("running", "stopping", "finished"):
         page = re.sub(r"<style>.*?</style>", "", render_live(view(phase)), flags=re.S)
         assert not re.search(r"\b(seguro|segura|aprovad[oa])\b", page, flags=re.I)
+
+
+def cut_scan_stages() -> tuple[LiveStage, ...]:
+    """Fim de um teste cuja varredura foi cortada: o relatório ainda saiu, só com o que veio."""
+    return (
+        LiveStage(key="preflight", label="Conferência", state="done", seconds=60.0),
+        LiveStage(key="probe", label="Alcance", state="done", seconds=20.0),
+        LiveStage(key="scan", label="Varredura", state="cut", seconds=180.0),
+        LiveStage(key="report", label="Achados", state="done", seconds=1.0),
+    )
+
+
+def test_a_cut_scan_says_how_far_it_got_and_the_report_after_it_is_not_a_green_done() -> None:
+    page = render_live(
+        view("finished", outcome="partial", stages=cut_scan_stages(), scan_done=9, scan_total=28)
+    )
+
+    assert "parou aqui · 9 de 28" in page
+    achados = re.search(r"<b>Achados</b><span>([^<]*)</span>", page)
+    assert achados is not None
+    assert "feita" not in achados.group(1)
+    assert "só com o que veio até aí" in achados.group(1)
+    assert page.count("seg seg-cut") == 2
+
+
+def test_a_stage_after_a_clean_finish_keeps_saying_done() -> None:
+    page = render_live(view("finished", outcome="finished", stages=stages(None, finished=True)))
+
+    assert "seg-cut" not in page.replace(".seg-cut", "")
+    assert "· feita" in page
+
+
+def test_the_time_limit_is_told_in_simple_words_with_the_minutes_of_the_profile() -> None:
+    raw = "O tempo máximo da execução (limits.max_duration_minutes) acabou."
+    page = render_live(view("finished", outcome="partial", reason=raw, limit_minutes=3))
+
+    assert "limits.max_duration_minutes" not in page
+    assert "Parou porque chegou ao tempo máximo combinado, de 3 min." in page
+
+
+def test_the_stop_reason_helper_only_rewrites_the_known_time_limit_message() -> None:
+    assert plain_stop_reason("ZAP fora do ar", 3) == "ZAP fora do ar"
+    assert (
+        plain_stop_reason("O tempo máximo da execução (limits.max_duration_minutes) acabou.", None)
+        == "parou porque chegou ao tempo máximo combinado"
+    )
+
+
+def test_on_a_phone_the_stage_strip_stacks_instead_of_cutting_text() -> None:
+    page = render_live(view())
+
+    assert "@media (max-width:640px){.track{flex-direction:column}" in page

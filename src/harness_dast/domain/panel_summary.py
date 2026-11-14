@@ -18,6 +18,7 @@ from harness_dast.domain.panel_format import (
     fmt_duration,
     fmt_tokens,
     pick,
+    plain_stop_reason,
     plural,
     x_of_y,
 )
@@ -65,7 +66,7 @@ def _where(view: PanelView) -> str:
 def _reason_text(view: PanelView) -> str:
     verdict = view.verdict
     if verdict.reason:
-        return h.text(verdict.reason.rstrip(". "), 300)
+        return h.text(plain_stop_reason(verdict.reason, None).rstrip(". "), 300)
     if verdict.stop_requested:
         return "uma pessoa mandou parar"
     return "a execução não registrou o motivo"
