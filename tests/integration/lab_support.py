@@ -190,6 +190,24 @@ class LabCli:
             done.returncode, parsed if isinstance(parsed, dict) else {}, done.stdout, done.stderr
         )
 
+    def start(self, *args: str) -> "subprocess.Popen[str]":
+        """Inicia a CLI em segundo plano (antes, aprova os produtos); quem chama espera o fim.
+
+        Serve para provar o que acontece ENQUANTO um comando roda (a trava da pilha). A saída
+        é lida com `communicate()`, que também espera o término.
+        """
+        self.approve_installed_products()
+        return subprocess.Popen(  # noqa: S603 - interpretador atual e módulo do próprio projeto
+            [sys.executable, "-m", "harness_dast", "--json", *args],
+            env=self.env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            cwd=REPO,
+        )
+
     def install_product(self, name: str, source: Path, extra_files: tuple[Path, ...] = ()) -> Path:
         """Copia um perfil para `products/<name>/` (a pasta leva o nome do produto)."""
         target = self.products / name
