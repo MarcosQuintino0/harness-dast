@@ -198,7 +198,7 @@ def test_the_dry_run_lists_the_candidates_with_their_source_and_sends_nothing() 
         )
     )
 
-    summary = result.checks[-1]
+    summary = next(c for c in result.checks if c.check == "mass_assignment")
     assert summary.candidates == 6
     assert summary.message is not None
     assert "nivelAcesso (response_only)" in summary.message

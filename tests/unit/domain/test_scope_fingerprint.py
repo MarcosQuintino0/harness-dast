@@ -423,6 +423,7 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
         "derive_mass_candidates": False,
         "max_derived_candidates": 3,
         "mass_assignment_methods": ["PUT"],
+        "id_parameters": ["cpf"],
     }
     profile = ProductProfile.from_data(
         mutated(lambda d: d.update(cleanup=_cleanup(), authz=changed))
@@ -442,6 +443,7 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
         {"derive_mass_candidates": True},
         {"max_derived_candidates": 6},
         {"mass_assignment_methods": ["PUT", "POST", "PATCH"]},
+        {"id_parameters": []},
     ],
 )
 def test_default_mass_keys_hash_like_a_profile_from_before_adr_0040(authz: dict[str, Any]) -> None:
@@ -457,6 +459,8 @@ def test_default_mass_keys_hash_like_a_profile_from_before_adr_0040(authz: dict[
         {"derive_mass_candidates": False},
         {"max_derived_candidates": 7},
         {"mass_assignment_methods": ["PUT", "PATCH"]},
+        {"id_parameters": ["cpf"]},
+        {"id_parameters": ["cpf", "matricula"]},
     ],
 )
 def test_changing_a_mass_key_changes_only_the_authz_digest(authz: dict[str, Any]) -> None:

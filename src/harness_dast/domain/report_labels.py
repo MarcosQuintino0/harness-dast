@@ -20,6 +20,7 @@ CHECK_LABEL: Final = {
     "tampered_token": "Token adulterado aceito",
     "vertical": "Acesso vertical (BFLA)",
     "mass_assignment": "Campo a mais (atribuição em massa)",
+    "horizontal_write": "Escrita em recurso de outra conta (BOLA)",
 }
 CHECK_STATUS_LABEL: Final = {
     "completed": "concluída",
