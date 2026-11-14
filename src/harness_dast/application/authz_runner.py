@@ -13,6 +13,7 @@ interrompem o laço e voltam como `AuthzOutcome`; nunca são engolidas.
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from harness_dast.application.authz_checks_access import run_anonymous, run_tampered
 from harness_dast.application.authz_checks_mass import run_mass
 from harness_dast.application.authz_checks_read import run_excessive, run_horizontal, run_vertical
 from harness_dast.application.authz_sender import (
@@ -67,6 +68,8 @@ class AuthzPlans:
 
     horizontal: Planned[ReplayTask]
     excessive: Planned[ExchangeRecord]
+    anonymous: Planned[ExchangeRecord]
+    tampered: Planned[ExchangeRecord]
     vertical: Planned[ReplayTask]
     mass: Planned[MassTask]
 
@@ -76,6 +79,8 @@ CheckRunner = Callable[[CheckContext, AuthzPlans], CheckResult]
 CHECK_RUNNERS: dict[AuthzCheck, CheckRunner] = {
     "horizontal": lambda ctx, plans: run_horizontal(ctx, plans.horizontal),
     "excessive_data": lambda ctx, plans: run_excessive(ctx, plans.excessive),
+    "anonymous_access": lambda ctx, plans: run_anonymous(ctx, plans.anonymous),
+    "tampered_token": lambda ctx, plans: run_tampered(ctx, plans.tampered),
     "vertical": lambda ctx, plans: run_vertical(ctx, plans.vertical),
     "mass_assignment": lambda ctx, plans: run_mass(ctx, plans.mass),
 }

@@ -6,12 +6,20 @@ responde como um alvo seguro ou com a falha ligada:
 - `bola`: qualquer conta lê a consulta de qualquer outra (senão, só a conta dona, `pac_a`);
 - `excess`: a lista de pacientes devolve `passwordHash` e `internalNotes`, fora do esquema;
 - `mass`: `PUT /api/me` copia o campo `role` do corpo para `papel` (o nome muda de propósito);
-- `bfla`: `GET /api/relatorios` e `POST /api/convenios` aceitam qualquer papel.
+- `bfla`: `GET /api/relatorios` e `POST /api/convenios` aceitam qualquer papel;
+- `open_paths`: caminhos que respondem a quem não enviou credencial (como o "adm");
+- `jwt`: o login devolve um JWT (HS256) em vez de texto opaco;
+- `lax`: como o servidor confere o token: `strict` (igualdade), `ignore_signature` (lê o `sub`
+  do JWT sem conferir assinatura nem `alg`) ou `any_token` (reconhece o apelido em qualquer parte
+  do texto do token, até invertido);
+- `open_different`: o caminho aberto devolve outro corpo a quem não se identificou;
+- `unauth_status`: código devolvido a quem não se identificou (401 por padrão).
 
 `AuthzRig` monta o perfil, o OpenAPI e o armazém em memória; `run_probe()` roda o `probe` de
 verdade sobre o alvo falso e `authz()` devolve o caso de uso sobre o mesmo armazém.
 """
 
+import base64
 import json
 from typing import Any
 
@@ -45,6 +53,30 @@ def token_of(alias: str) -> str:
     return f"tok-{alias}-1234567890"
 
 
+def _b64(value: dict[str, Any]) -> str:
+    raw = json.dumps(value, separators=(",", ":")).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def jwt_of(alias: str) -> str:
+    """JWT de teste: assinatura é texto fixo (nunca assinado de verdade)."""
+    header = _b64({"alg": "HS256", "typ": "JWT"})
+    payload = _b64({"sub": alias, "role": ROLES[alias], "exp": 4102444800})
+    return f"{header}.{payload}.c2lnbmF0dXJlLWZpeGE"
+
+
+def _jwt_subject(token: str) -> str | None:
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4))
+        sub = json.loads(raw).get("sub")
+    except (ValueError, AttributeError):
+        return None
+    return sub if sub in ROLES else None
+
+
 class Clinic:
     """Alvo falso; cada falha é um interruptor."""
 
@@ -57,6 +89,11 @@ class Clinic:
         bfla: bool = False,
         reject_extra_fields: bool = False,
         empty_lists: bool = False,
+        open_paths: frozenset[str] = frozenset(),
+        jwt: bool = False,
+        lax: str = "strict",
+        open_different: bool = False,
+        unauth_status: int = 401,
     ) -> None:
         self.bola = bola
         self.excess = excess
@@ -67,24 +104,45 @@ class Clinic:
         self.papel = dict(ROLES)
         self.nome = {alias: f"Nome {alias}" for alias in ROLES}
         self.counter = 0
+        self.open_paths = open_paths
+        self.jwt = jwt
+        self.lax = lax
+        self.open_different = open_different
+        self.unauth_status = unauth_status
+        self.logins = 0
+
+    def issue(self, alias: str) -> str:
+        return jwt_of(alias) if self.jwt else token_of(alias)
 
     def __call__(self, request: HttpRequest, jar: dict[str, str]) -> HttpResponse | HarnessError:
         path = request.url.split("://", 1)[1].split("/", 1)[1].split("?")[0]
         if request.method == "POST" and path == "api/auth/login":
             alias = LOGINS.get(json.loads(request.body or b"{}").get("username", ""))
-            return reply(200, {"access_token": token_of(alias)}) if alias else reply(401, {})
+            self.logins += 1
+            return reply(200, {"access_token": self.issue(alias)}) if alias else reply(401, {})
         alias = self._caller(request)
+        if alias is None and path in self.open_paths:
+            if self.open_different:
+                return reply(200, {"items": [], "anonimo": True})
+            alias = "adm"
         if alias is None:
-            return reply(401, {"code": "NAO_AUTENTICADO"})
+            return reply(self.unauth_status, {"code": "NAO_AUTENTICADO"})
         self.counter += 1
         return self._route(request, path, alias)
 
-    @staticmethod
-    def _caller(request: HttpRequest) -> str | None:
+    def _caller(self, request: HttpRequest) -> str | None:
         header = dict(request.headers).get("Authorization", "")
+        token = header.removeprefix("Bearer ") if header.startswith("Bearer ") else ""
         for alias in ROLES:
-            if header == f"Bearer {token_of(alias)}":
+            if token == self.issue(alias):
                 return alias
+        if self.lax == "ignore_signature":
+            return _jwt_subject(token)
+        if self.lax == "any_token":
+            return next(
+                (a for a in ROLES if a in token or a[::-1] in token),
+                None,
+            )
         return None
 
     def _route(self, request: HttpRequest, path: str, alias: str) -> HttpResponse:
@@ -229,10 +287,13 @@ class AuthzRig(Rig):
         *,
         profile: ProductProfile | None = None,
         authz: dict[str, Any] | None = None,
+        spec: ApiSpec | None = None,
     ) -> None:
         self.clinic = clinic or Clinic()
         profile = profile or ProductProfile.from_data(clinic_profile_data(**(authz or {})))
-        super().__init__(profile=profile, spec=clinic_spec(), handler=self.clinic, env=dict(ENV))
+        super().__init__(
+            profile=profile, spec=spec or clinic_spec(), handler=self.clinic, env=dict(ENV)
+        )
         self.artifacts = InMemoryRunArtifacts(self.store)
 
     def run_probe(self) -> ProbeResult:

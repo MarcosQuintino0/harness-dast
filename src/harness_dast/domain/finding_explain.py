@@ -644,6 +644,49 @@ _AUTHZ_MASS = FindingExplanation(
     technical_name="Atribuição em massa (Mass Assignment, CWE-915)",
 )
 
+_AUTHZ_ANONYMOUS = FindingExplanation(
+    key="authz_anonymous_access",
+    title="O sistema responde a quem não fez login",
+    what_happened=(
+        "O teste repetiu um pedido de leitura sem enviar nenhuma credencial e o sistema "
+        "devolveu o mesmo conteúdo que entregou a quem estava logado."
+    ),
+    why_it_matters=(
+        "Se a função devia ser protegida, qualquer pessoa na internet (ou na rede) lê esses "
+        "dados sem precisar de conta. Se ela é pública de propósito, é só registrar isso."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_OWNER, "Dizer se essa função deve ser pública; se for, registrá-la como pública."),
+        (_DEV, "Exigir login na função e responder 401 a quem não enviou credencial válida."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Acesso sem autenticação (Broken Authentication, CWE-306)",
+)
+
+_AUTHZ_TAMPERED = FindingExplanation(
+    key="authz_tampered_token",
+    title="O sistema aceita uma credencial de login que foi estragada de propósito",
+    what_happened=(
+        "O teste pegou a credencial de uma conta, tirou ou estragou a parte que a protege "
+        "(a assinatura, ou o próprio texto) e repetiu um pedido de leitura. O sistema aceitou. "
+        "A credencial estragada nunca é gravada."
+    ),
+    why_it_matters=(
+        "Se o sistema não confere a credencial de verdade, qualquer pessoa consegue fabricar "
+        "uma e entrar como outra."
+    ),
+    what_to_do=_steps(
+        _open_ticket(),
+        (_DEV, "Conferir a assinatura e o algoritmo da credencial em toda requisição."),
+        (_DEV, "Recusar credencial sem assinatura ou com algoritmo none, com resposta 401."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Token adulterado aceito (Broken Authentication, CWE-347 ou CWE-287)",
+)
+
 _SQL_TIME = FindingExplanation(
     key="sql_injection_time",
     title="Um texto digitado pode estar virando parte do comando que o sistema manda ao banco",
@@ -765,6 +808,8 @@ _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
     "authz_vertical": _AUTHZ_VERTICAL,
     "authz_excessive_data": _AUTHZ_EXCESSIVE,
     "authz_mass_assignment": _AUTHZ_MASS,
+    "authz_anonymous_access": _AUTHZ_ANONYMOUS,
+    "authz_tampered_token": _AUTHZ_TAMPERED,
 }
 
 

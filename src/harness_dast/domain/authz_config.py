@@ -21,10 +21,19 @@ from harness_dast.domain.api_model import safe_identifier
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import ProfileModel
 
-AuthzCheck = Literal["horizontal", "excessive_data", "vertical", "mass_assignment"]
+AuthzCheck = Literal[
+    "horizontal",
+    "excessive_data",
+    "anonymous_access",
+    "tampered_token",
+    "vertical",
+    "mass_assignment",
+]
 CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
     "horizontal",
     "excessive_data",
+    "anonymous_access",
+    "tampered_token",
     "vertical",
     "mass_assignment",
 )

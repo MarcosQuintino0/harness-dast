@@ -15,6 +15,7 @@ from harness_dast.domain.authz_result import (
     AuthzFinding,
     AuthzTechnique,
 )
+from harness_dast.domain.authz_token import TamperVariant
 from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.zap_alert import Severity
 
@@ -23,6 +24,8 @@ TECHNIQUE_CLASS: Final[dict[AuthzTechnique, tuple[int, str]]] = {
     "authz_vertical": (285, "API5:2023 Broken Function Level Authorization"),
     "authz_excessive_data": (213, "API3:2023 Broken Object Property Level Authorization"),
     "authz_mass_assignment": (915, "API3:2023 Broken Object Property Level Authorization"),
+    "authz_anonymous_access": (306, "API2:2023 Broken Authentication"),
+    "authz_tampered_token": (347, "API2:2023 Broken Authentication"),
 }
 """CWE e categoria do OWASP API Top 10 2023 de cada técnica (sem inferência)."""
 
@@ -64,8 +67,14 @@ def build_finding(
     evidence: str,
     description: str,
     solution: str,
+    variants: tuple[TamperVariant, ...] = (),
+    cwe: int | None = None,
 ) -> AuthzFinding:
-    """Monta o achado com fingerprint, `finding_id` e classe derivados da técnica."""
+    """Monta o achado com fingerprint, `finding_id` e classe derivados da técnica.
+
+    `variants` não entra no fingerprint (o mesmo problema segue o mesmo achado entre execuções).
+    `cwe` só substitui o CWE padrão da técnica quando o domínio decide outro (token adulterado).
+    """
     fingerprint = authz_fingerprint(
         product=product,
         technique=technique,
@@ -73,14 +82,14 @@ def build_finding(
         path_template=path_template,
         fields=fields,
     )
-    cwe, category = TECHNIQUE_CLASS[technique]
+    default_cwe, category = TECHNIQUE_CLASS[technique]
     return AuthzFinding(
         finding_id=f"A-{fingerprint[:8]}",
         fingerprint=fingerprint,
         technique=technique,
         title=title,
         proposed_severity=severity,
-        cwe=cwe,
+        cwe=cwe if cwe is not None else default_cwe,
         owasp_api_2023=category,
         operation_id=operation_id,
         method=method.upper(),
@@ -92,6 +101,7 @@ def build_finding(
         baseline_status=statuses[0],
         observed_status=statuses[1],
         fields=fields,
+        variants=variants,
         evidence=evidence,
         description=description,
         solution=solution,

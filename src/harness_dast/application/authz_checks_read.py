@@ -13,6 +13,7 @@ from harness_dast.application.authz_sender import (
     inconclusive,
     note,
     problem_note,
+    usable_baseline,
 )
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import Schema
@@ -44,20 +45,8 @@ def run_horizontal(ctx: CheckContext, plan: Planned[ReplayTask]) -> CheckResult:
     )
     for task in plan.tasks:
         exchange = task.exchange
-        base = ctx.sender.baseline(exchange)
-        if base.problem is not None:
-            out.not_tested.append(problem_note("horizontal", exchange, base))
-            continue
-        if not is_success_status(base.status):
-            out.not_tested.append(
-                note(
-                    "horizontal",
-                    exchange,
-                    "baseline_failed",
-                    "A conta dona não repetiu o pedido com sucesso agora "
-                    f"(status {base.status}); sem linha de base não há o que comparar.",
-                )
-            )
+        base = usable_baseline("horizontal", exchange, ctx.sender, out)
+        if base is None:
             continue
         replay = ctx.sender.send(exchange, task.actor[0])
         if replay.problem is not None:

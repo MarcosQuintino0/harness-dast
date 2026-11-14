@@ -14,6 +14,7 @@ escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.authz_ports import AuthzArtifacts
@@ -39,6 +40,7 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
+from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_plan import (
     MassTask,
@@ -167,7 +169,7 @@ class Authz:
         spec = self._specs.load(request.product, profile)
         profile.authz.ensure_operations_exist([op.operation_id for op in spec.operations])
         checks = profile.authz.enabled_checks(request.checks)
-        plans = _plan(profile, exchanges, checks, unavailable)
+        plans = _plan(profile, exchanges, checks, spec.operations, unavailable)
         if request.dry_run:
             outcome = _dry_outcome(checks, plans)
         else:
@@ -253,6 +255,7 @@ class Authz:
                 operations={op.operation_id: op for op in operations},
                 dispatcher=dispatcher,
                 sessions=pool,
+                vault=self._vault,
             )
         )
         return runner.run(checks, plans)
@@ -276,6 +279,7 @@ def _plan(
     profile: ProductProfile,
     exchanges: tuple[ExchangeRecord, ...],
     checks: tuple[AuthzCheck, ...],
+    operations: tuple[Operation, ...],
     unavailable: str | None = None,
 ) -> AuthzPlans:
     config = profile.authz
@@ -307,6 +311,8 @@ def _plan(
             else Planned((), (mass_blocked_note(),))
         )
     plans = AuthzPlans(
+        anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
+        tampered=_access("tampered_token", profile, exchanges, operations, checks),
         horizontal=plan_horizontal(exchanges, roles, public)
         if "horizontal" in checks
         else Planned((), ()),
@@ -315,6 +321,30 @@ def _plan(
         mass=mass,
     )
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
+
+
+def _access(
+    check: Literal["anonymous_access", "tampered_token"],
+    profile: ProductProfile,
+    exchanges: tuple[ExchangeRecord, ...],
+    operations: tuple[Operation, ...],
+    checks: tuple[AuthzCheck, ...],
+) -> Planned[ExchangeRecord]:
+    """Plano de uma verificação de acesso (vazio se ela não foi pedida)."""
+    if check not in checks:
+        return Planned((), ())
+    infrastructure = frozenset(
+        path
+        for path in (profile.login_path, profile.probe.health_path, profile.probe.setup_path)
+        if path is not None
+    )
+    return plan_access(
+        check,
+        exchanges,
+        {op.operation_id: op for op in operations},
+        frozenset(profile.authz.public_operations),
+        infrastructure,
+    )
 
 
 def _noted[T](plan: Planned[T], *notes: AuthzNotTested) -> Planned[T]:
@@ -338,6 +368,8 @@ def _nothing_to_replay(
     return AuthzPlans(
         horizontal=_noted(plans.horizontal, *_note(notes, "horizontal")),
         excessive=_noted(plans.excessive, *_note(notes, "excessive_data")),
+        anonymous=_noted(plans.anonymous, *_note(notes, "anonymous_access")),
+        tampered=_noted(plans.tampered, *_note(notes, "tampered_token")),
         vertical=_noted(plans.vertical, *_note(notes, "vertical")),
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
     )
@@ -351,6 +383,8 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
     sizes = {
         "horizontal": plans.horizontal,
         "excessive_data": plans.excessive,
+        "anonymous_access": plans.anonymous,
+        "tampered_token": plans.tampered,
         "vertical": plans.vertical,
         "mass_assignment": plans.mass,
     }

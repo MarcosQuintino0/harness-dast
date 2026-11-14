@@ -343,7 +343,7 @@ def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -
 
     assert result.findings == ()
     assert result.status == "completed"
-    assert [c.status for c in result.checks] == ["completed"] * 4
+    assert [c.status for c in result.checks] == ["completed"] * 6
     assert result.not_tested
     assert "NÃO prova" in result.notice
 
@@ -453,10 +453,12 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
     assert [c.check for c in result.checks] == [
         "horizontal",
         "excessive_data",
+        "anonymous_access",
+        "tampered_token",
         "vertical",
         "mass_assignment",
     ]
-    assert [c.status for c in result.checks][1:] == ["disabled"] * 3
+    assert [c.status for c in result.checks][1:] == ["disabled"] * 5
 
 
 def test_checks_disabled_in_the_profile_never_run_even_when_asked() -> None:

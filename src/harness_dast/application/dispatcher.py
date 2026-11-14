@@ -85,8 +85,16 @@ class OperationDispatcher:
         self._token_expired = token_expired
         self._error_codes = error_codes
 
-    def send(self, request: HttpRequest, session: SessionHooks | None) -> SendOutcome:
+    def send(
+        self, request: HttpRequest, session: SessionHooks | None, *, allow_reauth: bool = True
+    ) -> SendOutcome:
         """Envia `request`, acrescentando os cabeçalhos da sessão a cada tentativa.
+
+        Args:
+            request: Requisição.
+            session: Sessão da conta, ou `None` (sem credencial e sem novo login).
+            allow_reauth: Falso nos pedidos com credencial adulterada de propósito: um 401 não
+                pode refazer o login (esgotaria o orçamento) nem reenviar o pedido.
 
         Raises:
             ScopeViolation: Requisição fora do escopo, janela fechada ou prazo esgotado.
@@ -108,7 +116,7 @@ class OperationDispatcher:
                 response,
                 request.method,
                 csrf=self._csrf,
-                can_reauth=session is not None,
+                can_reauth=session is not None and allow_reauth,
                 state=state,
                 token_expired=self._token_expired,
                 error_codes=self._error_codes,

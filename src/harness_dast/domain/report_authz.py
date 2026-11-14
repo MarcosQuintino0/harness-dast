@@ -33,6 +33,11 @@ def _finding_lines(item: AuthzFinding) -> list[str]:
     if item.fields:
         names = ", ".join(code_span(name, 80) for name in item.fields)
         lines.append(f"- **Campos (só nomes; os valores não foram gravados):** {names}.")
+    if item.variants:
+        names = ", ".join(code_span(name, 40) for name in item.variants)
+        lines.append(
+            f"- **Variantes de token aceitas (só nomes; o token não foi gravado):** {names}."
+        )
     lines += [
         f"- **Fingerprint:** {code_span(item.fingerprint)}.",
         "",

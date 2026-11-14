@@ -6,17 +6,22 @@ prazo, trava e auditoria). Aqui ficam também o resultado acumulado de uma verif
 (`CheckResult`), a parada antecipada (`StopRun`) e as anotações de "não testado". Nenhum valor
 de resposta é guardado fora da memória: só veredito, códigos e NOMES de campo seguem adiante.
 Uma verificação nova só precisa de um `CheckContext`; não reabre este módulo.
+
+Passa de 300 linhas de propósito: `ReplaySender`, `Reply`, `CheckResult` e as anotações de "não
+testado" se referem uns aos outros, e separá-los criaria importação circular sem ganho.
 """
 
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
+from harness_dast.application.ports import SecretVault
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue
+from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
@@ -83,6 +88,7 @@ class AuthzSettings:
         operations: Operações do OpenAPI por identificador.
         dispatcher: Despachante (escopo, taxa, janela, prazo, auditoria).
         sessions: Sessões das contas (um login por conta).
+        vault: Registro de segredos a mascarar (recebe cada token adulterado antes do envio).
     """
 
     product: str
@@ -92,6 +98,7 @@ class AuthzSettings:
     operations: Mapping[str, Operation]
     dispatcher: OperationDispatcher
     sessions: SessionPool
+    vault: SecretVault
 
 
 class ReplaySender:
@@ -113,6 +120,7 @@ class ReplaySender:
         self._sent = 0
         self._failures = 0
         self._accounts: list[str] = []
+        self._anonymous: dict[str, Reply] = {}
 
     @property
     def sent(self) -> int:
@@ -157,16 +165,65 @@ class ReplaySender:
             operation_id=f"authz:{exchange.operation_id}",
             account=account,
         )
+        return self._dispatch(request, account)
+
+    def anonymous(self, exchange: ExchangeRecord) -> Reply:
+        """Repete o `GET` gravado SEM credencial, uma vez por alvo (depois, do cache).
+
+        Sem sessão, sem cabeçalho de autenticação, sem cookie (`account=None`) e sem novo login.
+
+        Raises:
+            StopRun: O alvo ficou sem resposta em várias requisições seguidas.
+            WindowClosed: Janela fechada.
+            DeadlineReached: Prazo esgotado.
+            ExternalToolError: Falha do proxy.
+        """
+        if exchange.target not in self._anonymous:
+            request = self._get(exchange, f"authz:anonymous:{exchange.operation_id}")
+            self._anonymous[exchange.target] = self._dispatch(request, None)
+        return self._anonymous[exchange.target]
+
+    def tampered(self, exchange: ExchangeRecord, session: SessionHooks) -> Reply:
+        """Repete o `GET` gravado com a credencial adulterada de `session`.
+
+        Sai sem cookie (`account=None`) e sem permitir novo login: um 401 é a resposta esperada.
+
+        Raises:
+            StopRun: O alvo ficou sem resposta em várias requisições seguidas.
+            WindowClosed: Janela fechada.
+            DeadlineReached: Prazo esgotado.
+            ExternalToolError: Falha do proxy.
+        """
+        request = self._get(exchange, f"authz:tampered:{exchange.operation_id}")
+        return self._dispatch(request, None, session, allow_reauth=False)
+
+    def _get(self, exchange: ExchangeRecord, operation_id: str) -> HttpRequest:
+        return HttpRequest(
+            method="GET",
+            url=join_url(self._s.base_url, exchange.target),
+            operation_id=operation_id,
+            account=None,
+        )
+
+    def _dispatch(
+        self,
+        request: HttpRequest,
+        account: str | None,
+        session: SessionHooks | None = None,
+        *,
+        allow_reauth: bool = True,
+    ) -> Reply:
         try:
-            session = self._s.sessions.get(account)
-            sent = self._s.dispatcher.send(request, session)
+            if account is not None:
+                session = self._s.sessions.get(account)
+            sent = self._s.dispatcher.send(request, session, allow_reauth=allow_reauth)
         except (WindowClosed, DeadlineReached):
             raise
         except ScopeViolation:
             return Reply(None, problem="scope")
         except PreflightError:
             return Reply(None, problem="account")
-        if account not in self._accounts:
+        if account is not None and account not in self._accounts:
             self._accounts.append(account)
         self._sent += sent.attempts
         response = sent.response
@@ -224,6 +281,32 @@ def note(check: AuthzCheck, exchange: ExchangeRecord, reason: str, message: str)
         reason=reason,
         message=message,
     )
+
+
+def usable_baseline(
+    check: AuthzCheck, exchange: ExchangeRecord, sender: ReplaySender, out: CheckResult
+) -> Reply | None:
+    """Linha de base da conta dona, ou `None` (com a anotação em `out`) se não serve.
+
+    Não serve quando o escopo ou o login recusou o pedido, ou quando a conta dona não repetiu
+    o pedido com `2xx` agora: sem linha de base não há o que comparar.
+    """
+    base = sender.baseline(exchange)
+    if base.problem is not None:
+        out.not_tested.append(problem_note(check, exchange, base))
+        return None
+    if not is_success_status(base.status):
+        out.not_tested.append(
+            note(
+                check,
+                exchange,
+                "baseline_failed",
+                "A conta dona não repetiu o pedido com sucesso agora "
+                f"(status {base.status}); sem linha de base não há o que comparar.",
+            )
+        )
+        return None
+    return base
 
 
 def problem_note(check: AuthzCheck, exchange: ExchangeRecord, reply: Reply) -> AuthzNotTested:

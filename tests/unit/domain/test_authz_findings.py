@@ -2,6 +2,7 @@
 
 import pytest
 
+from harness_dast.domain.api_model import Operation, SecurityRequirement
 from harness_dast.domain.authz_finding_build import authz_fingerprint
 from harness_dast.domain.authz_findings import (
     TECHNIQUE_LABEL,
@@ -10,7 +11,8 @@ from harness_dast.domain.authz_findings import (
     mass_assignment_finding,
     vertical_finding,
 )
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz_findings_access import anonymous_finding, tampered_finding
+from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 
 ACTOR = ("pac_b", "paciente")
 OWNER = ("pac_a", "paciente")
@@ -168,6 +170,8 @@ def test_every_technique_has_a_label() -> None:
         "authz_horizontal",
         "authz_vertical",
         "authz_excessive_data",
+        "authz_anonymous_access",
+        "authz_tampered_token",
         "authz_mass_assignment",
     }
 
@@ -185,3 +189,88 @@ def test_the_result_model_roundtrips_and_has_no_extra_fields() -> None:
     assert AuthzResult.model_validate_json(result.model_dump_json()) == result
     with pytest.raises(ValueError, match="extra"):
         AuthzResult.model_validate({**result.model_dump(), "extra": 1})
+
+
+# --- acesso sem login e token adulterado (ADR 0039) ---------------------------------------------
+
+REQUIRED = Operation(
+    operation_id="ver",
+    method="get",
+    path="/api/x",
+    security=(SecurityRequirement(schemes=("bearer",)),),
+)
+UNDECLARED = Operation(operation_id="ver", method="get", path="/api/x")
+
+
+def anonymous(operation: Operation | None = REQUIRED) -> AuthzFinding:
+    return anonymous_finding(
+        product="p",
+        operation_id="ver",
+        method="get",
+        path_template="/api/x",
+        actor=ACTOR,
+        operation=operation,
+        statuses=(200, 200),
+    )
+
+
+def tampered(variants: tuple[str, ...] = ("alg_none",)) -> AuthzFinding:
+    return tampered_finding(
+        product="p",
+        operation_id="ver",
+        method="get",
+        path_template="/api/x",
+        actor=ACTOR,
+        variants=variants,  # type: ignore[arg-type]
+        statuses=(200, 200),
+    )
+
+
+def test_anonymous_access_is_high_when_the_openapi_requires_authentication() -> None:
+    finding = anonymous()
+
+    assert finding.proposed_severity == "high"
+    assert finding.cwe == 306
+    assert finding.owasp_api_2023 == "API2:2023 Broken Authentication"
+    assert finding.technique == "authz_anonymous_access"
+    assert finding.owner_account is None
+    assert finding.variants == ()
+
+
+def test_anonymous_access_is_medium_and_asks_for_triage_when_security_is_undeclared() -> None:
+    finding = anonymous(UNDECLARED)
+
+    assert finding.proposed_severity == "medium"
+    assert "public_operations" in finding.evidence
+
+
+def test_tampered_token_is_always_high_with_cwe_by_variant() -> None:
+    jwt = tampered(("stripped_signature", "scrambled"))
+    only_text = tampered(("scrambled",))
+
+    assert jwt.proposed_severity == only_text.proposed_severity == "high"
+    assert jwt.cwe == 347
+    assert only_text.cwe == 287
+    assert jwt.variants == ("stripped_signature", "scrambled")
+    assert jwt.owasp_api_2023.startswith("API2:2023")
+
+
+def test_the_tampered_fingerprint_ignores_the_variants_and_the_cwe() -> None:
+    one = tampered(("alg_none",))
+    other = tampered(("scrambled",))
+
+    assert one.fingerprint == other.fingerprint
+    assert one.finding_id == other.finding_id
+    assert one.finding_id.startswith("A-")
+    assert len(one.finding_id) == 10
+
+
+def test_the_two_techniques_never_share_a_fingerprint_for_the_same_operation() -> None:
+    assert anonymous().fingerprint != tampered().fingerprint
+
+
+def test_access_findings_carry_no_token_text() -> None:
+    text = anonymous().model_dump_json() + tampered().model_dump_json()
+
+    assert "Bearer" not in text
+    assert "eyJ" not in text
