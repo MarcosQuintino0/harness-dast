@@ -20,7 +20,7 @@ from harness_dast.domain.panel_build_content import (
 from harness_dast.domain.panel_build_measure import build_measurements, with_stage_tokens
 from harness_dast.domain.panel_build_stages import build_stages, build_verdict
 from harness_dast.domain.panel_format import product_title
-from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView
+from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
 
 
@@ -137,5 +137,5 @@ def build_panel_view(src: PanelSources) -> PanelView:
         measurements=measurements,
         commands=_commands_in_zone(src),
         commands_skipped=src.commands_skipped,
-        links=src.links,
+        links=panel_links(src.product),
     )

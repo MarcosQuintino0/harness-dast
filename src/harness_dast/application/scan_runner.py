@@ -8,6 +8,7 @@ e sobe. Um corte pelo teto de duração do ZAP aparece como `FINISHED` com menos
 marcado `truncated` (spike, Q4).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -60,6 +61,8 @@ class RunnerDeps:
         limits: Limites do ZAP.
         deadline: Prazo absoluto de todas as varreduras.
         base_url: URL base do ambiente (listagem de alertas).
+        on_progress: Aviso opcional (`feitas`, `total`, próxima operação ou `None` no fim) para
+            a página ao vivo do painel. Quem o entrega garante que ele não levanta erro.
     """
 
     scanner: ScanControl
@@ -76,6 +79,7 @@ class RunnerDeps:
     limits: ScanLimits
     deadline: datetime
     base_url: str
+    on_progress: Callable[[int, int, str | None], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -130,6 +134,7 @@ class ScanRunner:
             return self._stopped("stopped_auth", error.message)
         except ExternalToolError as error:
             return self._stopped("stopped_zap", error.message)
+        self._notify(len(targets), len(targets), None)
         return self._stopped("completed", None)
 
     def _stopped(self, status: ScanStatusName, message: str | None) -> RunOutcome:
@@ -137,9 +142,14 @@ class ScanRunner:
             tuple(self._state.entries), status, message, tuple(self._state.rule_stats)
         )
 
+    def _notify(self, done: int, total: int, operation_id: str | None) -> None:
+        if self._d.on_progress is not None:
+            self._d.on_progress(done, total, operation_id)
+
     def _scan_one(self, target: ScanTarget, total: int) -> None:
         d = self._d
         self._progress("scanning", total, target, 0)
+        self._notify(self._state.index - 1, total, target.operation_id)
         d.gate.check()
         d.health.ensure_alive()
         d.tokens.activate(target.account or d.default_account)

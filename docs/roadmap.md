@@ -109,7 +109,7 @@ Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma co
 | Tradução de cada comando para português simples | Código e testes (`domain/command_translation.py`); teste falha se a CLI ganhar comando sem tradução |
 | Catálogo de explicação de falha, degrau de confiança e dados de "reproduzir à mão" | Código e testes (`domain/finding_explain.py`, `finding_confidence.py`, `manual_repro.py`); usados pelas abas Falhas e Terminal |
 | Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
-| Painel (HTML), comando `panel`, índices de produtos e histórico | Em construção por outras frentes; não existem |
+| Painel (HTML), comando `panel`, índices de produtos e histórico | O comando `panel` e as abas existem (veja a tabela abaixo); os índices e a página ao vivo estão feitos como código e testes ([ADR 0034](adr/0034-indices-do-painel-e-pagina-ao-vivo.md), proposto) |
 
 ### V1.2: painel da execução (em construção)
 
@@ -122,7 +122,9 @@ O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/design/exe
 | Abas Falhas, Cobertura, Terminal, Tempo e tokens | Fiéis ao desenho, com os links por âncora entre abas verificados por teste; nenhuma página provisória sobra | Ver com uma pessoa de QA; Docker e varredura nova não foram usados |
 | Diário de comandos e catálogo de explicação de falha | Ganchos `commands` e `explanations` ligados (`application/panel_hooks.py`, `domain/panel_catalog.py`, `domain/panel_journal.py`) | Nada pendente além da prova contra alvo real |
 | Tokens do agente | `agent-metrics.json` lido pelo caso de uso e mostrado na aba Tempo e tokens; arquivo ausente vira "não medido" | Quem grave o arquivo fora da avaliação cega |
-| Índices de produtos e de histórico, "ao vivo", máscara de dados pessoais na prova | Nada | Tudo (o dono ainda não respondeu sobre a máscara) |
+| Índices de produtos e de histórico | `runs/index.html` e `runs/history-<produto>.html`, refeitos a cada painel e por `hdast panel --index`; links relativos no caminho do alto; estados "nenhum produto", "um teste só", "erro", "carta vencida" e "sem dados" | Gerados só a partir de execuções reais guardadas; sem prova com `hdast run` de verdade |
+| Página "ao vivo" | `panel/live.html` regravada a cada etapa e função, sem JavaScript, com recarga a cada 15 s; fecha sem recarga ao fim do `run` | Sem prova com `hdast run` de verdade (sem Docker); faltam "tipos de teste da função", "sinais de falha" e o terminal ao vivo, e o estado transitório "alvo fora do ar" |
+| Máscara de dados pessoais na prova | Nada | Tudo (o dono ainda não respondeu sobre a máscara) |
 
 ### Controles de segurança
 

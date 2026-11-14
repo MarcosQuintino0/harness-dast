@@ -10,6 +10,8 @@ from harness_dast.domain.panel_layout import (
     bar,
     card,
     chip,
+    crumbs,
+    document,
     heading,
     marker,
     meter,
@@ -18,6 +20,7 @@ from harness_dast.domain.panel_layout import (
     render_page,
     row,
     stat,
+    tabs_nav,
     terminal,
 )
 from harness_dast.domain.panel_model import PanelLinks
@@ -82,16 +85,46 @@ def test_the_tab_counter_is_red_when_positive_and_grey_when_zero() -> None:
     assert '<span class="cnt" style="background: var(--s2); color: var(--mu)">0</span>' in html
 
 
-def test_the_path_shows_hdast_product_and_the_date_with_dot_and_links_only_when_given() -> None:
-    plain = page()
-    linked = page(links=PanelLinks(products="../../index.html", product="../../vampi.html"))
+def test_the_path_links_hdast_the_product_and_the_date_with_relative_links() -> None:
+    html = page()
 
-    assert "hdast" in plain
-    assert "13/11/2026 · 20:08" in plain
-    assert '<span class="crumb">hdast</span>' in plain
-    assert 'href="../../index.html"' in linked
-    assert 'href="../../vampi.html"' in linked
-    assert 'class="here" href="summary.html"' in plain
+    assert 'href="../../index.html">hdast</a>' in html
+    assert 'href="../../history-vampi.html">Vampi</a>' in html
+    assert "13/11/2026 · 20:08" in html
+    assert 'class="here" href="summary.html"' in html
+
+
+def test_the_path_pieces_are_text_when_the_destination_does_not_exist() -> None:
+    html = crumbs("Vampi", "13/11/2026 · 20:08", PanelLinks())
+
+    assert '<span class="crumb">hdast</span>' in html
+    assert '<span class="crumb">Vampi</span>' in html
+    assert "<a href=" not in html
+
+
+def test_the_path_escapes_the_product_name_and_the_date() -> None:
+    html = crumbs(XSS, XSS, PanelLinks(products="../../index.html", product="../../x.html"))
+
+    assert "<script" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_a_disabled_tab_is_dimmed_text_never_a_broken_link() -> None:
+    html = tabs_nav((TabItem("a.html", "A", enabled=False), TabItem("b.html", "B")), "b.html")
+
+    assert '<span class="off" aria-disabled="true"' in html
+    assert 'href="a.html"' not in html
+    assert 'aria-current="page"' in html
+
+
+def test_the_document_has_the_refresh_only_when_asked_and_the_csp_never_changes() -> None:
+    with_refresh = document(title="t", header="", main="", refresh_seconds=15)
+    without = document(title="t", header="", main="")
+
+    assert '<meta http-equiv="refresh" content="15">' in with_refresh
+    assert "refresh" not in without
+    assert f'content="{CSP}"' in with_refresh
+    assert f'content="{CSP}"' in without
 
 
 def test_the_header_shows_the_fence_mode_and_the_state_with_the_duration() -> None:

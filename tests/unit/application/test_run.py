@@ -8,6 +8,7 @@ from typing import Literal, cast
 
 import pytest
 
+from harness_dast.application.panel_index_ports import RunLive
 from harness_dast.application.preflight_report import PreflightCheck, PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
@@ -89,6 +90,7 @@ class Rig:
     report: Callable[[], ReportOutcome] = _outcome
     metrics: RunMetricsRecorder | None = None
     panel: PanelRefresher | None = None
+    live: RunLive | None = None
 
     def run(self, request: RunRequest | None = None, *, cleanup: bool = True) -> RunResult:
         profiles = InMemoryProfileRepository()
@@ -131,6 +133,7 @@ class Rig:
             run_id_fallback="fallback-run",
             metrics=self.metrics,
             panel=self.panel,
+            live=self.live,
         )
         return pipeline.execute(request or RunRequest(product="demo"))
 

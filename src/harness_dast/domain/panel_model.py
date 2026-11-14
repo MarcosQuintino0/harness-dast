@@ -34,15 +34,35 @@ FindingOrigin = Literal["zap", "authz"]
 Owner = Literal["qa", "owner"]
 
 
+INDEX_FILE: Final = "index.html"
+"""Índice de produtos, na pasta das execuções (`runs/`)."""
+
+HISTORY_PREFIX: Final = "history-"
+
+
+def history_file(product: str) -> str:
+    """Nome do histórico de um produto, na pasta das execuções (`history-<slug>.html`)."""
+    return f"{HISTORY_PREFIX}{product}.html"
+
+
 class PanelLinks(ApiModel):
     """Para onde os dois primeiros pedaços do caminho (`hdast / Produto`) levam.
 
-    `None` quer dizer que a página de destino não existe nesta versão: o pedaço sai como texto,
-    nunca como link quebrado. Os links são relativos à pasta `runs/<run_id>/panel/`.
+    `None` quer dizer que a página de destino não existe: o pedaço sai como texto, nunca como
+    link quebrado. Os links são relativos à pasta `runs/<run_id>/panel/`.
     """
 
     products: str | None = None
     product: str | None = None
+
+
+def panel_links(product: str) -> PanelLinks:
+    """Links das páginas de um teste para os índices (`runs/index.html` e o histórico).
+
+    Quem grava o painel também regrava os índices, então os dois arquivos existem quando a
+    página é aberta (e o `hdast panel --index` os refaz a qualquer hora).
+    """
+    return PanelLinks(products=f"../../{INDEX_FILE}", product=f"../../{history_file(product)}")
 
 
 class PanelIdentity(ApiModel):

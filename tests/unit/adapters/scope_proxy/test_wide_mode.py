@@ -305,6 +305,8 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "adapters/scope_proxy/policy.py",
         "adapters/scope_proxy/engine.py",
         "application/panel.py",  # só lê o modo do perfil para o painel mostrar "Cerca: modo ..."
+        "application/panel_index.py",  # só copia o modo do perfil para o cartão do produto
+        "application/panel_live.py",  # só copia o modo do perfil para o alto da página ao vivo
         "application/doctor_checks.py",  # só lê o modo para avisar; não monta guarda
         "application/scan.py",
         "application/metrics.py",  # só copia o modo para o metrics.json (ADR 0031)
