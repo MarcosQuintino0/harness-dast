@@ -10,7 +10,7 @@ from collections.abc import Iterable
 
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
-from harness_dast.domain.markdown_safe import code_span, escape_inline, fenced
+from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
 from harness_dast.domain.report_authz import authz_lines
 from harness_dast.domain.report_labels import SEVERITY_LABEL
 from harness_dast.domain.report_model import Coverage, FindingsReport
@@ -118,7 +118,7 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
         "|---|---|---|",
     ]
     lines += [
-        f"| {code_span(item.operation_id)} | {code_span(item.method + ' ' + item.path)} | "
+        f"| {cell_code(item.operation_id)} | {cell_code(item.method + ' ' + item.path)} | "
         f"{escape_inline(item.message, 200)} |"
         for item in coverage.not_tested
     ]
@@ -195,8 +195,8 @@ def _group_lines(report: FindingsReport) -> list[str]:
         extra = len(group.locations) - 3
         where += f" e mais {extra}" if extra > 0 else ""
         lines.append(
-            f"| {code_span(group.group_id)} | {SEVERITY_LABEL[group.proposed_severity]} | "
-            f"{escape_inline(group.title, 120)} | {code_span(group.parameter or '-')} | "
+            f"| {cell_code(group.group_id)} | {SEVERITY_LABEL[group.proposed_severity]} | "
+            f"{escape_inline(group.title, 120)} | {cell_code(group.parameter or '-')} | "
             f"{group.findings_count} | {group.occurrences} | {escape_inline(where, 200)} |"
         )
     notes = [

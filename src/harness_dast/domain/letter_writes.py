@@ -1,8 +1,9 @@
 """Permissão de escrita do teste de autorização entre contas, lida da carta (ADR 0038).
 
-A escrita no alvo (atribuição em massa e métodos de escrita na verificação vertical) só vale se a
-carta assinada a autorizar. Este módulo confere a resposta `attack.allow_authz_writes` e devolve
-um booleano: `false` por padrão e `true` só com origem `carta` e a frase de origem. É puro.
+A escrita no alvo (atribuição em massa, alteração de recurso de outra conta e métodos de escrita
+da verificação vertical e da tabela quem pode o quê) só vale se a carta assinada a autorizar.
+Este módulo confere a resposta `attack.allow_authz_writes` e devolve um booleano: `false` por
+padrão e `true` só com origem `carta` e a frase de origem. É puro.
 """
 
 from harness_dast.domain.letter import Answer
