@@ -42,6 +42,7 @@ ALWAYS: tuple[Exclusion, ...] = (
         "carta estruturada da Clinica Piloto: e o perfil esperado do caso, quase pronto",
     ),
     Exclusion("docs/spikes", "medicoes do spike sobre o ZAP e o alvo"),
+    Exclusion("docs/plans", "planos e briefings do coordenador para a avaliacao"),
     Exclusion("docs/adr/0014-avaliacao-cega-como-eval.md", "desenho da avaliacao cega"),
     Exclusion("docs/guides/primeiro-uso.md", "aponta os perfis prontos do laboratorio"),
     Exclusion("reports", "pesquisa de projeto, fora da tarefa"),
