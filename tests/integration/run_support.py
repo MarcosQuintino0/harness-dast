@@ -252,6 +252,7 @@ def files_containing(root: Path, needles: list[str], extra_text: list[str]) -> l
 
 def popen_run(cli: LabCli, *args: str) -> subprocess.Popen[str]:
     """Inicia `hdast run` em segundo plano (para o teste da trava de emergência)."""
+    cli.approve_installed_products()
     return subprocess.Popen(  # noqa: S603 - interpretador atual e módulo do próprio projeto
         [sys.executable, "-m", "harness_dast", "--json", "run", *args],
         env=cli.env,
