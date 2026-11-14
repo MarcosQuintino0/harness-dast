@@ -291,6 +291,22 @@ ignore_names = [
     "load_journal_for_run",
     "translate_command",
     "translated_commands",
+    "confidence_step",
+    "catalog_entries",
+    "explain_authz_technique",
+    "explain_finding",
+    "build_manual_repro",
+    "WHO_VALUES",
+    # Campos dos modelos do painel lidos só pelo painel, pela serialização e pelos testes.
+    "what_happened",
+    "why_it_matters",
+    "what_to_do",
+    "technical_name",
+    "received_status",
+    "response_excerpt",
+    "response_total_lines",
+    "response_cut",
+    "personal_data_masked",
 ]
 
 # ------------------------------------------------------------ commitizen
