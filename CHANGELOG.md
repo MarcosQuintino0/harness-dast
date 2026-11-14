@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Corrigido: redação destruía porta e caminho de endereços sem segredo (desde a V1)
+
+- `_LONG_TOKEN` tratava `8080/api/medicos/busca-por-nome` (porta e caminho, 24 caracteres ou mais com algum dígito) como token e trocava por `***`; o `reproduce_curl` herdava o endereço cortado (`"$BASE_URL"/` ou `'/?nome=%27'`). Agora a regra de sequência longa vale por trecho do caminho dentro de endereço (a barra separa trechos), `host-com-token:8080` deixa de ser lido como par `nome: valor`, e ` HTTP/1.1` não é mais engolido ao mascarar `?token=...`. Valor sensível em consulta, credencial no endereço, JWT e `Bearer` continuam mascarados. Achados já gravados continuam com o endereço e o `curl` corrompidos (a redação roda na gravação); não há migração, só uma nova varredura os refaz.
+
 ### Adicionado: painel da execução, abas Cobertura e Tempo e tokens (ADR 0032)
 
 - Aba Cobertura (`coverage.html`, `domain/panel_coverage.py` e `panel_fence.py`), fiel ao desenho: quadro de números e barra, mapa das funções por parte do sistema (forma e palavra da lista fechada, motivo da função não testada, link para a âncora da falha grave em `findings.html`), a cerca (passaram, barrados por forma do endereço e por apontar para fora, "chegaram a lugar proibido", motivos em português com o código ao lado, aviso de cobertura parcial, modo estrito x amplo em uma frase) e "O que ficou de fora" com o risco e quem destrava. Estados: modo amplo, tudo testado e tráfego não medido (traço com a explicação, nunca zero).
