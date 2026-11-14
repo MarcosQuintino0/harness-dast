@@ -334,6 +334,7 @@ def build_functions(
     conhecem. Sem nenhuma das três fontes, a lista sai vazia.
     """
     spec = {item.operation_id: item for item in operations}
+    names = function_names(operations)
     results = {item.operation_id: item for item in (probe.operations if probe else ())}
     entries = {item.operation_id: item for item in (scan.entries if scan else ())}
     skips = {item.operation_id: item for item in (scan.skipped if scan else ())}
@@ -356,7 +357,7 @@ def build_functions(
                 operation_id=key,
                 method=method,
                 path=path,
-                name=(known.summary if known and known.summary else key),
+                name=names.get(key, key),
                 area=known.tags[0] if known and known.tags else OTHER_AREA,
                 state=state,
                 reason=reason,

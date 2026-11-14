@@ -593,3 +593,18 @@ def test_the_start_without_run_json_is_the_run_id_stamp_never_a_stage_file_time(
 
     assert ident.started_at is not None
     assert ident.started_at.isoformat().startswith("2026-11-13T02:15:32")  # carimbo 05:15:32Z, -3 h
+
+
+def test_functions_that_share_a_swagger_summary_are_listed_with_distinct_names() -> None:
+    from harness_dast.domain.api_model import Operation
+
+    operations = tuple(
+        Operation(operation_id=f"isca_{method}", method=method, path="/api/isca/**", summary="Isca")
+        for method in ("get", "post", "put")
+    )
+
+    panel_view = build_panel_view(sources(operations=operations))
+
+    names = [item.name for item in panel_view.functions if item.operation_id.startswith("isca_")]
+    assert len(set(names)) == 3
+    assert "Isca (POST /api/isca/**)" in names
