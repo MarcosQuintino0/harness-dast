@@ -18,6 +18,8 @@ class Matcher(Frozen):
     path_contains: str | None = None
     parameter: str | None = None
     method: str | None = None
+    category: str | None = None
+    operation_id: str | None = None
     technique: str | None = None  # `authz_horizontal`, `zap_active_scan`... (ADR 0027)
 
 
@@ -34,6 +36,7 @@ class Flaw(Frozen):
     weight: float = 1.0
     match: Matcher | None = None
     partial: Matcher | None = None
+    match_any: tuple[Matcher, ...] = ()
 
 
 class ModeConfig(Frozen):
@@ -100,6 +103,10 @@ class ExpectedProfile(Frozen):
     # Modo de leitura de caminhos da cerca (ADR 0026). A carta-modelo dos casos e estrita: o
     # perfil so pode dizer `wide` se a carta o autorizar.
     path_mode: Literal["strict", "wide"] = "strict"
+    allow_authz_writes: bool = False
+    allow_invalid_input_writes: bool = False
+    allow_upload_scan: bool = False
+    include_outcomes: tuple[str, ...] = ()
 
 
 class SecretsConfig(Frozen):

@@ -143,6 +143,7 @@ def write_sealed(
         ),
         encoding="utf-8",
     )
+    (dirs.sealed / "case.json").write_text(case.model_dump_json(indent=2), encoding="utf-8")
     (dirs.sealed / "secrets.json").write_text(json.dumps(values, indent=2), encoding="utf-8")
     mode_env = {case.target.mode.env_var: case.target.mode.values[mode]} if case.target.mode else {}
     env = {

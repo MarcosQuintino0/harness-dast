@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from evals.runner import gitutil
-from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_case
+from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_round_case
 
 LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 STATE_TIMEOUT_SECONDS = 10
@@ -108,7 +108,9 @@ def collect(
     mode_file = dirs.sealed / "mode.json"
     if not mode_file.is_file() or not dirs.workspace.is_dir():
         raise EvalError(f"{out} nao e uma rodada preparada (falta sealed/mode.json ou workspace/).")
-    case = load_case(json.loads(mode_file.read_text(encoding="utf-8"))["case"], cases_dir)
+    case = load_round_case(
+        dirs, json.loads(mode_file.read_text(encoding="utf-8"))["case"], cases_dir
+    )
     trace = dirs.trace
     trace.mkdir(parents=True, exist_ok=True)
     problems: list[str] = []

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_case
+from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_round_case
 from evals.runner.checks_profile import WIDENING_IDS, profile_checks
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
@@ -54,7 +54,7 @@ def approve(out: Path, *, cases_dir: Path = CASES_DIR) -> ApproveResult:
             alarga a carta (nada e gravado).
     """
     dirs = RoundDirs(out)
-    case = load_case(_case_name(dirs), cases_dir)
+    case = load_round_case(dirs, _case_name(dirs), cases_dir)
     products = dirs.workspace / "products"
     target = products / case.product / "target.yml"
     if not target.is_file():
