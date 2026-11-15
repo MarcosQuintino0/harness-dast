@@ -13,7 +13,7 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
 from harness_dast.domain.report_authz import authz_lines
-from harness_dast.domain.report_labels import SEVERITY_LABEL
+from harness_dast.domain.report_labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
 from harness_dast.domain.report_model import Coverage, FindingsReport
 from harness_dast.domain.report_signals import (
     PASSIVE_SUBSET_NOTE,
@@ -68,7 +68,9 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"{len(policy.disabled_rules)} regra(s) desligadas.",
     ]
     lines += _traffic_lines(coverage)
-    return lines + _truncated_lines(coverage) + _not_tested_lines(coverage)
+    return (
+        lines + _truncated_lines(coverage) + _seeded_lines(coverage) + _not_tested_lines(coverage)
+    )
 
 
 def _traffic_lines(coverage: Coverage) -> list[str]:
@@ -110,6 +112,27 @@ def _truncated_lines(coverage: Coverage) -> list[str]:
     lines += [
         f"- {code_span(item.operation_id)}: {escape_inline(item.outcome)} em {item.progress}%"
         for item in coverage.truncated_scans
+    ]
+    return lines
+
+
+def _seeded_lines(coverage: Coverage) -> list[str]:
+    if not coverage.seeded_scans:
+        return []
+    lines = [
+        "",
+        "### Operações varridas a partir de um resultado que não era sucesso",
+        "",
+        escape_inline(seeded_scans_notice(len(coverage.seeded_scans)), 600),
+        "",
+        "| Operação | Método e caminho | Classe do probe | Status do probe |",
+        "|---|---|---|---|",
+    ]
+    lines += [
+        f"| {cell_code(item.operation_id)} | {cell_code(item.method + ' ' + item.path)} | "
+        f"{escape_inline(item.seed_outcome)} | "
+        f"{'n/d' if item.probe_status is None else item.probe_status} |"
+        for item in coverage.seeded_scans
     ]
     return lines
 
@@ -169,7 +192,8 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             SEVERITY_LABEL[item.proposed_severity],
             escape_inline(item.proposed_confidence),
             escape_inline(item.title, 120),
-            code_span(f"{item.method} {item.path_template}"),
+            code_span(f"{item.method} {item.path_template}")
+            + (f" {escape_inline(seed_tag(item.seed_outcome))}" if item.seed_outcome else ""),
             str(item.occurrences),
         ]
         if report.comparison:
@@ -199,7 +223,11 @@ def _group_lines(report: FindingsReport) -> list[str]:
         "|---|---|---|---|---|---|---|",
     ]
     for group in report.groups:
-        where = ", ".join(f"{loc.method} {loc.path_template}" for loc in group.locations[:3])
+        where = ", ".join(
+            f"{loc.method} {loc.path_template}"
+            + (f" {seed_tag(loc.seed_outcome)}" if loc.seed_outcome else "")
+            for loc in group.locations[:3]
+        )
         extra = len(group.locations) - 3
         where += f" e mais {extra}" if extra > 0 else ""
         lines.append(
@@ -252,6 +280,7 @@ def _finding_lines(item: Finding) -> list[str]:
         f"({code_span(item.technique)}), não é teste de autorização entre contas.",
         f"- **Onde:** {code_span(f'{item.method} {item.path_template}')}"
         + (f", operação {code_span(item.operation_id)}" if item.operation_id else "")
+        + (f" {escape_inline(seed_tag(item.seed_outcome))}" if item.seed_outcome else "")
         + f", ligação por {escape_inline(item.attribution)}.",
         f"- **Parâmetro:** {code_span(item.parameter or '-')}, "
         f"vetor {code_span(item.input_vector or '-')}.",

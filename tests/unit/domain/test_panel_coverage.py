@@ -370,3 +370,25 @@ def test_hostile_text_is_escaped_in_names_areas_ids_and_reasons() -> None:
     assert "‮" not in page
     assert 'href="findings.html#F-&quot;&gt;&lt;script&gt;"' in page
     assert re.search(r"<h3>&lt;script&gt;alert\(1\)&lt;/script&gt;", page)
+
+
+def test_left_out_says_which_functions_were_attacked_from_a_result_that_was_not_success() -> None:
+    from harness_dast.domain.panel_model import PanelLeftOut
+
+    item = PanelLeftOut(kind="seeded", text="2 operações foram varridas a partir de x.", count=2)
+    panel_view = view().model_copy(update={"left_out": (item,)})
+
+    text = main_text(coverage_html(panel_view))
+
+    assert "Atacadas a partir de um resultado que não era sucesso." in text
+    assert "2 operações foram varridas a partir de x." in text
+
+
+def test_the_view_flags_a_scan_whose_entries_came_from_a_seed_that_was_not_success() -> None:
+    from tests.unit.domain.report_helpers import entry, scan_result
+
+    scan = scan_result([entry("obter", "GET", "/users/v1/{username}", 4, seed_outcome="not_found")])
+
+    text = main_text(coverage_html(view(scan=scan)))
+
+    assert "1 operações foram varridas a partir de uma resposta que não foi sucesso" in text

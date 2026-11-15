@@ -32,6 +32,7 @@ from harness_dast.domain.panel_model import (
     PanelStep,
 )
 from harness_dast.domain.probe_result import OperationResult, ProbeResult
+from harness_dast.domain.report_labels import seeded_scans_notice
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.report_traffic import path_shape_warning
 from harness_dast.domain.scan_plan import ScanSkip
@@ -434,6 +435,11 @@ def _scan_items(scan: ScanResult | None) -> list[PanelLeftOut]:
                 "antes do fim: cobrem só parte dos ataques.",
                 count=len(cut),
             )
+        )
+    seeded = [item for item in scan.entries if item.seed_outcome]
+    if seeded:
+        items.append(
+            PanelLeftOut(kind="seeded", text=seeded_scans_notice(len(seeded)), count=len(seeded))
         )
     warning = path_shape_warning(scan.traffic)
     if warning:

@@ -17,6 +17,7 @@ from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.internal_error_signals import classify_internal_error_signals
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
+from harness_dast.domain.report_labels import SEED_ASK_NOTICE
 from harness_dast.domain.report_model import (
     NOT_TESTED_STATEMENTS,
     NOT_TESTED_WITH_AUTHZ,
@@ -26,8 +27,10 @@ from harness_dast.domain.report_model import (
     FindingsSummary,
     GoneFinding,
     NotTested,
+    SeededScan,
     TruncatedScan,
 )
+from harness_dast.domain.scan_config import EXTRA_OUTCOMES
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.triage import TriageFile, merge_triage
@@ -48,9 +51,13 @@ def parse_alerts(raw: Sequence[Mapping[str, object]]) -> tuple[tuple[RawAlert, .
 
 def build_resolver(probe: ProbeResult, scan: ScanResult) -> AlertResolver:
     """Liga mensagens aprendidas e alertas de cada varredura às operações do `probe`."""
+    seeds = {entry.operation_id: entry.seed_outcome for entry in scan.entries}
     refs = {
         item.operation_id: OperationRef(
-            operation_id=item.operation_id, method=item.method, path=item.path
+            operation_id=item.operation_id,
+            method=item.method,
+            path=item.path,
+            seed_outcome=seeds.get(item.operation_id),
         )
         for item in probe.operations
     }
@@ -85,6 +92,9 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
                 reason = "scan_sem_registro"
                 message = "Não há motivo de ausência de varredura registrado no scan."
             message = f"O probe observou HTTP 404. {message}"
+        if reason == "not_success" and item.outcome in EXTRA_OUTCOMES - set(scan.include_outcomes):
+            ask = SEED_ASK_NOTICE.format(outcome=item.outcome)
+            message += f" {ask[0].upper()}{ask[1:]}"
         found.append(
             NotTested(
                 operation_id=item.operation_id,
@@ -95,6 +105,22 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
             )
         )
     return tuple(found)
+
+
+def _seeded_scans(probe: ProbeResult, scan: ScanResult) -> tuple[SeededScan, ...]:
+    """Operações varridas a partir de uma resposta que não foi sucesso (ADR 0050)."""
+    statuses = {item.operation_id: item.status for item in probe.operations}
+    return tuple(
+        SeededScan(
+            operation_id=entry.operation_id,
+            method=entry.method,
+            path=entry.path,
+            seed_outcome=entry.seed_outcome,
+            probe_status=statuses.get(entry.operation_id),
+        )
+        for entry in scan.entries
+        if entry.seed_outcome
+    )
 
 
 def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
@@ -116,6 +142,8 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
             if e.outcome != "completed"
         ),
         not_tested=_not_tested(probe, scan),
+        include_outcomes=scan.include_outcomes,
+        seeded_scans=_seeded_scans(probe, scan),
         limits=scan.limits,
         policy=scan.policy,
         traffic=scan.traffic,

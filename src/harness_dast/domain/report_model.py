@@ -79,6 +79,24 @@ class TruncatedScan(ApiModel):
     progress: int
 
 
+class SeededScan(ApiModel):
+    """Operação varrida a partir de uma resposta do `probe` que não foi sucesso (ADR 0050).
+
+    Attributes:
+        operation_id: Operação.
+        method: Método HTTP.
+        path: Modelo de caminho.
+        seed_outcome: Classe do `probe` (`not_found`, `validation_error`...).
+        probe_status: Código HTTP que o `probe` viu, ou `None`.
+    """
+
+    operation_id: str
+    method: str
+    path: str
+    seed_outcome: str
+    probe_status: int | None = None
+
+
 class Coverage(ApiModel):
     """O que a execução cobriu.
 
@@ -96,6 +114,11 @@ class Coverage(ApiModel):
         scans_run: Varreduras executadas.
         truncated_scans: Varreduras truncadas ou paradas.
         not_tested: Operações sem varredura, com o motivo.
+        include_outcomes: Classes além de `success` que o `scan` aplicou (`scan.include_outcomes`,
+            ADR 0050); vazio em `scan.json` anterior.
+        seeded_scans: Operações varridas a partir de uma resposta que não foi sucesso (ADR 0050).
+            Não mudam `reachability`, `reachability_all` nem `probe_successes`: incluir uma classe
+            não faz a operação "alcançada".
         limits: Limites aplicados.
         policy: Política de varredura aplicada.
         traffic: Tráfego visto pelo proxy de escopo durante o scan.
@@ -113,6 +136,8 @@ class Coverage(ApiModel):
     scans_run: int
     truncated_scans: tuple[TruncatedScan, ...] = ()
     not_tested: tuple[NotTested, ...] = ()
+    include_outcomes: tuple[str, ...] = ()
+    seeded_scans: tuple[SeededScan, ...] = ()
     limits: AppliedLimits
     policy: AppliedPolicy
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)

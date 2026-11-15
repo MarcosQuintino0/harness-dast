@@ -25,7 +25,12 @@ from harness_dast.domain.report_html_authz import authz_cards, authz_section
 from harness_dast.domain.report_html_signals import signal_section
 from harness_dast.domain.report_html_style import STYLE
 from harness_dast.domain.report_html_traffic import traffic_section
-from harness_dast.domain.report_labels import SEVERITY_LABEL, SEVERITY_ORDER
+from harness_dast.domain.report_labels import (
+    SEVERITY_LABEL,
+    SEVERITY_ORDER,
+    seed_tag,
+    seeded_scans_notice,
+)
 from harness_dast.domain.report_model import Coverage, FindingsReport
 from harness_dast.domain.report_signals import PASSIVE_SUBSET_NOTE, has_signal_reading
 from harness_dast.domain.report_traffic import mode_line
@@ -116,7 +121,8 @@ def _steps(report: FindingsReport) -> str:
 
 def _locations(group: FindingGroup) -> str:
     rows = "".join(
-        f"<tr><td><code>{h.ident(loc.method + ' ' + loc.path_template)}</code></td>"
+        f"<tr><td><code>{h.ident(loc.method + ' ' + loc.path_template)}</code>"
+        f"{' ' + h.text(seed_tag(loc.seed_outcome), 80) if loc.seed_outcome else ''}</td>"
         f"<td>{h.ident(loc.operation_id or '-')}</td><td>{h.ident(loc.finding_id)}</td>"
         f"<td>{loc.occurrences}</td></tr>"
         for loc in group.locations[:_MAX_ROWS]
@@ -257,7 +263,31 @@ def _not_covered(report: FindingsReport) -> str:
         else ""
     )
     cut = f"<h3>Varreduras truncadas ou paradas</h3><ul>{truncated}</ul>" if truncated else ""
-    return f"<h2>O que a varredura NÃO cobriu</h2>{partial}<ul>{statements}</ul>{cut}{table}"
+    return (
+        f"<h2>O que a varredura NÃO cobriu</h2>{partial}<ul>{statements}</ul>{cut}"
+        f"{_seeded(cov)}{table}"
+    )
+
+
+def _seeded(cov: Coverage) -> str:
+    if not cov.seeded_scans:
+        return ""
+    rows = "".join(
+        f"<tr><td>{h.ident(item.operation_id)}</td>"
+        f"<td><code>{h.ident(item.method + ' ' + item.path)}</code></td>"
+        f"<td>{h.ident(item.seed_outcome)}</td>"
+        f"<td>{'n/d' if item.probe_status is None else item.probe_status}</td></tr>"
+        for item in cov.seeded_scans[:_MAX_ROWS]
+    )
+    extra = len(cov.seeded_scans) - _MAX_ROWS
+    more = f'<p class="muted">... e mais {extra} (veja findings.json).</p>' if extra > 0 else ""
+    return (
+        "<h3>Operações varridas a partir de um resultado que não era sucesso</h3>"
+        f'<p class="note">{h.plain(seeded_scans_notice(len(cov.seeded_scans)))}</p>'
+        "<details><summary>Operações varridas a partir de semente que não foi sucesso "
+        f"({len(cov.seeded_scans)})</summary><table><tr><th>Operação</th><th>Requisição</th>"
+        f"<th>Classe do probe</th><th>Status do probe</th></tr>{rows}</table>{more}</details>"
+    )
 
 
 def _comparison(report: FindingsReport) -> str:
