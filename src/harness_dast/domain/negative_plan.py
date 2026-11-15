@@ -227,13 +227,6 @@ def _body_fields(
         found.add(name, "body", _ordered(proposals, missing), exchange)
 
 
-def _has_multipart(exchange: ExchangeRecord) -> bool:
-    # `multipart` é o resumo do ADR 0052 (campo do `ExchangeRecord` que o `probe` preenche
-    # quando o pedido foi multipart). Lido pelo `__dict__` para este módulo valer antes e
-    # depois de o campo existir; com o campo na base, vira `exchange.multipart is not None`.
-    return exchange.__dict__.get("multipart") is not None
-
-
 def _parse_body(exchange: ExchangeRecord) -> dict[str, JsonValue] | None:
     if exchange.body is None:
         return None
@@ -246,7 +239,7 @@ def _parse_body(exchange: ExchangeRecord) -> dict[str, JsonValue] | None:
 
 def _unsupported_body(exchange: ExchangeRecord, operation: Operation) -> bool:
     """Escrita cujo corpo o teste não sabe alterar (multipart, formulário, ausente, não objeto)."""
-    if _has_multipart(exchange):
+    if exchange.multipart is not None:  # corpo multipart (ADR 0052): só o resumo foi gravado
         return True
     if exchange.body is None:
         return operation.request_body is not None

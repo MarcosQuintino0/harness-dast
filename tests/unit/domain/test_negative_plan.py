@@ -9,6 +9,7 @@ import pytest
 from harness_dast.domain.api_model import MediaBody, Operation, Parameter, RequestBody
 from harness_dast.domain.api_schema import Schema
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.multipart_encoding import MultipartPart, MultipartSummary
 from harness_dast.domain.negative_config import NegativeConfig
 from harness_dast.domain.negative_plan import NegativeCase, NegativePlan, plan_negative
 from harness_dast.domain.negative_request import render_case
@@ -280,17 +281,21 @@ def test_a_write_without_a_json_object_body_is_unsupported(body: str | None) -> 
 
 
 def test_a_multipart_exchange_is_unsupported_and_never_planned() -> None:
-    class WithMultipart(ExchangeRecord):
-        multipart: tuple[str, ...] | None = None
-
-    base = WithMultipart(
+    base = ExchangeRecord(
         operation_id="criarProduto",
         method="POST",
         path="/api/produtos",
         target="/api/produtos",
         account="adm",
         status=201,
-        multipart=("arquivo",),
+        multipart=MultipartSummary(
+            parts=(
+                MultipartPart(
+                    name="arquivo", kind="file", filename="a.txt", content_type="text/plain", size=4
+                ),
+            ),
+            total_bytes=4,
+        ),
     )
 
     result = plan(base, config=WRITES)
