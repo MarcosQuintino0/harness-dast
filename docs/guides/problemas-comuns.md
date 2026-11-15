@@ -76,6 +76,8 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | `rate_limited` (429) | O alvo limita; reduza, não insista |
 | `server_error`, `timeout` | Pode ser o alvo; relate |
 | `skipped_scope`, `skipped_denied`, `skipped_destructive` | Por desenho: fora do escopo, proibido ou `DELETE` |
+| `build_error` em operação de envio de arquivo (`multipart/form-data`) | O esquema do corpo não é modelável (campo de arquivo que não é `string` com `format: binary`, mais de 20 partes) ou falta regra: leia o `hint`; para o tipo ou o nome do arquivo, regra `synthetic_file` em `data-rules.yml` |
+| Envio de arquivo alcançado (`success`), mas sem varredura: `upload_scan_not_authorized`, `binary_body` ou `multipart_not_scannable` no `scan.json` | Por desenho: a carta não autoriza o ZAP a varrer upload (`attack.allow_upload_scan`), o arquivo sintético é binário (`png`) e o ZAP recebe o corpo como texto, ou o ZAP não consegue varrer esse corpo. Não é falha de alcance; só o dono do produto autoriza a varredura (a pessoa muda a carta e aprova de novo) |
 
 O passo a passo desse laço é a skill `fix-reachability`.
 

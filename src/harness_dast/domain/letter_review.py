@@ -38,6 +38,7 @@ from harness_dast.domain.letter_sections import (
     read_scope,
     read_strength,
 )
+from harness_dast.domain.letter_upload import read_allow_upload_scan
 from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
 from harness_dast.domain.letter_writes import read_allow_writes
 from harness_dast.domain.letter_yaml import render_yaml
@@ -51,12 +52,14 @@ GENERATED_BLOCKS: Final = (
     "auth",
     "scan.strength",
     "scan.include_outcomes",
+    "scan.allow_upload_scan",
     "authz.allow_writes",
     "negative.allow_writes",
 )
 """Blocos do `target.yml` que a CLI escreve a partir da carta.
 
 `scan.strength` só se informada; `scan.include_outcomes` só com lista não vazia (ADR 0050);
+`scan.allow_upload_scan` só quando a carta o autoriza (ADR 0052);
 `authz.allow_writes` só quando a carta o autoriza (ADR 0038); `negative.allow_writes`, idem
 (ADR 0051).
 """
@@ -72,6 +75,9 @@ _HEADER = (
     "# Para mudar algum deles, a pessoa muda a carta e o perfil é gerado de novo.\n"
 )
 _HEADER_OUTCOMES = "# Também gerado da carta (ADR 0050): scan.include_outcomes.\n"
+_HEADER_UPLOAD = (
+    "# Também gerado da carta (ADR 0052): scan.allow_upload_scan, que só a carta autoriza.\n"
+)
 _HEADER_WRITES = (
     "# Também gerado da carta (ADR 0038): authz.allow_writes, que só a carta autoriza.\n"
 )
@@ -139,6 +145,7 @@ def _profile_data(
     allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
     negative_writes = read_allow_invalid_writes(c, letter.attack.allow_invalid_input_writes)
     outcomes = read_include_outcomes(c, letter.attack.include_outcomes)
+    upload_scan = read_allow_upload_scan(c, letter.attack.allow_upload_scan)
     examples = read_example_data(c, letter.example_data)
     if (
         c.issues
@@ -170,6 +177,8 @@ def _profile_data(
         scan["strength"] = strength
     if outcomes:
         scan["include_outcomes"] = list(outcomes)
+    if upload_scan:
+        scan["allow_upload_scan"] = True
     if scan:
         data["scan"] = scan
     if allow_writes:
@@ -225,6 +234,7 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
         issues=(),
         profile_text=_HEADER
         + (_HEADER_OUTCOMES if profile.scan.include_outcomes else "")
+        + (_HEADER_UPLOAD if profile.scan.allow_upload_scan else "")
         + (_HEADER_WRITES if profile.authz.allow_writes else "")
         + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
         + render_yaml(data),

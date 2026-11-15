@@ -431,7 +431,9 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
     profile = ProductProfile.from_data(
         mutated(
             lambda d: d.update(
-                cleanup=_cleanup(), authz=changed, scan={"include_outcomes": ["not_found"]}
+                cleanup=_cleanup(),
+                authz=changed,
+                scan={"include_outcomes": ["not_found"], "allow_upload_scan": True},
             )
         )
     )
