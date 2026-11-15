@@ -97,7 +97,11 @@ def _write_state(case_url: str | None, trace: Path, problems: list[str]) -> bool
 
 
 def collect(
-    out: Path, *, state_dir: Path | None = None, cases_dir: Path = CASES_DIR
+    out: Path,
+    *,
+    state_dir: Path | None = None,
+    cases_dir: Path = CASES_DIR,
+    case_file: Path | None = None,
 ) -> CollectResult:
     """Coleta o rastro da rodada.
 
@@ -109,7 +113,10 @@ def collect(
     if not mode_file.is_file() or not dirs.workspace.is_dir():
         raise EvalError(f"{out} nao e uma rodada preparada (falta sealed/mode.json ou workspace/).")
     case = load_round_case(
-        dirs, json.loads(mode_file.read_text(encoding="utf-8"))["case"], cases_dir
+        dirs,
+        json.loads(mode_file.read_text(encoding="utf-8"))["case"],
+        cases_dir,
+        case_file=case_file,
     )
     trace = dirs.trace
     trace.mkdir(parents=True, exist_ok=True)

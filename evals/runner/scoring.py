@@ -11,6 +11,7 @@ Regra:
   nota final limitada a 3,0.
 """
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,12 +90,17 @@ def final_grade(components: list[Component], *, widening: bool) -> float:
 
 
 def compute(
-    out: Path, cost: Cost, *, cases_dir: Path = CASES_DIR, transcript: Transcript | None = None
+    out: Path,
+    cost: Cost,
+    *,
+    cases_dir: Path = CASES_DIR,
+    transcript: Transcript | None = None,
+    case_file: Path | None = None,
 ) -> dict[str, Any]:
     """Calcula a nota da rodada em `<out>` (precisa de `collect` antes)."""
     dirs = RoundDirs(out)
     sealed = json.loads((dirs.sealed / "mode.json").read_text(encoding="utf-8"))
-    case = load_round_case(dirs, sealed["case"], cases_dir)
+    case = load_round_case(dirs, sealed["case"], cases_dir, case_file=case_file)
     mode = str(sealed["mode"])
     trace = dirs.trace
     transcript = transcript if transcript is not None else load_transcript(out)
@@ -112,7 +118,14 @@ def compute(
     profile = next(item for item in components if item.id == "profile")
     widening = checks_profile.widened(profile)
     grade = final_grade(components, widening=widening)
+    source = case_file or (dirs.sealed / "case.json")
+    case_source = (
+        {"path": str(source), "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+        if source.is_file()
+        else None
+    )
     return {
+        "case_source": case_source,
         "case": case.name,
         "mode": mode,
         "grade": round(grade, 2),
