@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Finalidade: o harness-dast é uma ferramenta **defensiva** de teste de segurança de APIs, usada pelo time de QA nos ambientes de teste dos produtos da própria empresa, com autorização por escrito do dono do produto e dados sintéticos. O ciclo é achar a vulnerabilidade, relatar, corrigir e retestar. Quem ataca é o OWASP ZAP, conduzido pela CLI dentro de travas em código (carta, aprovação humana do escopo, cerca, janela, limites); o agente prepara e interpreta. Detalhes em `docs/finalidade-e-uso-responsavel.md`.
+Finalidade: o harness-dast é uma ferramenta **defensiva** de teste de segurança de APIs, usada pelo time de QA nos ambientes de teste dos produtos da própria empresa, com autorização por escrito do dono do produto e dados sintéticos. O ciclo é achar a vulnerabilidade, relatar, corrigir e retestar. O agente conduz o fluxo autorizado por comandos `hdast`; a CLI e o ZAP executam as verificações, com escopo e limites impostos pelo código (carta, aprovação humana do escopo, cerca, janela, limites). Detalhes em `docs/finalidade-e-uso-responsavel.md`.
 
 Regras para qualquer agente de IA neste repositório. Idioma: documentação, comentários e mensagens ao usuário em português; identificadores de código e nomes de arquivo e comando em inglês.
 
