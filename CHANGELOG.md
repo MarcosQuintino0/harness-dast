@@ -6,9 +6,44 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
-### Provas de laboratório (degrau 3)
+## [1.5.1] - 2026-11-15
 
-- Provas contra a Clínica Piloto, nos modos vulnerável e seguro, dos sinais de erro interno na cerca (ADR 0049, `tests/integration/test_lab_error_signals.py`, agora com o pedido de erro vindo do próprio `probe`), da varredura de operações que deram "não encontrado" (ADR 0050, `test_lab_include_outcomes.py`) e dos valores que o esquema proíbe (ADR 0051, `test_lab_negative.py`). Só testes e medidas; o código da ferramenta não mudou.
+Completa a V1.5 ("achar mais: entrada e erros") com as quatro partes ativas que a 1.5.0 deixou de fora. Provado por testes unitários, de contrato, QA independente e, com Docker, na Clínica Piloto nos modos vulnerável e seguro. **Nada foi provado contra produto real.**
+
+### Mudança de uso
+
+- `--include-outcome` do `scan` passa a **só escolher dentro do perfil** (`scan.include_outcomes`), como toda flag: antes ela alargava o que era atacado. Quem a usava sozinha precisa da lista no perfil, que vem da carta.
+
+### Sinais de erro interno vistos pela cerca (ADR 0049)
+
+- A cerca lê até 64 KiB de cada resposta do alvo (gzip e deflate com saída limitada; `br` e `zstd` não são lidos) e conta sinais de um catálogo fixo no domínio: erro de banco, rastreamento de pilha (Java, Python, .NET, Node, PHP) e página de depuração. Só observa: nunca nega por causa de um sinal e nunca grava corpo, trecho nem código de erro (a auditoria ganha só `signals` e `signal_skip`).
+- Cada categoria vira achado com técnica `proxy_error_signal` (ids `S-`), em `error-signals.json` e numa seção do relatório; não se soma aos sinais passivos do ADR 0045. **Exige `hdast stack up --build`** para a imagem nova da cerca.
+- Laboratório: no modo vulnerável, uma resposta 500 com rastreamento de pilha Java virou achado; no seguro, zero sinais. Cerca de 15 a 70 ms por resposta, medidos com a leitura incluída.
+
+### Varrer as operações que deram "não encontrado" (ADR 0050)
+
+- Campo novo `scan.include_outcomes` no perfil, vindo da carta (`attack.include_outcomes`, origem `carta` ou `pessoa`, com o aviso `OUTCOMES_ATTACK_EXTENDED`). `run --include-outcomes/--no-include-outcomes` e `scan --no-include-outcomes`.
+- Achados e relatório marcam a semente (`seed_outcome`, fora do fingerprint) e listam as operações varridas a partir de um resultado que não era sucesso (`coverage.seeded_scans`). Operação com 404 sem varredura diz que a carta precisa autorizar.
+- Laboratório: com `not_found`, uma operação que deu 404 no `probe` entrou no `scan` (cerca de 500 pedidos, nenhum `DELETE`).
+
+### Valores que o esquema proíbe (ADR 0051)
+
+- Comando novo `hdast negative PRODUTO --run ID` e sexto estágio do `run` (depois do `authz`, antes do `report`), ligado por padrão e **só lendo** (`--no-negative` desliga). Manda, um campo por pedido, valores que o OpenAPI proíbe (abaixo do mínimo, acima do máximo, tipo errado, obrigatório ausente, fora do enum, longo e curto demais), conferidos pela validação do ADR 0047. Aceitar (2xx) indica falta de validação; 5xx indica erro sem tratamento.
+- Escrita só com `negative.allow_writes`, que vem da carta (`attack.allow_invalid_input_writes`, com `source: carta` e a frase). `DELETE` nunca. `PUT`/`PATCH` aceito é restaurado; `POST` aceito conta em `created_resources`. O valor enviado nunca é gravado.
+- Saídas: `negative.json`, seção `negative` e `summary.negative_by_severity` em `findings.json`, seção do relatório, etapa no painel e em `metrics.json`. Orçamento por operação e total, que conta toda tentativa (inclusive repetição de 429).
+- Laboratório (só leitura): 9 pedidos, todos recusados com 400. Com escrita na cópia descartável: 59 pedidos, 9 achados baixos de tipo errado aceito (número em campo de texto), restaurações registradas, nenhum valor nos artefatos.
+
+### Envio de arquivo (`multipart`) (ADR 0052)
+
+- O `probe` alcança operações `multipart/form-data` com arquivos sintéticos de lista fechada (texto, CSV, JSON, PNG de 1x1; no máximo 1 KiB, nunca executáveis) e a regra `synthetic_file` no `data-rules.yml`. `exchanges.json` guarda só nome, tipo e tamanho das partes.
+- O `scan` de upload fica atrás de `attack.allow_upload_scan` (carta com a frase) e, por ora, é sempre pulado com `multipart_not_scannable`: medido no ZAP 2.17 real, a API de varredura recusa o pedido `multipart` (`url_not_found`).
+- A Clínica Piloto ganhou `POST /api/documentos/enviar` (sem falha plantada, guarda em memória) para a prova.
+
+### Correções (QA independente)
+
+- O orçamento do `negative` era furado pelas repetições de 429; uma escrita cuja linha de base perdeu um campo obrigatório dava falsa segurança (agora `omitted_required_field`); o `negative` repetia os caminhos de saúde e de preparação; o plano do `scan` não normalizava o método; e-mail e CPF passavam inteiros no caminho dos sinais; orçamento negativo na função de plano; o painel ao vivo levantava erro sem estágios.
+
+Relatório: [docs/reviews/relatorio-v1.5.1.md](docs/reviews/relatorio-v1.5.1.md).
 
 ## [1.5.0] - 2026-11-14
 

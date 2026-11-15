@@ -230,7 +230,7 @@ Seis entregas, com os ADRs 0038 a 0043 (todos "Proposto"; o 0043 registra dois d
 
 Relatório da versão: [reviews/relatorio-v1.4.md](reviews/relatorio-v1.4.md).
 
-## Ciclo V1.3 a V1.8 (1.3 e 1.4 entregues; 1.5 entregue em parte; 1.6 a 1.8 planejadas)
+## Ciclo V1.3 a V1.8 (1.3 e 1.4 entregues; 1.5 entregue; 1.6 a 1.8 planejadas)
 
 Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans/2026-11-14-ciclo-v1-3-a-v1-8.md): seis versões (uso seguro e fácil, autorização, entrada e erros, confirmar e relatar, velocidade, sessão do Claude). Este roadmap só lista um item como entregue quando houver código e teste.
 
@@ -238,7 +238,7 @@ Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans
 | --- | --- | --- |
 | 1.3 | Uso seguro e fácil | **Entregue em código e testes** (trava, carta estruturada, aprovação do escopo, entrevista, documentos); veja "V1.3" acima |
 | 1.4 | Achar mais: autorização | **Entregue em código e testes**, provada no laboratório (ADRs 0038 a 0042); veja "V1.4" acima |
-| 1.5 | Diagnósticos de entrada, erros e cobertura | **Entregue em parte (1.5.0):** análise passiva, inspeção offline e prova sintética de multipart. Veja [o relatório](reviews/relatorio-v1.5.md) |
+| 1.5 | Achar mais: entrada e erros | **Entregue em 1.5.0 e 1.5.1** (ADRs 0045 a 0052): diagnósticos offline na 1.5.0; na 1.5.1, sinais de erro na cerca, varredura de operações com 404, `hdast negative` e `multipart` no `probe`, provados no laboratório. O `scan` de upload segue pulado (o ZAP recusa). Veja [1.5.0](reviews/relatorio-v1.5.md) e [1.5.1](reviews/relatorio-v1.5.1.md) |
 | 1.6 | Confirmar e relatar | Planejada |
 | 1.7 | Velocidade | Planejada |
 | 1.8 | Sessão do Claude | Planejada |
