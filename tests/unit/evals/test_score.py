@@ -351,6 +351,20 @@ def test_secure_mode_without_findings_has_no_false_alarm(repo: Path, out: Path) 
     assert component(score(out), "alarms")["score"] == 1.0
 
 
+def test_secure_mode_without_any_report_leaves_false_alarms_out_of_the_grade(
+    repo: Path, out: Path
+) -> None:
+    dirs = make_round(repo, out, "secure")
+    fill_round(dirs, findings=[])
+    remove(dirs.workspace / "runs/2026-11-13T10-00-00Z-mini-aaaa/findings.json")
+    write_transcript(out, OK_COMMANDS)
+
+    alarms = component(score(out), "alarms")
+
+    assert alarms["score"] is None
+    assert "nao se aplica" in alarms["checks"][0]["detail"]
+
+
 def test_probe_that_never_ran_scores_zero_reachability(repo: Path, out: Path) -> None:
     dirs = good_round(repo, out)
     remove(dirs.workspace / "runs/2026-11-13T10-00-00Z-mini-aaaa/probe.json")

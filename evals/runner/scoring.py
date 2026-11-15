@@ -110,7 +110,9 @@ def compute(
         checks_reach.reach_component(trace),
         checks_findings.found_component(case, findings)
         if mode == "vulnerable"
-        else checks_findings.alarm_component(case, findings),
+        else checks_findings.alarm_component(
+            case, findings, reported=checks_findings.has_report(trace)
+        ),
         checks_profile.profile_component(case, trace),
         checks_triage.triage_component(trace),
         cost_component(case, cost),
