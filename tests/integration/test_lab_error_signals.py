@@ -1,7 +1,9 @@
 """Sinais de erro interno vistos pela cerca (ADR 0049) contra a Clínica Piloto, nos dois modos.
 
 Nível RÁPIDO: uma pilha por modo, COM `stack up --build` (obrigatório: sem ele a cerca é a
-antiga e o teste mediria a imagem velha), `probe`, `scan` de uma operação de leitura e `report`.
+antiga e o teste mediria a imagem velha), `probe`, `scan` de até duas operações de leitura
+e `report`. A busca por CRM tem resposta base de sucesso e exercita o ZAP em um caminho com
+parâmetro; não exige que suas mutações produzam sinais.
 Prova o CONTRATO, não a sorte do ZAP: o pedido que provoca o erro sai do próprio `probe`. A CÓPIA
 descartável do `data-rules.yml` ganha uma regra que fixa `nome` de `buscarPacientesPorNome` numa
 aspa simples (o valor que o `probe` observou como o que derruba a busca no modo vulnerável), então
@@ -37,6 +39,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 MODES = ("vulnerable", "secure")
 SEARCH_OPERATION = "buscarPacientesPorNome"
 SEARCH_PATH = "/api/pacientes/busca"
+CRM_OPERATION = "buscarMedicoPorCrm"
+CRM_PREFIX = "/api/medicos/crm/"
 BREAKING_RULE = """  - match: { operation: buscarPacientesPorNome, field: nome }
     generator: constant
     args: { value: "'" }
@@ -64,6 +68,7 @@ class SignalsLab:
     zap_evidence: list[str]
     reports_with_fragments: list[str]
     probe_outcome: str
+    crm_probe_outcome: str
     probe_seconds: float
     scan_summary: dict[str, Any]
 
@@ -133,7 +138,7 @@ def _measure(cli: LabCli, mode: str) -> SignalsLab:
     run_id = str(probe.envelope["run_id"])
     scan = cli.run(
         "scan", "clinica-piloto", "--run", run_id, "--only", SEARCH_OPERATION,
-        "--max-minutes", "3", timeout=900,
+        "--only", CRM_OPERATION, "--max-minutes", "3", timeout=900,
     )  # fmt: skip
     assert scan.code in {0, 3}, scan.stdout[-500:]
     scan_file = json.loads((cli.runs / run_id / "scan.json").read_text(encoding="utf-8"))
@@ -141,6 +146,10 @@ def _measure(cli: LabCli, mode: str) -> SignalsLab:
         "exit_code": scan.code,
         "status": scan_file["status"],
         "entries": len(scan_file["entries"]),
+        "operations": [
+            {k: e[k] for k in ("operation_id", "scan_id", "outcome", "requests")}
+            for e in scan_file["entries"]
+        ],
         "skipped": [s["reason"] for s in scan_file["skipped"]],
     }
     assert cli.run("report", "clinica-piloto", "--run", run_id).code in {0, 1}
@@ -150,6 +159,9 @@ def _measure(cli: LabCli, mode: str) -> SignalsLab:
     probe_file = json.loads((directory / "probe.json").read_text(encoding="utf-8"))
     outcomes = [
         r["outcome"] for r in probe_file["operations"] if r["operation_id"] == SEARCH_OPERATION
+    ]
+    crm_outcomes = [
+        r["outcome"] for r in probe_file["operations"] if r["operation_id"] == CRM_OPERATION
     ]
     leaked, zap_evidence, reports = _leaks(cli)
     return SignalsLab(
@@ -162,6 +174,7 @@ def _measure(cli: LabCli, mode: str) -> SignalsLab:
         zap_evidence=zap_evidence,
         reports_with_fragments=reports,
         probe_outcome=outcomes[0] if outcomes else "absent",
+        crm_probe_outcome=crm_outcomes[0] if crm_outcomes else "absent",
         probe_seconds=probe_seconds,
         scan_summary=scan_summary,
     )
@@ -201,6 +214,14 @@ def _observations(lab: SignalsLab) -> dict[str, Any]:
         "categories": dict(Counter(c for row in released for c in row.get("signals", []))),
         "skipped": dict(Counter(row.get("signal_skip") for row in released)),
         "probe_outcome_of_the_search": lab.probe_outcome,
+        "probe_outcome_of_crm": lab.crm_probe_outcome,
+        "crm_distinct_paths": len(
+            {row["path"] for row in released if row["path"].startswith(CRM_PREFIX)}
+        ),
+        "signal_groups": [
+            {k: f[k] for k in ("category", "method", "operation_id", "occurrences")}
+            for f in lab.findings["proxy_signals"]["findings"]
+        ],
         "probe_seconds": lab.probe_seconds,
         "fragments_in_zap_evidence_of_findings_json": lab.zap_evidence,
         "report_files_with_fragments_from_zap_evidence": lab.reports_with_fragments,
@@ -309,3 +330,32 @@ def test_sinais_agrupam_por_operacao_e_categoria(lab: SignalsLab) -> None:
     assert lab.findings["proxy_signals"]["findings_omitted"] == 0
     if lab.mode == "vulnerable":
         assert any(f["operation_id"] == SEARCH_OPERATION for f in findings)
+
+
+def test_scan_de_identificador_tem_base_valida_e_envia_pedidos(lab: SignalsLab) -> None:
+    assert lab.crm_probe_outcome == "success"
+    entries = [e for e in lab.scan_summary["operations"] if e["operation_id"] == CRM_OPERATION]
+    assert entries
+    assert any(e["scan_id"] is not None and e["requests"] > 0 for e in entries)
+
+
+def test_sinais_repetidos_do_crm_sao_agrupados_na_operacao(lab: SignalsLab) -> None:
+    rows = [
+        row
+        for row in lab.released_with_status()
+        if row["method"] == "GET"
+        and row["path"].startswith(CRM_PREFIX)
+        and "/" not in row["path"][len(CRM_PREFIX) :]
+    ]
+    categories = Counter(category for row in rows for category in row.get("signals", []))
+    findings = lab.findings["proxy_signals"]["findings"]
+    for category, occurrences in categories.items():
+        group = [
+            f
+            for f in findings
+            if f["operation_id"] == CRM_OPERATION
+            and f["category"] == category
+            and f["method"] == "GET"
+        ]
+        assert len(group) == 1
+        assert group[0]["occurrences"] == occurrences
