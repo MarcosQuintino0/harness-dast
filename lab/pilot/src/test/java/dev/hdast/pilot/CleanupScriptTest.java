@@ -49,7 +49,9 @@ class CleanupScriptTest extends ApiTestBase {
         assertThat(count("CONVENIO", "ID = " + convenio)).isZero();
         assertThat(count("CONVENIO", "CREATED_BY = 'outra.pessoa'")).isEqualTo(1);
         assertThat(count("PACIENTE", "CREATED_BY = 'seed'")).isEqualTo(2);
-        assertThat(count("USUARIO", "1 = 1")).isEqualTo(4);
+        assertThat(count("USUARIO", "1 = 1")).isEqualTo(5);
+        assertThat(jdbc.sql("SELECT COUNT(*) FROM USUARIO WHERE USERNAME = :username AND CREATED_BY = 'seed'")
+                .param("username", MEDICO_B).query(Long.class).single()).isEqualTo(1);
     }
 
     private long count(String table, String where) {
