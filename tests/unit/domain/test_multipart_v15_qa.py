@@ -46,7 +46,7 @@ HOSTILE_NAMES = [
     ".hidden.txt",
     "-rf.txt",
     "é.txt",
-    "Ff41.txt",
+    "ａ.txt",  # noqa: RUF001 - letra de largura total, de propósito
     "a‮txt.txt",
     "a​.txt",
     "٣.txt",
