@@ -80,6 +80,18 @@ def _strength_line(profile: ProductProfile) -> str:
     )
 
 
+def _outcomes_lines(profile: ProductProfile) -> list[str]:
+    """Linha das classes extras da varredura (ADR 0050); vazio no padrão."""
+    classes = profile.scan.include_outcomes
+    if not classes:
+        return []
+    return [
+        "ATACA TAMBÉM OPERAÇÕES QUE DERAM: " + ", ".join(classes) + " (scan.include_outcomes): "
+        "o ataque parte de um pedido que o alvo recusou ou não achou, e nos POST, PUT e PATCH "
+        "cria e altera mais dados sintéticos"
+    ]
+
+
 def _scan_policy_line(profile: ProductProfile) -> str:
     scan = profile.scan
     rules = ", ".join(str(rule) for rule in sorted(scan.disable_rules)) or "nenhuma"
@@ -202,6 +214,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_account_lines(profile),
         _strength_line(profile),
         _scan_policy_line(profile),
+        *_outcomes_lines(profile),
         *_authz_lines(profile),
         *_cleanup_lines(profile),
     )

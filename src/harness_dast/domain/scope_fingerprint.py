@@ -119,8 +119,32 @@ def _auth(profile: ProductProfile) -> JsonValue:
     return {"type": auth.type, "header_name": auth.header_name, "accounts": accounts}
 
 
+_LEGACY_SCAN_KEYS: Final = frozenset(
+    {
+        "strength",
+        "threshold",
+        "url_path_injection",
+        "mutating_methods",
+        "disable_rules",
+        "max_scan_minutes",
+        "max_rule_minutes",
+        "token_refresh_seconds",
+        "fail_on",
+    }
+)
+"""Chaves do `scan` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
+
+
 def _scan(profile: ProductProfile) -> JsonValue:
     dumped = profile.scan.model_dump(mode="json")
+    # Chave nova do `scan` (hoje `include_outcomes`, ADR 0050) no valor padrão fica de fora: o
+    # perfil que não a usa mantém a impressão digital e a aprovação já feita continua valendo.
+    # É conjunto: a ordem em que o perfil a escreve não muda a impressão digital.
+    dumped["include_outcomes"] = _list(sorted(set(profile.scan.include_outcomes)))
+    defaults = type(profile.scan)().model_dump(mode="json")
+    for key in [k for k in dumped if k not in _LEGACY_SCAN_KEYS]:
+        if dumped[key] == defaults[key]:
+            del dumped[key]
     # Conjuntos: a ordem em que o perfil os escreve não muda a política.
     dumped["mutating_methods"] = _list(sorted(set(profile.scan.mutating_methods)))
     dumped["disable_rules"] = _list(sorted(set(profile.scan.disable_rules)))

@@ -77,6 +77,15 @@ def run_command(
             "e não muda nada. Não roda com --skip-scan.",
         ),
     ] = True,
+    include_outcomes: Annotated[
+        bool,
+        typer.Option(
+            "--include-outcomes/--no-include-outcomes",
+            help="O scan usa scan.include_outcomes do perfil (operações que o probe viu com "
+            "404, 400, 409 etc.). --no-include-outcomes o reduz a só operações com sucesso; "
+            "nenhuma flag amplia o que o perfil autoriza.",
+        ),
+    ] = True,
     fail_on: Annotated[
         FailOn | None,
         typer.Option(
@@ -119,6 +128,7 @@ def run_command(
                     fail_on=fail_on,
                     compare=compare,
                     max_minutes=max_minutes,
+                    include_outcomes=include_outcomes,
                 )
             )
         finally:

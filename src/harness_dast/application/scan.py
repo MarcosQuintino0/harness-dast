@@ -56,12 +56,12 @@ from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_plan import (
-    EXTRA_OUTCOMES,
     Candidate,
     ScanPlan,
     ScanSkip,
     SentRequest,
     last_sent,
+    resolve_include_outcomes,
     resolve_targets,
     select_candidates,
 )
@@ -93,7 +93,8 @@ class ScanRequest:
         product: Produto.
         run_id: Execução do `probe` que alimenta a varredura.
         only: Varre só estas operações.
-        include_outcomes: Classes além de `success` (lista fechada de `EXTRA_OUTCOMES`).
+        include_outcomes: `None` (sem flag): vale `scan.include_outcomes` do perfil. Tupla: só
+            ESCOLHE dentro do perfil (flags só reduzem, ADR 0050); vazia é só `success`.
         dry_run: Mostra o plano, sem tocar o ZAP nem o alvo e sem gravar arquivos.
         max_minutes: Reduz o prazo total (nunca acima de `limits.max_duration_minutes`).
         threads: Reduz as threads por host (nunca acima de `limits.zap_threads_per_host`).
@@ -106,7 +107,7 @@ class ScanRequest:
     product: str
     run_id: str
     only: tuple[str, ...] = ()
-    include_outcomes: tuple[str, ...] = ()
+    include_outcomes: tuple[str, ...] | None = None
     dry_run: bool = False
     max_minutes: int | None = None
     threads: int | None = None
@@ -125,6 +126,7 @@ class _Prepared:
     sent: dict[str, SentRequest]
     candidates: tuple[Candidate, ...]
     skipped: tuple[ScanSkip, ...]
+    include_outcomes: tuple[str, ...]
     started: datetime
     deadline: datetime
     policy: ScanPolicy
@@ -228,12 +230,8 @@ class Scan:
                 "--only cita operação desconhecida nesta execução: " + ", ".join(unknown) + ".",
                 hint="Use os operation_id de probe.json (hdast spec inspect lista os do OpenAPI).",
             )
-        extra = frozenset(request.include_outcomes)
-        if not extra <= EXTRA_OUTCOMES:
-            raise ConfigError(
-                "--include-outcome aceita só: " + ", ".join(sorted(EXTRA_OUTCOMES)) + ".",
-                hint="success é sempre incluído; erros de servidor e de autenticação nunca.",
-            )
+        outcomes = resolve_include_outcomes(profile.scan.include_outcomes, request.include_outcomes)
+        extra = frozenset(outcomes)
         spec = self._specs.load(request.product, profile)
         flows = self._documents.load_flows(request.product)
         planned = {
@@ -264,6 +262,7 @@ class Scan:
             sent=sent,
             candidates=candidates,
             skipped=skipped,
+            include_outcomes=outcomes,
             started=started,
             deadline=deadline,
             policy=build_policy(profile.scan),
@@ -537,13 +536,21 @@ class Scan:
         )
         if plan:
             planned = tuple(
-                PlannedScan(operation_id=t.operation_id, method=t.method, path=t.path)
+                PlannedScan(
+                    operation_id=t.operation_id,
+                    method=t.method,
+                    path=t.path,
+                    seed_outcome=t.seed_outcome,
+                )
                 for t in plan.targets
             )
         else:
             planned = tuple(
                 PlannedScan(
-                    operation_id=c.result.operation_id, method=c.result.method, path=c.result.path
+                    operation_id=c.result.operation_id,
+                    method=c.result.method,
+                    path=c.result.path,
+                    seed_outcome=c.seed_outcome,
                 )
                 for c in prep.candidates
             )
@@ -557,6 +564,7 @@ class Scan:
             finished_at=self._clock.now().isoformat(),
             policy=AppliedPolicy.from_policy(prep.policy),
             limits=AppliedLimits.from_limits(prep.limits, prep.zap_limits),
+            include_outcomes=prep.include_outcomes,
             planned=planned,
             entries=entries,
             skipped=prep.skipped + (plan.skipped if plan else ()) + pending,

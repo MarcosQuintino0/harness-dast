@@ -23,9 +23,10 @@ from urllib.parse import urlsplit
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.probe_result import OperationResult
-from harness_dast.domain.scan_config import ScanConfig
+from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scope import OutboundRequest, ScopeGuard
 from harness_dast.domain.zap_messages import LearnedRequest
 
@@ -41,11 +42,6 @@ SkipReason = Literal[
     "not_selected",
     "not_run",
 ]
-
-EXTRA_OUTCOMES: Final = frozenset(
-    {"logical_failure", "validation_error", "conflict", "not_found", "client_error"}
-)
-"""Classes além de `success` que `--include-outcome` aceita (a requisição existe no ZAP)."""
 
 _METHOD_RANK: Final = {"PUT": 2, "PATCH": 2, "POST": 1}
 
@@ -103,6 +99,11 @@ class Candidate:
     result: OperationResult
     sent: SentRequest
 
+    @property
+    def seed_outcome(self) -> str | None:
+        """Classe do `probe` quando não foi `success` (a "semente" do ataque, ADR 0050)."""
+        return None if self.result.outcome == "success" else self.result.outcome
+
 
 @dataclass(frozen=True)
 class ScanTarget:
@@ -115,6 +116,7 @@ class ScanTarget:
     url: str = field(repr=False)
     body: str | None = field(repr=False)
     account: str | None = None
+    seed_outcome: str | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +137,42 @@ def last_sent(audit: Sequence[AuditEntry]) -> dict[str, SentRequest]:
                 method=entry.method, path=entry.path, status=entry.status, account=entry.account
             )
     return found
+
+
+def resolve_include_outcomes(
+    from_profile: Sequence[str], requested: Sequence[str] | None
+) -> tuple[str, ...]:
+    """Classes além de `success` que valem: a flag só escolhe dentro do que o perfil lista.
+
+    Args:
+        from_profile: `scan.include_outcomes` do perfil (vem da carta e da aprovação).
+        requested: `--include-outcome` da linha de comando; `None` sem flag (vale o perfil) e
+            tupla vazia para `--no-include-outcomes` (só `success`).
+
+    Returns:
+        As classes aplicadas, na ordem do perfil.
+
+    Raises:
+        ConfigError: Classe fora da lista fechada ou que o perfil não lista. Flags só reduzem.
+    """
+    if requested is None:
+        return tuple(from_profile)
+    unknown = sorted(set(requested) - EXTRA_OUTCOMES)
+    if unknown:
+        raise ConfigError(
+            "--include-outcome aceita só: " + ", ".join(sorted(EXTRA_OUTCOMES)) + ".",
+            hint="success é sempre incluído; erros de servidor e de autenticação nunca.",
+        )
+    outside = sorted(set(requested) - set(from_profile))
+    if outside:
+        raise ConfigError(
+            "--include-outcome pede classe que o perfil não lista em scan.include_outcomes: "
+            + ", ".join(outside)
+            + ".",
+            hint="Flags só reduzem; só a carta pode autorizar essa classe (peça ao dono do "
+            "produto, a pessoa gera o perfil de novo e aprova). O agente não a liga.",
+        )
+    return tuple(item for item in from_profile if item in set(requested))
 
 
 def _skip(result: OperationResult, reason: SkipReason, message: str) -> ScanSkip:
@@ -333,6 +371,7 @@ def resolve_targets(
                 url=found.url,
                 body=found.body,
                 account=candidate.sent.account,
+                seed_outcome=candidate.seed_outcome,
             )
         )
     return ScanPlan(tuple(targets), tuple(skipped), learned_refs(sent, learned))

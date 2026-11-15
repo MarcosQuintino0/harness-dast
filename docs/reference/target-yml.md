@@ -420,6 +420,7 @@ Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema 
 | `max_rule_minutes` | inteiro, 1 a 10 | 2 | Teto de cada regra dentro de uma varredura |
 | `token_refresh_seconds` | inteiro, 10 a 3600 | 120 | Idade máxima do token no ZAP antes de renovar (nunca menos que `60 / auth.login_limit.max_per_minute`) |
 | `fail_on` | `none`, `low`, `medium` ou `high` | `none` | Severidade proposta a partir da qual `report` sai com código 1. `report --fail-on` sobrepõe |
+| `include_outcomes` | lista de até 5 classes: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error` | vazia | Classes do `probe` além de `success` cujas operações o `scan` também ataca ([ADR 0050](../adr/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada, sem curinga e sem repetição; `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`, `timeout` e `skipped_*` nunca entram. Não amplia o escopo (o `ScopeGuard` e o proxy continuam decidindo), `DELETE`, login, `deny_paths` e `PUT`/`PATCH` sem recurso criado seguem fora; mas ataca a partir de um pedido que o alvo recusou ou não achou, e nos `POST`, `PUT` e `PATCH` cria e altera mais dados sintéticos. Vem da carta (`attack.include_outcomes`, `source: carta` ou `pessoa`, aviso `OUTCOMES_ATTACK_EXTENDED`). Fora do padrão entra na impressão digital da aprovação: ligar exige aprovar de novo; vazia mantém as aprovações existentes. `hdast scan --include-outcome` só escolhe dentro dela |
 
 ```yaml
 scan:

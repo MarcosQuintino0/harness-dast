@@ -162,3 +162,23 @@ def test_run_has_the_authz_stage_on_by_default_and_no_authz_turns_it_off(
 
     assert code == int(ExitCode.OK)
     assert [request.authz for request in SEEN] == [expected]
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [((), True), (("--include-outcomes",), True), (("--no-include-outcomes",), False)],
+)
+def test_run_uses_the_profile_outcomes_by_default_and_the_flag_only_reduces(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flags: tuple[str, ...],
+    expected: bool,
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, envelope = _call(capsys, "run", "demo", "--json", *flags)
+
+    assert code == int(ExitCode.OK)
+    assert [request.include_outcomes for request in SEEN] == [expected]
+    assert set(envelope) == {"schema_version", "ok", "run_id", "data"}
