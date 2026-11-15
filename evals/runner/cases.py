@@ -1,5 +1,6 @@
 """Leitura dos casos de avaliacao e dos caminhos da pasta de uma rodada."""
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -70,3 +71,16 @@ def read_authorization(name: str, case: Case, cases_dir: Path = CASES_DIR) -> st
     if not path.is_file():
         raise EvalError(f"Carta de autorizacao ausente: {path}.")
     return path.read_text(encoding="utf-8")
+
+
+def load_round_case(dirs: RoundDirs, name: str, cases_dir: Path = CASES_DIR) -> Case:
+    """Usa o gabarito lacrado no prepare; rodadas antigas exigem caso historico explicito."""
+    snapshot = dirs.sealed / "case.json"
+    if snapshot.is_file():
+        try:
+            return Case.model_validate(json.loads(snapshot.read_text(encoding="utf-8")))
+        except (ValueError, ValidationError) as error:
+            raise EvalError(f"Gabarito lacrado invalido: {snapshot}") from error
+    if name == "clinica-piloto" and cases_dir == CASES_DIR:
+        return load_case("clinica-piloto-estrito", cases_dir).model_copy(update={"name": name})
+    return load_case(name, cases_dir)
