@@ -165,6 +165,23 @@ def _coerce(value: JsonValue, schema_type: str | None) -> JsonValue:
     return value
 
 
+def _pagination_value(flat: Schema, ctx: _Ctx) -> int | None:
+    """Escolhe primeira página ou tamanho pequeno apenas com limites reconhecíveis."""
+    if ctx.location != "query" or effective_type(flat) != "integer" or flat.enum:
+        return None
+    name = ctx.segments[-1].lower()
+    candidates: tuple[int, ...]
+    if name in {"page", "pagina", "offset", "skip"}:
+        if flat.minimum not in (0, 1) or flat.exclusive_minimum:
+            return None
+        candidates = (int(flat.minimum),)
+    elif name in {"size", "limit", "per_page", "tamanho"} and flat.maximum is not None:
+        candidates = tuple(range(10, 0, -1))
+    else:
+        return None
+    return next((value for value in candidates if not violations(flat, value)), None)
+
+
 class RequestBuilder:
     """Monta requisições válidas; guarda só o estado da execução (contadores e únicos usados).
 
@@ -434,6 +451,8 @@ class RequestBuilder:
             )
         elif flat.enum:
             value = next((option for option in flat.enum if option is not None), None)
+        elif (pagination := _pagination_value(flat, ctx)) is not None:
+            value = pagination
         else:
             generator, args = implicit_draw(flat, schema_type, ctx.display)
             value = self._draw(generator, args, flat, ctx, resolved=None, unique=False)

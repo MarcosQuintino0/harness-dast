@@ -80,6 +80,8 @@ public class SeedService implements ApplicationRunner {
                 "Administrador Exemplo", null, null, SEED);
         usuarios.insert(2, a.medico().username(), encoder.encode(a.medico().password()), Papel.MEDICO,
                 "Dra. Helena Exemplo", null, 1L, SEED);
+        usuarios.insert(5, a.medicoB().username(), encoder.encode(a.medicoB().password()), Papel.MEDICO,
+                "Dr. Rui Exemplo", null, 2L, SEED);
         usuarios.insert(3, a.pacienteA().username(), encoder.encode(a.pacienteA().password()), Papel.PACIENTE,
                 "Paciente Exemplo A", 1L, null, SEED);
         usuarios.insert(4, a.pacienteB().username(), encoder.encode(a.pacienteB().password()), Papel.PACIENTE,
