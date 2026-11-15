@@ -135,3 +135,20 @@ def test_approve_recusa_permissao_nao_autorizada(
     with pytest.raises(EvalError, match="attack_permissions"):
         approve(out, cases_dir=CASES)
     assert not (dirs.state / "approvals").exists()
+
+
+@pytest.mark.parametrize(
+    ("block", "value"),
+    [("authz", None), ("negative", []), ("scan", "invalido"), ("authz", {"allow_writes": "true"})],
+)
+def test_approve_recusa_formato_de_ataque_invalido(
+    repo: Path, out: Path, block: str, value: object
+) -> None:
+    dirs = make_round(repo, out)
+    profile = copy.deepcopy(PROFILE)
+    profile[block] = value
+    install(dirs, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out, cases_dir=CASES)
+    assert not (dirs.state / "approvals").exists()

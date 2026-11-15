@@ -120,16 +120,24 @@ def _attack_check(profile: dict[str, Any], case: Case) -> Check:
         ("negative", "allow_writes", case.expected.allow_invalid_input_writes),
         ("scan", "allow_upload_scan", case.expected.allow_upload_scan),
     )
-    problems = [
-        f"{block}.{field}"
-        for block, field, allowed in checks
-        if profile.get(block, {}).get(field, False) is not False and not allowed
-    ]
-    outcomes = profile.get("scan", {}).get("include_outcomes", [])
+    problems: list[str] = []
+    blocks: dict[str, dict[str, Any]] = {}
+    for name in ("authz", "negative", "scan"):
+        value = profile.get(name, {})
+        if isinstance(value, dict):
+            blocks[name] = value
+        else:
+            problems.append(f"{name}: esperado um mapa")
+            blocks[name] = {}
+    for block, field, allowed in checks:
+        value = blocks[block].get(field, False)
+        if not isinstance(value, bool) or (value and not allowed):
+            problems.append(f"{block}.{field}: booleano nao autorizado ou invalido")
+    outcomes = blocks["scan"].get("include_outcomes", [])
     if not isinstance(outcomes, list) or any(
         not isinstance(item, str) or item not in case.expected.include_outcomes for item in outcomes
     ):
-        problems.append("scan.include_outcomes")
+        problems.append("scan.include_outcomes: lista invalida ou nao autorizada")
     return Check(
         id="attack_permissions",
         title="Permissoes de ataque cabem na carta",

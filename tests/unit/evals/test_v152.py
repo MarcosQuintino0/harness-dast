@@ -141,3 +141,45 @@ def test_carta_explicita_as_permissoes_esperadas() -> None:
     assert "escrita do teste de valores proibidos" in text
     assert "not_found" in text
     assert "listagem de documentos" in text
+
+
+@pytest.mark.parametrize("block", ["authz", "negative", "scan"])
+@pytest.mark.parametrize("value", [None, "texto", [], 1])
+def test_bloco_de_ataque_malformado_e_recusado(block: str, value: object) -> None:
+    profile = copy.deepcopy(GOOD_PROFILE)
+    profile[block] = value
+    check = next(
+        c
+        for c in profile_checks(profile, load_case("clinica-piloto"))
+        if c.id == "attack_permissions"
+    )
+    assert check.passed is False
+    assert block in check.detail
+
+
+@pytest.mark.parametrize(
+    ("block", "field"),
+    [("authz", "allow_writes"), ("negative", "allow_writes"), ("scan", "allow_upload_scan")],
+)
+@pytest.mark.parametrize("value", [None, "true", 1, [], {}])
+def test_flag_malformada_e_recusada_mesmo_quando_autorizada(
+    block: str, field: str, value: object
+) -> None:
+    case = load_case("clinica-piloto")
+    case = case.model_copy(
+        update={"expected": case.expected.model_copy(update={"allow_upload_scan": True})}
+    )
+    profile = copy.deepcopy(GOOD_PROFILE)
+    profile[block] = {field: value}
+    check = next(c for c in profile_checks(profile, case) if c.id == "attack_permissions")
+    assert check.passed is False
+    assert f"{block}.{field}" in check.detail
+
+
+def test_blocos_de_ataque_ausentes_sao_permitidos() -> None:
+    check = next(
+        c
+        for c in profile_checks(GOOD_PROFILE, load_case("mini", CASES))
+        if c.id == "attack_permissions"
+    )
+    assert check.passed is True
