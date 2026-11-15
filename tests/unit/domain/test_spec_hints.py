@@ -282,8 +282,8 @@ def test_peer_hint_ignores_shared_role_and_suggests_unshared_pair() -> None:
         {
             "alias": alias,
             "role": role,
-            "username": {"secret_ref": f"env:{alias}_USER"},
-            "password": {"secret_ref": f"env:{alias}_PASS"},
+            "username": {"secret_ref": f"env:{alias.upper()}_USER"},
+            "password": {"secret_ref": f"env:{alias.upper()}_PASS"},
         }
         for alias, role in (
             ("medico_a", "medico"),
