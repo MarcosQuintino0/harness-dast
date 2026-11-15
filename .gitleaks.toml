@@ -1,0 +1,8 @@
+# Configuração do gitleaks: as regras padrão continuam valendo; só a exceção abaixo é acrescentada.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SHA-256 do OpenAPI no manifest.json de uma execução arquivada (impressão digital do arquivo, não segredo)"
+regexTarget = "line"
+regexes = ['''^\s*"openapi":\s*"[0-9a-f]{64}",?\s*$''']
