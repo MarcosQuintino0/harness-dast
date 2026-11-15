@@ -1,4 +1,4 @@
-"""Resolve sinais pelo contrato dispon?vel, sem alterar a atribui??o dos alertas do ZAP."""
+"""Resolve sinais pelo contrato disponível, sem alterar a atribuição dos alertas do ZAP."""
 
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.finding_build import AlertResolver, OperationRef
@@ -7,8 +7,8 @@ from harness_dast.domain.finding_build import AlertResolver, OperationRef
 def signal_resolver(probe: AlertResolver, spec: ApiSpec | None) -> AlertResolver:
     """Usa o contrato inteiro se ele ainda contiver os modelos registrados pelo probe.
 
-    Sem contrato ou se houver diverg?ncia, usa s? os modelos hist?ricos do probe. N?o
-    verifica altera??es em opera??es ausentes do probe; o OpenAPI atual pode ter mudado.
+    Sem contrato ou se houver divergência, usa só os modelos históricos do probe. Não
+    verifica alterações em operações ausentes do probe; o OpenAPI atual pode ter mudado.
     """
     if spec is None:
         return probe

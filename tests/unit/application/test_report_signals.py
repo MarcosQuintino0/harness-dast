@@ -233,7 +233,7 @@ def test_spec_ilegivel_preserva_modelos_historicos_do_probe() -> None:
 
     class BrokenSpecs:
         def load(self, product: str, profile: ProductProfile) -> ApiSpec:
-            raise ConfigError("OpenAPI ileg?vel")
+            raise ConfigError("OpenAPI ilegível")
 
     report = Report(
         profiles=rig.profiles,
