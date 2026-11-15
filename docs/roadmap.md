@@ -249,7 +249,7 @@ Implementada nos itens A a H do [plano da versão](plans/2026-11-15-plano-v1-5-2
 
 ### V1.5.3: papéis que compartilham recursos
 
-Em implementação conforme o [plano](plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md) e o ADR 0057: a carta declara papéis compartilhados, a aprovação cobre o campo preenchido e os testes horizontais registram a comparação omitida. Atualização da avaliação, gates e provas nos dois modos do laboratório dependem do fechamento; não há prova contra produto real.
+Implementada nos itens A a D do [plano](plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md), com ADR 0057 Proposto: a carta declara papéis compartilhados, a aprovação cobre o campo preenchido e os testes horizontais registram a comparação omitida. Caso, régua, dicas e quatro skills atualizados. O [relatório da versão](reviews/relatorio-v1.5.3.md) registra gates e integração nos dois modos: sem alarme entre médicos e com BOLA entre pacientes preservado no vulnerável. O efeito das skills em agente cego e a varredura completa não foram medidos; não há prova contra produto real.
 
 ## Itens em aberto
 

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "local_lab_integration",
+  "date": "2026-11-15",
+  "files": [
+    {
+      "file": "lab-authz-vulnerable-v3.json",
+      "source": "C:\\harness-dast-artefatos\\v1.5.3\\lab\\lab-authz-vulnerable-v3.json",
+      "sha256": "58a34130659a88fd384bf9170b004a8530728161e17aa43c9fb98567aa155f91",
+      "bytes": 14197
+    },
+    {
+      "file": "lab-authz-secure-v3.json",
+      "source": "C:\\harness-dast-artefatos\\v1.5.3\\lab\\lab-authz-secure-v3.json",
+      "sha256": "9f962ba1829f8141b70daf4ab31ba720eaf110220e6c5d53a8c6a061f3f4a373",
+      "bytes": 13079
+    }
+  ]
+}

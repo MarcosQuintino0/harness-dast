@@ -17,7 +17,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - A carta pode declarar `attack.authz_shared_roles` com a frase do dono; o perfil gerado recebe `authz.shared_roles`. A lista preenchida muda a aprovação; a lista vazia preserva a impressão digital anterior.
 - `horizontal` e `horizontal_write` deixam de comparar contas do mesmo papel listado e registram `shared_role` em `not_tested`. As demais verificações não mudam. As skills orientam obter pares úteis de papéis não compartilhados sem inferir a regra do produto.
-- Implementação, gates e provas de laboratório da versão ainda estão em andamento; os resultados serão registrados no relatório de fechamento.
+- Caso da avaliação, régua, dicas e skills atualizados no mesmo PR. Integração nos dois modos: sem alarme horizontal entre médicos, BOLA entre pacientes preservado no vulnerável e zero achado de autorização no seguro. Gates, evidências e limites no [relatório da versão](docs/reviews/relatorio-v1.5.3.md).
 
 ## [1.5.2] - 2026-11-15
 

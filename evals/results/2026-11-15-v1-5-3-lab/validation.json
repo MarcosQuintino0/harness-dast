@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "hdast_version": "1.5.3",
+  "implementation_commit": "0e3548b23cee2b3046ab230172c6b7dd753c7dca",
+  "lab": {
+    "passed": 33,
+    "skipped": 3,
+    "seconds": 863.92,
+    "modes": [
+      "vulnerable",
+      "secure"
+    ],
+    "compose_projects_after": 0
+  },
+  "coverage_suite": {
+    "passed": 9283,
+    "skipped": 4,
+    "deselected": 167,
+    "seconds": 489.33
+  },
+  "coverage": {
+    "domain_branches_percent": 98.4,
+    "application_branches_percent": 97.2,
+    "diff_percent": 100,
+    "diff_executable_lines": 52
+  },
+  "offline_prepare": {
+    "exclusions": 34,
+    "answer_key_terms_in_copy": 0
+  },
+  "independent_qa": {
+    "model": "GPT 6.1 Terra",
+    "effort": "high",
+    "additional_tests": 3,
+    "remaining_code_blockers": 0
+  },
+  "blind_evaluation": false,
+  "lab_full": false
+}
