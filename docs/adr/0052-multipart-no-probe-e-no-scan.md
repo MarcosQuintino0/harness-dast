@@ -171,7 +171,7 @@ Hoje só o crAPI tem upload e ele está fora do teste automático. Por isso a pr
 
 **T52c. Operação de upload no laboratório (decisão do dono).** Onda 2, em paralelo (pastas próprias).
 
-- Alterados: `lab/pilot/src/...` (controlador e serviço do envio), `lab/pilot/openapi.json` (a operação `enviarDocumento`, idêntica nos dois modos), `lab/pilot/product-profile/` (a regra de dados do `descricao` e do arquivo, se o alvo exigir), `lab/pilot/README.md` e os testes do Piloto, e qualquer teste que conte operações do laboratório (o programador procura por número fixo de operações em `tests/`). Fora da tarefa: `evals/answer-keys/`, que é do coordenador e não ganha falha nova.
+- Alterados: `lab/pilot/src/...` (controlador e serviço do envio), `lab/pilot/openapi.json` (a operação `enviarDocumento`, idêntica nos dois modos), `lab/pilot/product-profile/` (a regra de dados do `descricao` e do arquivo, se o alvo exigir), `lab/pilot/README.md` e os testes do Piloto, e qualquer teste que conte operações do laboratório (o programador procura por número fixo de operações em `tests/`). Fora da tarefa: os gabaritos dos casos, que é do coordenador e não ganha falha nova.
 - Sem a T52c, a parte A da prova não existe e o item fica provado só por testes unitários e, opcionalmente, pelo crAPI à mão.
 
 **T52d. Documentação e skills.** Coordenador: `docs/reference/target-yml.md`/`data-rules-yml.md`, `docs/guides/problemas-comuns.md` (a saída para o alvo que recusa o tipo), `.claude/skills/fix-reachability/SKILL.md` (usar `synthetic_file`). `CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md` e `docs/adr/README.md` são do coordenador.
