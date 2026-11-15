@@ -659,6 +659,63 @@
         "tags" : [ "documento-controller" ]
       }
     },
+    "/api/documentos/enviar" : {
+      "post" : {
+        "operationId" : "enviarDocumento",
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "encoding" : {
+                "arquivo" : {
+                  "contentType" : "text/plain, text/csv, application/json, image/png"
+                }
+              },
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "arquivo" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  },
+                  "descricao" : {
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "arquivo" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentoEnviado"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ],
+          "xsrfToken" : [ ]
+        } ],
+        "summary" : "Envia um arquivo pequeno (texto, CSV, JSON ou PNG, até 64 KiB); guardado só em memória",
+        "tags" : [ "documento-controller" ]
+      }
+    },
     "/api/isca/**" : {
       "delete" : {
         "operationId" : "isca_3",
@@ -1712,6 +1769,21 @@
           "token" : {
             "type" : "string",
             "description" : "Valor do token XSRF"
+          }
+        }
+      },
+      "DocumentoEnviado" : {
+        "type" : "object",
+        "properties" : {
+          "nome" : {
+            "type" : "string"
+          },
+          "tamanho" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "tipo" : {
+            "type" : "string"
           }
         }
       },
