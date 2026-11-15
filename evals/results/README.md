@@ -6,6 +6,7 @@ Esta pasta preserva material detalhado de **laboratórios locais com dados sint�
 | --- | --- | --- |
 | Clínica Piloto, 2026-11-14, Terra 6.1 medium, modo amplo | Tentativa técnica inicial; rodada cega interrompida antes da varredura; continuação assistida concluída | [Índice e resultados](2026-11-14-clinica-piloto-terra61-medium-wide/README.md) |
 | Clínica Piloto, 2026-11-15, Claude Sonnet 5.5 medium, modo amplo, V1.5.1 | Rodada cega completa; nota zerada por um `docker images` do agente (8,02 sem a violação); mesmas falhas achadas que a V1.1 | [Índice e resultados](2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md) |
+| Clínica Piloto, 2026-11-15 (tarde), Claude Sonnet 5.5 medium, modo amplo, V1.5.2 e V1.5.3 | Três rodadas: login recusado (corrigido), modo seguro com alarmes entre médicos (corrigido) e modo vulnerável com **8 de 10 falhas, nota 9,16** | [Índice e resultados](2026-11-15-clinica-piloto-rodadas-da-tarde/README.md) |
 | Clínica Piloto, 2026-11-15, V1.5.2 | Provas automatizadas de integração de contas, paginação e sinais; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-2-lab/README.md) |
 | Clínica Piloto, 2026-11-15, V1.5.3 | Prova de papéis compartilhados nos dois modos, com controle positivo entre pacientes; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-3-lab/README.md) |
 
