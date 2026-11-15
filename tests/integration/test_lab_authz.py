@@ -4,12 +4,11 @@ Nível RÁPIDO: uma pilha por modo, um `probe` e um `authz` com todas as verific
 CONTRATO do estágio, não o gabarito: as oito verificações aparecem com estado, nenhum `DELETE`
 sai, todo pedido do `authz` passa pela cerca, nenhum segredo vai para os artefatos, os recursos
 criados e a restauração ficam registrados e o `run` liga o estágio por padrão. As observações
-das verificações novas (operações testadas, achados por técnica, motivos de `not_tested`) são
-GRAVADAS em `HDAST_IT_METRICS_DIR/lab-authz-<modo>.json` e não viram asserção: quem interpreta
-é a pessoa que lê a evidência.
+das verificações são gravadas em `HDAST_IT_METRICS_DIR/lab-authz-<modo>-v3.json`. A prova da
+V1.5.3 também verifica os papéis compartilhados e a detecção entre pacientes.
 
 A cópia do perfil instalada na pasta descartável liga `authz.allow_writes`, o que no laboratório
-faz o papel da carta de autorização. O perfil versionado não é alterado.
+faz o papel da carta de autorização e declara médicos compartilhados. O perfil versionado não é alterado.
 """
 
 import json
@@ -204,10 +203,15 @@ def _observations(lab: AuthzLab) -> dict[str, Any]:
         "findings_by_severity": dict(Counter(f["proposed_severity"] for f in authz["findings"])),
         "findings": [
             {k: f[k] for k in ("technique", "proposed_severity", "method", "path_template")}
-            | {"operation_id": f["operation_id"], "fields": f["fields"], "variants": f["variants"]}
+            | {k: f[k] for k in ("operation_id", "fields", "variants", "actor_role", "owner_role")}
             for f in authz["findings"]
         ],
         "not_tested_by_check": {c: dict(r) for c, r in reasons.items() if r},
+        "shared_role_not_tested": [
+            {k: item[k] for k in ("check", "operation_id", "method", "path")}
+            for item in authz["not_tested"]
+            if item["reason"] == "shared_role"
+        ],
         "authz_requests_by_method": dict(Counter(r["method"] for r in lab.authz_rows("decision"))),
         "authz_post_results": dict(Counter(r["status"] for r in posts)),
         "authz_write_results": dict(
@@ -242,7 +246,7 @@ def lab(
     _install_with_writes(cli)
     try:
         measured = _measure(cli, mode)
-        record_metrics(f"lab-authz-{mode}-v2", _observations(measured))
+        record_metrics(f"lab-authz-{mode}-v3", _observations(measured))
         yield measured
     finally:
         cli.stack_down()
