@@ -168,7 +168,7 @@ class AttackSection(ProfileModel):
     Attributes:
         strength: `LOW`, `MEDIUM` ou `HIGH` -> `scan.strength`. Ausente mantém o padrão do
             perfil (a CLI não decide por conta própria).
-        authz_shared_roles: Pap?is que compartilham recursos, com origem e frase da carta.
+        authz_shared_roles: Papéis que compartilham recursos, com origem e frase da carta.
         allow_authz_writes: A carta permite que o teste de autorização entre contas ESCREVA no
             alvo (atribuição em massa, alteração de recurso de outra conta e métodos de escrita da
             verificação vertical e da tabela quem pode o quê)? Booleano

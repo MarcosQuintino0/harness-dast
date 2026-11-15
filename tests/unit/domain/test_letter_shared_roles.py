@@ -1,4 +1,4 @@
-"""Contrato de pap?is compartilhados da carta."""
+"""Contrato de papéis compartilhados da carta."""
 
 from datetime import date
 from typing import Any
