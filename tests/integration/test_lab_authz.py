@@ -8,7 +8,8 @@ das verificações são gravadas em `HDAST_IT_METRICS_DIR/lab-authz-<modo>-v3.js
 V1.5.3 também verifica os papéis compartilhados e a detecção entre pacientes.
 
 A cópia do perfil instalada na pasta descartável liga `authz.allow_writes`, o que no laboratório
-faz o papel da carta de autorização e declara médicos compartilhados. O perfil versionado não é alterado.
+faz o papel da carta de autorização e declara médicos compartilhados. O perfil versionado não é
+alterado.
 """
 
 import json
