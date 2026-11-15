@@ -300,3 +300,12 @@ def test_plain_json_200_responses_have_no_signals(lab: SignalsLab) -> None:
     ]
     assert plain
     assert [row for row in plain if row.get("signals")] == []
+
+
+def test_sinais_agrupam_por_operacao_e_categoria(lab: SignalsLab) -> None:
+    findings = lab.findings["proxy_signals"]["findings"]
+    keys = [(f["category"], f["method"], f["operation_id"]) for f in findings]
+    assert len(keys) == len(set(keys))
+    assert lab.findings["proxy_signals"]["findings_omitted"] == 0
+    if lab.mode == "vulnerable":
+        assert any(f["operation_id"] == SEARCH_OPERATION for f in findings)

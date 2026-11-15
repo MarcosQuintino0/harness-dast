@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from harness_dast.domain.error_signal_catalog import RULE_BY_CATEGORY, SIGNAL_RULES
-from harness_dast.domain.finding import generic_template, normalize_path_template
+from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.finding_build import AlertResolver
 from harness_dast.domain.signal_result import (
     MAX_QUERY_PARAMS,
@@ -48,13 +48,15 @@ def signal_window(
     return (start, end) if end >= start else None
 
 
-def signal_fingerprint(*, product: str, method: str, path_template: str, category: str) -> str:
+def signal_fingerprint(
+    *, product: str, method: str, path_template: str, category: str, operation_id: str | None = None
+) -> str:
     """SHA-256 (hex): produto, método, modelo de caminho e categoria. Sem host, status ou ids."""
     parts = (
         f"hdast-signal-v{SIGNAL_FINGERPRINT_VERSION}",
         product,
         method.upper(),
-        normalize_path_template(path_template),
+        operation_id if operation_id is not None else normalize_path_template(path_template),
         category,
     )
     payload = "".join(f"{len(part)}:{part}" for part in parts)
@@ -87,7 +89,11 @@ def _build_finding(product: str, key: _Key, group: _Group) -> SignalFinding:
     method, template, category = key
     rule = RULE_BY_CATEGORY[category]
     fingerprint = signal_fingerprint(
-        product=product, method=method, path_template=template, category=category
+        product=product,
+        method=method,
+        path_template=template,
+        category=category,
+        operation_id=group.operation_id,
     )
     return SignalFinding(
         finding_id=f"S-{fingerprint[:8]}",
@@ -141,12 +147,11 @@ def build_proxy_signals(
             continue
         with_signal += 1
         operation = resolver.resolve_path(row.method, row.path)
-        template = (
-            normalize_path_template(operation.path) if operation else generic_template(row.path)
-        )
+        template = normalize_path_template(operation.path) if operation else "/fora-do-contrato"
+        method = row.method.upper() if operation else ""
         for category in known:
             counts[category] += 1
-            key = (row.method.upper(), template, category)
+            key = (method, template, category)
             if key not in groups:
                 groups[key] = _Group(row, operation.operation_id if operation else None)
             groups[key].add(row)
