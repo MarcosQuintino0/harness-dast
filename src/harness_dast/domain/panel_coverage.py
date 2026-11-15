@@ -202,6 +202,14 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
                     "teste.</span>",
                 )
             )
+        elif item.kind == "seeded":
+            rows.append(
+                (
+                    "am",
+                    "<b>Atacadas a partir de um resultado que não era sucesso.</b> "
+                    f'<span class="mu">{h.plain(item.text)}</span>',
+                )
+            )
         elif item.kind == "fence" and not wide:
             rows.append(
                 (

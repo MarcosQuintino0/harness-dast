@@ -53,11 +53,14 @@ class OperationRef(ApiModel):
         operation_id: Identificador.
         method: Método HTTP.
         path: Modelo de caminho do OpenAPI.
+        seed_outcome: Classe do `probe` quando a operação foi varrida sem ter dado `success`
+            (ADR 0050); `None` nas demais.
     """
 
     operation_id: str
     method: str
     path: str
+    seed_outcome: str | None = None
 
 
 @dataclass(frozen=True)
@@ -201,6 +204,7 @@ def _finding(
         description=plain_text(best.description),
         solution=plain_text(best.solution),
         reproduce_curl=build_curl(proof, auth_header=auth_header, csrf_header=csrf_header),
+        seed_outcome=resolution.operation.seed_outcome if resolution.operation else None,
     )
 
 

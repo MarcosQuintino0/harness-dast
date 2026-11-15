@@ -255,7 +255,8 @@ def test_404_observado_preserva_motivo_do_scan_nos_tres_formatos() -> None:
 
     (item,) = report.coverage.not_tested
     assert item.reason == "not_success"
-    assert item.message == "O probe observou HTTP 404. O probe não teve sucesso."
+    assert item.message.startswith("O probe observou HTTP 404. O probe não teve sucesso.")
+    assert "scan.include_outcomes: not_found" in item.message
     assert "HTTP 404" in report.model_dump_json()
     assert "HTTP 404" in render_markdown(report)
     assert "HTTP 404" in render_html(report)

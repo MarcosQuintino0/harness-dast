@@ -56,7 +56,9 @@ Raiz (`FindingsReport`):
 | `partial` | `true` quando o `probe` ou o `scan` pararam antes do fim (prazo, janela, login, ZAP ou alvo): o relatório cobre só o que foi coletado e o que não foi varrido não deve ser lido como seguro. Aditivo (ADR 0025) |
 | `scans_run` | Varreduras executadas |
 | `truncated_scans` | `[{operation_id, outcome, progress}]` das varreduras que não chegaram a 100% (`truncated` = corte do ZAP, `stopped` = parada nossa, `refused` = o ZAP não iniciou) |
-| `not_tested` | `[{operation_id, method, path, reason, message}]` de toda operação sem varredura. `reason` vem do `scan` (`not_success`, `delete`, `login`, `denied`, `scope`, `mutating`, `not_learned`, `not_planned`, `not_selected`, `not_run`) ou do `probe` (`probe_<classe>`) |
+| `not_tested` | `[{operation_id, method, path, reason, message}]` de toda operação sem varredura. `reason` vem do `scan` (`not_success`, `delete`, `login`, `denied`, `scope`, `mutating`, `not_learned`, `not_planned`, `not_selected`, `not_run`) ou do `probe` (`probe_<classe>`). Em `not_success` de classe que a carta poderia autorizar (`not_found`, `validation_error`, `conflict`, `logical_failure`, `client_error`) e que não está em `include_outcomes`, a `message` acrescenta que a carta precisa autorizar `scan.include_outcomes` (ADR 0050) |
+| `include_outcomes` | Aditivo (ADR 0050). Classes além de `success` que o `scan` aplicou (`scan.include_outcomes`); vazio sem a lista e em `scan.json` anterior |
+| `seeded_scans` | Aditivo (ADR 0050). `[{operation_id, method, path, seed_outcome, probe_status}]` das operações varridas a partir de uma resposta do `probe` que não foi sucesso (por exemplo `not_found`, HTTP 404). Não confundir com `not_tested`: estas **foram** varridas, mas o ataque partiu de um pedido que o alvo recusou ou não achou, então o achado tem menos prova e "sem achado" não indica segurança. NÃO mudam `reachability`, `reachability_all` nem `probe_successes` |
 | `limits` | Limites aplicados: `requests_per_second`, `max_duration_minutes`, `threads_per_host`, `delay_ms`, `max_scan_minutes`, `max_rule_minutes` |
 | `policy` | `name`, `strength`, `threshold`, `url_path_injection`, `injectable_mask`, `disabled_rules` |
 | `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason` (recusa por forma agrupada em `malformed_request`), `denied_by_detail` (o código granular: `path_encoded_slash`, `url_forbidden_char`, `deny_path`...), `path_shape_denied` (recusas por forma do caminho, a base do aviso de cobertura parcial de injeção em caminho), `allowed_outside_allow` (modo amplo: liberados com leitura fora de `scope.allow`), `path_mode` (`strict` ou `wide`; ADR 0026), `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
@@ -85,6 +87,7 @@ Raiz (`FindingsReport`):
 | `status` | texto | Sempre `needs_triage` |
 | `comparison` | texto ou `null` | `new` ou `persistent` com `--compare` |
 | `triage` | objeto ou `null` | `{note, suspected_false_positive, reason}` do agente. Consultivo |
+| `seed_outcome` | texto ou `null` | Aditivo (ADR 0050). Classe do `probe` da operação (`not_found`, `validation_error`...) quando ela foi atacada sem ter dado `success`; `null` nas demais. **Fora do fingerprint**: o mesmo vazamento achado a partir de uma semente `not_found` e de uma `success` é o mesmo achado |
 
 `evidence`: `available` (`false` quando a mensagem não foi guardada), `message_id`, `attack` (carga, redigida), `zap_evidence` (trecho apontado pelo ZAP), `request_header`, `request_body`, `response_header`, `response_body` e `truncated`.
 
@@ -101,7 +104,7 @@ Visão **a mais**: nenhum achado some, nenhuma severidade muda. Chave do grupo (
 | `proposed_severity` | Igual à de todos os membros |
 | `findings_count`, `occurrences` | Achados no grupo e soma dos alertas do ZAP deles |
 | `finding_ids` | Achados do grupo, na ordem de `findings` |
-| `locations` | `[{finding_id, method, path_template, operation_id, occurrences}]`: onde aparece |
+| `locations` | `[{finding_id, method, path_template, operation_id, occurrences, seed_outcome}]`: onde aparece (`seed_outcome` aditivo, ADR 0050) |
 | `expected_note` | Nota fixa do código (texto nosso) quando o padrão costuma ser esperado, como o cookie de XSRF por duplo envio; `null` sem padrão. Não altera severidade nem tira o achado da lista |
 
 Ordem: severidade, tamanho (maior primeiro), título, `group_id`.

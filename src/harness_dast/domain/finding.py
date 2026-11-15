@@ -173,6 +173,9 @@ class Finding(ApiModel):
         status: Sempre `needs_triage`: a CLI não decide se é verdadeiro.
         comparison: `new` ou `persistent` com `--compare`; `None` sem comparação.
         triage: Anotação do agente, se houver.
+        seed_outcome: Classe do `probe` da operação quando ela NÃO foi `success` e mesmo assim foi
+            atacada (ADR 0050); `None` nas demais. Fica FORA do fingerprint: o mesmo achado vindo
+            de uma semente `not_found` e de uma `success` é o mesmo achado.
     """
 
     finding_id: str
@@ -199,3 +202,4 @@ class Finding(ApiModel):
     status: Literal["needs_triage"] = "needs_triage"
     comparison: Comparison | None = None
     triage: TriageNote | None = None
+    seed_outcome: str | None = None

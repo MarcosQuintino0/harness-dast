@@ -76,6 +76,8 @@
         "message": "O probe terminou com skipped_denied."
       }
     ],
+    "include_outcomes": [],
+    "seeded_scans": [],
     "limits": {
       "requests_per_second": 5.0,
       "max_duration_minutes": 60,
@@ -180,7 +182,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-ce1a5087",
@@ -220,7 +223,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-2f11bee2",
@@ -260,7 +264,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-2602e516",
@@ -300,7 +305,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-25f11dca",
@@ -340,7 +346,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-a1c30554",
@@ -380,7 +387,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-b1d6a451",
@@ -420,7 +428,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-b7bf6b8d",
@@ -460,7 +469,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-de30cb2b",
@@ -500,7 +510,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-275f10e3",
@@ -540,7 +551,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     },
     {
       "finding_id": "F-317171ee",
@@ -580,7 +592,8 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null
     }
   ],
   "groups": [
@@ -605,14 +618,16 @@
           "method": "GET",
           "path_template": "/users/v1/{}",
           "operation_id": "get_user",
-          "occurrences": 2
+          "occurrences": 2,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-2f11bee2",
           "method": "GET",
           "path_template": "/users/v1",
           "operation_id": "list_users",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -637,7 +652,8 @@
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -662,7 +678,8 @@
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -690,28 +707,32 @@
           "method": "GET",
           "path_template": "/users/v1/{}",
           "operation_id": "get_user",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-b1d6a451",
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-b7bf6b8d",
           "method": "GET",
           "path_template": "/users/v1",
           "operation_id": "list_users",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-de30cb2b",
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": "Padrão conhecido: o cookie de XSRF/CSRF usa o esquema de duplo envio (double submit): o JavaScript do front-end precisa LER o cookie para devolvê-lo no cabeçalho X-XSRF-TOKEN. Por isso ele costuma não ter HttpOnly e isso costuma ser esperado. Confirme com o time que o cookie de SESSÃO (que não é este) tem HttpOnly. A severidade continua sendo a proposta pelo ZAP."
@@ -736,7 +757,8 @@
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -761,7 +783,8 @@
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -786,7 +809,8 @@
           "method": "GET",
           "path_template": "/users/v1/_debug",
           "operation_id": "debug",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null

@@ -327,13 +327,14 @@ class PanelLeftOut(ApiModel):
 
     Attributes:
         kind: `functions` (funções sem ataque), `scan` (varredura cortada), `authz` (teste entre
-            contas), `fence` (cobertura parcial pela cerca) ou `blind` (o que este tipo de teste
+            contas), `fence` (cobertura parcial pela cerca), `seeded` (funções atacadas a partir de
+            um resultado que não era sucesso, ADR 0050) ou `blind` (o que este tipo de teste
             nunca vê).
         text: Frase nossa.
         count: Quantidade, quando faz sentido.
     """
 
-    kind: Literal["functions", "scan", "authz", "fence", "blind"]
+    kind: Literal["functions", "scan", "authz", "fence", "seeded", "blind"]
     text: str
     count: int | None = None
 
