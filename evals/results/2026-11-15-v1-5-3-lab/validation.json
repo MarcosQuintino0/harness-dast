@@ -35,5 +35,18 @@
     "remaining_code_blockers": 0
   },
   "blind_evaluation": false,
-  "lab_full": false
+  "lab_full": false,
+  "final_suite": {
+    "passed": 9291,
+    "skipped": 4,
+    "deselected": 167,
+    "additional_literal_deny_regressions": 8
+  },
+  "final_suite_initial_failure": {
+    "passed": 9282,
+    "failed": 1,
+    "reason": "preexisting_literal_deny_test_oracle",
+    "production_changed": false,
+    "focused_scope_and_patterns_passed": 295
+  }
 }

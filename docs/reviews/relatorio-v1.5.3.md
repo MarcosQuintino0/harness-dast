@@ -26,6 +26,7 @@ Saídas externas: `C:\harness-dast-artefatos\v1.5.3\`. [Resumos sanitizados, man
 | Gitleaks | Sem segredos nos commits examinados; configuração preservada |
 | Auditoria do lock | Nenhuma vulnerabilidade conhecida encontrada |
 | Pytest com cobertura | 9.283 passaram, 4 pulados, 167 desselecionados; 489,33 s |
+| Pytest final sem filtro | 9.291 passaram, 4 pulados, 167 desselecionados, incluindo oito regressões adicionais do oráculo |
 | Cobertura de ramos | Domínio 98,4%; aplicação 97,2% |
 | Cobertura do diff | 100% das 52 linhas executáveis alteradas, nenhuma ausente |
 | Integração | 33 passaram, 3 pulados; 863,92 s; imagens reconstruídas nos dois modos e pilhas encerradas |
@@ -35,6 +36,8 @@ O authz enviou 165 pedidos no vulnerável e 157 no seguro, criou 10 recursos sin
 O QA independente acrescentou três testes: lista reordenada de dois papéis mantém a aprovação; alteração posterior bloqueia o perfil e aponta só `authz`; o resumo legível mostra o papel compartilhado. Revisou o diff corrigido sem bloqueios de código. A revisão encontrou a precedência de `shared_role` sobre motivos estruturais: agora operação pública, corpo ou identificador ausente preservam seus motivos, com regressões. Um fixture novo das dicas usava nomes de referências em minúsculas e foi corrigido; não foi necessário alterar a validação. Dois textos com acentos corrompidos também foram corrigidos.
 
 O mypy Linux apresentou erro interno quando executado simultaneamente ao mypy Windows; a repetição isolada passou. A causa da falha simultânea não foi comprovada, e nenhum gate foi afrouxado.
+
+A primeira conferência final sem cobertura encontrou um erro preexistente no oráculo de `test_scope.py`: tratava a negação literal `/api/conta/excluir` como prefixo e recusava, no teste, `/api/conta/excluir/api`, embora o contrato exija `/**` para descendentes. Resultado daquela execução: 9.282 passaram e uma falha. O QA independente confirmou o diagnóstico, corrigiu a comparação do caminho inteiro, preservou a regra recursiva de `admin/**`, manteve os 600 exemplos aleatórios e acrescentou o contraexemplo explícito e oito casos diretos. Os 295 testes de escopo e padrões passaram. A produção não mudou; as provas do laboratório e a cobertura do código continuam aplicáveis. O log da falha foi preservado em `gates/pytest-final-primeira.log`; a suíte inteira foi repetida após a correção e os últimos arquivos.
 
 ## Limites e revisão
 
