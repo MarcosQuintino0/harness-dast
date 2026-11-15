@@ -332,3 +332,22 @@ def test_fingerprint_distingue_identificadores_de_operacao() -> None:
     assert signal_fingerprint(**args, operation_id="a") != signal_fingerprint(
         **args, operation_id="b"
     )
+
+
+def test_rota_literal_precede_parametro() -> None:
+    resolver = AlertResolver(
+        {},
+        {},
+        (
+            OperationRef(operation_id="detalhe", method="GET", path="/users/{id}"),
+            OperationRef(operation_id="busca", method="GET", path="/users/busca"),
+        ),
+    )
+    result = build_proxy_signals(
+        [row("/users/busca", signals=("sql_error",))],
+        product="vampi",
+        window=WINDOW,
+        resolver=resolver,
+    )
+
+    assert result.findings[0].operation_id == "busca"

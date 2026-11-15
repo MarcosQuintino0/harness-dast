@@ -4,11 +4,14 @@ from datetime import timedelta
 
 import pytest
 
-from harness_dast.application.report import ReportRequest
+from harness_dast.application.report import Report, ReportRequest
+from harness_dast.domain.api_model import ApiSpec, Operation
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.signal_findings import parse_instant
 from harness_dast.domain.signal_result import DISABLED_MESSAGE
 from harness_dast.domain.traffic import ProxyRow
+from tests.fakes.probe_ports import InMemorySpecs
 from tests.fakes.rig import agenda_flows
 from tests.fakes.scan_ports import FakeProxyAudit
 from tests.fakes.scan_rig import ScanRig
@@ -182,3 +185,66 @@ def test_findings_json_traz_proxy_signals_sem_nenhum_texto_de_corpo() -> None:
     text = outcome.report.model_dump_json()
     assert '"proxy_signals"' in text
     assert "ORA-" not in text
+
+
+def test_report_resolve_operacao_do_contrato_ausente_do_probe() -> None:
+    rig = scanned()
+    operation = Operation(operation_id="extra", method="get", path="/extra/{id}")
+    spec = rig.spec.model_copy(update={"operations": (*rig.spec.operations, operation)})
+    old = rows_for(rig)[0]
+    audit = FakeProxyAudit((old.model_copy(update={"path": "/extra/valor-alterado"}),))
+    report = Report(
+        profiles=rig.profiles,
+        artifacts=rig.artifacts,
+        sinks=[rig.sink],
+        clock=rig.clock,
+        harness_version="teste",
+        proxy_audit=audit,
+        specs=InMemorySpecs(spec),
+    )
+
+    result = report.execute(request(rig)).report.proxy_signals
+
+    assert result is not None
+    assert result.findings[0].operation_id == "extra"
+
+
+def test_spec_divergente_preserva_modelos_historicos_do_probe() -> None:
+    rig = scanned()
+    spec = rig.spec.model_copy(update={"operations": ()})
+    report = Report(
+        profiles=rig.profiles,
+        artifacts=rig.artifacts,
+        sinks=[rig.sink],
+        clock=rig.clock,
+        harness_version="teste",
+        proxy_audit=FakeProxyAudit(rows_for(rig)),
+        specs=InMemorySpecs(spec),
+    )
+
+    signals = report.execute(request(rig)).report.proxy_signals
+
+    assert signals is not None
+    assert signals.findings[0].operation_id == "buscar"
+
+
+def test_spec_ilegivel_preserva_modelos_historicos_do_probe() -> None:
+    rig = scanned()
+
+    class BrokenSpecs:
+        def load(self, product: str, profile: ProductProfile) -> ApiSpec:
+            raise ConfigError("OpenAPI ileg?vel")
+
+    report = Report(
+        profiles=rig.profiles,
+        artifacts=rig.artifacts,
+        sinks=[rig.sink],
+        clock=rig.clock,
+        harness_version="teste",
+        proxy_audit=FakeProxyAudit(rows_for(rig)),
+        specs=BrokenSpecs(),
+    )
+    signals = report.execute(request(rig)).report.proxy_signals
+
+    assert signals is not None
+    assert signals.findings[0].operation_id == "buscar"

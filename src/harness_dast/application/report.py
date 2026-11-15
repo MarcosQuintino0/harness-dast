@@ -21,7 +21,7 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProfileRepository
+from harness_dast.application.ports import Clock, ProfileRepository, SpecLoader
 from harness_dast.application.scan_ports import (
     PanelRefresher,
     ProxyAudit,
@@ -32,6 +32,7 @@ from harness_dast.application.scan_ports import (
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.finding_build import AlertResolver
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.profile import ProductProfile
@@ -41,6 +42,7 @@ from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_config import FailOn, effective_fail_on
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.signal_findings import build_proxy_signals, signal_window
+from harness_dast.domain.signal_operations import signal_resolver
 from harness_dast.domain.signal_result import ProxySignals, disabled_signals
 from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.triage import TriageFile, parse_triage
@@ -102,6 +104,7 @@ class Report:
         metrics: RunMetricsRecorder | None = None,
         panel: PanelRefresher | None = None,
         proxy_audit: ProxyAudit | None = None,
+        specs: SpecLoader | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
@@ -117,6 +120,7 @@ class Report:
         self._metrics = metrics
         self._panel = panel
         self._proxy_audit = proxy_audit
+        self._specs = specs
 
     def execute(self, request: ReportRequest) -> ReportOutcome:
         """Gera o relatório.
@@ -162,7 +166,7 @@ class Report:
             auth_header=auth_header,
             csrf_header=csrf_header,
             authz=authz,
-            proxy_signals=self._proxy_signals(run_id, probe, scan, authz, negative),
+            proxy_signals=self._proxy_signals(run_id, probe, scan, authz, negative, profile),
             negative=negative,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
@@ -186,6 +190,7 @@ class Report:
         scan: ScanResult,
         authz: AuthzResult | None,
         negative: NegativeResult | None,
+        profile: ProductProfile,
     ) -> ProxySignals:
         window = signal_window(
             probe.started_at,
@@ -202,7 +207,7 @@ class Report:
                 rows,
                 product=probe.product,
                 window=window,
-                resolver=build_resolver(probe, scan),
+                resolver=self._signal_resolver(probe, scan, profile),
             )
             if built.responses_total > 0:
                 self._artifacts.write_signals(run_id, built)
@@ -213,6 +218,19 @@ class Report:
             _log.warning("error_signals_unreadable", run_id=run_id, reason=error.message)
             kept = None
         return kept if kept is not None else disabled_signals()
+
+    def _signal_resolver(
+        self, probe: ProbeResult, scan: ScanResult, profile: ProductProfile
+    ) -> AlertResolver:
+        resolver = build_resolver(probe, scan)
+        if self._specs is None:
+            return resolver
+        try:
+            spec = self._specs.load(probe.product, profile)
+        except ConfigError as error:
+            _log.warning("signals_spec_unavailable", reason=error.message)
+            return resolver
+        return signal_resolver(resolver, spec)
 
     def _audit_rows(self) -> tuple[ProxyRow, ...] | None:
         if self._proxy_audit is None:

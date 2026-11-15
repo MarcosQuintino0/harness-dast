@@ -180,6 +180,7 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
         metrics=build_metrics(products_dir),
         panel=build_indexed_panel(products_dir) if with_panel else None,
         proxy_audit=audit,
+        specs=build_spec_loader(products_dir_or_default(products_dir)),
     )
 
 

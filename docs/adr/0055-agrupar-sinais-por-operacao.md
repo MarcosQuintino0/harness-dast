@@ -14,4 +14,4 @@ Agrupamos por categoria, método e identificador da operação. O fingerprint ve
 
 ## Consequências
 
-As variações de identificador não criam achados extras. Uma operação omitida do `probe` ou uma rota ambígua permanece fora do contrato; o grupo agregado não permite saber qual caminho originou o sinal. O fingerprint mudou e não equivale ao da versão 1; arquivos antigos continuam legíveis, e sinais não participam de `--compare`. A prova real depende de reconstruir a imagem e executar o teste de laboratório, fora deste degrau de desenvolvimento.
+As variações de identificador não criam achados extras. Uma operação omitida do `probe` ou uma rota ambígua permanece fora do contrato; o grupo agregado não permite saber qual caminho originou o sinal. O fingerprint mudou e não equivale ao da versão 1; arquivos antigos continuam legíveis, e sinais não participam de `--compare`. O arquivo OpenAPI pode ter mudado em opera??es ausentes do `probe`: n?o h? snapshot completo hist?rico para detectar essa mudan?a. A prova real depende de reconstruir a imagem e executar o teste de laboratório, fora deste degrau de desenvolvimento.
