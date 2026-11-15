@@ -26,11 +26,6 @@ def reasons(result: Any) -> list[str]:
     return [item.reason for item in result.not_tested]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: 429 repetido pelo despachante passa do negative.max_requests "
-    "(NegativeRunner confere o orçamento antes do envio, mas cada envio pode ser até 4 tentativas)",
-)
 def test_the_request_budget_also_counts_the_429_retries_of_the_dispatcher() -> None:
     rig = NegativeRig(Catalog(forced={("GET", "api/produtos"): 429}), max_requests=1)
 
@@ -40,12 +35,31 @@ def test_the_request_budget_also_counts_the_429_retries_of_the_dispatcher() -> N
     assert result.requests_sent <= 1
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: corpo de escrita sem o campo obrigatório removido por nome de segredo "
-    "(omitted_fields) é enviado mesmo assim; o 4xx de 'falta o campo' conta como rejeição do "
-    "valor proibido e passa falsa segurança",
-)
+def test_a_budget_of_three_with_a_constant_429_sends_no_more_than_three() -> None:
+    rig = NegativeRig(Catalog(forced={("GET", "api/produtos"): 429}), max_requests=3)
+
+    result = rig.run(LIST)
+
+    assert len(rig.sent()) <= 3
+    assert result.requests_sent <= 3
+
+
+def test_a_write_whose_omitted_field_is_optional_is_still_tested() -> None:
+    omitted = exchange(
+        "atualizarProduto",
+        "PUT",
+        f"{PRODUCTS}/{{id}}",
+        f"{PRODUCTS}/1",
+        body={"nome": "Caneta", "preco": 2},
+        omitted=("segredo_opcional",),
+    )
+    rig = NegativeRig(Catalog(mode="validate"), allow_writes=True)
+
+    result = rig.run(omitted)
+
+    assert "omitted_required_field" not in reasons(result)
+
+
 def test_a_write_whose_baseline_body_misses_a_required_omitted_field_is_not_tested() -> None:
     omitted = exchange(
         "atualizarProduto",
@@ -95,11 +109,6 @@ def _with_infrastructure_operation(path: str) -> NegativeRig:
     return rig
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: o negative não exclui probe.health_path nem probe.setup_path (o authz as "
-    "exclui em _infrastructure_paths); um GET de preparação do ambiente é repetido a cada caso",
-)
 @pytest.mark.parametrize("path", ["/api/preparar", "/api/saude"])
 def test_the_infrastructure_paths_of_the_profile_are_not_replayed_with_forbidden_values(
     path: str,

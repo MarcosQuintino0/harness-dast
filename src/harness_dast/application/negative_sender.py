@@ -31,11 +31,14 @@ class NegativeSettings:
         base_url: URL base do ambiente.
         dispatcher: Despachante (escopo, taxa, janela, prazo, auditoria).
         sessions: Sessões das contas (um login por conta).
+        max_requests: Teto de requisições do estágio; as repetições do despachante (429, novo
+            login) também contam e nunca o ultrapassam. `None` não limita.
     """
 
     base_url: str
     dispatcher: OperationDispatcher
     sessions: SessionPool
+    max_requests: int | None = None
 
 
 class NegativeSender:
@@ -66,13 +69,26 @@ class NegativeSender:
         """Contas que enviaram, na ordem do primeiro envio."""
         return tuple(self._accounts)
 
+    def _attempts_left(self, reserve: int) -> int | None:
+        if self._s.max_requests is None:
+            return None
+        return max(self._s.max_requests - self._sent - reserve, 1)
+
     def send(
-        self, exchange: ExchangeRecord, target: str, body: str | None, *, tag: str = ""
+        self,
+        exchange: ExchangeRecord,
+        target: str,
+        body: str | None,
+        *,
+        tag: str = "",
+        reserve: int = 0,
     ) -> Reply:
         """Envia o método do `exchange` ao `target`, com `body`, pela conta dona do pedido.
 
         `tag` (por exemplo `restore:`) entra no `operation_id` (`negative:<tag><operação>`) para a
-        auditoria distinguir a restauração do caso.
+        auditoria distinguir a restauração do caso. `reserve` separa do orçamento requisições que
+        ficam para depois (a restauração de um `PUT` ou `PATCH`): as repetições do despachante
+        só usam o que sobra, e um 429 que esgota o que sobra volta como resposta, sem repetir.
 
         Returns:
             A resposta; `Reply.problem` marca escopo recusado (`scope`) ou login recusado
@@ -97,7 +113,9 @@ class NegativeSender:
         )
         try:
             session = self._s.sessions.get(exchange.account)
-            sent = self._s.dispatcher.send(request, session, allow_reauth=True)
+            sent = self._s.dispatcher.send(
+                request, session, allow_reauth=True, max_attempts=self._attempts_left(reserve)
+            )
         except (WindowClosed, DeadlineReached):
             raise
         except ScopeViolation:

@@ -202,3 +202,7 @@ Registro do que a T52b fez e mediu. O status do ADR não muda.
 - **O que o desvio muda.** Toda operação de upload alcançada pelo `probe` é pulada pelo `scan` com `multipart_not_scannable`; a cobertura a mantém como alcançada. O campo da carta e o motivo `upload_scan_not_authorized` ficam prontos (e testados) para quando a constante voltar a `True`. Alternativas não tentadas: mensagem por `sourceMessageId` num plano do Automation Framework e script de regra no ZAP (a cerca não o cobre); cada uma pede ADR e prova própria.
 - **`binary_body`** vale só para operação de envio de arquivo (não para JSON com acento, que o `postData` leva sem perda); a operação é reconhecida pelo OpenAPI (`multipart_operation_ids`), o que a deixa decidida também no `--dry-run`, sem o ZAP.
 - **Teste de laboratório:** `tests/integration/test_lab_multipart_scan.py` (nível rápido, os dois modos) afirma o desvio e falha se a constante voltar a `True` sem nova medição.
+
+## Adendo do QA independente (V1.5c)
+
+- **Método em minúsculas no `scan`.** `scan_plan._decide` e `_may_mutate` normalizam o método com `.upper()`: um `probe.json` com `delete`, `put` ou `patch` em minúsculas não vira candidato de varredura (DELETE nunca; PUT e PATCH só sobre recurso criado ou com `scan.mutating_methods`). A regra da varredura de upload não muda.

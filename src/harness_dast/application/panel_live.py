@@ -266,5 +266,7 @@ def _outcome(summary: RunSummary | None) -> tuple[RunStateKind | None, str | Non
     )
     if summary.status in ("completed", "findings"):
         return "finished", None
+    if not summary.stages:
+        return "partial", reason
     first = summary.stages[0]
     return ("error" if first.status in ("failed", "interrupted") else "partial"), reason

@@ -237,6 +237,15 @@ def _parse_body(exchange: ExchangeRecord) -> dict[str, JsonValue] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _omitted_required(exchange: ExchangeRecord, operation: Operation) -> bool:
+    """A linha de base perdeu um campo obrigatório (removido por nome de segredo)."""
+    if not exchange.omitted_fields:
+        return False
+    schema = _body_schema(operation)
+    required = frozenset(schema.required) if schema is not None else frozenset()
+    return any(name in required for name in exchange.omitted_fields)
+
+
 def _unsupported_body(exchange: ExchangeRecord, operation: Operation) -> bool:
     """Escrita cujo corpo o teste não sabe alterar (multipart, formulário, ausente, não objeto)."""
     if exchange.multipart is not None:  # corpo multipart (ADR 0052): só o resumo foi gravado
@@ -264,6 +273,7 @@ def plan_negative(
     max_requests: int,
     username_field: str | None = None,
     only: frozenset[str] = frozenset(),
+    infrastructure: frozenset[str] = frozenset(),
 ) -> NegativePlan:
     """Planeja os casos do teste negativo.
 
@@ -275,6 +285,8 @@ def plan_negative(
             nunca tem mais casos que isso.
         username_field: `auth.username_field` (não se altera em `PUT` e `PATCH`).
         only: Operações escolhidas por `--only`; vazio = todas.
+        infrastructure: Caminhos de login, saúde e preparação: ficam sem teste
+            (`infrastructure_path`).
 
     Returns:
         Os casos, em ordem de envio, e o que ficou sem teste.
@@ -285,6 +297,15 @@ def plan_negative(
     for exchange in exchanges:
         method = exchange.method.upper()
         if method not in SUPPORTED_METHODS or (only and exchange.operation_id not in only):
+            continue
+        if exchange.path in infrastructure:
+            notes.append(
+                _note(
+                    exchange,
+                    "infrastructure_path",
+                    "caminho de login, saúde ou preparação do perfil: não é operação de negócio",
+                )
+            )
             continue
         if method in WRITE_METHODS and not config.allow_writes:
             notes.append(
@@ -299,8 +320,9 @@ def plan_negative(
         if cases:
             (reads if method in READ_METHODS else writes).append(cases)
     ordered = [*_interleave(reads), *_interleave(writes)]
-    kept = ordered[:max_requests]
-    cut = _cut_by_operation(ordered[max_requests:])
+    budget = max(max_requests, 0)
+    kept = ordered[:budget]
+    cut = _cut_by_operation(ordered[budget:])
     notes.extend(cut)
     return NegativePlan(cases=tuple(kept), not_tested=tuple(notes))
 
@@ -338,6 +360,16 @@ def _exchange_cases(
     method = exchange.method.upper()
     found = _Found()
     disabled = frozenset(config.disabled_classes)
+    if method in WRITE_METHODS and _omitted_required(exchange, operation):
+        notes.append(
+            _note(
+                exchange,
+                "omitted_required_field",
+                "A linha de base perdeu campo obrigatório por nome de segredo (omitted_fields): "
+                "o corpo já seria inválido e a rejeição não provaria nada sobre o valor proibido.",
+            )
+        )
+        return []
     if method in WRITE_METHODS and _unsupported_body(exchange, operation):
         notes.append(
             _note(

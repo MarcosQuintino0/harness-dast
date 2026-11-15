@@ -234,3 +234,10 @@ Este adendo registra o que a T51b fez, sem mudar a decisão nem o status.
 - **Rótulos:** a seção usa `CLASS_LABEL` e `TECHNIQUE_LABEL` de `negative_findings.py` (antes privados; sem mudança de texto).
 - **Painel:** o achado do `negative` não tem passo a passo de reprodução à mão (o valor enviado nunca é gravado) e não tem explicação de catálogo. A taxonomia atual não produz severidade alta, então ele só aparece na contagem; o caminho em "Falhas" existe, com confiança "a confirmar", para o caso de a taxonomia mudar.
 - **Permissões:** `Bash(uv run hdast:*)` em `.claude/settings.json` já cobre `hdast negative`; nada a mudar.
+
+## Adendo do QA independente (V1.5c)
+
+- **O orçamento conta as repetições.** O `OperationDispatcher` repete 429 e novo login por conta própria; antes, um caso podia gastar até 4 requisições e passar de `negative.max_requests`. Agora o `NegativeSender` entrega ao despachante só o que resta do orçamento (`max_attempts`, descontada a requisição reservada para a restauração de `PUT` e `PATCH`); quando o que resta acaba, a última resposta (o 429) volta sem nova repetição nem espera e o caso fica `inconclusive` (`rate_limited`). Escolhida em vez de "429 encerra o caso sem repetir" porque mantém a repetição útil enquanto há folga e o teto vale sempre. `max_attempts` é opcional no despachante e não muda `probe`, `authz` nem `scan`.
+- **Corpo de linha de base inválido.** Escrita cuja linha de base perdeu um campo **obrigatório** por nome de segredo (`omitted_fields`) não é enviada: o corpo já seria inválido e o 4xx de "falta o campo" contaria como rejeição do valor proibido (falsa segurança). Vai para `not_tested` com `omitted_required_field`. Campo omitido que é opcional não impede o teste.
+- **Caminhos de infraestrutura.** O `negative` não repete mais `probe.health_path` nem `probe.setup_path` (nem o login): `not_tested` com `infrastructure_path`, a mesma regra do `authz`, agora em `ProductProfile.infrastructure_paths` (o `authz` passou a usá-la, sem mudar de comportamento).
+- **Orçamento negativo.** `plan_negative` trata `max_requests` negativo como zero.
