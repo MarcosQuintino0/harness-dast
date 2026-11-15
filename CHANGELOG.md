@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Documentação
+
+- Protocolo da rodada cega completa (`evals/protocolo-da-rodada-cega.md`): o método exato das rodadas de 2026-11-15 (modelo, esforço, permissões, pedido, aprovação e retomada), o que anotar de cada rodada (tempo por etapa e por segmento, tokens, custo, comportamento, resultado, intervenções, falas e diário do agente), um script de ficha e onde arquivar.
+
 ### Corrigido
 
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
