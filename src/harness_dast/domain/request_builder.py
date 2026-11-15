@@ -13,6 +13,7 @@ sabe gerá-los; campos `readOnly` nunca são enviados. Este módulo é puro.
 """
 
 import json
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import quote
@@ -176,7 +177,17 @@ def _pagination_value(flat: Schema, ctx: _Ctx) -> int | None:
             return None
         candidates = (int(flat.minimum),)
     elif name in {"size", "limit", "per_page", "tamanho"} and flat.maximum is not None:
-        candidates = tuple(range(10, 0, -1))
+        if not math.isfinite(flat.maximum) or (
+            flat.minimum is not None and not math.isfinite(flat.minimum)
+        ):
+            return None
+        low = max(1, math.ceil(flat.minimum)) if flat.minimum is not None else 1
+        if flat.exclusive_minimum and low == flat.minimum:
+            low += 1
+        high = math.floor(flat.maximum)
+        if flat.exclusive_maximum and high == flat.maximum:
+            high -= 1
+        candidates = (min(max(low, 10), high),) if low <= high else ()
     else:
         return None
     return next((value for value in candidates if not violations(flat, value)), None)

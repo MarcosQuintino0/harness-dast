@@ -551,6 +551,25 @@ def test_pagination_size_is_small_and_respects_maximum(name: str) -> None:
     assert dict(builder().build(op).query)[name] == "3"
 
 
+@pytest.mark.parametrize(
+    ("schema", "expected"),
+    [
+        (Schema(type="integer", minimum=20, maximum=100), "20"),
+        (Schema(type="integer", minimum=20, maximum=100, exclusive_minimum=True), "21"),
+        (Schema(type="integer", minimum=0, maximum=100), "10"),
+        (Schema(type="integer", minimum=0, maximum=3, exclusive_maximum=True), "2"),
+    ],
+)
+def test_pagination_size_respects_schema_bounds(schema: Schema, expected: str) -> None:
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(Parameter(name="size", location="query", value_schema=schema),),
+    )
+    assert dict(builder().build(op).query)["size"] == expected
+
+
 def test_explicit_pagination_rule_takes_precedence() -> None:
     op = Operation(
         operation_id="list",
