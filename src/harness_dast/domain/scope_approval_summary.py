@@ -128,6 +128,13 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
     ]
     lines += _authz_mass_lines(authz)
     lines += _authz_matrix_lines(authz)
+    if authz.shared_roles:
+        lines.append(
+            "  - papéis compartilhados, sem comparação horizontal entre contas: "
+            + ", ".join(
+                sorted(strip_control(role, keep_newlines=False) for role in authz.shared_roles)
+            )
+        )
     if authz.id_parameters:
         lines.append(
             "  - parâmetros de consulta tratados como identificador de objeto (BOLA de leitura): "

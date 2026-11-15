@@ -583,3 +583,21 @@ def test_the_probe_records_only_successful_requests_without_secrets() -> None:
     assert all(e.status < 300 for e in log.exchanges)
     assert "auth.login" not in {e.operation_id for e in log.exchanges}
     assert not any(secret in log.model_dump_json() for secret in ENV.values())
+
+
+def test_shared_role_skips_horizontal_without_affecting_other_checks() -> None:
+    baseline = run_authz(AuthzRig(Clinic(bola=True, excess=True)))
+    rig = AuthzRig(Clinic(bola=True, excess=True), authz={"shared_roles": ["paciente"]})
+    result = run_authz(rig)
+    assert by_technique(result, "authz_horizontal") == []
+    assert any(n.reason == "shared_role" and n.check == "horizontal" for n in result.not_tested)
+
+    def other(r: AuthzResult) -> list[dict[str, Any]]:
+        return [
+            c.model_dump() for c in r.checks if c.check not in {"horizontal", "horizontal_write"}
+        ]
+
+    assert other(result) == other(baseline)
+    assert by_technique(result, "authz_excessive_data") == by_technique(
+        baseline, "authz_excessive_data"
+    )

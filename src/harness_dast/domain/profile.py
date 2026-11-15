@@ -271,6 +271,8 @@ class ProductProfile(ProfileModel):
     @model_validator(mode="after")
     def validate_consistency(self) -> Self:
         """Confere que ambiente, login, CSRF, saúde e TLS são coerentes com o escopo."""
+        if set(self.authz.shared_roles) - {account.role for account in self.auth.accounts}:
+            raise ValueError("authz.shared_roles deve citar apenas papéis de auth.accounts")
         guard = self.guard()
         try:
             guard.ensure_origin_allowed(self.environment.base_url)

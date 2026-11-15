@@ -38,6 +38,7 @@ from harness_dast.domain.letter_sections import (
     read_scope,
     read_strength,
 )
+from harness_dast.domain.letter_shared_roles import read_shared_roles
 from harness_dast.domain.letter_upload import read_allow_upload_scan
 from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
 from harness_dast.domain.letter_writes import read_allow_writes
@@ -54,6 +55,7 @@ GENERATED_BLOCKS: Final = (
     "scan.include_outcomes",
     "scan.allow_upload_scan",
     "authz.allow_writes",
+    "authz.shared_roles",
     "negative.allow_writes",
 )
 """Blocos do `target.yml` que a CLI escreve a partir da carta.
@@ -143,6 +145,7 @@ def _profile_data(
     auth = read_auth(c, letter.auth)
     strength = read_strength(c, letter.attack.strength)
     allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
+    shared_roles = read_shared_roles(c, letter.attack.authz_shared_roles)
     negative_writes = read_allow_invalid_writes(c, letter.attack.allow_invalid_input_writes)
     outcomes = read_include_outcomes(c, letter.attack.include_outcomes)
     upload_scan = read_allow_upload_scan(c, letter.attack.allow_upload_scan)
@@ -181,11 +184,21 @@ def _profile_data(
         scan["allow_upload_scan"] = True
     if scan:
         data["scan"] = scan
-    if allow_writes:
-        data["authz"] = {"allow_writes": True}
+    authz = _authz_data(allow_writes, shared_roles)
+    if authz:
+        data["authz"] = authz
     if negative_writes:
         data["negative"] = {"allow_writes": True}
     return data, examples
+
+
+def _authz_data(allow_writes: bool, shared_roles: tuple[str, ...]) -> dict[str, object]:
+    data: dict[str, object] = {}
+    if allow_writes:
+        data["allow_writes"] = True
+    if shared_roles:
+        data["shared_roles"] = list(shared_roles)
+    return data
 
 
 def _has_block(data: Mapping[str, object], name: str) -> bool:

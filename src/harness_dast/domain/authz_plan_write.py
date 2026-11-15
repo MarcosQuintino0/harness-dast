@@ -19,6 +19,7 @@ from harness_dast.domain.authz_identifiers import find_identifiers
 from harness_dast.domain.authz_plan import (
     Planned,
     no_identifier_note,
+    shared_role_note,
     skip_note,
     unique_exchanges,
 )
@@ -67,6 +68,7 @@ def plan_horizontal_write(
     operations: Sequence[Operation] = (),
     id_parameters: Sequence[str] = (),
     budget: int = MAX_WRITE_TASKS,
+    shared_roles: Sequence[str] = (),
 ) -> Planned[WriteTask]:
     """Escrita em outra conta: cada `PUT` ou `PATCH` com identificador, leitor e conta par.
 
@@ -77,12 +79,16 @@ def plan_horizontal_write(
         operations: Operações do OpenAPI (parâmetros de consulta e esquema de entrada).
         id_parameters: `authz.id_parameters`.
         budget: Teto de candidatos; o excedente vai para `not_tested`.
+        shared_roles: Papéis compartilhados que não entram na comparação.
     """
     by_id = {op.operation_id: op for op in operations}
     reads = [e for e in exchanges if e.method == "GET" and is_success_status(e.status)]
     tasks: list[WriteTask] = []
     skips: list[AuthzNotTested] = []
     for item in unique_exchanges([e for e in exchanges if e.method in WRITE_METHODS]):
+        if roles.get(item.account) in shared_roles:
+            skips.append(shared_role_note("horizontal_write", item))
+            continue
         operation = by_id.get(item.operation_id)
         refusal = _refusal(item, operation, exchanges, public, id_parameters)
         chosen = refusal or _task(item, operation, roles, reads)

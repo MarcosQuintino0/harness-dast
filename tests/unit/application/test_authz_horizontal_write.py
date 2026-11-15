@@ -335,3 +335,11 @@ def test_a_failing_baseline_read_is_not_tested() -> None:
 
     assert len(notes_with(result, "baseline_failed")) == 1
     assert authz_sent(rig, "PUT") == []
+
+
+def test_shared_role_skips_all_write_comparison_requests() -> None:
+    rig = notes_rig(Notes(write="vulnerable"), shared_roles=["paciente"])
+    result = run_write(rig)
+    assert result.findings == ()
+    assert any(n.reason == "shared_role" for n in result.not_tested)
+    assert authz_sent(rig) == []

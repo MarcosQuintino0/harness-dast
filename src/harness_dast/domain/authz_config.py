@@ -114,6 +114,7 @@ class AuthzConfig(ProfileModel):
             BOLA e BFLA os ignoram (sem isso, um recurso público viraria alarme falso).
         role_order: Papéis do MENOR para o MAIOR privilégio (os `role` de `auth.accounts`).
             Necessário para a verificação vertical; sem ele ela diz que não pôde testar.
+        shared_roles: Papéis cujas contas compartilham recursos, declarados na carta.
         volatile_fields: Nomes de campo ignorados na comparação de respostas, além dos padrões.
         vertical_methods: Métodos repetidos na verificação vertical. `DELETE` nunca.
         mass_assignment_fields: Campos extras (e valor de teste) da atribuição em massa.
@@ -140,6 +141,7 @@ class AuthzConfig(ProfileModel):
 
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
     role_order: tuple[str, ...] = Field(default=(), max_length=20)
+    shared_roles: tuple[str, ...] = Field(default=(), max_length=20)
     volatile_fields: tuple[str, ...] = Field(default=(), max_length=50)
     vertical_methods: tuple[str, ...] = DEFAULT_VERTICAL_METHODS
     mass_assignment_fields: tuple[MassAssignmentField, ...] = Field(
@@ -172,7 +174,7 @@ class AuthzConfig(ProfileModel):
             )
         return value
 
-    @field_validator("role_order")
+    @field_validator("role_order", "shared_roles")
     @classmethod
     def validate_roles(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         """Papéis sem repetição e sem espaço."""

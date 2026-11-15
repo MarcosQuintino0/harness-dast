@@ -277,3 +277,14 @@ def test_vertical_never_plans_delete_even_if_somehow_listed() -> None:
     )
 
     assert plan.tasks == ()
+
+
+def test_shared_role_is_skipped_while_another_role_is_compared() -> None:
+    roles = {**ROLES, "doc2": "medico"}
+    plan = plan_horizontal(
+        [ex("paciente"), ex("medico", account="doc")], roles, frozenset(), shared_roles=("medico",)
+    )
+    assert {task.exchange.operation_id for task in plan.tasks} == {"paciente"}
+    assert [(note.operation_id, note.reason) for note in plan.not_tested] == [
+        ("medico", "shared_role")
+    ]

@@ -172,3 +172,9 @@ def test_input_properties_come_from_the_declared_body_only() -> None:
     assert input_properties(without) == {}
     assert input_properties(None) == {}
     assert isinstance(input_properties(declared)["nome"], Schema)
+
+
+def test_shared_role_is_skipped_without_a_write_task() -> None:
+    plan = plan_horizontal_write([READ, ex("put")], ROLES, frozenset(), shared_roles=("paciente",))
+    assert plan.tasks == ()
+    assert reasons(plan.not_tested) == {"put": "shared_role"}

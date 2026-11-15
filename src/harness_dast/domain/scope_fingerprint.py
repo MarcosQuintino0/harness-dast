@@ -167,7 +167,7 @@ _LEGACY_AUTHZ_KEYS: Final = frozenset(
 """Chaves do `authz` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
 
 
-_NEW_SET_KEYS: Final = ("id_parameters", "mass_assignment_methods")
+_NEW_SET_KEYS: Final = ("id_parameters", "mass_assignment_methods", "shared_roles")
 
 
 def _texts(value: JsonValue) -> list[str]:

@@ -63,6 +63,17 @@ def skip_note(
     )
 
 
+def shared_role_note(check: AuthzCheck, item: ExchangeRecord) -> AuthzNotTested:
+    """Explica a exclusão da comparação entre contas do papel compartilhado."""
+    return skip_note(
+        check,
+        item,
+        "shared_role",
+        "O papel da conta compartilha recursos conforme a carta; "
+        "a comparação entre contas não foi realizada.",
+    )
+
+
 def unique_exchanges(exchanges: Sequence[ExchangeRecord]) -> tuple[ExchangeRecord, ...]:
     """Pedidos sem repetição de (método, alvo, conta), na ordem original."""
     seen: set[tuple[str, str, str]] = set()
@@ -105,6 +116,7 @@ def plan_horizontal(
     public: frozenset[str],
     operations: Sequence[Operation] = (),
     id_parameters: Sequence[str] = (),
+    shared_roles: Sequence[str] = (),
 ) -> Planned[ReplayTask]:
     """BOLA: cada `GET` com identificador (caminho ou consulta), repetido por contas do MESMO papel.
 
@@ -114,6 +126,7 @@ def plan_horizontal(
         public: Operações marcadas como públicas ou compartilhadas.
         operations: Operações do OpenAPI (confirmam os parâmetros de consulta).
         id_parameters: `authz.id_parameters`: nomes de consulta declarados como identificador.
+        shared_roles: Papéis compartilhados que não entram na comparação.
     """
     by_id = {op.operation_id: op for op in operations}
     tasks: list[ReplayTask] = []
@@ -123,6 +136,9 @@ def plan_horizontal(
             skips.append(
                 skip_note("horizontal", item, "public_operation", "Marcada como pública no perfil.")
             )
+            continue
+        if roles.get(item.account) in shared_roles:
+            skips.append(shared_role_note("horizontal", item))
             continue
         scan = find_identifiers(by_id.get(item.operation_id), item, exchanges, id_parameters)
         if not scan.refs:
