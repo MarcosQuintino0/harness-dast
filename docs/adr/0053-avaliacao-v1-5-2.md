@@ -29,7 +29,11 @@ pode mudar notas quando aplicada a artefatos anteriores com um gabarito novo.
 A documentação atual de [permissões do Claude Code](https://code.claude.com/docs/en/permissions)
 diz que negações Bash valem para cada subcomando, inclusive em subshell, e que `:*` equivale
 a ` *`; PowerShell também verifica comandos compostos. Assim, as regras existentes
-`Bash(docker:*)` e `PowerShell(docker:*)` usam a sintaxe documentada. Não se provou que a
+`Bash(docker:*)` e `PowerShell(docker:*)` usam a sintaxe documentada. O `prepare` também grava
+`Bash(*docker*)` e `PowerShell(*docker*)`: a documentação descreve `*` em qualquer posição e diz que
+PowerShell usa a mesma forma de regra. A intenção é cobrir o comando composto observado, inclusive
+Docker fora do início do texto; isso pode bloquear menções textuais inofensivas. O teste confere
+apenas as regras gravadas, não o comportamento do Claude em execução. Não se provou que a
 versão e o modo de permissão usados na rodada obedeciam a esse comportamento: a rodada passou
 um comando composto. As regras não são uma fronteira de segurança e o transcript continua
 sendo auditado; caminhos alternativos e versões diferentes não são abrangidos por esta prova.

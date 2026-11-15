@@ -79,7 +79,13 @@ def test_prepare_denies_docker_and_env_inspection_in_the_workspace_settings_only
     deny = json.loads((dirs.workspace / ".claude/settings.json").read_text(encoding="utf-8"))[
         "permissions"
     ]["deny"]
-    assert {"WebFetch", "Bash(docker:*)", "Bash(env:*)"} <= set(deny)
+    assert {
+        "WebFetch",
+        "Bash(docker:*)",
+        "Bash(*docker*)",
+        "PowerShell(*docker*)",
+        "Bash(env:*)",
+    } <= set(deny)
     original = json.loads((repo / ".claude/settings.json").read_text(encoding="utf-8"))
     assert original["permissions"]["deny"] == ["WebFetch"]
 

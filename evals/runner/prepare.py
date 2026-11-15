@@ -89,6 +89,9 @@ def deliver_inputs(case: Case, source: Path, workspace: Path) -> None:
 
 
 EXTRA_DENY = (
+    # Regra conservadora: tambem recusa mencoes textuais a docker.
+    "Bash(*docker*)",
+    "PowerShell(*docker*)",
     "Bash(docker:*)",
     "Bash(docker-compose:*)",
     "Bash(env:*)",
