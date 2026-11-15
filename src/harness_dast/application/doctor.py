@@ -219,7 +219,11 @@ class Doctor:
         try:
             images = self._host.compose_images(self._services(profile))
             missing = [image for image in images if not self._host.image_present(image)]
-        except (ConfigError, ExternalToolError) as error:
+        except ExternalToolError as error:
+            return _check(
+                "images", "fail", f"{error.message} Aguarde e rode hdast doctor novamente."
+            )
+        except ConfigError as error:
             hint = error.hint or ""
             return _check("images", "fail", f"{error.message} {hint}".strip())
         if not missing:

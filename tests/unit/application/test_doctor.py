@@ -193,7 +193,7 @@ def test_docker_dying_while_listing_images_fails_the_image_check(tmp_path: Path)
     original = setup.host.image_present
 
     def dying(reference: str) -> bool:
-        setup.host.docker_error = ExternalToolError("O Docker caiu.", hint="Reinicie.")
+        setup.host.docker_error = ExternalToolError("O Docker caiu.", hint="Execute docker images.")
         return original(reference)
 
     setup.host.image_present = dying  # type: ignore[method-assign]  # falha difícil de provocar
@@ -201,7 +201,8 @@ def test_docker_dying_while_listing_images_fails_the_image_check(tmp_path: Path)
     check = by_id(setup.doctor.execute())["images"]
 
     assert check.status == "fail"
-    assert "Reinicie." in check.detail
+    assert "hdast doctor novamente" in check.detail
+    assert "docker images" not in check.detail
 
 
 def test_images_come_from_the_base_services_when_no_product_is_given(tmp_path: Path) -> None:
