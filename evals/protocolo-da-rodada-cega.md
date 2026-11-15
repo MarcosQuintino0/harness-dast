@@ -2,9 +2,13 @@
 
 Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Claude Code ou o Codex. Ele registra **exatamente** como foram feitas as rodadas da tarde de 2026-11-15, as que mediram a V1.5.3 com 8 de 10 falhas achadas ([resultado](results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md)). Siga igual, para que as rodadas novas possam ser comparadas com essas.
 
+**O agente avaliado não precisa ser o Claude.** Pode ser qualquer IA que trabalhe como agente de código: Claude Code, Codex ou outra. O protocolo fixa o caso, o pedido e o que se mede; a ferramenta, o modelo e o esforço são escolhidos por estudo e anotados em cada rodada. As rodadas de 2026-11-15 usaram o Claude Code, e os comandos dele aparecem como **exemplo verificado**. A rodada de 2026-11-14 usou o Codex e serve de exemplo para um agente de outro fornecedor.
+
 O [README da avaliação](README.md) explica cada comando do executor, a nota e os canais de vazamento. Este protocolo diz a ordem, os valores fixos e **o que anotar**. Nada aqui muda a regra de segurança: é só laboratório local, com dados sintéticos, e o agente age sobre o alvo só por comandos `hdast` (veja [finalidade e uso responsável](../docs/finalidade-e-uso-responsavel.md)).
 
 ## 1. O que fica fixo
+
+### 1.1 Em toda rodada, qualquer que seja o agente
 
 Mude um destes valores e a rodada deixa de ser comparável. Se precisar mudar, diga no README do estudo e não misture a rodada com as outras na média.
 
@@ -12,16 +16,32 @@ Mude um destes valores e a rodada deixa de ser comparável. Se precisar mudar, d
 | --- | --- |
 | Caso | `clinica-piloto`: a carta ampla da V1.5.2, com a regra dos papéis compartilhados da V1.5.3 |
 | API alvo | A Clínica Piloto local, na imagem `hdast-clinica-piloto:1.0.0`. Dentro da pilha ela fica em `http://clinica-piloto:8080`. O agente recebe o contrato como o dono entregaria, em `inputs/openapi.json`, que o `prepare` copia |
-| Agente | Claude Code em modo não interativo (`claude -p`), com `--model sonnet`. O modelo respondeu como `claude-sonnet-5-5` em todas as rodadas; confira na ficha (seção 3.8) |
-| Esforço | `--effort medium` |
-| Permissões | `--permission-mode auto` e `--allowedTools "Bash(uv run hdast:*)" "Bash(hdast:*)"`. As negações que o `prepare` grava no `.claude/settings.json` da cópia continuam valendo |
-| Conta do modelo | A conta logada do Claude Code, por OAuth. Nenhuma chave de API é passada ao agente nem ao comando |
-| Saída | `--output-format stream-json --verbose`, um arquivo por segmento |
 | Pedido | O texto exato da seção 3.3, nada além |
 | Intervenção | Só a aprovação do escopo, pelo executor (`evals.runner approve`), e a mensagem `escopo aprovado, continue` |
 | Modo do alvo | Sorteado (`--mode random`) ou forçado (`--mode vulnerable` ou `secure`). Anote qual dos dois; rodada forçada é marcada como tal no resultado |
 | Semente | Uma nova a cada rodada, crescente. A última usada em 2026-11-15 foi a 18 |
 | Concorrência | Uma rodada por vez. As portas `28080`, `29091`, `3128` e `8080` são fixas |
+
+### 1.2 Do agente: escolhido por estudo, igual dentro dele
+
+Dentro de um estudo, todas as rodadas usam a mesma ferramenta, o mesmo modelo e o mesmo esforço. Agentes diferentes formam estudos diferentes, comparados pelo mesmo caso e pelo mesmo protocolo.
+
+| Item | O que exigir | Claude Code, 2026-11-15 (verificado) | Codex, 2026-11-14 |
+| --- | --- | --- | --- |
+| Ferramenta e versão | Agente de código em modo não interativo, num processo novo, sem a conversa do coordenador. Anote a versão | `claude -p`, versão 2.1.325 | `codex exec` |
+| Modelo | Anote o nome pedido **e** o identificador que o agente devolveu | `--model sonnet`, que respondeu `claude-sonnet-5-5` | `-m gpt-6.1-terra` |
+| Esforço | Anote o nível | `--effort medium` | `-c 'model_reasoning_effort="medium"'` |
+| Permissões | Liberar sem pergunta só os comandos `hdast`; o resto, o mais fechado que a ferramenta permitir. Anote o que foi usado | `--permission-mode auto` e `--allowedTools "Bash(uv run hdast:*)" "Bash(hdast:*)"`, mais as negações que o `prepare` grava em `.claude/settings.json` | `-c 'approval_policy="never"'` e `-s danger-full-access`, sem negações equivalentes (limite registrado) |
+| Conta | A conta já logada na ferramenta. Nenhuma chave de API ou credencial vai no pedido, no workspace ou no transcript | Login OAuth do Claude Code | Login do ChatGPT no Codex |
+| Saída | Transcript estruturado por segmento: cada chamada de ferramenta, o resultado, o uso de tokens e o horário | `--output-format stream-json --verbose` | `--json` e `-o` para a resposta final |
+
+### 1.3 Requisitos para qualquer agente
+
+- **Contexto limpo.** O agente começa só com o workspace e o pedido. Confira que as instruções globais da ferramenta (por exemplo `~/.claude/CLAUDE.md` ou `~/.codex/AGENTS.md`) não falam do projeto nem da avaliação.
+- **Mesma conversa depois da aprovação.** A ferramenta precisa retomar a conversa pelo identificador (seção 3.5). Se não conseguir, a rodada não segue este protocolo; registre isso.
+- **Negações fora do Claude Code.** As negações que o `prepare` grava valem só para o Claude Code. Com outra ferramenta, configure o equivalente na permissão ou na caixa de areia dela, se houver, e anote o que ficou de fora. Em qualquer caso, a nota (critério a) pega a violação no transcript depois.
+- **Horário de cada evento.** Se a ferramenta não grava o horário em cada evento (o `codex exec --json` não grava), o coordenador grava o horário de chegada de cada linha num arquivo à parte. Na rodada de 2026-11-14 esse arquivo foi o `timed-events.jsonl`.
+- **Formato do transcript.** O executor (`collect`, `score`, `measure`) lê o formato JSONL do Claude Code: eventos `assistant` e `user` com blocos `tool_use` e `tool_result`, `usage` por mensagem e `timestamp`. O transcript de outra ferramenta precisa ser **convertido** para esse formato antes do `collect`. O conversor da rodada do Codex está em [normalize_native.py.txt](results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main/coordinator/normalize_native.py.txt) e serve de ponto de partida. Sem a conversão, as verificações de segurança ficam `n/a` e o `measure` sai vazio, então a rodada não entra na comparação.
 
 ## 2. O que o agente recebe, e só isso
 
@@ -47,7 +67,7 @@ Se o agente perguntar algo durante a rodada, não responda com conteúdo. Qualqu
 
 ## 3. Passo a passo
 
-Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como nas rodadas de 2026-11-15. `<out>` é a pasta da rodada, por exemplo `C:\rodadas\piloto-sonnet55-v153-vuln-2026-11-15`. O nome segue o padrão `<caso>-<modelo>-<versão>-<modo>-<AAAA-MM-DD>`.
+Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como nas rodadas de 2026-11-15. Onde o comando depende da ferramenta do agente, há um exemplo para o Claude Code (verificado) e um para o Codex. `<out>` é a pasta da rodada, por exemplo `C:\rodadas\piloto-sonnet55-v153-vuln-2026-11-15`. O nome segue o padrão `<caso>-<modelo>-<versão>-<modo>-<AAAA-MM-DD>`.
 
 ### 3.1 Antes de começar
 
@@ -55,8 +75,8 @@ Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como 
 2. **Docker.** O Docker precisa estar de pé (`docker info`). Se travar com `sailor-ingest.sock`, renomeie `%LOCALAPPDATA%\Docker\run`. Nunca use "Reset to factory defaults".
 3. **Pilhas.** Derrube as pilhas do laboratório que sobraram (`docker compose ls -a`, depois `hdast stack down` com o estado de cada uma). Pilha que você subir para uso próprio leva o sufixo `-claude` ou o nome do coordenador.
 4. **Imagens.** Reconstrua as imagens quando `lab/`, `docker/` ou o proxy de escopo tiverem mudado desde a última rodada. O comando é o passo 1 do [README](README.md), `stack up clinica-piloto --build`, no repositório original e com pastas temporárias. O agente cego não consegue construir.
-5. **Login.** Confira que o Claude Code está logado com `claude -p "responda ok" --model sonnet`. Se aparecer "OAuth expired", uma pessoa faz o login; o coordenador não digita credencial.
-6. **Sessões abertas.** Feche qualquer `claude` interativo aberto numa pasta de rodada antiga.
+5. **Login.** Confira que a ferramenta do agente está logada. No Claude Code: `claude -p "responda ok" --model sonnet` (se aparecer "OAuth expired", o login venceu). No Codex: `codex login status`. Quem faz o login é uma pessoa; o coordenador não digita credencial.
+6. **Sessões abertas.** Feche qualquer sessão interativa do agente aberta numa pasta de rodada antiga.
 
 ### 3.2 Preparar a cópia
 
@@ -75,7 +95,14 @@ uv sync -q
 
 ### 3.3 Segmento 1: lançar o agente
 
-Num PowerShell novo, em segundo plano, porque a rodada leva mais de 30 minutos:
+Para qualquer ferramenta, o bloco faz o mesmo, num PowerShell novo e em segundo plano, porque a rodada leva mais de 30 minutos:
+1. aplica o ambiente de `sealed/agent-env.json` só neste processo;
+2. entra no workspace;
+3. grava a hora de início;
+4. lança o agente com o pedido exato e grava a saída estruturada em `transcript-1.jsonl` e os erros em `stderr-1.log`;
+5. grava a hora de fim.
+
+Exemplo verificado, com o Claude Code:
 
 ```powershell
 $out = "C:\rodadas\piloto-sonnet55-v153-vuln-2026-11-15"
@@ -94,12 +121,20 @@ claude -p $prompt --model sonnet --effort medium --permission-mode auto --allowe
 "saida=$LASTEXITCODE"
 ```
 
+Com o Codex, só a linha do agente muda (o `-o` grava a resposta final à parte):
+
+```powershell
+codex exec --json -m gpt-6.1-terra -c 'model_reasoning_effort="medium"' -C "$out\workspace" -o "$out\resposta-1.md" $prompt 2>"$out\stderr-1.log" | Out-File -Encoding utf8 "$out\transcript-1.jsonl"
+```
+
+Escolha a permissão do Codex pelo requisito da seção 1.2 e anote-a. Lembre que o Codex não grava horário por evento (seção 1.3).
+
 O ambiente é aplicado **só neste processo**. Não o grave no perfil do shell nem num arquivo dentro do workspace. O agente costuma parar no primeiro comando que toca o alvo (`SCOPE_NOT_APPROVED`) e pedir a aprovação na resposta.
 
-Pegue o identificador da sessão no primeiro evento do `transcript-1.jsonl`:
+Pegue o identificador da conversa no primeiro evento do `transcript-1.jsonl`. No Claude Code ele é o `session_id`; no Codex, o `thread_id` do evento `thread.started`:
 
 ```bash
-python -c "import json,sys; print(json.loads(open(sys.argv[1],encoding='utf-8-sig').readline())['session_id'])" "$OUT/transcript-1.jsonl"
+python -c "import json,sys; e=json.loads(open(sys.argv[1],encoding='utf-8-sig').readline()); print(e.get('session_id') or e.get('thread_id'))" "$OUT/transcript-1.jsonl"
 ```
 
 ### 3.4 Aprovar o escopo
@@ -114,17 +149,29 @@ O `approve` confere o perfil contra a carta e grava a aprovação só na pasta d
 
 ### 3.5 Segmento 2 e seguintes: retomar
 
-Use o mesmo bloco do 3.3, trocando o número do segmento e a linha do `claude`:
+Use o mesmo bloco do 3.3, trocando o número do segmento e a linha do agente. A mensagem é sempre `escopo aprovado, continue`, na mesma conversa.
+
+Claude Code (verificado):
 
 ```powershell
 claude -p "escopo aprovado, continue" --resume <session_id> --model sonnet --effort medium --permission-mode auto --allowedTools "Bash(uv run hdast:*)" "Bash(hdast:*)" --output-format stream-json --verbose 2>"$out\stderr-2.log" | Out-File -Encoding utf8 "$out\transcript-2.jsonl"
+```
+
+Codex:
+
+```powershell
+codex exec resume --json -m gpt-6.1-terra -c 'model_reasoning_effort="medium"' -o "$out\resposta-2.md" <thread_id> "escopo aprovado, continue" 2>"$out\stderr-2.log" | Out-File -Encoding utf8 "$out\transcript-2.jsonl"
 ```
 
 O agente pode parar de novo pedindo aprovação, por exemplo depois de editar um bloco de proteção do perfil. Nesse caso, repita o 3.4 e abra o segmento 3, e assim por diante. Cada segmento tem os seus `inicio-segmento-N.txt`, `fim-segmento-N.txt`, `stderr-N.log` e `transcript-N.jsonl`.
 
 ### 3.6 Juntar o transcript completo
 
-Os `transcript-N.jsonl` só trazem o que o modo `-p` imprime. A conversa inteira, com os dois segmentos e os carimbos de tempo de cada evento, fica no arquivo da sessão:
+O executor lê um arquivo só, `<out>/transcript.jsonl`, no formato do Claude Code (seção 1.3).
+
+**Outra ferramenta:** junte os `transcript-N.jsonl` na ordem e converta para esse formato, com o horário de cada evento. Guarde também os arquivos originais, sem conversão.
+
+**Claude Code:** os `transcript-N.jsonl` só trazem o que o modo `-p` imprime. A conversa inteira, com os dois segmentos e os carimbos de tempo de cada evento, fica no arquivo da sessão:
 
 ```powershell
 Copy-Item "$env:USERPROFILE\.claude\projects\<pasta do workspace>\<session_id>.jsonl" "$out\transcript.jsonl"
@@ -156,6 +203,10 @@ uv run python -m evals.runner classify --out "$OUT"
 ```
 
 ### 3.8 Gerar a ficha e as falas do agente
+
+A ficha guarda, por segmento: o modelo devolvido, a versão da ferramenta, os turnos, a duração, o uso de tokens, o custo e as permissões negadas. As falas guardam o que o agente disse e fez, em ordem e com horário.
+
+O script abaixo é para o **Claude Code**: ele lê o evento `system`/`init` e o evento `result` de cada segmento. Com outra ferramenta, grave os mesmos campos a partir da saída dela; no Codex, o uso de tokens vem no evento `turn.completed`, e o custo em dólar não vem, então anote `n/d`. As falas podem sair do `transcript.jsonl` convertido, com a mesma segunda metade do script.
 
 Grave o script abaixo **fora** da pasta da rodada (por exemplo, no diretório temporário do coordenador) e rode com `python -I ficha.py "<out>"`. Ele lê só os transcripts e as marcas de tempo, e grava `<out>/ficha.json` e `<out>/falas-do-agente.md`.
 
@@ -256,37 +307,42 @@ Tudo abaixo precisa existir no fim de cada rodada, para a análise posterior. A 
 | --- | --- | --- |
 | Identificação | Data, nome da rodada, caso, semente, modo (e se foi forçado) | `prepare`, `sealed/mode.json`, `meta.json` da medição |
 | Identificação | Commit e versão do `hdast` medidos | `git log -1` da árvore do `prepare`, `meta.json` |
-| Identificação | Modelo, esforço, versão do Claude Code, modo de permissão, quem coordenou | Linha do `claude`, `ficha.json` (`modelo`, `claude_code`, `permissao`) |
+| Identificação | Ferramenta do agente e versão, modelo pedido e modelo devolvido, esforço, permissões, quem coordenou | Linha que lançou o agente, `ficha.json` |
 | Tempo | Início e fim de cada segmento; espera pela aprovação (fim de um segmento até o início do seguinte) | `inicio-` e `fim-segmento-N.txt`, `ficha.json` |
 | Tempo | Duração total, e por etapa (`leitura`, `cadastro`, `alcance`, `varredura`, `triagem`, `outro`), com os segundos pensando e esperando ferramenta | `agent-metrics.json` (`totals`, `stages`) |
 | Tempo | Etapas da CLI (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`) e o tempo de cada regra do ZAP | `metrics-<run_id>.json` na medição |
-| Tokens e custo | Entrada, saída, criação e leitura de cache: no total, por etapa e por segmento; custo em US$ por segmento | `agent-metrics.json`, `ficha.json` (`usage`, `modelUsage`, `total_cost_usd`) |
+| Tokens e custo | Entrada, saída, criação e leitura de cache (e tokens de raciocínio, se a ferramenta informar): no total, por etapa e por segmento; custo em US$ por segmento, ou `n/d` | `agent-metrics.json`, `ficha.json` |
 | Comportamento | Turnos, chamadas por ferramenta, subcomandos `hdast`, comandos repetidos, falhas tentadas de novo, arquivos relidos | `agent-metrics.json` (`totals`, `loops`) |
 | Comportamento | Permissões negadas e o motivo | `ficha.json` (`negacoes_de_permissao`), `stderr-N.log` |
 | Resultado | Nota final e nota de cada critério; falhas achadas, em parte ou não achadas (H1 a H10); alcance efetivo; violações | `score.json`, `score.md`, `classify.md` |
 | Resultado | Achados por fonte (ZAP, `authz`, sinais da cerca, `negative`) | `trace/runs/<run_id>/findings.json` |
 | Intervenções | Cada mensagem do coordenador ao agente, com o texto exato e o horário; cada `approve` e o resultado dele | Anotação do coordenador no README do estudo |
-| Pensamento | O que o agente disse entre as chamadas, cada chamada em ordem com o horário, e a resposta final | `falas-do-agente.md`, `result` do último `transcript-N.jsonl` |
+| Pensamento | O que o agente disse entre as chamadas, cada chamada em ordem com o horário, e a resposta final | `falas-do-agente.md`, a resposta final do último segmento |
 | Pensamento | O diário de decisões do cadastro e da execução | `trace/profile/final/<produto>/decision-log.md`, `trace/runs/<run_id>/decision-log.md` |
 | Pensamento | O perfil a cada instantâneo | `trace/profile/history/` |
 
 ### Sobre o raciocínio interno do modelo
 
-No `claude -p` (Claude Code 2.1.325, conferido em 2026-11-15), os blocos de raciocínio chegam **vazios** no transcript: só a assinatura, sem o texto. O resultado foi o mesmo com `showThinkingSummaries`. Portanto o "pensamento" que dá para guardar é:
+As ferramentas de agente não entregam o texto do raciocínio interno do modelo:
+- No `claude -p` (Claude Code 2.1.325, conferido em 2026-11-15), os blocos de raciocínio chegam **vazios** no transcript: só a assinatura, sem o texto. O resultado foi o mesmo com `showThinkingSummaries`.
+- No `codex exec --json` (rodada de 2026-11-14), só vem a contagem de tokens de raciocínio.
+
+Portanto o "pensamento" que dá para guardar, com qualquer agente, é:
 - o que o agente escreve entre as chamadas;
 - a ordem e o conteúdo das chamadas;
 - o diário de decisões;
 - a resposta final;
 - o tempo pensando por etapa, no `agent-metrics.json`.
 
-Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura do Claude Code passar a gravá-lo, ele entra no `transcript.jsonl` arquivado, fora do repositório, como o resto.
+Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura de alguma ferramenta passar a gravá-lo, ele entra no `transcript.jsonl` arquivado, fora do repositório, como o resto.
 
 ## 5. Repetições e comparação
 
-- **Uma rodada é uma amostra.** Para ter média, faça várias rodadas por modo, com sementes diferentes e o mesmo modelo e esforço.
+- **Uma rodada é uma amostra.** Para ter média, faça várias rodadas por modo, com sementes diferentes e a mesma ferramenta, o mesmo modelo e o mesmo esforço.
 - **Guarde todas.** Inclua as que falharam ou pararam. Uma rodada descartada some da análise; marque o motivo em vez de apagar.
-- **Não misture modelos.** Rodadas de modelos ou esforços diferentes entram em estudos separados (ver a [nota sobre `model`](measurements/README.md)).
-- **Use o mesmo caso que a linha de base.** Compare com `evals.runner compare`, contra a rodada de referência: `evals/measurements/2026-11-15-clinica-piloto-sonnet55-v153-vulneravel`.
+- **Não misture agentes.** Rodadas de ferramentas, modelos ou esforços diferentes entram em estudos separados (ver a [nota sobre `model`](measurements/README.md)). Comparar dois agentes é comparar dois estudos feitos com o mesmo caso e este protocolo.
+- **Use o mesmo caso que a linha de base.** Compare com `evals.runner compare`. A rodada de referência hoje é `evals/measurements/2026-11-15-clinica-piloto-sonnet55-v153-vulneravel` (Claude Code, Sonnet 5.5, medium).
+- **Nome da rodada e rótulo.** Use o apelido do modelo: por exemplo `piloto-terra61-v153-vuln-<data>` e o rótulo `terra61-v153-vulneravel`.
 
 ## 6. O que o coordenador nunca faz
 

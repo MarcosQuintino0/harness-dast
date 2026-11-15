@@ -9,6 +9,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ### Documentação
 
 - Protocolo da rodada cega completa (`evals/protocolo-da-rodada-cega.md`): o método exato das rodadas de 2026-11-15 (modelo, esforço, permissões, pedido, aprovação e retomada), o que anotar de cada rodada (tempo por etapa e por segmento, tokens, custo, comportamento, resultado, intervenções, falas e diário do agente), um script de ficha e onde arquivar.
+- O protocolo da rodada cega vale para qualquer agente de código (Claude Code, Codex ou outro): separa o que é fixo em toda rodada do que é escolhido por estudo (ferramenta, modelo, esforço, permissões), lista os requisitos do agente (contexto limpo, retomada da conversa, horário por evento, conversão do transcript para o formato que o executor lê) e traz exemplos do Claude Code e do Codex.
 
 ### Corrigido
 
