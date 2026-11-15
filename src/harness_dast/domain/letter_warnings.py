@@ -21,6 +21,7 @@ DELETE_AUTHORIZED: Final = "DELETE_AUTHORIZED"
 DENY_PATHS_EMPTY: Final = "DENY_PATHS_EMPTY"
 VALIDITY_OVER_ONE_YEAR: Final = "VALIDITY_OVER_ONE_YEAR"
 AUTHZ_WRITES_AUTHORIZED: Final = "AUTHZ_WRITES_AUTHORIZED"
+NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
 OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
 
 _ROOT_WILDCARD: Final = "/**"
@@ -51,8 +52,9 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
     """Avisos sobre o perfil gerado da carta (não bloqueiam, não mudam o que é gerado).
 
     Avisa: permissão com `/**` na raiz, método `DELETE` autorizado, nenhum caminho proibido e
-    validade a mais de um ano, escrita do teste entre contas autorizada pela carta e ataque a
-    operações que deram não encontrado ou outra falha de dados (ADR 0050).
+    validade a mais de um ano, escrita autorizada pela carta (teste entre contas e teste de
+    valores inválidos) e ataque a operações que deram não encontrado ou outra falha de dados
+    (ADR 0050).
     """
     warnings: list[LetterIssue] = []
     for index, rule in enumerate(profile.scope.allow):
@@ -115,6 +117,20 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                     "alterar dados e criar recursos "
                     "do ambiente. Confirme com o dono do produto que a carta diz isso e que o "
                     "ambiente é de teste com dados sintéticos."
+                ),
+            )
+        )
+    if profile.negative.allow_writes:
+        warnings.append(
+            LetterIssue(
+                field="attack.allow_invalid_input_writes",
+                code=NEGATIVE_WRITES_AUTHORIZED,
+                message=(
+                    "A carta autoriza o teste de valores inválidos a GRAVAR no alvo dado com "
+                    "valor que o contrato proíbe (POST, PUT e PATCH): o dado inválido aceito "
+                    "persiste (restaurado em PUT e PATCH, deixado em POST). Confirme com o dono "
+                    "do produto que a carta diz isso e que o ambiente é de teste com dados "
+                    "sintéticos."
                 ),
             )
         )

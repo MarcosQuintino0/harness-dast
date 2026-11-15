@@ -16,6 +16,7 @@ from harness_dast.domain.errors import (
     ScopeViolation,
     TargetError,
 )
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.scan_result import ScanResult
 
@@ -90,4 +91,20 @@ def authz_stop_error(result: AuthzResult) -> HarnessError | None:
         return ExternalToolError(message, hint="Confira o ZAP e rode o authz de novo.")
     if result.status == "stopped_target_unresponsive":
         return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o authz.")
+    return None
+
+
+def negative_stop_error(result: NegativeResult) -> HarnessError | None:
+    """Erro correspondente à parada antecipada do `negative`, ou `None` se completou.
+
+    Achado do teste negativo NÃO é erro: é dado (o `report` é o dono do código 1).
+    """
+    message = result.stop_message or "O negative parou antes do fim."
+    hint = "O resultado parcial está em data e em negative.json."
+    if result.status in {"stopped_window", "stopped_deadline"}:
+        return ScopeViolation(message, hint=hint)
+    if result.status == "stopped_zap":
+        return ExternalToolError(message, hint="Confira o ZAP e rode o negative de novo.")
+    if result.status == "stopped_target_unresponsive":
+        return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o negative.")
     return None

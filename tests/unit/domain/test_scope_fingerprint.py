@@ -239,8 +239,10 @@ def test_digests_are_stable_across_calls() -> None:
 def test_every_protected_block_has_a_digest_in_display_order() -> None:
     profile = ProductProfile.from_data(valid_profile_data())
 
-    assert tuple(block_digests(profile)) == BLOCK_IDS
-    assert tuple(protected_blocks(profile)) == BLOCK_IDS
+    # O bloco `negative` só entra quando difere do padrão (ADR 0051); veja o teste dele.
+    present = tuple(name for name in BLOCK_IDS if name != "negative")
+    assert tuple(block_digests(profile)) == present
+    assert tuple(protected_blocks(profile)) == present
 
 
 def test_yaml_key_order_comments_and_spacing_do_not_change_the_digests() -> None:
@@ -286,7 +288,7 @@ def test_changing_a_protected_field_changes_exactly_its_block(
 
     after = digests(after_data)
 
-    assert [name for name in BLOCK_IDS if before[name] != after[name]] == [block]
+    assert [name for name in BLOCK_IDS if before.get(name) != after.get(name)] == [block]
     assert overall(valid_profile_data()) != overall(after_data)
 
 
@@ -341,7 +343,7 @@ def test_cleanup_changes_are_detected_against_an_existing_cleanup_block() -> Non
 
     before, after = digests(base), digests(changed)
 
-    assert [name for name in BLOCK_IDS if before[name] != after[name]] == ["cleanup"]
+    assert [name for name in BLOCK_IDS if before.get(name) != after.get(name)] == ["cleanup"]
 
 
 def test_reordering_set_like_scan_and_authz_fields_does_not_change_the_digests() -> None:
@@ -399,7 +401,7 @@ AUTH_FREE: frozenset[str] = frozenset(
 )
 # Blocos que entram inteiros (os campos de cada um estão no `model_dump` do bloco).
 TOP_LEVEL_PROTECTED: frozenset[str] = frozenset(
-    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "cleanup"}
+    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "negative", "cleanup"}
 )
 TOP_LEVEL_FREE: frozenset[str] = frozenset({"schema_version", "openapi", "probe"})
 

@@ -26,6 +26,7 @@ from harness_dast.domain.letter_collect import (
     Collector,
     LetterIssue,
 )
+from harness_dast.domain.letter_negative import read_allow_invalid_writes
 from harness_dast.domain.letter_outcomes import read_include_outcomes
 from harness_dast.domain.letter_sections import (
     Block,
@@ -51,11 +52,13 @@ GENERATED_BLOCKS: Final = (
     "scan.strength",
     "scan.include_outcomes",
     "authz.allow_writes",
+    "negative.allow_writes",
 )
 """Blocos do `target.yml` que a CLI escreve a partir da carta.
 
 `scan.strength` só se informada; `scan.include_outcomes` só com lista não vazia (ADR 0050);
-`authz.allow_writes` só quando a carta o autoriza (ADR 0038).
+`authz.allow_writes` só quando a carta o autoriza (ADR 0038); `negative.allow_writes`, idem
+(ADR 0051).
 """
 
 _GATE_DENIED_TEXT = (
@@ -71,6 +74,9 @@ _HEADER = (
 _HEADER_OUTCOMES = "# Também gerado da carta (ADR 0050): scan.include_outcomes.\n"
 _HEADER_WRITES = (
     "# Também gerado da carta (ADR 0038): authz.allow_writes, que só a carta autoriza.\n"
+)
+_HEADER_NEGATIVE = (
+    "# Também gerado da carta (ADR 0051): negative.allow_writes, que só a carta autoriza.\n"
 )
 
 
@@ -131,6 +137,7 @@ def _profile_data(
     auth = read_auth(c, letter.auth)
     strength = read_strength(c, letter.attack.strength)
     allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
+    negative_writes = read_allow_invalid_writes(c, letter.attack.allow_invalid_input_writes)
     outcomes = read_include_outcomes(c, letter.attack.include_outcomes)
     examples = read_example_data(c, letter.example_data)
     if (
@@ -167,6 +174,8 @@ def _profile_data(
         data["scan"] = scan
     if allow_writes:
         data["authz"] = {"allow_writes": True}
+    if negative_writes:
+        data["negative"] = {"allow_writes": True}
     return data, examples
 
 
@@ -217,6 +226,7 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
         profile_text=_HEADER
         + (_HEADER_OUTCOMES if profile.scan.include_outcomes else "")
         + (_HEADER_WRITES if profile.authz.allow_writes else "")
+        + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
         + render_yaml(data),
         blocks=blocks,
         example_data=examples,

@@ -461,6 +461,25 @@ authz:
 
 Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do mesmo papel em `auth.accounts`, e a operação precisa ser roteada (`auth.account_map`) para uma delas; sem isso o estágio registra `no_peer_account` em vez de dar verde.
 
+## `negative` (opcional)
+
+Teste de valores que o esquema proíbe ([ADR 0051](../adr/0051-valores-que-o-esquema-proibe.md); [negative.md](negative.md)). Sem o bloco, valem os padrões conservadores: só leitura. Nada aqui amplia escopo, métodos do escopo, janela nem limites (o `ScopeGuard` continua decidindo). Mas `allow_writes` escreve no alvo, os dois tetos são carga e `disabled_classes` esconde achado: por isso o bloco entra na impressão digital da aprovação humana **quando difere do padrão** (um perfil que não o usa mantém a aprovação que já tem).
+
+| Campo | Tipo | Padrão | Descrição |
+| --- | --- | --- | --- |
+| `allow_writes` | booleano | `false` | A carta permite que o teste **grave** no alvo dado com valor inválido (`POST`, `PUT`, `PATCH`; nunca `DELETE`). Campo próprio, não reaproveita `authz.allow_writes`. Só vem da carta (`attack.allow_invalid_input_writes`, com `source: carta` e a frase em `quote`); texto, número e `null` são recusados |
+| `max_cases_per_operation` | inteiro de 1 a 20 | `6` | Teto de casos por operação; o excesso vai para `not_tested` (`budget`) |
+| `max_requests` | inteiro de 1 a 1000 | `200` | Teto de envios do estágio inteiro (casos e restaurações). `--max-requests` só o reduz |
+| `disabled_classes` | lista de `wrong_type`, `missing_required`, `below_minimum`, `above_maximum`, `not_in_enum`, `too_long`, `too_short` | vazia | Classes que não se testam (só reduz). Sem repetição; fora da lista é recusado |
+
+```yaml
+negative:
+  allow_writes: false
+  max_cases_per_operation: 6
+  max_requests: 200
+  disabled_classes: []
+```
+
 ## Segredos: `secret_ref`
 
 Nomes `HDAST_*` são recusados: são variáveis do próprio harness (chave do ZAP, pastas, proxy) e um perfil escrito pelo agente poderia mandá-las ao alvo como senha. Use um nome do produto, como `AGENDA_USER_A_SENHA`.

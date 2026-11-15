@@ -21,6 +21,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "probe": "Tentou fazer cada função do sistema responder de verdade.",
     "scan": "Atacou as funções que responderam, com o ZAP, sempre dentro da cerca.",
     "authz": "Comparou o que cada conta enxerga e altera, para achar acesso indevido.",
+    "negative": "Enviou valores que o contrato proíbe, um campo por vez, para ver se caem.",
     "report": "Montou o relatório com as falhas encontradas.",
     "run": "Fez o teste inteiro em sequência: alcance, ataque e relatório.",
     "cleanup": "Limpou os dados criados pelo teste, com a confirmação de uma pessoa.",
