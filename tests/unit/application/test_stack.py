@@ -117,11 +117,33 @@ def test_up_do_piloto_anexa_o_alvo_em_projeto_proprio_com_credenciais_descartave
     assert state is not None
     assert [project.name for project in state.projects] == ["hdast", "hdast-pilotrun"]
     assert "PILOT_ADMIN_USERNAME" not in state.target_env
-    assert len(state.target_env) == 7
-    assert len(set(state.target_env.values())) == 7
+    assert set(state.target_env) == {
+        "PILOT_ADMIN_PASSWORD",
+        "PILOT_MEDICO_USERNAME",
+        "PILOT_MEDICO_PASSWORD",
+        "PILOT_MEDICO_B_USERNAME",
+        "PILOT_MEDICO_B_PASSWORD",
+        "PILOT_PACIENTE_A_USERNAME",
+        "PILOT_PACIENTE_A_PASSWORD",
+        "PILOT_PACIENTE_B_USERNAME",
+        "PILOT_PACIENTE_B_PASSWORD",
+    }
+    assert len(set(state.target_env.values())) == 9
+    assert rig.environ["PILOT_ADMIN_USERNAME"] == "definido-pela-pessoa"
     assert rig.compose.envs["hdast-pilotrun"]["PILOT_VULNERABLE"] == "1"
     assert report.target_urls["management"].startswith("http://127.0.0.1:")
     assert state.zap_api_key not in report.model_dump_json()
+
+
+def test_up_preserva_credencial_do_segundo_medico_fornecida_pela_pessoa(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"PILOT_MEDICO_B_USERNAME": "conta-fornecida"})
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto"))
+
+    assert rig.states.state is not None
+    assert "PILOT_MEDICO_B_USERNAME" not in rig.states.state.target_env
+    assert rig.environ["PILOT_MEDICO_B_USERNAME"] == "conta-fornecida"
+    assert "PILOT_MEDICO_B_PASSWORD" in rig.states.state.target_env
 
 
 def test_up_com_janela_fechada_levanta_escopo_e_nao_toca_o_docker(tmp_path: Path) -> None:

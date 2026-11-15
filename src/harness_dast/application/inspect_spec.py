@@ -38,6 +38,7 @@ from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.scope import ScopeGuard
 from harness_dast.domain.spec_examples import inspect_examples
+from harness_dast.domain.spec_hints import suggest_spec_hints
 
 _BUILD_CHECK_SEED = 0
 _BUILD_CHECK_TAG = "0000"
@@ -166,6 +167,7 @@ class InspectSpec:
             needs_rule_unchecked=unchecked,
             issues=tuple(issues),
             operation_accounts=_operation_accounts(profile, plan),
+            hints=suggest_spec_hints(profile, spec.operations, plan),
         )
 
     def _rules(

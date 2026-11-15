@@ -223,6 +223,32 @@ def test_it_reports_which_account_each_sent_operation_will_use() -> None:
     assert "admin" not in accounts
 
 
+def test_pilot_inspection_suggests_document_flow_and_peer_account() -> None:
+    spec = load_spec(Path(__file__).parents[3] / "lab/pilot/openapi.json")
+    data = profile_data()
+    data["auth"]["accounts"].append(
+        {
+            "alias": "user_b",
+            "role": data["auth"]["accounts"][0]["role"],
+            "username": {"secret_ref": "env:USER_B_USERNAME"},
+            "password": {"secret_ref": "env:USER_B_PASSWORD"},
+        }
+    )
+    profile = ProductProfile.from_data(data)
+
+    result = inspect(Rig(spec=spec, profile=profile))
+
+    assert any(
+        (h.producer, h.field, h.consumer, h.parameter)
+        == ("listarDocumentos", "0", "baixarDocumento", "arquivo")
+        for h in result.hints
+    )
+    assert any(h.kind == "peer_account" and "buscarPaciente" in h.operations for h in result.hints)
+    from harness_dast.cli.commands.spec import _render
+
+    assert "sugestão: Hipótese:" in _render(result)
+
+
 def test_an_account_map_with_an_unknown_operation_becomes_an_issue() -> None:
     profile = _two_account_profile(account_map=[{"account": "user_b", "operations": ["nada"]}])
 

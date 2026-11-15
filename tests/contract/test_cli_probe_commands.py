@@ -184,6 +184,7 @@ def test_spec_inspect_returns_the_summary_and_the_cross_checks(
         "needs_rule_unchecked",
         "issues",
         "operation_accounts",
+        "hints",
     } == set(data)
     assert {item["account"] for item in data["operation_accounts"]} == {"user_a"}
     assert data["summary"]["operation_count"] == 3
