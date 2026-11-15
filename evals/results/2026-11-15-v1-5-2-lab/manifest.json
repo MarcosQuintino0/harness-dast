@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-11-15T17:49:40.866773+00:00",
+  "branch": "feat/v1-5-2-avaliacao",
+  "implementation_commit": "eec20baf6fe6e46a51567dafca69c9690a1b9181",
+  "source": "C:\\harness-dast-artefatos\\v1.5.2\\integration\\metrics",
+  "source_kind": "resumos sanitizados produzidos pelo suporte de integracao",
+  "files": [
+    {
+      "path": "lab-authz-secure-v2.json",
+      "bytes": 13077,
+      "sha256": "ac73e14a839fe92b50c667a9603781e78498f9b3a4ed4cb95a5f6549e5ced1c1"
+    },
+    {
+      "path": "lab-authz-vulnerable-v2.json",
+      "bytes": 14008,
+      "sha256": "13282bd90995b85a30e7e5df6e1170f771fb641af224256d71a1773476628a2e"
+    },
+    {
+      "path": "lab-error-signals-secure.json",
+      "bytes": 3477,
+      "sha256": "9714f902623d5a3eab4c43708cdef3557b2e45e6a039b69de13333741e7eed9c"
+    },
+    {
+      "path": "lab-error-signals-vulnerable.json",
+      "bytes": 9929,
+      "sha256": "c4d3d534d78cb74cdf9815f62cd62913b9410696d93c3bdff9a9b444e3b60283"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4223,
+      "sha256": "6e845ab296b9827dd0618f834dc2d10af948696a1bd9db1af316351e74a575fc"
+    },
+    {
+      "path": "validation.json",
+      "bytes": 770,
+      "sha256": "3db0fd5096042bcdf0d00941a4afb6e231c1c8f1e6c53b11f881204d4f5cef20"
+    }
+  ]
+}
