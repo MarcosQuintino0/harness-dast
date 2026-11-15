@@ -101,7 +101,10 @@ def _install_with_writes(cli: LabCli) -> None:
     text = installed.read_text(encoding="utf-8")
     assert ROLE_ORDER_LINE in text, "o perfil do piloto deixou de declarar authz.role_order"
     installed.write_text(
-        text.replace(ROLE_ORDER_LINE, ROLE_ORDER_LINE + "\n  allow_writes: true" + MATRIX_YAML),
+        text.replace(
+            ROLE_ORDER_LINE,
+            ROLE_ORDER_LINE + "\n  allow_writes: true\n  shared_roles: [medico]" + MATRIX_YAML,
+        ),
         encoding="utf-8",
     )
 
@@ -303,18 +306,7 @@ def test_writes_were_sent_only_because_the_copy_of_the_profile_allows_them(lab: 
 def test_in_secure_mode_no_authz_finding_is_high(lab: AuthzLab) -> None:
     if lab.mode != "secure":
         pytest.skip("só vale no modo seguro")
-    # Os médicos compartilham pacientes; o teste entre pares não conhece essa política.
-    high = [
-        f
-        for f in lab.authz["findings"]
-        if f["proposed_severity"] == "high"
-        and (f["technique"], f["operation_id"])
-        not in {
-            ("authz_horizontal_write", "atualizarPaciente"),
-            ("authz_horizontal", "buscarPaciente"),
-        }
-    ]
-    assert high == []
+    assert not [f for f in lab.authz["findings"] if f["proposed_severity"] == "high"]
 
 
 def test_in_vulnerable_mode_at_least_one_technique_proved_in_v1_1_reports_a_finding(
@@ -364,14 +356,47 @@ def test_no_authz_request_timed_out_on_the_way_to_the_target(lab: AuthzLab) -> N
     assert errors == []
 
 
-def test_horizontal_write_executa_rota_entre_medicos(lab: AuthzLab) -> None:
-    check = next(c for c in lab.authz["checks"] if c["check"] == "horizontal_write")
-    assert check["tested"] >= 1
+@pytest.mark.parametrize(
+    ("check", "operation"),
+    [("horizontal", "buscarPaciente"), ("horizontal_write", "atualizarPaciente")],
+)
+def test_operacao_de_medico_registra_motivo_compartilhado(
+    lab: AuthzLab, check: str, operation: str
+) -> None:
     assert any(
-        row["method"] in {"PUT", "PATCH"}
-        and str(row["operation_id"]) == "authz:write:atualizarPaciente"
-        and row["status"] is not None
-        for row in lab.authz_rows("result")
+        note["check"] == check
+        and note["operation_id"] == operation
+        and note["reason"] == "shared_role"
+        for note in lab.authz["not_tested"]
+    )
+
+
+def test_medicos_compartilhados_nao_produzem_achados_horizontais(lab: AuthzLab) -> None:
+    assert not [
+        finding
+        for finding in lab.authz["findings"]
+        if finding["technique"] in {"authz_horizontal", "authz_horizontal_write"}
+        and finding["actor_role"] == finding["owner_role"] == "medico"
+    ]
+
+
+def test_escrita_horizontal_em_paciente_por_medico_nao_e_enviada(lab: AuthzLab) -> None:
+    assert not [
+        row
+        for row in lab.authz_rows("decision")
+        if row["operation_id"] == "authz:write:atualizarPaciente"
+    ]
+
+
+def test_bola_entre_pacientes_permanece_detectavel_no_modo_vulneravel(lab: AuthzLab) -> None:
+    if lab.mode != "vulnerable":
+        pytest.skip("controle positivo exige modo vulneravel")
+    assert any(
+        finding["technique"] == "authz_horizontal"
+        and finding["operation_id"] == "buscarConsulta"
+        and finding["actor_role"] == finding["owner_role"] == "paciente"
+        and finding["actor_account"] != finding["owner_account"]
+        for finding in lab.authz["findings"]
     )
 
 
