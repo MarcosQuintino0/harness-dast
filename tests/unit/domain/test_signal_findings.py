@@ -138,7 +138,7 @@ def test_caminho_sem_operacao_usa_modelo_generico_e_nunca_a_url_concreta() -> No
 
     (finding,) = result.findings
     assert finding.operation_id is None
-    assert finding.path_template == "/legado/pedidos/{}/itens"
+    assert finding.path_template == "/fora-do-contrato"
     assert "123456" not in result.model_dump_json()
 
 
@@ -225,8 +225,8 @@ def test_muitas_linhas_com_caminhos_diferentes_respeitam_o_teto_de_achados() -> 
 
     result = build(rows)
 
-    assert len(result.findings) == MAX_SIGNAL_FINDINGS
-    assert result.findings_omitted == 30
+    assert len(result.findings) == 1
+    assert result.findings_omitted == 0
     assert result.counts["sql_error"] == MAX_SIGNAL_FINDINGS + 30
 
 
@@ -277,3 +277,77 @@ def test_signal_window_vai_do_inicio_do_probe_ao_ultimo_fim_gravado() -> None:
     )
 
     assert window == (T0, T0 + timedelta(minutes=20))
+
+
+def test_identificador_alterado_pelo_zap_casa_com_modelo_da_operacao() -> None:
+    result = build(
+        [
+            row("/users/123", signals=("sql_error",)),
+            row("/users/ataque-mutado", signals=("sql_error",)),
+        ]
+    )
+
+    assert len(result.findings) == 1
+    assert result.findings[0].operation_id == "getUser"
+    assert result.findings[0].occurrences == 2
+
+
+def test_caminhos_e_metodos_fora_do_contrato_agrupam_por_categoria() -> None:
+    result = build(
+        [
+            row("/nao-previsto/1", signals=("sql_error",)),
+            row("/outro/valor", method="POST", signals=("sql_error", "debug_page")),
+        ]
+    )
+
+    assert len(result.findings) == 2
+    sql = next(f for f in result.findings if f.category == "sql_error")
+    assert (sql.operation_id, sql.method, sql.path_template, sql.occurrences) == (
+        None,
+        "",
+        "/fora-do-contrato",
+        2,
+    )
+
+
+def test_modelos_ambiguos_nao_atribuem_operacao() -> None:
+    resolver = AlertResolver(
+        {},
+        {},
+        (
+            OperationRef(operation_id="a", method="GET", path="/users/{id}"),
+            OperationRef(operation_id="b", method="GET", path="/users/{nome}"),
+        ),
+    )
+    result = build_proxy_signals(
+        [row(signals=("sql_error",))], product="vampi", window=WINDOW, resolver=resolver
+    )
+
+    assert result.findings[0].operation_id is None
+    assert result.findings[0].path_template == "/fora-do-contrato"
+
+
+def test_fingerprint_distingue_identificadores_de_operacao() -> None:
+    args = dict(product="p", method="GET", path_template="/users/{id}", category="sql_error")
+    assert signal_fingerprint(**args, operation_id="a") != signal_fingerprint(
+        **args, operation_id="b"
+    )
+
+
+def test_rota_literal_precede_parametro() -> None:
+    resolver = AlertResolver(
+        {},
+        {},
+        (
+            OperationRef(operation_id="detalhe", method="GET", path="/users/{id}"),
+            OperationRef(operation_id="busca", method="GET", path="/users/busca"),
+        ),
+    )
+    result = build_proxy_signals(
+        [row("/users/busca", signals=("sql_error",))],
+        product="vampi",
+        window=WINDOW,
+        resolver=resolver,
+    )
+
+    assert result.findings[0].operation_id == "busca"
