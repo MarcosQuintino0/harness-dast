@@ -120,6 +120,12 @@ class FileRunArtifacts:
         """Grava `authz.json`."""
         self._write(run_id, AUTHZ_FILE, result.model_dump_json(indent=2))
 
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        """Lê `negative.json`; `None` se o estágio não rodou nesta execução."""
+        if not (self._directory(run_id) / NEGATIVE_FILE).exists():
+            return None
+        return self._model(run_id, NEGATIVE_FILE, NegativeResult, "o negative")
+
     def read_signals(self, run_id: str) -> ProxySignals | None:
         """Lê `error-signals.json`; `None` se o `report` ainda não o gravou."""
         if not (self._directory(run_id) / SIGNALS_FILE).exists():

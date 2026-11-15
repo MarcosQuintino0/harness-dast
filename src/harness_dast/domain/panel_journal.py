@@ -28,6 +28,7 @@ _STAGE_OF: Final[dict[str, StageKey]] = {
     "scan": "scan",
     "run": "scan",
     "authz": "authz",
+    "negative": "negative",
     "report": "report",
     "panel": "report",
 }

@@ -312,7 +312,7 @@ def test_authz_findings_count_as_severe_and_are_marked_as_their_own_origin() -> 
 # ---------------------------------------------------------------- veredito e etapas
 
 
-def test_a_finished_run_has_five_done_stages_and_the_authz_skipped() -> None:
+def test_a_finished_run_has_four_done_stages_and_the_authz_and_negative_skipped() -> None:
     panel_view = view()
 
     assert panel_view.verdict.kind == "finished"
@@ -321,9 +321,17 @@ def test_a_finished_run_has_five_done_stages_and_the_authz_skipped() -> None:
         "probe",
         "scan",
         "authz",
+        "negative",
         "report",
     ]
-    assert [item.state for item in panel_view.stages] == ["done", "done", "done", "skipped", "done"]
+    assert [item.state for item in panel_view.stages] == [
+        "done",
+        "done",
+        "done",
+        "skipped",
+        "skipped",
+        "done",
+    ]
     assert panel_view.stages[2].seconds == 1140.0
 
 

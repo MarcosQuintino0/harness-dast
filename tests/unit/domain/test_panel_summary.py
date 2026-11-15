@@ -116,7 +116,7 @@ def test_the_tabs_and_headings_are_the_ones_of_the_design() -> None:
         "Falhas graves Abrir todas",
         "Dá para confiar?",
         "O que fazer agora",
-        "As 5 etapas, no tamanho do tempo que levaram Ver os comandos",
+        "As 6 etapas, no tamanho do tempo que levaram Ver os comandos",
     ]
 
 

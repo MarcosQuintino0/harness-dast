@@ -34,7 +34,7 @@ _CLASS_TEXT: Final[dict[CaseClass, str]] = {
     "too_long": "maior que o tamanho máximo declarado",
     "too_short": "menor que o tamanho mínimo declarado",
 }
-_CLASS_LABEL: Final[dict[CaseClass, str]] = {
+CLASS_LABEL: Final[dict[CaseClass, str]] = {
     "wrong_type": "tipo errado",
     "missing_required": "campo obrigatório ausente",
     "below_minimum": "abaixo do mínimo",
@@ -43,7 +43,7 @@ _CLASS_LABEL: Final[dict[CaseClass, str]] = {
     "too_long": "texto longo demais",
     "too_short": "texto curto demais",
 }
-_LABEL: Final[dict[NegativeTechnique, str]] = {
+TECHNIQUE_LABEL: Final[dict[NegativeTechnique, str]] = {
     "input_accepted": "Valor que o contrato proíbe foi aceito",
     "input_server_error": "Valor que o contrato proíbe causou erro do servidor",
 }
@@ -112,7 +112,10 @@ def build_negative_finding(
         finding_id=f"N-{fingerprint[:8]}",
         fingerprint=fingerprint,
         technique=technique,
-        title=f"{method} {path}: {_LABEL[technique].lower()} ({_CLASS_LABEL[case.case_class]})",
+        title=(
+            f"{method} {path}: {TECHNIQUE_LABEL[technique].lower()} "
+            f"({CLASS_LABEL[case.case_class]})"
+        ),
         proposed_severity=proposed_severity(method, case.case_class, verdict),
         cwe=cwe,
         owasp_api_2023=category,

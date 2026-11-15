@@ -66,6 +66,7 @@ class RunLive(Protocol):
         *,
         started: datetime,
         authz: bool,
+        negative: bool = True,
     ) -> None:
         """A etapa começou (`records` traz as que já terminaram)."""
         ...

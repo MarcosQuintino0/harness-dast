@@ -1,7 +1,7 @@
 """`run` com o estágio `authz` (ligado por padrão, ADR 0038): ordem, prazo, parada e resumo."""
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import cast
@@ -97,7 +97,7 @@ class Rig:
             clock=self.clock,
             run_id_fallback="fallback-run",
             authz=_Authz() if self.wire_authz else None,
-        ).execute(request)
+        ).execute(replace(request, negative=False))
 
 
 def _status(result: RunResult) -> dict[str, str]:

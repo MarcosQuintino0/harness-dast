@@ -22,6 +22,7 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_html_authz import authz_cards, authz_section
+from harness_dast.domain.report_html_negative import negative_cards, negative_section
 from harness_dast.domain.report_html_signals import signal_section
 from harness_dast.domain.report_html_style import STYLE
 from harness_dast.domain.report_html_traffic import traffic_section
@@ -59,8 +60,12 @@ def _cards(report: FindingsReport) -> str:
         f'<div class="card"><b>{len(report.groups)}</b>causa(s) distintas</div>'
         f'<div class="card"><b>{report.summary.total}</b>achado(s) no total</div>'
     )
-    title = '<p class="muted">Varredura ativa do ZAP:</p>' if report.authz is not None else ""
-    return f'{title}<div class="cards">{"".join(cells)}</div>{authz_cards(report)}'
+    own = report.authz is not None or report.negative is not None
+    title = '<p class="muted">Varredura ativa do ZAP:</p>' if own else ""
+    return (
+        f'{title}<div class="cards">{"".join(cells)}</div>'
+        f"{authz_cards(report)}{negative_cards(report)}"
+    )
 
 
 def _summary(report: FindingsReport) -> str:
@@ -90,7 +95,7 @@ def _summary(report: FindingsReport) -> str:
         f"({_percent(cov.reachability)}; {_percent(cov.reachability_all)} de todas). "
         f"{len(cov.not_tested)} operação(ões) ficaram sem varredura.</li>"
         f"<li>Estado: probe {h.ident(cov.probe_status)}, varredura {h.ident(cov.scan_status)}."
-        f"</li>{_authz_bullet(report)}{_path_bullet(report)}{unreadable}</ul>"
+        f"</li>{_authz_bullet(report)}{_negative_bullet(report)}{_path_bullet(report)}{unreadable}</ul>"
     )
 
 
@@ -104,6 +109,20 @@ def _authz_bullet(report: FindingsReport) -> str:
     return (
         f"<li>Autorização entre contas: estado {h.ident(authz.status)}, "
         f"{len(authz.findings)} achado(s), {len(authz.not_tested)} item(ns) não testado(s).</li>"
+    )
+
+
+def _negative_bullet(report: FindingsReport) -> str:
+    negative = report.negative
+    if negative is None:
+        return (
+            "<li>Valores que o esquema proíbe: não rodou "
+            "(o hdast run o roda por padrão; foi pulado).</li>"
+        )
+    return (
+        f"<li>Valores que o esquema proíbe: estado {h.ident(negative.status)}, "
+        f"{len(negative.findings)} achado(s), {len(negative.not_tested)} item(ns) não "
+        "testado(s).</li>"
     )
 
 
@@ -213,7 +232,9 @@ def _findings(report: FindingsReport) -> str:
     if not report.findings:
         own = (
             " da varredura do ZAP"
-            if report.authz is not None or report.summary.signal_by_severity
+            if report.authz is not None
+            or report.negative is not None
+            or report.summary.signal_by_severity
             else ""
         )
         return (
@@ -342,6 +363,7 @@ def render_html(report: FindingsReport) -> str:
             _steps(report),
             _findings(report),
             authz_section(report),
+            negative_section(report),
             signal_section(report.proxy_signals),
             _not_covered(report),
             traffic_section(report),

@@ -86,7 +86,7 @@ def test_execute_writes_the_six_pages_and_reports_what_it_read_and_what_is_missi
     assert outcome.verdict == "finished"
     assert outcome.severe_findings == 1
     assert outcome.sources == ("run.json", "probe.json", "scan.json", "findings.json")
-    assert outcome.missing == ("manifest.json", "authz.json", "metrics.json")
+    assert outcome.missing == ("manifest.json", "authz.json", "negative.json", "metrics.json")
 
 
 def test_the_openapi_summary_and_the_profile_mode_reach_the_page() -> None:

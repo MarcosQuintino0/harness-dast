@@ -18,6 +18,7 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `metrics.json` | `report`, `run` | Onde o tempo foi: por etapa, por operação, por regra, tráfego e lacunas, regras desligadas (só números e ids; ADR 0031) |
 | `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
 | `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
+| `negative.json` | `negative` | Resultado do teste de valores que o esquema proíbe: contagem por classe e por operação, achados de origem própria (`N-`) e o que não foi testado ([negative.md](negative.md)). Só nomes de campo, classe e limite declarado; nunca o valor enviado |
 | `error-signals.json` | `report` | Sinais de erro interno vistos pela cerca (proxy de escopo) em toda resposta liberada: contagem de respostas lidas, não lidas e com sinal, e os achados de origem `proxy`. Só categorias, método, modelo de caminho, status e nomes de parâmetro, nunca corpo ([ADR 0049](../adr/0049-sinais-de-erro-interno-na-cerca.md)) |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
@@ -38,13 +39,14 @@ Raiz (`FindingsReport`):
 | `generated_at`, `harness_version` | texto | Instante (ISO 8601) e versão da CLI |
 | `coverage` | objeto | O que a execução cobriu e **não** cobriu (abaixo) |
 | `not_tested_statements` | lista de texto | Afirmações fixas sobre o que não foi testado. Presentes em TODO relatório, inclusive sem achados |
-| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable`; `total` e `by_severity` são só do ZAP. Aditivo (ADR 0027): `authz_by_severity` (mesmas cinco chaves, achados de autorização entre contas; `{}` quando o estágio não rodou). Aditivo (ADR 0049): `signal_by_severity` (mesmas cinco chaves, achados de sinal da cerca; `{}` sem leitura). Nenhum dos dois entra em `total` nem em `by_severity` |
+| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable`; `total` e `by_severity` são só do ZAP. Aditivo (ADR 0027): `authz_by_severity` (mesmas cinco chaves, achados de autorização entre contas; `{}` quando o estágio não rodou). Aditivo (ADR 0049): `signal_by_severity` (mesmas cinco chaves, achados de sinal da cerca; `{}` sem leitura). Aditivo (ADR 0051): `negative_by_severity` (mesmas cinco chaves, achados do teste de valores que o esquema proíbe; `{}` quando o estágio não rodou). Nenhum dos três entra em `total` nem em `by_severity` |
 | `findings` | lista de `Finding` | Ordenada por severidade proposta, confiança, título e fingerprint |
 | `groups` | lista de `FindingGroup` | Visão agrupada pela causa provável (abaixo). Aditivo (ADR 0029): todo achado de `findings` está em exatamente um grupo; arquivos antigos sem o campo continuam válidos |
 | `not_observed` | lista | Com `--compare`: achados da base que não apareceram agora (abaixo) |
 | `comparison` | objeto ou `null` | `baseline_run_id`, `new`, `persistent`, `not_observed`, `notice` |
 | `triage_orphans` | lista de texto | Fingerprints de `triage.json` sem achado correspondente (ignorados) |
 | `authz` | objeto ou `null` | Aditivo (ADR 0027). O `authz.json` da execução, quando o estágio rodou: achados de autorização entre contas, de origem própria e técnica própria (`origin: authz`, `technique`), **separados** de `findings` (que são do ZAP). Contrato em [authz.md](authz.md). O gate (`--fail-on`) conta os dois |
+| `negative` | objeto ou `null` | Aditivo (ADR 0051). O `negative.json` da execução, quando o estágio rodou: achados de origem própria `negative` (`technique` `input_accepted` ou `input_server_error`, ids `N-`), **separados** de `findings`. Contrato em [negative.md](negative.md). O gate (`--fail-on`) conta também esses achados. Relatório anterior ao ADR 0051 não tem o campo e vale `null` |
 | `proxy_signals` | objeto ou `null` | Aditivo (ADR 0049). Sinais de erro interno vistos pela cerca: ver [Sinais vistos pela cerca](#sinais-vistos-pela-cerca). `null` em relatório anterior. Os achados dele (`origin: proxy`) não entram em `findings` nem em `groups`; o gate (`--fail-on`) os conta |
 
 `coverage`:
@@ -202,7 +204,7 @@ As fixtures de `tests/fixtures/zap_alerts/` mostram as formas completas e são *
 | `schema_version` | `1`; só cresce com campos aditivos |
 | `run_id`, `product`, `harness_version`, `zap_version`, `path_mode` | Identificação. `zap_version` é `null` sem ZAP |
 | `started_at`, `finished_at`, `generated_at` | Início e fim da execução (`finished_at` `null` se não há fim conhecido) e instante da gravação (ISO 8601) |
-| `stages_seconds` | `preflight`, `probe`, `scan`, `authz`, `report` em segundos; `null` quando a etapa não rodou, foi pulada ou não foi medida. O `preflight` só existe dentro do `hdast run` |
+| `stages_seconds` | `preflight`, `probe`, `scan`, `authz`, `negative`, `report` em segundos; `null` quando a etapa não rodou, foi pulada ou não foi medida. O `preflight` só existe dentro do `hdast run` |
 | `scan_status` | Estado final do `scan` (`completed` ou o motivo da parada), ou `null` |
 | `operations[]` | `operation_id`, `outcome`, `duration_seconds` e `requests` (os de `scan.json`), `rules_available`, `rules_unavailable_reason`, `rules[]` (como em `rule-stats.json`) |
 | `rules` | `operations_measured`, `operations_unavailable`, `totals[]`: uma linha por regra somada na execução (`plugin_id`, `name`, `time_ms`, `requests`, `alerts`, `operations`, `completed`, `skipped`, `interrupted`, `pending`, `unknown`), da mais lenta para a mais rápida |

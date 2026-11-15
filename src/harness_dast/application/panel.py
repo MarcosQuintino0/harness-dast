@@ -178,6 +178,7 @@ class Panel:
         scan = self._optional(run_id, "scan.json", read.read_scan)
         findings = self._optional(run_id, "findings.json", read.read_findings)
         authz = self._optional(run_id, "authz.json", read.read_authz)
+        negative = self._optional(run_id, "negative.json", read.read_negative)
         metrics = self._optional(run_id, "metrics.json", self._files.read_metrics)
         agent_metrics = self._optional(run_id, "agent-metrics.json", read.read_agent_metrics)
         named = {
@@ -187,6 +188,7 @@ class Panel:
             "scan.json": scan,
             "findings.json": findings,
             "authz.json": authz,
+            "negative.json": negative,
             "metrics.json": metrics,
         }
         present = tuple(name for name, item in named.items() if item is not None)
@@ -203,6 +205,7 @@ class Panel:
             scan=scan,
             findings=findings,
             authz=authz,
+            negative=negative,
             metrics=metrics,
             agent_metrics=agent_metrics,
             operations=self._operations(product, run_id, profile),

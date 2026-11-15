@@ -61,18 +61,18 @@ def test_the_tab_is_called_etapas_and_the_headings_follow_the_design() -> None:
 
     assert generated.tabs[1] == "Etapas"
     assert generated.headings == [
-        "As 5 etapas, no tamanho do tempo que levaram",
+        "As 6 etapas, no tamanho do tempo que levaram",
         "O que aconteceu em cada etapa",
         "Onde o teste travou",
         "Tipos de teste feitos",
     ]
 
 
-def test_the_five_stages_have_number_title_summary_and_time() -> None:
+def test_the_six_stages_have_number_title_summary_and_time() -> None:
     page = stages_html()
 
-    assert page.count('<div class="stg"') == 5
-    for number in "12345":
+    assert page.count('<div class="stg"') == 6
+    for number in "123456":
         assert re.search(rf'<span class="nb[^"]*">{number}</span>', page)
     for title in (
         "Leu o Swagger e a carta e conferiu o login",
@@ -124,7 +124,7 @@ def test_the_track_has_one_segment_per_stage_with_a_width_proportional_to_the_ti
     track = render_track(view(), extras=False)
 
     widths = [float(w) for w in re.findall(r'style="flex: ([0-9.]+) 1 0"', track)]
-    assert len(widths) == 5
+    assert len(widths) == 6
     assert widths[2] == 1140.0  # a varredura é o trecho mais longo
     assert widths[3] >= 0.1 * sum(w for w in (70.0, 20.0, 1140.0, 2.0))  # nunca some: piso
 
@@ -149,6 +149,7 @@ def partial_view() -> PanelView:
                 name="scan", status="failed", duration_seconds=600, message="ZAP fora do ar"
             ),
             StageRecord(name="authz", status="not_run"),
+            StageRecord(name="negative", status="not_run"),
             StageRecord(name="report", status="not_run"),
         ),
     )
@@ -159,9 +160,9 @@ def test_the_cut_stage_is_yellow_and_the_next_ones_are_grey() -> None:
     page = stages_html(partial_view())
 
     assert page.count("seg seg-cut") == 1
-    assert page.count("seg seg-no") == 2
+    assert page.count("seg seg-no") == 3
     assert page.count('class="nb nb-cut"') == 1
-    assert page.count('class="nb nb-no"') == 2
+    assert page.count('class="nb nb-no"') == 3
     assert "Esta etapa não chegou a rodar." in page
     assert "Parou aqui." in page
 
@@ -228,7 +229,7 @@ def test_with_metrics_the_rule_panel_lists_rules_with_alerts_and_counts_the_quie
 def test_tokens_are_not_measured_yet_so_each_stage_says_so() -> None:
     page = stages_html()
 
-    assert page.count("— tokens não medidos") == 5
+    assert page.count("— tokens não medidos") == 6
 
 
 def test_the_command_diary_adds_a_count_link_per_stage() -> None:

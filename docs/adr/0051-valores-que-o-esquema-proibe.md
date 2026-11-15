@@ -222,3 +222,15 @@ Este adendo registra o que a T51a (domínio, perfil, carta, aprovação, aplica�
 - **Multipart:** o `negative` trata `exchange.multipart` preenchido (ADR 0052) como não testável (`unsupported_body`). Enquanto o campo não existir no `ExchangeRecord`, a leitura é feita pelo `__dict__` do registro; com o campo na base, vira `exchange.multipart is not None`.
 - **`--only`** é conferido contra o OpenAPI (operação desconhecida é erro de configuração), não contra o `exchanges.json`.
 - **Sem releitura:** a restauração só reenvia o corpo original e confere o `2xx`; não lê o recurso de volta (limite já declarado acima).
+
+## Adendo da T51b (estágio no `run`, relatório e painel)
+
+Este adendo registra o que a T51b fez, sem mudar a decisão nem o status.
+
+- **Entregue:** estágio `negative` no `run` (`STAGES` agora tem seis, `RunRequest.negative`, `--negative/--no-negative`, `RunOptions.negative`, `negative_findings_by_severity`), `read_negative` em `RunArtifacts`, `FindingsReport.negative` e `summary.negative_by_severity`, a seção do relatório (`report.md` e `report.html`), `exceeds()` contando os achados, a janela dos sinais da cerca (ADR 0049) incluindo o `finished_at` do `negative.json`, `stages_seconds.negative` no `metrics.json` e o estágio no painel (aba Etapas, contagem do resumo, "O que ficou de fora", página ao vivo).
+- **Mesmo molde do `authz`:** o estágio compartilha `token_cache`, `login_budget` e a trava de emergência e usa `tolerate_missing_exchanges=True`; falta de dado vira `not_tested`, não derruba o `run`. Se o `authz` ou o `negative` parar antes do fim, o `report` ainda roda e a saída é a do estágio que parou; se o `authz` parar, o `negative` não roda (fica `not_run`).
+- **`NOT_TESTED_NEGATIVE`:** quando o estágio rodou, `not_tested_statements` ganha uma afirmação a mais (onde o estágio mexeu e onde não), depois das do ZAP e do `authz`. Relatório sem o estágio mantém as afirmações de antes, byte a byte.
+- **`findings.json`:** o campo `negative` e `summary.negative_by_severity` são aditivos; relatório anterior sem eles continua válido (`null` e `{}`). Os achados do `negative` não entram em `findings`, `groups`, `total` nem `by_severity`.
+- **Rótulos:** a seção usa `CLASS_LABEL` e `TECHNIQUE_LABEL` de `negative_findings.py` (antes privados; sem mudança de texto).
+- **Painel:** o achado do `negative` não tem passo a passo de reprodução à mão (o valor enviado nunca é gravado) e não tem explicação de catálogo. A taxonomia atual não produz severidade alta, então ele só aparece na contagem; o caminho em "Falhas" existe, com confiança "a confirmar", para o caso de a taxonomia mudar.
+- **Permissões:** `Bash(uv run hdast:*)` em `.claude/settings.json` já cobre `hdast negative`; nada a mudar.

@@ -32,6 +32,7 @@ from harness_dast.application.scan_ports import (
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.report_build import assemble_report, build_resolver
@@ -141,6 +142,12 @@ class Report:
                 "O authz.json da execução é de outro produto.",
                 hint="Use o run_id do probe, do scan e do authz deste produto.",
             )
+        negative = self._artifacts.read_negative(run_id)
+        if negative is not None and negative.product != profile.product:
+            raise ConfigError(
+                "O negative.json da execução é de outro produto.",
+                hint="Use o run_id do probe, do scan e do negative deste produto.",
+            )
         baseline = self._baseline(request.compare, run_id)
         auth_header, csrf_header = _placeholders(profile)
         report = assemble_report(
@@ -155,7 +162,8 @@ class Report:
             auth_header=auth_header,
             csrf_header=csrf_header,
             authz=authz,
-            proxy_signals=self._proxy_signals(run_id, probe, scan, authz),
+            proxy_signals=self._proxy_signals(run_id, probe, scan, authz, negative),
+            negative=negative,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
         threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
@@ -172,11 +180,21 @@ class Report:
         return self._metrics.refresh(request.product, run_id, report_seconds=seconds)
 
     def _proxy_signals(
-        self, run_id: str, probe: ProbeResult, scan: ScanResult, authz: AuthzResult | None
+        self,
+        run_id: str,
+        probe: ProbeResult,
+        scan: ScanResult,
+        authz: AuthzResult | None,
+        negative: NegativeResult | None,
     ) -> ProxySignals:
         window = signal_window(
             probe.started_at,
-            (probe.finished_at, scan.finished_at, authz.finished_at if authz else None),
+            (
+                probe.finished_at,
+                scan.finished_at,
+                authz.finished_at if authz else None,
+                negative.finished_at if negative else None,
+            ),
         )
         rows = self._audit_rows()
         if rows is not None and window is not None:
@@ -225,8 +243,8 @@ def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca).
 
     Conta os achados do ZAP, os de autorização entre contas (`report.authz`) e os de sinal de erro
-    interno vistos pela cerca (`report.proxy_signals`, ADR 0049): achado de origem própria não
-    contorna o gate.
+    interno vistos pela cerca (`report.proxy_signals`, ADR 0049) e os de valores que o esquema
+    proíbe (`report.negative`, ADR 0051): achado de origem própria não contorna o gate.
 
     Severidade que a CLI não soube classificar (`unknown`: `Critical`, um ZAP em outro idioma,
     vazio) conta como acima de qualquer limiar diferente de `none`: o gate falha fechado.
@@ -237,6 +255,8 @@ def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     severities = [item.proposed_severity for item in report.findings]
     if report.authz is not None:
         severities += [item.proposed_severity for item in report.authz.findings]
+    if report.negative is not None:
+        severities += [item.proposed_severity for item in report.negative.findings]
     if report.proxy_signals is not None:
         severities += [item.proposed_severity for item in report.proxy_signals.findings]
     return any(severity == "unknown" or SEVERITY_RANK[severity] >= floor for severity in severities)

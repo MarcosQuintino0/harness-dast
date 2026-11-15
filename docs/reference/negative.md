@@ -2,7 +2,23 @@
 
 Decisão: [ADR 0051](../adr/0051-valores-que-o-esquema-proibe.md). O OpenAPI diz o que cada campo aceita (mínimo, máximo, tamanho, `enum`, tipo, obrigatoriedade), mas a ferramenta só mandava valores **válidos** (o `probe`) e valores de ataque do ZAP (injeção). O `negative` é um estágio **determinístico, sem ZAP**, que repete os pedidos que o `probe` provou com sucesso trocando **um campo por pedido** por um valor que o contrato proíbe, e classifica a reação do servidor: rejeitar (4xx) é o esperado; aceitar (2xx) e responder 5xx são achados para triagem.
 
-Estado desta entrega: o **comando solto** existe (`hdast negative`). A ligação ao `run` como estágio, a seção do relatório e o painel ainda não existem; o resultado fica em `negative.json`. Provado só em testes com falsos; nada foi provado com Docker nem contra produto real.
+Estado desta entrega: o **comando solto** (`hdast negative`) e o **estágio do `run`** existem, com a seção "Valores que o esquema proíbe" em `findings.json`, `report.md` e `report.html` e o estágio na aba Etapas do painel. Provado só em testes com falsos; nada foi provado com Docker nem contra produto real.
+
+## No `hdast run`
+
+O `run` encadeia `preflight`, `probe`, `scan`, `authz`, `negative` e `report`. O estágio vem **ligado por padrão** e só **lê** (`GET`); a escrita só com `negative.allow_writes` no perfil (da carta). `--no-negative` o pula (`skipped`, "Desligado por --no-negative."; é redução) e `--negative` é aceito por compatibilidade. Com `--skip-scan` ele também fica `skipped`, com a mensagem de que roda depois do `scan`. Ele reaproveita o cache de tokens, o orçamento de login, a trava de emergência e o prazo único do `run`.
+
+- **Falta de dado não derruba o `run`:** sem `exchanges.json` (ou vazio), o estágio devolve `not_tested` com `exchanges_unavailable` ou `no_exchanges` e o `run` segue. O comando solto continua recusando (erro de configuração).
+- **Parada no meio** (janela, prazo, ZAP, alvo sem resposta): o `report` ainda roda sobre o `negative.json` parcial e a saída é a do `negative`.
+- **Achado não é erro do estágio:** o `report` devolve o código `1` quando um achado dele alcança o limiar (`--fail-on` e `scan.fail_on` contam os achados do `negative`, como os do `authz`).
+- **`run.json`:** o estágio `negative` entra em `stages`, `options.negative` registra o pedido e `negative_findings_by_severity` traz a contagem por severidade (ou `null` se não rodou).
+
+## No relatório e no painel
+
+- **`findings.json`:** seção `negative` (o mesmo conteúdo de `negative.json`, `null` se o estágio não rodou ou em relatório anterior) e `summary.negative_by_severity` (mesmas cinco chaves; `{}` sem o estágio). Os achados têm `origin: negative`, ids `N-` e as técnicas `input_accepted` e `input_server_error`. **Não** entram em `findings`, em `groups`, em `total` nem em `by_severity` (que seguem sendo do ZAP).
+- **`report.md` e `report.html`:** seção própria, "Valores que o esquema proíbe (técnica própria, determinística)": estado, requisições, contas, a tabela por classe do valor e por operação (enviados, rejeitados, aceitos, 5xx, sem conclusão), os achados (campo só pelo nome, classe, limite declarado, resposta, restauração e se pode ter criado recurso), o que não foi testado e os limites. As afirmações de "o que não foi testado" ganham a de onde o estágio mexeu e onde não. O valor enviado nunca aparece.
+- **Sinais da cerca (ADR 0049):** a janela de leitura da cerca inclui o fim do `negative.json`, então os 5xx e as mensagens de erro vistos nos pedidos do estágio entram nos sinais. Os dois achados (o do `negative` e o do sinal) coexistem, sem dedupe: origens diferentes, ambos `needs_triage`.
+- **Painel:** a aba Etapas mostra "Valores proibidos" (estado, tempo e uma frase com os números); os achados do estágio entram na contagem do resumo e, se algum tiver severidade alta, em Falhas, sem passo a passo de reprodução (o programa não guarda o valor); "O que ficou de fora" diz quando o estágio não rodou, parou ou deixou itens sem teste. `metrics.json` traz `stages_seconds.negative`.
 
 ```bash
 uv run hdast --json negative meu-produto --run <run_id do probe>

@@ -75,6 +75,7 @@ def run_summary(**changes: Any) -> RunSummary:
         StageRecord(name="probe", status="ok", duration_seconds=20.0),
         StageRecord(name="scan", status="ok", duration_seconds=1140.0),
         StageRecord(name="authz", status="skipped", duration_seconds=0.0),
+        StageRecord(name="negative", status="skipped", duration_seconds=0.0),
         StageRecord(name="report", status="ok", duration_seconds=2.0),
     )
     base: dict[str, Any] = {

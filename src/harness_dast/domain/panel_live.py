@@ -57,6 +57,7 @@ _DOING: Final = {
     "probe": "Fazendo o sistema responder: tentando cada função de verdade",
     "scan": "Atacando as funções com o ZAP, uma por vez",
     "authz": "Comparando o que cada conta enxerga e altera",
+    "negative": "Mandando valores que o contrato proíbe, um por vez",
     "report": "Organizando os achados",
 }
 _SEG_CLASS: Final = {
@@ -66,7 +67,7 @@ _SEG_CLASS: Final = {
     "skipped": " seg-no",
     "cut": " seg-cut",
 }
-_WITH_REQUESTS: Final = ("scan", "authz", "report")
+_WITH_REQUESTS: Final = ("scan", "authz", "negative", "report")
 """Etapas em que "pedidos e barrados" fazem sentido (antes da varredura não há pedido de ataque)."""
 _ROW_KIND: Final[dict[str, MarkerKind]] = {"done": "ok", "running": "run", "cut": "am"}
 _STOP_TEXT: Final = (

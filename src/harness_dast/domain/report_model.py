@@ -14,6 +14,7 @@ from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.internal_error_signals import InternalErrorSignals
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import TrafficSummary
@@ -45,6 +46,14 @@ NOT_TESTED_WITH_AUTHZ: Final[tuple[str, ...]] = (
     *NOT_TESTED_STATEMENTS[2:],
 )
 """Afirmações quando o estágio de autorização rodou: no lugar das duas primeiras do ZAP."""
+
+NOT_TESTED_NEGATIVE: Final[str] = (
+    "O estágio negative (ADR 0051) mexeu só em parâmetro de consulta e em campo de primeiro "
+    "nível de corpo JSON, um valor proibido por pedido, nas operações que o probe alcançou; "
+    "caminho, cabeçalho, formulário, multipart, campo aninhado, pattern e formato não foram "
+    "exercitados, e o orçamento do estágio cortou o que está em 'not_tested' de 'negative'."
+)
+"""Afirmação acrescentada quando o estágio `negative` rodou: onde ele mexeu e onde não."""
 
 
 class NotTested(ApiModel):
@@ -154,6 +163,9 @@ class FindingsSummary(ApiModel):
         authz_by_severity: Achados do estágio de autorização entre contas por severidade
             (aditivo, ADR 0027); vazio quando o estágio não rodou. NÃO entra em `total` nem em
             `by_severity`, que seguem sendo só do ZAP.
+        negative_by_severity: Achados do estágio `negative` (valores que o esquema proíbe) por
+            severidade (aditivo, ADR 0051); vazio quando o estágio não rodou. Também NÃO entra
+            em `total` nem em `by_severity`.
         signal_by_severity: Achados de sinal de erro interno vistos pela cerca por severidade
             (aditivo, ADR 0049); vazio quando a cerca não leu esta execução. Também NÃO entra em
             `total` nem em `by_severity`.
@@ -164,6 +176,7 @@ class FindingsSummary(ApiModel):
     occurrences: int
     alerts_unreadable: int = 0
     authz_by_severity: dict[str, int] = Field(default_factory=dict)
+    negative_by_severity: dict[str, int] = Field(default_factory=dict)
     signal_by_severity: dict[str, int] = Field(default_factory=dict)
 
 
@@ -232,6 +245,9 @@ class FindingsReport(ApiModel):
         authz: Resultado do estágio de autorização entre contas (ADR 0027), com os achados de
             origem própria e a técnica de cada um; `None` quando o estágio não rodou. Não se
             mistura com `findings` (do ZAP).
+        negative: Resultado do estágio de valores que o esquema proíbe (ADR 0051), com os achados
+            de origem própria `negative`; `None` quando o estágio não rodou (ou em relatório
+            anterior). Não se mistura com `findings` (do ZAP).
         proxy_signals: Sinais de erro interno vistos pela cerca em toda resposta liberada
             (ADR 0049), com os achados de origem própria `proxy`; `None` em relatório anterior.
             Não se soma a `internal_error_signals` (outra fonte) nem se mistura com `findings`.
@@ -254,6 +270,7 @@ class FindingsReport(ApiModel):
     triage_orphans: tuple[str, ...] = Field(default=())
     authz: AuthzResult | None = None
     proxy_signals: ProxySignals | None = None
+    negative: NegativeResult | None = None
 
 
 class FindingDigest(ApiModel):
@@ -312,6 +329,7 @@ class ReportDigest(ApiModel):
         triage_orphans: Fingerprints de triagem sem achado.
         authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
         proxy_signals: Sinais de erro interno vistos pela cerca, ou `None` em relatório anterior.
+        negative: Resultado do estágio de valores que o esquema proíbe, ou `None` se não rodou.
     """
 
     internal_error_signals: InternalErrorSignals | None = None
@@ -330,6 +348,7 @@ class ReportDigest(ApiModel):
     triage_orphans: tuple[str, ...]
     authz: AuthzResult | None = None
     proxy_signals: ProxySignals | None = None
+    negative: NegativeResult | None = None
 
 
 def build_digest(
@@ -373,4 +392,5 @@ def build_digest(
         authz=report.authz,
         internal_error_signals=report.internal_error_signals,
         proxy_signals=report.proxy_signals,
+        negative=report.negative,
     )

@@ -27,10 +27,10 @@ from harness_dast.domain.traffic import TrafficGaps, TrafficSummary
 PANEL_DIR: Final = "panel"
 """Pasta, dentro de `runs/<run_id>/`, onde as páginas são gravadas."""
 
-StageKey = Literal["preflight", "probe", "scan", "authz", "report"]
+StageKey = Literal["preflight", "probe", "scan", "authz", "negative", "report"]
 StageState = Literal["done", "cut", "skipped", "pending"]
 CommandStatus = Literal["ok", "partial", "error"]
-FindingOrigin = Literal["zap", "authz"]
+FindingOrigin = Literal["zap", "authz", "negative"]
 Owner = Literal["qa", "owner"]
 
 
@@ -130,7 +130,7 @@ class PanelStage(ApiModel):
     """Uma das cinco etapas.
 
     Attributes:
-        key: Etapa da CLI (`preflight`, `probe`, `scan`, `authz`, `report`).
+        key: Etapa da CLI (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`).
         label: Nome simples da etapa.
         state: `done`, `cut` (parou aqui), `skipped` (pedido pela pessoa) ou `pending` (não chegou).
         seconds: Duração, ou `None` se não foi medida.
@@ -215,7 +215,8 @@ class PanelFinding(ApiModel):
 
     Attributes:
         finding_id: Identificador curto (`F-...` ou `A-...`).
-        origin: `zap` (varredura) ou `authz` (teste entre contas).
+        origin: `zap` (varredura), `authz` (teste entre contas) ou `negative` (valores que o
+            esquema proíbe).
         title: Nome do alerta ou da técnica.
         severity: Severidade PROPOSTA (nunca alterada).
         confidence: Degrau do medidor: 1 a confirmar, 2 prova forte, 3 confirmada.
@@ -234,6 +235,7 @@ class PanelFinding(ApiModel):
         solution: Solução padrão da regra (texto do ZAP).
         evidence: Prova gravada (já redigida), ou `None` em falha de autorização.
         authz_evidence: Resumo da prova do teste entre contas, ou `None`.
+        negative_evidence: Resumo da prova do teste de valores proibidos, ou `None`.
         reproduce_curl: Comando `curl` com marcadores no lugar dos segredos, ou `None`.
         repro: Dados de "Como reproduzir à mão" (sem segredo, dado pessoal mascarado), ou `None`
             em falha de autorização ou sem evidência gravada.
@@ -262,6 +264,7 @@ class PanelFinding(ApiModel):
     solution: str = ""
     evidence: FindingEvidence | None = None
     authz_evidence: str | None = None
+    negative_evidence: str | None = None
     reproduce_curl: str | None = None
     repro: ManualRepro | None = None
     comparison: str | None = None
@@ -334,7 +337,7 @@ class PanelLeftOut(ApiModel):
         count: Quantidade, quando faz sentido.
     """
 
-    kind: Literal["functions", "scan", "authz", "fence", "seeded", "blind"]
+    kind: Literal["functions", "scan", "authz", "negative", "fence", "seeded", "blind"]
     text: str
     count: int | None = None
 

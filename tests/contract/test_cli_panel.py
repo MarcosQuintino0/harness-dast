@@ -136,8 +136,8 @@ def test_panel_human_output_says_where_the_pages_are_and_what_is_missing(
     assert f"Painel de vampi, execução {RUN_ID}: terminou, 1 falha(s) grave(s)." in out
     assert "panel/summary.html" in out
     assert (
-        "Não encontrados (aparecem como 'não medido'): manifest.json, authz.json, metrics.json"
-        in out
+        "Não encontrados (aparecem como 'não medido'): "
+        "manifest.json, authz.json, negative.json, metrics.json" in out
     )
     assert err == ""
 
