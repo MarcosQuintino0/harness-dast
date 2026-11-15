@@ -220,6 +220,7 @@ ignore_names = [
     "check_request",
     "recheck_after_wait",
     "reserve_slot",
+    "read_response_signals",
     "check_destination",
     "log",
     "ts",

@@ -159,6 +159,12 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
     `with_panel=False` é para o `run`, que gera o painel por último, depois de gravar `run.json`.
     """
     runs_dir = load_settings().runs_dir
+    try:
+        audit = open_proxy_audit()
+    except ConfigError as error:
+        # Os sinais da cerca (ADR 0049) são secundários: estado de pilha ilegível só os desliga.
+        structlog.get_logger().warning("signals_audit_unavailable", reason=error.message)
+        audit = None
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
         artifacts=FileRunArtifacts(runs_dir),
@@ -171,6 +177,7 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
         harness_version=harness_version(),
         metrics=build_metrics(products_dir),
         panel=build_indexed_panel(products_dir) if with_panel else None,
+        proxy_audit=audit,
     )
 
 

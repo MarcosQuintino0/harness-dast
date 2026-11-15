@@ -21,6 +21,7 @@ from harness_dast.domain.run_summary import RunSummary, StageRecord
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanProgress, ScanResult, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
+from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
 
@@ -259,6 +260,22 @@ class RunArtifacts(Protocol):
 
         Raises:
             ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_signals(self, run_id: str) -> ProxySignals | None:
+        """Lê `error-signals.json` (ADR 0049); `None` quando o `report` não o gravou.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def write_signals(self, run_id: str, signals: ProxySignals) -> None:
+        """Grava `error-signals.json` de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
         """
         ...
 

@@ -15,6 +15,7 @@ from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.internal_error_signals import InternalErrorSignals
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
+from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import TrafficSummary
 
 REPORT_SCHEMA_VERSION: Final = 1
@@ -128,6 +129,9 @@ class FindingsSummary(ApiModel):
         authz_by_severity: Achados do estágio de autorização entre contas por severidade
             (aditivo, ADR 0027); vazio quando o estágio não rodou. NÃO entra em `total` nem em
             `by_severity`, que seguem sendo só do ZAP.
+        signal_by_severity: Achados de sinal de erro interno vistos pela cerca por severidade
+            (aditivo, ADR 0049); vazio quando a cerca não leu esta execução. Também NÃO entra em
+            `total` nem em `by_severity`.
     """
 
     total: int
@@ -135,6 +139,7 @@ class FindingsSummary(ApiModel):
     occurrences: int
     alerts_unreadable: int = 0
     authz_by_severity: dict[str, int] = Field(default_factory=dict)
+    signal_by_severity: dict[str, int] = Field(default_factory=dict)
 
 
 class GoneFinding(ApiModel):
@@ -202,6 +207,9 @@ class FindingsReport(ApiModel):
         authz: Resultado do estágio de autorização entre contas (ADR 0027), com os achados de
             origem própria e a técnica de cada um; `None` quando o estágio não rodou. Não se
             mistura com `findings` (do ZAP).
+        proxy_signals: Sinais de erro interno vistos pela cerca em toda resposta liberada
+            (ADR 0049), com os achados de origem própria `proxy`; `None` em relatório anterior.
+            Não se soma a `internal_error_signals` (outra fonte) nem se mistura com `findings`.
     """
 
     internal_error_signals: InternalErrorSignals | None = None
@@ -220,6 +228,7 @@ class FindingsReport(ApiModel):
     comparison: ComparisonInfo | None = None
     triage_orphans: tuple[str, ...] = Field(default=())
     authz: AuthzResult | None = None
+    proxy_signals: ProxySignals | None = None
 
 
 class FindingDigest(ApiModel):
@@ -277,6 +286,7 @@ class ReportDigest(ApiModel):
         comparison: Resumo da comparação.
         triage_orphans: Fingerprints de triagem sem achado.
         authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
+        proxy_signals: Sinais de erro interno vistos pela cerca, ou `None` em relatório anterior.
     """
 
     internal_error_signals: InternalErrorSignals | None = None
@@ -294,6 +304,7 @@ class ReportDigest(ApiModel):
     comparison: ComparisonInfo | None
     triage_orphans: tuple[str, ...]
     authz: AuthzResult | None = None
+    proxy_signals: ProxySignals | None = None
 
 
 def build_digest(
@@ -336,4 +347,5 @@ def build_digest(
         triage_orphans=report.triage_orphans,
         authz=report.authz,
         internal_error_signals=report.internal_error_signals,
+        proxy_signals=report.proxy_signals,
     )

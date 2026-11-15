@@ -29,6 +29,7 @@ from harness_dast.domain.report_model import (
     TruncatedScan,
 )
 from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.triage import TriageFile, merge_triage
 from harness_dast.domain.zap_alert import RawAlert
 
@@ -125,11 +126,17 @@ _SEVERITIES = ("high", "medium", "low", "informational", "unknown")
 
 
 def _summary(
-    findings: Sequence[Finding], unreadable: int, authz: AuthzResult | None
+    findings: Sequence[Finding],
+    unreadable: int,
+    authz: AuthzResult | None,
+    signals: ProxySignals | None,
 ) -> FindingsSummary:
     counts: Counter[str] = Counter(item.proposed_severity for item in findings)
     own: Counter[str] = Counter(
         item.proposed_severity for item in (authz.findings if authz else ())
+    )
+    seen: Counter[str] = Counter(
+        item.proposed_severity for item in (signals.findings if signals else ())
     )
     return FindingsSummary(
         total=len(findings),
@@ -137,6 +144,9 @@ def _summary(
         occurrences=sum(item.occurrences for item in findings),
         alerts_unreadable=unreadable,
         authz_by_severity=({name: own.get(name, 0) for name in _SEVERITIES} if authz else {}),
+        signal_by_severity=(
+            {name: seen.get(name, 0) for name in _SEVERITIES} if signals and signals.enabled else {}
+        ),
     )
 
 
@@ -153,6 +163,7 @@ def assemble_report(
     auth_header: tuple[str, str] | None,
     csrf_header: str | None,
     authz: AuthzResult | None = None,
+    proxy_signals: ProxySignals | None = None,
 ) -> FindingsReport:
     """Monta o relatório completo.
 
@@ -184,13 +195,14 @@ def assemble_report(
         generated_at=generated_at,
         harness_version=harness_version,
         coverage=_coverage(probe, scan),
-        summary=_summary(findings, unreadable, authz),
+        summary=_summary(findings, unreadable, authz, proxy_signals),
         findings=findings,
         groups=group_findings(findings),
         not_observed=gone,
         comparison=comparison,
         triage_orphans=orphans,
         authz=authz,
+        proxy_signals=proxy_signals,
         internal_error_signals=classify_internal_error_signals(evidence),
         not_tested_statements=NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ,
     )

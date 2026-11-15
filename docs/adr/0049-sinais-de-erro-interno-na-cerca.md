@@ -165,3 +165,21 @@ Uma tarefa, um programador (degrau máximo 2; o degrau 3 é do coordenador).
 - Não toca: `CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md`, `docs/adr/README.md` (do coordenador).
 
 Dependências de ordem: nenhuma. Os ADRs 0051 (relatório e `exceeds()`) esperam T49 integrada porque editam os mesmos arquivos de relatório.
+
+## Adendo de implementação (versão 1.5, T49)
+
+O status não muda. O que a implementação fez de diferente do texto acima, ou além dele:
+
+- **Quarto motivo de não leitura, `error`.** `signal_skip` aceita `type`, `encoding`, `empty` e `error`. A leitura da cerca fica atrás de `read_response_signals` (`adapters/scope_proxy/signals.py`), que não levanta: qualquer falha inesperada da leitura vira `signal_skip: error` e a resposta passa do mesmo jeito (a falha aberta da seção 2). Sem esse valor a contagem de "não lidas" mentiria. O `except` largo desse ponto, e só dele, leva `noqa: BLE001` com o motivo.
+- **Resposta que o alvo não devolveu.** O hook `error` do addon (destino falhou, `reason: upstream_error`, status 502) grava `signal_skip: empty`: não há corpo a ler, e a conta "lidas mais não lidas igual às linhas liberadas com status" continua fechando.
+- **Catálogo refinado.** O padrão de Java também reconhece um nome de exceção com pacote (dois ou mais segmentos) seguido de `:` (por exemplo `java.lang.NullPointerException:`), e a página de depuração do Django exige a frase inteira da página de erro, não só `DEBUG = True` (que aparece em documentação). `ORA-` só vale em maiúsculas, com cinco dígitos e no começo de palavra. O "at" de uma linha de pilha também vale logo depois de `\n` ou `\t` escapados em JSON.
+- **Teste de equivalência com o ADR 0045.** Os padrões genéricos de 0045 (`at x(y:12)`, `Exception:` sem pacote) são mais largos que os do catálogo; o teste cobre amostras representativas de cada forma que as duas fontes devem ver, não a inclusão de todo texto possível.
+- **Teto de achados.** `findings` leva no máximo 500 achados (os de maior severidade primeiro); o excedente vai para `findings_omitted` e as contagens seguem completas. Sem teto, caminhos desconhecidos e variados inflariam o relatório. Como a ordem é por severidade, o gate nunca perde um achado que o teto cortou e que o limiar pegaria.
+- **Atribuição à operação.** `AlertResolver` ganhou o método público `resolve_path(método, caminho)` (a regra de casamento é a mesma de `url_match`; `_match_url` passou a chamá-lo).
+- **Janela.** Do `started_at` do `probe` ao maior `finished_at` entre `probe`, `scan` e `authz` (o `negative.json` do ADR 0051 ainda não existe: quem o criar acrescenta o `finished_at` dele em `Report._proxy_signals`). Sem instante legível, não há janela e vale o arquivo que já existe.
+- **Reaproveitamento do arquivo.** O `report` só grava `error-signals.json` quando a janela tem ao menos uma resposta liberada com status; senão reaproveita o arquivo existente, e sem ele devolve `enabled: false` com a mensagem fixa (nada é gravado). Auditoria ou arquivo ilegível vira aviso no log, nunca erro do `report`.
+- **Comparação.** `report --compare` cobre só os achados do ZAP; os achados de sinal não entram nela (como os do `authz`). O `notice` fixo e a documentação dizem isso.
+- **Cerca antiga.** O relatório não consegue distinguir uma cerca anterior a esta versão (linhas sem `signals` nem `signal_skip`) de uma resposta lida sem sinal: é preciso `stack up --build`. Está nos limites da documentação.
+- **Medida de custo.** Não foi medida (sem Docker nesta tarefa). O critério de menos de 5 ms por resposta fica para o degrau 3; a medição da duração média por requisição sai de `HDAST_IT_METRICS_DIR` em `tests/integration/test_lab_error_signals.py`.
+- **Testes.** Os casos listados foram escritos em arquivos novos ao lado dos citados (`test_audit_signals.py` e `test_engine_signals.py` no lugar de acrescentar a `test_audit.py`, `test_kill_switch_and_audit_reader.py` e `test_engine.py`; `test_report_signals.py` em `domain` e em `application`), e o contrato (`test_cli_scan_report.py`) confere `proxy_signals` desligado sem pilha gerenciada.
+- **Prova com Docker.** `tests/integration/test_lab_error_signals.py` foi escrito mas não rodado: o pedido que quebra a busca (`/api/pacientes/busca?nome=%27`, com o token do admin sintético) é suposição a confirmar no laboratório.

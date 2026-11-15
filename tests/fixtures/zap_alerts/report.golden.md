@@ -352,3 +352,7 @@ Solução padrão do ZAP: Ensure that the application/web server sets the Conten
 
 **Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
 Solução padrão do ZAP: n/d
+
+## Sinais vistos pela cerca
+
+Sem leitura: a cerca não registrou respostas desta execução. Ausência de leitura não prova ausência de erros.

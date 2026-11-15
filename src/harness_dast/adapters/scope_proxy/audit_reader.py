@@ -47,5 +47,10 @@ def _row(line: str) -> ProxyRow:
             "reason": raw["reason"],
             "method": raw["method"],
             "detail": raw.get("detail"),
+            "path": raw.get("path", ""),
+            "status": raw.get("status"),
+            "query_params": raw.get("query_params", ()),
+            "signals": raw.get("signals", ()),
+            "signal_skip": raw.get("signal_skip"),
         }
     )

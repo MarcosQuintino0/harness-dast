@@ -18,6 +18,7 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `metrics.json` | `report`, `run` | Onde o tempo foi: por etapa, por operação, por regra, tráfego e lacunas, regras desligadas (só números e ids; ADR 0031) |
 | `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
 | `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
+| `error-signals.json` | `report` | Sinais de erro interno vistos pela cerca (proxy de escopo) em toda resposta liberada: contagem de respostas lidas, não lidas e com sinal, e os achados de origem `proxy`. Só categorias, método, modelo de caminho, status e nomes de parâmetro, nunca corpo ([ADR 0049](../adr/0049-sinais-de-erro-interno-na-cerca.md)) |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
@@ -37,13 +38,14 @@ Raiz (`FindingsReport`):
 | `generated_at`, `harness_version` | texto | Instante (ISO 8601) e versão da CLI |
 | `coverage` | objeto | O que a execução cobriu e **não** cobriu (abaixo) |
 | `not_tested_statements` | lista de texto | Afirmações fixas sobre o que não foi testado. Presentes em TODO relatório, inclusive sem achados |
-| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable`; `total` e `by_severity` são só do ZAP. Aditivo (ADR 0027): `authz_by_severity` (mesmas cinco chaves, achados de autorização entre contas; `{}` quando o estágio não rodou) |
+| `summary` | objeto | `total`, `by_severity` (`high`, `medium`, `low`, `informational`, `unknown`), `occurrences`, `alerts_unreadable`; `total` e `by_severity` são só do ZAP. Aditivo (ADR 0027): `authz_by_severity` (mesmas cinco chaves, achados de autorização entre contas; `{}` quando o estágio não rodou). Aditivo (ADR 0049): `signal_by_severity` (mesmas cinco chaves, achados de sinal da cerca; `{}` sem leitura). Nenhum dos dois entra em `total` nem em `by_severity` |
 | `findings` | lista de `Finding` | Ordenada por severidade proposta, confiança, título e fingerprint |
 | `groups` | lista de `FindingGroup` | Visão agrupada pela causa provável (abaixo). Aditivo (ADR 0029): todo achado de `findings` está em exatamente um grupo; arquivos antigos sem o campo continuam válidos |
 | `not_observed` | lista | Com `--compare`: achados da base que não apareceram agora (abaixo) |
 | `comparison` | objeto ou `null` | `baseline_run_id`, `new`, `persistent`, `not_observed`, `notice` |
 | `triage_orphans` | lista de texto | Fingerprints de `triage.json` sem achado correspondente (ignorados) |
 | `authz` | objeto ou `null` | Aditivo (ADR 0027). O `authz.json` da execução, quando o estágio rodou: achados de autorização entre contas, de origem própria e técnica própria (`origin: authz`, `technique`), **separados** de `findings` (que são do ZAP). Contrato em [authz.md](authz.md). O gate (`--fail-on`) conta os dois |
+| `proxy_signals` | objeto ou `null` | Aditivo (ADR 0049). Sinais de erro interno vistos pela cerca: ver [Sinais vistos pela cerca](#sinais-vistos-pela-cerca). `null` em relatório anterior. Os achados dele (`origin: proxy`) não entram em `findings` nem em `groups`; o gate (`--fail-on`) os conta |
 
 `coverage`:
 
@@ -206,10 +208,31 @@ As fixtures de `tests/fixtures/zap_alerts/` mostram as formas completas e são *
 
 Um `scan` anterior a esta versão não tem `rule-stats.json`: cada operação sai com `rules_available: false` e o motivo.
 
+## Sinais vistos pela cerca
+
+`proxy_signals` (em `findings.json` e no `data` do envelope de `hdast report`) e `error-signals.json` (o mesmo objeto, gravado pelo `report` quando há auditoria do proxy e linhas liberadas na janela da execução; sem auditoria o `report` reaproveita o arquivo que já existe). É uma fonte **diferente** de `internal_error_signals` (ADR 0045: só as evidências que o ZAP guardou) e **não se soma** a ela.
+
+| Campo | Descrição |
+| --- | --- |
+| `schema_version` | 1 |
+| `enabled`, `message` | `false` quando a cerca não deixou registro desta execução (pilha refeita, sem pilha gerenciada); `message` explica |
+| `window` | `start` (início do `probe`) e `end` (fim do último estágio gravado), ISO 8601 |
+| `responses_examined` | Respostas liberadas, com status, na janela, que a cerca leu |
+| `responses_skipped` | Não lidas, por motivo: `type`, `encoding`, `empty`, `error`. `examined` mais `skipped` fecha com as linhas liberadas com status na janela |
+| `responses_with_signal` | Lidas com ao menos um sinal |
+| `counts` | Respostas com cada categoria: `sql_error`, `stack_trace_java`, `stack_trace_python`, `stack_trace_dotnet`, `stack_trace_node`, `stack_trace_php`, `debug_page` (todas, com zero) |
+| `findings[]` | Um achado por operação e categoria (abaixo) |
+| `findings_omitted` | Achados de menor gravidade que passaram do teto de 500 (as contagens seguem completas) |
+| `notice` | Aviso fixo: heurística, não confirma vulnerabilidade, o ZAP pode ter o mesmo achado, não entra em `--compare` |
+
+Achado (`SignalFinding`): `finding_id` (`S-` e 8 hexadecimais do fingerprint), `fingerprint` e `fingerprint_version`, `origin` (`proxy`), `technique` (`proxy_error_signal`), `category`, `title`, `proposed_severity` e `proposed_confidence` (do catálogo do código, nunca do agente: `sql_error` média/média, `debug_page` média/alta, as pilhas de chamadas baixa/média), `cwe` (209; 489 para `debug_page`), `owasp_api_2023` (`API8:2023 Security Misconfiguration`), `operation_id` (ou `null`), `method`, `path_template` (`{}` no lugar dos ids; nunca a URL concreta), `occurrences`, `statuses` (até 5), `query_params` (até 10 nomes), `description`, `solution` e `status` (`needs_triage`). **Nenhum valor de resposta entra no modelo.** Fingerprint: SHA-256 de `hdast-signal-v1`, produto, método, modelo de caminho e categoria (sem host, status, ids, parâmetros, quantidade nem execução).
+
+Limites: heurística com falso positivo e falso negativo; resposta `5xx` sozinha não é achado aqui (só conta em `internal_error_signals`); os achados de sinal não entram em `report --compare`; o relatório não distingue uma cerca anterior a esta versão de uma resposta lida sem sinal (reconstrua a imagem com `stack up --build`).
+
 ## Onde o achado aparece e baseline
 
 Em `runs/<run_id>/`, junto de `audit.jsonl`, `manifest.json` e `probe.json`. A pasta `runs/` fica fora do git. O conjunto de achados esperados no VAmPI (teste de ponta a ponta) e o limite de severidade do modo seguro ficam para o teste contra o lab ([../testing.md](../testing.md)). Retenção das evidências em `runs/`: em aberto.
 
 ### Sinais passivos de erro interno
 
-`internal_error_signals` é aditivo e pode ser `null` ou ausente em relatórios anteriores. Em relatórios novos, `messages_examined` conta mensagens distintas de evidência já redigidas; `truncated_messages` conta mensagens com algum campo cortado. `counts` contém as categorias fixas `http_5xx`, `stack_trace` e `sql_error`, cada uma contando mensagens distintas com o sinal, não ocorrências textuais. Uma mensagem pode aparecer em várias categorias. Nenhum trecho ou identificador é incluído. São indícios sujeitos a falsos positivos e omissões; zero não demonstra ausência de erro ou cobertura completa. Veja ADR 0045.
+`internal_error_signals` é aditivo e pode ser `null` ou ausente em relatórios anteriores. Em relatórios novos, `messages_examined` conta mensagens distintas de evidência já redigidas; `truncated_messages` conta mensagens com algum campo cortado. `counts` contém as categorias fixas `http_5xx`, `stack_trace` e `sql_error`, cada uma contando mensagens distintas com o sinal, não ocorrências textuais. Uma mensagem pode aparecer em várias categorias. Nenhum trecho ou identificador é incluído. São indícios sujeitos a falsos positivos e omissões; zero não demonstra ausência de erro ou cobertura completa. Veja ADR 0045. Quando a cerca leu a execução, o Markdown e o HTML acrescentam que esta contagem é um subconjunto das respostas e apontam a contagem completa em `proxy_signals` (ADR 0049); o JSON desta seção não muda.
