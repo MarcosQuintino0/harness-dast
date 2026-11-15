@@ -1,6 +1,7 @@
 # Relatório da versão 1.5.1
 
 Data: 2026-11-15. Branch: `feat/v1-5-complemento`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md). Versão anterior: [1.5.0](relatorio-v1.5.md).
+Versão em linguagem simples: <https://claude.ai/artifact/XtPBjDeCrv3iZ66jbPUFGH> (cópia em C:/harness-dast-artefatos/v1.5c/relatorio-v1-5-1-artifact.html).
 
 ## 1. Resumo
 
