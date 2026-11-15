@@ -1,0 +1,11 @@
+A rodada assistida terminou, com relatório e triagem prontos para revisão. O probe alcançou **18 de 23 operações tentadas (78,26%)**; o scan ativo cobriu 17 operações.
+
+O ZAP propôs **6 achados altos, 0 médios, 41 baixos e 24 informativos**. Dois altos merecem prioridade: buscas de médico e paciente retornaram erro 500 com detalhes de SQL. Outros quatro alertas altos, baseados em tempo na busca de convênio, precisam de confirmação: a evidência registrada não comprova o atraso ou a execução SQL. Os 23 alertas sobre o cookie de XSRF sem `HttpOnly` foram marcados como suspeita de falso positivo, a revisar junto com a proteção do cookie de sessão.
+
+O teste de autorização não gerou achados, mas **não conseguiu testar BOLA horizontal nem BFLA vertical**. Escrita entre contas e atribuição em massa não foram autorizadas. A cobertura também ficou parcial por operações não alcançadas e porque a cerca recusou 576 pedidos cuja forma de caminho era inválida. A CLI não registrou truncamento por prazo; isso não elimina essas lacunas.
+
+- [Relatório para desenvolvimento](C:/harness-dast-artefatos/v1.7/2026-11-14-terra61-medium-wide-02/workspace/runs/2026-11-15T01-31-02Z-clinica-piloto-3c63/report.md)
+- [Triagem dos 71 achados](C:/harness-dast-artefatos/v1.7/2026-11-14-terra61-medium-wide-02/workspace/runs/2026-11-15T01-31-02Z-clinica-piloto-3c63/triage.json)
+- [Diário da execução assistida](C:/harness-dast-artefatos/v1.7/2026-11-14-terra61-medium-wide-02/workspace/runs/2026-11-15T01-31-02Z-clinica-piloto-3c63/decision-log.md)
+
+Ficam pendentes a **revisão humana e o reteste autorizado** dos achados e das lacunas. A pilha permanece ligada; dados sintéticos criados continuam no laboratório descartável.

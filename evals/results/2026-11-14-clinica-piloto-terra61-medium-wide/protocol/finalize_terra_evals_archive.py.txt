@@ -1,0 +1,179 @@
+"""Fecha catálogo, resumos comparáveis e validação do arquivo de avaliação."""
+
+from pathlib import Path
+import csv
+import hashlib
+import io
+import json
+import sys
+from datetime import datetime, timezone
+
+ROOT = Path(r"C:\harness-dast")
+BASE = Path(r"C:\harness-dast-artefatos\v1.7")
+DEST = ROOT / "evals/results/2026-11-14-clinica-piloto-terra61-medium-wide"
+ROUNDS = [BASE / f"2026-11-14-terra61-medium-wide-{n:02d}" for n in (1, 2)]
+sys.path.insert(0, str(ROOT))
+from evals.runner.measurements import ensure_no_secrets
+from evals.runner.metrics_models import AgentMetrics
+
+
+def read(path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def write(path, obj):
+    data = json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+    for source in ROUNDS:
+        ensure_no_secrets(source, {str(path): data})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(data, encoding="utf-8")
+
+
+def copy_measurements():
+    copied = []
+    for source in sorted((BASE / "medicoes").iterdir()):
+        destination = ROOT / "evals/measurements" / source.name
+        if not source.is_dir():
+            continue
+        for path in sorted(source.iterdir()):
+            if not path.is_file():
+                continue
+            if path.name == "experiment.json":
+                write(DEST / "protocol/experiment.json", read(path))
+                continue
+            assert path.name in {"agent-metrics.json", "score.json", "meta.json"} or path.name.startswith("metrics-")
+            value = read(path)
+            text = path.read_text(encoding="utf-8")
+            for attempt in ROUNDS:
+                ensure_no_secrets(attempt, {str(path): text})
+            if path.name == "agent-metrics.json":
+                AgentMetrics.model_validate(value)
+            target = destination / path.name
+            data = path.read_bytes()
+            if target.exists():
+                assert target.read_bytes() == data, "Não sobrescrever medição divergente"
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+            copied.append({"path": target.relative_to(ROOT).as_posix(), "bytes": len(data), "sha256": sha(data), "source": str(path), "source_sha256": sha(data)})
+    return copied
+
+
+def build_comparison():
+    summary = read(DEST / "summary.json")
+    old = read(DEST / "historical/v1-1/measurement/agent-metrics.json")
+    old_run = read(DEST / "historical/v1-1/execution/run.json")
+    now = summary["whole_second_attempt"]["metrics"]
+    auto = summary["autonomous_boundary"]["metrics"]
+    assist = summary["assisted_segment"]["metrics"]
+    old_tokens = old["totals"]["tokens"]
+    new_tokens = now["totals"]["tokens"]
+    def tokens(v):
+        fresh = v["input"] + v["cache_creation"]
+        return {"fresh_input_including_cache_write": fresh, "cache_read": v["cache_read"], "output": v["output"], "total_including_cache_read": fresh + v["cache_read"] + v["output"]}
+    active = round(auto["totals"]["duration_seconds"] + assist["totals"]["duration_seconds"], 3)
+    rows = [
+        ("agent_wall_seconds", old["totals"]["duration_seconds"], now["totals"]["duration_seconds"]),
+        ("agent_active_segment_seconds", None, active),
+        ("pipeline_seconds", old_run["duration_seconds"], summary["pipeline"]["duration_seconds"]),
+        ("scan_seconds", next(x["duration_seconds"] for x in old_run["stages"] if x["name"] == "scan"), next(x["duration_seconds"] for x in summary["pipeline"]["stages"] if x["name"] == "scan")),
+        ("contract_operations", 40, 40), ("eligible_operations", 30, 30),
+        ("probe_successes", 27, 18), ("probe_sent", 30, 23),
+        ("probe_success_fraction_of_eligible", 0.9, 0.6),
+        ("scanned_operations", 26, 17), ("scan_fraction_of_eligible", 26 / 30, 17 / 30),
+        ("normalized_findings", 91, 71), ("finding_occurrences", 92, 74),
+        ("grade", 8.51, 7.18), ("tool_calls", 41, 109),
+    ]
+    for key, value in tokens(old_tokens).items():
+        rows.append(("tokens_" + key, value, tokens(new_tokens)[key]))
+    comparison = {"schema_version": 1, "controlled_experiment": False, "historical_reference": "cega-piloto-003", "historical_model": old["model"], "current_model": now["model"], "historical_path_mode": "strict", "current_path_mode": "wide", "current_assisted": True, "current_tested_commit": summary["metadata"]["source_commit"], "current_pause_seconds": summary["whole_second_attempt"]["pause_seconds"], "rows": [{"metric": k, "historical": a, "current": b, "difference": round(b-a, 6) if a is not None else None} for k, a, b in rows], "quality_limit": "9 fewer scanned operations; elapsed reduction is not evidence of equal-quality acceleration", "historical_tokens": tokens(old_tokens), "current_tokens": tokens(new_tokens), "stage_seconds": {"historical": {k: v["seconds"] for k, v in old["stages"].items()}, "current_active": {k: round(auto["stages"][k]["seconds"] + assist["stages"][k]["seconds"], 3) for k in now["stages"]}, "current_including_pause": {k: v["seconds"] for k, v in now["stages"].items()}}, "sources": ["historical/v1-1/measurement/agent-metrics.json", "historical/v1-1/execution/run.json", "summary.json"]}
+    write(DEST / "analysis/comparison.json", comparison)
+    stream = io.StringIO(newline="")
+    writer = csv.DictWriter(stream, fieldnames=["metric", "historical", "current", "difference"])
+    writer.writeheader()
+    writer.writerows(comparison["rows"])
+    (DEST / "analysis/comparison.csv").write_text(stream.getvalue(), encoding="utf-8")
+    assert active == 1356.561
+    assert tokens(new_tokens)["total_including_cache_read"] == 8023944
+    assert tokens(old_tokens)["total_including_cache_read"] == 4637942
+    assert round(active + comparison["current_pause_seconds"], 3) == 1776.7
+
+
+def validate_and_catalog(measurements):
+    manifest_path = DEST / "manifest.json"
+    manifest = read(manifest_path)
+    previous = {row["path"]: row for row in manifest["files"]}
+    files = []
+    parsed_json = parsed_jsonl_rows = parsed_jsonl_files = 0
+    encoding_warnings = []
+    for path in sorted(DEST.rglob("*")):
+        if not path.is_file() or path == manifest_path or path.name == "validation.json":
+            continue
+        if {".ruff_cache", ".mypy_cache", ".pytest_cache", "__pycache__"}.intersection(path.relative_to(DEST).parts):
+            continue
+        relative = path.relative_to(DEST).as_posix()
+        data = path.read_bytes()
+        text = data.decode("utf-8")
+        for attempt in ROUNDS:
+            ensure_no_secrets(attempt, {relative: text})
+        if "\ufffd" in text:
+            encoding_warnings.append({"path": relative, "replacement_characters": text.count("\ufffd"), "policy": "Historical source preserved; no speculative text repair"})
+        if path.suffix == ".json":
+            json.loads(text)
+            parsed_json += 1
+        elif path.suffix == ".jsonl":
+            parsed_jsonl_files += 1
+            for line in text.splitlines():
+                json.loads(line)
+                parsed_jsonl_rows += 1
+        if path.name == "agent-metrics.json":
+            AgentMetrics.model_validate_json(text)
+        if relative in previous:
+            row = previous[relative]
+            if row.get("source_sha256"):
+                assert sha(data) == row["sha256"], f"Conteúdo alterado após a cópia: {relative}"
+            else:
+                row.update(bytes=len(data), sha256=sha(data))
+            if path.suffix == ".json" and "JSON serialization" not in row["transformations"]:
+                row["transformations"].append("JSON serialization")
+            source = Path(row["source"])
+            if row.get("source_sha256") and source.exists():
+                assert sha(source.read_bytes()) == row["source_sha256"], f"Origem mudou: {relative}"
+        else:
+            row = {"path": relative, "bytes": len(data), "sha256": sha(data), "source": "generated:review-and-analysis", "source_sha256": None, "transformations": [], "redactions": {}}
+        files.append(row)
+    checks_path = BASE / "archive-check-results.json"
+    checks = read(checks_path) if checks_path.exists() else []
+    validation = {"schema_version": 1, "validated_at_utc": datetime.now(timezone.utc).isoformat(), "files_checked_before_validation_record": len(files), "bytes_checked": sum(x["bytes"] for x in files), "json_documents_parsed": parsed_json, "jsonl_files_parsed": parsed_jsonl_files, "jsonl_records_parsed": parsed_jsonl_rows, "agent_metrics_schema": "passed", "known_secret_check_both_attempts": "passed", "source_hashes": "passed for copied source files", "archived_hashes": "passed", "token_and_duration_reconciliation": "passed", "measurement_files": measurements, "encoding_warnings": encoding_warnings, "private_native_rollout_exported": False, "checks": checks, "pytest_summary": "8330 passed, 5 skipped, 113 deselected in 285.29s", "scope": "Offline archive verification; no new test requests sent to laboratory"}
+    write(DEST / "validation.json", validation)
+    data = (DEST / "validation.json").read_bytes()
+    files.append({"path": "validation.json", "bytes": len(data), "sha256": sha(data), "source": "generated:archive-validation", "source_sha256": None, "transformations": [], "redactions": {}})
+    manifest["files"] = files
+    manifest["measurement_files"] = measurements
+    manifest["file_count"] = len(files)
+    manifest["total_bytes_excluding_manifest"] = sum(x["bytes"] for x in files)
+    write(manifest_path, manifest)
+    print(json.dumps({"files": len(files), "bytes": manifest["total_bytes_excluding_manifest"], "measurement_files": len(measurements), "json": parsed_json, "jsonl_records": parsed_jsonl_rows, "encoding_warning_files": len(encoding_warnings)}))
+
+
+if __name__ == "__main__":
+    checks_path = BASE / "archive-check-results.json"
+    if checks_path.exists():
+        for row in read(checks_path):
+            assert row["exit_code"] == 0
+            path = DEST / f"analysis/checks/{row['name']}.log"
+            text = Path(row["source_log"]).read_text(encoding="utf-8-sig")
+            for source in ROUNDS:
+                ensure_no_secrets(source, {str(path): text})
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        write(DEST / "analysis/checks/results.json", read(checks_path))
+    helper = DEST / "protocol/finalize_terra_evals_archive.py.txt"
+    helper.write_bytes(Path(__file__).read_bytes())
+    measurements = copy_measurements()
+    build_comparison()
+    validate_and_catalog(measurements)

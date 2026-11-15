@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-11-15T02:21:12.169634+00:00",
+  "source_commit_tested": "abc4f3aea945cd3edf7e90b64f945fc1971785a7",
+  "current_checkout_is_not_the_tested_commit": true,
+  "private_reasoning": "Not exported. Only public CLI messages, tools/results, declared decision logs and token counts are retained.",
+  "excluded": [
+    "sealed/",
+    "state/",
+    "approvals/",
+    ".env*",
+    ".venv/",
+    "full native model rollout",
+    "private/encrypted reasoning",
+    "other session container details"
+  ],
+  "original_artifacts_untouched": true,
+  "original_markdown_and_python": "Kept as .md.txt and .py.txt, to preserve archival text without importing old code or validating its old local links as current docs.",
+  "runs_directory_mapping": "Original trace/runs copied as trace/executions; avoids the repository runs/ ignore pattern.",
+  "metric_interpretation": "Historical thinking_seconds is elapsed time outside tool calls, not a record or measurement of private model reasoning. Cached input is part of native input. Reasoning output tokens are part of output. Never sum either subset twice.",
+  "legacy_normalizer": "normalize.py.txt is a provisional adapter, retained for provenance only; authoritative export is normalize_native.py.txt and reconciled telemetry.",
+  "omissions": []
+}

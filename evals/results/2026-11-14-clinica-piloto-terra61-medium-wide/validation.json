@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-11-15T02:33:29.334575+00:00",
+  "files_checked_before_validation_record": 245,
+  "bytes_checked": 12195950,
+  "json_documents_parsed": 78,
+  "jsonl_files_parsed": 33,
+  "jsonl_records_parsed": 12992,
+  "agent_metrics_schema": "passed",
+  "known_secret_check_both_attempts": "passed",
+  "source_hashes": "passed for copied source files",
+  "archived_hashes": "passed",
+  "token_and_duration_reconciliation": "passed",
+  "measurement_files": [
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-assistido/agent-metrics.json",
+      "bytes": 12428,
+      "sha256": "e8fb5c8495d5492056b9001b2a1ff4a22c4f6946c2c99c22cc9c7aa42e047a02",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-assistido\\agent-metrics.json",
+      "source_sha256": "e8fb5c8495d5492056b9001b2a1ff4a22c4f6946c2c99c22cc9c7aa42e047a02"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-assistido/meta.json",
+      "bytes": 260,
+      "sha256": "3328fc9855bacac4ff8e7c83f1d2abdb5c97238dae1bdc7ace865c0b9a36ad3e",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-assistido\\meta.json",
+      "source_sha256": "3328fc9855bacac4ff8e7c83f1d2abdb5c97238dae1bdc7ace865c0b9a36ad3e"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-assistido/metrics-2026-11-15T01-31-02Z-clinica-piloto-3c63.json",
+      "bytes": 204777,
+      "sha256": "0e70f1c160a413f167b64a628d5013777277e49842c13e83d5f82b1ae894031d",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-assistido\\metrics-2026-11-15T01-31-02Z-clinica-piloto-3c63.json",
+      "source_sha256": "0e70f1c160a413f167b64a628d5013777277e49842c13e83d5f82b1ae894031d"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-assistido/score.json",
+      "bytes": 9021,
+      "sha256": "528f0ce9fcd9204fcf4fa477e84f75deebfe4f98388ea8087f2ae2893c84b318",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-assistido\\score.json",
+      "source_sha256": "528f0ce9fcd9204fcf4fa477e84f75deebfe4f98388ea8087f2ae2893c84b318"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-autonomo/agent-metrics.json",
+      "bytes": 3246,
+      "sha256": "10984f24ff1010020e4657617933edc5f2b45df2eb839bf724e895f0cf466f84",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-autonomo\\agent-metrics.json",
+      "source_sha256": "10984f24ff1010020e4657617933edc5f2b45df2eb839bf724e895f0cf466f84"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-autonomo/meta.json",
+      "bytes": 259,
+      "sha256": "5902fc74ee4ad48d906b5d2b5f574411cb9f248131019978d6551a0dd446b56f",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-autonomo\\meta.json",
+      "source_sha256": "5902fc74ee4ad48d906b5d2b5f574411cb9f248131019978d6551a0dd446b56f"
+    },
+    {
+      "path": "evals/measurements/2026-11-14-clinica-piloto-terra61-medium-wide-autonomo/score.json",
+      "bytes": 9037,
+      "sha256": "575e47de16e51ce0be6aba463c8c9fbfb2af50bde5af87fda93aed2ebba21cd7",
+      "source": "C:\\harness-dast-artefatos\\v1.7\\medicoes\\2026-11-14-clinica-piloto-terra61-medium-wide-autonomo\\score.json",
+      "source_sha256": "575e47de16e51ce0be6aba463c8c9fbfb2af50bde5af87fda93aed2ebba21cd7"
+    }
+  ],
+  "encoding_warnings": [
+    {
+      "path": "assisted-segment/transcript.jsonl",
+      "replacement_characters": 192,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "attempts/02-main/coordinator/codex-02.jsonl",
+      "replacement_characters": 55,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "attempts/02-main/coordinator/codex-03.jsonl",
+      "replacement_characters": 192,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "attempts/02-main/coordinator/timed-events.jsonl",
+      "replacement_characters": 247,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "attempts/02-main/trace/transcript.jsonl",
+      "replacement_characters": 247,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "attempts/02-main/transcript.jsonl",
+      "replacement_characters": 247,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "autonomous-boundary/codex-02.jsonl",
+      "replacement_characters": 55,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "autonomous-boundary/timed-events.jsonl",
+      "replacement_characters": 55,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "autonomous-boundary/trace/transcript.jsonl",
+      "replacement_characters": 55,
+      "policy": "Historical source preserved; no speculative text repair"
+    },
+    {
+      "path": "autonomous-boundary/transcript.jsonl",
+      "replacement_characters": 55,
+      "policy": "Historical source preserved; no speculative text repair"
+    }
+  ],
+  "private_native_rollout_exported": false,
+  "checks": [
+    {
+      "name": "ruff-check",
+      "command": "uv run ruff check .",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-ruff-check.log"
+    },
+    {
+      "name": "ruff-format",
+      "command": "uv run ruff format --check .",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-ruff-format.log"
+    },
+    {
+      "name": "mypy",
+      "command": "uv run mypy",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-mypy.log"
+    },
+    {
+      "name": "imports",
+      "command": "uv run lint-imports",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-imports.log"
+    },
+    {
+      "name": "vulture",
+      "command": "uv run vulture",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-vulture.log"
+    },
+    {
+      "name": "pytest",
+      "command": "uv run pytest",
+      "exit_code": 0,
+      "source_log": "C:\\harness-dast-artefatos\\v1.7\\archive-validation-pytest.log"
+    }
+  ],
+  "pytest_summary": "8330 passed, 5 skipped, 113 deselected in 285.29s",
+  "scope": "Offline archive verification; no new test requests sent to laboratory"
+}

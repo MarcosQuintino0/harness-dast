@@ -1,0 +1,18 @@
+{"timestamp": "2026-11-15T01:08:08.683544+00:00", "event": "started", "phase": "prepare"}
+{"timestamp": "2026-11-15T01:08:21.058565+00:00", "event": "completed", "phase": "prepare", "seconds": 12.375, "exit_code": 0}
+{"timestamp": "2026-11-15T01:08:21.064569+00:00", "event": "started", "phase": "workspace-dependencies"}
+{"timestamp": "2026-11-15T01:08:23.672547+00:00", "event": "completed", "phase": "workspace-dependencies", "seconds": 2.609, "exit_code": 0}
+{"timestamp": "2026-11-15T01:08:31.797852+00:00", "event": "started", "phase": "build-scope-proxy"}
+{"timestamp": "2026-11-15T01:08:45.617984+00:00", "event": "completed", "phase": "build-scope-proxy", "seconds": 13.828, "exit_code": 0}
+{"timestamp": "2026-11-15T01:08:45.618507+00:00", "event": "started", "phase": "build-pilot"}
+{"timestamp": "2026-11-15T01:08:49.403630+00:00", "event": "completed", "phase": "build-pilot", "seconds": 3.782, "exit_code": 0}
+{"timestamp": "2026-11-15T01:08:59.243299+00:00", "event": "started", "phase": "agent-01"}
+{"timestamp": "2026-11-15T01:10:40.019842+00:00", "event": "completed", "phase": "agent-01", "seconds": 100.766, "exit_code": 0}
+{"timestamp": "2026-11-15T01:10:49.134665+00:00", "event": "started", "phase": "approve"}
+{"timestamp": "2026-11-15T01:10:49.937075+00:00", "event": "completed", "phase": "approve", "seconds": 0.797, "exit_code": 0}
+{"timestamp": "2026-11-15T01:10:53.975247+00:00", "event": "started", "phase": "agent-02"}
+{"timestamp": "2026-11-15T01:12:44.450086+00:00", "event": "completed", "phase": "agent-02", "seconds": 110.485, "exit_code": 0}
+{"timestamp": "2026-11-15T01:15:48.805206+00:00", "event": "started", "phase": "collect"}
+{"timestamp": "2026-11-15T01:15:50.035862+00:00", "event": "completed", "phase": "collect", "seconds": 1.234, "exit_code": 0}
+{"timestamp": "2026-11-15T01:15:50.184167+00:00", "event": "started", "phase": "stack-down"}
+{"timestamp": "2026-11-15T01:15:57.075223+00:00", "event": "completed", "phase": "stack-down", "seconds": 6.891, "exit_code": 0}

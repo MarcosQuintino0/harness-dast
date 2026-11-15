@@ -1,0 +1,272 @@
+"""Preserva evidências públicas de laboratório, sem copiar credenciais ou raciocínio privado."""
+
+from __future__ import annotations
+
+import base64
+import csv
+import hashlib
+import io
+import json
+import re
+import sys
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+
+PROJECT = Path(r"C:\harness-dast")
+ARTIFACTS = Path(r"C:\harness-dast-artefatos\v1.7")
+STUDY = "2026-11-14-clinica-piloto-terra61-medium-wide"
+DEST = PROJECT / "evals/results" / STUDY
+ATTEMPTS = [ARTIFACTS / f"2026-11-14-terra61-medium-wide-{i:02d}" for i in (1, 2)]
+SOURCE = Path(r"C:\harness-dast-wt\v17-baseline-terra-medium")
+HISTORICAL = Path(r"C:\harness-dast-artefatos\v1.2\painel-indices\runs\2026-11-14T02-14-18Z-clinica-piloto-f087")
+RUN_ID = "2026-11-15T01-31-02Z-clinica-piloto-3c63"
+sys.path.insert(0, str(PROJECT))
+from evals.runner.measurements import ensure_no_secrets, secret_forms
+
+
+def read_json(path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+FORMS = set().union(*(secret_forms(p) for p in ATTEMPTS))
+FORMS |= {base64.b64encode(s.encode()).decode() for s in FORMS}
+COUNTS = Counter()
+FILES = []
+OMITTED = []
+PUBLIC_MESSAGES = set()
+for attempt in ATTEMPTS:
+    coordinator = attempt.with_name(attempt.name + "-coordinator")
+    for cli in coordinator.glob("codex-*.jsonl"):
+        for line in cli.read_text(encoding="utf-8-sig").splitlines():
+            event = json.loads(line)
+            item = event.get("item", {})
+            if item.get("type") == "agent_message":
+                PUBLIC_MESSAGES.add(item.get("text", ""))
+
+JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")
+AUTH = re.compile(r"(?i)(\b(?:Bearer|Basic)\s+)([A-Za-z0-9_+/=.~-]{12,})")
+HEADER = re.compile(r"(?im)^(\s*)(Cookie|Set-Cookie|X-XSRF-TOKEN|X-CSRF-TOKEN|X-ZAP-API-Key)(\s*:\s*)([^\r\n]+)")
+SECRET_KEYS = {"authorization", "cookie", "set-cookie", "x-xsrf-token", "x-csrf-token", "x-zap-api-key", "access_token", "refresh_token", "id_token", "api_key", "apikey", "password", "senha"}
+
+
+def session_header(match):
+    prefix = "".join(match.group(i) for i in (1, 2, 3))
+    name = match.group(2).lower()
+    if name in {"cookie", "set-cookie"}:
+        parts = match.group(4).split(";")
+        count = len(parts) if name == "cookie" else 1
+        for i in range(count):
+            key, separator, value = parts[i].partition("=")
+            if separator:
+                parts[i] = key + "=[REDACTED:cookie-value]"
+            elif parts[i].strip():
+                parts[i] = "[REDACTED:cookie-value]"
+        return prefix + ";".join(parts)
+    return prefix + "[REDACTED:session-header]"
+
+
+def sanitize_text(text):
+    for form in sorted(FORMS, key=len, reverse=True):
+        n = text.count(form)
+        if n:
+            COUNTS["known_round_secret"] += n
+            text = text.replace(form, "[REDACTED:round-secret]")
+    text, n = JWT.subn("[REDACTED:jwt]", text)
+    COUNTS["jwt"] += n
+    text, n = AUTH.subn(r"\1[REDACTED:authorization]", text)
+    COUNTS["authorization_value"] += n
+    text, n = HEADER.subn(session_header, text)
+    COUNTS["session_header"] += n
+    return text
+
+
+def sanitize(value, key=""):
+    if isinstance(value, dict):
+        return {k: sanitize(v, k) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize(v, key) for v in value]
+    if isinstance(value, str):
+        if key.lower() in SECRET_KEYS and value and not value.startswith(("env:", "[REDACTED", "***")):
+            COUNTS["credential_or_session_field"] += 1
+            return "[REDACTED:credential-or-session-field]"
+        return sanitize_text(value)
+    return value
+
+
+def safe_event(event):
+    item = event.get("item", {})
+    if item and item.get("type") not in {"agent_message", "command_execution"}:
+        COUNTS["non_public_event_omitted"] += 1
+        return None
+    if event.get("type") not in {"thread.started", "turn.started", "turn.completed", "turn.failed", "item.started", "item.completed", "item.updated", "error"}:
+        COUNTS["unknown_event_omitted"] += 1
+        return None
+    return event
+
+
+def public_transcript(row):
+    msg = row.get("message", {})
+    content = msg.get("content")
+    if row.get("type") == "assistant" and isinstance(content, str) and content not in PUBLIC_MESSAGES:
+        # A exportação original não guardava o canal; a CLI pública confirma o texto permitido.
+        msg["content"] = []
+        COUNTS["unverified_assistant_text_omitted"] += 1
+    return row
+
+
+def store(relative, raw, source=None, transformations=(), json_value=None, formatted_text=None):
+    target = DEST / relative
+    if target.exists():
+        raise RuntimeError(f"Destino já existe: {target.relative_to(PROJECT)}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    before = COUNTS.copy()
+    if formatted_text is not None:
+        output = sanitize_text(formatted_text)
+    elif json_value is not None:
+        output = json.dumps(sanitize(json_value), ensure_ascii=False, indent=2) + "\n"
+    else:
+        output = sanitize_text(raw.decode("utf-8-sig"))
+    for attempt in ATTEMPTS:
+        ensure_no_secrets(attempt, {relative: output})
+    encoded = output.encode("utf-8")
+    target.write_bytes(encoded)
+    changes = {k: v - before[k] for k, v in COUNTS.items() if v > before[k]}
+    FILES.append({"path": relative, "bytes": len(encoded), "sha256": digest(encoded), "source": str(source) if source else "generated:archive_terra_wide_to_evals.py", "source_sha256": digest(raw) if source else None, "transformations": list(transformations), "redactions": changes})
+
+
+def generated(relative, text):
+    store(relative, text.encode("utf-8"))
+
+
+def generated_json(relative, data):
+    store(relative, b"", json_value=data)
+
+
+def copy_file(source, relative, mode=None):
+    if not source.is_file():
+        raise FileNotFoundError(str(source))
+    raw = source.read_bytes()
+    transforms = ["UTF-8; credential/session redaction when matched"]
+    if relative.endswith((".json", ".jsonl")):
+        if relative.endswith(".json"):
+            store(relative, raw, source, transforms, read_json(source))
+            return
+        rows = []
+        before = COUNTS.copy()
+        for line in raw.decode("utf-8-sig").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if mode == "cli":
+                row = safe_event(row)
+            elif mode == "timed":
+                event = safe_event(row["event"])
+                row = {**row, "event": event} if event else None
+            elif mode == "transcript":
+                row = public_transcript(row)
+            elif mode == "resources":
+                containers = row.get("containers", [])
+                own = [c for c in containers if c.get("Name", "").startswith("hdast-terra-wide")]
+                row = {**row, "containers": own, "other_container_count": len(containers) - len(own)}
+            if row is not None:
+                rows.append(sanitize(row))
+        transforms.append({"cli": "public CLI events only", "timed": "timestamped public CLI events only", "transcript": "tools, results, usage and assistant text independently confirmed in public CLI", "resources": "own containers only; retain count of other containers"}.get(mode, "JSONL normalization"))
+        out = "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
+        store(relative, raw, source, transforms + ["JSON serialization"], formatted_text=out)
+        FILES[-1]["redactions"] = {k: v - before[k] for k, v in COUNTS.items() if v > before[k]}
+    else:
+        store(relative, raw, source, transforms)
+
+
+def archive_name(name):
+    return name + ".txt" if name.endswith((".md", ".py", "pyproject.toml")) else name
+
+
+def copy_tree(source, relative):
+    for path in sorted(source.rglob("*")):
+        if not path.is_file():
+            continue
+        parts = path.relative_to(source).parts
+        if any(x in {"__pycache__", "sealed", "state", "approvals", ".venv", ".git"} for x in parts):
+            OMITTED.append({"source": str(path), "reason": "excluded private/state/environment directory"})
+            continue
+        mapped = ["executions" if x == "runs" else x for x in parts]
+        mapped[-1] = archive_name(mapped[-1])
+        mode = "transcript" if path.name == "transcript.jsonl" else "cli" if path.name.startswith("codex-") and path.suffix == ".jsonl" else "timed" if path.name == "timed-events.jsonl" else None
+        copy_file(path, (Path(relative) / Path(*mapped)).as_posix(), mode)
+
+
+def csv_text(rows):
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    return output.getvalue()
+
+
+def main():
+    if DEST.exists():
+        raise RuntimeError("Não sobrescrever arquivo de estudo já existente")
+    summary = read_json(ATTEMPTS[1] / "resumo-medicoes.json")
+    for number, attempt in enumerate(ATTEMPTS, 1):
+        folder = f"attempts/{number:02d}-{'infrastructure' if number == 1 else 'main'}"
+        coordinator = attempt.with_name(attempt.name + "-coordinator")
+        for name in ("agent-metrics.json", "transcript.jsonl", "score.json", "score.md", "classify.md"):
+            if (attempt / name).exists():
+                copy_file(attempt / name, f"{folder}/{archive_name(name)}", "transcript" if name == "transcript.jsonl" else None)
+        copy_tree(attempt / "trace", f"{folder}/trace")
+        for path in sorted(coordinator.iterdir()):
+            if not path.is_file() or path.name == "STOP-RESOURCE-MONITOR":
+                continue
+            name = path.name
+            mode = "cli" if name.startswith("codex-") and path.suffix == ".jsonl" else "timed" if name == "timed-events.jsonl" else "resources" if name == "resources.jsonl" else None
+            copy_file(path, f"{folder}/coordinator/{archive_name(name)}", mode)
+        if number == 2:
+            copy_tree(coordinator / "autonomous-boundary", "autonomous-boundary")
+            copy_tree(coordinator / "assisted-segment", "assisted-segment")
+    copy_file(ATTEMPTS[1] / "resumo-medicoes.json", "summary.json")
+    copy_file(ATTEMPTS[1] / "RELATORIO.md", "original-report.md.txt")
+    copy_file(Path(__file__), "protocol/archive_terra_wide_to_evals.py.txt")
+    workspace = ATTEMPTS[1] / "workspace"
+    for name in ("AGENTS.md", "CLAUDE.md", "README.md", "EVAL-BRIEFING.md", "pyproject.toml", "uv.lock", "compose.yaml", "docs/finalidade-e-uso-responsavel.md", "docs/escada-de-testes.md"):
+        path = workspace / name
+        if path.exists():
+            copy_file(path, "protocol/workspace/" + archive_name(name))
+    for path in sorted((workspace / ".claude/skills").rglob("*.md")):
+        copy_file(path, "protocol/workspace/" + path.relative_to(workspace).as_posix() + ".txt")
+    for name in ("case.yml", "authorization.md"):
+        copy_file(SOURCE / "evals/cases/clinica-piloto" / name, "protocol/case/" + archive_name(name))
+    copy_tree(HISTORICAL, "historical/v1-1/execution")
+    copy_tree(PROJECT / "evals/measurements/2026-11-14-clinica-piloto-v1-1", "historical/v1-1/measurement")
+    for name in ("2026-11-13-rodada-cega-v1-1.md", "evals-2026-11-13/cega-piloto-003-score.md"):
+        copy_file(PROJECT / "docs/reviews" / name, "historical/v1-1/" + Path(name).name + ".txt")
+    legacy = ARTIFACTS / "referencia-historica-modo-amplo.md"
+    if legacy.exists():
+        copy_file(legacy, "historical/non-blind-wide-reference.md.txt")
+
+    telemetry = read_json(ATTEMPTS[1].with_name(ATTEMPTS[1].name + "-coordinator") / "telemetry.json")
+    token_rows = [{"response_id": response, "timestamp_utc": data["timestamp"], "turn_id": data["turn_id"], **data["usage"]} for response, data in telemetry["requests"].items()]
+    generated("analysis/tokens-by-response.csv", csv_text(token_rows))
+    stage_rows = []
+    for label, section in (("autonomous", "autonomous_boundary"), ("assisted_segment", "assisted_segment"), ("whole_with_pause", "whole_second_attempt")):
+        data = summary[section]
+        metrics = data.get("metrics", data)
+        for stage, values in metrics["stages"].items():
+            stage_rows.append({"segment": label, "stage": stage, "seconds": values["seconds"], "tool_calls": values["tool_calls"], **{f"tokens_{k}": v for k, v in (values.get("tokens") or dict.fromkeys(("input", "output", "cache_creation", "cache_read"))).items()}})
+    generated("analysis/agent-stages.csv", csv_text(stage_rows))
+    generated("analysis/pipeline-stages.csv", csv_text([{k: stage[k] for k in ("name", "status", "duration_seconds", "exit_code", "started_at")} for stage in summary["pipeline"]["stages"]]))
+    generated("analysis/not-tested.csv", csv_text([{k: row.get(k) for k in ("operation_id", "method", "path", "reason", "message")} for row in summary["coverage"]["not_tested"]]))
+    generated_json("protocol/retention.json", {"schema_version": 1, "created_at_utc": datetime.now(timezone.utc).isoformat(), "source_commit_tested": summary["metadata"]["source_commit"], "current_checkout_is_not_the_tested_commit": True, "private_reasoning": "Not exported. Only public CLI messages, tools/results, declared decision logs and token counts are retained.", "excluded": ["sealed/", "state/", "approvals/", ".env*", ".venv/", "full native model rollout", "private/encrypted reasoning", "other session container details"], "original_artifacts_untouched": True, "original_markdown_and_python": "Kept as .md.txt and .py.txt, to preserve archival text without importing old code or validating its old local links as current docs.", "runs_directory_mapping": "Original trace/runs copied as trace/executions; avoids the repository runs/ ignore pattern.", "metric_interpretation": "Historical thinking_seconds is elapsed time outside tool calls, not a record or measurement of private model reasoning. Cached input is part of native input. Reasoning output tokens are part of output. Never sum either subset twice.", "legacy_normalizer": "normalize.py.txt is a provisional adapter, retained for provenance only; authoritative export is normalize_native.py.txt and reconciled telemetry.", "omissions": OMITTED})
+    generated_json("analysis/archive-sanitization.json", {"schema_version": 1, "counts": dict(COUNTS), "scope": "Known generated secrets from both attempts; base64 forms; JWT; authorization/session headers; named credential fields. No secret value is emitted by this verification.", "json_and_jsonl_parse_check": "Performed after archival; see validation.json", "originals_modified": False})
+    manifest = {"schema_version": 1, "study": STUDY, "hash_algorithm": "sha256", "source_commit": summary["metadata"]["source_commit"], "files": FILES, "excludes_self": True, "note": "Generated review documents and validation records added after initial copy are included by the final validation step."}
+    (DEST / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"destination": str(DEST), "files": len(FILES), "bytes": sum(f["bytes"] for f in FILES), "sanitization_counts": dict(COUNTS)}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

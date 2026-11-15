@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-15T01-31-01Z-clinica-piloto-9167",
+  "command": "preflight",
+  "product": "clinica-piloto",
+  "harness_version": "1.5.0",
+  "zap_version": null,
+  "zap_context_id": null,
+  "hashes": {
+    "target_yml": null,
+    "data_rules": null,
+    "flows": null,
+    "openapi": null
+  },
+  "limits": {
+    "requests_per_second": 20.0,
+    "max_duration_minutes": 30,
+    "zap_threads_per_host": 4
+  },
+  "seed": 0,
+  "accounts": [
+    "admin_a",
+    "medico_a",
+    "paciente_a",
+    "paciente_b"
+  ],
+  "started_at": "2026-11-15T01:31:02.065967+00:00",
+  "finished_at": "2026-11-15T01:31:02.065967+00:00",
+  "status": "ready"
+}

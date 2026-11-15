@@ -1,0 +1,29 @@
+schema_version: 1
+bindings:
+  - produces: {operation: criarConvenio, field: id}
+    consumed_by:
+      - {operation: buscarConvenio, param: id}
+      - {operation: atualizarConvenio, param: id}
+      - {operation: criarPaciente, field: convenioId}
+      - {operation: atualizarPaciente, field: convenioId}
+  - produces: {operation: criarMedico, field: id}
+    consumed_by:
+      - {operation: buscarMedico, param: id}
+      - {operation: criarConsulta, field: medicoId}
+  - produces: {operation: criarPaciente, field: id}
+    consumed_by:
+      - {operation: buscarPaciente, param: id}
+      - {operation: atualizarPaciente, param: id}
+      - {operation: criarConsulta, field: pacienteId}
+  - produces: {operation: criarConsulta, field: id}
+    consumed_by:
+      - {operation: buscarConsulta, param: id}
+      - {operation: listarReceitasDaConsulta, param: id}
+      - {operation: atualizarStatusConsulta, param: id}
+      - {operation: criarReceita, field: consultaId}
+  - produces: {operation: criarReceita, field: id}
+    consumed_by:
+      - {operation: buscarReceita, param: id}
+  - produces: {operation: criarConvenio, field: codigo}
+    consumed_by:
+      - {operation: buscarConvenioPorCodigo, param: codigo}

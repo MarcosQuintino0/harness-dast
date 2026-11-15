@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "controlled_experiment": false,
+  "historical_reference": "cega-piloto-003",
+  "historical_model": "claude-sonnet-5-5",
+  "current_model": "gpt-6.1-terra",
+  "historical_path_mode": "strict",
+  "current_path_mode": "wide",
+  "current_assisted": true,
+  "current_tested_commit": "abc4f3aea945cd3edf7e90b64f945fc1971785a7",
+  "current_pause_seconds": 420.139,
+  "rows": [
+    {
+      "metric": "agent_wall_seconds",
+      "historical": 1668.701,
+      "current": 1776.7,
+      "difference": 107.999
+    },
+    {
+      "metric": "agent_active_segment_seconds",
+      "historical": null,
+      "current": 1356.561,
+      "difference": null
+    },
+    {
+      "metric": "pipeline_seconds",
+      "historical": 1127.374,
+      "current": 868.002,
+      "difference": -259.372
+    },
+    {
+      "metric": "scan_seconds",
+      "historical": 1060.703,
+      "current": 856.246,
+      "difference": -204.457
+    },
+    {
+      "metric": "contract_operations",
+      "historical": 40,
+      "current": 40,
+      "difference": 0
+    },
+    {
+      "metric": "eligible_operations",
+      "historical": 30,
+      "current": 30,
+      "difference": 0
+    },
+    {
+      "metric": "probe_successes",
+      "historical": 27,
+      "current": 18,
+      "difference": -9
+    },
+    {
+      "metric": "probe_sent",
+      "historical": 30,
+      "current": 23,
+      "difference": -7
+    },
+    {
+      "metric": "probe_success_fraction_of_eligible",
+      "historical": 0.9,
+      "current": 0.6,
+      "difference": -0.3
+    },
+    {
+      "metric": "scanned_operations",
+      "historical": 26,
+      "current": 17,
+      "difference": -9
+    },
+    {
+      "metric": "scan_fraction_of_eligible",
+      "historical": 0.8666666666666667,
+      "current": 0.5666666666666667,
+      "difference": -0.3
+    },
+    {
+      "metric": "normalized_findings",
+      "historical": 91,
+      "current": 71,
+      "difference": -20
+    },
+    {
+      "metric": "finding_occurrences",
+      "historical": 92,
+      "current": 74,
+      "difference": -18
+    },
+    {
+      "metric": "grade",
+      "historical": 8.51,
+      "current": 7.18,
+      "difference": -1.33
+    },
+    {
+      "metric": "tool_calls",
+      "historical": 41,
+      "current": 109,
+      "difference": 68
+    },
+    {
+      "metric": "tokens_fresh_input_including_cache_write",
+      "historical": 148923,
+      "current": 108900,
+      "difference": -40023
+    },
+    {
+      "metric": "tokens_cache_read",
+      "historical": 4469981,
+      "current": 7901952,
+      "difference": 3431971
+    },
+    {
+      "metric": "tokens_output",
+      "historical": 19038,
+      "current": 13092,
+      "difference": -5946
+    },
+    {
+      "metric": "tokens_total_including_cache_read",
+      "historical": 4637942,
+      "current": 8023944,
+      "difference": 3386002
+    }
+  ],
+  "quality_limit": "9 fewer scanned operations; elapsed reduction is not evidence of equal-quality acceleration",
+  "historical_tokens": {
+    "fresh_input_including_cache_write": 148923,
+    "cache_read": 4469981,
+    "output": 19038,
+    "total_including_cache_read": 4637942
+  },
+  "current_tokens": {
+    "fresh_input_including_cache_write": 108900,
+    "cache_read": 7901952,
+    "output": 13092,
+    "total_including_cache_read": 8023944
+  },
+  "stage_seconds": {
+    "historical": {
+      "leitura": 5.112,
+      "cadastro": 82.323,
+      "alcance": 292.365,
+      "varredura": 1234.996,
+      "triagem": 41.197,
+      "outro": 12.708
+    },
+    "current_active": {
+      "leitura": 15.291,
+      "cadastro": 115.119,
+      "alcance": 197.276,
+      "varredura": 988.602,
+      "triagem": 34.757,
+      "outro": 5.516
+    },
+    "current_including_pause": {
+      "leitura": 15.291,
+      "cadastro": 115.119,
+      "alcance": 617.415,
+      "varredura": 988.602,
+      "triagem": 34.757,
+      "outro": 5.516
+    }
+  },
+  "sources": [
+    "historical/v1-1/measurement/agent-metrics.json",
+    "historical/v1-1/execution/run.json",
+    "summary.json"
+  ]
+}

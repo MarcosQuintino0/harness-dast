@@ -1,0 +1,15 @@
+{
+  "thread_id": "01a1daf1-ab8a-72d1-9cef-0d3953701b2e",
+  "from_request_at": "2026-11-15T01:02:42.329Z",
+  "last_record_at": "2026-11-15T01:56:13.639Z",
+  "api_responses": 86,
+  "totals": {
+    "input_tokens": 27973684,
+    "cached_input_tokens": 27871232,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 84414,
+    "reasoning_output_tokens": 51532,
+    "total_tokens": 28058098
+  },
+  "limitation": "parcial até esta coleta; exclui respostas e ferramentas posteriores, inclusive a resposta final"
+}

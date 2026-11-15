@@ -1,0 +1,20 @@
+{"timestamp": "2026-11-15T01:16:19.968523+00:00", "event": "started", "phase": "prepare"}
+{"timestamp": "2026-11-15T01:16:57.217947+00:00", "event": "completed", "phase": "prepare", "seconds": 37.25, "exit_code": 0}
+{"timestamp": "2026-11-15T01:16:57.223533+00:00", "event": "started", "phase": "workspace-dependencies"}
+{"timestamp": "2026-11-15T01:17:03.790784+00:00", "event": "started", "phase": "agent-01"}
+{"timestamp": "2026-11-15T01:17:05.214938+00:00", "event": "completed", "phase": "workspace-dependencies", "seconds": 7.984, "exit_code": 0}
+{"timestamp": "2026-11-15T01:18:47.459423+00:00", "event": "completed", "phase": "agent-01", "seconds": 103.672, "exit_code": 0}
+{"timestamp": "2026-11-15T01:18:54.276410+00:00", "event": "started", "phase": "approve"}
+{"timestamp": "2026-11-15T01:18:55.087199+00:00", "event": "completed", "phase": "approve", "seconds": 0.812, "exit_code": 0}
+{"timestamp": "2026-11-15T01:19:01.376461+00:00", "event": "started", "phase": "agent-02"}
+{"timestamp": "2026-11-15T01:23:45.976503+00:00", "event": "completed", "phase": "agent-02", "seconds": 284.61, "exit_code": 0}
+{"timestamp": "2026-11-15T01:25:57.097609+00:00", "event": "started", "phase": "collect"}
+{"timestamp": "2026-11-15T01:25:58.682095+00:00", "event": "completed", "phase": "collect", "seconds": 1.578, "exit_code": 0}
+{"timestamp": "2026-11-15T01:28:52.195607+00:00", "event": "started", "phase": "collect"}
+{"timestamp": "2026-11-15T01:28:53.519618+00:00", "event": "completed", "phase": "collect", "seconds": 1.328, "exit_code": 0}
+{"timestamp": "2026-11-15T01:30:41.624580+00:00", "event": "started", "phase": "agent-03"}
+{"timestamp": "2026-11-15T01:46:45.933529+00:00", "event": "completed", "phase": "agent-03", "seconds": 964.313, "exit_code": 0}
+{"timestamp": "2026-11-15T01:47:36.087636+00:00", "event": "started", "phase": "collect"}
+{"timestamp": "2026-11-15T01:48:02.095022+00:00", "event": "completed", "phase": "collect", "seconds": 26.0, "exit_code": 0}
+{"timestamp": "2026-11-15T01:50:37.245683+00:00", "event": "started", "phase": "stack-down"}
+{"timestamp": "2026-11-15T01:50:57.939914+00:00", "event": "completed", "phase": "stack-down", "seconds": 20.688, "exit_code": 0}

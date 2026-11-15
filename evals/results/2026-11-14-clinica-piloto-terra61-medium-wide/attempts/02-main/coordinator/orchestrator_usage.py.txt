@@ -1,0 +1,39 @@
+"""Mede o coordenador somente desde o pedido atual, sem exportar conteúdo da conversa."""
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).parent
+thread = "01a1daf1-ab8a-72d1-9cef-0d3953701b2e"
+files = list((Path.home() / ".codex/sessions").glob(f"2026/11/*/*{thread}.jsonl"))
+if len(files) != 1:
+    raise SystemExit("Arquivo nativo do coordenador não foi localizado de forma exclusiva")
+records = []
+for line in files[0].read_text(encoding="utf-8").splitlines():
+    try:
+        records.append(json.loads(line))
+    except json.JSONDecodeError:
+        continue
+start = None
+for index, row in enumerate(records):
+    payload = row.get("payload", {})
+    if row.get("type") == "response_item" and payload.get("type") == "message" and payload.get("role") == "user":
+        text = " ".join(item.get("text", "") for item in payload.get("content", []) if isinstance(item, dict))
+        if "Vamos testar se funcionou essas novas diretrizes" in text:
+            start = index
+            break
+if start is None:
+    raise SystemExit("Pedido atual não foi identificado no registro nativo")
+usage = {}
+for row in records[start:]:
+    payload = row.get("payload", {})
+    if row.get("type") == "token_usage_record":
+        usage[payload["response_id"]] = payload["usage"]
+totals = {key: sum(record.get(key, 0) for record in usage.values())
+          for key in ("input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens",
+                      "reasoning_output_tokens", "total_tokens")}
+result = {"thread_id": thread, "from_request_at": records[start]["timestamp"],
+          "last_record_at": records[-1]["timestamp"], "api_responses": len(usage), "totals": totals,
+          "limitation": "parcial até esta coleta; exclui respostas e ferramentas posteriores, inclusive a resposta final"}
+(ROOT / "orchestrator-usage.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+print(json.dumps(result))

@@ -1,0 +1,11 @@
+O perfil da Clínica Piloto foi criado e validado. A inspeção identificou 40 operações no OpenAPI, das quais 10 estão fora do envio por restrições da carta. O [diário de decisões](C:/harness-dast-artefatos/v1.7/2026-11-14-terra61-medium-wide-02/workspace/products/clinica-piloto/decision-log.md) registra o cadastro e a pendência.
+
+**A aprovação humana do escopo está pendente.** O perfil cobre `http://clinica-piloto:8080`, com modo amplo, GET/POST/PUT/PATCH, janela diária integral e limites de 20 requisições por segundo, 30 minutos e 4 threads por host. Notificações, isca e DELETE estão proibidos. A força padrão é LOW. Uma pessoa precisa revisar e aprovar o perfil em seu terminal:
+
+```powershell
+uv run hdast profile approve clinica-piloto --products-dir ./products
+```
+
+A CLI também pede confirmação com o dono do produto da validade até **31/12/2027**, pois ultrapassa um ano.
+
+A alcançabilidade ainda não foi medida; a pilha, o probe e a varredura não foram iniciados. Por isso, não há contagem de achados por severidade nem relatório ou triagem. A carta não autoriza escrita no teste de autorização entre contas, e os caminhos e métodos proibidos permanecerão fora da cobertura. Após a aprovação, a rodada pode continuar.
