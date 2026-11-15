@@ -89,6 +89,7 @@ Um item só está concluído quando:
 5. A documentação afetada está atualizada e há ADR, se a mudança pedir.
 6. O [CHANGELOG.md](CHANGELOG.md) está atualizado.
 7. A revisão foi concluída conforme a seção anterior.
+8. Se a versão condiciona uma função à carta de autorização, o mesmo PR atualiza o caso da avaliação cega (carta e perfil esperado) e a régua da nota, com testes que recusam permissões sem autorização e preservam a comparação com rodadas antigas.
 
 Código que funciona mas não cumpre a lista não está concluído.
 
