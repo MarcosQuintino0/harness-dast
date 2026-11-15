@@ -45,7 +45,7 @@ probe:
   error_codes:
     field: code
     outcomes:
-      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO]
+      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO, TIPO_ARQUIVO_NAO_SUPORTADO]
       conflict: [CONFLITO]
       not_found: [NAO_ENCONTRADO, REFERENCIA_INEXISTENTE]
       csrf_error: [XSRF_INVALIDO]
@@ -78,7 +78,7 @@ auth:
   default_account: admin_a
   account_map:
     - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
-    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita] }
+    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita, enviarDocumento] }
     # buscarConsulta e do paciente A de proposito: o teste de autorizacao entre contas (authz) repete esse pedido
     # com o paciente B (mesmo papel). No modo seguro o probe recebe 403 aqui (a consulta e de outro paciente).
     - { account: paciente_a, operations: [obterPerfil, atualizarPerfil, buscarConsulta] }
