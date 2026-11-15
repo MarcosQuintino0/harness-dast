@@ -1,9 +1,10 @@
 """Codificação de requisições montadas (`BuiltRequest`) e do login em `HttpRequest`.
 
 Aqui nasce a URL absoluta que o `ScopeGuard` vai conferir. Corpo JSON, formulário
-(`application/x-www-form-urlencoded`) e texto são suportados; outros tipos de mídia (por
-exemplo `multipart/form-data`) viram `ConfigError`, para o agente saber que a operação não
-pode ser testada ainda. Este módulo é puro.
+(`application/x-www-form-urlencoded`) e texto são suportados por `encode_body`;
+`multipart/form-data` só sai de `encode_built_request`, que tem os arquivos sintéticos (ADR
+0052). Outros tipos de mídia viram `ConfigError`, para o agente saber que a operação não pode
+ser testada ainda. Este módulo é puro.
 """
 
 import json
@@ -14,6 +15,7 @@ from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, Route
+from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE, encode_multipart
 from harness_dast.domain.request_builder import BuiltRequest
 from harness_dast.domain.routing_headers import is_routing_header
 
@@ -42,9 +44,14 @@ def encode_body(body: JsonValue, media_type: str | None) -> tuple[bytes | None, 
         return _form(body).encode(), kind
     if kind == "text/plain":
         return str(body).encode(), kind
+    if kind == MULTIPART_MEDIA_TYPE:
+        raise ConfigError(
+            "Um corpo multipart não é codificado aqui: falta a lista de arquivos da operação.",
+            hint="O multipart sai de encode_built_request, que recebe os arquivos sintéticos.",
+        )
     raise ConfigError(
         f"O tipo de mídia {safe_identifier(kind)} do corpo não é suportado pelo probe.",
-        hint="Operações multipart ou binárias ainda não são testadas; deixe-a fora do plano.",
+        hint="Operações com corpo binário ou XML ainda não são testadas; deixe-a fora do plano.",
     )
 
 
@@ -65,6 +72,22 @@ def _form(body: JsonValue) -> str:
     return urlencode(pairs)
 
 
+def multipart_fields(body: JsonValue) -> tuple[tuple[str, str], ...]:
+    """Campos de texto de um corpo multipart montado (objeto de escalares), na ordem.
+
+    Raises:
+        ConfigError: Corpo que não é um objeto de campos simples.
+    """
+    if body is None:
+        return ()
+    if not isinstance(body, dict) or any(isinstance(v, dict | list) for v in body.values()):
+        raise ConfigError(
+            "Um corpo multipart deve ser um objeto de campos simples.",
+            hint="Campos aninhados não são montados; confira o esquema no OpenAPI.",
+        )
+    return tuple((name, _form_value(value)) for name, value in body.items())
+
+
 def _form_value(value: JsonValue) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -81,9 +104,9 @@ def encode_built_request(
     """Transforma a requisição montada em `HttpRequest` (ainda sem aprovação do escopo).
 
     Raises:
-        ConfigError: Tipo de mídia do corpo não suportado.
+        ConfigError: Tipo de mídia do corpo não suportado, ou multipart inválido.
     """
-    payload, content_type = encode_body(built.body, built.body_media_type)
+    payload, content_type = _encode_payload(built)
     headers: list[tuple[str, str]] = [
         (name, value) for name, value in built.headers.items() if not is_routing_header(name)
     ]
@@ -101,6 +124,20 @@ def encode_built_request(
         account=account,
         route="zap",
     )
+
+
+def _encode_payload(built: BuiltRequest) -> tuple[bytes | None, str | None]:
+    media = (built.body_media_type or "").split(";")[0].strip().lower()
+    if media == MULTIPART_MEDIA_TYPE:
+        if not built.files:
+            raise ConfigError(
+                "O corpo multipart do pedido não tem arquivo para enviar.",
+                hint="Só se monta multipart com campo de arquivo (`format: binary`); "
+                "deixe a operação fora do plano.",
+            )
+        content_type, payload = encode_multipart(multipart_fields(built.body), built.files)
+        return payload, content_type
+    return encode_body(built.body, built.body_media_type)
 
 
 def build_login_request(

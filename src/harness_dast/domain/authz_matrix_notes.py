@@ -18,3 +18,7 @@ NOT_RUN: Final = "O teste parou antes de enviar o pedido desta célula."
 NOTHING_TO_DENY: Final = (
     "A regra não lista nenhum papel em deny: ela só documenta quem pode e não há o que testar."
 )
+UNSUPPORTED_BODY: Final = (
+    "O pedido do probe tem corpo multipart (envio de arquivo); o corpo não é gravado e o teste "
+    "não o repete, então esta proibição não foi testada."
+)

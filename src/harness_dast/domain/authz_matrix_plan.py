@@ -21,6 +21,7 @@ from harness_dast.domain.authz_matrix_notes import (
     NOT_REACHED,
     NOT_RUN,
     NOTHING_TO_DENY,
+    UNSUPPORTED_BODY,
     WRITES_BLOCKED,
 )
 from harness_dast.domain.authz_matrix_report import MatrixCell, MatrixRow
@@ -173,6 +174,8 @@ def _plan_denied(
     chosen = next(
         (e for e in row.exchanges if ctx.roles.get(e.account) in rule.allow), row.exchanges[0]
     )
+    if chosen.multipart is not None:
+        return _skip(acc, rule, operation, chosen, role, ("unsupported_body", UNSUPPORTED_BODY))
     reason = _blocked_reason(chosen.method, allow_writes=ctx.allow_writes)
     if reason is not None:
         return _skip(acc, rule, operation, chosen, role, reason)

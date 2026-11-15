@@ -12,6 +12,7 @@ from typing import Final, Literal
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.multipart_encoding import MultipartPart
 from harness_dast.domain.outcome import SENT_OUTCOMES, Outcome
 from harness_dast.domain.run import RunLimits
 
@@ -49,12 +50,15 @@ class RequestPreview(ApiModel):
         header_names: Nomes dos cabeçalhos de parâmetro.
         fields: Campos de corpo, caminho e consulta com o gerador de cada um.
         uses_flow_values: Se o consumidor receberia valores de um produtor de `flows.yml`.
+        multipart_parts: Partes do corpo `multipart/form-data` (nome, tipo e tamanho), nunca os
+            bytes nem a fronteira (ADR 0052).
     """
 
     query_names: tuple[str, ...] = ()
     header_names: tuple[str, ...] = ()
     fields: tuple[FieldPlan, ...] = ()
     uses_flow_values: bool = False
+    multipart_parts: tuple[MultipartPart, ...] = ()
 
 
 class TargetData(ApiModel):

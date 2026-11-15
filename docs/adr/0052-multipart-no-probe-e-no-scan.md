@@ -171,9 +171,22 @@ Hoje só o crAPI tem upload e ele está fora do teste automático. Por isso a pr
 
 **T52c. Operação de upload no laboratório (decisão do dono).** Onda 2, em paralelo (pastas próprias).
 
-- Alterados: `lab/pilot/src/...` (controlador e serviço do envio), `lab/pilot/openapi.json` (a operação `enviarDocumento`, idêntica nos dois modos), `lab/pilot/product-profile/` (a regra de dados do `descricao` e do arquivo, se o alvo exigir), `lab/pilot/README.md` e os testes do Piloto, e qualquer teste que conte operações do laboratório (o programador procura por número fixo de operações em `tests/`). Fora da tarefa: `evals/answer-keys/`, que é do coordenador e não ganha falha nova.
+- Alterados: `lab/pilot/src/...` (controlador e serviço do envio), `lab/pilot/openapi.json` (a operação `enviarDocumento`, idêntica nos dois modos), `lab/pilot/product-profile/` (a regra de dados do `descricao` e do arquivo, se o alvo exigir), `lab/pilot/README.md` e os testes do Piloto, e qualquer teste que conte operações do laboratório (o programador procura por número fixo de operações em `tests/`). Fora da tarefa: a pasta de gabaritos da avaliação cega em `evals/`, que é do coordenador e não ganha falha nova.
 - Sem a T52c, a parte A da prova não existe e o item fica provado só por testes unitários e, opcionalmente, pelo crAPI à mão.
 
 **T52d. Documentação e skills.** Coordenador: `docs/reference/target-yml.md`/`data-rules-yml.md`, `docs/guides/problemas-comuns.md` (a saída para o alvo que recusa o tipo), `.claude/skills/fix-reachability/SKILL.md` (usar `synthetic_file`). `CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md` e `docs/adr/README.md` são do coordenador.
 
 Ordem: T52a primeiro (tudo depende do corpo montado); T52b e T52c em seguida e em paralelo; T52b só fecha depois do resultado do item 5 da parte A.
+
+## Adendo da T52a (alcance no `probe`, 2026-11-14)
+
+Registro do que a implementação da T52a fez além ou de forma um pouco diferente do texto acima. O status do ADR não muda.
+
+- **Onde moram os modelos de resumo.** `MultipartPart` e `MultipartSummary` ficam em `domain/multipart_encoding.py` (junto de `encode_multipart` e de `summarize_multipart`, que lê um corpo e devolve só nome, tipo e tamanho); `probe_exchange.py` os importa. O resumo do `exchanges.json` nasce de `summarize_multipart` sobre o corpo realmente enviado, e não de um campo a mais em `HttpRequest`: o registro é descartado se o corpo não for um multipart bem formado ou se um segredo registrado aparecer nele.
+- **Classificação de campos** em `domain/multipart_schema.py` (novo, puro): decide arquivo, texto ou recusa; o `RequestBuilder` só o consome. `encoding.contentType` é lido por `adapters/openapi/operation_mapper.py` para `MediaBody.part_content_types` (até 50 campos; só `multipart/form-data`; primeiro tipo da lista, em minúsculas e sem parâmetros; valor que não parece `tipo/subtipo` é ignorado).
+- **Multipart sem arquivo** (só campos de texto) continua recusado em `encode_built_request` (`build_error`); só há envio quando existe pelo menos um `FileSpec`. `encode_body` sozinho continua recusando multipart.
+- **Tipo declarado sem arquivo sintético** (`image/jpeg`...) volta a `text` e a frase fica em `BuiltRequest.skipped_fields`.
+- **Prévia do `--dry-run`:** `RequestPreview.multipart_parts` (modelo em `domain/probe_result.py`) lista nome, tipo e tamanho das partes.
+- **`authz`:** só o `plan_vertical` (`domain/authz_plan.py`) e a tabela de acesso (`domain/authz_matrix_plan.py`, `authz_matrix_notes.py`) reenviariam um `POST` sem o corpo gravado; ambos marcam `unsupported_body`. Os testes de escrita em outra conta e de atribuição em massa já recusavam por `no_json_body` (o registro multipart não tem `body`). Nenhuma lógica de envio do `authz` mudou. O `negative` (ADR 0051) ainda não existe neste ponto da história: quem o implementar deve tratar `multipart is not None` do mesmo modo.
+- **Não modelado:** OpenAPI 3.1 (`contentMediaType`) não é detectado pelo carregador de esquemas (vira campo de texto); a recusa `multipart_unsupported_schema` cobre só o que o 3.0 declara.
+- **Fora da T52a** (continuam para a T52b e a T52c): a regra `binary_body` e o desvio `multipart_not_scannable` no `scan`, o texto do relatório e o teste de laboratório.

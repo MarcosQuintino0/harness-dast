@@ -17,6 +17,10 @@ from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 MAX_PEERS: Final = 2
+UNSUPPORTED_BODY_MESSAGE: Final = (
+    "O pedido do probe tem corpo multipart (envio de arquivo) e o authz não o repete: o corpo "
+    "não é gravado, e repetir sem ele seria outro pedido."
+)
 
 
 @dataclass(frozen=True)
@@ -193,6 +197,9 @@ def plan_vertical(
             )
             continue
         if assigned(item) != item.account:
+            continue
+        if item.multipart is not None:
+            skips.append(skip_note("vertical", item, "unsupported_body", UNSUPPORTED_BODY_MESSAGE))
             continue
         if item.operation_id in covered:
             skips.append(
