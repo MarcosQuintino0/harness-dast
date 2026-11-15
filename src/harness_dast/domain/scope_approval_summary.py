@@ -2,7 +2,7 @@
 
 Mostra, em português e em linhas curtas, o que a aprovação trava: endereço, o que pode, o que é
 proibido, modo de caminho, janela, validade, limites, contas e papéis, a política da varredura,
-o teste de autorização e a limpeza do ambiente.
+o teste de autorização, o teste de valores inválidos e a limpeza do ambiente.
 Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
@@ -131,6 +131,25 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
     return lines
 
 
+def _negative_lines(profile: ProductProfile) -> list[str]:
+    """Linhas do teste de valores que o esquema proíbe (ADR 0051); vazio no padrão."""
+    negative = profile.negative
+    if negative.is_default():
+        return []
+    lines = [
+        f"VALORES INVÁLIDOS: até {negative.max_requests} pedidos, "
+        f"{negative.max_cases_per_operation} por operação (negative)"
+    ]
+    if negative.disabled_classes:
+        lines.append("  - classes desligadas: " + ", ".join(sorted(negative.disabled_classes)))
+    if negative.allow_writes:
+        lines.append(
+            "  - ESCRITA DE VALOR INVÁLIDO AUTORIZADA (negative.allow_writes: true): o teste "
+            "grava dado com valor que o contrato proíbe (POST, PUT e PATCH; nunca DELETE)"
+        )
+    return lines
+
+
 def _authz_matrix_lines(authz: AuthzConfig) -> list[str]:
     """Toda a tabela "quem pode o quê" (ADR 0041), uma linha por operação; vazio sem tabela.
 
@@ -216,5 +235,6 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         _scan_policy_line(profile),
         *_outcomes_lines(profile),
         *_authz_lines(profile),
+        *_negative_lines(profile),
         *_cleanup_lines(profile),
     )

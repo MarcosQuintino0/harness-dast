@@ -209,3 +209,16 @@ Três pacotes, sem arquivo repetido entre os que andam juntos. A ordem importa p
 **T51c. Documentação e skills.** Coordenador ou programador de documentação: `docs/reference/target-yml.md` (bloco `negative`), `docs/reference/` (novo `negative.md`, no molde de `authz.md`), `docs/guides/modelo-de-autorizacao.md` e `cadastrar-um-produto.md` (pergunta da carta), `.claude/skills/run-scan/SKILL.md`, `test-product/SKILL.md`, `triage-findings/SKILL.md`, `.claude/settings.json` (permitir `hdast negative`). `CHANGELOG.md`, `CLAUDE.md` (lista de comandos), `docs/roadmap.md` e `docs/adr/README.md` são do coordenador.
 
 Dependência cruzada: o veredito do 5xx **não** usa o catálogo do ADR 0049; as duas entregas são independentes, e a T51a pode começar na onda 1 **só nos arquivos novos do domínio** (`negative_*.py`) se o coordenador quiser adiantar, desde que a parte de `scope_fingerprint.py`, `profile.py` e `letter*.py` espere a T50a.
+
+## Adendo da T51a (implementação do núcleo)
+
+Este adendo registra o que a T51a (domínio, perfil, carta, aprovação, aplicação e comando solto) fez além ou de modo diferente do texto acima, sem mudar a decisão nem o status.
+
+- **Entregue:** `domain/negative_*` (config, valores, plano, pedido, veredito, resultado, achados, contagem), `letter_negative.py`, o bloco `negative` em `ProductProfile`, o campo `attack.allow_invalid_input_writes`, a impressão digital (bloco só quando difere do padrão) e o resumo da aprovação, `application/negative*`, `hdast negative` e `negative.json`. Não entram nesta tarefa, e ficam para a T51b: o estágio no `run`, `findings.json`, o relatório e o painel.
+- **Campos aditivos do `negative.json`:** `operations` (uma linha por operação com casos enviados, para a seção do relatório) e `plan` (só na simulação, sem o valor). `restore_pending` é o motivo de os casos restantes de uma operação não saírem quando a restauração não se confirmou (separado de `possible_unrestored_change`, que é o aviso).
+- **`not_tested` agregado:** `budget` e `unconfirmable` saem uma vez por operação, com a contagem na mensagem, e não uma linha por caso (a lista fica limitada).
+- **Orçamento total:** o plano já traz no máximo `max_requests` casos; o laço ainda confere o orçamento a cada envio e reserva dois envios para um `PUT` ou `PATCH` (o caso e a restauração). Retentativas do despachante contam, e a restauração pode ultrapassar o teto por elas.
+- **502, 503 e 504** seguem a tabela do ADR (5xx é `server_error`), embora o emissor também os conte como falha de transporte para o limite de alvo sem resposta. Quem triar deve desconfiar de um 5xx desses quando o alvo está instável.
+- **Multipart:** o `negative` trata `exchange.multipart` preenchido (ADR 0052) como não testável (`unsupported_body`). Enquanto o campo não existir no `ExchangeRecord`, a leitura é feita pelo `__dict__` do registro; com o campo na base, vira `exchange.multipart is not None`.
+- **`--only`** é conferido contra o OpenAPI (operação desconhecida é erro de configuração), não contra o `exchanges.json`.
+- **Sem releitura:** a restauração só reenvia o corpo original e confere o `2xx`; não lê o recurso de volta (limite já declarado acima).

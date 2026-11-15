@@ -15,6 +15,7 @@ from harness_dast.application.scan_ports import ScanStart
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
@@ -259,6 +260,7 @@ class InMemoryRunArtifacts:
         self.triage: dict[str, object] = {}
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
+        self.negative: dict[str, NegativeResult] = {}
         self.rule_stats: dict[str, RuleStatsFile] = {}
         self.metrics: dict[str, RunMetrics] = {}
         self.failing_writes: set[str] = set()
@@ -315,6 +317,9 @@ class InMemoryRunArtifacts:
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         self.authz[run_id] = result
 
+    def write_negative(self, run_id: str, result: NegativeResult) -> None:
+        self.negative[run_id] = result
+
     def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
         if "rule_stats" in self.failing_writes:
             raise ConfigError("disco cheio")
@@ -340,6 +345,7 @@ class InMemoryRunArtifacts:
         parts += [json.dumps(a) for alerts in self.alerts.values() for a in alerts]
         parts += [m.model_dump_json() for ms in self.evidence.values() for m in ms]
         parts += [a.model_dump_json() for a in self.authz.values()]
+        parts += [n.model_dump_json() for n in self.negative.values()]
         parts += [r.model_dump_json() for r in self.rule_stats.values()]
         parts += [m.model_dump_json() for m in self.metrics.values()]
         return "\n".join(parts)

@@ -6,7 +6,7 @@ arquivo temporário e `os.replace`, para nunca existir um arquivo pela metade. E
 redige: quem grava já entregou texto redigido (`domain.redaction`).
 
 Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json`, `authz.json`,
-`rule-stats.json` e `metrics.json` (escritos aqui); `manifest.json`, `probe.json`,
+`negative.json`, `rule-stats.json` e `metrics.json` (escritos aqui); `manifest.json`, `probe.json`,
 `exchanges.json`, `audit.jsonl`, `triage.json` e `findings.json` (lidos).
 """
 
@@ -22,6 +22,7 @@ from pydantic import BaseModel, ValidationError
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
@@ -43,6 +44,7 @@ FINDINGS_FILE: Final = "findings.json"
 SUMMARY_FILE: Final = "run.json"
 EXCHANGES_FILE: Final = "exchanges.json"
 AUTHZ_FILE: Final = "authz.json"
+NEGATIVE_FILE: Final = "negative.json"
 RULE_STATS_FILE: Final = "rule-stats.json"
 METRICS_FILE: Final = "metrics.json"
 _SCAN_MISSING_HINT: Final = (
@@ -56,6 +58,7 @@ KNOWN_FILES: Final = (
     "probe.json",
     EXCHANGES_FILE,
     AUTHZ_FILE,
+    NEGATIVE_FILE,
     "scan-progress.json",
     SCAN_FILE,
     RULE_STATS_FILE,
@@ -112,6 +115,10 @@ class FileRunArtifacts:
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         """Grava `authz.json`."""
         self._write(run_id, AUTHZ_FILE, result.model_dump_json(indent=2))
+
+    def write_negative(self, run_id: str, result: NegativeResult) -> None:
+        """Grava `negative.json`."""
+        self._write(run_id, NEGATIVE_FILE, result.model_dump_json(indent=2))
 
     def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
         """Grava `rule-stats.json`."""
