@@ -314,8 +314,8 @@ class Facts:
 
 
 def throwaway_pilot_env() -> dict[str, str]:
-    env: dict[str, str] = {}
-    for name in ("ADMIN", "MEDICO", "PACIENTE_A", "PACIENTE_B"):
+    env: dict[str, str] = {"HDAST_ZAP_API_KEY": secrets.token_hex(32)}
+    for name in ("ADMIN", "MEDICO", "MEDICO_B", "PACIENTE_A", "PACIENTE_B"):
         env[f"PILOT_{name}_USERNAME"] = f"it_{secrets.token_hex(4)}"
         env[f"PILOT_{name}_PASSWORD"] = secrets.token_urlsafe(18)
     return env

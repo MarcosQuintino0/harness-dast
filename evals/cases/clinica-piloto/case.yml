@@ -59,10 +59,14 @@ expected:
   accounts:
     - { alias: admin_a, role: admin, username_env: PILOT_ADMIN_USERNAME, password_env: PILOT_ADMIN_PASSWORD }
     - { alias: medico_a, role: medico, username_env: PILOT_MEDICO_USERNAME, password_env: PILOT_MEDICO_PASSWORD }
+    - { alias: medico_b, role: medico, username_env: PILOT_MEDICO_B_USERNAME, password_env: PILOT_MEDICO_B_PASSWORD }
     - { alias: paciente_a, role: paciente, username_env: PILOT_PACIENTE_A_USERNAME, password_env: PILOT_PACIENTE_A_PASSWORD }
     - { alias: paciente_b, role: paciente, username_env: PILOT_PACIENTE_B_USERNAME, password_env: PILOT_PACIENTE_B_PASSWORD }
   cleanup: absent
-  path_mode: strict
+  path_mode: wide
+  allow_authz_writes: true
+  allow_invalid_input_writes: true
+  include_outcomes: [not_found]
 
 # Usuarios e senhas sao sorteados por rodada (o executor os grava em sealed/ e o coordenador os poe
 # no ambiente do agente); a pilha entrega ao alvo os mesmos valores.
@@ -72,6 +76,8 @@ secrets:
     - PILOT_ADMIN_PASSWORD
     - PILOT_MEDICO_USERNAME
     - PILOT_MEDICO_PASSWORD
+    - PILOT_MEDICO_B_USERNAME
+    - PILOT_MEDICO_B_PASSWORD
     - PILOT_PACIENTE_A_USERNAME
     - PILOT_PACIENTE_A_PASSWORD
     - PILOT_PACIENTE_B_USERNAME
@@ -91,6 +97,9 @@ flaws:
     detectable: true
     weight: 1
     match: { titles: ["Application Error Disclosure", "Information Disclosure - Debug Error Messages"] }
+    match_any:
+      - { category: stack_trace_java, operation_id: buscarPacientesPorNome }
+      - { category: stack_trace_java, operation_id: buscarMedicoPorCrm }
   - id: H3
     title: Cabecalhos de seguranca ausentes e CORS permissivo
     detectable: true
@@ -131,7 +140,7 @@ flaws:
     match: { titles: ["SQL Injection"], path_contains: /api/convenios/codigo }
   - id: H9
     title: Travessia de caminho em parametro de caminho (arquivo por nome)
-    detectable: false     # medido: ESTRITO nao acha (exige %2f, recusado pela cerca); o modo amplo acha. Carta deste caso e estrita
+    detectable: true      # medido no modo amplo
     weight: 3
     match: { titles: ["Path Traversal"], path_contains: /api/arquivos }
   - id: H10

@@ -78,7 +78,7 @@ auth:
   default_account: admin_a
   account_map:
     - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
-    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita, enviarDocumento] }
+    - { account: medico_a, operations: [criarPaciente, buscarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita, enviarDocumento] }
     # buscarConsulta e do paciente A de proposito: o teste de autorizacao entre contas (authz) repete esse pedido
     # com o paciente B (mesmo papel). No modo seguro o probe recebe 403 aqui (a consulta e de outro paciente).
     - { account: paciente_a, operations: [obterPerfil, atualizarPerfil, buscarConsulta] }
@@ -92,6 +92,10 @@ auth:
       role: medico
       username: { secret_ref: "env:PILOT_MEDICO_USERNAME" }
       password: { secret_ref: "env:PILOT_MEDICO_PASSWORD" }
+    - alias: medico_b
+      role: medico
+      username: { secret_ref: "env:PILOT_MEDICO_B_USERNAME" }
+      password: { secret_ref: "env:PILOT_MEDICO_B_PASSWORD" }
     - alias: paciente_a
       role: paciente
       username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }

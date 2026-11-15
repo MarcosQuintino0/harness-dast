@@ -70,3 +70,31 @@ def read_authorization(name: str, case: Case, cases_dir: Path = CASES_DIR) -> st
     if not path.is_file():
         raise EvalError(f"Carta de autorizacao ausente: {path}.")
     return path.read_text(encoding="utf-8")
+
+
+def load_round_case(
+    dirs: RoundDirs, name: str, cases_dir: Path = CASES_DIR, *, case_file: Path | None = None
+) -> Case:
+    """Carrega o lacre ou o caso historico explicitamente informado pelo coordenador."""
+    snapshot = dirs.sealed / "case.json"
+    if case_file is not None and snapshot.exists():
+        raise EvalError("A rodada ja tem case.json lacrado; nao substitua por --case-file.")
+    path = case_file if case_file is not None else snapshot
+    if path.exists() and not path.is_file():
+        raise EvalError(f"Gabarito nao e um arquivo: {path}.")
+    if path.is_file():
+        try:
+            case = Case.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        except (OSError, UnicodeError, yaml.YAMLError, ValidationError) as error:
+            raise EvalError(f"Gabarito invalido: {path}: {error}") from error
+        if case.name != name:
+            raise EvalError(f"Gabarito {path} e do caso {case.name}, nao da rodada {name}.")
+        return case
+    if case_file is not None:
+        raise EvalError(f"Gabarito historico nao encontrado: {case_file}.")
+    if cases_dir == CASES_DIR:
+        raise EvalError(
+            "Rodada sem sealed/case.json: recupere o gabarito exato da rodada e informe "
+            "--case-file CAMINHO; nao e seguro presumir a carta."
+        )
+    return load_case(name, cases_dir)

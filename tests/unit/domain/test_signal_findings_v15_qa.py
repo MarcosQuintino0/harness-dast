@@ -141,7 +141,8 @@ def test_the_findings_are_capped_and_the_overflow_is_counted_with_exact_totals()
     result = build(*rows)
 
     assert len(result.findings) <= MAX_SIGNAL_FINDINGS
-    assert len(result.findings) + result.findings_omitted >= MAX_SIGNAL_FINDINGS + 1
+    assert len(result.findings) == 1
+    assert result.findings_omitted == 0
     assert result.counts["sql_error"] == len(rows)
 
 

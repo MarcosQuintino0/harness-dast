@@ -243,6 +243,10 @@ Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans
 | 1.7 | Velocidade | Planejada |
 | 1.8 | Sessão do Claude | Planejada |
 
+### V1.5.2: avaliação atualizada e correções da rodada cega
+
+Implementada nos itens A a H do [plano da versão](plans/2026-11-15-plano-v1-5-2-avaliacao.md), com ADRs 0053 a 0056, caso estrito preservado, régua para quatro fontes, caso lacrado e gabarito histórico explícito, segunda conta médica, paginação inicial, sinais por operação e dicas no `spec inspect`. O [relatório da versão](reviews/relatorio-v1.5.2.md) registra gates, provas do laboratório e limites; ele complementa o estado histórico da V1.4 acima. Nada foi testado contra produto real. O bloqueio efetivo de comandos compostos no Claude Code e o efeito das dicas em uma nova rodada cega permanecem sem prova.
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_case
+from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_round_case
 from evals.runner.checks_profile import WIDENING_IDS, profile_checks
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
@@ -46,7 +46,9 @@ def _case_name(dirs: RoundDirs) -> str:
     return str(json.loads(mode_file.read_text(encoding="utf-8"))["case"])
 
 
-def approve(out: Path, *, cases_dir: Path = CASES_DIR) -> ApproveResult:
+def approve(
+    out: Path, *, cases_dir: Path = CASES_DIR, case_file: Path | None = None
+) -> ApproveResult:
     """Confere o perfil do workspace contra a carta e grava a aprovacao da rodada.
 
     Raises:
@@ -54,7 +56,7 @@ def approve(out: Path, *, cases_dir: Path = CASES_DIR) -> ApproveResult:
             alarga a carta (nada e gravado).
     """
     dirs = RoundDirs(out)
-    case = load_case(_case_name(dirs), cases_dir)
+    case = load_round_case(dirs, _case_name(dirs), cases_dir, case_file=case_file)
     products = dirs.workspace / "products"
     target = products / case.product / "target.yml"
     if not target.is_file():

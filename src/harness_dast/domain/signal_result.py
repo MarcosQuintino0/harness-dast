@@ -16,7 +16,7 @@ from harness_dast.domain.error_signal_catalog import SignalCategory
 from harness_dast.domain.zap_alert import Confidence, Severity
 
 SIGNAL_SCHEMA_VERSION: Final = 1
-SIGNAL_FINGERPRINT_VERSION: Final = 1
+SIGNAL_FINGERPRINT_VERSION: Final = 2
 MAX_SIGNAL_FINDINGS: Final = 500
 MAX_STATUSES: Final = 5
 MAX_QUERY_PARAMS: Final = 10

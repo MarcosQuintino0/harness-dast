@@ -6,6 +6,25 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-15
+
+Atualiza a avaliação e corrige os defeitos observados na rodada cega, sem acrescentar técnica de ataque. Evidências e limites no [relatório da versão](docs/reviews/relatorio-v1.5.2.md).
+
+### Avaliação e autorização (ADR 0053)
+
+- A carta da Clínica Piloto passa a autorizar explicitamente modo amplo, escrita entre contas, escrita de valores proibidos e varredura de `not_found`; inclui uma segunda conta médica e orienta como obter nomes existentes de documentos. O caso anterior permanece em `clinica-piloto-estrito`.
+- A régua reconhece ZAP, `authz`, `proxy_signals` e `negative`, com categoria/técnica e operação. A fidelidade e o aprovador recusam permissões ausentes da carta e entradas malformadas.
+- Novas rodadas lacram o caso completo. Rodadas antigas sem esse lacre exigem `--case-file` com o gabarito histórico; a nota registra a origem e o SHA-256. O caso histórico Terra amplo reproduz 7,18; a verificação dos segredos antigos não é reproduzível sem o lacre não arquivado.
+
+### Alcance, sinais e orientação (ADRs 0054 a 0056)
+
+- Paginação reconhecível de consulta usa a primeira página e um tamanho pequeno válido. Regras explícitas e valores encadeados continuam com precedência.
+- O laboratório inclui `medico_b`, com referências `PILOT_MEDICO_B_*`, para exercitar `horizontal_write`. Compartilhamento legítimo de pacientes entre médicos continua sujeito à triagem dos alertas entre pares.
+- Sinais de erro usam o contrato completo para resolver a operação, agrupam por operação/método/categoria e reúnem caminhos sem correspondência em um grupo por categoria. Fingerprints dos sinais passam à versão 2; os dos outros achados não mudam.
+- `spec inspect` entrega hipóteses de encadeamento lista→detalhe e distribuição de leituras entre contas pares, no JSON e no texto. Não altera o perfil. Skills de cadastro e alcance passam a usar essas dicas.
+- A cópia cega nega menções a Docker em qualquer posição do comando com regras conservadoras. A consulta de imagens que falha no `doctor` orienta repetir o próprio `doctor`. Eficácia das permissões no Claude Code em execução permanece sem prova nesta versão.
+- A Definition of Done e o plano do ciclo exigem atualizar caso e régua da avaliação no mesmo PR que condiciona uma função à carta.
+
 ## [1.5.1] - 2026-11-15
 
 Completa a V1.5 ("achar mais: entrada e erros") com as quatro partes ativas que a 1.5.0 deixou de fora. Provado por testes unitários, de contrato, QA independente e, com Docker, na Clínica Piloto nos modos vulnerável e seguro. **Nada foi provado contra produto real.**

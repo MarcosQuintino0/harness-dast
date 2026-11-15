@@ -57,6 +57,10 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0050](0050-varrer-operacoes-que-deram-nao-encontrado.md) | Varrer as operações que deram "não encontrado" (`scan.include_outcomes`) | Proposto | 2026-11-14 | Complemento da V1.5 |
 | [0051](0051-valores-que-o-esquema-proibe.md) | Valores que o esquema proíbe (`hdast negative`) | Proposto | 2026-11-14 | Complemento da V1.5 |
 | [0052](0052-multipart-no-probe-e-no-scan.md) | `multipart` no `probe` e no `scan` | Proposto | 2026-11-14 | Complemento da V1.5 |
+| [0053](0053-avaliacao-v1-5-2.md) | Carta, régua e gabarito histórico da avaliação | Proposto | 2026-11-15 | V1.5.2 |
+| [0054](0054-paginacao-e-conta-par-do-laboratorio.md) | Paginação inicial e conta par no laboratório | Proposto | 2026-11-15 | V1.5.2 |
+| [0055](0055-agrupar-sinais-por-operacao.md) | Agrupar sinais por operação do contrato | Proposto | 2026-11-15 | V1.5.2 |
+| [0056](0056-dicas-de-encadeamento-e-contas-pares.md) | Dicas de encadeamento e contas pares | Proposto | 2026-11-15 | V1.5.2 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

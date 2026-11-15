@@ -113,3 +113,132 @@ def test_approve_again_after_the_agent_edits_a_protected_block_approves_the_new_
     approve(out, cases_dir=CASES)
 
     assert check_approval(profile, FileApprovalStore(dirs.state).read("mini")).state == "approved"
+
+
+@pytest.mark.parametrize(
+    ("block", "field", "value"),
+    [
+        ("authz", "allow_writes", True),
+        ("negative", "allow_writes", True),
+        ("scan", "allow_upload_scan", True),
+        ("scan", "include_outcomes", ["not_found"]),
+    ],
+)
+def test_approve_recusa_permissao_nao_autorizada(
+    repo: Path, out: Path, block: str, field: str, value: object
+) -> None:
+    dirs = make_round(repo, out)
+    profile = copy.deepcopy(PROFILE)
+    profile[block] = {field: value}
+    install(dirs, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out, cases_dir=CASES)
+    assert not (dirs.state / "approvals").exists()
+
+
+@pytest.mark.parametrize(
+    ("block", "value"),
+    [("authz", None), ("negative", []), ("scan", "invalido"), ("authz", {"allow_writes": "true"})],
+)
+def test_approve_recusa_formato_de_ataque_invalido(
+    repo: Path, out: Path, block: str, value: object
+) -> None:
+    dirs = make_round(repo, out)
+    profile = copy.deepcopy(PROFILE)
+    profile[block] = value
+    install(dirs, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out, cases_dir=CASES)
+    assert not (dirs.state / "approvals").exists()
+
+
+def _perfil_clinica_da_carta() -> dict[str, Any]:
+    profile = copy.deepcopy(PROFILE)
+    profile["product"] = "clinica-piloto"
+    profile["environment"]["base_url"] = "http://clinica-piloto:8080"
+    profile["scope"] = {
+        "allow": [
+            {
+                "host": "clinica-piloto",
+                "scheme": "http",
+                "port": 8080,
+                "allow_local": True,
+                "paths": ["/api/**", "/v3/api-docs"],
+                "methods": ["GET", "POST", "PUT", "PATCH"],
+            }
+        ],
+        "deny_paths": ["/api/notificacoes/**", "/api/isca/**"],
+        "path_mode": "wide",
+        "authorization": {"reference": "LAB-CLINICA-PILOTO", "valid_until": "2027-12-31"},
+        "windows": ["seg-dom 00:00-24:00 America/Sao_Paulo"],
+    }
+    profile["limits"] = {
+        "requests_per_second": 20,
+        "max_duration_minutes": 30,
+        "zap_threads_per_host": 4,
+    }
+    accounts = [
+        ("admin_a", "admin", "PILOT_ADMIN"),
+        ("medico_a", "medico", "PILOT_MEDICO"),
+        ("medico_b", "medico", "PILOT_MEDICO_B"),
+        ("paciente_a", "paciente", "PILOT_PACIENTE_A"),
+        ("paciente_b", "paciente", "PILOT_PACIENTE_B"),
+    ]
+    profile["auth"]["accounts"] = [
+        {
+            "alias": alias,
+            "role": role,
+            "username": {"secret_ref": f"env:{prefix}_USERNAME"},
+            "password": {"secret_ref": f"env:{prefix}_PASSWORD"},
+        }
+        for alias, role, prefix in accounts
+    ]
+    profile["authz"] = {"allow_writes": True}
+    profile["negative"] = {"allow_writes": True}
+    profile["scan"] = {"include_outcomes": ["not_found"]}
+    return profile
+
+
+def _prepara_clinica_real(repo: Path, out: Path, profile: dict[str, Any]) -> RoundDirs:
+    from evals.runner.prepare import prepare
+
+    write(repo / "lab/pilot/openapi.json", '{"openapi":"3.0.0"}')
+    prepare("clinica-piloto", "vulnerable", 7, out, source=repo)
+    dirs = RoundDirs(out)
+    folder = dirs.workspace / "products/clinica-piloto"
+    write(folder / "target.yml", yaml.safe_dump(profile))
+    write(folder / "openapi.json", '{"openapi":"3.0.0"}')
+    return dirs
+
+
+def test_prepara_e_aprova_caso_real_com_cinco_contas_e_permissoes_da_carta(
+    repo: Path, out: Path
+) -> None:
+    from evals.runner.cases import load_case
+    from evals.runner.checks_profile import profile_checks
+
+    data = _perfil_clinica_da_carta()
+    dirs = _prepara_clinica_real(repo, out, data)
+    checks = profile_checks(data, load_case("clinica-piloto"))
+    assert len(checks) == 11
+    assert all(check.passed is True for check in checks)
+    assert len(data["auth"]["accounts"]) == 5
+
+    result = approve(out)
+
+    assert result.product == "clinica-piloto"
+    profile = FileProfileRepository(dirs.workspace / "products").load("clinica-piloto")
+    stored = FileApprovalStore(dirs.state).read("clinica-piloto")
+    assert check_approval(profile, stored).state == "approved"
+
+
+def test_caso_real_recusa_upload_nao_autorizado(repo: Path, out: Path) -> None:
+    profile = _perfil_clinica_da_carta()
+    profile["scan"]["allow_upload_scan"] = True
+    dirs = _prepara_clinica_real(repo, out, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out)
+    assert not (dirs.state / "approvals").exists()
