@@ -37,18 +37,22 @@ def build_parser() -> argparse.ArgumentParser:
         "approve", help="coordenador aprova o escopo do perfil da rodada (ADR 0037)"
     )
     approve_parser.add_argument("--out", type=Path, required=True)
+    approve_parser.add_argument("--case-file", type=Path, default=None)
     coll = sub.add_parser("collect", help="junta o rastro em <out>/trace")
     coll.add_argument("--out", type=Path, required=True)
     coll.add_argument("--state-dir", type=Path, default=None)
+    coll.add_argument("--case-file", type=Path, default=None)
     snap = sub.add_parser("snapshot", help="instantaneo do perfil durante a rodada")
     snap.add_argument("--out", type=Path, required=True)
     snap.add_argument("--label", default="manual")
     score = sub.add_parser("score", help="nota em <out>/score.json e score.md")
     score.add_argument("--out", type=Path, required=True)
+    score.add_argument("--case-file", type=Path, default=None)
     score.add_argument("--tokens", type=int, default=None)
     score.add_argument("--duration-seconds", type=int, default=None)
     classify = sub.add_parser("classify", help="modelo de classificacao das falhas")
     classify.add_argument("--out", type=Path, required=True)
+    classify.add_argument("--case-file", type=Path, default=None)
     measure = sub.add_parser("measure", help="tempo e tokens por etapa em <out>/agent-metrics.json")
     measure.add_argument("--out", type=Path, required=True)
     measure.add_argument("--label", default=None)
@@ -89,15 +93,17 @@ def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
             f"exclusoes: {len(result.excluded)}; termos do gabarito na copia: {len(result.leaks)}"
         )
     if args.command == "approve":
-        approved = approve(out)
+        approved = approve(out, case_file=args.case_file)
         return f"escopo de {approved.product} aprovado em {approved.approved_at}: {approved.file}"
     if args.command == "collect":
-        collected = collect(out, state_dir=args.state_dir)
+        collected = collect(out, state_dir=args.state_dir, case_file=args.case_file)
         return f"rastro: {collected.trace}; problemas: {list(collected.problems) or 'nenhum'}"
     if args.command == "snapshot":
         return f"instantaneo: {gitutil.snapshot(RoundDirs(out).workspace, args.label)}"
     result_json = scoring.compute(
-        out, scoring.Cost(getattr(args, "tokens", None), getattr(args, "duration_seconds", None))
+        out,
+        scoring.Cost(getattr(args, "tokens", None), getattr(args, "duration_seconds", None)),
+        case_file=args.case_file,
     )
     if args.command == "score":
         (out / "score.json").write_text(json.dumps(result_json, indent=2), encoding="utf-8")
