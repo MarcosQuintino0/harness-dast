@@ -60,6 +60,9 @@ _NOT_TRIED_SKIPS: Final = {
     "not_selected": "Fora da seleção pedida para esta varredura.",
     "not_planned": "Não estava no plano da varredura.",
     "not_run": "A varredura parou antes de chegar a esta função.",
+    "upload_scan_not_authorized": "Envio de arquivo: a carta não autoriza varrer upload.",
+    "binary_body": "Envio de arquivo com conteúdo binário: alcançada, mas não varrida.",
+    "multipart_not_scannable": "Envio de arquivo: o ZAP não consegue varrer este tipo de pedido.",
 }
 _FAILED_SKIPS: Final = {
     "not_success": "Não respondeu como esperado no alcance, então não foi atacada.",
