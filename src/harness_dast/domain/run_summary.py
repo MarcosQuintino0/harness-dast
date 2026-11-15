@@ -53,6 +53,7 @@ class RunOptions(BaseModel):
     fail_on: str | None = None
     compare: str | None = None
     max_minutes: int | None = None
+    include_outcomes: bool = True
 
 
 class RunSummary(BaseModel):

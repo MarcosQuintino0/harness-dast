@@ -201,6 +201,7 @@ class ScanRunner:
                 method=target.method,
                 path=target.path,
                 message_id=target.message_id,
+                seed_outcome=target.seed_outcome,
                 outcome="refused",
                 note=f"O ZAP recusou iniciar a varredura: {error.message}",
             )
@@ -251,6 +252,7 @@ class ScanRunner:
                 alert_count=len(alert_ids),
                 alert_ids=alert_ids,
                 note=note,
+                seed_outcome=target.seed_outcome,
             )
         )
 

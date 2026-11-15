@@ -173,10 +173,15 @@ class AttackSection(ProfileModel):
             verificação vertical e da tabela quem pode o quê)? Booleano
             -> `authz.allow_writes`. Ausente, nulo ou `desconhecido` valem `false`; `true` só
             com `source: carta` e a frase de origem em `quote` (ADR 0038).
+        include_outcomes: Lista de classes do `probe` além de `success` cujas operações também
+            são atacadas (`logical_failure`, `validation_error`, `conflict`, `not_found`,
+            `client_error`) -> `scan.include_outcomes`. Ausente, nulo, `desconhecido` ou vazia
+            valem nenhuma; aceita `source: carta` ou `pessoa`, sem `quote` (ADR 0050).
     """
 
     strength: Answer | None = None
     allow_authz_writes: Answer | None = None
+    include_outcomes: Answer | None = None
 
 
 class Letter(ProfileModel):

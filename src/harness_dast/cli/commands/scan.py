@@ -10,7 +10,7 @@ from harness_dast.application.stage_errors import scan_stop_error
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_scan, open_scan_network
 from harness_dast.cli.stack_lock_composition import hold_stack
-from harness_dast.domain.errors import ExitCode
+from harness_dast.domain.errors import ConfigError, ExitCode
 from harness_dast.domain.scan_result import ScanResult
 
 
@@ -42,6 +42,13 @@ def _render(result: ScanResult) -> str:
     return "\n".join(lines)
 
 
+def _chosen(flags: list[str] | None, *, no_include_outcomes: bool) -> tuple[str, ...] | None:
+    """Sem flag vale o perfil (`None`); `--no-include-outcomes` reduz a nenhuma classe extra."""
+    if no_include_outcomes:
+        return ()
+    return tuple(flags) if flags else None
+
+
 # Passa de 40 linhas porque quase todas são a declaração das opções do Typer.
 def scan_command(
     ctx: typer.Context,
@@ -54,11 +61,18 @@ def scan_command(
         list[str] | None,
         typer.Option(
             "--include-outcome",
-            help="Varre também operações com esta classe do probe (repetível; só leitura de "
-            "falhas de dados: logical_failure, validation_error, conflict, not_found, "
-            "client_error).",
+            help="Escolhe, dentro de scan.include_outcomes do perfil, as classes do probe que "
+            "também são varridas (repetível). Só reduz: classe que o perfil não lista é "
+            "recusada; só a carta a autoriza.",
         ),
     ] = None,
+    no_include_outcomes: Annotated[
+        bool,
+        typer.Option(
+            "--no-include-outcomes",
+            help="Ignora scan.include_outcomes do perfil: varre só operações com sucesso.",
+        ),
+    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Mostra o plano; não toca o ZAP nem o alvo."),
@@ -86,6 +100,11 @@ def scan_command(
 ) -> int:
     """Varre com o ZAP as requisições que o probe ensinou, com limites fixos."""
     state = get_state(ctx)
+    if include_outcome and no_include_outcomes:
+        raise ConfigError(
+            "--include-outcome e --no-include-outcomes não combinam.",
+            hint="Use só uma: a primeira escolhe classes do perfil, a segunda as tira todas.",
+        )
     # A simulação não toca o ZAP nem o alvo: não precisa da pilha (ADR 0035).
     with hold_stack("scan", product, needed=not dry_run):
         net = open_scan_network(product, products_dir, state.secrets)
@@ -95,7 +114,9 @@ def scan_command(
                     product=product,
                     run_id=run,
                     only=tuple(only or ()),
-                    include_outcomes=tuple(include_outcome or ()),
+                    include_outcomes=_chosen(
+                        include_outcome, no_include_outcomes=no_include_outcomes
+                    ),
                     dry_run=dry_run,
                     max_minutes=max_minutes,
                     threads=threads,

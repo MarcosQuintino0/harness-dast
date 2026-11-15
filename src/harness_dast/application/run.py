@@ -122,6 +122,8 @@ class RunRequest:
         fail_on: Limiar do `report` (sobrepõe o perfil).
         compare: Execução anterior para a comparação do `report`.
         max_minutes: Reduz o prazo do `scan` (conta o tempo já gasto); nunca amplia o perfil.
+        include_outcomes: `True` (padrão): o `scan` usa `scan.include_outcomes` do perfil.
+            `False` equivale a `--no-include-outcomes` (só `success`); nunca amplia (ADR 0050).
     """
 
     product: str
@@ -131,6 +133,7 @@ class RunRequest:
     fail_on: FailOn | None = None
     compare: str | None = None
     max_minutes: int | None = None
+    include_outcomes: bool = True
 
 
 @dataclass(frozen=True)
@@ -409,6 +412,7 @@ class RunPipeline:
                 product=request.product,
                 run_id=run_id,
                 max_minutes=self._remaining(request.max_minutes, started),
+                include_outcomes=None if request.include_outcomes else (),
                 deadline=progress.deadline,
             )
         )
@@ -499,6 +503,7 @@ class RunPipeline:
                 fail_on=request.fail_on,
                 compare=request.compare,
                 max_minutes=request.max_minutes,
+                include_outcomes=request.include_outcomes,
             ),
             stages=tuple(progress.records[name] for name in STAGES),
             artifacts=self._sink.existing_files(run_id),
