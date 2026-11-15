@@ -13,6 +13,7 @@ from harness_dast.domain.traffic import ProxyRow
 from tests.fakes.rig import PASSWORD, TOKEN, agenda_flows, profile_data
 from tests.fakes.scan_ports import FakeProxyAudit
 from tests.fakes.scan_rig import ScanRig
+from tests.unit.domain.negative_samples import negative_result
 
 
 def ready() -> ScanRig:
@@ -247,3 +248,35 @@ def test_gaps_come_from_the_audit_rows_inside_the_scan_window() -> None:
     gaps = rig.artifacts.metrics[run_id(rig)].traffic.gaps
     assert gaps is not None
     assert (gaps.count, gaps.longest_seconds) == (1, 39.0)
+
+
+def test_recorder_measures_the_negative_stage_from_its_file_without_a_run_json() -> None:
+    rig = scanned_with_rules()
+    rig.artifacts.negative[run_id(rig)] = negative_result(product="agenda", run_id=run_id(rig))
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig))
+
+    assert rig.artifacts.metrics[run_id(rig)].stages_seconds.negative == 600.0
+
+
+def test_recorder_takes_the_negative_time_from_the_run_stage_records_when_given() -> None:
+    rig = scanned_with_rules()
+    rig.artifacts.negative[run_id(rig)] = negative_result(product="agenda", run_id=run_id(rig))
+    stages = (
+        StageRecord(name="negative", status="ok", duration_seconds=4.0),
+        StageRecord(name="authz", status="skipped"),
+    )
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig), stages=stages)
+
+    metrics = rig.artifacts.metrics[run_id(rig)]
+    assert metrics.stages_seconds.negative == 4.0
+    assert metrics.stages_seconds.authz is None
+
+
+def test_recorder_leaves_the_negative_time_empty_when_the_stage_never_ran() -> None:
+    rig = scanned_with_rules()
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig))
+
+    assert rig.artifacts.metrics[run_id(rig)].stages_seconds.negative is None

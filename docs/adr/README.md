@@ -53,6 +53,10 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0046](0046-cobertura-de-operacoes-com-404.md) | Cobertura de operações sem varredura que responderam HTTP 404 | Proposto | 2026-11-14 | Relatório da V1.5 |
 | [0047](0047-validacao-offline-de-exemplos-openapi.md) | Validação offline de exemplos do OpenAPI | Proposto | 2026-11-14 | Inspeção da V1.5 |
 | [0048](0048-multipart-funcional-offline.md) | Detecção de multipart e prova sintética em memória | Proposto | 2026-11-14 | Inspeção da V1.5 |
+| [0049](0049-sinais-de-erro-interno-na-cerca.md) | Sinais de erro interno vistos pela cerca de escopo | Proposto | 2026-11-14 | Complemento da V1.5 |
+| [0050](0050-varrer-operacoes-que-deram-nao-encontrado.md) | Varrer as operações que deram "não encontrado" (`scan.include_outcomes`) | Proposto | 2026-11-14 | Complemento da V1.5 |
+| [0051](0051-valores-que-o-esquema-proibe.md) | Valores que o esquema proíbe (`hdast negative`) | Proposto | 2026-11-14 | Complemento da V1.5 |
+| [0052](0052-multipart-no-probe-e-no-scan.md) | `multipart` no `probe` e no `scan` | Proposto | 2026-11-14 | Complemento da V1.5 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

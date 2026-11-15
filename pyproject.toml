@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "harness-dast"
-version = "1.5.0"
+version = "1.5.1"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -220,6 +220,7 @@ ignore_names = [
     "check_request",
     "recheck_after_wait",
     "reserve_slot",
+    "read_response_signals",
     "check_destination",
     "log",
     "ts",
@@ -260,6 +261,11 @@ ignore_names = [
     "baseline_status",
     "observed_status",
     "omitted_fields",
+    # Envio de arquivo no probe (ADR 0052): campos do resumo de multipart (exchanges.json, prévia
+    # do --dry-run e spec inspect) lidos só pela serialização do pydantic e pelo agente.
+    "total_bytes",
+    "multipart_parts",
+    "multipart_probe",
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",

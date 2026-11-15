@@ -32,8 +32,16 @@ from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import BoundValue, ResolvedBindings
 from harness_dast.domain.implicit_values import FieldNotGeneratable, implicit_draw
+from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE
+from harness_dast.domain.multipart_schema import PartPlan, plan_parts
 from harness_dast.domain.routing_headers import is_routing_header
 from harness_dast.domain.schema_check import violations
+from harness_dast.domain.synthetic_files import (
+    DEFAULT_KIND,
+    FileSpec,
+    default_filename,
+    parse_file_spec,
+)
 from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, validate_run_tag
 
 MAX_BUILD_DEPTH = 12
@@ -89,6 +97,8 @@ class BuiltRequest(ApiModel):
         cookies: Cookies de parâmetros.
         body: Corpo como valor JSON (também para mídias não JSON; quem envia codifica).
         body_media_type: Tipo de mídia do corpo, ou `None` se não há corpo.
+        files: Campos de arquivo sintético (só `multipart/form-data`); `body` leva os campos de
+            texto.
         skipped_fields: Campos opcionais omitidos por não terem gerador possível.
     """
 
@@ -100,6 +110,7 @@ class BuiltRequest(ApiModel):
     cookies: dict[str, str] = Field(default_factory=dict)
     body: JsonValue = None
     body_media_type: str | None = None
+    files: tuple[FileSpec, ...] = ()
     skipped_fields: tuple[str, ...] = ()
 
 
@@ -199,7 +210,7 @@ class RequestBuilder:
             location: self._parameters(operation, location, bound, skipped)
             for location in _LOCATIONS
         }
-        media_type, body = self._body(operation, bound, skipped)
+        media_type, body, files = self._body(operation, bound, skipped)
         return BuiltRequest(
             operation_id=operation.operation_id,
             method=operation.method.upper(),
@@ -209,6 +220,7 @@ class RequestBuilder:
             cookies={name: _stringify(value) for name, value in values["cookie"]},
             body=body,
             body_media_type=media_type,
+            files=files,
             skipped_fields=tuple(skipped),
         )
 
@@ -264,14 +276,65 @@ class RequestBuilder:
 
     def _body(
         self, operation: Operation, bound: ResolvedBindings, skipped: list[str]
-    ) -> tuple[str | None, JsonValue]:
+    ) -> tuple[str | None, JsonValue, tuple[FileSpec, ...]]:
         media = operation.request_body.preferred() if operation.request_body else None
         if media is None:
-            return None, None
-        if media.body_schema is None:
-            return media.media_type, None
+            return None, None, ()
         ctx = _Ctx(operation.operation_id, "body", (), "body", 0, skipped, bound)
-        return media.media_type, self._make(media.body_schema, ctx)
+        if media.media_type.split(";")[0].strip().lower() == MULTIPART_MEDIA_TYPE:
+            fields, files = self._multipart(media.body_schema, media.part_content_types, ctx)
+            return media.media_type, fields, files
+        if media.body_schema is None:
+            return media.media_type, None, ()
+        return media.media_type, self._make(media.body_schema, ctx), ()
+
+    def _multipart(
+        self, schema: Schema | None, part_types: Mapping[str, str], ctx: _Ctx
+    ) -> tuple[JsonValue, tuple[FileSpec, ...]]:
+        """Campos de texto (pelo caminho de sempre) e arquivos sintéticos do corpo multipart."""
+        fields: dict[str, JsonValue] = {}
+        files: list[FileSpec] = []
+        for plan in plan_parts(schema, part_types):
+            child = ctx.child(plan.name)
+            if plan.is_file:
+                files.append(self._file_spec(plan, child))
+                continue
+            value = (
+                self._make(plan.schema, child)
+                if plan.required
+                else self._make_optional(plan.schema, child)
+            )
+            if not isinstance(value, _Omitted):
+                fields[plan.name] = value
+        return fields, tuple(files)
+
+    def _file_spec(self, plan: PartPlan, ctx: _Ctx) -> FileSpec:
+        """Tipo e nome do arquivo: padrão, `encoding.contentType` ou regra `synthetic_file`."""
+        if plan.unsupported_declared is not None:
+            ctx.skipped.append(
+                f"{ctx.display} (tipo declarado {safe_identifier(plan.unsupported_declared)} sem "
+                "arquivo sintético: enviado como text/plain)"
+            )
+        resolved = self._rules.resolve(ctx.operation_id, "body", ctx.segments)
+        if resolved is None:
+            kind = plan.declared_kind or DEFAULT_KIND
+            return FileSpec(field=plan.name, kind=kind, filename=default_filename(kind))
+        rule = resolved.rule
+        if rule.generator != "synthetic_file":
+            raise ConfigError(
+                f"A regra {resolved.index + 1} de data-rules.yml cobre o campo de arquivo "
+                f"{safe_identifier(plan.name)}, mas o gerador não é synthetic_file.",
+                hint="Para campo de arquivo use generator: synthetic_file (kind e name em args).",
+            )
+        text = self._draw(
+            rule.generator, rule.args, plan.schema, ctx, resolved=resolved, unique=False
+        )
+        if not isinstance(text, str):
+            raise ConfigError(
+                "O gerador synthetic_file devolveu algo que não é texto.", hint="Erro interno."
+            )
+        kind, filename = parse_file_spec(text)
+        return FileSpec(field=plan.name, kind=kind, filename=filename)
 
     @staticmethod
     def _render_path(operation: Operation, values: dict[str, JsonValue]) -> str:

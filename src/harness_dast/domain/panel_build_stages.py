@@ -1,8 +1,9 @@
 """Etapas e veredito do painel: o que rodou, o que parou e como o teste terminou. Módulo puro.
 
-As cinco etapas são as da CLI (`preflight`, `probe`, `scan`, `authz`, `report`). Com `run.json`
-ele manda; sem ele (comandos rodados à mão), o estado sai dos arquivos que existem. Um teste
-nunca é chamado de seguro ou aprovado: o veredito só diz se terminou, parou no meio ou deu erro.
+As seis etapas são as da CLI (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`). Com
+`run.json` ele manda; sem ele (comandos rodados à mão), o estado sai dos arquivos que existem.
+Um teste nunca é chamado de seguro ou aprovado: o veredito só diz se terminou, parou no meio
+ou deu erro.
 """
 
 from collections.abc import Sequence
@@ -23,12 +24,20 @@ from harness_dast.domain.panel_sources import PanelSources
 from harness_dast.domain.run_metrics import stage_seconds
 from harness_dast.domain.run_summary import StageRecord
 
-STAGE_ORDER: Final[tuple[StageKey, ...]] = ("preflight", "probe", "scan", "authz", "report")
+STAGE_ORDER: Final[tuple[StageKey, ...]] = (
+    "preflight",
+    "probe",
+    "scan",
+    "authz",
+    "negative",
+    "report",
+)
 STAGE_LABELS: Final[dict[str, str]] = {
     "preflight": "Conferência",
     "probe": "Alcance",
     "scan": "Varredura",
     "authz": "Entre contas",
+    "negative": "Valores proibidos",
     "report": "Achados",
 }
 _RECORD_STATE: Final[dict[str, StageState]] = {
@@ -48,7 +57,7 @@ def _from_record(record: StageRecord | None) -> tuple[StageState, str | None]:
 
 
 def _derived(key: StageKey, src: PanelSources) -> tuple[StageState, str | None]:
-    probe, scan, authz = src.probe, src.scan, src.authz
+    probe, scan = src.probe, src.scan
     if key == "preflight":
         if probe is None and src.manifest is not None and src.manifest.status == "not_ready":
             return "cut", None
@@ -64,10 +73,28 @@ def _derived(key: StageKey, src: PanelSources) -> tuple[StageState, str | None]:
             return "skipped", "Só simulação (dry-run): nada foi enviado."
         return ("done", None) if scan.status == "completed" else ("cut", scan.stop_message)
     if key == "authz":
-        if authz is None:
-            return ("skipped" if scan else "pending"), None
-        return ("done", None) if authz.status == "completed" else ("cut", authz.stop_message)
+        return _derived_authz(src)
+    if key == "negative":
+        return _derived_negative(src)
     return ("done" if src.findings else "pending"), None
+
+
+def _derived_authz(src: PanelSources) -> tuple[StageState, str | None]:
+    authz = src.authz
+    if authz is None:
+        return ("skipped" if src.scan else "pending"), None
+    return ("done", None) if authz.status == "completed" else ("cut", authz.stop_message)
+
+
+def _derived_negative(src: PanelSources) -> tuple[StageState, str | None]:
+    negative = src.negative
+    if negative is None:
+        return ("skipped" if src.scan else "pending"), None
+    if negative.dry_run:
+        return "skipped", "Só simulação (dry-run): nada foi enviado."
+    if negative.status == "completed":
+        return "done", None
+    return "cut", negative.stop_message
 
 
 def _scan_text(src: PanelSources, functions: Sequence[PanelFunction]) -> str:
@@ -146,6 +173,23 @@ def _authz_text(src: PanelSources, state: StageState) -> str:
     )
 
 
+def _negative_text(src: PanelSources, state: StageState) -> str:
+    negative = src.negative
+    if negative is None:
+        if state == "skipped":
+            return (
+                "Não rodou. O teste de valores proibidos roda por padrão no hdast run (só "
+                "leitura); foi desligado com --no-negative ou pulado com --skip-scan."
+            )
+        return ""
+    found = plural(len(negative.findings), "falha encontrada", "falhas encontradas")
+    left = plural(len(negative.not_tested), "item não testado", "itens não testados")
+    return (
+        f"Mandou {plural(negative.requests_sent, 'pedido', 'pedidos')} com um valor que o "
+        f"contrato proíbe por vez: {found} e {left}."
+    )
+
+
 def _report_text(counts: FindingCounts | None) -> str:
     if counts is None:
         return ""
@@ -165,13 +209,14 @@ def _text(
 ) -> str:
     if state == "pending":
         return "Esta etapa não chegou a rodar."
-    if state == "skipped" and key != "authz":
+    if state == "skipped" and key not in ("authz", "negative"):
         return "Pulada: o teste não pediu esta etapa."
     base = {
         "preflight": lambda: _preflight_text(src, functions),
         "probe": lambda: _probe_text(src),
         "scan": lambda: _scan_text(src, functions),
         "authz": lambda: _authz_text(src, state),
+        "negative": lambda: _negative_text(src, state),
         "report": lambda: _report_text(counts),
     }[key]()
     return f"{base} Parou aqui.".strip() if state == "cut" else base
@@ -180,19 +225,26 @@ def _text(
 def build_stages(
     src: PanelSources, functions: Sequence[PanelFunction], counts: FindingCounts | None
 ) -> tuple[PanelStage, ...]:
-    """As cinco etapas, na ordem, com estado, tempo e uma frase com os números."""
+    """As seis etapas, na ordem, com estado, tempo e uma frase com os números."""
     records = {item.name: item for item in src.summary.stages} if src.summary else {}
     seconds = stage_seconds(
         probe=src.probe,
         scan=src.scan,
         authz=src.authz,
+        negative=src.negative,
         report_seconds=None,
         stages=src.summary.stages if src.summary else None,
     )
     fallback = src.metrics.stages_seconds if src.metrics else None
     built: list[PanelStage] = []
     for key in STAGE_ORDER:
-        state, message = _from_record(records.get(key)) if src.summary else _derived(key, src)
+        if src.summary is None:
+            state, message = _derived(key, src)
+        elif key == "negative" and key not in records:
+            # `run.json` de antes do ADR 0051 não tem o estágio: foi pulado, não parou aqui.
+            state, message = "skipped", None
+        else:
+            state, message = _from_record(records.get(key))
         measured = getattr(seconds, key) if state != "pending" else None
         if measured is None and fallback is not None and state != "pending":
             measured = getattr(fallback, key)

@@ -9,9 +9,8 @@ from hypothesis import strategies as st
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.run import RunLimits
-from harness_dast.domain.scan_config import ScanConfig
+from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scan_plan import (
-    EXTRA_OUTCOMES,
     last_sent,
     resolve_targets,
     select_candidates,
@@ -238,6 +237,13 @@ def test_extra_outcomes_are_a_closed_list_without_server_or_auth_errors() -> Non
     assert "server_error" not in EXTRA_OUTCOMES
     assert "auth_error" not in EXTRA_OUTCOMES
     assert "success" not in EXTRA_OUTCOMES
+    assert {
+        "logical_failure",
+        "validation_error",
+        "conflict",
+        "not_found",
+        "client_error",
+    } == EXTRA_OUTCOMES
 
 
 def test_unplanned_operations_and_missing_audit_are_skipped_with_reasons() -> None:

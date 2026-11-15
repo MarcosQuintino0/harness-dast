@@ -194,12 +194,30 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
                     "carta.</span>",
                 )
             )
+        elif item.kind == "negative":
+            rows.append(
+                (
+                    "am",
+                    "<b>Valores que o contrato proíbe.</b> "
+                    f'<span class="mu">{text} Risco: um campo sem validação pode existir sem ter '
+                    "sido visto. Destrava: repetir o teste com o estágio ligado (só leitura, a "
+                    "escrita depende da carta).</span>",
+                )
+            )
         elif item.kind == "scan":
             rows.append(
                 (
                     "am",
                     f'<b>Varredura cortada.</b> <span class="mu">{text} Destrava: repetir o '
                     "teste.</span>",
+                )
+            )
+        elif item.kind == "seeded":
+            rows.append(
+                (
+                    "am",
+                    "<b>Atacadas a partir de um resultado que não era sucesso.</b> "
+                    f'<span class="mu">{h.plain(item.text)}</span>',
                 )
             )
         elif item.kind == "fence" and not wide:

@@ -136,9 +136,34 @@ Uma linha JSON por decisão em `audit/audit.jsonl` (pasta do host, sobrevive ao 
   não tem campo para eles). O próprio mitmproxy roda com `flow_detail=0` para não imprimir URLs no log.
 - `CONNECT` aparece com `method: CONNECT` e `path: ""`; as requisições internas do túnel aparecem em linhas próprias.
 - `reason: upstream_error` com `decision: allow`: foi liberado, mas o destino falhou (ex.: certificado não confiável).
+- `signals` e `signal_skip` (ADR 0049): só nas linhas **liberadas** com `status`, e só quando existem. `signals` traz as
+  **categorias** de erro interno reconhecidas na resposta (`sql_error`, `stack_trace_java`, `stack_trace_python`,
+  `stack_trace_dotnet`, `stack_trace_node`, `stack_trace_php`, `debug_page`); nunca corpo, trecho, código de erro nem nome
+  de classe. `signal_skip` diz por que a resposta não foi lida (`type`, `encoding`, `empty`, `error`). Liberada com
+  `status` e sem `signal_skip` é "lida". Linhas negadas e do `CONNECT` não levam os campos. Linha antiga (sem os campos)
+  continua legível.
 - Se a trilha deixar de ser gravável (disco cheio), o proxy **trava** (`audit_failure`) em vez de operar sem registro.
 - Em Linux a pasta `audit/` precisa ser gravável pelo uid 10001 (`chown 10001 audit`); no Docker Desktop (Windows/macOS)
   isso não é necessário.
+
+## Sinais de erro interno (ADR 0049)
+
+No hook `response` o addon chama `harness_dast.adapters.scope_proxy.signals.read_response_signals` **antes** de gravar a
+linha de auditoria. A leitura reconhece um catálogo FIXO (`harness_dast/domain/error_signal_catalog.py`) de erro de banco,
+rastreamento de exceção e página de depuração, e entrega só os nomes das categorias.
+
+- **Só observa.** Nunca nega, atrasa de forma perceptível nem altera a resposta; a decisão de escopo não recebe o resultado
+  (há teste que prova isso). **É a única parte da cerca que falha aberta, de propósito:** uma falha da leitura vira
+  `signal_skip: error` e a resposta passa do mesmo jeito.
+- **Limite.** Lê no máximo 64 KiB do corpo. `gzip` e `deflate` são descomprimidos com entrada limitada a 256 KiB e saída
+  limitada a 64 KiB (uma bomba de descompressão não gasta memória); `br`, `zstd` e qualquer outra codificação, ou dado
+  corrompido, viram `signal_skip: encoding`. Só lê JSON, XML, `text/plain`, `text/html` ou resposta sem tipo; imagem,
+  script, estilo e binário viram `type`; `HEAD`, 1xx, 204 e 304 também viram `type`; corpo vazio vira `empty`.
+- **Limites da heurística.** Há falso positivo (documentação com exemplo de erro) e falso negativo (mensagem traduzida,
+  cortada ou depois dos primeiros 64 KiB). O relatório declara quantas respostas não foram lidas.
+- **A imagem muda.** Sem `hdast stack up --build` a cerca é a antiga e não grava `signals`. O relatório não distingue uma
+  cerca antiga de uma resposta lida sem sinal: depois de atualizar o pacote, reconstrua a imagem.
+- Não há medida de custo desta leitura nesta versão (a prova com Docker é do degrau 3, ADR 0049, seção "Como provar").
 
 ## Proteção do endereço resolvido
 
@@ -195,6 +220,7 @@ entre conferir e conectar; em HTTPS o SNI e a verificação do certificado conti
   libera `;`, `%2f`, `%5c`, dupla codificação, `//` e ponto ou espaço finais pela leitura literal e nega se QUALQUER
   leitura do caminho casar com `deny_paths`. Risco aceito: uma leitura fora de `scope.allow` que não casa `deny_paths`
   é liberada (marcada em `detail: wide_reading_outside_allow`). A imagem precisa ser reconstruída para ler o campo.
+- **Sinais de erro interno**: reconhecer texto é heurística (ver a seção própria acima); só HTTP/1.1, como o resto do proxy.
 - **Caminho na auditoria** vai inteiro até 2048 caracteres (escapado em ASCII); acima disso é cortado com `...[cortado]`.
 - **A política só é lida ao iniciar.** Mudar `policy.json` com o proxy no ar não tem efeito até reiniciar.
 - **A trava não corta conexões em andamento** e depende de o arquivo `KILL` ser criado no diretório montado.

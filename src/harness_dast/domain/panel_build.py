@@ -56,6 +56,7 @@ def _identity(src: PanelSources) -> PanelIdentity:
         src.summary.finished_at if src.summary else None,
         src.metrics.finished_at if src.metrics else None,
         src.authz.finished_at if src.authz else None,
+        src.negative.finished_at if src.negative else None,
         src.scan.finished_at if src.scan else None,
         src.probe.finished_at if src.probe else None,
     ]
@@ -108,15 +109,19 @@ def build_panel_view(src: PanelSources) -> PanelView:
     """
     names = function_names(src.operations)
     paths = function_paths(src.operations)
-    severe = build_severe(src.findings, src.authz, names, src.explanations, src.probe, paths)
+    severe = build_severe(
+        src.findings, src.authz, src.negative, names, src.explanations, src.probe, paths
+    )
     functions = build_functions(src.operations, src.probe, src.scan, severe)
-    counts = build_counts(src.findings, src.authz)
+    counts = build_counts(src.findings, src.authz, src.negative)
     measurements = build_measurements(src.metrics, src.agent_metrics)
     stages = settle_stopped(
         src, with_stage_tokens(build_stages(src, functions, counts), measurements.tokens_by_stage)
     )
     verdict = build_verdict(src, stages, functions, severe)
-    skipped_by_choice = any(item.key == "authz" and item.state == "skipped" for item in stages)
+    skipped_by_choice = {
+        item.key for item in stages if item.key in ("authz", "negative") and item.state == "skipped"
+    }
     return PanelView(
         identity=_identity(src),
         verdict=verdict,
@@ -128,7 +133,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         groups=build_groups(src.findings, paths),
         severe=severe,
         left_out=build_left_out(
-            functions, src.scan, src.authz, authz_skipped_by_choice=skipped_by_choice
+            functions, src.scan, src.authz, src.negative, skipped_by_choice=skipped_by_choice
         ),
         next_steps=build_steps(
             severe=severe,

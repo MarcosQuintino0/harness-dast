@@ -199,6 +199,7 @@ Todos com `Authorization: Bearer`, salvo os públicos (login, csrf, saúde, api-
 | `POST /api/receitas` | criarReceita | medico, admin |
 | `GET /api/receitas/{id}`, `GET /api/consultas/{id}/receitas` | buscarReceita, listarReceitasDaConsulta | equipe ou o paciente da consulta |
 | `GET /api/documentos`, `GET /api/documentos/download?arquivo=` | listarDocumentos, baixarDocumento | qualquer conta |
+| `POST /api/documentos/enviar` | enviarDocumento | qualquer conta (`multipart/form-data`; ver abaixo) |
 | `POST /api/notificacoes/enviar` | enviarNotificacao | qualquer conta (**deny_paths**) |
 | `GET /api/convenios/codigo/{codigo}` | buscarConvenioPorCodigo | qualquer conta (H8, parâmetro de caminho) |
 | `GET /api/arquivos/{nome}` | baixarArquivo | qualquer conta (H9, parâmetro de caminho) |
@@ -214,6 +215,20 @@ firewall do Spring Security aceita `;`, `%2f` e `%` no caminho; no modo corrigid
 cujo caminho cru cita a isca, mesmo sem chegar ao método).
 
 Fora do OpenAPI e só na porta 9091: `GET /internal/eval/state` e `POST /internal/eval/reset`.
+
+### Envio de arquivo (`enviarDocumento`)
+
+Operação mínima para provar o `multipart` do harness-dast (ADR 0052). Idêntica nos dois modos, sem falha plantada.
+
+- `POST /api/documentos/enviar`, `Content-Type: multipart/form-data`, com Bearer e o par XSRF como toda escrita.
+- Partes: `arquivo` (binário, obrigatória; `encoding.contentType` declara `text/plain`, `text/csv`, `application/json`, `image/png`) e `descricao`
+  (texto, opcional, até 200 caracteres).
+- Aceita arquivo de 1 byte a 64 KiB com um dos quatro tipos acima. Devolve `201` com `{nome, tamanho, tipo}`; o nome é saneado
+  (só o último trecho, só `[A-Za-z0-9._-]`). `400` `VALIDACAO` para parte ausente, arquivo vazio, grande demais ou descrição longa;
+  `415` `TIPO_ARQUIVO_NAO_SUPORTADO` para outro tipo.
+- O arquivo fica **só em memória** (últimos 20 envios; nada vai para disco nem para a pasta de documentos, então `listarDocumentos`
+  não muda). Reiniciar o contêiner esvazia.
+- Teste de laboratório: `uv run pytest -m lab_fast tests/integration/test_lab_multipart.py`.
 
 ## Testes
 

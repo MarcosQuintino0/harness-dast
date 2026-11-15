@@ -92,6 +92,8 @@ class ScanEntry(ApiModel):
         alert_count: Alertas novos atribuídos a esta varredura.
         alert_ids: Ids dos alertas atribuídos (para ligar achados à operação).
         note: Observação, quando há.
+        seed_outcome: Classe do `probe` quando a operação NÃO foi `success` (o ataque partiu de
+            uma resposta que não foi sucesso, ADR 0050); `None` nas demais.
     """
 
     operation_id: str
@@ -107,6 +109,7 @@ class ScanEntry(ApiModel):
     alert_count: int = 0
     alert_ids: tuple[str, ...] = ()
     note: str | None = None
+    seed_outcome: str | None = None
 
 
 class PlannedScan(ApiModel):
@@ -116,11 +119,13 @@ class PlannedScan(ApiModel):
         operation_id: Operação.
         method: Método HTTP.
         path: Modelo de caminho.
+        seed_outcome: Classe do `probe` quando não foi `success` (ADR 0050), senão `None`.
     """
 
     operation_id: str
     method: str
     path: str
+    seed_outcome: str | None = None
 
 
 class AppliedPolicy(ApiModel):
@@ -215,6 +220,7 @@ class ScanResult(ApiModel):
         finished_at: Fim (ISO 8601).
         policy: Política aplicada.
         limits: Limites aplicados.
+        include_outcomes: Classes além de `success` efetivamente aplicadas (ADR 0050).
         planned: Varreduras que o plano pediria, na ordem.
         entries: Varreduras executadas, na ordem.
         skipped: Operações que não foram varridas, com o motivo.
@@ -239,6 +245,7 @@ class ScanResult(ApiModel):
     finished_at: str
     policy: AppliedPolicy
     limits: AppliedLimits
+    include_outcomes: tuple[str, ...] = ()
     planned: tuple[PlannedScan, ...] = ()
     entries: tuple[ScanEntry, ...] = ()
     skipped: tuple[ScanSkip, ...] = ()

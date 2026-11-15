@@ -15,7 +15,8 @@ Roda a varredura ativa do ZAP sobre as requisições que um `probe` **da mesma e
 | --- | --- |
 | `--run RUN_ID` | **Obrigatória.** O `run_id` do `probe` (real, não `--dry-run`). O `scan` grava na mesma pasta |
 | `--only ID` | Varre só esta operação (repetível). Um `operation_id` que a execução não tem é erro de configuração (saída 2) |
-| `--include-outcome CLASSE` | Varre também operações que o `probe` classificou assim (repetível). Lista fechada: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error`. `success` é sempre incluído; `server_error`, `auth_error` e afins nunca |
+| `--include-outcome CLASSE` | **Escolhe**, dentro de `scan.include_outcomes` do perfil, as classes do `probe` que também são varridas (repetível). Só reduz: classe que o perfil não lista é recusada (`ConfigError`, saída 2, nada enviado) e só a carta pode autorizá-la ([ADR 0050](../adr/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error`. `success` é sempre incluído; `server_error`, `auth_error` e afins nunca. **Mudança de contrato:** antes a flag funcionava sem o perfil e ampliava a varredura; agora exige a lista no perfil |
+| `--no-include-outcomes` | Ignora `scan.include_outcomes` do perfil: varre só operações com `success`. Não combina com `--include-outcome` |
 | `--dry-run` | Mostra o plano (`data.planned`, `data.skipped`). **Não** toca o ZAP nem o alvo, não resolve segredos, não grava arquivos |
 | `--max-minutes N` | Reduz o prazo total (nunca acima de `limits.max_duration_minutes`). No `hdast run` o prazo é um só para a execução inteira e é herdado do `run` |
 | `--threads N` | Reduz as threads por host (nunca acima de `limits.zap_threads_per_host`) |
@@ -30,12 +31,15 @@ Decisão da CLI (`domain/scan_plan.py`), com o `ScopeGuard` sobre a **URL concre
 
 | Regra | Efeito |
 | --- | --- |
-| Só `success` do `probe` (mais a lista de `--include-outcome`) | Sem requisição válida não há o que varrer |
+| Só `success` do `probe` (mais as classes de `scan.include_outcomes` do perfil, que `--include-outcome` pode reduzir) | Sem requisição válida não há o que varrer |
 | `DELETE` | **Nunca** varrido |
 | Login (`POST` em `auth.token_path`) | **Nunca**: milhares de senhas inválidas bloqueariam a conta |
 | `deny_paths` e fora de `scope.allow` | **Nunca** (conferido de novo na URL concreta) |
 | `PUT` e `PATCH` | Só sobre recurso **criado nesta execução** (a operação consome um valor de `flows.yml` cujo produtor teve sucesso) ou com `scan.mutating_methods` no perfil |
 | `POST`, `GET`, `HEAD`, `OPTIONS` | Varridos (o `POST` cria dados sintéticos; o `cleanup` os apaga) |
+| Operação de envio de arquivo (`multipart/form-data`, [ADR 0052](../adr/0052-multipart-no-probe-e-no-scan.md)) sem `scan.allow_upload_scan` | **Nunca**: alcançada pelo `probe`, mas pulada com `upload_scan_not_authorized` (o ZAP grava conteúdo de ataque no armazenamento do alvo; só a carta autoriza) |
+| Operação de envio de arquivo, mesmo com `scan.allow_upload_scan` | **Pulada** com `multipart_not_scannable`: medido no ZAP 2.17 (Clínica Piloto, nos dois modos), a API `ascan/action/scan` recebe o `postData` como texto, sem `Content-Type`, e recusa o pedido multipart aprendido com `url_not_found`, sem enviar nada. A operação segue contada como **alcançada** e fica na lista "sem varredura" |
+| Envio de arquivo com corpo aprendido fora de ASCII (tipo `png` do `synthetic_file`) | Pulado com `binary_body` (o ZAP recebe o corpo como texto). Vale só se um dia o ZAP varrer multipart; hoje a regra anterior vem antes |
 | Sem mensagem aprendida no ZAP | Pulada (`not_learned`) |
 
 Ordem ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md) muda a do ADR 0022): por conta; dentro da conta, **leituras e escritas intercaladas** de modo determinístico, para que um prazo curto cubra as duas classes em vez de gastar tudo nas leituras. As leituras mantêm a ordem do `probe`; as escritas vão de `POST` a `PUT`/`PATCH`; depois de cada bloco de `leituras // escritas` leituras (no mínimo 1) entra uma escrita, começando por uma leitura. Com 6 leituras e 2 escritas: `r r r w r r r w`. Uma varredura do ZAP **por requisição aprendida** (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider). O ZAP não restringe método nem caminho do que o varredor GERA: isso é do proxy de escopo ([ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)); o `scan` só decide o que pede.

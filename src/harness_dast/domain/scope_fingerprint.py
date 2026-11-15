@@ -14,6 +14,8 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
 - `authz`: o bloco inteiro (operações públicas, ordem de papéis, campos voláteis, métodos
   repetidos, campos da atribuição em massa, verificações desligadas e a tabela "quem pode o quê",
   normalizada: a ordem das regras e dos papéis não conta, e tabela vazia fica de fora);
+- `negative`: o bloco inteiro (escrita de valor inválido, tetos de casos e de pedidos, classes
+  desligadas), só quando difere do padrão (ADR 0051);
 - `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
   de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
@@ -54,6 +56,7 @@ BLOCKS: Final[tuple[tuple[str, str], ...]] = (
     ("auth", "contas e login"),
     ("scan", "política da varredura e do gate de severidade"),
     ("authz", "configuração do teste de autorização"),
+    ("negative", "teste de valores que o esquema proíbe"),
     ("cleanup", "limpeza do ambiente, com script, banco e tetos"),
 )
 """Blocos de proteção, em ordem de exibição: identificador e descrição em português."""
@@ -119,8 +122,32 @@ def _auth(profile: ProductProfile) -> JsonValue:
     return {"type": auth.type, "header_name": auth.header_name, "accounts": accounts}
 
 
+_LEGACY_SCAN_KEYS: Final = frozenset(
+    {
+        "strength",
+        "threshold",
+        "url_path_injection",
+        "mutating_methods",
+        "disable_rules",
+        "max_scan_minutes",
+        "max_rule_minutes",
+        "token_refresh_seconds",
+        "fail_on",
+    }
+)
+"""Chaves do `scan` que já existiam quando a versão 2 do cálculo nasceu (sempre entram)."""
+
+
 def _scan(profile: ProductProfile) -> JsonValue:
     dumped = profile.scan.model_dump(mode="json")
+    # Chave nova do `scan` (hoje `include_outcomes`, ADR 0050) no valor padrão fica de fora: o
+    # perfil que não a usa mantém a impressão digital e a aprovação já feita continua valendo.
+    # É conjunto: a ordem em que o perfil a escreve não muda a impressão digital.
+    dumped["include_outcomes"] = _list(sorted(set(profile.scan.include_outcomes)))
+    defaults = type(profile.scan)().model_dump(mode="json")
+    for key in [k for k in dumped if k not in _LEGACY_SCAN_KEYS]:
+        if dumped[key] == defaults[key]:
+            del dumped[key]
     # Conjuntos: a ordem em que o perfil os escreve não muda a política.
     dumped["mutating_methods"] = _list(sorted(set(profile.scan.mutating_methods)))
     dumped["disable_rules"] = _list(sorted(set(profile.scan.disable_rules)))
@@ -187,9 +214,18 @@ def _authz(profile: ProductProfile) -> JsonValue:
     return dumped
 
 
+def _negative(profile: ProductProfile) -> JsonValue:
+    dumped = profile.negative.model_dump(mode="json")
+    # Conjunto: a ordem em que o perfil escreve as classes não muda o que é testado.
+    dumped["disabled_classes"] = _list(sorted(set(profile.negative.disabled_classes)))
+    return dumped
+
+
 def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
     """Forma canônica de cada bloco de proteção, na ordem de `BLOCK_IDS`.
 
+    O bloco `negative` só aparece quando difere do padrão (ADR 0051): assim o perfil que não o
+    usa mantém a impressão digital de antes e a aprovação já feita continua valendo.
     Conjuntos (regras de permissão, caminhos, métodos, janelas) saem ordenados; listas em que a
     ordem importa (as contas) mantêm a ordem do perfil.
     """
@@ -208,9 +244,12 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
         "auth": _auth(profile),
         "scan": _scan(profile),
         "authz": _authz(profile),
+        "negative": _negative(profile),
         "cleanup": None if profile.cleanup is None else profile.cleanup.model_dump(mode="json"),
     }
-    return {block_id: blocks[block_id] for block_id in BLOCK_IDS}
+    if profile.negative.is_default():
+        del blocks["negative"]
+    return {block_id: blocks[block_id] for block_id in BLOCK_IDS if block_id in blocks}
 
 
 def _sha256(text: str) -> str:

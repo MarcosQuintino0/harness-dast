@@ -58,7 +58,7 @@ Para um campo sem regra, o harness usa, nesta ordem: o valor encadeado de `flows
 | `integer` | Único na execução, mas **não** rastreável pela etiqueta |
 | `sequence` | Cresce a cada uso; **repete entre execuções** (use `numeric` se houver risco de 409 entre execuções) |
 
-O contador é um só por execução e avança a cada valor único pedido, em qualquer regra. O domínio ainda confere, por regra, que nenhum valor único se repete. A limpeza SQL do produto (escrita por uma pessoa) pode procurar a etiqueta no que foi criado. `unique: true` num gerador que não o aceita (`number`, `boolean`, `date`, `datetime`, `choice`, `constant`) é recusado.
+O contador é um só por execução e avança a cada valor único pedido, em qualquer regra. O domínio ainda confere, por regra, que nenhum valor único se repete. A limpeza SQL do produto (escrita por uma pessoa) pode procurar a etiqueta no que foi criado. `unique: true` num gerador que não o aceita (`number`, `boolean`, `date`, `datetime`, `choice`, `constant`, `synthetic_file`) é recusado.
 
 ## Catálogo de geradores
 
@@ -79,6 +79,7 @@ Catálogo **fechado**: só estes nomes valem. Argumentos desconhecidos, de tipo 
 | `choice` | `values` (lista de escalares, obrigatório, até 200) | Um valor sorteado |
 | `constant` | `value` (escalar, obrigatório) | Sempre o mesmo valor |
 | `sequence` | `start` (1), `step` (1 a 1000), `prefix` (vazio) | `start + step * posição` |
+| `synthetic_file` | `kind` (`text`, `csv`, `json` ou `png`; padrão `text`), `name` (nome do arquivo; padrão `synthetic.<ext>`) | Arquivo sintético de um campo `multipart/form-data` (ADR 0052); devolve o texto `tipo:nome`. Não aceita `unique` |
 | `br.cpf` | `formatted` (`false`) | CPF com dígitos verificadores válidos; nunca todos os dígitos iguais. Máscara `000.000.000-00` |
 | `br.cnpj` | `formatted` (`false`) | CNPJ **numérico** válido, filial `0001`. Máscara `00.000.000/0000-00`. O CNPJ alfanumérico não é gerado |
 | `br.cns` | `kind` (`definitive` ou `provisional`) | CNS de 15 dígitos válido (definitivo começa em 1 ou 2; provisório em 7, 8 ou 9) |
@@ -122,5 +123,14 @@ rules:
 
 - `uniqueItems`, `additionalProperties`, `not`, `discriminator`, `prefixItems`, `multipleOf` e `minProperties` do esquema não são considerados.
 - Em `allOf`, formatos ou `pattern` diferentes, tipos incompatíveis ou limites contraditórios dão `CONFIG_ERROR`.
-- Corpos que não são JSON (formulário, multipart, XML) são montados como valor JSON com o tipo de mídia informado; quem envia codifica.
+- Corpos que não são JSON (formulário, XML) são montados como valor JSON com o tipo de mídia informado; quem envia codifica.
+- **Envio de arquivo (`multipart/form-data`, ADR 0052).** O `probe` alcança a operação com um arquivo **sintético** de lista fechada: `text` (`synthetic.txt`, 15 bytes), `csv`, `json` ou `png` (1x1, 67 bytes), nunca mais de 1 KiB, nunca executável, conteúdo constante. É arquivo a propriedade `type: string` com `format: binary` (ou a lista de itens `binary`, que vira um arquivo só); `format: byte` é texto em base64, não arquivo. As demais propriedades escalares seguem as regras de sempre. O tipo vem, do menos para o mais específico, de: padrão `text`; `encoding.<campo>.contentType` do OpenAPI (`image/png`, `text/csv`, `application/json`; qualquer outro tipo, como `image/jpeg`, volta a `text`); regra `synthetic_file` no campo. Quando o alvo recusa o tipo padrão (`validation_error`), escreva a regra:
+
+```yaml
+  - match: {field: arquivo, operation: enviarDocumento, location: body}
+    generator: synthetic_file
+    args: {kind: png, name: foto.png}
+```
+
+  `name` usa de 1 a 64 caracteres ASCII (letras, dígitos, `_`, `.`, `-`), sem barra, sem `..` e sem aspas, e a extensão precisa ser a do tipo. O corpo todo não passa de 16 KiB nem de 20 partes. Campo aninhado, objeto vazio, nome de campo fora da regra e OpenAPI 3.1 (`contentMediaType`, não modelado) viram `build_error` com a dica do que fazer. O `exchanges.json` guarda só nome, tipo e tamanho das partes (nunca o arquivo, os valores nem a fronteira); o teste de autorização não repete esse pedido (`unsupported_body`).
 - Listas com mais de 20 itens obrigatórios, ou campos obrigatórios aninhados além de 12 níveis, exigem regra.

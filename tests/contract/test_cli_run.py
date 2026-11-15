@@ -33,6 +33,7 @@ SUMMARY_KEYS = {
     "artifacts",
     "findings_by_severity",
     "authz_findings_by_severity",
+    "negative_findings_by_severity",
     "stop_requested",
     "cleanup_command",
 }
@@ -40,7 +41,7 @@ RUN_ID = "2026-11-13T10-00-00Z-demo-aaaa"
 
 
 def _summary(status: RunStatus, code: int, *, stop: bool = False) -> RunSummary:
-    names = ("preflight", "probe", "scan", "authz", "report")
+    names = ("preflight", "probe", "scan", "authz", "negative", "report")
     return RunSummary(
         product="demo",
         run_id=RUN_ID,
@@ -117,6 +118,7 @@ def test_run_envelope_data_is_the_run_summary_and_exit_code_follows_it(
         "probe",
         "scan",
         "authz",
+        "negative",
         "report",
     ]
     if error is not None:
@@ -162,3 +164,43 @@ def test_run_has_the_authz_stage_on_by_default_and_no_authz_turns_it_off(
 
     assert code == int(ExitCode.OK)
     assert [request.authz for request in SEEN] == [expected]
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [((), True), (("--negative",), True), (("--no-negative",), False)],
+)
+def test_run_has_the_negative_stage_on_by_default_and_no_negative_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flags: tuple[str, ...],
+    expected: bool,
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, _ = _call(capsys, "run", "demo", "--json", *flags)
+
+    assert code == int(ExitCode.OK)
+    assert [request.negative for request in SEEN] == [expected]
+    assert [request.authz for request in SEEN] == [True]
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [((), True), (("--include-outcomes",), True), (("--no-include-outcomes",), False)],
+)
+def test_run_uses_the_profile_outcomes_by_default_and_the_flag_only_reduces(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flags: tuple[str, ...],
+    expected: bool,
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, envelope = _call(capsys, "run", "demo", "--json", *flags)
+
+    assert code == int(ExitCode.OK)
+    assert [request.include_outcomes for request in SEEN] == [expected]
+    assert set(envelope) == {"schema_version", "ok", "run_id", "data"}

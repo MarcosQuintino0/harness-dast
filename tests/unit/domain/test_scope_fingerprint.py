@@ -239,8 +239,10 @@ def test_digests_are_stable_across_calls() -> None:
 def test_every_protected_block_has_a_digest_in_display_order() -> None:
     profile = ProductProfile.from_data(valid_profile_data())
 
-    assert tuple(block_digests(profile)) == BLOCK_IDS
-    assert tuple(protected_blocks(profile)) == BLOCK_IDS
+    # O bloco `negative` só entra quando difere do padrão (ADR 0051); veja o teste dele.
+    present = tuple(name for name in BLOCK_IDS if name != "negative")
+    assert tuple(block_digests(profile)) == present
+    assert tuple(protected_blocks(profile)) == present
 
 
 def test_yaml_key_order_comments_and_spacing_do_not_change_the_digests() -> None:
@@ -286,7 +288,7 @@ def test_changing_a_protected_field_changes_exactly_its_block(
 
     after = digests(after_data)
 
-    assert [name for name in BLOCK_IDS if before[name] != after[name]] == [block]
+    assert [name for name in BLOCK_IDS if before.get(name) != after.get(name)] == [block]
     assert overall(valid_profile_data()) != overall(after_data)
 
 
@@ -341,7 +343,7 @@ def test_cleanup_changes_are_detected_against_an_existing_cleanup_block() -> Non
 
     before, after = digests(base), digests(changed)
 
-    assert [name for name in BLOCK_IDS if before[name] != after[name]] == ["cleanup"]
+    assert [name for name in BLOCK_IDS if before.get(name) != after.get(name)] == ["cleanup"]
 
 
 def test_reordering_set_like_scan_and_authz_fields_does_not_change_the_digests() -> None:
@@ -399,7 +401,7 @@ AUTH_FREE: frozenset[str] = frozenset(
 )
 # Blocos que entram inteiros (os campos de cada um estão no `model_dump` do bloco).
 TOP_LEVEL_PROTECTED: frozenset[str] = frozenset(
-    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "cleanup"}
+    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "negative", "cleanup"}
 )
 TOP_LEVEL_FREE: frozenset[str] = frozenset({"schema_version", "openapi", "probe"})
 
@@ -427,7 +429,13 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
         "access_matrix": [{"operation": "x", "allow": ["a"], "deny": ["b"]}],
     }
     profile = ProductProfile.from_data(
-        mutated(lambda d: d.update(cleanup=_cleanup(), authz=changed))
+        mutated(
+            lambda d: d.update(
+                cleanup=_cleanup(),
+                authz=changed,
+                scan={"include_outcomes": ["not_found"], "allow_upload_scan": True},
+            )
+        )
     )
     blocks = protected_blocks(profile)
 
@@ -540,3 +548,63 @@ def test_taking_a_role_out_of_deny_or_editing_a_rule_changes_only_the_authz_dige
     after = digests(mutated(lambda d: d.update(authz={"access_matrix": edited})))
 
     assert [name for name in before if before[name] != after[name]] == ["authz"]
+
+
+def _with_outcomes(*classes: str) -> dict[str, Any]:
+    return mutated(lambda d: d.setdefault("scan", {}).update(include_outcomes=list(classes)))
+
+
+@pytest.mark.parametrize("scan", [None, {}, {"include_outcomes": []}])
+def test_an_empty_include_outcomes_hashes_like_a_profile_from_before_adr_0050(
+    scan: dict[str, Any] | None,
+) -> None:
+    data = copy.deepcopy(valid_profile_data())
+    if scan is not None:
+        data["scan"] = scan
+    profile = ProductProfile.from_data(data)
+
+    assert "include_outcomes" not in protected_blocks(profile)["scan"]  # type: ignore[operator]  # o bloco é um mapa
+    assert digests(data) == digests(copy.deepcopy(valid_profile_data()))
+    assert overall(data) == overall(copy.deepcopy(valid_profile_data()))
+
+
+def test_the_scan_digest_of_a_legacy_profile_is_the_recorded_one() -> None:
+    legacy_scan = {
+        "strength": "LOW",
+        "threshold": "MEDIUM",
+        "url_path_injection": True,
+        "mutating_methods": [],
+        "disable_rules": [],
+        "max_scan_minutes": 10,
+        "max_rule_minutes": 2,
+        "token_refresh_seconds": 120,
+        "fail_on": "none",
+    }
+    profile = ProductProfile.from_data(valid_profile_data())
+
+    assert protected_blocks(profile)["scan"] == legacy_scan
+    # Valor calculado com o código anterior ao ADR 0050: aprovação antiga continua valendo.
+    assert (
+        digests(valid_profile_data())["scan"]
+        == "6abc9ab9206f45fd439e72920d5e6e59368908e2725f866df15aba6e1b1fe202"
+    )
+
+
+def test_turning_include_outcomes_on_changes_only_the_scan_block() -> None:
+    before = digests(valid_profile_data())
+
+    after = digests(_with_outcomes("not_found"))
+
+    assert {name for name in before if before[name] != after[name]} == {"scan"}
+
+
+def test_include_outcomes_order_does_not_change_the_fingerprint() -> None:
+    assert digests(_with_outcomes("not_found", "conflict")) == digests(
+        _with_outcomes("conflict", "not_found")
+    )
+
+
+def test_different_classes_give_different_fingerprints() -> None:
+    assert (
+        digests(_with_outcomes("not_found"))["scan"] != digests(_with_outcomes("conflict"))["scan"]
+    )

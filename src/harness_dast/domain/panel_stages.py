@@ -24,6 +24,7 @@ _TITLES: Final[dict[str, str]] = {
     "probe": "Alcance: fez o sistema responder de verdade",
     "scan": "Varredura: atacou com o ZAP",
     "authz": "Teste entre contas: repetiu pedidos com outra conta",
+    "negative": "Valores proibidos: testou o que o contrato não aceita",
     "report": "Organizou os achados",
 }
 _SEG_CLASS: Final = {"done": "", "cut": " seg-cut", "skipped": " seg-no", "pending": " seg-no"}

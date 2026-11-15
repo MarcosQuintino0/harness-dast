@@ -21,6 +21,9 @@ DELETE_AUTHORIZED: Final = "DELETE_AUTHORIZED"
 DENY_PATHS_EMPTY: Final = "DENY_PATHS_EMPTY"
 VALIDITY_OVER_ONE_YEAR: Final = "VALIDITY_OVER_ONE_YEAR"
 AUTHZ_WRITES_AUTHORIZED: Final = "AUTHZ_WRITES_AUTHORIZED"
+NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
+OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
+UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
 
 _ROOT_WILDCARD: Final = "/**"
 _ONE_YEAR: Final = timedelta(days=365)
@@ -50,7 +53,9 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
     """Avisos sobre o perfil gerado da carta (não bloqueiam, não mudam o que é gerado).
 
     Avisa: permissão com `/**` na raiz, método `DELETE` autorizado, nenhum caminho proibido e
-    validade a mais de um ano e escrita do teste entre contas autorizada pela carta.
+    validade a mais de um ano, escrita autorizada pela carta (teste entre contas e teste de
+    valores inválidos) e ataque a operações que deram não encontrado ou outra falha de dados
+    (ADR 0050).
     """
     warnings: list[LetterIssue] = []
     for index, rule in enumerate(profile.scope.allow):
@@ -113,6 +118,47 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                     "alterar dados e criar recursos "
                     "do ambiente. Confirme com o dono do produto que a carta diz isso e que o "
                     "ambiente é de teste com dados sintéticos."
+                ),
+            )
+        )
+    if profile.negative.allow_writes:
+        warnings.append(
+            LetterIssue(
+                field="attack.allow_invalid_input_writes",
+                code=NEGATIVE_WRITES_AUTHORIZED,
+                message=(
+                    "A carta autoriza o teste de valores inválidos a GRAVAR no alvo dado com "
+                    "valor que o contrato proíbe (POST, PUT e PATCH): o dado inválido aceito "
+                    "persiste (restaurado em PUT e PATCH, deixado em POST). Confirme com o dono "
+                    "do produto que a carta diz isso e que o ambiente é de teste com dados "
+                    "sintéticos."
+                ),
+            )
+        )
+    if profile.scan.allow_upload_scan:
+        warnings.append(
+            LetterIssue(
+                field="attack.allow_upload_scan",
+                code=UPLOAD_SCAN_AUTHORIZED,
+                message=(
+                    "A carta autoriza o ZAP a varrer operações de envio de arquivo: os valores de "
+                    "ataque do ZAP (nome e conteúdo de arquivo, campos de texto) serão GRAVADOS "
+                    "no armazenamento do alvo, e esta ferramenta não os controla. Confirme com o "
+                    "dono do produto que a carta diz isso, que o ambiente é de teste com dados "
+                    "sintéticos e que o armazenamento aceita lixo."
+                ),
+            )
+        )
+    if profile.scan.include_outcomes:
+        warnings.append(
+            LetterIssue(
+                field="attack.include_outcomes",
+                code=OUTCOMES_ATTACK_EXTENDED,
+                message=(
+                    "O teste ataca também operações que responderam "
+                    + ", ".join(profile.scan.include_outcomes)
+                    + "; nos POST, PUT e PATCH isso cria e altera mais dados sintéticos; "
+                    "confirme com o dono do produto."
                 ),
             )
         )

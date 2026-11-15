@@ -5,6 +5,10 @@ Não toca rede nem ZAP: lê só arquivos da execução (`probe.json`, `scan.json
 domínio e entrega aos destinos (`ReportSink`: JSON e Markdown). Não confere janela nem
 autorização: ler arquivos não envia nada ao alvo.
 
+Os sinais de erro interno vistos pela cerca (ADR 0049) vêm da auditoria do proxy (`ProxyAudit`,
+opcional): o `report` grava `error-signals.json` quando há linhas liberadas na janela da execução e,
+sem auditoria, reaproveita o arquivo que já existe. Ler a auditoria nunca derruba o relatório.
+
 Dono do código de saída 1: é o `report` (o `scan` só coleta). Com um limiar de severidade
 (`--fail-on` ou `scan.fail_on` do perfil), `exceeds_threshold` diz se há achado igual ou acima
 dele, contando TODOS os achados: a triagem do agente não retira nada da conta. `--fail-on` só
@@ -15,22 +19,34 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+import structlog
+
 from harness_dast.application.ports import Clock, ProfileRepository
 from harness_dast.application.scan_ports import (
     PanelRefresher,
+    ProxyAudit,
     ReportSink,
     RunArtifacts,
     RunMetricsRecorder,
 )
 from harness_dast.domain.auth import PasswordLoginAuth
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_build import assemble_report
+from harness_dast.domain.report_build import assemble_report, build_resolver
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_config import FailOn, effective_fail_on
+from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.signal_findings import build_proxy_signals, signal_window
+from harness_dast.domain.signal_result import ProxySignals, disabled_signals
+from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.triage import TriageFile, parse_triage
 from harness_dast.domain.zap_alert import SEVERITY_RANK
+
+_log = structlog.get_logger()
 
 
 @dataclass(frozen=True)
@@ -85,11 +101,13 @@ class Report:
         harness_version: str,
         metrics: RunMetricsRecorder | None = None,
         panel: PanelRefresher | None = None,
+        proxy_audit: ProxyAudit | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
         `metrics` grava o `metrics.json` depois dos relatórios; sem ele não há medição. `panel`
-        gera o painel da execução por último (ADR 0032); sem ele não há painel.
+        gera o painel da execução por último (ADR 0032); sem ele não há painel. `proxy_audit` é a
+        trilha da cerca (ADR 0049); sem ela o `report` só reaproveita um `error-signals.json`.
         """
         self._profiles = profiles
         self._artifacts = artifacts
@@ -98,6 +116,7 @@ class Report:
         self._version = harness_version
         self._metrics = metrics
         self._panel = panel
+        self._proxy_audit = proxy_audit
 
     def execute(self, request: ReportRequest) -> ReportOutcome:
         """Gera o relatório.
@@ -123,6 +142,12 @@ class Report:
                 "O authz.json da execução é de outro produto.",
                 hint="Use o run_id do probe, do scan e do authz deste produto.",
             )
+        negative = self._artifacts.read_negative(run_id)
+        if negative is not None and negative.product != profile.product:
+            raise ConfigError(
+                "O negative.json da execução é de outro produto.",
+                hint="Use o run_id do probe, do scan e do negative deste produto.",
+            )
         baseline = self._baseline(request.compare, run_id)
         auth_header, csrf_header = _placeholders(profile)
         report = assemble_report(
@@ -137,6 +162,8 @@ class Report:
             auth_header=auth_header,
             csrf_header=csrf_header,
             authz=authz,
+            proxy_signals=self._proxy_signals(run_id, probe, scan, authz, negative),
+            negative=negative,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
         threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
@@ -151,6 +178,50 @@ class Report:
             return None
         seconds = round((self._clock.now() - began).total_seconds(), 3)
         return self._metrics.refresh(request.product, run_id, report_seconds=seconds)
+
+    def _proxy_signals(
+        self,
+        run_id: str,
+        probe: ProbeResult,
+        scan: ScanResult,
+        authz: AuthzResult | None,
+        negative: NegativeResult | None,
+    ) -> ProxySignals:
+        window = signal_window(
+            probe.started_at,
+            (
+                probe.finished_at,
+                scan.finished_at,
+                authz.finished_at if authz else None,
+                negative.finished_at if negative else None,
+            ),
+        )
+        rows = self._audit_rows()
+        if rows is not None and window is not None:
+            built = build_proxy_signals(
+                rows,
+                product=probe.product,
+                window=window,
+                resolver=build_resolver(probe, scan),
+            )
+            if built.responses_total > 0:
+                self._artifacts.write_signals(run_id, built)
+                return built
+        try:
+            kept = self._artifacts.read_signals(run_id)
+        except ConfigError as error:
+            _log.warning("error_signals_unreadable", run_id=run_id, reason=error.message)
+            kept = None
+        return kept if kept is not None else disabled_signals()
+
+    def _audit_rows(self) -> tuple[ProxyRow, ...] | None:
+        if self._proxy_audit is None:
+            return None
+        try:
+            return self._proxy_audit.rows()
+        except ConfigError as error:
+            _log.warning("proxy_audit_unreadable", reason=error.message)
+            return None
 
     def _baseline(self, other: str | None, run_id: str) -> FindingsReport | None:
         if other is None:
@@ -171,7 +242,9 @@ class Report:
 def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca).
 
-    Conta os achados do ZAP e os de autorização entre contas (`report.authz`).
+    Conta os achados do ZAP, os de autorização entre contas (`report.authz`) e os de sinal de erro
+    interno vistos pela cerca (`report.proxy_signals`, ADR 0049) e os de valores que o esquema
+    proíbe (`report.negative`, ADR 0051): achado de origem própria não contorna o gate.
 
     Severidade que a CLI não soube classificar (`unknown`: `Critical`, um ZAP em outro idioma,
     vazio) conta como acima de qualquer limiar diferente de `none`: o gate falha fechado.
@@ -182,6 +255,10 @@ def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     severities = [item.proposed_severity for item in report.findings]
     if report.authz is not None:
         severities += [item.proposed_severity for item in report.authz.findings]
+    if report.negative is not None:
+        severities += [item.proposed_severity for item in report.negative.findings]
+    if report.proxy_signals is not None:
+        severities += [item.proposed_severity for item in report.proxy_signals.findings]
     return any(severity == "unknown" or SEVERITY_RANK[severity] >= floor for severity in severities)
 
 

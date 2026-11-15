@@ -2,8 +2,15 @@
 
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue
+from harness_dast.domain.multipart_encoding import (
+    MULTIPART_MEDIA_TYPE,
+    MultipartPart,
+    encode_multipart,
+    summarize_multipart,
+)
 from harness_dast.domain.probe_result import FieldPlan, RequestPreview
 from harness_dast.domain.request_builder import BuiltRequest, ValueRequest, ValueSource
+from harness_dast.domain.request_encoding import multipart_fields
 
 MAX_PREVIEW_FIELDS = 60
 
@@ -44,6 +51,16 @@ def _body_leaves(value: JsonValue, prefix: str) -> list[str]:
     return [prefix]
 
 
+def _multipart_parts(built: BuiltRequest) -> tuple[MultipartPart, ...]:
+    """Partes que o multipart levaria (nome, tipo, tamanho); nunca os bytes nem a fronteira."""
+    media = (built.body_media_type or "").split(";")[0].strip().lower()
+    if media != MULTIPART_MEDIA_TYPE:
+        return ()
+    content_type, payload = encode_multipart(multipart_fields(built.body), built.files)
+    summary = summarize_multipart(content_type, payload)
+    return summary.parts if summary is not None else ()
+
+
 def build_preview(
     operation: Operation,
     built: BuiltRequest,
@@ -65,6 +82,7 @@ def build_preview(
     names += [f"cookie.{name}" for name in built.cookies]
     if built.body is not None:
         names += _body_leaves(built.body, "body")
+    names += [f"body.{spec.field}" for spec in built.files]
     return RequestPreview(
         query_names=tuple(dict.fromkeys(n for n, _ in built.query)),
         header_names=tuple(built.headers),
@@ -73,4 +91,5 @@ def build_preview(
             for name in names[:MAX_PREVIEW_FIELDS]
         ),
         uses_flow_values=uses_flow_values,
+        multipart_parts=_multipart_parts(built),
     )

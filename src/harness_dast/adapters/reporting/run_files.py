@@ -6,7 +6,8 @@ arquivo temporário e `os.replace`, para nunca existir um arquivo pela metade. E
 redige: quem grava já entregou texto redigido (`domain.redaction`).
 
 Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json`, `authz.json`,
-`rule-stats.json` e `metrics.json` (escritos aqui); `manifest.json`, `probe.json`,
+`negative.json`, `rule-stats.json`, `error-signals.json` e `metrics.json` (escritos aqui);
+`manifest.json`, `probe.json`,
 `exchanges.json`, `audit.jsonl`, `triage.json` e `findings.json` (lidos).
 """
 
@@ -22,6 +23,7 @@ from pydantic import BaseModel, ValidationError
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
@@ -31,6 +33,7 @@ from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanProgress, ScanResult
+from harness_dast.domain.signal_result import ProxySignals
 
 SCAN_FILE: Final = "scan.json"
 PROGRESS_FILE: Final = "scan-progress.json"
@@ -43,8 +46,10 @@ FINDINGS_FILE: Final = "findings.json"
 SUMMARY_FILE: Final = "run.json"
 EXCHANGES_FILE: Final = "exchanges.json"
 AUTHZ_FILE: Final = "authz.json"
+NEGATIVE_FILE: Final = "negative.json"
 RULE_STATS_FILE: Final = "rule-stats.json"
 METRICS_FILE: Final = "metrics.json"
+SIGNALS_FILE: Final = "error-signals.json"
 _SCAN_MISSING_HINT: Final = (
     "O report precisa do scan.json (mesmo com authz.json). Uma execução só com probe, ou com "
     "'run --skip-scan', não o tem. Rode 'hdast scan PRODUTO --run RUN_ID' ou 'hdast run PRODUTO' "
@@ -56,9 +61,11 @@ KNOWN_FILES: Final = (
     "probe.json",
     EXCHANGES_FILE,
     AUTHZ_FILE,
+    NEGATIVE_FILE,
     "scan-progress.json",
     SCAN_FILE,
     RULE_STATS_FILE,
+    SIGNALS_FILE,
     ALERTS_FILE,
     EVIDENCE_FILE,
     FINDINGS_FILE,
@@ -112,6 +119,26 @@ class FileRunArtifacts:
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         """Grava `authz.json`."""
         self._write(run_id, AUTHZ_FILE, result.model_dump_json(indent=2))
+
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        """Lê `negative.json`; `None` se o estágio não rodou nesta execução."""
+        if not (self._directory(run_id) / NEGATIVE_FILE).exists():
+            return None
+        return self._model(run_id, NEGATIVE_FILE, NegativeResult, "o negative")
+
+    def read_signals(self, run_id: str) -> ProxySignals | None:
+        """Lê `error-signals.json`; `None` se o `report` ainda não o gravou."""
+        if not (self._directory(run_id) / SIGNALS_FILE).exists():
+            return None
+        return self._model(run_id, SIGNALS_FILE, ProxySignals, "o report")
+
+    def write_signals(self, run_id: str, signals: ProxySignals) -> None:
+        """Grava `error-signals.json` (só categorias e nomes; nunca corpo de resposta)."""
+        self._write(run_id, SIGNALS_FILE, signals.model_dump_json(indent=2))
+
+    def write_negative(self, run_id: str, result: NegativeResult) -> None:
+        """Grava `negative.json`."""
+        self._write(run_id, NEGATIVE_FILE, result.model_dump_json(indent=2))
 
     def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
         """Grava `rule-stats.json`."""

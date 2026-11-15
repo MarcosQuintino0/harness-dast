@@ -227,6 +227,17 @@ def _confidence_rows(item: PanelFinding) -> str:
             )
             + confirmed
         )
+    if item.origin == "negative":
+        return (
+            line(
+                "ok",
+                "O programa mandou o valor que o contrato proíbe e viu a resposta do sistema",
+                "sim",
+                first=True,
+            )
+            + line("no", "Pode ser coerção legítima ou campo ignorado", "a triar")
+            + confirmed
+        )
     proven = bool(item.evidence and item.evidence.available and item.evidence.zap_evidence.strip())
     sure = item.proposed_confidence in _ZAP_SURE
     suspect = item.suspected_false_positive

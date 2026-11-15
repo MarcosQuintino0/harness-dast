@@ -360,10 +360,17 @@ def test_report_writes_findings_and_markdown_and_exits_zero_by_default(
     assert data["files"] == ["findings.json", "report.md", "report.html"]
     assert [g["findings_count"] for g in data["groups"]] == [1]
     assert data["exceeds_threshold"] is False
+    # ADR 0049: campos aditivos; sem pilha gerenciada a cerca não registrou nada desta execução.
+    assert data["proxy_signals"]["enabled"] is False
+    assert data["proxy_signals"]["findings"] == []
+    assert data["summary"]["signal_by_severity"] == {}
     (finding,) = data["findings"]
     assert finding["operation_id"] == "ler"
     assert finding["proposed_severity"] == "high"
     run_dir = tmp_path / "runs" / run_id
+    assert not (run_dir / "error-signals.json").exists()
+    saved = json.loads((run_dir / "findings.json").read_text(encoding="utf-8"))
+    assert saved["proxy_signals"]["enabled"] is False
     assert (run_dir / "findings.json").is_file()
     assert (run_dir / "report.md").is_file()
     assert (run_dir / "report.html").is_file()

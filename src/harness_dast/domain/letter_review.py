@@ -10,6 +10,7 @@ Autorização com validade vencida é pendência. Avisos (`warnings`) não recus
 perfil. Este módulo é puro.
 """
 
+from collections.abc import Mapping
 from datetime import date
 from typing import Final
 
@@ -25,6 +26,8 @@ from harness_dast.domain.letter_collect import (
     Collector,
     LetterIssue,
 )
+from harness_dast.domain.letter_negative import read_allow_invalid_writes
+from harness_dast.domain.letter_outcomes import read_include_outcomes
 from harness_dast.domain.letter_sections import (
     Block,
     read_auth,
@@ -35,6 +38,7 @@ from harness_dast.domain.letter_sections import (
     read_scope,
     read_strength,
 )
+from harness_dast.domain.letter_upload import read_allow_upload_scan
 from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
 from harness_dast.domain.letter_writes import read_allow_writes
 from harness_dast.domain.letter_yaml import render_yaml
@@ -47,11 +51,17 @@ GENERATED_BLOCKS: Final = (
     "limits",
     "auth",
     "scan.strength",
+    "scan.include_outcomes",
+    "scan.allow_upload_scan",
     "authz.allow_writes",
+    "negative.allow_writes",
 )
 """Blocos do `target.yml` que a CLI escreve a partir da carta.
 
-`scan.strength` só se informada; `authz.allow_writes` só quando a carta o autoriza (ADR 0038).
+`scan.strength` só se informada; `scan.include_outcomes` só com lista não vazia (ADR 0050);
+`scan.allow_upload_scan` só quando a carta o autoriza (ADR 0052);
+`authz.allow_writes` só quando a carta o autoriza (ADR 0038); `negative.allow_writes`, idem
+(ADR 0051).
 """
 
 _GATE_DENIED_TEXT = (
@@ -64,8 +74,15 @@ _HEADER = (
     "environment, openapi, scope, limits, auth, scan.strength.\n"
     "# Para mudar algum deles, a pessoa muda a carta e o perfil é gerado de novo.\n"
 )
+_HEADER_OUTCOMES = "# Também gerado da carta (ADR 0050): scan.include_outcomes.\n"
+_HEADER_UPLOAD = (
+    "# Também gerado da carta (ADR 0052): scan.allow_upload_scan, que só a carta autoriza.\n"
+)
 _HEADER_WRITES = (
     "# Também gerado da carta (ADR 0038): authz.allow_writes, que só a carta autoriza.\n"
+)
+_HEADER_NEGATIVE = (
+    "# Também gerado da carta (ADR 0051): negative.allow_writes, que só a carta autoriza.\n"
 )
 
 
@@ -126,6 +143,9 @@ def _profile_data(
     auth = read_auth(c, letter.auth)
     strength = read_strength(c, letter.attack.strength)
     allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
+    negative_writes = read_allow_invalid_writes(c, letter.attack.allow_invalid_input_writes)
+    outcomes = read_include_outcomes(c, letter.attack.include_outcomes)
+    upload_scan = read_allow_upload_scan(c, letter.attack.allow_upload_scan)
     examples = read_example_data(c, letter.example_data)
     if (
         c.issues
@@ -152,11 +172,30 @@ def _profile_data(
         "limits": limits,
         "auth": auth,
     }
+    scan: Block = {}
     if strength is not None:
-        data["scan"] = {"strength": strength}
+        scan["strength"] = strength
+    if outcomes:
+        scan["include_outcomes"] = list(outcomes)
+    if upload_scan:
+        scan["allow_upload_scan"] = True
+    if scan:
+        data["scan"] = scan
     if allow_writes:
         data["authz"] = {"allow_writes": True}
+    if negative_writes:
+        data["negative"] = {"allow_writes": True}
     return data, examples
+
+
+def _has_block(data: Mapping[str, object], name: str) -> bool:
+    """Se o bloco (caminho pontilhado completo, como `scan.strength`) está no perfil gerado."""
+    node: object = data
+    for part in name.split("."):
+        if not isinstance(node, Mapping) or part not in node:
+            return False
+        node = node[part]
+    return True
 
 
 def review_letter(letter: Letter, expected_product: str, today: date) -> LetterReview:
@@ -190,11 +229,14 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
     except ConfigError as error:
         c.add("(perfil gerado)", PROFILE_REJECTED, f"{error.message} {error.hint or ''}".strip())
         return LetterReview(issues=tuple(c.issues))
-    blocks = tuple(name for name in GENERATED_BLOCKS if name.split(".")[0] in data)
+    blocks = tuple(name for name in GENERATED_BLOCKS if _has_block(data, name))
     return LetterReview(
         issues=(),
         profile_text=_HEADER
+        + (_HEADER_OUTCOMES if profile.scan.include_outcomes else "")
+        + (_HEADER_UPLOAD if profile.scan.allow_upload_scan else "")
         + (_HEADER_WRITES if profile.authz.allow_writes else "")
+        + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
         + render_yaml(data),
         blocks=blocks,
         example_data=examples,

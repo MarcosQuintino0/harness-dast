@@ -14,6 +14,7 @@ from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.implicit_values import numeric_bounds
 from harness_dast.domain.request_builder import ValueRequest
+from harness_dast.domain.synthetic_files import resolve_file
 from harness_dast.domain.unique_values import unique_digits, unique_token
 
 _LOWER_ALNUM = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -173,6 +174,15 @@ def gen_choice(env: Environment, request: ValueRequest) -> JsonValue:
 def gen_constant(env: Environment, request: ValueRequest) -> JsonValue:
     """Sempre o valor de `value`."""
     return request.args.get("value")
+
+
+def gen_synthetic_file(env: Environment, request: ValueRequest) -> JsonValue:
+    """Texto `tipo:nome` do arquivo sintético (ADR 0052); o nome padrão vem do tipo."""
+    name = request.args.get("name")
+    kind, filename = resolve_file(
+        str(request.args.get("kind", "text")), name if isinstance(name, str) else None
+    )
+    return f"{kind}:{filename}"
 
 
 def gen_sequence(env: Environment, request: ValueRequest) -> JsonValue:

@@ -1,4 +1,4 @@
-"""Comando `hdast run`: preflight, probe, scan, authz (ligado por padrão) e report."""
+"""Comando `hdast run`: preflight, probe, scan, authz, negative (ligados por padrão) e report."""
 
 from pathlib import Path
 from typing import Annotated
@@ -29,6 +29,9 @@ def _render(summary: RunSummary) -> str:
     if summary.authz_findings_by_severity is not None:
         own = ", ".join(f"{name}: {n}" for name, n in summary.authz_findings_by_severity.items())
         lines.append(f"Achados de autorização entre contas (técnica própria): {own}")
+    if summary.negative_findings_by_severity is not None:
+        own = ", ".join(f"{name}: {n}" for name, n in summary.negative_findings_by_severity.items())
+        lines.append(f"Achados de valores que o esquema proíbe (técnica própria): {own}")
     if summary.stop_requested:
         lines.append("A trava de emergência (hdast stop) estava acionada.")
     lines.append("Artefatos: " + (", ".join(sorted(summary.artifacts)) or "nenhum"))
@@ -77,6 +80,25 @@ def run_command(
             "e não muda nada. Não roda com --skip-scan.",
         ),
     ] = True,
+    negative: Annotated[
+        bool,
+        typer.Option(
+            "--negative/--no-negative",
+            help="O teste de valores que o esquema proíbe (depois do authz) vem LIGADO: repete "
+            "pedidos do probe com um valor proibido por vez, só lendo (escrita exige "
+            "negative.allow_writes no perfil, que vem da carta). --no-negative o pula; "
+            "--negative é aceito por compatibilidade e não muda nada. Não roda com --skip-scan.",
+        ),
+    ] = True,
+    include_outcomes: Annotated[
+        bool,
+        typer.Option(
+            "--include-outcomes/--no-include-outcomes",
+            help="O scan usa scan.include_outcomes do perfil (operações que o probe viu com "
+            "404, 400, 409 etc.). --no-include-outcomes o reduz a só operações com sucesso; "
+            "nenhuma flag amplia o que o perfil autoriza.",
+        ),
+    ] = True,
     fail_on: Annotated[
         FailOn | None,
         typer.Option(
@@ -102,7 +124,7 @@ def run_command(
         ),
     ] = None,
 ) -> int:
-    """Encadeia preflight, probe, scan, authz (só leitura) e report; nunca roda a limpeza."""
+    """Encadeia preflight, probe, scan, authz, negative (só leitura) e report; sem limpeza."""
     state = get_state(ctx)
     # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
     # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).
@@ -116,9 +138,11 @@ def run_command(
                     seed=seed,
                     skip_scan=skip_scan,
                     authz=authz,
+                    negative=negative,
                     fail_on=fail_on,
                     compare=compare,
                     max_minutes=max_minutes,
+                    include_outcomes=include_outcomes,
                 )
             )
         finally:

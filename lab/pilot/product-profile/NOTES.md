@@ -37,5 +37,7 @@ com credenciais **geradas**, que o alvo recusa de propósito (`auth_error`, `CRE
   `servers_out_of_scope`. Está certo: a CLI usa a `base_url` do perfil.
 - `GET /api/documentos/download` responde `application/octet-stream`; o `probe` não exige JSON. O parâmetro `arquivo` usa um documento
   de semente (`data-rules.yml`).
+- `POST /api/documentos/enviar` (`enviarDocumento`) é `multipart/form-data` com o arquivo em `arquivo`; o `account_map` o atribui a `medico_a`.
+  Tipo fora dos quatro sintéticos dá 415 `TIPO_ARQUIVO_NAO_SUPORTADO` (mapeado como `validation_error`).
 - O alvo ignora corpo extra e exige `Content-Type: application/json` nas escritas (415 caso contrário).
 - O estado de avaliação (`/internal/eval/*`, porta 9091) está fora do OpenAPI e do escopo; só o avaliador e os testes de integração o usam.

@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, tzinfo
 from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel_model import PanelCommand, PanelExplanation
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.report_model import FindingsReport
@@ -29,6 +30,7 @@ class PanelSources:
         scan: `scan.json`.
         findings: `findings.json` (já traz a triagem mesclada).
         authz: `authz.json`.
+        negative: `negative.json`.
         metrics: `metrics.json`.
         agent_metrics: `agent-metrics.json` (tokens do agente), ou `None`.
         operations: Operações do OpenAPI, ou vazio se não foi possível ler o arquivo.
@@ -49,6 +51,7 @@ class PanelSources:
     scan: ScanResult | None = None
     findings: FindingsReport | None = None
     authz: AuthzResult | None = None
+    negative: NegativeResult | None = None
     metrics: RunMetrics | None = None
     agent_metrics: AgentMetrics | None = None
     operations: Sequence[Operation] = ()

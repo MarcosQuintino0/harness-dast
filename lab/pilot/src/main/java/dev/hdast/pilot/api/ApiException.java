@@ -51,6 +51,10 @@ public class ApiException extends RuntimeException {
                 List.of(new ErrorBody.FieldIssue(field, rule, message)), Map.of());
     }
 
+    public static ApiException unsupportedMediaType(String code, String message) {
+        return new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, code, message, List.of(), Map.of());
+    }
+
     public static ApiException unauthorized(String code, String message) {
         return new ApiException(HttpStatus.UNAUTHORIZED, code, message, List.of(), Map.of());
     }

@@ -135,7 +135,7 @@ class Rig:
             panel=self.panel,
             live=self.live,
         )
-        return pipeline.execute(request or RunRequest(product="demo", authz=False))
+        return pipeline.execute(request or RunRequest(product="demo", authz=False, negative=False))
 
 
 def _stage_status(result: RunResult) -> dict[str, str]:
@@ -162,6 +162,7 @@ def test_run_chains_all_stages_and_writes_summary_when_everything_passes() -> No
         "probe": "ok",
         "scan": "ok",
         "authz": "skipped",
+        "negative": "skipped",
         "report": "ok",
     }
 
@@ -181,7 +182,7 @@ def test_run_has_no_cleanup_command_when_the_profile_has_no_cleanup() -> None:
 def test_run_exits_with_findings_code_when_report_exceeds_threshold() -> None:
     rig = Rig(report=lambda: _outcome(exceeds=True))
 
-    result = rig.run(RunRequest(product="demo", authz=False, fail_on="high"))
+    result = rig.run(RunRequest(product="demo", authz=False, negative=False, fail_on="high"))
 
     assert result.error is None
     assert result.summary.exit_code == 1
@@ -202,6 +203,7 @@ def test_run_stops_at_failed_preflight_with_its_exit_code_and_writes_summary() -
         "probe": "not_run",
         "scan": "not_run",
         "authz": "not_run",
+        "negative": "not_run",
         "report": "not_run",
     }
     assert "pre-run" in rig.sink.summaries
@@ -234,13 +236,13 @@ def test_run_stops_when_a_stage_raises_a_harness_error() -> None:
     result = Rig(report=failing).run()
 
     assert result.summary.exit_code == 2
-    assert result.summary.stages[4].status == "failed"
+    assert result.summary.stages[5].status == "failed"
 
 
 def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> None:
     rig = Rig()
 
-    result = rig.run(RunRequest(product="demo", authz=False, skip_scan=True))
+    result = rig.run(RunRequest(product="demo", authz=False, negative=False, skip_scan=True))
 
     assert rig.calls == ["preflight", "probe"]
     assert result.summary.exit_code == 0
@@ -251,7 +253,7 @@ def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> Non
 def test_run_discounts_elapsed_time_from_max_minutes_given_to_scan() -> None:
     rig = Rig()
 
-    rig.run(RunRequest(product="demo", authz=False, max_minutes=10))
+    rig.run(RunRequest(product="demo", authz=False, negative=False, max_minutes=10))
 
     assert rig.scan_requests[0].max_minutes == 9
 
@@ -259,7 +261,7 @@ def test_run_discounts_elapsed_time_from_max_minutes_given_to_scan() -> None:
 def test_run_never_gives_scan_less_than_one_minute() -> None:
     rig = Rig()
 
-    rig.run(RunRequest(product="demo", authz=False, max_minutes=1))
+    rig.run(RunRequest(product="demo", authz=False, negative=False, max_minutes=1))
 
     assert rig.scan_requests[0].max_minutes == 1
 
@@ -306,7 +308,7 @@ def test_run_reports_scope_error_when_the_window_closes_without_kill_switch() ->
     assert result.summary.stop_requested is False
 
 
-def test_run_summary_always_lists_the_five_stages_in_order() -> None:
+def test_run_summary_always_lists_the_six_stages_in_order() -> None:
     result = Rig().run()
 
     assert [s.name for s in result.summary.stages] == [
@@ -314,6 +316,7 @@ def test_run_summary_always_lists_the_five_stages_in_order() -> None:
         "probe",
         "scan",
         "authz",
+        "negative",
         "report",
     ]
 
@@ -347,7 +350,7 @@ def test_run_deadline_is_reduced_by_max_minutes_and_never_widened() -> None:
     rig = Rig()
     started = rig.clock.now()
 
-    rig.run(RunRequest(product="demo", authz=False, max_minutes=5))
+    rig.run(RunRequest(product="demo", authz=False, negative=False, max_minutes=5))
 
     assert rig.scan_requests[0].deadline == started + timedelta(minutes=5)
 
@@ -454,7 +457,14 @@ def test_run_refreshes_metrics_at_the_end_with_every_stage_and_the_run_window() 
     assert (call["product"], call["run_id"]) == ("demo", RUN_ID)
     assert call["window"] == (result.summary.started_at, result.summary.finished_at)
     stages = cast(tuple[StageRecord, ...], call["stages"])
-    assert [stage.name for stage in stages] == ["preflight", "probe", "scan", "authz", "report"]
+    assert [stage.name for stage in stages] == [
+        "preflight",
+        "probe",
+        "scan",
+        "authz",
+        "negative",
+        "report",
+    ]
     assert stages == result.summary.stages
 
 

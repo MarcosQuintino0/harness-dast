@@ -19,6 +19,7 @@ from harness_dast.adapters.reporting.run_files import MAX_FILE_BYTES, FileRunArt
 from harness_dast.domain.agent_metrics import AGENT_METRICS_SCHEMA_VERSION, AgentMetrics
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel_model import PANEL_DIR
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.report_model import FindingsReport
@@ -67,6 +68,10 @@ class FilePanelFiles:
     def read_authz(self, run_id: str) -> AuthzResult | None:
         """Lê `authz.json`; `None` se o estágio não rodou."""
         return self._artifacts.read_authz(run_id)
+
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        """Lê `negative.json`; `None` se o estágio não rodou."""
+        return self._artifacts.read_negative(run_id)
 
     def read_summary(self, run_id: str) -> RunSummary | None:
         """Lê `run.json`; `None` se a execução não passou pelo `hdast run`."""

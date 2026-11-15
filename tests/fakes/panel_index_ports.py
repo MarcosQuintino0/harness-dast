@@ -79,6 +79,7 @@ class RecordingLive:
         *,
         started: datetime,
         authz: bool,
+        negative: bool = True,
     ) -> None:
         self.stages.append(stage)
         self.run_ids.append(run_id)

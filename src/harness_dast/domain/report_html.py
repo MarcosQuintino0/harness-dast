@@ -22,10 +22,18 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_html_authz import authz_cards, authz_section
+from harness_dast.domain.report_html_negative import negative_cards, negative_section
+from harness_dast.domain.report_html_signals import signal_section
 from harness_dast.domain.report_html_style import STYLE
 from harness_dast.domain.report_html_traffic import traffic_section
-from harness_dast.domain.report_labels import SEVERITY_LABEL, SEVERITY_ORDER
+from harness_dast.domain.report_labels import (
+    SEVERITY_LABEL,
+    SEVERITY_ORDER,
+    seed_tag,
+    seeded_scans_notice,
+)
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_signals import PASSIVE_SUBSET_NOTE, has_signal_reading
 from harness_dast.domain.report_traffic import mode_line
 
 _CSP: Final = (
@@ -52,8 +60,12 @@ def _cards(report: FindingsReport) -> str:
         f'<div class="card"><b>{len(report.groups)}</b>causa(s) distintas</div>'
         f'<div class="card"><b>{report.summary.total}</b>achado(s) no total</div>'
     )
-    title = '<p class="muted">Varredura ativa do ZAP:</p>' if report.authz is not None else ""
-    return f'{title}<div class="cards">{"".join(cells)}</div>{authz_cards(report)}'
+    own = report.authz is not None or report.negative is not None
+    title = '<p class="muted">Varredura ativa do ZAP:</p>' if own else ""
+    return (
+        f'{title}<div class="cards">{"".join(cells)}</div>'
+        f"{authz_cards(report)}{negative_cards(report)}"
+    )
 
 
 def _summary(report: FindingsReport) -> str:
@@ -83,7 +95,7 @@ def _summary(report: FindingsReport) -> str:
         f"({_percent(cov.reachability)}; {_percent(cov.reachability_all)} de todas). "
         f"{len(cov.not_tested)} operação(ões) ficaram sem varredura.</li>"
         f"<li>Estado: probe {h.ident(cov.probe_status)}, varredura {h.ident(cov.scan_status)}."
-        f"</li>{_authz_bullet(report)}{_path_bullet(report)}{unreadable}</ul>"
+        f"</li>{_authz_bullet(report)}{_negative_bullet(report)}{_path_bullet(report)}{unreadable}</ul>"
     )
 
 
@@ -97,6 +109,20 @@ def _authz_bullet(report: FindingsReport) -> str:
     return (
         f"<li>Autorização entre contas: estado {h.ident(authz.status)}, "
         f"{len(authz.findings)} achado(s), {len(authz.not_tested)} item(ns) não testado(s).</li>"
+    )
+
+
+def _negative_bullet(report: FindingsReport) -> str:
+    negative = report.negative
+    if negative is None:
+        return (
+            "<li>Valores que o esquema proíbe: não rodou "
+            "(o hdast run o roda por padrão; foi pulado).</li>"
+        )
+    return (
+        f"<li>Valores que o esquema proíbe: estado {h.ident(negative.status)}, "
+        f"{len(negative.findings)} achado(s), {len(negative.not_tested)} item(ns) não "
+        "testado(s).</li>"
     )
 
 
@@ -114,7 +140,8 @@ def _steps(report: FindingsReport) -> str:
 
 def _locations(group: FindingGroup) -> str:
     rows = "".join(
-        f"<tr><td><code>{h.ident(loc.method + ' ' + loc.path_template)}</code></td>"
+        f"<tr><td><code>{h.ident(loc.method + ' ' + loc.path_template)}</code>"
+        f"{' ' + h.text(seed_tag(loc.seed_outcome), 80) if loc.seed_outcome else ''}</td>"
         f"<td>{h.ident(loc.operation_id or '-')}</td><td>{h.ident(loc.finding_id)}</td>"
         f"<td>{loc.occurrences}</td></tr>"
         for loc in group.locations[:_MAX_ROWS]
@@ -203,7 +230,13 @@ def _group(group: FindingGroup, by_id: dict[str, Finding]) -> str:
 
 def _findings(report: FindingsReport) -> str:
     if not report.findings:
-        own = " da varredura do ZAP" if report.authz is not None else ""
+        own = (
+            " da varredura do ZAP"
+            if report.authz is not None
+            or report.negative is not None
+            or report.summary.signal_by_severity
+            else ""
+        )
         return (
             f"<h2>Achados</h2><p>Nenhum achado{own}. Isso NÃO prova que a API é segura: leia a "
             "seção sobre o que a varredura não cobriu.</p>"
@@ -251,7 +284,31 @@ def _not_covered(report: FindingsReport) -> str:
         else ""
     )
     cut = f"<h3>Varreduras truncadas ou paradas</h3><ul>{truncated}</ul>" if truncated else ""
-    return f"<h2>O que a varredura NÃO cobriu</h2>{partial}<ul>{statements}</ul>{cut}{table}"
+    return (
+        f"<h2>O que a varredura NÃO cobriu</h2>{partial}<ul>{statements}</ul>{cut}"
+        f"{_seeded(cov)}{table}"
+    )
+
+
+def _seeded(cov: Coverage) -> str:
+    if not cov.seeded_scans:
+        return ""
+    rows = "".join(
+        f"<tr><td>{h.ident(item.operation_id)}</td>"
+        f"<td><code>{h.ident(item.method + ' ' + item.path)}</code></td>"
+        f"<td>{h.ident(item.seed_outcome)}</td>"
+        f"<td>{'n/d' if item.probe_status is None else item.probe_status}</td></tr>"
+        for item in cov.seeded_scans[:_MAX_ROWS]
+    )
+    extra = len(cov.seeded_scans) - _MAX_ROWS
+    more = f'<p class="muted">... e mais {extra} (veja findings.json).</p>' if extra > 0 else ""
+    return (
+        "<h3>Operações varridas a partir de um resultado que não era sucesso</h3>"
+        f'<p class="note">{h.plain(seeded_scans_notice(len(cov.seeded_scans)))}</p>'
+        "<details><summary>Operações varridas a partir de semente que não foi sucesso "
+        f"({len(cov.seeded_scans)})</summary><table><tr><th>Operação</th><th>Requisição</th>"
+        f"<th>Classe do probe</th><th>Status do probe</th></tr>{rows}</table>{more}</details>"
+    )
 
 
 def _comparison(report: FindingsReport) -> str:
@@ -280,6 +337,11 @@ def _internal_error_section(report: FindingsReport) -> str:
         f"<li>{h.plain(label)}: {signals.counts.get(key, 0)} mensagem(ns).</li>"
         for key, label in SIGNAL_LABELS.items()
     )
+    subset = (
+        f'<p class="muted">{h.plain(PASSIVE_SUBSET_NOTE)}</p>'
+        if has_signal_reading(report.proxy_signals)
+        else ""
+    )
     return (
         "<h2>Sinais passivos de erro interno</h2>"
         f"<p>Mensagens distintas examinadas: {signals.messages_examined}; "
@@ -287,7 +349,7 @@ def _internal_error_section(report: FindingsReport) -> str:
         "<p>Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; "
         "não são achados confirmados nem cobertura completa. "
         "Ausência de sinal não prova ausência de erros.</p>"
-        f"<ul>{rows}</ul>"
+        f"{subset}<ul>{rows}</ul>"
     )
 
 
@@ -301,6 +363,8 @@ def render_html(report: FindingsReport) -> str:
             _steps(report),
             _findings(report),
             authz_section(report),
+            negative_section(report),
+            signal_section(report.proxy_signals),
             _not_covered(report),
             traffic_section(report),
             _comparison(report),

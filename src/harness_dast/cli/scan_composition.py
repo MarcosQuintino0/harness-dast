@@ -38,6 +38,7 @@ from harness_dast.cli.composition import (
     open_network,
     products_dir_or_default,
 )
+from harness_dast.cli.negative_composition import build_negative
 from harness_dast.cli.panel_index_composition import build_indexed_panel, build_live_board
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
@@ -119,7 +120,7 @@ def build_scan(
 def build_run_pipeline(
     product: str, products_dir: Path | None, secrets: SecretRegistry, net: ScanNetwork
 ) -> RunPipeline:
-    """Monta o `run`: as quatro etapas sobre a MESMA rede, cache de tokens e orçamento de login.
+    """Monta o `run`: as etapas sobre a MESMA rede, cache de tokens e orçamento de login.
 
     Raises:
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
@@ -144,6 +145,7 @@ def build_run_pipeline(
         panel=build_indexed_panel(products_dir),
         live=board,
         authz=build_authz(products_dir, secrets, net.network, shared),
+        negative=build_negative(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
         clock=clock,
@@ -159,6 +161,12 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
     `with_panel=False` é para o `run`, que gera o painel por último, depois de gravar `run.json`.
     """
     runs_dir = load_settings().runs_dir
+    try:
+        audit = open_proxy_audit()
+    except ConfigError as error:
+        # Os sinais da cerca (ADR 0049) são secundários: estado de pilha ilegível só os desliga.
+        structlog.get_logger().warning("signals_audit_unavailable", reason=error.message)
+        audit = None
     return Report(
         profiles=FileProfileRepository(products_dir_or_default(products_dir)),
         artifacts=FileRunArtifacts(runs_dir),
@@ -171,6 +179,7 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
         harness_version=harness_version(),
         metrics=build_metrics(products_dir),
         panel=build_indexed_panel(products_dir) if with_panel else None,
+        proxy_audit=audit,
     )
 
 

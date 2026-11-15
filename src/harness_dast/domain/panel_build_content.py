@@ -7,7 +7,7 @@ severidade, apaga achado ou diz "seguro". Módulo puro.
 
 import re
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from typing import Final
 
 from harness_dast.domain.api_model import Operation
@@ -15,6 +15,7 @@ from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_confidence import confidence_step
 from harness_dast.domain.manual_repro import build_manual_repro
+from harness_dast.domain.negative_result import NegativeFinding, NegativeResult
 from harness_dast.domain.panel_format import (
     FunctionStateKind,
     capitalize_first,
@@ -32,6 +33,7 @@ from harness_dast.domain.panel_model import (
     PanelStep,
 )
 from harness_dast.domain.probe_result import OperationResult, ProbeResult
+from harness_dast.domain.report_labels import seeded_scans_notice
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.report_traffic import path_shape_warning
 from harness_dast.domain.scan_plan import ScanSkip
@@ -39,6 +41,7 @@ from harness_dast.domain.scan_result import ScanEntry, ScanResult
 
 OTHER_AREA: Final = "Outras"
 STRONG: Final = 2
+WEAK: Final = 1
 _STEP_LEVEL: Final[dict[str, int]] = {"a confirmar": 1, "prova forte": STRONG, "confirmada": 3}
 _NOT_ATTACKED: Final = frozenset({"refused"})
 _FORBIDDEN_OUTCOMES: Final = {
@@ -57,6 +60,9 @@ _NOT_TRIED_SKIPS: Final = {
     "not_selected": "Fora da seleção pedida para esta varredura.",
     "not_planned": "Não estava no plano da varredura.",
     "not_run": "A varredura parou antes de chegar a esta função.",
+    "upload_scan_not_authorized": "Envio de arquivo: a carta não autoriza varrer upload.",
+    "binary_body": "Envio de arquivo com conteúdo binário: alcançada, mas não varrida.",
+    "multipart_not_scannable": "Envio de arquivo: o ZAP não consegue varrer este tipo de pedido.",
 }
 _FAILED_SKIPS: Final = {
     "not_success": "Não respondeu como esperado no alcance, então não foi atacada.",
@@ -155,9 +161,33 @@ def _authz_finding(
     )
 
 
+def _negative_finding(
+    item: NegativeFinding, names: Mapping[str, str], paths: Mapping[str, str]
+) -> PanelFinding:
+    return PanelFinding(
+        finding_id=item.finding_id,
+        origin="negative",
+        title=item.title,
+        severity=item.proposed_severity,
+        confidence=WEAK,
+        method=item.method,
+        path_template=restore_path(item.path_template, item.operation_id, paths),
+        operation_id=item.operation_id,
+        function_name=names.get(item.operation_id),
+        parameter=item.field,
+        input_vector=item.location,
+        cwe=item.cwe,
+        owasp=item.owasp_api_2023,
+        description=item.description,
+        solution=item.solution,
+        negative_evidence=item.evidence,
+    )
+
+
 def build_severe(
     report: FindingsReport | None,
     authz: AuthzResult | None,
+    negative: NegativeResult | None,
     names: Mapping[str, str],
     explanations: Mapping[str, PanelExplanation],
     probe: ProbeResult | None = None,
@@ -184,15 +214,25 @@ def build_severe(
         for item in (authz.findings if authz else ())
         if item.proposed_severity == "high"
     ]
+    found += [
+        _negative_finding(item, names, known)
+        for item in (negative.findings if negative else ())
+        if item.proposed_severity == "high"
+    ]
     return tuple(sorted(found, key=lambda item: (-item.confidence, item.finding_id)))
 
 
-def build_counts(report: FindingsReport | None, authz: AuthzResult | None) -> FindingCounts | None:
-    """Achados por severidade proposta (ZAP mais autorização entre contas), ou `None`."""
+def build_counts(
+    report: FindingsReport | None,
+    authz: AuthzResult | None,
+    negative: NegativeResult | None = None,
+) -> FindingCounts | None:
+    """Achados por severidade proposta (ZAP, entre contas e valores proibidos), ou `None`."""
     if report is None:
         return None
     counts = Counter(item.proposed_severity for item in report.findings)
     counts.update(item.proposed_severity for item in (authz.findings if authz else ()))
+    counts.update(item.proposed_severity for item in (negative.findings if negative else ()))
     return FindingCounts(
         high=counts["high"],
         medium=counts["medium"],
@@ -383,8 +423,9 @@ def build_left_out(
     functions: Sequence[PanelFunction],
     scan: ScanResult | None,
     authz: AuthzResult | None,
+    negative: NegativeResult | None,
     *,
-    authz_skipped_by_choice: bool,
+    skipped_by_choice: Collection[str],
 ) -> tuple[PanelLeftOut, ...]:
     """O que ficou de fora: funções sem ataque, varreduras cortadas, teste entre contas, cerca."""
     items: list[PanelLeftOut] = []
@@ -416,7 +457,8 @@ def build_left_out(
             )
         )
     items += _scan_items(scan)
-    items += _authz_items(authz, authz_skipped_by_choice=authz_skipped_by_choice)
+    items += _authz_items(authz, authz_skipped_by_choice="authz" in skipped_by_choice)
+    items += _negative_items(negative, skipped_by_choice="negative" in skipped_by_choice)
     items += [PanelLeftOut(kind="blind", text=text) for text in _BLIND]
     return tuple(items)
 
@@ -434,6 +476,11 @@ def _scan_items(scan: ScanResult | None) -> list[PanelLeftOut]:
                 "antes do fim: cobrem só parte dos ataques.",
                 count=len(cut),
             )
+        )
+    seeded = [item for item in scan.entries if item.seed_outcome]
+    if seeded:
+        items.append(
+            PanelLeftOut(kind="seeded", text=seeded_scans_notice(len(seeded)), count=len(seeded))
         )
     warning = path_shape_warning(scan.traffic)
     if warning:
@@ -461,6 +508,35 @@ def _authz_items(authz: AuthzResult | None, *, authz_skipped_by_choice: bool) ->
                 text=f"{plural(len(authz.not_tested), 'item', 'itens')} do teste entre contas "
                 "não puderam ser testados.",
                 count=len(authz.not_tested),
+            )
+        )
+    return items
+
+
+def _negative_items(
+    negative: NegativeResult | None, *, skipped_by_choice: bool
+) -> list[PanelLeftOut]:
+    if negative is None:
+        why = "foi pulado a pedido" if skipped_by_choice else "não rodou"
+        return [
+            PanelLeftOut(
+                kind="negative",
+                text=f"O teste de valores proibidos {why}: não se sabe se o sistema recusa "
+                "o que o contrato não aceita.",
+            )
+        ]
+    items: list[PanelLeftOut] = []
+    if negative.status != "completed":
+        items.append(
+            PanelLeftOut(kind="negative", text="O teste de valores proibidos parou antes do fim.")
+        )
+    if negative.not_tested:
+        items.append(
+            PanelLeftOut(
+                kind="negative",
+                text=f"{plural(len(negative.not_tested), 'item', 'itens')} do teste de valores "
+                "proibidos não puderam ser testados.",
+                count=len(negative.not_tested),
             )
         )
     return items

@@ -52,6 +52,7 @@ class _State:
     run_id: str
     started: datetime
     authz: bool
+    negative: bool
     stage: StageName = "preflight"
     stage_began: datetime | None = None
     records: tuple[StageRecord, ...] = ()
@@ -109,16 +110,19 @@ class LiveBoard:
         *,
         started: datetime,
         authz: bool,
+        negative: bool = True,
     ) -> None:
         """A etapa começou: regrava a página (a partir do `probe`, quando a pasta já existe)."""
         now = self._clock.now()
         state = self._state
         if state is None or state.run_id != run_id:
-            state = _State(product=product, run_id=run_id, started=started, authz=authz)
+            state = _State(
+                product=product, run_id=run_id, started=started, authz=authz, negative=negative
+            )
             state.links = self._first_links(product)
             self._state = state
         state.stage, state.stage_began, state.records = stage, now, tuple(records)
-        if stage in ("scan", "authz", "report"):
+        if stage in ("scan", "authz", "negative", "report"):
             self._read_probe(state)
         self._write(state, "running")
 
@@ -235,7 +239,7 @@ class LiveBoard:
         records = {item.name: item for item in state.records}
         built: list[LiveStage] = []
         for key in STAGES:
-            if key == "authz" and not state.authz:
+            if (key == "authz" and not state.authz) or (key == "negative" and not state.negative):
                 continue
             record = records.get(key)
             status: LiveStageState = (
@@ -262,5 +266,7 @@ def _outcome(summary: RunSummary | None) -> tuple[RunStateKind | None, str | Non
     )
     if summary.status in ("completed", "findings"):
         return "finished", None
+    if not summary.stages:
+        return "partial", reason
     first = summary.stages[0]
     return ("error" if first.status in ("failed", "interrupted") else "partial"), reason

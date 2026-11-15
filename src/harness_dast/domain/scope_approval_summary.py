@@ -2,7 +2,7 @@
 
 Mostra, em português e em linhas curtas, o que a aprovação trava: endereço, o que pode, o que é
 proibido, modo de caminho, janela, validade, limites, contas e papéis, a política da varredura,
-o teste de autorização e a limpeza do ambiente.
+o teste de autorização, o teste de valores inválidos e a limpeza do ambiente.
 Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
@@ -80,6 +80,29 @@ def _strength_line(profile: ProductProfile) -> str:
     )
 
 
+def _outcomes_lines(profile: ProductProfile) -> list[str]:
+    """Linha das classes extras da varredura (ADR 0050); vazio no padrão."""
+    classes = profile.scan.include_outcomes
+    if not classes:
+        return []
+    return [
+        "ATACA TAMBÉM OPERAÇÕES QUE DERAM: " + ", ".join(classes) + " (scan.include_outcomes): "
+        "o ataque parte de um pedido que o alvo recusou ou não achou, e nos POST, PUT e PATCH "
+        "cria e altera mais dados sintéticos"
+    ]
+
+
+def _upload_lines(profile: ProductProfile) -> list[str]:
+    """Linha da varredura de envio de arquivo (ADR 0052); vazio no padrão."""
+    if not profile.scan.allow_upload_scan:
+        return []
+    return [
+        "VARRE TAMBÉM OPERAÇÕES DE ENVIO DE ARQUIVO (scan.allow_upload_scan): o ZAP grava "
+        "conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do "
+        "alvo, e esta ferramenta não o controla"
+    ]
+
+
 def _scan_policy_line(profile: ProductProfile) -> str:
     scan = profile.scan
     rules = ", ".join(str(rule) for rule in sorted(scan.disable_rules)) or "nenhuma"
@@ -115,6 +138,25 @@ def _authz_lines(profile: ProductProfile) -> list[str]:
             "  - ESCRITA AUTORIZADA (authz.allow_writes: true): o teste entre contas pode "
             "alterar dados do ambiente (atribuição em massa, métodos de escrita acima e PUT/PATCH "
             "em recurso de outra conta)"
+        )
+    return lines
+
+
+def _negative_lines(profile: ProductProfile) -> list[str]:
+    """Linhas do teste de valores que o esquema proíbe (ADR 0051); vazio no padrão."""
+    negative = profile.negative
+    if negative.is_default():
+        return []
+    lines = [
+        f"VALORES INVÁLIDOS: até {negative.max_requests} pedidos, "
+        f"{negative.max_cases_per_operation} por operação (negative)"
+    ]
+    if negative.disabled_classes:
+        lines.append("  - classes desligadas: " + ", ".join(sorted(negative.disabled_classes)))
+    if negative.allow_writes:
+        lines.append(
+            "  - ESCRITA DE VALOR INVÁLIDO AUTORIZADA (negative.allow_writes: true): o teste "
+            "grava dado com valor que o contrato proíbe (POST, PUT e PATCH; nunca DELETE)"
         )
     return lines
 
@@ -202,6 +244,9 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_account_lines(profile),
         _strength_line(profile),
         _scan_policy_line(profile),
+        *_outcomes_lines(profile),
+        *_upload_lines(profile),
         *_authz_lines(profile),
+        *_negative_lines(profile),
         *_cleanup_lines(profile),
     )

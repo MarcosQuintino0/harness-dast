@@ -19,7 +19,7 @@ def test_catalog_has_unique_names() -> None:
 def test_catalog_contains_the_documented_generators() -> None:
     expected = {
         "numeric", "integer", "number", "boolean", "alphanumeric", "uuid", "email", "uri",
-        "date", "datetime", "choice", "constant", "sequence",
+        "date", "datetime", "choice", "constant", "sequence", "synthetic_file",
         "br.cpf", "br.cnpj", "br.cns", "br.phone", "br.cep", "br.crm",
     }  # fmt: skip
 
@@ -117,4 +117,12 @@ def test_validate_args_accepts_scalars_and_lists() -> None:
 def test_every_unique_generator_declares_support_and_the_rest_do_not() -> None:
     not_unique = {d.name for d in CATALOG if not d.supports_unique}
 
-    assert not_unique == {"number", "boolean", "date", "datetime", "choice", "constant"}
+    assert not_unique == {
+        "number",
+        "boolean",
+        "date",
+        "datetime",
+        "choice",
+        "constant",
+        "synthetic_file",
+    }

@@ -95,7 +95,8 @@ Máquina: Windows 11, Docker Desktop com 6,7 GiB, ZAP 2.17, proxy de escopo, `hd
 | `probe` | 44 operações; 30 tentadas; 18 com sucesso (0,60 das tentadas); 10 puladas por `deny_paths`; 2 `DELETE` fora do escopo |
 
 O que **não** chega a sucesso, e por quê: o `login` do OpenAPI usa credenciais geradas (recusa por desenho); as duas operações de envio de
-arquivo são `multipart/form-data`, que o `probe` não suporta; `add_vehicle` precisa do VIN e do PIN que só chegam por e-mail; `login-with-token`
+arquivo são `multipart/form-data`, que o `probe` alcança com um arquivo sintético quando o tipo é
+aceito (V1.5, ADR 0052; vídeo e imagem de verdade ficam de fora); estas medições são anteriores a isso; `add_vehicle` precisa do VIN e do PIN que só chegam por e-mail; `login-with-token`
 e `convert_video` e `users/all` pedem papel que as contas não têm; `get_post` e `post_comment` ficariam alcançáveis com o id de um post, mas o
 OpenAPI diz que a lista de posts é um array e o alvo devolve `{"posts": [...]}`, e o `flows.yml` é conferido contra o OpenAPI.
 

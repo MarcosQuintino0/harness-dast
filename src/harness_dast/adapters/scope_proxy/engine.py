@@ -24,6 +24,7 @@ from harness_dast.adapters.scope_proxy.decision import (
 from harness_dast.adapters.scope_proxy.gate import RunGate
 from harness_dast.adapters.scope_proxy.policy import KILL_FLAG_NAME, ProxyPolicy, deadline_of
 from harness_dast.adapters.scope_proxy.ratelimit import RateLimiter
+from harness_dast.domain.error_signal_catalog import SignalCategory, SignalSkip
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.host import parse_host
 from harness_dast.domain.urlnorm import default_port, split_request
@@ -127,8 +128,14 @@ class ScopeProxyEngine:
         size: int | None = None,
         duration_ms: int | None = None,
         waited_ms: int = 0,
+        signals: tuple[SignalCategory, ...] = (),
+        signal_skip: SignalSkip | None = None,
     ) -> None:
-        """Grava uma linha de auditoria (consulta reduzida aos nomes dos parâmetros)."""
+        """Grava uma linha de auditoria (consulta reduzida aos nomes dos parâmetros).
+
+        `signals` e `signal_skip` (ADR 0049) só descrevem o que a leitura da resposta viu:
+        entram na linha (só nas liberadas) e em mais nada; a decisão de escopo nunca os recebe.
+        """
         path, names = describe_target(method, url, raw_path, raw_query)
         self._audit.write(
             AuditRecord(
@@ -147,6 +154,8 @@ class ScopeProxyEngine:
                 bytes=size,
                 duration_ms=duration_ms,
                 waited_ms=waited_ms,
+                signals=signals if verdict.allowed else (),
+                signal_skip=signal_skip if verdict.allowed else None,
             )
         )
 

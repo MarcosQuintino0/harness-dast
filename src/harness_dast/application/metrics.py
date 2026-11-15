@@ -72,6 +72,7 @@ class MetricsRecorder:
                 probe=self._optional(run_id, "probe.json", self._artifacts.read_probe),
                 scan=self._optional(run_id, "scan.json", self._artifacts.read_scan),
                 authz=self._optional(run_id, "authz.json", self._artifacts.read_authz),
+                negative=self._optional(run_id, "negative.json", self._artifacts.read_negative),
                 rule_stats=self._optional(
                     run_id, "rule-stats.json", self._artifacts.read_rule_stats
                 ),

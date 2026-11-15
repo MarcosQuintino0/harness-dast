@@ -13,8 +13,15 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
 from harness_dast.domain.report_authz import authz_lines
-from harness_dast.domain.report_labels import SEVERITY_LABEL
+from harness_dast.domain.report_labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_negative import negative_lines, negative_summary_lines
+from harness_dast.domain.report_signals import (
+    PASSIVE_SUBSET_NOTE,
+    has_signal_reading,
+    signal_lines,
+    signal_summary_lines,
+)
 from harness_dast.domain.report_traffic import (
     denied_rows,
     mode_line,
@@ -62,7 +69,9 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"{len(policy.disabled_rules)} regra(s) desligadas.",
     ]
     lines += _traffic_lines(coverage)
-    return lines + _truncated_lines(coverage) + _not_tested_lines(coverage)
+    return (
+        lines + _truncated_lines(coverage) + _seeded_lines(coverage) + _not_tested_lines(coverage)
+    )
 
 
 def _traffic_lines(coverage: Coverage) -> list[str]:
@@ -108,6 +117,27 @@ def _truncated_lines(coverage: Coverage) -> list[str]:
     return lines
 
 
+def _seeded_lines(coverage: Coverage) -> list[str]:
+    if not coverage.seeded_scans:
+        return []
+    lines = [
+        "",
+        "### Operações varridas a partir de um resultado que não era sucesso",
+        "",
+        escape_inline(seeded_scans_notice(len(coverage.seeded_scans)), 600),
+        "",
+        "| Operação | Método e caminho | Classe do probe | Status do probe |",
+        "|---|---|---|---|",
+    ]
+    lines += [
+        f"| {cell_code(item.operation_id)} | {cell_code(item.method + ' ' + item.path)} | "
+        f"{escape_inline(item.seed_outcome)} | "
+        f"{'n/d' if item.probe_status is None else item.probe_status} |"
+        for item in coverage.seeded_scans
+    ]
+    return lines
+
+
 def _not_tested_lines(coverage: Coverage) -> list[str]:
     if not coverage.not_tested:
         return []
@@ -124,6 +154,10 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
         for item in coverage.not_tested
     ]
     return lines
+
+
+def _has_other_techniques(report: FindingsReport) -> bool:
+    return bool(report.authz or report.negative or report.summary.signal_by_severity)
 
 
 def _summary_lines(report: FindingsReport) -> list[str]:
@@ -144,8 +178,10 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             f"| {SEVERITY_LABEL[name]} | {count} |"
             for name, count in summary.authz_by_severity.items()
         ]
+    lines += negative_summary_lines(summary.negative_by_severity)
+    lines += signal_summary_lines(summary.signal_by_severity)
     if not report.findings:
-        own = " do ZAP" if report.authz else ""
+        own = " do ZAP" if _has_other_techniques(report) else ""
         lines += [
             "",
             f"Nenhum achado{own}. Leia a seção acima antes de concluir qualquer coisa.",
@@ -162,7 +198,8 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             SEVERITY_LABEL[item.proposed_severity],
             escape_inline(item.proposed_confidence),
             escape_inline(item.title, 120),
-            code_span(f"{item.method} {item.path_template}"),
+            code_span(f"{item.method} {item.path_template}")
+            + (f" {escape_inline(seed_tag(item.seed_outcome))}" if item.seed_outcome else ""),
             str(item.occurrences),
         ]
         if report.comparison:
@@ -192,7 +229,11 @@ def _group_lines(report: FindingsReport) -> list[str]:
         "|---|---|---|---|---|---|---|",
     ]
     for group in report.groups:
-        where = ", ".join(f"{loc.method} {loc.path_template}" for loc in group.locations[:3])
+        where = ", ".join(
+            f"{loc.method} {loc.path_template}"
+            + (f" {seed_tag(loc.seed_outcome)}" if loc.seed_outcome else "")
+            for loc in group.locations[:3]
+        )
         extra = len(group.locations) - 3
         where += f" e mais {extra}" if extra > 0 else ""
         lines.append(
@@ -245,6 +286,7 @@ def _finding_lines(item: Finding) -> list[str]:
         f"({code_span(item.technique)}), não é teste de autorização entre contas.",
         f"- **Onde:** {code_span(f'{item.method} {item.path_template}')}"
         + (f", operação {code_span(item.operation_id)}" if item.operation_id else "")
+        + (f" {escape_inline(seed_tag(item.seed_outcome))}" if item.seed_outcome else "")
         + f", ligação por {escape_inline(item.attribution)}.",
         f"- **Parâmetro:** {code_span(item.parameter or '-')}, "
         f"vetor {code_span(item.input_vector or '-')}.",
@@ -295,6 +337,7 @@ def _internal_error_lines(report: FindingsReport) -> list[str]:
     signals = report.internal_error_signals
     if signals is None:
         return []
+    subset = [PASSIVE_SUBSET_NOTE, ""] if has_signal_reading(report.proxy_signals) else []
     return [
         "## Sinais passivos de erro interno",
         "",
@@ -304,6 +347,7 @@ def _internal_error_lines(report: FindingsReport) -> list[str]:
         "não são achados confirmados nem cobertura completa. "
         "Ausência de sinal não prova ausência de erros.",
         "",
+        *subset,
         *[
             f"- {label}: {signals.counts.get(key, 0)} mensagem(ns)."
             for key, label in SIGNAL_LABELS.items()
@@ -338,6 +382,12 @@ def render_markdown(report: FindingsReport) -> str:
     own = authz_lines(report.authz)
     if own:
         lines += [*own, ""]
+    typed = negative_lines(report.negative)
+    if typed:
+        lines += [*typed, ""]
+    seen = signal_lines(report.proxy_signals)
+    if seen:
+        lines += [*seen, ""]
     lines += [*_comparison_lines(report), ""]
     if report.triage_orphans:
         lines.append(

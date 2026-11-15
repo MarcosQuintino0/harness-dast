@@ -420,6 +420,8 @@ Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema 
 | `max_rule_minutes` | inteiro, 1 a 10 | 2 | Teto de cada regra dentro de uma varredura |
 | `token_refresh_seconds` | inteiro, 10 a 3600 | 120 | Idade máxima do token no ZAP antes de renovar (nunca menos que `60 / auth.login_limit.max_per_minute`) |
 | `fail_on` | `none`, `low`, `medium` ou `high` | `none` | Severidade proposta a partir da qual `report` sai com código 1. `report --fail-on` sobrepõe |
+| `include_outcomes` | lista de até 5 classes: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error` | vazia | Classes do `probe` além de `success` cujas operações o `scan` também ataca ([ADR 0050](../adr/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada, sem curinga e sem repetição; `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`, `timeout` e `skipped_*` nunca entram. Não amplia o escopo (o `ScopeGuard` e o proxy continuam decidindo), `DELETE`, login, `deny_paths` e `PUT`/`PATCH` sem recurso criado seguem fora; mas ataca a partir de um pedido que o alvo recusou ou não achou, e nos `POST`, `PUT` e `PATCH` cria e altera mais dados sintéticos. Vem da carta (`attack.include_outcomes`, `source: carta` ou `pessoa`, aviso `OUTCOMES_ATTACK_EXTENDED`). Fora do padrão entra na impressão digital da aprovação: ligar exige aprovar de novo; vazia mantém as aprovações existentes. `hdast scan --include-outcome` só escolhe dentro dela |
+| `allow_upload_scan` | booleano | `false` | A carta autoriza o ZAP a varrer operações de envio de arquivo (`multipart/form-data`, [ADR 0052](../adr/0052-multipart-no-probe-e-no-scan.md)). O ZAP grava conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do alvo, e esta ferramenta não o controla; por isso só a carta liga. Sem ele, a operação é alcançada pelo `probe` mas o `scan` a pula com o motivo `upload_scan_not_authorized` (no relatório ela aparece como alcançada e não varrida). Só vem da carta (`attack.allow_upload_scan`, `source: carta` e a frase em `quote`; aviso `UPLOAD_SCAN_AUTHORIZED`); texto, número e `null` no perfil são recusados. No padrão (`false`) fica fora da impressão digital da aprovação e as aprovações existentes continuam valendo; `true` muda o bloco `scan` e exige aprovar de novo |
 
 ```yaml
 scan:
@@ -459,6 +461,25 @@ authz:
 ```
 
 Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do mesmo papel em `auth.accounts`, e a operação precisa ser roteada (`auth.account_map`) para uma delas; sem isso o estágio registra `no_peer_account` em vez de dar verde.
+
+## `negative` (opcional)
+
+Teste de valores que o esquema proíbe ([ADR 0051](../adr/0051-valores-que-o-esquema-proibe.md); [negative.md](negative.md)). Sem o bloco, valem os padrões conservadores: só leitura. Nada aqui amplia escopo, métodos do escopo, janela nem limites (o `ScopeGuard` continua decidindo). Mas `allow_writes` escreve no alvo, os dois tetos são carga e `disabled_classes` esconde achado: por isso o bloco entra na impressão digital da aprovação humana **quando difere do padrão** (um perfil que não o usa mantém a aprovação que já tem).
+
+| Campo | Tipo | Padrão | Descrição |
+| --- | --- | --- | --- |
+| `allow_writes` | booleano | `false` | A carta permite que o teste **grave** no alvo dado com valor inválido (`POST`, `PUT`, `PATCH`; nunca `DELETE`). Campo próprio, não reaproveita `authz.allow_writes`. Só vem da carta (`attack.allow_invalid_input_writes`, com `source: carta` e a frase em `quote`); texto, número e `null` são recusados |
+| `max_cases_per_operation` | inteiro de 1 a 20 | `6` | Teto de casos por operação; o excesso vai para `not_tested` (`budget`) |
+| `max_requests` | inteiro de 1 a 1000 | `200` | Teto de envios do estágio inteiro (casos e restaurações). `--max-requests` só o reduz |
+| `disabled_classes` | lista de `wrong_type`, `missing_required`, `below_minimum`, `above_maximum`, `not_in_enum`, `too_long`, `too_short` | vazia | Classes que não se testam (só reduz). Sem repetição; fora da lista é recusado |
+
+```yaml
+negative:
+  allow_writes: false
+  max_cases_per_operation: 6
+  max_requests: 200
+  disabled_classes: []
+```
 
 ## Segredos: `secret_ref`
 

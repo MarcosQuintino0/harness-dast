@@ -55,6 +55,7 @@ def entry(
     message_id: int,
     outcome: str = "completed",
     alert_ids: tuple[str, ...] = (),
+    seed_outcome: str | None = None,
 ) -> ScanEntry:
     return ScanEntry.model_validate(
         {
@@ -70,6 +71,7 @@ def entry(
             "requests": 120,
             "alert_count": len(alert_ids),
             "alert_ids": alert_ids,
+            "seed_outcome": seed_outcome,
         }
     )
 
@@ -80,6 +82,7 @@ def scan_result(
     skipped: Sequence[ScanSkip] = (),
     run_id: str = RUN_ID,
     status: str = "completed",
+    include_outcomes: tuple[str, ...] = (),
 ) -> ScanResult:
     limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
     config = ScanConfig()
@@ -97,5 +100,6 @@ def scan_result(
             "skipped": tuple(skipped),
             "learned": tuple(learned),
             "health": HealthSummary(enabled=True, checks=4),
+            "include_outcomes": include_outcomes,
         }
     )
