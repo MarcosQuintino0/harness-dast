@@ -173,6 +173,7 @@ class PanelIndexer:
             scan=reads.get("scan.json", files.read_scan),
             findings=reads.get("findings.json", files.read_findings),
             authz=reads.get("authz.json", files.read_authz),
+            negative=reads.get("negative.json", files.read_negative),
             metrics=reads.get("metrics.json", files.read_metrics),
         )
         started = _stamp_moment(run_id, self._zone)

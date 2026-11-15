@@ -15,10 +15,12 @@ from harness_dast.domain.finding_build import AlertResolver, OperationRef, build
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
 from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.internal_error_signals import classify_internal_error_signals
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report_labels import SEED_ASK_NOTICE
 from harness_dast.domain.report_model import (
+    NOT_TESTED_NEGATIVE,
     NOT_TESTED_STATEMENTS,
     NOT_TESTED_WITH_AUTHZ,
     ComparisonInfo,
@@ -158,10 +160,14 @@ def _summary(
     unreadable: int,
     authz: AuthzResult | None,
     signals: ProxySignals | None,
+    negative: NegativeResult | None = None,
 ) -> FindingsSummary:
     counts: Counter[str] = Counter(item.proposed_severity for item in findings)
     own: Counter[str] = Counter(
         item.proposed_severity for item in (authz.findings if authz else ())
+    )
+    typed: Counter[str] = Counter(
+        item.proposed_severity for item in (negative.findings if negative else ())
     )
     seen: Counter[str] = Counter(
         item.proposed_severity for item in (signals.findings if signals else ())
@@ -172,10 +178,18 @@ def _summary(
         occurrences=sum(item.occurrences for item in findings),
         alerts_unreadable=unreadable,
         authz_by_severity=({name: own.get(name, 0) for name in _SEVERITIES} if authz else {}),
+        negative_by_severity=(
+            {name: typed.get(name, 0) for name in _SEVERITIES} if negative else {}
+        ),
         signal_by_severity=(
             {name: seen.get(name, 0) for name in _SEVERITIES} if signals and signals.enabled else {}
         ),
     )
+
+
+def _statements(authz: AuthzResult | None, negative: NegativeResult | None) -> tuple[str, ...]:
+    base = NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ
+    return base if negative is None else (*base, NOT_TESTED_NEGATIVE)
 
 
 def assemble_report(
@@ -192,6 +206,7 @@ def assemble_report(
     csrf_header: str | None,
     authz: AuthzResult | None = None,
     proxy_signals: ProxySignals | None = None,
+    negative: NegativeResult | None = None,
 ) -> FindingsReport:
     """Monta o relatório completo.
 
@@ -223,7 +238,7 @@ def assemble_report(
         generated_at=generated_at,
         harness_version=harness_version,
         coverage=_coverage(probe, scan),
-        summary=_summary(findings, unreadable, authz, proxy_signals),
+        summary=_summary(findings, unreadable, authz, proxy_signals, negative),
         findings=findings,
         groups=group_findings(findings),
         not_observed=gone,
@@ -231,6 +246,7 @@ def assemble_report(
         triage_orphans=orphans,
         authz=authz,
         proxy_signals=proxy_signals,
+        negative=negative,
         internal_error_signals=classify_internal_error_signals(evidence),
-        not_tested_statements=NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ,
+        not_tested_statements=_statements(authz, negative),
     )

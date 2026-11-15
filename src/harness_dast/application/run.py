@@ -13,6 +13,12 @@ suficientes o estágio NÃO derruba o `run`: cada verificação vai para `not_te
 Se o `authz` parar antes do fim, o `report` ainda roda sobre o que existe e o código de saída
 continua sendo o do `authz`.
 
+Estágio `negative` (ADR 0051), LIGADO por padrão: depois do `authz` e antes do `report`, repete
+os pedidos do `probe` com UM valor que o esquema proíbe por vez. Só LÊ (`GET`); a escrita só com
+`negative.allow_writes: true`, que vem da carta. `--no-negative` o pula (`skipped`) e
+`--skip-scan` também. Falta de dado (sem `exchanges.json`) NÃO derruba o `run`: vai para
+`not_tested`. Parando antes do fim, o `report` ainda roda e o código de saída é o do `negative`.
+
 Prazo: `limits.max_duration_minutes` do perfil (reduzido por `--max-minutes`) vale para a
 execução INTEIRA. O `run` calcula um único prazo absoluto no início do `probe` e o repassa ao
 `probe` e ao `scan`; nenhum estágio recomeça a contagem.
@@ -35,6 +41,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from harness_dast.application.authz import AuthzRequest
+from harness_dast.application.negative import NegativeRequest
 from harness_dast.application.panel_index_ports import RunLive
 from harness_dast.application.ports import Clock, KillSwitch, ProfileRepository
 from harness_dast.application.preflight_report import PreflightReport
@@ -45,12 +52,14 @@ from harness_dast.application.scan import ScanRequest
 from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder, RunSummarySink
 from harness_dast.application.stage_errors import (
     authz_stop_error,
+    negative_stop_error,
     preflight_failure,
     probe_stop_error,
     scan_stop_error,
 )
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExitCode, HarnessError, UserInterrupt
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run_summary import (
     STAGES,
@@ -99,6 +108,14 @@ class AuthzStage(Protocol):
         ...
 
 
+class NegativeStage(Protocol):
+    """Etapa `negative` (valores que o esquema proíbe; ADR 0051)."""
+
+    def execute(self, request: NegativeRequest) -> NegativeResult:
+        """Roda o teste de valores que o esquema proíbe."""
+        ...
+
+
 class ReportStage(Protocol):
     """Etapa `report`."""
 
@@ -119,6 +136,10 @@ class RunRequest:
             antes do `report`. Ligado por padrão (ADR 0038): manda requisições a mais, mas só
             lê; escrever exige `authz.allow_writes` no perfil (vem da carta). `False` equivale
             a `--no-authz`. Com `skip_scan` o estágio também é pulado.
+        negative: Roda o estágio `negative` (valores que o esquema proíbe, ADR 0051) depois do
+            `authz` e antes do `report`. Ligado por padrão: só lê; escrever exige
+            `negative.allow_writes` no perfil (vem da carta). `False` equivale a
+            `--no-negative`. Com `skip_scan` o estágio também é pulado.
         fail_on: Limiar do `report` (sobrepõe o perfil).
         compare: Execução anterior para a comparação do `report`.
         max_minutes: Reduz o prazo do `scan` (conta o tempo já gasto); nunca amplia o perfil.
@@ -130,6 +151,7 @@ class RunRequest:
     seed: int | None = None
     skip_scan: bool = False
     authz: bool = True
+    negative: bool = True
     fail_on: FailOn | None = None
     compare: str | None = None
     max_minutes: int | None = None
@@ -155,6 +177,7 @@ class _Progress:
     product: str = ""
     started: datetime | None = None
     authz: bool = False
+    negative: bool = False
     run_id: str | None = None
     findings: dict[str, int] | None = None
     exceeds: bool = False
@@ -163,6 +186,7 @@ class _Progress:
     deadline: datetime | None = None
     scan_stopped: bool = False
     authz_findings: dict[str, int] | None = None
+    negative_findings: dict[str, int] | None = None
 
 
 class _Stop(Exception):
@@ -185,6 +209,7 @@ class RunPipeline:
         clock: Clock,
         run_id_fallback: str,
         authz: AuthzStage | None = None,
+        negative: NegativeStage | None = None,
         metrics: RunMetricsRecorder | None = None,
         panel: PanelRefresher | None = None,
         live: RunLive | None = None,
@@ -203,6 +228,7 @@ class RunPipeline:
             run_id_fallback: Identificador usado se nenhum estágio criou pasta de execução.
             authz: Etapa de autorização entre contas; `None` quando a CLI não a montou (pedir
                 `--authz` assim é um erro de configuração).
+            negative: Etapa de valores que o esquema proíbe; `None` quando a CLI não a montou.
             metrics: Gravador do `metrics.json` (ADR 0031); o `run` o refaz no fim, com o tempo
                 de cada estágio (inclusive o `preflight`). `None` desliga a medição.
             panel: Gerador do painel da execução (ADR 0032); o `run` o chama por último, depois
@@ -212,6 +238,7 @@ class RunPipeline:
         """
         self._profiles = profiles
         self._authz_stage = authz
+        self._negative_stage = negative
         self._stages = (preflight, probe, scan, report)
         self._sink = sink
         self._kill = kill_switch
@@ -233,6 +260,7 @@ class RunPipeline:
             product=request.product,
             started=started,
             authz=request.authz,
+            negative=request.negative,
         )
         unexpected = True
         try:
@@ -268,6 +296,17 @@ class RunPipeline:
                     else "Pedido com --skip-scan e --no-authz."
                 ),
             )
+            progress.records["negative"] = StageRecord(
+                name="negative",
+                status="skipped",
+                message=(
+                    "Pedido com --skip-scan: o negative roda depois do scan e não foi "
+                    "executado. Tire --skip-scan, ou rode 'hdast negative PRODUTO --run RUN_ID' "
+                    "sobre este probe."
+                    if request.negative
+                    else "Pedido com --skip-scan e --no-negative."
+                ),
+            )
             progress.records["report"] = StageRecord(
                 name="report", status="skipped", message="Sem varredura não há o que reportar."
             )
@@ -289,16 +328,35 @@ class RunPipeline:
                 name="authz", status="skipped", message="Desligado por --no-authz."
             )
         else:
-            try:
-                self._stage("authz", progress, lambda: self._authz(request, progress))
-            except _Stop:
-                # O `authz` parado deixa `authz.json` parcial; o `scan` já terminou, então o
-                # relatório sai com o que existe e o erro do `authz` continua sendo o do `run`.
-                if progress.interrupted:
-                    raise
-                self._stage("report", progress, lambda: self._report(report, request, progress))
-                raise
+            self._optional_stage("authz", report, request, progress, self._authz)
+        if not request.negative:
+            progress.records["negative"] = StageRecord(
+                name="negative", status="skipped", message="Desligado por --no-negative."
+            )
+        else:
+            self._optional_stage("negative", report, request, progress, self._negative)
         self._stage("report", progress, lambda: self._report(report, request, progress))
+
+    def _optional_stage(
+        self,
+        name: StageName,
+        report: ReportStage,
+        request: RunRequest,
+        progress: _Progress,
+        action: Callable[[RunRequest, _Progress], None],
+    ) -> None:
+        """Roda `authz` ou `negative`; se parar, o `report` ainda sai com o que existe.
+
+        O `scan` já terminou, então o artefato parcial do estágio parado entra no relatório e o
+        erro do estágio continua sendo o do `run`.
+        """
+        try:
+            self._stage(name, progress, lambda: action(request, progress))
+        except _Stop:
+            if progress.interrupted:
+                raise
+            self._stage("report", progress, lambda: self._report(report, request, progress))
+            raise
 
     def _authz(self, request: RunRequest, progress: _Progress) -> None:
         if self._authz_stage is None:
@@ -319,6 +377,28 @@ class RunPipeline:
             name: counts.get(name, 0) for name in ("high", "medium", "low", "informational")
         }
         error = authz_stop_error(result)
+        if error is not None:
+            raise error
+
+    def _negative(self, request: RunRequest, progress: _Progress) -> None:
+        if self._negative_stage is None:
+            raise ConfigError(
+                "O estágio negative não está montado nesta execução.",
+                hint="Rode 'hdast negative' separadamente ou use um run com o estágio ligado.",
+            )
+        result = self._negative_stage.execute(
+            NegativeRequest(
+                product=request.product,
+                run_id=_require(progress.run_id),
+                deadline=progress.deadline,
+                tolerate_missing_exchanges=True,
+            )
+        )
+        counts = Counter(item.proposed_severity for item in result.findings)
+        progress.negative_findings = {
+            name: counts.get(name, 0) for name in ("high", "medium", "low", "informational")
+        }
+        error = negative_stop_error(result)
         if error is not None:
             raise error
 
@@ -345,6 +425,7 @@ class RunPipeline:
             tuple(progress.records[item] for item in STAGES),
             started=progress.started,
             authz=progress.authz,
+            negative=progress.negative,
         )
 
     def _stage(self, name: StageName, progress: _Progress, action: _Action) -> None:
@@ -381,7 +462,7 @@ class RunPipeline:
                     "duration_seconds": self._since(began),
                 }
             )
-        if self._kill.engaged() and name in {"probe", "scan", "authz"}:
+        if self._kill.engaged() and name in {"probe", "scan", "authz", "negative"}:
             progress.interrupted = True
             raise _Stop
 
@@ -500,6 +581,7 @@ class RunPipeline:
                 seed=request.seed,
                 skip_scan=request.skip_scan,
                 authz=request.authz,
+                negative=request.negative,
                 fail_on=request.fail_on,
                 compare=request.compare,
                 max_minutes=request.max_minutes,
@@ -509,6 +591,7 @@ class RunPipeline:
             artifacts=self._sink.existing_files(run_id),
             findings_by_severity=progress.findings,
             authz_findings_by_severity=progress.authz_findings,
+            negative_findings_by_severity=progress.negative_findings,
             stop_requested=stopped,
             cleanup_command=self._cleanup_command(request.product, progress.run_id),
         )

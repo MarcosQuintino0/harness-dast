@@ -17,6 +17,14 @@ def _count_groups(report: FindingsReport, severity: str) -> tuple[int, int]:
     return len(groups), sum(item.findings_count for item in groups)
 
 
+def _has_own_findings(report: FindingsReport) -> bool:
+    return bool(
+        report.findings
+        or (report.authz and report.authz.findings)
+        or (report.negative and report.negative.findings)
+    )
+
+
 def _authz_steps(report: FindingsReport) -> list[str]:
     authz = report.authz
     if authz is None:
@@ -48,6 +56,39 @@ def _authz_steps(report: FindingsReport) -> list[str]:
     return steps
 
 
+def _negative_steps(report: FindingsReport) -> list[str]:
+    negative = report.negative
+    if negative is None:
+        return []
+    steps: list[str] = []
+    counts = report.summary.negative_by_severity
+    if negative.status != "completed":
+        steps.append(
+            "O teste de valores que o esquema proíbe parou antes do fim: o que ele não enviou "
+            "NÃO deve ser lido como validado. Veja o estado e a parada na seção dele."
+        )
+    found = sum(counts.values())
+    if found:
+        steps.append(
+            f"Triar os {found} achado(s) de valores que o esquema proíbe: cada um diz o campo, a "
+            "classe do valor e a resposta. Aceitar pode ser coerção legítima e 5xx pode vir do "
+            "estado do alvo; a severidade vem da regra do código, não é um veredito."
+        )
+    if negative.created_resources:
+        steps.append(
+            f"O teste de valores proibidos pode ter deixado {negative.created_resources} "
+            "recurso(s) no ambiente de teste: peça a uma pessoa para rodar `hdast cleanup` (ou "
+            "o reset do ambiente)."
+        )
+    if negative.not_tested:
+        steps.append(
+            f"O teste de valores proibidos não pôde testar {len(negative.not_tested)} item(ns) "
+            "(escrita sem a carta, orçamento, esquema que o código não confirma...). Leia a "
+            "tabela de motivos: a ausência de achado neles não prova nada."
+        )
+    return steps
+
+
 def next_steps(report: FindingsReport) -> tuple[str, ...]:
     """Lista, em ordem de importância, o que a pessoa deve fazer ao ler este relatório."""
     steps: list[str] = []
@@ -72,6 +113,7 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
             "ferramenta não soube classificá-los."
         )
     steps += _authz_steps(report)
+    steps += _negative_steps(report)
     other_groups = sum(_count_groups(report, name)[0] for name in ("medium", "low"))
     if other_groups:
         steps.append(f"Planeje a correção dos {other_groups} grupo(s) de gravidade média e baixa.")
@@ -93,7 +135,7 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
             f"Só {reach:.0%} das operações do OpenAPI foram alcançadas pelo probe. Ajuste as "
             "regras de dados do perfil e repita, para a varredura cobrir mais."
         )
-    if not report.findings and not (report.authz and report.authz.findings):
+    if not _has_own_findings(report):
         steps.append("Nenhum achado não é prova de segurança: leia o que a varredura não cobriu.")
     steps.append(
         "Registre a triagem (o que é falso positivo, o que é real) e gere o relatório de novo."

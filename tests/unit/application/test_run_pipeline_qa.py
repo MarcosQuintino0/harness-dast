@@ -100,7 +100,9 @@ class Rig:
         )
 
     def run(self, **kwargs: Any) -> Any:
-        return self.pipeline.execute(RunRequest(product="demo", **{"authz": False, **kwargs}))
+        return self.pipeline.execute(
+            RunRequest(product="demo", **{"authz": False, "negative": False, **kwargs})
+        )
 
 
 def stage_names(summary: RunSummary) -> list[tuple[str, str]]:
@@ -123,6 +125,7 @@ def test_execute_runs_the_stages_in_order_and_exits_zero_when_all_pass() -> None
         ("probe", "ok"),
         ("scan", "ok"),
         ("authz", "skipped"),
+        ("negative", "skipped"),
         ("report", "ok"),
     ]
     assert len(rig.sink.summaries) == 1
@@ -148,6 +151,7 @@ def test_execute_stops_after_the_probe_and_skips_scan_and_report_when_skip_scan(
     assert [status for _, status in stage_names(result.summary)] == [
         "ok",
         "ok",
+        "skipped",
         "skipped",
         "skipped",
         "skipped",

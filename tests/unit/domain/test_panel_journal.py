@@ -38,6 +38,7 @@ def entry(command: str = "probe", **changes: object) -> JournalEntry:
         ("scan", "scan"),
         ("run", "scan"),
         ("authz", "authz"),
+        ("negative", "negative"),
         ("report", "report"),
         ("panel", "report"),
         ("doctor", None),
@@ -57,7 +58,16 @@ def test_every_translated_command_has_a_stage_rule_or_is_preparation() -> None:
     # está na tabela de etapas é preparação, e isso é dito aqui, em um lugar só.
     staged = {name for name in translated_commands() if stage_of_command(name) is not None}
 
-    assert staged == {"preflight", "probe", "scan", "run", "authz", "report", "panel"}
+    assert staged == {
+        "preflight",
+        "probe",
+        "scan",
+        "run",
+        "authz",
+        "negative",
+        "report",
+        "panel",
+    }
 
 
 def test_command_line_is_the_command_as_typed() -> None:

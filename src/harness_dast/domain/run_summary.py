@@ -8,9 +8,9 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-STAGES: Final = ("preflight", "probe", "scan", "authz", "report")
+STAGES: Final = ("preflight", "probe", "scan", "authz", "negative", "report")
 
-StageName = Literal["preflight", "probe", "scan", "authz", "report"]
+StageName = Literal["preflight", "probe", "scan", "authz", "negative", "report"]
 StageStatus = Literal["ok", "failed", "interrupted", "skipped", "not_run"]
 RunStatus = Literal["completed", "findings", "failed", "interrupted"]
 
@@ -50,6 +50,7 @@ class RunOptions(BaseModel):
     seed: int | None = None
     skip_scan: bool = False
     authz: bool = False
+    negative: bool = False
     fail_on: str | None = None
     compare: str | None = None
     max_minutes: int | None = None
@@ -69,12 +70,14 @@ class RunSummary(BaseModel):
         finished_at: Fim.
         duration_seconds: Duração total.
         options: Opções efetivas.
-        stages: Os cinco estágios, sempre, na ordem (`authz` fica `skipped` com `--no-authz` ou
-            `--skip-scan`).
+        stages: Os seis estágios, sempre, na ordem (`authz` e `negative` ficam `skipped` com
+            `--no-authz`, `--no-negative` ou `--skip-scan`).
         artifacts: Nome do arquivo -> nome do arquivo, só dos que existem na pasta.
         findings_by_severity: Achados do ZAP por severidade proposta, quando o `report` rodou.
         authz_findings_by_severity: Achados do estágio `authz` (técnica própria, não misturados
             aos do ZAP) por severidade, quando o estágio rodou.
+        negative_findings_by_severity: Achados do estágio `negative` (valores que o esquema
+            proíbe, ADR 0051; técnica própria) por severidade, quando o estágio rodou.
         stop_requested: Se a trava de emergência (`hdast stop`) foi acionada.
         cleanup_command: Comando que a pessoa deve rodar para limpar os dados desta execução.
     """
@@ -94,5 +97,6 @@ class RunSummary(BaseModel):
     artifacts: dict[str, str] = Field(default_factory=dict)
     findings_by_severity: dict[str, int] | None = None
     authz_findings_by_severity: dict[str, int] | None = None
+    negative_findings_by_severity: dict[str, int] | None = None
     stop_requested: bool = False
     cleanup_command: str | None = None

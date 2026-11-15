@@ -358,6 +358,22 @@ def render_repro(item: PanelFinding, view: PanelView) -> str:
             )
             + "</div>"
         )
+    if item.origin == "negative":
+        return (
+            '<div style="display: flex; flex-direction: column; gap: 14px">'
+            + head
+            + '<p class="mu">Esta falha vem do teste de valores que o contrato proíbe: o programa '
+            "repete um pedido que funcionou trocando UM campo por um valor proibido, e não guarda "
+            "o valor enviado nem a resposta. Por isso não há passo a passo para reproduzir à mão "
+            "aqui.</p>"
+            + (
+                '<p class="sm"><b>O que o teste observou:</b> '
+                f"{h.text(item.negative_evidence, 600)}</p>"
+                if item.negative_evidence
+                else ""
+            )
+            + "</div>"
+        )
     repro = item.repro
     if repro is None:
         return (

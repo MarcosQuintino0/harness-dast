@@ -40,10 +40,11 @@ _WHERE: Final[dict[str, str]] = {
     "probe": "no alcance",
     "scan": "na varredura",
     "authz": "no teste entre contas",
+    "negative": "no teste de valores proibidos",
     "report": "na organização dos achados",
 }
 _OWNERS: Final = {"qa": "Você (QA)", "owner": "Dono do produto"}
-_AFTER_SCAN: Final = ("scan", "authz", "report")
+_AFTER_SCAN: Final = ("scan", "authz", "negative", "report")
 
 
 def _fence_clause(view: PanelView) -> str:

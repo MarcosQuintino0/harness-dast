@@ -15,6 +15,7 @@ from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inlin
 from harness_dast.domain.report_authz import authz_lines
 from harness_dast.domain.report_labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_negative import negative_lines, negative_summary_lines
 from harness_dast.domain.report_signals import (
     PASSIVE_SUBSET_NOTE,
     has_signal_reading,
@@ -155,6 +156,10 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
     return lines
 
 
+def _has_other_techniques(report: FindingsReport) -> bool:
+    return bool(report.authz or report.negative or report.summary.signal_by_severity)
+
+
 def _summary_lines(report: FindingsReport) -> list[str]:
     summary = report.summary
     lines = ["## Resumo", "", "Severidade e confiança abaixo são PROPOSTAS pelo ZAP.", ""]
@@ -173,9 +178,10 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             f"| {SEVERITY_LABEL[name]} | {count} |"
             for name, count in summary.authz_by_severity.items()
         ]
+    lines += negative_summary_lines(summary.negative_by_severity)
     lines += signal_summary_lines(summary.signal_by_severity)
     if not report.findings:
-        own = " do ZAP" if report.authz or summary.signal_by_severity else ""
+        own = " do ZAP" if _has_other_techniques(report) else ""
         lines += [
             "",
             f"Nenhum achado{own}. Leia a seção acima antes de concluir qualquer coisa.",
@@ -376,6 +382,9 @@ def render_markdown(report: FindingsReport) -> str:
     own = authz_lines(report.authz)
     if own:
         lines += [*own, ""]
+    typed = negative_lines(report.negative)
+    if typed:
+        lines += [*typed, ""]
     seen = signal_lines(report.proxy_signals)
     if seen:
         lines += [*seen, ""]

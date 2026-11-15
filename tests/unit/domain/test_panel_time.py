@@ -91,7 +91,7 @@ def test_the_stage_table_has_time_and_tokens_for_each_stage() -> None:
     assert "1 · Conferência 1 min 111 mil" in text
     assert "2 · Alcance 20 s 12 mil" in text
     assert "3 · Varredura 19 min 17 mil" in text
-    assert "5 · Achados 2 s 25 mil" in text
+    assert "6 · Achados 2 s 25 mil" in text
     assert "Total 28 min 168 mil" in text
 
 
@@ -104,7 +104,7 @@ def test_a_stage_measured_in_a_fraction_of_a_second_is_never_shown_as_zero() -> 
 
     text = main_text(time_html(panel_view.model_copy(update={"stages": stages})))
 
-    assert "5 · Achados menos de 1 s" in text
+    assert "6 · Achados menos de 1 s" in text
     assert not re.search(r"(?<![0-9])0 s", text)
 
 

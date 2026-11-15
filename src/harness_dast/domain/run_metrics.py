@@ -15,6 +15,7 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile, RuleTotal, total_rules
 from harness_dast.domain.run_summary import StageName, StageRecord
@@ -37,6 +38,7 @@ class StageSeconds(ApiModel):
     probe: float | None = None
     scan: float | None = None
     authz: float | None = None
+    negative: float | None = None
     report: float | None = None
 
 
@@ -179,6 +181,7 @@ def stage_seconds(
     authz: AuthzResult | None,
     report_seconds: float | None,
     stages: Sequence[StageRecord] | None,
+    negative: NegativeResult | None = None,
 ) -> StageSeconds:
     """Duração por etapa: o registro do `run` manda (inclui o preparo); senão, os arquivos.
 
@@ -193,6 +196,7 @@ def stage_seconds(
         else _span(probe.started_at, probe.finished_at),
         "scan": None if scan is None or scan.dry_run else _span(scan.started_at, scan.finished_at),
         "authz": None if authz is None else _span(authz.started_at, authz.finished_at),
+        "negative": None if negative is None else _span(negative.started_at, negative.finished_at),
         "report": report_seconds,
     }
     return StageSeconds(
@@ -299,6 +303,7 @@ def build_run_metrics(
     probe: ProbeResult | None,
     scan: ScanResult | None,
     authz: AuthzResult | None,
+    negative: NegativeResult | None = None,
     rule_stats: RuleStatsFile | None,
     proxy_rows: Sequence[ProxyRow] | None,
     stages: Sequence[StageRecord] | None,
@@ -315,6 +320,7 @@ def build_run_metrics(
         probe: `probe.json`, se existe.
         scan: `scan.json`, se existe.
         authz: `authz.json`, se o estágio rodou.
+        negative: `negative.json`, se o estágio rodou.
         rule_stats: `rule-stats.json`, se existe.
         proxy_rows: Linhas da auditoria do proxy; `None` sem pilha gerenciada.
         stages: Registro dos estágios do `hdast run`, quando o chamador o tem.
@@ -331,6 +337,7 @@ def build_run_metrics(
             probe.finished_at if probe else None,
             scan.finished_at if scan else None,
             authz.finished_at if authz else None,
+            negative.finished_at if negative else None,
         ],
     )
     operations = tuple(_operation(entry, rule_stats) for entry in scan.entries) if scan else ()
@@ -344,7 +351,12 @@ def build_run_metrics(
         finished_at=finished,
         generated_at=generated_at,
         stages_seconds=stage_seconds(
-            probe=probe, scan=scan, authz=authz, report_seconds=report_seconds, stages=stages
+            probe=probe,
+            scan=scan,
+            authz=authz,
+            negative=negative,
+            report_seconds=report_seconds,
+            stages=stages,
         ),
         scan_status=scan.status if scan and not scan.dry_run else None,
         operations=operations,

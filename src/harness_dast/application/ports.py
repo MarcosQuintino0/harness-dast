@@ -30,6 +30,7 @@ from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
@@ -808,6 +809,10 @@ class PanelFiles(Protocol):
 
     def read_authz(self, run_id: str) -> AuthzResult | None:
         """Lê `authz.json`; `None` se o estágio não rodou."""
+        ...
+
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        """Lê `negative.json`; `None` se o estágio não rodou."""
         ...
 
     def read_summary(self, run_id: str) -> RunSummary | None:

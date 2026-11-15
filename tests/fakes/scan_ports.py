@@ -316,6 +316,9 @@ class InMemoryRunArtifacts:
     def read_authz(self, run_id: str) -> AuthzResult | None:
         return self.authz.get(run_id)
 
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        return self.negative.get(run_id)
+
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         self.authz[run_id] = result
 

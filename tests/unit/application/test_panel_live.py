@@ -258,3 +258,18 @@ def test_the_scan_announces_each_function_and_the_end() -> None:
     assert [done for done, _, _ in live.progress] == list(range(total + 1))
     assert live.progress[0][2] is not None
     assert live.progress[-1] == (total, total, None)
+
+
+def test_the_live_page_lists_the_negative_stage_only_when_the_run_asked_for_it() -> None:
+    asked, skipped = Setup(), Setup()
+    started = datetime(2026, 11, 13, 10, tzinfo=UTC)
+
+    asked.board.stage_started("demo", RUN_ID, "negative", (), started=started, authz=True)
+    skipped.board.stage_started(
+        "demo", RUN_ID, "scan", (), started=started, authz=True, negative=False
+    )
+
+    assert "Valores proibidos" in asked.pages()[-1]
+    assert "Mandando valores que o contrato proíbe, um por vez" in asked.pages()[-1]
+    assert "Valores proibidos" not in skipped.pages()[-1]
+    assert "Entre contas" in skipped.pages()[-1]
