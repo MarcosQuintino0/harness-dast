@@ -25,6 +25,7 @@ from harness_dast.domain.auth import (
 from harness_dast.domain.errors import PreflightError, TargetError
 from harness_dast.domain.flow import extract_value
 from harness_dast.domain.http_messages import HttpResponse
+from harness_dast.domain.login_hint import login_refused_hint
 from harness_dast.domain.outcome import parse_json_body
 from harness_dast.domain.request_encoding import (
     CSRF_OPERATION_ID,
@@ -284,8 +285,11 @@ class AccountSession:
         auth = self._auth
         if not isinstance(auth, PasswordLoginAuth) or response.status >= 400:
             raise PreflightError(
-                f"O login da conta {self.alias} foi recusado pelo alvo.",
-                hint="Confira usuário e senha da conta e auth.token_path no target.yml.",
+                f"O login da conta {self.alias} foi recusado pelo alvo (HTTP {response.status}).",
+                hint=login_refused_hint(
+                    response.status,
+                    auth.request_encoding if isinstance(auth, PasswordLoginAuth) else None,
+                ),
             )
         body: JsonValue = parse_json_body(response)
         try:

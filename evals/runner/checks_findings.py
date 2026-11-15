@@ -131,8 +131,34 @@ def false_alarms(case: Case, findings: list[dict[str, Any]]) -> list[str]:
     return alarms
 
 
-def alarm_component(case: Case, findings: list[dict[str, Any]]) -> Component:
-    """(d) Modo seguro: 1 sem falso alarme; menos 0,25 por falso alarme, no minimo 0."""
+def has_report(trace: Path) -> bool:
+    """Diz se alguma execucao gravou `findings.json` (houve varredura e relatorio)."""
+    return any((trace / "runs").glob("*/findings.json"))
+
+
+def alarm_component(
+    case: Case, findings: list[dict[str, Any]], *, reported: bool = True
+) -> Component:
+    """(d) Modo seguro: 1 sem falso alarme; menos 0,25 por falso alarme, no minimo 0.
+
+    Sem relatorio (`reported` falso) o criterio nao se aplica: nada foi varrido, e "nenhum
+    falso alarme" nao pode valer nota cheia.
+    """
+    if not reported:
+        return Component(
+            id="alarms",
+            title="(d) Falsos alarmes (modo seguro)",
+            weight=WEIGHT,
+            score=None,
+            checks=(
+                Check(
+                    id="no_false_alarms",
+                    title="Nenhum achado alto nem de classe plantada no modo seguro",
+                    passed=False,
+                    detail="nao se aplica: nenhuma execucao gerou findings.json",
+                ),
+            ),
+        )
     alarms = false_alarms(case, findings)
     return Component(
         id="alarms",
