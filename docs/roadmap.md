@@ -247,6 +247,10 @@ Plano de trabalho de 2026-11-14 em [plans/2026-11-14-ciclo-v1-3-a-v1-8.md](plans
 
 Implementada nos itens A a H do [plano da versão](plans/2026-11-15-plano-v1-5-2-avaliacao.md), com ADRs 0053 a 0056, caso estrito preservado, régua para quatro fontes, caso lacrado e gabarito histórico explícito, segunda conta médica, paginação inicial, sinais por operação e dicas no `spec inspect`. O [relatório da versão](reviews/relatorio-v1.5.2.md) registra gates, provas do laboratório e limites; ele complementa o estado histórico da V1.4 acima. Nada foi testado contra produto real. O bloqueio efetivo de comandos compostos no Claude Code e o efeito das dicas em uma nova rodada cega permanecem sem prova.
 
+### V1.5.3: papéis que compartilham recursos
+
+Implementada nos itens A a D do [plano](plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md), com ADR 0057 Proposto: a carta declara papéis compartilhados, a aprovação cobre o campo preenchido e os testes horizontais registram a comparação omitida. Caso, régua, dicas e quatro skills atualizados. O [relatório da versão](reviews/relatorio-v1.5.3.md) registra gates e integração nos dois modos: sem alarme entre médicos e com BOLA entre pacientes preservado no vulnerável. O efeito das skills em agente cego e a varredura completa não foram medidos; não há prova contra produto real.
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |

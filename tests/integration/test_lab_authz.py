@@ -4,12 +4,12 @@ Nível RÁPIDO: uma pilha por modo, um `probe` e um `authz` com todas as verific
 CONTRATO do estágio, não o gabarito: as oito verificações aparecem com estado, nenhum `DELETE`
 sai, todo pedido do `authz` passa pela cerca, nenhum segredo vai para os artefatos, os recursos
 criados e a restauração ficam registrados e o `run` liga o estágio por padrão. As observações
-das verificações novas (operações testadas, achados por técnica, motivos de `not_tested`) são
-GRAVADAS em `HDAST_IT_METRICS_DIR/lab-authz-<modo>.json` e não viram asserção: quem interpreta
-é a pessoa que lê a evidência.
+das verificações são gravadas em `HDAST_IT_METRICS_DIR/lab-authz-<modo>-v3.json`. A prova da
+V1.5.3 também verifica os papéis compartilhados e a detecção entre pacientes.
 
 A cópia do perfil instalada na pasta descartável liga `authz.allow_writes`, o que no laboratório
-faz o papel da carta de autorização. O perfil versionado não é alterado.
+faz o papel da carta de autorização e declara médicos compartilhados. O perfil versionado não é
+alterado.
 """
 
 import json
@@ -101,7 +101,10 @@ def _install_with_writes(cli: LabCli) -> None:
     text = installed.read_text(encoding="utf-8")
     assert ROLE_ORDER_LINE in text, "o perfil do piloto deixou de declarar authz.role_order"
     installed.write_text(
-        text.replace(ROLE_ORDER_LINE, ROLE_ORDER_LINE + "\n  allow_writes: true" + MATRIX_YAML),
+        text.replace(
+            ROLE_ORDER_LINE,
+            ROLE_ORDER_LINE + "\n  allow_writes: true\n  shared_roles: [medico]" + MATRIX_YAML,
+        ),
         encoding="utf-8",
     )
 
@@ -201,10 +204,15 @@ def _observations(lab: AuthzLab) -> dict[str, Any]:
         "findings_by_severity": dict(Counter(f["proposed_severity"] for f in authz["findings"])),
         "findings": [
             {k: f[k] for k in ("technique", "proposed_severity", "method", "path_template")}
-            | {"operation_id": f["operation_id"], "fields": f["fields"], "variants": f["variants"]}
+            | {k: f[k] for k in ("operation_id", "fields", "variants", "actor_role", "owner_role")}
             for f in authz["findings"]
         ],
         "not_tested_by_check": {c: dict(r) for c, r in reasons.items() if r},
+        "shared_role_not_tested": [
+            {k: item[k] for k in ("check", "operation_id", "method", "path")}
+            for item in authz["not_tested"]
+            if item["reason"] == "shared_role"
+        ],
         "authz_requests_by_method": dict(Counter(r["method"] for r in lab.authz_rows("decision"))),
         "authz_post_results": dict(Counter(r["status"] for r in posts)),
         "authz_write_results": dict(
@@ -239,7 +247,7 @@ def lab(
     _install_with_writes(cli)
     try:
         measured = _measure(cli, mode)
-        record_metrics(f"lab-authz-{mode}-v2", _observations(measured))
+        record_metrics(f"lab-authz-{mode}-v3", _observations(measured))
         yield measured
     finally:
         cli.stack_down()
@@ -303,18 +311,7 @@ def test_writes_were_sent_only_because_the_copy_of_the_profile_allows_them(lab: 
 def test_in_secure_mode_no_authz_finding_is_high(lab: AuthzLab) -> None:
     if lab.mode != "secure":
         pytest.skip("só vale no modo seguro")
-    # Os médicos compartilham pacientes; o teste entre pares não conhece essa política.
-    high = [
-        f
-        for f in lab.authz["findings"]
-        if f["proposed_severity"] == "high"
-        and (f["technique"], f["operation_id"])
-        not in {
-            ("authz_horizontal_write", "atualizarPaciente"),
-            ("authz_horizontal", "buscarPaciente"),
-        }
-    ]
-    assert high == []
+    assert not [f for f in lab.authz["findings"] if f["proposed_severity"] == "high"]
 
 
 def test_in_vulnerable_mode_at_least_one_technique_proved_in_v1_1_reports_a_finding(
@@ -364,14 +361,47 @@ def test_no_authz_request_timed_out_on_the_way_to_the_target(lab: AuthzLab) -> N
     assert errors == []
 
 
-def test_horizontal_write_executa_rota_entre_medicos(lab: AuthzLab) -> None:
-    check = next(c for c in lab.authz["checks"] if c["check"] == "horizontal_write")
-    assert check["tested"] >= 1
+@pytest.mark.parametrize(
+    ("check", "operation"),
+    [("horizontal", "buscarPaciente"), ("horizontal_write", "atualizarPaciente")],
+)
+def test_operacao_de_medico_registra_motivo_compartilhado(
+    lab: AuthzLab, check: str, operation: str
+) -> None:
     assert any(
-        row["method"] in {"PUT", "PATCH"}
-        and str(row["operation_id"]) == "authz:write:atualizarPaciente"
-        and row["status"] is not None
-        for row in lab.authz_rows("result")
+        note["check"] == check
+        and note["operation_id"] == operation
+        and note["reason"] == "shared_role"
+        for note in lab.authz["not_tested"]
+    )
+
+
+def test_medicos_compartilhados_nao_produzem_achados_horizontais(lab: AuthzLab) -> None:
+    assert not [
+        finding
+        for finding in lab.authz["findings"]
+        if finding["technique"] in {"authz_horizontal", "authz_horizontal_write"}
+        and finding["actor_role"] == finding["owner_role"] == "medico"
+    ]
+
+
+def test_escrita_horizontal_em_paciente_por_medico_nao_e_enviada(lab: AuthzLab) -> None:
+    assert not [
+        row
+        for row in lab.authz_rows("decision")
+        if row["operation_id"] == "authz:write:atualizarPaciente"
+    ]
+
+
+def test_bola_entre_pacientes_permanece_detectavel_no_modo_vulneravel(lab: AuthzLab) -> None:
+    if lab.mode != "vulnerable":
+        pytest.skip("controle positivo exige modo vulneravel")
+    assert any(
+        finding["technique"] == "authz_horizontal"
+        and finding["operation_id"] == "buscarConsulta"
+        and finding["actor_role"] == finding["owner_role"] == "paciente"
+        and finding["actor_account"] != finding["owner_account"]
+        for finding in lab.authz["findings"]
     )
 
 

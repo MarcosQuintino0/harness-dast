@@ -277,3 +277,24 @@ def test_vertical_never_plans_delete_even_if_somehow_listed() -> None:
     )
 
     assert plan.tasks == ()
+
+
+def test_shared_role_is_skipped_while_another_role_is_compared() -> None:
+    roles = {**ROLES, "doc2": "medico"}
+    plan = plan_horizontal(
+        [ex("paciente"), ex("medico", account="doc")], roles, frozenset(), shared_roles=("medico",)
+    )
+    assert {task.exchange.operation_id for task in plan.tasks} == {"paciente"}
+    assert [(note.operation_id, note.reason) for note in plan.not_tested] == [
+        ("medico", "shared_role")
+    ]
+
+
+def test_shared_role_preserves_public_and_missing_identifier_reasons() -> None:
+    items = [ex("publica"), ex("colecao", path="/api/x", target="/api/x")]
+    plan = plan_horizontal(items, ROLES, frozenset({"publica"}), shared_roles=("paciente",))
+    assert plan.tasks == ()
+    assert {n.operation_id: n.reason for n in plan.not_tested} == {
+        "publica": "public_operation",
+        "colecao": "no_object_identifier",
+    }

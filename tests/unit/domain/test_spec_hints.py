@@ -272,3 +272,40 @@ def test_untrusted_field_name_cannot_inject_new_lines_in_hint_message() -> None:
     assert hints
     assert all("\n" not in hint.message for hint in hints)
     assert "codigo?alerta" in hints[0].message
+
+
+def test_peer_hint_ignores_shared_role_and_suggests_unshared_pair() -> None:
+    from harness_dast.domain.profile import ProductProfile
+
+    data = profile_data()
+    data["auth"]["accounts"] = [
+        {
+            "alias": alias,
+            "role": role,
+            "username": {"secret_ref": f"env:{alias.upper()}_USER"},
+            "password": {"secret_ref": f"env:{alias.upper()}_PASS"},
+        }
+        for alias, role in (
+            ("medico_a", "medico"),
+            ("medico_b", "medico"),
+            ("paciente_a", "paciente"),
+            ("paciente_b", "paciente"),
+        )
+    ]
+    data["auth"]["account_map"] = [
+        {"account": "medico_a", "operations": ["ler_medico"]},
+        {"account": "paciente_a", "operations": ["ler_paciente_a", "ler_paciente_b"]},
+    ]
+    data["authz"] = {"shared_roles": ["medico"]}
+    profile = ProductProfile.from_data(data)
+    ops = tuple(
+        Operation(operation_id=name, method="get", path=f"/api/{name}/{{id}}")
+        for name in ("ler_medico", "ler_paciente_a", "ler_paciente_b")
+    )
+
+    hints = suggest_spec_hints(profile, ops, plan(*ops))
+
+    peers = [h for h in hints if h.kind == "peer_account"]
+    assert [h.role for h in peers] == ["paciente"]
+    assert peers[0].accounts == ("paciente_a", "paciente_b")
+    assert "não compartilhado" in peers[0].message

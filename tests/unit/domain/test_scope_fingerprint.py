@@ -422,6 +422,7 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
     # Chave nova do `authz` no padrão fica de fora do cálculo; fora do padrão, ela entra.
     changed = {
         "allow_writes": True,
+        "shared_roles": [valid_profile_data()["auth"]["accounts"][0]["role"]],
         "derive_mass_candidates": False,
         "max_derived_candidates": 3,
         "mass_assignment_methods": ["PUT"],
@@ -608,3 +609,13 @@ def test_different_classes_give_different_fingerprints() -> None:
     assert (
         digests(_with_outcomes("not_found"))["scan"] != digests(_with_outcomes("conflict"))["scan"]
     )
+
+
+def test_shared_roles_change_fingerprint_as_a_set_and_empty_keeps_it() -> None:
+    original = valid_profile_data()
+    role = original["auth"]["accounts"][0]["role"]
+    empty = mutated(lambda d: d.update(authz={"shared_roles": []}))
+    filled = mutated(lambda d: d.update(authz={"shared_roles": [role]}))
+    assert overall(original) == overall(empty)
+    assert overall(original) != overall(filled)
+    assert {k for k in digests(original) if digests(original)[k] != digests(filled)[k]} == {"authz"}

@@ -1,7 +1,7 @@
 from urllib.parse import unquote
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
@@ -683,6 +683,9 @@ def test_guard_never_accepts_request_when_no_allow_rule_covers_it(
 
 @settings(max_examples=600, deadline=None)
 @given(request=generated_requests())
+@example(request=("GET", "https://api.permitido.com/api/conta/excluir/api", "https"))
+@example(request=("GET", "https://api.permitido.com/api/conta/excluir", "https"))
+@example(request=("GET", "https://api.permitido.com/api/CONTA/EXCLUIR/", "https"))
 def test_guard_never_accepts_request_when_a_deny_path_matches(
     request: tuple[str, str, str],
 ) -> None:
@@ -693,7 +696,24 @@ def test_guard_never_accepts_request_when_a_deny_path_matches(
     segments = [unquote(p).casefold() for p in url.partition("://")[2].split("/")[1:] if p]
 
     assert not (len(segments) >= 2 and segments[1] == "admin")
-    assert segments[1:3] != ["conta", "excluir"]
+    assert segments != ["api", "conta", "excluir"]
+
+
+@pytest.mark.parametrize(
+    ("path", "accepted"),
+    [
+        ("/api/conta/excluir", False),
+        ("/api/conta/excluir/", False),
+        ("/api/CONTA/EXCLUIR", False),
+        ("/api/CONTA/EXCLUIR/", False),
+        ("/api/conta/excluir/api", True),
+        ("/api/CONTA/EXCLUIR/api/", True),
+        ("/api/admin", False),
+        ("/api/ADMIN/x", False),
+    ],
+)
+def test_guard_applies_literal_and_recursive_deny_paths(path: str, accepted: bool) -> None:
+    assert _is_accepted(make_guard(), "GET", f"{BASE}{path}") is accepted
 
 
 def _mix_case(text: str, flags: list[bool]) -> str:

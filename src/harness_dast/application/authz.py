@@ -340,14 +340,23 @@ def _plan(
     write: Planned[WriteTask] = Planned((), ())
     if "horizontal_write" in checks:
         write = (
-            plan_horizontal_write(exchanges, roles, public, operations, config.id_parameters)
+            plan_horizontal_write(
+                exchanges,
+                roles,
+                public,
+                operations,
+                config.id_parameters,
+                shared_roles=config.shared_roles,
+            )
             if config.allow_writes
             else Planned((), (horizontal_write_blocked_note(),))
         )
     plans = AuthzPlans(
         anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
         tampered=_access("tampered_token", profile, exchanges, operations, checks),
-        horizontal=plan_horizontal(exchanges, roles, public, operations, config.id_parameters)
+        horizontal=plan_horizontal(
+            exchanges, roles, public, operations, config.id_parameters, config.shared_roles
+        )
         if "horizontal" in checks
         else Planned((), ()),
         excessive=plan_excessive(exchanges) if "excessive_data" in checks else empty,

@@ -104,6 +104,7 @@ class ExpectedProfile(Frozen):
     # perfil so pode dizer `wide` se a carta o autorizar.
     path_mode: Literal["strict", "wide"] = "strict"
     allow_authz_writes: bool = False
+    authz_shared_roles: tuple[str, ...] = ()
     allow_invalid_input_writes: bool = False
     allow_upload_scan: bool = False
     include_outcomes: tuple[str, ...] = ()

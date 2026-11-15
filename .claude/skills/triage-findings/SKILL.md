@@ -24,6 +24,8 @@ Triagem é **anotação consultiva**, feita por você e revisada por uma pessoa.
 
 ## Regras de leitura
 
+- `shared_role` em `authz.not_tested` indica que as comparações `horizontal` ou `horizontal_write` entre contas do papel declarado compartilhado na carta não foram feitas; não é resultado aprovado nem prova de segurança. Repasse a limitação e nunca infira ou altere a lista. As outras verificações permanecem aplicáveis.
+
 - "Suspeita de falso positivo" é opinião a revisar, não veredito: o achado segue no relatório e na contagem.
 - Com `--compare`, `not_observed` significa "não observado nesta execução", **nunca "corrigido"** (a varredura pode ter sido cortada ou não ter repetido a operação; veja `operation_scanned_now`).
 - Relatório sem achados não prova que a API é segura. Falhas de autorização entre contas (BOLA, BFLA), acesso sem login, token adulterado aceito, atribuição em massa, escrita em recurso de outra conta e exposição excessiva de dados ficam fora do que a varredura ativa detecta; só o estágio `authz` (ligado por padrão no `hdast run`, só leitura; a escrita exige `authz.allow_writes` da carta) as cobre, e só nos limites de `authz.limits` e `authz.not_tested` (veja `not_tested_statements`); diga isso. Os achados de `authz` já trazem severidade do código: a triagem só anota, não muda. Na atribuição em massa, `candidate_source` diz de onde veio o campo (declarado no perfil ou tirado do OpenAPI) e `created_resources` diz quantos recursos o teste de cadastro deixou no ambiente; repasse os dois.

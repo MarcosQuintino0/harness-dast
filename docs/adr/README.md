@@ -61,6 +61,7 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0054](0054-paginacao-e-conta-par-do-laboratorio.md) | Paginação inicial e conta par no laboratório | Proposto | 2026-11-15 | V1.5.2 |
 | [0055](0055-agrupar-sinais-por-operacao.md) | Agrupar sinais por operação do contrato | Proposto | 2026-11-15 | V1.5.2 |
 | [0056](0056-dicas-de-encadeamento-e-contas-pares.md) | Dicas de encadeamento e contas pares | Proposto | 2026-11-15 | V1.5.2 |
+| [0057](0057-papeis-compartilhados.md) | Papéis que compartilham recursos | Proposto | 2026-11-15 | V1.5.3 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

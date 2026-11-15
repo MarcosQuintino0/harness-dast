@@ -195,7 +195,7 @@ def _perfil_clinica_da_carta() -> dict[str, Any]:
         }
         for alias, role, prefix in accounts
     ]
-    profile["authz"] = {"allow_writes": True}
+    profile["authz"] = {"allow_writes": True, "shared_roles": ["medico"]}
     profile["negative"] = {"allow_writes": True}
     profile["scan"] = {"include_outcomes": ["not_found"]}
     return profile
@@ -237,6 +237,16 @@ def test_prepara_e_aprova_caso_real_com_cinco_contas_e_permissoes_da_carta(
 def test_caso_real_recusa_upload_nao_autorizado(repo: Path, out: Path) -> None:
     profile = _perfil_clinica_da_carta()
     profile["scan"]["allow_upload_scan"] = True
+    dirs = _prepara_clinica_real(repo, out, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out)
+    assert not (dirs.state / "approvals").exists()
+
+
+def test_aprova_recusa_papel_compartilhado_nao_autorizado(repo: Path, out: Path) -> None:
+    profile = _perfil_clinica_da_carta()
+    profile["authz"]["shared_roles"].append("paciente")
     dirs = _prepara_clinica_real(repo, out, profile)
 
     with pytest.raises(EvalError, match="attack_permissions"):
