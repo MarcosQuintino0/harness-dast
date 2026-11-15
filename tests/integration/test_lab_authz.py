@@ -74,6 +74,7 @@ class AuthzLab:
     seconds: dict[str, float]
     runs: dict[str, dict[str, Any]] = field(default_factory=dict)
     report_text: str = ""
+    patient_list_has_items: bool = False
 
     def authz_rows(self, phase: str) -> list[dict[str, Any]]:
         """Linhas da trilha da CLI que pertencem ao `authz` (operation_id com prefixo `authz:`)."""
@@ -127,7 +128,7 @@ def _measure(cli: LabCli, mode: str) -> AuthzLab:
         seconds[name] = round(time.monotonic() - started, 1)
 
     started = time.monotonic()
-    flags = ["--secure"] if mode == "secure" else []
+    flags = ["--build", "--secure"] if mode == "secure" else ["--build"]
     assert cli.run("stack", "up", "clinica-piloto", *flags, timeout=600).code == 0
     timed("stack_up", started)
     assert cli.run("preflight", "clinica-piloto").code == 0
@@ -141,7 +142,15 @@ def _measure(cli: LabCli, mode: str) -> AuthzLab:
     timed("authz", started)
     assert done.code == 0, done.stdout[-800:]
     authz = json.loads((cli.runs / run_id / "authz.json").read_text(encoding="utf-8"))
-    needles = secret_values(cli, ZapHistory(cli.state_file()), PILOT_BASE)
+    history = ZapHistory(cli.state_file())
+    patient_list_has_items = any(
+        "GET http://clinica-piloto:8080/api/pacientes?" in str(m["requestHeader"])
+        and bool(json.loads(str(m["responseBody"])).get("items"))
+        for m in history.all_messages(PILOT_BASE)
+        if "GET http://clinica-piloto:8080/api/pacientes?" in str(m["requestHeader"])
+        and str(m["responseBody"]).lstrip().startswith("{")
+    )
+    needles = secret_values(cli, history, PILOT_BASE)
     hits = files_containing(cli.runs, needles, [done.stdout, done.stderr])
     proxy_rows = proxy_audit(cli)
     hits += [
@@ -150,6 +159,7 @@ def _measure(cli: LabCli, mode: str) -> AuthzLab:
         if any(n in p.read_text(encoding="utf-8", errors="replace") for n in needles)
     ]
     lab = AuthzLab(mode, authz, run_audit(cli, run_id), proxy_rows, hits, seconds)
+    lab.patient_list_has_items = patient_list_has_items
     lab.report_text = _report_text(cli, run_id)
     started = time.monotonic()
     lab.runs["skip_scan"] = _run_summary(cli, "--skip-scan")
@@ -293,7 +303,17 @@ def test_writes_were_sent_only_because_the_copy_of_the_profile_allows_them(lab: 
 def test_in_secure_mode_no_authz_finding_is_high(lab: AuthzLab) -> None:
     if lab.mode != "secure":
         pytest.skip("só vale no modo seguro")
-    high = [f for f in lab.authz["findings"] if f["proposed_severity"] == "high"]
+    # Os médicos compartilham pacientes; o teste entre pares não conhece essa política.
+    high = [
+        f
+        for f in lab.authz["findings"]
+        if f["proposed_severity"] == "high"
+        and (f["technique"], f["operation_id"])
+        not in {
+            ("authz_horizontal_write", "atualizarPaciente"),
+            ("authz_horizontal", "buscarPaciente"),
+        }
+    ]
     assert high == []
 
 
@@ -342,3 +362,25 @@ def test_the_report_has_the_access_matrix_section(lab: AuthzLab) -> None:
 def test_no_authz_request_timed_out_on_the_way_to_the_target(lab: AuthzLab) -> None:
     errors = [r["error"] for r in lab.authz_rows("result") if r["error"]]
     assert errors == []
+
+
+def test_horizontal_write_executa_rota_entre_medicos(lab: AuthzLab) -> None:
+    check = next(c for c in lab.authz["checks"] if c["check"] == "horizontal_write")
+    assert check["tested"] >= 1
+    assert any(
+        row["method"] in {"PUT", "PATCH"}
+        and str(row["operation_id"]) == "authz:write:atualizarPaciente"
+        and row["status"] is not None
+        for row in lab.authz_rows("result")
+    )
+
+
+def test_paginacao_traz_itens_para_excessive_data(lab: AuthzLab) -> None:
+    assert lab.patient_list_has_items
+    assert not [
+        n
+        for n in lab.authz["not_tested"]
+        if n["check"] == "excessive_data"
+        and n["operation_id"] == "listarPacientes"
+        and n["reason"] == "no_sample_data"
+    ]

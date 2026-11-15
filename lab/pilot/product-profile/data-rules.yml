@@ -46,11 +46,3 @@ rules:
   - match: { operation: buscarMedicoPorCrm, field: crm }
     generator: constant
     args: { value: 12345-SP }
-  # Paginacao (V1.1, authz): o valor sorteado de `page` cai numa pagina vazia (items: []) e o teste de exposicao
-  # excessiva nao teria item para comparar com o esquema. Pagina 0 e tamanho pequeno devolvem a semente.
-  - match: { field: page }
-    generator: integer
-    args: { min: 0, max: 0 }
-  - match: { field: size }
-    generator: integer
-    args: { min: 5, max: 10 }

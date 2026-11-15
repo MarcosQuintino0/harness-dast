@@ -57,6 +57,9 @@ pilot:
     medico:
       username: ${PILOT_MEDICO_USERNAME}
       password: ${PILOT_MEDICO_PASSWORD}
+    medico-b:
+      username: ${PILOT_MEDICO_B_USERNAME}
+      password: ${PILOT_MEDICO_B_PASSWORD}
     paciente-a:
       username: ${PILOT_PACIENTE_A_USERNAME}
       password: ${PILOT_PACIENTE_A_PASSWORD}

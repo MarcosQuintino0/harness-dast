@@ -104,6 +104,8 @@ def _generated_env() -> dict[str, str]:
         "PILOT_ADMIN_PASSWORD": password(),
         "PILOT_MEDICO_USERNAME": "it_medico",
         "PILOT_MEDICO_PASSWORD": password(),
+        "PILOT_MEDICO_B_USERNAME": "it_medico_b",
+        "PILOT_MEDICO_B_PASSWORD": password(),
         "PILOT_PACIENTE_A_USERNAME": "it_paciente_a",
         "PILOT_PACIENTE_A_PASSWORD": password(),
         "PILOT_PACIENTE_B_USERNAME": "it_paciente_b",
