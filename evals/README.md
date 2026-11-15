@@ -9,6 +9,7 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 | `answer-keys/` | Gabaritos em texto (hoje `clinica-piloto.md`). **Nunca** vão para a cópia |
 | `cases/<caso>/case.yml` e `authorization.md` | Um caso: alvo, modos, carta, perfil esperado, gabarito em forma de máquina, orçamento |
 | `runner/` | `python -m evals.runner prepare, approve, snapshot, collect, score, classify, measure, compare` |
+| `protocolo-da-rodada-cega.md` | **Como fazer uma rodada cega completa igual às de 2026-11-15**: valores fixos, comandos na ordem, o que anotar (tempo, tokens, custo, falas do agente) e onde arquivar. Siga este protocolo nas rodadas novas |
 | `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](measurements/README.md) |
 | `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](results/README.md) |
 
@@ -110,7 +111,7 @@ Duas formas de lançar:
   **Atenção (visto na primeira rodada cega, 2026-11-13):** o arquivo `tasks\<agentId>.output` pode ficar **vazio** depois que o subagente termina. A conversa completa fica em `%USERPROFILE%\.claude\projects\<projeto>\<sessão>\subagentsgent-<agentId>.jsonl`, no mesmo formato; copie de lá. Confira que o `score.md` diz "Transcript: estruturado": com arquivo vazio as verificações de comando saem `n/a` e a nota fica mais alta do que deveria.
 
   Verificado contra um `.output` real de 213 linhas e 55 chamadas de ferramenta: o parser contou 55 (sem o filtro, as cópias de telemetria somavam 6 chamadas repetidas e o texto bruto triplicava).
-- **Não interativo** (a forma que carrega o ambiente sem truque; **não testada** aqui porque gasta modelo): `claude -p "<prompt>" --output-format stream-json --verbose --permission-mode acceptEdits > $out\transcript.jsonl`, dentro do workspace. O `settings.json` do workspace vale: as regras de negação vencem o modo.
+- **Não interativo** (a forma usada desde 2026-11-15; passo a passo exato em [protocolo-da-rodada-cega.md](protocolo-da-rodada-cega.md)): `claude -p` dentro do workspace, com modelo, esforço, permissões e saída fixos, retomada por `--resume` depois da aprovação e uma ficha por segmento. O `settings.json` do workspace vale: as regras de negação vencem o modo.
 
 **Aprovação do escopo (ADR 0037).** O agente escreve o perfil, mas nenhum comando que toca o alvo roda sem a aprovação de uma pessoa (`hdast profile approve`, que exige terminal e que o agente não pode rodar). Na rodada cega o agente para no primeiro comando que toca o alvo (`SCOPE_NOT_APPROVED`) e avisa no diário e na resposta. O coordenador, fazendo o papel da pessoa e **fora** do agente, confere o perfil contra a carta e aprova; depois retoma o agente (mesma conversa, mensagem "escopo aprovado, continue"):
 
