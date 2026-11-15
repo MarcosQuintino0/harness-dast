@@ -15,6 +15,7 @@ from pydantic import Field
 from harness_dast.domain.api_model import safe_identifier
 from harness_dast.domain.api_schema import ApiModel, JsonScalar, JsonValue
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.synthetic_files import DEFAULT_KIND, FILE_KINDS
 
 ArgKind = Literal["int", "str", "bool", "scalar", "scalar_list"]
 BR_DDD_CODES = (
@@ -179,6 +180,14 @@ CATALOG: tuple[GeneratorDef, ...] = (
         ),
         supports_unique=True,
         summary="Sequência crescente; repete entre execuções (use numeric para unicidade).",
+    ),
+    GeneratorDef(
+        name="synthetic_file",
+        args=(
+            ArgSpec(name="kind", kind="str", default=DEFAULT_KIND, choices=FILE_KINDS),
+            ArgSpec(name="name", kind="str"),
+        ),
+        summary="Arquivo sintético para campo multipart: texto tipo:nome (text, csv, json, png).",
     ),
     GeneratorDef(name="br.cpf", args=(_FORMATTED,), supports_unique=True, summary="CPF válido."),
     GeneratorDef(name="br.cnpj", args=(_FORMATTED,), supports_unique=True, summary="CNPJ válido."),

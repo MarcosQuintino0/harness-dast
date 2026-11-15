@@ -260,6 +260,11 @@ ignore_names = [
     "baseline_status",
     "observed_status",
     "omitted_fields",
+    # Envio de arquivo no probe (ADR 0052): campos do resumo de multipart (exchanges.json, prévia
+    # do --dry-run e spec inspect) lidos só pela serialização do pydantic e pelo agente.
+    "total_bytes",
+    "multipart_parts",
+    "multipart_probe",
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",

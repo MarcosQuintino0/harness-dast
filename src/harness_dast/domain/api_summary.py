@@ -10,6 +10,7 @@ módulo é puro.
 """
 
 import re
+from typing import Literal
 
 from pydantic import Field
 
@@ -20,7 +21,9 @@ from harness_dast.domain.api_schema import (
     effective_type,
     flatten_schema,
 )
-from harness_dast.domain.multipart_encoding import verify_synthetic_multipart
+from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE, verify_synthetic_multipart
+from harness_dast.domain.multipart_schema import plan_parts
 
 DEFAULT_BUDGET_CHARS = 40_000
 MIN_BUDGET_CHARS = 2_000
@@ -81,6 +84,8 @@ class OperationSummary(ApiModel):
         consumes: Entradas obrigatórias que parecem identificadores.
         multipart_offline: Resultado da prova sintética se multipart foi detectado; senão None.
         multipart_inspection_incomplete: Se alguma chave de mídia não foi inspecionada.
+        multipart_probe: `ready` se o montador do `probe` consegue montar o corpo multipart
+            desta operação (sem enviar nada), `unsupported_schema` se não; só com multipart.
     """
 
     id: str
@@ -95,6 +100,9 @@ class OperationSummary(ApiModel):
     consumes: tuple[str, ...] = ()
     multipart_offline: bool | None = Field(default=None, exclude_if=lambda value: value is None)
     multipart_inspection_incomplete: bool = Field(default=False, exclude_if=lambda value: not value)
+    multipart_probe: Literal["ready", "unsupported_schema"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class ApiSummary(ApiModel):
@@ -192,6 +200,26 @@ def _produced(schema: Schema | None, prefix: str, depth: int) -> list[str]:
     return found
 
 
+def _multipart_probe(operation: Operation) -> Literal["ready", "unsupported_schema"] | None:
+    """Se o montador do `probe` sabe montar o multipart da operação (sem enviar nada)."""
+    body = operation.request_body
+    media = next(
+        (
+            item
+            for item in (body.media if body else ())
+            if item.media_type.split(";")[0].strip().lower() == MULTIPART_MEDIA_TYPE
+        ),
+        None,
+    )
+    if media is None:
+        return None
+    try:
+        plan_parts(media.body_schema, media.part_content_types)
+    except ConfigError:
+        return "unsupported_schema"
+    return "ready"
+
+
 def summarize_operation(
     operation: Operation, *, multipart_verified: bool | None = None
 ) -> OperationSummary:
@@ -234,6 +262,7 @@ def summarize_operation(
             if has_multipart
             else None
         ),
+        multipart_probe=_multipart_probe(operation) if has_multipart else None,
     )
 
 

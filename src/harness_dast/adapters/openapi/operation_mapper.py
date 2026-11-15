@@ -14,6 +14,7 @@ from harness_dast.adapters.openapi.refs import Raw, RefResolver, escape_pointer
 from harness_dast.adapters.openapi.schema_mapper import SchemaMapper, read_schema_examples
 from harness_dast.domain.api_model import (
     MAX_MEDIA_TYPES,
+    MAX_PART_TYPES,
     HttpMethod,
     MediaBody,
     Operation,
@@ -37,6 +38,9 @@ _MAX_SUMMARY = 200
 _MAX_MULTIPART_MEDIA_KEYS = 100
 _MAX_MULTIPART_KEY_LENGTH = 100
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+_MAX_PART_NAME = 64
+_MAX_PART_TYPE = 100
+_PART_TYPE = re.compile(r"[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+*-]*\Z")
 
 
 class OperationMapper:
@@ -206,7 +210,13 @@ class OperationMapper:
             )
             if schema is not None:
                 schema = self._with_examples(schema, body, media_where)
-            media.append(MediaBody(media_type=str(media_type)[:100], body_schema=schema))
+            media.append(
+                MediaBody(
+                    media_type=str(media_type)[:100],
+                    body_schema=schema,
+                    part_content_types=_part_content_types(str(media_type), body),
+                )
+            )
         return tuple(media)
 
     def _with_examples(self, schema: Schema, node: Mapping[str, Raw], where: str) -> Schema:
@@ -280,6 +290,38 @@ def _inspect_multipart_keys(content: Raw) -> tuple[bool, bool]:
         elif key.split(";", 1)[0].strip().lower() == "multipart/form-data":
             declared = True
     return declared, incomplete
+
+
+def _part_content_types(media_type: str, body: Mapping[str, Raw]) -> dict[str, str]:
+    """`encoding.<campo>.contentType` de um corpo multipart, limitado e sem texto hostil.
+
+    Só vale para `multipart/form-data`. Guarda no máximo 50 campos, nome com até 64 e tipo com
+    até 100 caracteres; só o primeiro tipo de uma lista separada por vírgula, em minúsculas e
+    sem parâmetros. Entrada que não é texto, tem controle ou não parece `tipo/subtipo` é
+    ignorada (o campo volta ao arquivo padrão).
+    """
+    encoding = body.get("encoding")
+    if media_type.split(";", 1)[0].strip().lower() != "multipart/form-data":
+        return {}
+    if not isinstance(encoding, Mapping):
+        return {}
+    found: dict[str, str] = {}
+    for name, entry in islice(encoding.items(), _MAX_MULTIPART_MEDIA_KEYS):
+        declared = entry.get("contentType") if isinstance(entry, Mapping) else None
+        if not isinstance(name, str) or not isinstance(declared, str):
+            continue
+        first = declared.split(",", 1)[0].split(";", 1)[0].strip().lower()
+        if (
+            len(name) > _MAX_PART_NAME
+            or len(first) > _MAX_PART_TYPE
+            or _CONTROL_CHARS.search(name)
+            or not _PART_TYPE.match(first)
+        ):
+            continue
+        found[name] = first
+        if len(found) >= MAX_PART_TYPES:
+            break
+    return found
 
 
 def parse_security(raw: Raw, where: str) -> tuple[SecurityRequirement, ...]:
