@@ -73,6 +73,11 @@ class NegativeOutcome:
     not_tested: tuple[NegativeNotTested, ...]
 
 
+def need_restore(method: str) -> int:
+    """Requisições que ficam reservadas para restaurar (1 em `PUT` e `PATCH`, senão 0)."""
+    return 1 if method.upper() in RESTORABLE_METHODS else 0
+
+
 def _stop_status(error: Exception) -> tuple[ProbeStatus, str]:
     if isinstance(error, StopRun):
         return error.status, error.message
@@ -144,7 +149,7 @@ class NegativeRunner:
         if key in self._closed:
             self._skip(key, self._closed[key])
             return
-        need = 2 if case.exchange.method.upper() in RESTORABLE_METHODS else 1
+        need = 1 + need_restore(case.exchange.method)
         if self._sender.sent + need > self._max:
             self._skip(key, "budget")
             return
@@ -169,7 +174,8 @@ class NegativeRunner:
         """Envia o caso; se uma parada vier de um PUT ou PATCH, tenta desfazer antes de seguir."""
         target, body = render_case(case)
         try:
-            return self._sender.send(case.exchange, target, body)
+            reserve = need_restore(case.exchange.method)
+            return self._sender.send(case.exchange, target, body, reserve=reserve)
         except (StopRun, ExternalToolError):
             # Janela e prazo são conferidos ANTES do envio (nada saiu); aqui a escrita pode ter
             # chegado ao alvo, então a restauração é tentada e, sem confirmação, avisada.

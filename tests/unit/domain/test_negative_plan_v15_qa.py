@@ -168,15 +168,7 @@ def test_the_plan_without_the_letter_has_no_write_case_for_any_schema(method: st
     "budget",
     [
         0,
-        pytest.param(
-            -1,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="QA V1.5c: plan_negative corta com ordered[:max_requests]; orçamento "
-                "negativo vira fatia do fim e planeja quase tudo (inalcançável pela CLI, que "
-                "exige >= 1, mas a função pura não se defende)",
-            ),
-        ),
+        -1,
     ],
 )
 def test_a_zero_or_negative_budget_plans_nothing(budget: int) -> None:

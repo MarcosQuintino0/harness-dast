@@ -346,6 +346,15 @@ class ProductProfile(ProfileModel):
         return self.auth.token_path if isinstance(self.auth, PasswordLoginAuth) else None
 
     @property
+    def infrastructure_paths(self) -> frozenset[str]:
+        """Caminhos de login, saúde e preparação: existem para o ambiente, não são negócio."""
+        return frozenset(
+            path
+            for path in (self.login_path, self.probe.health_path, self.probe.setup_path)
+            if path is not None
+        )
+
+    @property
     def login_limit(self) -> LoginLimit | None:
         """Taxa de login declarada em `auth.login_limit`, ou `None`."""
         return self.auth.login_limit if isinstance(self.auth, PasswordLoginAuth) else None

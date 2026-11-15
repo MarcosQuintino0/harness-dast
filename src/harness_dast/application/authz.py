@@ -332,7 +332,7 @@ def _plan(
     if "mass_assignment" in checks:
         mass = (
             plan_mass_assignment(
-                exchanges, public, config, operations, _infrastructure_paths(profile)
+                exchanges, public, config, operations, profile.infrastructure_paths
             )
             if config.allow_writes
             else Planned((), (mass_blocked_note(),))
@@ -359,15 +359,6 @@ def _plan(
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
 
 
-def _infrastructure_paths(profile: ProductProfile) -> frozenset[str]:
-    """Caminhos de login, saúde e preparação: não são operações de negócio."""
-    return frozenset(
-        path
-        for path in (profile.login_path, profile.probe.health_path, profile.probe.setup_path)
-        if path is not None
-    )
-
-
 def _access(
     check: Literal["anonymous_access", "tampered_token"],
     profile: ProductProfile,
@@ -378,7 +369,7 @@ def _access(
     """Plano de uma verificação de acesso (vazio se ela não foi pedida)."""
     if check not in checks:
         return Planned((), ())
-    infrastructure = _infrastructure_paths(profile)
+    infrastructure = profile.infrastructure_paths
     return plan_access(
         check,
         exchanges,

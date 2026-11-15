@@ -51,12 +51,6 @@ def test_a_class_not_asked_for_is_not_a_seed(outcome: str) -> None:
 
 
 @pytest.mark.parametrize("method", ["delete", "Delete", "dELETE"])
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: scan_plan._decide compara result.method == 'DELETE' sem normalizar; "
-    "um probe.json com método em minúsculas (adulterado ou de outro gerador) vira candidato de "
-    "varredura de DELETE",
-)
 def test_delete_with_a_non_uppercase_method_is_still_never_scanned(method: str) -> None:
     chosen, _ = _plan(method, "success", include=frozenset())
 
@@ -64,11 +58,6 @@ def test_delete_with_a_non_uppercase_method_is_still_never_scanned(method: str) 
 
 
 @pytest.mark.parametrize("method", ["put", "patch", "Put"])
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: scan_plan._decide só aplica a regra 'PUT/PATCH só sobre recurso criado' "
-    "com método em maiúsculas; em minúsculas o PUT/PATCH passa sem scan.mutating_methods",
-)
 def test_a_lowercase_put_or_patch_still_needs_a_resource_created_by_the_run(method: str) -> None:
     chosen, _ = _plan(method, "success", include=frozenset())
 

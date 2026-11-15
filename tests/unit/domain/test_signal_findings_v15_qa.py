@@ -78,12 +78,6 @@ def test_identifiers_in_unresolved_paths_are_generalised(path: str) -> None:
     assert last not in template
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="QA V1.5c: generic_template (usado por build_proxy_signals quando o caminho não casa "
-    "com uma operação) só generaliza dígitos, UUID, hex e segmentos longos com dígito; e-mail e "
-    "CPF com pontuação passam inteiros para error-signals.json, relatório e fingerprint",
-)
 @pytest.mark.parametrize("path", ["/api/u/maria.silva@example.com", "/api/cpf/123.456.789-09"])
 def test_personal_identifiers_in_unresolved_paths_are_generalised(path: str) -> None:
     result = build(row(path))

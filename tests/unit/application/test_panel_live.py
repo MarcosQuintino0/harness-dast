@@ -4,11 +4,12 @@ from datetime import UTC, datetime
 
 from harness_dast.application.panel_index import PanelIndexer
 from harness_dast.application.panel_live import LiveBoard
+from harness_dast.application.panel_live import _outcome as live_outcome
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.scan import ScanRequest
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.run_summary import StageRecord
+from harness_dast.domain.run_summary import RunOptions, RunSummary, StageRecord
 from tests.fakes.panel_index_ports import BreakableFiles, FakeIndexFiles, RecordingLive
 from tests.fakes.panel_ports import FakeSpecLoader
 from tests.fakes.profile_data import valid_profile
@@ -273,3 +274,19 @@ def test_the_live_page_lists_the_negative_stage_only_when_the_run_asked_for_it()
     assert "Mandando valores que o contrato proíbe, um por vez" in asked.pages()[-1]
     assert "Valores proibidos" not in skipped.pages()[-1]
     assert "Entre contas" in skipped.pages()[-1]
+
+
+def test_a_failed_summary_without_stages_ends_as_partial_instead_of_raising() -> None:
+    summary = RunSummary(
+        product="demo",
+        run_id=RUN_ID,
+        status="failed",
+        exit_code=2,
+        started_at="2026-11-13T10:00:00+00:00",
+        finished_at="2026-11-13T10:00:01+00:00",
+        duration_seconds=1.0,
+        options=RunOptions(),
+        stages=(),
+    )
+
+    assert live_outcome(summary) == ("partial", None)

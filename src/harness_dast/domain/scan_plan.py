@@ -246,22 +246,23 @@ def _decide(
     allowed_outcomes: frozenset[str],
     uploads: frozenset[str] = frozenset(),
 ) -> tuple[SkipReason, str] | None:
+    method = result.method.upper()
     if planned is None:
         return "not_planned", "A operação não existe mais no OpenAPI atual; refaça o probe."
     if result.outcome not in allowed_outcomes:
         return "not_success", "O probe não teve sucesso nesta operação; não há requisição válida."
-    if result.method == "DELETE":
+    if method == "DELETE":
         return "delete", "DELETE nunca é varrido: o varredor apagaria dados de verdade."
-    if login_path is not None and result.method == "POST" and result.path == login_path:
+    if login_path is not None and method == "POST" and result.path == login_path:
         return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
     if planned.decision == "skipped_denied":
         return "denied", "O caminho está em scope.deny_paths."
     if planned.decision != "send":
         return "scope", "A operação está fora de scope.allow."
-    if result.method in {"PUT", "PATCH"} and not _may_mutate(result, planned, outcomes, config):
+    if method in {"PUT", "PATCH"} and not _may_mutate(result, planned, outcomes, config):
         return (
             "mutating",
-            f"{result.method} só é varrido sobre recurso criado nesta execução "
+            f"{method} só é varrido sobre recurso criado nesta execução "
             "(flows.yml) ou com scan.mutating_methods no perfil.",
         )
     if result.operation_id in uploads:
@@ -275,7 +276,7 @@ def _may_mutate(
     outcomes: Mapping[str, str],
     config: ScanConfig,
 ) -> bool:
-    return result.method in config.mutating_methods or _created_by_run(planned, outcomes)
+    return result.method.upper() in config.mutating_methods or _created_by_run(planned, outcomes)
 
 
 def select_candidates(

@@ -65,7 +65,7 @@ Os valores são sempre ASCII simples e curtos (no máximo 1 000 caracteres), sem
 - **`POST`, `PUT`, `PATCH`:** só com `negative.allow_writes: true` no perfil, que vem da **carta** (`attack.allow_invalid_input_writes`, com `source: carta` e a frase em `quote`; veja o [modelo de autorização](../guides/modelo-de-autorizacao.md)). É campo próprio: não reaproveita `authz.allow_writes` (a pergunta de lá é se o teste **entre contas** pode escrever; esta é se pode gravar dado **inválido**). Sem ele, cada pedido de escrita vai para `not_tested` com `writes_not_authorized` ("escrita não autorizada pela carta: negative.allow_writes") e **nada é enviado**. Nenhuma flag liga a escrita.
 - **`DELETE` nunca.** O plano descarta o método e o domínio recusa um caso `DELETE`.
 
-Todo pedido passa pelo mesmo caminho do `probe` e do `authz` (`OperationDispatcher` sobre `GuardedSender`): `ScopeGuard`, `deny_paths`, métodos do escopo, `limits.requests_per_second`, janela, prazo, trava de emergência (`hdast stop`), auditoria (linhas com `operation_id` `negative:<operação>`; `negative:restore:<operação>` na restauração) e orçamento de login. Escopo recusado vira `scope_denied` em `not_tested`, não erro. Cinco falhas de transporte seguidas encerram o estágio (`stopped_target_unresponsive`, saída `6`).
+Todo pedido passa pelo mesmo caminho do `probe` e do `authz` (`OperationDispatcher` sobre `GuardedSender`): `ScopeGuard`, `deny_paths`, métodos do escopo, `limits.requests_per_second`, janela, prazo, trava de emergência (`hdast stop`), auditoria (linhas com `operation_id` `negative:<operação>`; `negative:restore:<operação>` na restauração) e orçamento de login. Escopo recusado vira `scope_denied` em `not_tested`, não erro. As repetições do despachante (429, novo login) também contam em `negative.max_requests` e nunca o passam: sem folga, a resposta 429 volta como `rate_limited`. Cinco falhas de transporte seguidas encerram o estágio (`stopped_target_unresponsive`, saída `6`).
 
 ## Reação do servidor
 
@@ -107,6 +107,8 @@ O corpo da resposta **nunca** é gravado: só o código. **Severidade proposta (
 | --- | --- |
 | `writes_not_authorized` | Pedido de `POST`, `PUT` ou `PATCH` sem `negative.allow_writes` |
 | `unsupported_body` | Escrita sem corpo JSON de objeto no `exchanges.json` (formulário, multipart, sem corpo) |
+| `omitted_required_field` | Escrita cuja linha de base perdeu um campo obrigatório por nome de segredo (`omitted_fields`): o corpo já seria inválido e o teste daria falsa segurança |
+| `infrastructure_path` | Caminho de login, saúde (`probe.health_path`) ou preparação (`probe.setup_path`) do perfil: não é operação de negócio |
 | `operation_not_found` | A operação do `exchanges.json` não existe mais no OpenAPI |
 | `no_testable_field` | Nenhum campo tem limite que o contrato declare e o teste consiga violar |
 | `unconfirmable` | Casos descartados porque o esquema não permite confirmar que o valor é proibido |

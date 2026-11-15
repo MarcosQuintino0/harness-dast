@@ -150,6 +150,7 @@ class Negative:
             max_requests=limit,
             username_field=_username_field(profile),
             only=frozenset(request.only),
+            infrastructure=profile.infrastructure_paths,
         )
         if unavailable is not None:
             plan = _unavailable(plan, unavailable)
@@ -256,7 +257,10 @@ class Negative:
         )
         pool = SessionPool(lambda alias: self._session(profile, alias, dispatcher))
         settings = NegativeSettings(
-            base_url=profile.environment.base_url, dispatcher=dispatcher, sessions=pool
+            base_url=profile.environment.base_url,
+            dispatcher=dispatcher,
+            sessions=pool,
+            max_requests=limit,
         )
         runner = NegativeRunner(
             NegativeSender(settings), product=profile.product, max_requests=limit
