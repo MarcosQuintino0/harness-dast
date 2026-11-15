@@ -17,9 +17,13 @@ que o caso não autoriza, inclusive upload. Reduções são permitidas.
 
 Cada `prepare` grava em `sealed/case.json` o gabarito completo, que `approve`, `collect` e
 `score` utilizam; mudar um caso depois não altera uma rodada já preparada. Para rodadas antigas
-sem snapshot, o caso padrão `clinica-piloto` recorre ao caso estrito histórico. Rodadas cujo
-coordenador alterou a carta ou gabarito para modo amplo precisam do gabarito exato da rodada:
-o snapshot não pode ser reconstruído automaticamente e o caso estrito não é equivalente.
+sem snapshot, o coordenador informa `--case-file CAMINHO` para apontar o gabarito exato da
+rodada; sem ele, o executor falha em vez de presumir uma carta. O arquivo não substitui um
+lacre existente. O score registra caminho e SHA-256. O caso
+`evals/cases/clinica-piloto-historico-terra-wide.yml` reconstrói a rodada Terra de 14/11 a
+partir do caso estrito e do patch arquivado `attempts/02-main/coordinator/isolation-and-wide.patch`:
+porta de estado, imagem do alvo e modo amplo. Essa reconstrução não se aplica automaticamente
+a outras rodadas.
 O lacre não versiona o código do avaliador: para reproduzir rigorosamente uma nota antiga,
 também é necessário o código e as entradas e parâmetros daquela rodada. A evolução da régua
 pode mudar notas quando aplicada a artefatos anteriores com um gabarito novo.

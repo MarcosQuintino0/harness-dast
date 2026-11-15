@@ -84,7 +84,7 @@ def test_nota_arquivada_recalculada_com_gabarito_historico(tmp_path: Path) -> No
     """Reconstitui o wide de 14/11; o lacre de segredos não consta no arquivo sanitizado."""
     import shutil
 
-    from evals.runner.scoring import Cost, compute
+    from evals.runner.cli import main
 
     archive = Path("evals/results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main")
     out = tmp_path / "round"
@@ -98,12 +98,26 @@ def test_nota_arquivada_recalculada_com_gabarito_historico(tmp_path: Path) -> No
     (sealed / "mode.json").write_text(
         '{"case":"clinica-piloto","mode":"vulnerable"}', encoding="utf-8"
     )
-    case = load_case("clinica-piloto-estrito").model_copy(update={"name": "clinica-piloto"})
-    case = case.model_copy(
-        update={"expected": case.expected.model_copy(update={"path_mode": "wide"})}
+    case_file = Path("evals/cases/clinica-piloto-historico-terra-wide.yml")
+    assert (
+        main(
+            [
+                "score",
+                "--out",
+                str(out),
+                "--case-file",
+                str(case_file),
+                "--tokens",
+                "8023944",
+                "--duration-seconds",
+                "1777",
+            ]
+        )
+        == 0
     )
-    (sealed / "case.json").write_text(case.model_dump_json(), encoding="utf-8")
-    result = compute(out, Cost(tokens=8023944, duration_seconds=1777))
+    result = json.loads((out / "score.json").read_text(encoding="utf-8"))
+    assert result["case_source"]["path"] == str(case_file)
+    assert len(result["case_source"]["sha256"]) == 64
     saved = json.loads((archive / "score.json").read_text(encoding="utf-8"))
     assert result["grade"] == saved["grade"] == 7.18
     assert [c["score"] for c in result["components"]] == [c["score"] for c in saved["components"]]
@@ -183,3 +197,40 @@ def test_blocos_de_ataque_ausentes_sao_permitidos() -> None:
         if c.id == "attack_permissions"
     )
     assert check.passed is True
+
+
+def test_rodada_antiga_exige_gabarito_explicito(tmp_path: Path) -> None:
+    from evals.runner.cases import EvalError, RoundDirs
+
+    with pytest.raises(EvalError, match="--case-file"):
+        load_round_case(RoundDirs(tmp_path), "clinica-piloto")
+
+
+def test_case_file_nao_pode_substituir_lacre(repo: Path, out: Path) -> None:
+    from evals.runner.cases import EvalError
+
+    dirs = make_round(repo, out)
+    with pytest.raises(EvalError, match="nao substitua"):
+        load_round_case(dirs, "mini", CASES, case_file=CASES / "mini/case.yml")
+
+
+def test_case_file_de_outro_caso_e_recusado(tmp_path: Path) -> None:
+    from evals.runner.cases import EvalError, RoundDirs
+
+    with pytest.raises(EvalError, match="nao da rodada"):
+        load_round_case(RoundDirs(tmp_path), "outro", case_file=CASES / "mini/case.yml")
+
+
+def test_cli_recusa_rodada_antiga_sem_gabarito(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from evals.runner.cli import main
+
+    sealed = tmp_path / "sealed"
+    sealed.mkdir()
+    (sealed / "mode.json").write_text(
+        '{"case":"clinica-piloto","mode":"vulnerable"}', encoding="utf-8"
+    )
+    assert main(["score", "--out", str(tmp_path)]) == 2
+    assert "--case-file" in capsys.readouterr().err
+    assert not (tmp_path / "score.json").exists()
