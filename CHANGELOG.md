@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Provas de laboratório (degrau 3)
+
+- Provas contra a Clínica Piloto, nos modos vulnerável e seguro, dos sinais de erro interno na cerca (ADR 0049, `tests/integration/test_lab_error_signals.py`, agora com o pedido de erro vindo do próprio `probe`), da varredura de operações que deram "não encontrado" (ADR 0050, `test_lab_include_outcomes.py`) e dos valores que o esquema proíbe (ADR 0051, `test_lab_negative.py`). Só testes e medidas; o código da ferramenta não mudou.
+
 ## [1.5.0] - 2026-11-14
 
 ### Relatório e cobertura
