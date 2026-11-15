@@ -86,12 +86,15 @@ def plan_horizontal_write(
     tasks: list[WriteTask] = []
     skips: list[AuthzNotTested] = []
     for item in unique_exchanges([e for e in exchanges if e.method in WRITE_METHODS]):
+        operation = by_id.get(item.operation_id)
+        refusal = _refusal(item, operation, exchanges, public, id_parameters)
+        if refusal is not None:
+            skips.append(refusal)
+            continue
         if roles.get(item.account) in shared_roles:
             skips.append(shared_role_note("horizontal_write", item))
             continue
-        operation = by_id.get(item.operation_id)
-        refusal = _refusal(item, operation, exchanges, public, id_parameters)
-        chosen = refusal or _task(item, operation, roles, reads)
+        chosen = _task(item, operation, roles, reads)
         if isinstance(chosen, AuthzNotTested):
             skips.append(chosen)
         elif len(tasks) >= budget:

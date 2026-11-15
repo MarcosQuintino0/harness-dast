@@ -178,3 +178,20 @@ def test_shared_role_is_skipped_without_a_write_task() -> None:
     plan = plan_horizontal_write([READ, ex("put")], ROLES, frozenset(), shared_roles=("paciente",))
     assert plan.tasks == ()
     assert reasons(plan.not_tested) == {"put": "shared_role"}
+
+
+def test_shared_role_preserves_structural_refusal_reasons() -> None:
+    items = [
+        ex("publica", target="/api/x/1"),
+        ex("sem_corpo", target="/api/x/2", body=None),
+        ex("sem_id", path="/api/x", target="/api/x"),
+        ex("elegivel", target="/api/x/3"),
+    ]
+    plan = plan_horizontal_write(items, ROLES, frozenset({"publica"}), shared_roles=("paciente",))
+    assert plan.tasks == ()
+    assert reasons(plan.not_tested) == {
+        "publica": "public_operation",
+        "sem_corpo": "no_json_body",
+        "sem_id": "no_object_identifier",
+        "elegivel": "shared_role",
+    }

@@ -137,12 +137,12 @@ def plan_horizontal(
                 skip_note("horizontal", item, "public_operation", "Marcada como pública no perfil.")
             )
             continue
-        if roles.get(item.account) in shared_roles:
-            skips.append(shared_role_note("horizontal", item))
-            continue
         scan = find_identifiers(by_id.get(item.operation_id), item, exchanges, id_parameters)
         if not scan.refs:
             skips.append(no_identifier_note("horizontal", item, scan.ambiguous))
+            continue
+        if roles.get(item.account) in shared_roles:
+            skips.append(shared_role_note("horizontal", item))
             continue
         owner_role = roles.get(item.account)
         peers = [a for a, r in roles.items() if r == owner_role and a != item.account]
