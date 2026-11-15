@@ -1,0 +1,289 @@
+# Ambiente de contêineres do harness-dast. Implementa a camada 3 de AD-11:
+# o ZAP não tem rota para fora; tudo que ele envia ao alvo passa pelo proxy de
+# escopo (scope-proxy: mitmproxy + ScopeGuard, ADR 0017), que decide CADA
+# requisição por host, esquema, porta, caminho e método, e nega por padrão.
+#
+# Uso (veja lab/README.md e docker/scope-proxy/README.md):
+#   export HDAST_ZAP_API_KEY="$(openssl rand -hex 24)"   # obrigatória, sem padrão
+#   docker compose up -d --build                # zap + scope-proxy (+ zap-gateway)
+#   docker compose --profile lab up -d --build  # inclui o alvo de laboratório (VAmPI)
+#   docker compose --profile lab down           # parada
+# O caminho normal é `hdast stack up <produto>`, que gera a política do perfil, sorteia a chave
+# do ZAP e sobe tudo (docs/reference/cli.md); estes comandos servem à operação manual.
+#
+# Variáveis opcionais (caminhos relativos a este arquivo):
+#   HDAST_SCOPE_POLICY_DIR  diretório com policy.json (e o arquivo-sinal KILL)
+#   HDAST_AUDIT_DIR         diretório da trilha de auditoria (sobrevive ao down)
+#
+# Imagens fixadas por tag E digest (digest do índice multi-arquitetura, lido no
+# Docker Hub e conferido no pull). Atualizar = trocar tag e digest num PR.
+
+name: hdast
+
+services:
+  # ---------------------------------------------------------------- ZAP
+  zap:
+    # Fonte: https://www.zaproxy.org/docs/docker/about/ (imagem estável oficial)
+    image: zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
+    # Execução como usuário "zap" (não root), como a documentação oficial.
+    user: zap
+    environment:
+      # Sem valor padrão de propósito: uma chave embutida no repositório seria
+      # uma chave conhecida por todos. Falha com mensagem clara se ausente.
+      HDAST_ZAP_API_KEY: "${HDAST_ZAP_API_KEY:?Defina HDAST_ZAP_API_KEY (chave da API do ZAP) antes de subir o compose, por exemplo com openssl rand -hex 24}"
+    # -daemon: sem interface gráfica. -silent: "garante que o ZAP não faça
+    #   requisições não solicitadas, inclusive a verificação de atualizações"
+    #   (texto do zap.sh -cmd -help da 2.17.0).
+    # api.key: toda chamada à API exige a chave.
+    # api.addrs: o ZAP só aceita clientes cujo IP combine com a regex; aqui
+    #   qualquer IP, porque o único caminho até a porta é a rede interna do
+    #   compose (zap-gateway), não a rede do host.
+    # network.connection.httpProxy.*: proxy de saída (upstream) do ZAP; vale para
+    #   http E https (para https o ZAP envia CONNECT ao proxy, que intercepta o
+    #   TLS e confere cada requisição interna). Chaves em
+    #   https://github.com/zaproxy/zap-extensions/blob/main/addOns/network/src/main/java/org/zaproxy/addon/network/ConnectionOptions.java
+    # Nenhuma exclusão de proxy (exclusions) é configurada: nenhum host
+    #   contorna o scope-proxy.
+    # -Xmx1536m: sem isso a JVM escolheria 1/4 do limite do contêiner (640 MiB) e o
+    #   ZAP usa 1,1 a 1,8 GiB em varredura (spike M0, Q7); fixar o heap deixa a conta
+    #   explícita: heap de 1,5 GiB mais metaspace e threads cabem em mem_limit.
+    command:
+      - sh
+      - -c
+      - >-
+        exec zap.sh -Xmx1536m -daemon -silent -host 0.0.0.0 -port 8080
+        -config api.key="$$HDAST_ZAP_API_KEY"
+        -config api.addrs.addr.name=.*
+        -config api.addrs.addr.regex=true
+        -config network.connection.httpProxy.enabled=true
+        -config network.connection.httpProxy.host=scope-proxy
+        -config network.connection.httpProxy.port=3128
+    healthcheck:
+      # Chama a API com a chave: prova que o daemon subiu E que a API responde.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null \"http://127.0.0.1:8080/JSON/core/view/version/?apikey=$$HDAST_ZAP_API_KEY\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - zap_net            # interna: única rede do ZAP, sem rota para fora
+    depends_on:
+      scope-proxy:
+        condition: service_healthy
+    # --- endurecimento
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    # --- limites de recursos (A-18 da revisão de QA). Sem limite, um alvo saturado
+    #     ou uma varredura descontrolada consome a VM inteira do Docker Desktop.
+    # 2560m: heap fixo de 1,5 GiB mais metaspace, pilhas de thread e memória nativa;
+    #   o pico medido no spike foi 1,8 GiB. Estourar o limite mata só este contêiner.
+    mem_limit: 2560m
+    # 512: a JVM do ZAP cria centenas de threads (varredor, proxy, HTTP); cobre o
+    #   uso normal e corta uma fork bomb.
+    pids_limit: 512
+    tmpfs:
+      # O ZAP grava sessão, configuração e logs em /home/zap e /zap/wrk.
+      - /home/zap:uid=1000,gid=1000,mode=0700,size=512m
+      - /zap/wrk:uid=1000,gid=1000,mode=0700,size=256m
+      - /tmp:mode=0755,size=64m
+
+  # ------------------------------------------------- Ponte host -> ZAP
+  # Contêiner em rede interna não é alcançável por porta publicada no Docker
+  # Desktop. Este encaminhador TCP mínimo (socat, destino fixo zap:8080) fica
+  # em duas redes: a interna (fala com o ZAP) e a host_net (onde a porta é
+  # publicada, somente em 127.0.0.1). O ZAP continua sem rota externa. Ver
+  # lab/README.md, seção "O que o isolamento garante e não garante".
+  zap-gateway:
+    # Fonte: https://hub.docker.com/r/alpine/socat
+    image: alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055
+    user: "65534:65534"   # nobody; a porta 8080 é acima de 1024, não precisa de root
+    command: ["TCP-LISTEN:8080,fork,reuseaddr", "TCP:zap:8080"]
+    # socat é só um encaminhador TCP: 64 MiB e poucos processos bastam (um fork por conexão).
+    mem_limit: 64m
+    pids_limit: 128
+    ports:
+      # Somente loopback do host: a API e o proxy do ZAP nunca saem da máquina.
+      - "127.0.0.1:${HDAST_ZAP_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    networks:
+      - zap_net
+      - host_net
+    depends_on:
+      zap:
+        condition: service_healthy
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+
+  # ------------------------------------------ Ponte host -> proxy de escopo
+  # Existe para o login e o token CSRF do `hdast` (auth proxy): essas requisições levam a
+  # senha da conta e por isso NÃO passam pelo ZAP (a senha ficaria no histórico dele), mas
+  # também não podem sair sem o ScopeGuard. Elas entram no scope-proxy por esta ponte, que
+  # decide cada uma pela mesma política que governa o ZAP.
+  # O que a porta publicada permite: qualquer processo desta máquina (127.0.0.1) pode mandar
+  # pedidos ao scope-proxy; o proxy nega por padrão tudo que a política da execução não
+  # permite (host, porta, caminho, método, taxa, prazo e KILL), então a porta alcança no
+  # máximo o mesmo que o ZAP já alcança. Não dá acesso ao ZAP, à rede do lab nem a Docker.
+  # Fora da máquina: ninguém (a porta é publicada só em loopback).
+  proxy-gateway:
+    image: alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055
+    user: "65534:65534"
+    command: ["TCP-LISTEN:3128,fork,reuseaddr", "TCP:scope-proxy:3128"]
+    mem_limit: 64m
+    pids_limit: 128
+    ports:
+      - "127.0.0.1:${HDAST_PROXY_HOST_PORT:-3128}:3128"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3128"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    networks:
+      - zap_net
+      - host_net
+    depends_on:
+      scope-proxy:
+        condition: service_healthy
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+
+  # -------------------------------------------------------- Proxy de escopo
+  # Substitui o Squid (ADR 0017). Fica em três redes: a do ZAP, a do lab e a única
+  # com rota externa. Decide cada requisição com o ScopeGuard; ver
+  # docker/scope-proxy/README.md para o que garante e o que não garante.
+  scope-proxy:
+    build:
+      context: .
+      dockerfile: docker/scope-proxy/Dockerfile
+    image: hdast-terra-wide/scope-proxy:local
+    # uid 10001 criado na imagem; é também o dono dos tmpfs abaixo. Nunca root.
+    user: "10001:10001"
+    # init: PID 1 próprio, que repassa sinais e colhe processos filhos.
+    init: true
+    volumes:
+      # Política da execução, SOMENTE LEITURA: nem um proxy comprometido a altera. O
+      # arquivo-sinal KILL criado nesta pasta, no host, aciona a parada de emergência.
+      - ${HDAST_SCOPE_POLICY_DIR:-./docker/scope-proxy/policy}:/policy:ro
+      # Trilha de auditoria: pasta do host, para sobreviver ao `down`.
+      - ${HDAST_AUDIT_DIR:-./docker/scope-proxy/audit}:/audit
+    healthcheck:
+      # Abre uma conexão TCP na porta do proxy. Não envia HTTP: assim a checagem
+      # não vira linha na trilha de auditoria.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 5s
+    networks:
+      zap_net: {}          # lado do ZAP (interna)
+      lab_net: {}          # lado do alvo do lab (interna)
+      egress_net: {}       # única rede com rota para fora
+    restart: "no"          # sem reinício automático: falha de política deve ser vista, não mascarada
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    # 512m: o mitmproxy guarda cada corpo em memória (teto de 20 MiB por corpo) e, com
+    #   taxa de no máximo 50 req/s, mantém poucas dezenas de fluxos simultâneos.
+    mem_limit: 512m
+    pids_limit: 128
+    tmpfs:
+      # CA de interceptação TLS: gerada no início do contêiner, só em memória. A chave
+      # privada nunca é gravada no repositório, na imagem nem em volume.
+      - /run/mitm:uid=10001,gid=10001,mode=0700,size=16m
+      - /run/home:uid=10001,gid=10001,mode=0700,size=8m
+
+  # ------------------------------------------------------------ Lab (alvo)
+  vampi:
+    profiles: ["lab"]
+    user: "65534:65534"   # nobody; o VAmPI só precisa ler o código e gravar o SQLite em tmpfs
+    # Fonte: https://hub.docker.com/r/erev0s/vampi (única tag publicada: latest)
+    image: erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+    environment:
+      # 1 = vulnerável (padrão), 0 = seguro. Os testes usam os dois modos.
+      # Fonte: https://github.com/erev0s/VAmPI#readme
+      vulnerable: ${HDAST_VAMPI_VULNERABLE:-1}
+      tokentimetolive: ${HDAST_VAMPI_TOKEN_TTL:-300}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:5000/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks:
+      - lab_net            # interna: só o scope-proxy a alcança
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    # 256m: o VAmPI usou 105 a 123 MiB no spike; o dobro dá folga e limita o dano de um
+    #   ReDoS ou de uma varredura que o sature (ele chegou a 100% de CPU).
+    mem_limit: 256m
+    pids_limit: 64
+    cpus: 1.0
+    tmpfs:
+      - /tmp
+      - /vampi/database:uid=65534,gid=65534,mode=0755
+
+  # Frente TLS do alvo do lab, só para provar que o proxy confere caminho e método em
+  # HTTPS. Reaproveita a imagem do scope-proxy rodando o mitmdump em modo reverso: gera,
+  # ao iniciar, uma CA e um certificado AUTOASSINADO em tmpfs (nenhuma chave é versionada).
+  # É alvo de laboratório, não parte da pilha para produtos reais.
+  vampi-tls:
+    profiles: ["lab"]
+    image: hdast/scope-proxy:local
+    user: "10001:10001"
+    init: true
+    entrypoint: ["mitmdump"]
+    command:
+      - --mode
+      - reverse:http://vampi:5000@8443
+      - --listen-host
+      - 0.0.0.0
+      - --set
+      - confdir=/run/mitm
+      - --set
+      - flow_detail=0
+    depends_on:
+      vampi:
+        condition: service_healthy
+      scope-proxy:
+        condition: service_healthy   # a imagem local é construída pelo serviço scope-proxy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8443), 3).close()"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 5s
+    networks:
+      - lab_net            # interna: só o scope-proxy a alcança
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    mem_limit: 256m
+    pids_limit: 64
+    tmpfs:
+      - /run/mitm:uid=10001,gid=10001,mode=0700,size=16m
+      - /run/home:uid=10001,gid=10001,mode=0700,size=8m
+
+# Redes
+#  zap_net    internal: sem rota para fora; ZAP, proxy e ponte.
+#  lab_net    internal: proxy, VAmPI e frente TLS; o ZAP não está nela.
+#  egress_net comum: só o scope-proxy; é por onde um produto real seria alcançado.
+#  host_net   comum: só as pontes (zap-gateway e proxy-gateway), para publicar portas em 127.0.0.1.
+networks:
+  zap_net:
+    internal: true
+  lab_net:
+    internal: true
+  egress_net: {}
+  host_net: {}

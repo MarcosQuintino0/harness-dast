@@ -1,0 +1,25 @@
+{
+  "source_commit": "abc4f3aea945cd3edf7e90b64f945fc1971785a7",
+  "model": "gpt-6.1-terra",
+  "reasoning_effort": "medium",
+  "path_mode": "wide",
+  "case": "clinica-piloto",
+  "seed": 14112026,
+  "mode_requested": "random",
+  "host_ports": {
+    "api": 38080,
+    "management": 39091,
+    "zap": 8080,
+    "scope_proxy": 33128
+  },
+  "concurrent_other_lab": true,
+  "isolation_patch": "isolation-and-wide.patch",
+  "agent_transport": "fresh codex exec process; resume same thread after scope approval",
+  "assisted_continuation": {
+    "authorized_by": "dono do laboratório nesta conversa",
+    "reason": "skill de alcance interrompeu a rodada antes da varredura",
+    "instruction": "encerrar ajustes de alcance, concluir varredura e triagem com lacunas explícitas, preservar carta e limites",
+    "autonomous_boundary": "autonomous-boundary",
+    "agent_invocation": "03"
+  }
+}

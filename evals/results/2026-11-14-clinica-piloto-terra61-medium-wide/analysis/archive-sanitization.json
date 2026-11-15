@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "counts": {
+    "jwt": 0,
+    "authorization_value": 0,
+    "session_header": 1891
+  },
+  "scope": "Known generated secrets from both attempts; base64 forms; JWT; authorization/session headers; named credential fields. No secret value is emitted by this verification.",
+  "json_and_jsonl_parse_check": "Performed after archival; see validation.json",
+  "originals_modified": false
+}

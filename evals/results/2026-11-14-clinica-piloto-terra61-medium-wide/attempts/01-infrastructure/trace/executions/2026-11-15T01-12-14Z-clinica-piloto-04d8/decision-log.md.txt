@@ -1,0 +1,3 @@
+# Diário de decisões — preflight
+
+A aprovação humana foi confirmada e a janela estava aberta. A pilha iniciou; o preflight falhou em zap: resposta inesperada em core/view/version. Credenciais, CSRF e logins passaram; target_health não foi executado. Não houve probe nem scan. A pilha permaneceu ligada. Conferir configuração do endpoint e versão do ZAP com o responsável; não repetir logins em laço.

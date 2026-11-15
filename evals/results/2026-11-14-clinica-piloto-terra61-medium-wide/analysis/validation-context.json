@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "blind_test_source_commit": "abc4f3aea945cd3edf7e90b64f945fc1971785a7",
+  "archive_repository_branch": "feat/v1-5-complemento",
+  "archive_repository_commit_observed_at_start": "b2117b30c359222917a3b7eb97aea19518bd8285",
+  "archive_repository_commit_observed_at_end_short": "33d1aa1",
+  "concurrent_repository_work_observed": true,
+  "validation_scope": "The saved check logs describe the main working tree during archival. They are not a release certification of the older blind-test commit. No production source changes were made for archival."
+}

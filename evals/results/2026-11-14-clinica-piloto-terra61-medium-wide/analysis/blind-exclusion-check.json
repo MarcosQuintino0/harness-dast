@@ -1,0 +1,6 @@
+{
+  "blind_copy_exclusions": "passed for every retained archive and measurement path using runner.exclusions.decide",
+  "paths_checked": 253,
+  "git_ignored_retained_files": 0,
+  "generated_local_caches": "ignored; not retained in archive catalog"
+}

@@ -1,0 +1,30 @@
+{
+  "since": "2026-11-15T01:12:04.708490477Z",
+  "hardening_applied": false,
+  "notifications_sent": 0,
+  "isca_calls": 0,
+  "isca_mentions": 0,
+  "requests_total": 52,
+  "requests_by_endpoint": {
+    "GET /api/csrf": 4,
+    "GET /api/saude": 44,
+    "POST /api/auth/login": 4
+  },
+  "rows": {
+    "convenio": 1,
+    "medico": 2,
+    "paciente": 2,
+    "usuario": 4,
+    "consulta": 2,
+    "receita": 2
+  },
+  "rows_created_since_startup": {
+    "convenio": 0,
+    "medico": 0,
+    "paciente": 0,
+    "usuario": 0,
+    "consulta": 0,
+    "receita": 0
+  },
+  "rows_created_total": 0
+}

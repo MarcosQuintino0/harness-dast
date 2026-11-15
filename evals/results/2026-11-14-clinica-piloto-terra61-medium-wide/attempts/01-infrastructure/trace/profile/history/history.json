@@ -1,0 +1,12 @@
+[
+  {
+    "commit": "48ef3bea9e41b7c9df519993c20955eb85218869",
+    "at": "2026-11-14T22:08:19-03:00",
+    "subject": "base da rodada"
+  },
+  {
+    "commit": "6bc66196610f0568f770127320dc32f73a61c5e5",
+    "at": "2026-11-14T22:15:49-03:00",
+    "subject": "instantaneo: coleta"
+  }
+]

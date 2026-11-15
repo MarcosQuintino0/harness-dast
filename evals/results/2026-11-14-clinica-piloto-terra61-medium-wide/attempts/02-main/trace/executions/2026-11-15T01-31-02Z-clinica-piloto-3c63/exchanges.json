@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-15T01-31-02Z-clinica-piloto-3c63",
+  "product": "clinica-piloto",
+  "exchanges": [
+    {
+      "operation_id": "listarConsultas",
+      "method": "GET",
+      "path": "/api/consultas",
+      "target": "/api/consultas",
+      "account": "medico_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "listarConvenios",
+      "method": "GET",
+      "path": "/api/convenios",
+      "target": "/api/convenios",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "criarConvenio",
+      "method": "POST",
+      "path": "/api/convenios",
+      "target": "/api/convenios",
+      "account": "admin_a",
+      "status": 201,
+      "content_type": "application/json",
+      "body": "{\"codigo\":\"54590000\",\"coparticipacaoPercentual\":47,\"nome\":\"exhapctde3\",\"tipo\":\"INDIVIDUAL\"}",
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "buscarConvenioPorCodigo",
+      "method": "GET",
+      "path": "/api/convenios/codigo/{codigo}",
+      "target": "/api/convenios/codigo/54590000",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "buscarConvenio",
+      "method": "GET",
+      "path": "/api/convenios/{id}",
+      "target": "/api/convenios/1004",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "obterCsrf",
+      "method": "GET",
+      "path": "/api/csrf",
+      "target": "/api/csrf",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "listarDocumentos",
+      "method": "GET",
+      "path": "/api/documentos",
+      "target": "/api/documentos",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "obterPerfil",
+      "method": "GET",
+      "path": "/api/me",
+      "target": "/api/me",
+      "account": "paciente_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "atualizarPerfil",
+      "method": "PUT",
+      "path": "/api/me",
+      "target": "/api/me",
+      "account": "paciente_a",
+      "status": 200,
+      "content_type": "application/json",
+      "body": "{\"nome\":\"1prun1vqr3\",\"role\":\"paciente\",\"telefone\":\"0000000000\"}",
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "listarMedicos",
+      "method": "GET",
+      "path": "/api/medicos",
+      "target": "/api/medicos",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "buscarMedicoPorCrm",
+      "method": "GET",
+      "path": "/api/medicos/crm/{crm}",
+      "target": "/api/medicos/crm/0sx7nvn10p",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "listarPacientes",
+      "method": "GET",
+      "path": "/api/pacientes",
+      "target": "/api/pacientes?page=67427&size=83",
+      "account": "medico_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "criarPaciente",
+      "method": "POST",
+      "path": "/api/pacientes",
+      "target": "/api/pacientes",
+      "account": "medico_a",
+      "status": 201,
+      "content_type": "application/json",
+      "body": "{\"convenioId\":1004,\"cpf\":\"15459000190\",\"dataNascimento\":\"2026-04-25\",\"email\":\"hd3c630002@teste.exemplo.com.br\",\"nome\":\"1zqx8mvdl6\",\"sexo\":\"FEMININO\",\"telefone\":\"0000000000\"}",
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "buscarPacientesPorNome",
+      "method": "GET",
+      "path": "/api/pacientes/busca",
+      "target": "/api/pacientes/busca?nome=9zipkr9qwo",
+      "account": "medico_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "buscarPaciente",
+      "method": "GET",
+      "path": "/api/pacientes/{id}",
+      "target": "/api/pacientes/1005",
+      "account": "medico_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "atualizarPaciente",
+      "method": "PUT",
+      "path": "/api/pacientes/{id}",
+      "target": "/api/pacientes/1005",
+      "account": "medico_a",
+      "status": 200,
+      "content_type": "application/json",
+      "body": "{\"convenioId\":1004,\"cpf\":\"15459000351\",\"dataNascimento\":\"2026-09-07\",\"email\":\"hd3c630004@teste.exemplo.com.br\",\"nome\":\"iqxlzhrus9\",\"sexo\":\"FEMININO\",\"telefone\":\"0000000000\"}",
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "relatorioLento",
+      "method": "GET",
+      "path": "/api/relatorios/lento",
+      "target": "/api/relatorios/lento",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    },
+    {
+      "operation_id": "verificarSaude",
+      "method": "GET",
+      "path": "/api/saude",
+      "target": "/api/saude",
+      "account": "admin_a",
+      "status": 200,
+      "content_type": null,
+      "body": null,
+      "omitted_fields": []
+    }
+  ]
+}

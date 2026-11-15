@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-14T02-14-18Z-clinica-piloto-f087",
+  "command": "probe",
+  "product": "clinica-piloto",
+  "harness_version": "0.1.0",
+  "zap_version": "2.17.0",
+  "zap_context_id": 2,
+  "hashes": {
+    "target_yml": "a83744b70a605b7c4947f799afc406b50bd36847ae7382586ce2553759820c9e",
+    "data_rules": "b4243c5b40cd02b3746f4f167ec8271c2fcf9bb99531889b8baab36df34ba1db",
+    "flows": "46f5fa748213ec43c35ff148990682d0f538bc6f17a512ac29fb56d844066be7",
+    "openapi": "9ff137eb184ca64e0963bc61383f10a055ff2ca1f952fa54535395fc901f91db"
+  },
+  "limits": {
+    "requests_per_second": 20.0,
+    "max_duration_minutes": 30,
+    "zap_threads_per_host": 4
+  },
+  "seed": 736084985,
+  "accounts": [
+    "medico_a",
+    "admin_a",
+    "paciente_a"
+  ],
+  "started_at": "2026-11-14T02:14:18.497862+00:00",
+  "finished_at": "2026-11-14T02:14:23.926327+00:00",
+  "status": "completed"
+}

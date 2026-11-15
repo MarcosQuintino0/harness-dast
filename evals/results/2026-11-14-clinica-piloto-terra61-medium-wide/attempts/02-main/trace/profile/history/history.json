@@ -1,0 +1,22 @@
+[
+  {
+    "commit": "4e408b0291584f4acb94b72d381e6613b587456b",
+    "at": "2026-11-14T22:16:55-03:00",
+    "subject": "base da rodada"
+  },
+  {
+    "commit": "b81d63864b9d94a70221c001b579fde79eccc4fc",
+    "at": "2026-11-14T22:25:58-03:00",
+    "subject": "instantaneo: coleta"
+  },
+  {
+    "commit": "0efef6955a167581ae1d99e6c3753dda5cdeff93",
+    "at": "2026-11-14T22:28:53-03:00",
+    "subject": "instantaneo: coleta"
+  },
+  {
+    "commit": "669f95df1af8fc3a8171fceff3cdfd9e26aa9774",
+    "at": "2026-11-14T22:48:00-03:00",
+    "subject": "instantaneo: coleta"
+  }
+]

@@ -10,6 +10,7 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 | `cases/<caso>/case.yml` e `authorization.md` | Um caso: alvo, modos, carta, perfil esperado, gabarito em forma de máquina, orçamento |
 | `runner/` | `python -m evals.runner prepare, approve, snapshot, collect, score, classify, measure, compare` |
 | `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](measurements/README.md) |
+| `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](results/README.md) |
 
 Casos: `clinica-piloto` (alvo próprio, com falhas plantadas, que nenhum modelo viu), `vampi` (público; pode estar na memória dos modelos, então serve de linha de base) e `crapi` ([OWASP crAPI](../lab/crapi/README.md), público, só vulnerável, **fora** do `hdast stack up`: veja [O caso crAPI](#o-caso-crapi)). Outro caso entra só com uma pasta nova (veja [Criar um caso](#criar-um-caso)).
 
