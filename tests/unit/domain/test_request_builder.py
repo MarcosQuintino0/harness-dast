@@ -516,3 +516,94 @@ def test_build_is_repeatable_for_the_same_builder_state_and_distinct_after_use()
     again = builder(seed=5).build(operation)
 
     assert first == again
+
+
+@pytest.mark.parametrize("name", ["page", "pagina", "offset", "skip"])
+@pytest.mark.parametrize("minimum", [0, 1])
+def test_pagination_starts_at_declared_minimum(name: str, minimum: int) -> None:
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(
+            Parameter(
+                name=name, location="query", value_schema=Schema(type="integer", minimum=minimum)
+            ),
+        ),
+    )
+    assert dict(builder().build(op).query)[name] == str(minimum)
+
+
+@pytest.mark.parametrize("name", ["size", "limit", "per_page", "tamanho"])
+def test_pagination_size_is_small_and_respects_maximum(name: str) -> None:
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(
+            Parameter(
+                name=name,
+                location="query",
+                value_schema=Schema(type="integer", minimum=1, maximum=3),
+            ),
+        ),
+    )
+    assert dict(builder().build(op).query)[name] == "3"
+
+
+@pytest.mark.parametrize(
+    ("schema", "expected"),
+    [
+        (Schema(type="integer", minimum=20, maximum=100), "20"),
+        (Schema(type="integer", minimum=20, maximum=100, exclusive_minimum=True), "21"),
+        (Schema(type="integer", minimum=0, maximum=100), "10"),
+        (Schema(type="integer", minimum=0, maximum=3, exclusive_maximum=True), "2"),
+    ],
+)
+def test_pagination_size_respects_schema_bounds(schema: Schema, expected: str) -> None:
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(Parameter(name="size", location="query", value_schema=schema),),
+    )
+    assert dict(builder().build(op).query)["size"] == expected
+
+
+def test_explicit_pagination_rule_takes_precedence() -> None:
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(
+            Parameter(
+                name="page", location="query", value_schema=Schema(type="integer", minimum=0)
+            ),
+        ),
+    )
+    assert (
+        dict(builder(rules_from(rule("page", "constant", value=4))).build(op).query)["page"] == "4"
+    )
+
+
+def test_pagination_without_relevant_bounds_uses_normal_generator() -> None:
+    seen: list[ValueRequest] = []
+
+    def source(request: ValueRequest) -> JsonValue:
+        seen.append(request)
+        return 17
+
+    op = Operation(
+        operation_id="list",
+        method="get",
+        path="/x",
+        parameters=(
+            Parameter(name="page", location="query", value_schema=Schema(type="integer")),
+            Parameter(name="size", location="query", value_schema=Schema(type="integer")),
+        ),
+    )
+    assert dict(RequestBuilder(rules_from(), source, TAG).build(op).query) == {
+        "page": "17",
+        "size": "17",
+    }
+    assert len(seen) == 2

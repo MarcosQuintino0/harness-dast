@@ -25,7 +25,7 @@ public record PilotProperties(
         boolean localOnlyCheck,
         Accounts accounts) {
 
-    public record Accounts(Account admin, Account medico, Account pacienteA, Account pacienteB) {}
+    public record Accounts(Account admin, Account medico, Account medicoB, Account pacienteA, Account pacienteB) {}
 
     public record Account(String username, String password) {}
 }

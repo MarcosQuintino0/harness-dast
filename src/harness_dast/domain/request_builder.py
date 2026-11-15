@@ -13,6 +13,7 @@ sabe gerá-los; campos `readOnly` nunca são enviados. Este módulo é puro.
 """
 
 import json
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import quote
@@ -163,6 +164,33 @@ def _coerce(value: JsonValue, schema_type: str | None) -> JsonValue:
     if schema_type == "string" and isinstance(value, int | float):
         return str(value)
     return value
+
+
+def _pagination_value(flat: Schema, ctx: _Ctx) -> int | None:
+    """Escolhe primeira página ou tamanho pequeno apenas com limites reconhecíveis."""
+    if ctx.location != "query" or effective_type(flat) != "integer" or flat.enum:
+        return None
+    name = ctx.segments[-1].lower()
+    candidates: tuple[int, ...]
+    if name in {"page", "pagina", "offset", "skip"}:
+        if flat.minimum not in (0, 1) or flat.exclusive_minimum:
+            return None
+        candidates = (int(flat.minimum),)
+    elif name in {"size", "limit", "per_page", "tamanho"} and flat.maximum is not None:
+        if not math.isfinite(flat.maximum) or (
+            flat.minimum is not None and not math.isfinite(flat.minimum)
+        ):
+            return None
+        low = max(1, math.ceil(flat.minimum)) if flat.minimum is not None else 1
+        if flat.exclusive_minimum and low == flat.minimum:
+            low += 1
+        high = math.floor(flat.maximum)
+        if flat.exclusive_maximum and high == flat.maximum:
+            high -= 1
+        candidates = (min(max(low, 10), high),) if low <= high else ()
+    else:
+        return None
+    return next((value for value in candidates if not violations(flat, value)), None)
 
 
 class RequestBuilder:
@@ -434,6 +462,8 @@ class RequestBuilder:
             )
         elif flat.enum:
             value = next((option for option in flat.enum if option is not None), None)
+        elif (pagination := _pagination_value(flat, ctx)) is not None:
+            value = pagination
         else:
             generator, args = implicit_draw(flat, schema_type, ctx.display)
             value = self._draw(generator, args, flat, ctx, resolved=None, unique=False)

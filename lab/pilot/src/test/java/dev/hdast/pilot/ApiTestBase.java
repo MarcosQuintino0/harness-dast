@@ -34,11 +34,12 @@ public abstract class ApiTestBase {
 
     protected static final String ADMIN = "t_admin";
     protected static final String MEDICO = "t_medico";
+    protected static final String MEDICO_B = "t_medico_b";
     protected static final String PACIENTE_A = "t_paciente_a";
     protected static final String PACIENTE_B = "t_paciente_b";
     protected static final Map<String, String> PASSWORDS = Map.of(
             ADMIN, UUID.randomUUID().toString(), MEDICO, UUID.randomUUID().toString(),
-            PACIENTE_A, UUID.randomUUID().toString(), PACIENTE_B, UUID.randomUUID().toString());
+            MEDICO_B, UUID.randomUUID().toString(), PACIENTE_A, UUID.randomUUID().toString(), PACIENTE_B, UUID.randomUUID().toString());
     protected static final Path RUN_DIR = Path.of("target", "test-run");
     protected static final String BUILD_INFO_MARKER = "TEST-BUILD-INFO-MARKER";
 
@@ -57,6 +58,8 @@ public abstract class ApiTestBase {
         r.add("pilot.accounts.admin.password", () -> PASSWORDS.get(ADMIN));
         r.add("pilot.accounts.medico.username", () -> MEDICO);
         r.add("pilot.accounts.medico.password", () -> PASSWORDS.get(MEDICO));
+        r.add("pilot.accounts.medico-b.username", () -> MEDICO_B);
+        r.add("pilot.accounts.medico-b.password", () -> PASSWORDS.get(MEDICO_B));
         r.add("pilot.accounts.paciente-a.username", () -> PACIENTE_A);
         r.add("pilot.accounts.paciente-a.password", () -> PASSWORDS.get(PACIENTE_A));
         r.add("pilot.accounts.paciente-b.username", () -> PACIENTE_B);
