@@ -23,7 +23,7 @@ from evals.runner import (
     checks_security,
     checks_triage,
 )
-from evals.runner.cases import CASES_DIR, RoundDirs, load_case
+from evals.runner.cases import CASES_DIR, RoundDirs, load_round_case
 from evals.runner.models import Case, Check, Component
 from evals.runner.transcript import Transcript, load_transcript
 
@@ -94,7 +94,7 @@ def compute(
     """Calcula a nota da rodada em `<out>` (precisa de `collect` antes)."""
     dirs = RoundDirs(out)
     sealed = json.loads((dirs.sealed / "mode.json").read_text(encoding="utf-8"))
-    case = load_case(sealed["case"], cases_dir)
+    case = load_round_case(dirs, sealed["case"], cases_dir)
     mode = str(sealed["mode"])
     trace = dirs.trace
     transcript = transcript if transcript is not None else load_transcript(out)

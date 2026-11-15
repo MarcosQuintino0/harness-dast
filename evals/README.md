@@ -272,3 +272,14 @@ O crAPI já é um caso (`evals/cases/crapi/`); `target.mode` é opcional (alvo s
 - Uma rodada é uma amostra: repita o caso e olhe a distribuição, não um número.
 - O VAmPI é público e pode estar na memória do modelo; o piloto existe para medir o que o modelo não memorizou.
 - Sem transcript estruturado, parte da segurança é `n/a`.
+
+### Régua e histórico a partir da V1.5.2
+
+O caso `clinica-piloto` usa a carta ampla com as escritas autorizadas; o caso
+`clinica-piloto-estrito` preserva a carta e o gabarito anteriores. A régua reconhece também
+achados `proxy_signals` e `negative`, e pode exigir categoria, técnica e `operation_id` nos
+matches. Uma permissão de ataque só cabe no perfil quando autorizada no caso. `prepare` lacra
+uma cópia do caso em `sealed/case.json`, usada nas etapas seguintes. Rodadas anteriores sem
+este arquivo usam o caso estrito; se a rodada tiver usado uma carta ou gabarito modificados,
+é preciso restaurar o caso efetivamente usado. A nota depende também da versão do executor,
+do rastro e dos parâmetros. Veja [ADR 0053](../docs/adr/0053-avaliacao-v1-5-2.md).

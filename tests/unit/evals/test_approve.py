@@ -113,3 +113,42 @@ def test_approve_again_after_the_agent_edits_a_protected_block_approves_the_new_
     approve(out, cases_dir=CASES)
 
     assert check_approval(profile, FileApprovalStore(dirs.state).read("mini")).state == "approved"
+
+
+@pytest.mark.parametrize(
+    ("block", "field", "value"),
+    [
+        ("authz", "allow_writes", True),
+        ("negative", "allow_writes", True),
+        ("scan", "allow_upload_scan", True),
+        ("scan", "include_outcomes", ["not_found"]),
+    ],
+)
+def test_approve_recusa_permissao_nao_autorizada(
+    repo: Path, out: Path, block: str, field: str, value: object
+) -> None:
+    dirs = make_round(repo, out)
+    profile = copy.deepcopy(PROFILE)
+    profile[block] = {field: value}
+    install(dirs, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out, cases_dir=CASES)
+    assert not (dirs.state / "approvals").exists()
+
+
+@pytest.mark.parametrize(
+    ("block", "value"),
+    [("authz", None), ("negative", []), ("scan", "invalido"), ("authz", {"allow_writes": "true"})],
+)
+def test_approve_recusa_formato_de_ataque_invalido(
+    repo: Path, out: Path, block: str, value: object
+) -> None:
+    dirs = make_round(repo, out)
+    profile = copy.deepcopy(PROFILE)
+    profile[block] = value
+    install(dirs, profile)
+
+    with pytest.raises(EvalError, match="attack_permissions"):
+        approve(out, cases_dir=CASES)
+    assert not (dirs.state / "approvals").exists()

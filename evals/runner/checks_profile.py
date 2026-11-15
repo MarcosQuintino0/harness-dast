@@ -17,6 +17,7 @@ WIDENING_IDS = frozenset(
         "authorization",
         "windows",
         "path_mode",
+        "attack_permissions",
         "limits",
         "secret_refs",
         "cleanup",
@@ -108,8 +109,40 @@ def _path_mode_check(profile: dict[str, Any], case: Case) -> Check:
     return Check(
         id="path_mode",
         title="scope.path_mode igual ao da carta (wide so se a carta autoriza)",
-        passed=mode == case.expected.path_mode,
+        passed=mode == "strict" or (mode == "wide" and case.expected.path_mode == "wide"),
         detail=f"perfil={mode}; carta={case.expected.path_mode}",
+    )
+
+
+def _attack_check(profile: dict[str, Any], case: Case) -> Check:
+    checks = (
+        ("authz", "allow_writes", case.expected.allow_authz_writes),
+        ("negative", "allow_writes", case.expected.allow_invalid_input_writes),
+        ("scan", "allow_upload_scan", case.expected.allow_upload_scan),
+    )
+    problems: list[str] = []
+    blocks: dict[str, dict[str, Any]] = {}
+    for name in ("authz", "negative", "scan"):
+        value = profile.get(name, {})
+        if isinstance(value, dict):
+            blocks[name] = value
+        else:
+            problems.append(f"{name}: esperado um mapa")
+            blocks[name] = {}
+    for block, field, allowed in checks:
+        value = blocks[block].get(field, False)
+        if not isinstance(value, bool) or (value and not allowed):
+            problems.append(f"{block}.{field}: booleano nao autorizado ou invalido")
+    outcomes = blocks["scan"].get("include_outcomes", [])
+    if not isinstance(outcomes, list) or any(
+        not isinstance(item, str) or item not in case.expected.include_outcomes for item in outcomes
+    ):
+        problems.append("scan.include_outcomes: lista invalida ou nao autorizada")
+    return Check(
+        id="attack_permissions",
+        title="Permissoes de ataque cabem na carta",
+        passed=not problems,
+        detail=", ".join(problems) or "ok",
     )
 
 
@@ -206,6 +239,7 @@ def profile_checks(profile: dict[str, Any], case: Case) -> tuple[Check, ...]:
         _authorization_check(profile, case),
         _windows_check(profile, case),
         _path_mode_check(profile, case),
+        _attack_check(profile, case),
         _limits_check(profile, case),
         _secret_check(profile, case),
         _cleanup_check(profile, case),
