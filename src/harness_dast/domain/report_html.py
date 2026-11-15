@@ -22,10 +22,12 @@ from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_html_authz import authz_cards, authz_section
+from harness_dast.domain.report_html_signals import signal_section
 from harness_dast.domain.report_html_style import STYLE
 from harness_dast.domain.report_html_traffic import traffic_section
 from harness_dast.domain.report_labels import SEVERITY_LABEL, SEVERITY_ORDER
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_signals import PASSIVE_SUBSET_NOTE, has_signal_reading
 from harness_dast.domain.report_traffic import mode_line
 
 _CSP: Final = (
@@ -203,7 +205,11 @@ def _group(group: FindingGroup, by_id: dict[str, Finding]) -> str:
 
 def _findings(report: FindingsReport) -> str:
     if not report.findings:
-        own = " da varredura do ZAP" if report.authz is not None else ""
+        own = (
+            " da varredura do ZAP"
+            if report.authz is not None or report.summary.signal_by_severity
+            else ""
+        )
         return (
             f"<h2>Achados</h2><p>Nenhum achado{own}. Isso NÃO prova que a API é segura: leia a "
             "seção sobre o que a varredura não cobriu.</p>"
@@ -280,6 +286,11 @@ def _internal_error_section(report: FindingsReport) -> str:
         f"<li>{h.plain(label)}: {signals.counts.get(key, 0)} mensagem(ns).</li>"
         for key, label in SIGNAL_LABELS.items()
     )
+    subset = (
+        f'<p class="muted">{h.plain(PASSIVE_SUBSET_NOTE)}</p>'
+        if has_signal_reading(report.proxy_signals)
+        else ""
+    )
     return (
         "<h2>Sinais passivos de erro interno</h2>"
         f"<p>Mensagens distintas examinadas: {signals.messages_examined}; "
@@ -287,7 +298,7 @@ def _internal_error_section(report: FindingsReport) -> str:
         "<p>Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; "
         "não são achados confirmados nem cobertura completa. "
         "Ausência de sinal não prova ausência de erros.</p>"
-        f"<ul>{rows}</ul>"
+        f"{subset}<ul>{rows}</ul>"
     )
 
 
@@ -301,6 +312,7 @@ def render_html(report: FindingsReport) -> str:
             _steps(report),
             _findings(report),
             authz_section(report),
+            signal_section(report.proxy_signals),
             _not_covered(report),
             traffic_section(report),
             _comparison(report),

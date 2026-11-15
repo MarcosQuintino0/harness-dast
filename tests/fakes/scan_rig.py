@@ -80,7 +80,9 @@ class ScanRig(Rig):
             harness_version="0.0-test",
         )
 
-    def report(self, *, with_metrics: bool = False) -> Report:
+    def report(
+        self, *, with_metrics: bool = False, proxy_audit: FakeProxyAudit | None = None
+    ) -> Report:
         return Report(
             profiles=self.profiles,
             artifacts=self.artifacts,
@@ -88,6 +90,7 @@ class ScanRig(Rig):
             clock=self.clock,
             harness_version="0.0-test",
             metrics=self.metrics_recorder() if with_metrics else None,
+            proxy_audit=proxy_audit,
         )
 
     def run_scan(self, **changes: Any) -> ScanResult:

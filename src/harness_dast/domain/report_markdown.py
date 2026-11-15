@@ -15,6 +15,12 @@ from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inlin
 from harness_dast.domain.report_authz import authz_lines
 from harness_dast.domain.report_labels import SEVERITY_LABEL
 from harness_dast.domain.report_model import Coverage, FindingsReport
+from harness_dast.domain.report_signals import (
+    PASSIVE_SUBSET_NOTE,
+    has_signal_reading,
+    signal_lines,
+    signal_summary_lines,
+)
 from harness_dast.domain.report_traffic import (
     denied_rows,
     mode_line,
@@ -144,8 +150,9 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             f"| {SEVERITY_LABEL[name]} | {count} |"
             for name, count in summary.authz_by_severity.items()
         ]
+    lines += signal_summary_lines(summary.signal_by_severity)
     if not report.findings:
-        own = " do ZAP" if report.authz else ""
+        own = " do ZAP" if report.authz or summary.signal_by_severity else ""
         lines += [
             "",
             f"Nenhum achado{own}. Leia a seção acima antes de concluir qualquer coisa.",
@@ -295,6 +302,7 @@ def _internal_error_lines(report: FindingsReport) -> list[str]:
     signals = report.internal_error_signals
     if signals is None:
         return []
+    subset = [PASSIVE_SUBSET_NOTE, ""] if has_signal_reading(report.proxy_signals) else []
     return [
         "## Sinais passivos de erro interno",
         "",
@@ -304,6 +312,7 @@ def _internal_error_lines(report: FindingsReport) -> list[str]:
         "não são achados confirmados nem cobertura completa. "
         "Ausência de sinal não prova ausência de erros.",
         "",
+        *subset,
         *[
             f"- {label}: {signals.counts.get(key, 0)} mensagem(ns)."
             for key, label in SIGNAL_LABELS.items()
@@ -338,6 +347,9 @@ def render_markdown(report: FindingsReport) -> str:
     own = authz_lines(report.authz)
     if own:
         lines += [*own, ""]
+    seen = signal_lines(report.proxy_signals)
+    if seen:
+        lines += [*seen, ""]
     lines += [*_comparison_lines(report), ""]
     if report.triage_orphans:
         lines.append(

@@ -96,18 +96,21 @@ class AlertResolver:
         template = normalize_path_template(operation.path)
         return Resolution(operation, operation.method.upper(), template, attribution)
 
-    def _match_url(self, alert: RawAlert) -> OperationRef | None:
-        path = urlsplit(alert.url).path
+    def resolve_path(self, method: str, path: str) -> OperationRef | None:
+        """Operação do `probe` cujo modelo casa, sem ambiguidade, com `method` e o caminho."""
         hits = [
             (op, _literal_segments(op.path))
             for op in self.operations
-            if op.method.upper() == alert.method.upper() and _template_matches(op.path, path)
+            if op.method.upper() == method.upper() and _template_matches(op.path, path)
         ]
         if not hits:
             return None
         best = max(score for _, score in hits)
         top = [op for op, score in hits if score == best]
         return top[0] if len(top) == 1 else None
+
+    def _match_url(self, alert: RawAlert) -> OperationRef | None:
+        return self.resolve_path(alert.method, urlsplit(alert.url).path)
 
 
 def _literal_segments(template: str) -> int:

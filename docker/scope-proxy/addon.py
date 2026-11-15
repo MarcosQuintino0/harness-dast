@@ -24,6 +24,7 @@ from mitmproxy.proxy.server_hooks import ServerConnectionHookData
 from harness_dast.adapters.scope_proxy.decision import ALLOW, Reason, Verdict, deny
 from harness_dast.adapters.scope_proxy.engine import ScopeProxyEngine
 from harness_dast.adapters.scope_proxy.policy import load_policy
+from harness_dast.adapters.scope_proxy.signals import SignalReading, read_response_signals
 from harness_dast.domain.errors import ConfigError
 
 _REASON_HEADER = "X-Hdast-Reason"
@@ -134,7 +135,7 @@ class ScopeProxyAddon:
 
     # ------------------------------------------------------------- resposta
     def response(self, flow: http.HTTPFlow) -> None:
-        """Registra a requisição liberada com status, bytes e duração."""
+        """Registra a requisição liberada com status, bytes, duração e os sinais de erro interno."""
         if flow.metadata.get(_AUDITED) or flow.response is None:
             return
         # Uma conexão por requisição entre o ZAP e este proxy. Como o endereço da conexão de saída
@@ -144,7 +145,12 @@ class ScopeProxyAddon:
         flow.response.headers["Connection"] = "close"
         body = flow.response.raw_content
         size = len(body) if body is not None else None
-        self._log(flow, ALLOW, status=flow.response.status_code, size=size)
+        # ADR 0049: a leitura só OBSERVA (conta categorias, nunca nega nem grava corpo) e falha
+        # aberta: `read_response_signals` não levanta, e a linha de auditoria sai de qualquer jeito.
+        reading = read_response_signals(
+            flow.request.method, flow.response.status_code, flow.response.headers, body
+        )
+        self._log(flow, ALLOW, status=flow.response.status_code, size=size, reading=reading)
 
     def error(self, flow: http.HTTPFlow) -> None:
         """Registra falha do lado do destino (inclui recusa por endereço resolvido)."""
@@ -155,7 +161,13 @@ class ScopeProxyAddon:
             code = message.split(_ERROR_MARKER, 1)[1].strip()
             self._log(flow, deny(_reason_from(code)), status=502)
         elif flow.metadata.get(_RELEASED) is not None:
-            self._log(flow, Verdict(allowed=True, reason=Reason.UPSTREAM_ERROR), status=502)
+            # Sem resposta do alvo não há corpo a ler: conta como "empty" para a conta fechar.
+            self._log(
+                flow,
+                Verdict(allowed=True, reason=Reason.UPSTREAM_ERROR),
+                status=502,
+                reading=SignalReading(skipped="empty"),
+            )
 
     # --------------------------------------------------------------- apoio
     def _log(
@@ -166,6 +178,7 @@ class ScopeProxyAddon:
         scheme: str | None = None,
         status: int | None = None,
         size: int | None = None,
+        reading: SignalReading | None = None,
     ) -> None:
         request = flow.request
         started = flow.metadata.get(_STARTED)
@@ -186,6 +199,8 @@ class ScopeProxyAddon:
             size=size,
             duration_ms=duration,
             waited_ms=waited,
+            signals=reading.categories if reading else (),
+            signal_skip=reading.skipped if reading else None,
         )
 
 
