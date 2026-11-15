@@ -23,6 +23,12 @@ uv run hdast run meu-produto --no-authz                                  # pula 
 
 As contas vêm do perfil (`auth.accounts`), nunca de flag: o agente só cita apelidos.
 
+## Papéis que compartilham recursos
+
+O dono pode declarar na carta os papéis cujas contas compartilham legitimamente recursos: `attack.authz_shared_roles` é uma resposta com lista, `source: carta` e a frase em `quote`. `hdast init --from-letter` gera `authz.shared_roles`; não infira a lista. Para papel listado, `horizontal` e `horizontal_write` não comparam contas do mesmo papel e registram `shared_role` em `not_tested`. Isso é cobertura não testada, não prova de segurança; as demais verificações não mudam. A lista preenchida aparece no resumo e muda a impressão digital da aprovação; vazia preserva a anterior. Veja [ADR 0057](../adr/0057-papeis-compartilhados.md).
+
+Para obter pares úteis, quando houver operações de leitura distintas por tipo de objeto e autorização, roteie uma leitura para cada uma de duas contas de um mesmo papel não compartilhado. `account_map` escolhe uma conta por operação e execuções separadas não se combinam.
+
 ## Escrita só com a carta (`authz.allow_writes`)
 
 A atribuição em massa, a escrita em recurso de outra conta (`horizontal_write`) e os métodos de escrita (`POST`, `PUT`, `PATCH`) de `authz.vertical_methods` **escrevem no alvo** e por isso só rodam com `authz.allow_writes: true` no perfil. Esse campo nasce da carta de autorização: `attack.allow_authz_writes` do `carta.yml`, com `source: carta` e a frase da carta em `quote`, vira `authz.allow_writes: true` em `hdast init --from-letter` (e a carta pronta traz o aviso `AUTHZ_WRITES_AUTHORIZED` para a pessoa confirmar com o dono do produto). Ausente, `null`, `desconhecido` ou `false` valem `false`.
@@ -87,6 +93,7 @@ Nada vira "verde" por falta de dado: tudo que o estágio não conseguiu testar a
 | `no_credential` | `tampered_token`: a conta dona não tem token nem chave para adulterar | Confira o login da conta (`preflight`) |
 | `no_read_exchange` | `anonymous_access` e `tampered_token`: o `probe` não trouxe nenhum `GET` com sucesso | Faça o `probe` alcançar leituras (`fix-reachability`) |
 | `budget_exhausted` | `anonymous_access` e `tampered_token`: passou do teto de operações por execução; `mass_assignment`: passou do teto de 400 pedidos de escrita; `horizontal_write`: passou do teto de 50 candidatos | Marque as públicas em `authz.public_operations` e rode de novo |
+| `shared_role` | `horizontal` ou `horizontal_write`: o papel da conta foi declarado compartilhado na carta | Repasse que a comparação entre contas desse papel não foi feita; não é resultado aprovado |
 | `no_peer_account` | Não há outra conta do mesmo papel da dona do pedido | Cadastre uma segunda conta do mesmo papel em `auth.accounts` e roteie a operação para uma delas em `auth.account_map` |
 | `no_object_identifier` | `GET`, `PUT` ou `PATCH` sem identificador de objeto (no caminho ou em parâmetro de consulta declarado no OpenAPI): coleção, ou operação sobre quem chama (`/me`). Substitui `no_path_parameter` (ADR 0042) | Nada: coleções não são comparadas entre contas. Se um parâmetro de consulta identifica objeto e não termina em `id`, declare-o em `authz.id_parameters` |
 | `ambiguous_identifier` | `horizontal` ou `horizontal_write`: o parâmetro de consulta parece identificador, mas o valor que o `probe` enviou é vazio, repetido, em lista ou sem forma de identificador | Ajuste o dado do `probe` (`data-rules.yml`) para enviar um identificador simples |
