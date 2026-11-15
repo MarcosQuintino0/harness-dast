@@ -19,6 +19,8 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    (reservado ao time do produto; nenhuma chamada é autorizada)
    Modo de leitura de caminhos pela cerca: AMPLO, autorizado para os caminhos desta carta.
    Autoriza-se a escrita do teste de autorização entre contas.
+   Médicos compartilham pacientes, consultas e receitas: qualquer médico pode ver e cuidar
+   dos recursos de outro médico. Pacientes não compartilham recursos entre si.
    Autoriza-se a escrita do teste de valores proibidos pelo contrato.
    Autoriza-se varrer operações cujo probe retornou not_found.
    OpenAPI: inputs/openapi.json

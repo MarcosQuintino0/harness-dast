@@ -65,6 +65,7 @@ expected:
   cleanup: absent
   path_mode: wide
   allow_authz_writes: true
+  authz_shared_roles: [medico]
   allow_invalid_input_writes: true
   include_outcomes: [not_found]
 

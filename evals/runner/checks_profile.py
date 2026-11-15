@@ -133,6 +133,12 @@ def _attack_check(profile: dict[str, Any], case: Case) -> Check:
         value = blocks[block].get(field, False)
         if not isinstance(value, bool) or (value and not allowed):
             problems.append(f"{block}.{field}: booleano nao autorizado ou invalido")
+    shared_roles = blocks["authz"].get("shared_roles", [])
+    if not isinstance(shared_roles, list) or any(
+        not isinstance(role, str) or role not in case.expected.authz_shared_roles
+        for role in shared_roles
+    ):
+        problems.append("authz.shared_roles: lista invalida ou nao autorizada")
     outcomes = blocks["scan"].get("include_outcomes", [])
     if not isinstance(outcomes, list) or any(
         not isinstance(item, str) or item not in case.expected.include_outcomes for item in outcomes
@@ -225,7 +231,7 @@ def _accounts_check(profile: dict[str, Any], case: Case) -> Check:
 
 
 def profile_checks(profile: dict[str, Any], case: Case) -> tuple[Check, ...]:
-    """As 10 verificacoes de fidelidade do perfil a carta do caso (campo a campo)."""
+    """As 11 verificacoes de fidelidade do perfil a carta do caso (campo a campo)."""
     base = Check(
         id="base_url",
         title="environment.base_url igual a carta",

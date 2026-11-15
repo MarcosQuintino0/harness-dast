@@ -234,3 +234,24 @@ def test_cli_recusa_rodada_antiga_sem_gabarito(
     assert main(["score", "--out", str(tmp_path)]) == 2
     assert "--case-file" in capsys.readouterr().err
     assert not (tmp_path / "score.json").exists()
+
+
+@pytest.mark.parametrize("value", [None, "medico", ["paciente"], [1], [{}]])
+def test_papeis_compartilhados_invalidos_ou_nao_autorizados_sao_recusados(value: object) -> None:
+    profile = copy.deepcopy(GOOD_PROFILE)
+    profile["authz"] = {"shared_roles": value}
+    check = next(
+        c
+        for c in profile_checks(profile, load_case("clinica-piloto"))
+        if c.id == "attack_permissions"
+    )
+    assert check.passed is False
+
+
+def test_carta_autoriza_somente_papel_medico_compartilhado() -> None:
+    case = load_case("clinica-piloto")
+    assert case.expected.authz_shared_roles == ("medico",)
+    profile = copy.deepcopy(GOOD_PROFILE)
+    profile["authz"] = {"shared_roles": ["medico"]}
+    check = next(c for c in profile_checks(profile, case) if c.id == "attack_permissions")
+    assert check.passed is True

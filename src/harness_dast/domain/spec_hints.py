@@ -153,7 +153,7 @@ def _account_hints(profile: ProductProfile, operations: Sequence[Operation]) -> 
             )
     result: list[SpecHint] = []
     for role, aliases in by_role.items():
-        if len(aliases) < 2:
+        if role in profile.authz.shared_roles or len(aliases) < 2:
             continue
         assigned = [alias for alias in aliases if by_account[alias]]
         if len(assigned) != 1:
@@ -161,7 +161,8 @@ def _account_hints(profile: ProductProfile, operations: Sequence[Operation]) -> 
         owner = assigned[0]
         reads = tuple(by_account[owner])
         guidance = (
-            "Considere distribuir operações distintas entre as contas, se o dono confirmar "
+            "Considere distribuir leituras de objeto entre duas contas deste papel não compartilhado, "
+            "em operações distintas, se o dono confirmar "
             "que cada uma pode acessá-las."
             if len(reads) > 1
             else "Há apenas uma operação candidata: account_map aceita uma conta por operação."
