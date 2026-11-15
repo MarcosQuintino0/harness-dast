@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from harness_dast.adapters.openapi import load_spec
 from harness_dast.domain.api_model import Operation, Parameter, SuccessResponse
 from harness_dast.domain.api_schema import Schema
@@ -181,6 +183,44 @@ def test_uuid_format_can_match_different_names_in_same_collection() -> None:
     )
     hints = suggest_spec_hints(agenda_profile(), (source, target), plan(source, target))
     assert any(h.field == "0.chave" and h.parameter == "id" for h in hints)
+
+
+@pytest.mark.parametrize(
+    ("schema", "suggested"),
+    [
+        (Schema(type="string", format="date"), False),
+        (Schema(type="string", format="uuid"), True),
+        (Schema(type="string"), True),
+        (Schema(type="integer"), False),
+    ],
+)
+def test_matching_names_require_compatible_types_and_formats(
+    schema: Schema, suggested: bool
+) -> None:
+    source = Operation(
+        operation_id="listar",
+        method="get",
+        path="/api/items",
+        success_responses=(
+            SuccessResponse(
+                status="200",
+                body_schema=Schema(
+                    type="array",
+                    items=Schema(
+                        type="object", properties={"id": Schema(type="string", format="uuid")}
+                    ),
+                ),
+            ),
+        ),
+    )
+    target = Operation(
+        operation_id="buscar",
+        method="get",
+        path="/api/items/{id}",
+        parameters=(Parameter(name="id", location="path", required=True, value_schema=schema),),
+    )
+    hints = suggest_spec_hints(agenda_profile(), (source, target), plan(source, target))
+    assert bool(hints) is suggested
 
 
 def test_no_peer_hint_when_two_accounts_already_cover_distinct_object_reads() -> None:

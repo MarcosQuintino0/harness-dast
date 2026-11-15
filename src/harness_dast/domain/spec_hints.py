@@ -91,7 +91,10 @@ def _matches(
 ) -> bool:
     if source.operation_id == target.operation_id:
         return False
-    if effective_type(field) != effective_type(flatten_schema(param)):
+    param = flatten_schema(param)
+    if effective_type(field) != effective_type(param):
+        return False
+    if field.format and param.format and field.format != param.format:
         return False
     if path == "0" or key.startswith("format:"):
         return target.path.startswith(source.path.rstrip("/") + "/")
