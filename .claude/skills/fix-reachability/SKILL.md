@@ -34,6 +34,7 @@ Alcançabilidade = parcela das operações do OpenAPI que respondem com sucesso 
 | `conflict` (409) | Valor repetido | `unique: true` na regra do campo. |
 | `not_found` (404) | Falta encadeamento | `flows.yml`: produtor (`produces`) e consumidores (`consumed_by`). |
 | `build_error` | Campo obrigatório sem gerador | `hint` diz a regra a escrever. |
+| `build_error` ou `validation_error` em operação de envio de arquivo (`multipart/form-data`) | O alvo exige um tipo de arquivo ou nome que o padrão não manda | Regra `synthetic_file` no campo do arquivo em `data-rules.yml` (`kind`: `text`, `csv`, `json` ou `png`; `name`). O arquivo é sempre sintético e pequeno. Com `png` o `scan` alcança a operação mas não a varre (`binary_body`); com tipo de texto, só se a carta autorizar a varredura de upload (`scan.allow_upload_scan`, que nunca é seu). `upload_scan_not_authorized` no `scan` é por desenho: não é falha de alcance. |
 | `csrf_error` | Proteção CSRF não declarada | Bloco `auth.csrf` do `target.yml`, com o que a documentação do produto informar; senão, pergunte. |
 | `auth_error` (401, 403) | Conta ou papel errado | `auth.account_map`: a conta (apelido) certa por operação. Se persistir, **pare** e pergunte: pode ser permissão que só a pessoa concede. |
 | `logical_failure` | 2xx com marca de falha no corpo | Confira `probe.success` no perfil; só ajuste com base no que o alvo mostra. |

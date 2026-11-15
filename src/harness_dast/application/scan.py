@@ -61,6 +61,7 @@ from harness_dast.domain.scan_plan import (
     ScanSkip,
     SentRequest,
     last_sent,
+    multipart_operation_ids,
     resolve_include_outcomes,
     resolve_targets,
     select_candidates,
@@ -127,6 +128,7 @@ class _Prepared:
     candidates: tuple[Candidate, ...]
     skipped: tuple[ScanSkip, ...]
     include_outcomes: tuple[str, ...]
+    uploads: frozenset[str]
     started: datetime
     deadline: datetime
     policy: ScanPolicy
@@ -239,6 +241,7 @@ class Scan:
             for item in plan_probe(spec, flows, profile.guard(), profile.environment.base_url)
         }
         sent = last_sent(self._artifacts.read_audit(request.run_id))
+        uploads = multipart_operation_ids(spec.operations)
         candidates, skipped = select_candidates(
             probe.operations,
             planned,
@@ -247,6 +250,7 @@ class Scan:
             config=profile.scan,
             include_outcomes=extra,
             only=request.only,
+            uploads=uploads,
         )
         limits = _narrow(profile.limits, request)
         own_deadline = started + timedelta(minutes=limits.max_duration_minutes)
@@ -263,6 +267,7 @@ class Scan:
             candidates=candidates,
             skipped=skipped,
             include_outcomes=outcomes,
+            uploads=uploads,
             started=started,
             deadline=deadline,
             policy=build_policy(profile.scan),
@@ -359,7 +364,9 @@ class Scan:
             for item in [parse_learned_request(message, scheme)]
             if item is not None
         ]
-        plan = resolve_targets(prep.candidates, prep.sent, learned, prep.profile.guard())
+        plan = resolve_targets(
+            prep.candidates, prep.sent, learned, prep.profile.guard(), prep.uploads
+        )
         if prep.pinned is None:
             return plan
         targets = tuple(replace(target, account=prep.pinned) for target in plan.targets)

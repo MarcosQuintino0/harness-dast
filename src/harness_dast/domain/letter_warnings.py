@@ -23,6 +23,7 @@ VALIDITY_OVER_ONE_YEAR: Final = "VALIDITY_OVER_ONE_YEAR"
 AUTHZ_WRITES_AUTHORIZED: Final = "AUTHZ_WRITES_AUTHORIZED"
 NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
 OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
+UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
 
 _ROOT_WILDCARD: Final = "/**"
 _ONE_YEAR: Final = timedelta(days=365)
@@ -131,6 +132,20 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                     "persiste (restaurado em PUT e PATCH, deixado em POST). Confirme com o dono "
                     "do produto que a carta diz isso e que o ambiente é de teste com dados "
                     "sintéticos."
+                ),
+            )
+        )
+    if profile.scan.allow_upload_scan:
+        warnings.append(
+            LetterIssue(
+                field="attack.allow_upload_scan",
+                code=UPLOAD_SCAN_AUTHORIZED,
+                message=(
+                    "A carta autoriza o ZAP a varrer operações de envio de arquivo: os valores de "
+                    "ataque do ZAP (nome e conteúdo de arquivo, campos de texto) serão GRAVADOS "
+                    "no armazenamento do alvo, e esta ferramenta não os controla. Confirme com o "
+                    "dono do produto que a carta diz isso, que o ambiente é de teste com dados "
+                    "sintéticos e que o armazenamento aceita lixo."
                 ),
             )
         )

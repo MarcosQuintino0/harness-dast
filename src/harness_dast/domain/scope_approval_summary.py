@@ -92,6 +92,17 @@ def _outcomes_lines(profile: ProductProfile) -> list[str]:
     ]
 
 
+def _upload_lines(profile: ProductProfile) -> list[str]:
+    """Linha da varredura de envio de arquivo (ADR 0052); vazio no padrão."""
+    if not profile.scan.allow_upload_scan:
+        return []
+    return [
+        "VARRE TAMBÉM OPERAÇÕES DE ENVIO DE ARQUIVO (scan.allow_upload_scan): o ZAP grava "
+        "conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do "
+        "alvo, e esta ferramenta não o controla"
+    ]
+
+
 def _scan_policy_line(profile: ProductProfile) -> str:
     scan = profile.scan
     rules = ", ".join(str(rule) for rule in sorted(scan.disable_rules)) or "nenhuma"
@@ -234,6 +245,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         _strength_line(profile),
         _scan_policy_line(profile),
         *_outcomes_lines(profile),
+        *_upload_lines(profile),
         *_authz_lines(profile),
         *_negative_lines(profile),
         *_cleanup_lines(profile),

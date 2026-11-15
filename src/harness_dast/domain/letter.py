@@ -181,12 +181,17 @@ class AttackSection(ProfileModel):
             proíbe GRAVE no alvo dado com valor inválido (`POST`, `PUT` e `PATCH`; nunca
             `DELETE`)? Booleano -> `negative.allow_writes`. Ausente, nulo ou `desconhecido`
             valem `false`; `true` só com `source: carta` e a frase em `quote` (ADR 0051).
+        allow_upload_scan: A carta permite que o ZAP varra operações de envio de arquivo
+            (`multipart/form-data`), gravando conteúdo de ataque no armazenamento do alvo?
+            Booleano -> `scan.allow_upload_scan`. Ausente, nulo ou `desconhecido` valem `false`;
+            `true` só com `source: carta` e a frase em `quote` (ADR 0052).
     """
 
     strength: Answer | None = None
     allow_authz_writes: Answer | None = None
     include_outcomes: Answer | None = None
     allow_invalid_input_writes: Answer | None = None
+    allow_upload_scan: Answer | None = None
 
 
 class Letter(ProfileModel):

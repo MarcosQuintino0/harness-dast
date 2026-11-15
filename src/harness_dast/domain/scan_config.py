@@ -65,6 +65,11 @@ class ScanConfig(ProfileModel):
         include_outcomes: Classes do `probe` além de `success` cujas operações também são
             atacadas (ADR 0050); lista fechada de `ExtraOutcome`, padrão vazio. Não amplia o
             escopo, só quanto se ataca dentro dele; por isso a aprovação humana a mostra.
+        allow_upload_scan: A carta autoriza o ZAP a varrer operações de envio de arquivo
+            (`multipart/form-data`, ADR 0052)? Padrão `false`: o ZAP grava conteúdo de ataque no
+            armazenamento do alvo (nome e conteúdo de arquivo, campos de texto), então só a carta
+            o liga. Sem ele, a operação de upload é alcançada pelo `probe`, mas não varrida
+            (`upload_scan_not_authorized`). Ligá-lo muda a impressão digital da aprovação.
         fail_on: Severidade mínima (proposta pelo ZAP) que faz `report` sair com código 1;
             `none` desliga o gate.
     """
@@ -81,6 +86,7 @@ class ScanConfig(ProfileModel):
     token_refresh_seconds: StrictInt = Field(default=120, ge=10, le=3600)
     fail_on: FailOn = "none"
     include_outcomes: tuple[ExtraOutcome, ...] = Field(default=(), max_length=5)
+    allow_upload_scan: StrictBool = False
 
     @field_validator("include_outcomes")
     @classmethod
