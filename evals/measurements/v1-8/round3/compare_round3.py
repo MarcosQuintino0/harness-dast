@@ -46,6 +46,29 @@ def dom(record: dict[str, Any]) -> list[tuple[str, str, str, Any]]:
     )
 
 
+def verify_forecast_bytes(raw: bytes, recorded_sha256: str) -> dict[str, str]:
+    """Confere o hash congelado ou a conversao estrita de terminadores LF/CRLF."""
+    normalized = raw.replace(b"\r\n", b"\n")
+    if b"\r" in normalized:
+        raise ValueError("Previsao tem terminadores invalidos")
+    windows = normalized.replace(b"\n", b"\r\n")
+    if raw != normalized and raw != windows:
+        raise ValueError("Previsao tem terminadores misturados")
+    variants = {"lf": normalized, "crlf": windows}
+    hashes = {name: hashlib.sha256(value).hexdigest() for name, value in variants.items()}
+    matches = [name for name, digest in hashes.items() if digest == recorded_sha256]
+    if not matches:
+        raise ValueError("Previsao nao corresponde ao protocolo")
+    return {
+        "actual_sha256": hashlib.sha256(raw).hexdigest(),
+        "recorded_sha256": recorded_sha256,
+        "actual_variant": "lf" if raw == normalized else "crlf",
+        "recorded_variant": matches[0],
+        "lf_sha256": hashes["lf"],
+        "crlf_sha256": hashes["crlf"],
+    }
+
+
 def contains_unknown(value: object) -> bool:
     """Nulo em qualquer campo impede alegar igualdade de contexto observada."""
     if value is None:
@@ -247,10 +270,12 @@ def main() -> None:
     args = parser.parse_args()
     forecast, forecast_hash = read(HERE / "forecast-frozen.json")
     clarification, clarification_hash = read(HERE / "protocol-clarification.json")
-    if clarification["forecast_sha256"] != forecast_hash:
-        raise ValueError("Previsao nao corresponde ao protocolo")
+    forecast_verification = verify_forecast_bytes(
+        (HERE / "forecast-frozen.json").read_bytes(), clarification["forecast_sha256"]
+    )
     out: dict[str, Any] = {
         "forecast_sha256": forecast_hash,
+        "forecast_line_endings_verification": forecast_verification,
         "protocol_clarification_sha256": clarification_hash,
         "limitations": [
             "Identidades são limitadas aos aliases e atributos coletados; "
