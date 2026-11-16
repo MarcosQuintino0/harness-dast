@@ -17,6 +17,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.8.0] - 2026-11-16
+
+### Base conservadora da personalização
+
+- Envelope derivado do perfil, estratégia versionada e plano concreto congelado, com os contratos propostos nos ADRs 0070 a 0074. A estratégia neutra preserva operações, política, limites e ritmo do executor serial.
+- Consultas locais `strategy validate`, `strategy diff` e `plan --dry-run`; migração explícita com `strategy migrate`, cópia separada, comparação estrutural e preservação da autorização e da aprovação existentes. `strategy capture` cria cópia vinculada às fontes atuais e à versão do controle local da pilha gerenciada, sob trava e sem ativação automática.
+- Vínculos das escolhas com ambiente, autorização, contas, planejamento, documentos e motor. A execução ativa confere fontes e versão observada antes do primeiro pedido ao alvo; indisponibilidade ou divergência recusa. Consultas secas e cleanup sem provedor recusam escolha preenchida; `choices: []` e perfis legados seguem operacionais. A versão não autentica a identidade da instância.
+- Revalidação da aprovação nos portões do scan e parada com resultado parcial após revogação. **A revalidação em cada concessão do proxy não está entregue.** A prévia simbólica, as lacunas das regras e os limites de detecção impedem declarar o aceite completo.
+- Skills, referência e testes de cópia cega atualizados. Provas T1, T2 e T4 e parecer independente são descritos no [relatório da versão](docs/reviews/relatorio-v1.8.md). Sem rodada cega nesta versão, conforme o briefing, e sem prova em produto real.
+
 ## [1.7.0] - 2026-11-16
 
 ### Ritmo serial e medição
