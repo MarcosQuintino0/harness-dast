@@ -1,0 +1,130 @@
+"""Aceite independente da preservação da varredura planejada."""
+
+from dataclasses import replace
+from datetime import UTC, datetime
+
+import pytest
+
+from harness_dast.application.scan import Scan, ScanRequest
+from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.scan_plan import ScanPlan, ScanTarget
+from harness_dast.domain.scan_policy import build_limits, build_policy
+from harness_dast.domain.strategy_plan import compile_scan_snapshot
+from tests.fakes.approvals import InMemoryApprovalStore, approval_for
+from tests.fakes.profile_data import valid_profile
+from tests.fakes.rig import agenda_flows
+from tests.fakes.scan_rig import ScanRig
+
+
+class _StrategyStore:
+    def __init__(self, present: bool) -> None:
+        self.present = present
+
+    def read(self, product: str) -> dict[str, object] | None:
+        if not self.present:
+            return None
+        return {
+            "schema_version": 1,
+            "references": {
+                "target": "target.yml",
+                "data_rules": "data-rules.yml",
+                "flows": "flows.yml",
+            },
+            "choices": [],
+        }
+
+    def check_references(self, product: str) -> None:
+        pass
+
+    def migrate(self, product: str, output: str) -> str:
+        raise AssertionError("migração não deve ser chamada")
+
+
+def _scan_com_estrategia(present: bool) -> tuple[object, object, object]:
+    rig = ScanRig(flows=agenda_flows())
+    probe = rig.run_probe()
+    approvals = InMemoryApprovalStore()
+    approvals.write(approval_for(rig.profiles.load("agenda")))
+    scan = Scan(
+        profiles=rig.profiles,
+        specs=rig._specs(),
+        documents=rig.documents,
+        secrets=rig.secrets,
+        vault=rig.vault,
+        client=rig.target,
+        zap=rig.zap,
+        scanner=rig.scanner,
+        store=rig.store,
+        artifacts=rig.artifacts,
+        clock=rig.clock,
+        sleeper=rig.clock,
+        strategy_store=_StrategyStore(present),
+        approvals=approvals,
+    )
+    result = scan.execute(ScanRequest(product="agenda", run_id=probe.run_id))
+    return result.entries, result.skipped, (rig.zap.started, rig.zap.applied)
+
+
+def test_scan_real_com_falsos_preserva_trabalho_com_estrategia() -> None:
+    baseline = _scan_com_estrategia(False)
+
+    actual = _scan_com_estrategia(True)
+
+    assert actual == baseline
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"operation_id": "outra-operacao"},
+        {"account": "outra-conta"},
+        {"path": "/outro-ponto"},
+        {"seed_outcome": "not_found"},
+    ],
+)
+def test_recusa_alteracao_de_item_do_plano(change: dict[str, str]) -> None:
+    profile = valid_profile()
+    target = ScanTarget("operacao", "GET", "/item", 1, "https://example.test/item", None)
+    baseline = ScanPlan((target,), (), ())
+    proposed = ScanPlan((replace(target, **change),), (), ())
+    policy = build_policy(profile.scan)
+    limits = build_limits(profile.limits, profile.scan)
+
+    with pytest.raises(ConfigError):
+        compile_scan_snapshot(
+            profile,
+            approval_for(profile),
+            None,
+            datetime(2026, 11, 16, tzinfo=UTC),
+            baseline=baseline,
+            proposed=proposed,
+            baseline_policy=policy,
+            proposed_policy=policy,
+            baseline_limits=limits,
+            proposed_limits=limits,
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"strength": "HIGH"}, {"disabled_rules": (40018,)}, {"url_path_injection": False}],
+)
+def test_recusa_alteracao_de_politica_de_cobertura(change: dict[str, object]) -> None:
+    profile = valid_profile()
+    plan = ScanPlan((), (), ())
+    policy = build_policy(profile.scan)
+    limits = build_limits(profile.limits, profile.scan)
+
+    with pytest.raises(ConfigError):
+        compile_scan_snapshot(
+            profile,
+            approval_for(profile),
+            None,
+            datetime(2026, 11, 16, tzinfo=UTC),
+            baseline=plan,
+            proposed=plan,
+            baseline_policy=policy,
+            proposed_policy=policy.model_copy(update=change),
+            baseline_limits=limits,
+            proposed_limits=limits,
+        )
