@@ -21,3 +21,29 @@ def test_varredura_recusada_aparece_como_operacao_nao_varrida() -> None:
     )
     assert report.coverage.partial is True
     assert [item.operation_id for item in report.coverage.not_tested] == ["consulta"]
+
+
+def test_recusa_esperada_de_login_nao_torna_cobertura_integral_parcial() -> None:
+    from harness_dast.domain.scan_plan import ScanSkip
+
+    probe = probe_result([operation("session", "POST", "/session", "auth_rejected_expected")])
+    skip = ScanSkip(
+        operation_id="session",
+        method="POST",
+        path="/session",
+        reason="not_success",
+        message="O probe não teve sucesso nesta operação; não há requisição válida.",
+    )
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([], skipped=[skip]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    assert report.coverage.partial is False
