@@ -10,6 +10,16 @@ uv run python -m evals.runner export-reuse --out <rodada1> --destination <pacote
 uv run python -m evals.runner prepare --case <caso> --mode random --seed <semente> --out <rodada2> --reuse-from <rodada1> --reuse-package <pacote>
 ```
 
+**Origem do conhecimento.** O agente da primeira rodada captura o conhecimento com
+`hdast knowledge capture <produto> --run <run_id>` (as skills `run-scan` e `test-product` mandam,
+antes do `stack down`), o que cria `knowledge.captured.yml` ao lado do perfil, sem ativá-lo. O
+`collect` copia a pasta inteira do produto para `trace/profile/final/<produto>/`, então o arquivo
+chega ao rastro sem passo extra. O `export-reuse` lê `knowledge.yml` (ativo) e, **só na falta dele**,
+`knowledge.captured.yml`; havendo os dois, vale o ativo. Nos dois casos o conteúdo é revalidado
+pelo modelo fechado e sai como `knowledge.yml` com `review_required`: no segundo contexto ele é só
+proposta, e a captura não concede permissão nem ativa nada. Sem nenhum dos dois, ou com um acima
+de 100 000 bytes, o runner recusa e a mensagem diz qual arquivo falta ou excede o limite.
+
 O runner confere caso lacrado, coleta, modelo, segredos conhecidos, termos do
 gabarito, tipo dos arquivos e integridade do pacote; recalcula as fontes da origem
 exceto motor; recusa conteúdo extra e não
@@ -351,6 +361,14 @@ Tudo abaixo precisa existir no fim de cada rodada, para a análise posterior. A 
 | Pensamento | O que o agente disse entre as chamadas, cada chamada em ordem com o horário, e a resposta final | `falas-do-agente.md`, a resposta final do último segmento |
 | Pensamento | O diário de decisões do cadastro e da execução | `trace/profile/final/<produto>/decision-log.md`, `trace/runs/<run_id>/decision-log.md` |
 | Pensamento | O perfil a cada instantâneo | `trace/profile/history/` |
+
+### Confiança do workspace no `claude -p`
+
+Numa pasta nova, o Claude Code avisa "workspace has not been trusted" e **ignora o
+`permissions.allow`** do `.claude/settings.json` da cópia. As permissões da rodada vêm só do
+`--allowedTools` da linha de comando; as negações (`deny`) continuam valendo. É um fato da
+ferramenta, observado nas rodadas da V1.9: não mude a configuração do usuário para contorná-lo, e
+anote no protocolo da rodada que o `allow` do `settings.json` não foi a fonte das permissões.
 
 ### Sobre o raciocínio interno do modelo
 

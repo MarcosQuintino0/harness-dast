@@ -568,3 +568,97 @@ def test_package_carries_provenance_of_origin_round_and_nothing_else_identifying
     carried = yaml.safe_load(files["knowledge.yml"])["provenance"]
     assert carried == data["provenance"]
     assert all(run_id not in text for name, text in files.items() if name != "knowledge.yml")
+
+
+def _rename_to_captured(out: Path) -> Path:
+    folder = out / "trace/profile/final/mini"
+    captured = folder / "knowledge.captured.yml"
+    (folder / "knowledge.yml").rename(captured)
+    return captured
+
+
+def test_export_aceita_so_a_captura_quando_nao_ha_conhecimento_ativo(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    _rename_to_captured(out)
+
+    package = export_reuse(out, tmp_path / "package")
+    _, files = verify_reuse(out, package, "mini")
+
+    exported = yaml.safe_load(files["knowledge.yml"])
+    assert {entry["state"] for entry in exported["entries"]} == {"review_required"}
+    assert not (package / "knowledge.captured.yml").exists()
+
+
+def test_export_prefere_o_conhecimento_ativo_a_captura(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    folder = out / "trace/profile/final/mini"
+    active = yaml.safe_load((folder / "knowledge.yml").read_text(encoding="utf-8"))
+    active["provenance"] = {
+        "run_id": "2026-11-16T14-30-24Z-mini-bed9",
+        "manifest_sha256": "a" * 64,
+        "probe_sha256": "b" * 64,
+        "authz_sha256": None,
+    }
+    write(folder / "knowledge.yml", yaml.safe_dump(active))
+    write(folder / "knowledge.captured.yml", "isto nao e conhecimento valido: [")
+
+    package = export_reuse(out, tmp_path / "package")
+    _, files = verify_reuse(out, package, "mini")
+
+    assert yaml.safe_load(files["knowledge.yml"])["provenance"] == active["provenance"]
+
+
+def test_export_sem_nenhum_dos_dois_diz_quais_arquivos_faltam(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    (out / "trace/profile/final/mini/knowledge.yml").unlink()
+
+    with pytest.raises(EvalError) as caught:
+        export_reuse(out, tmp_path / "package")
+
+    message = str(caught.value)
+    assert "knowledge.yml" in message
+    assert "knowledge.captured.yml" in message
+    assert "capturar" in message
+    assert not (tmp_path / "package").exists()
+
+
+def test_export_com_captura_grande_demais_diz_qual_arquivo_excede_o_limite(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    captured = _rename_to_captured(out)
+    captured.write_text("a: " + "x" * 100_000, encoding="utf-8")
+
+    with pytest.raises(EvalError) as caught:
+        export_reuse(out, tmp_path / "package")
+
+    message = str(caught.value)
+    assert "excede o limite" in message
+    assert "knowledge.captured.yml" in message
+
+
+def test_export_com_conhecimento_ativo_grande_demais_nao_cai_na_captura(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    folder = out / "trace/profile/final/mini"
+    write(folder / "knowledge.captured.yml", (folder / "knowledge.yml").read_text(encoding="utf-8"))
+    (folder / "knowledge.yml").write_text("a: " + "x" * 100_000, encoding="utf-8")
+
+    with pytest.raises(EvalError, match=r"excede o limite.*knowledge\.yml"):
+        export_reuse(out, tmp_path / "package")
+
+
+def test_export_com_captura_malformada_recusa(repo: Path, out: Path, tmp_path: Path) -> None:
+    _source(repo, out)
+    captured = _rename_to_captured(out)
+    captured.write_text("schema_version: [", encoding="utf-8")
+
+    with pytest.raises(EvalError, match="Conhecimento ausente ou malformado"):
+        export_reuse(out, tmp_path / "package")
