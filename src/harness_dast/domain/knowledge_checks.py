@@ -120,8 +120,11 @@ def _contains_field(schema: Schema | None, name: str) -> bool:
         current = flatten_schema(current)
         if current.truncated:
             return False
-        if current.items is not None:
+        in_array = current.items is not None
+        while current.items is not None:
             current = flatten_schema(current.items)
+        if segment.isdigit() and in_array:
+            continue
         if segment not in current.properties:
             return False
         current = current.properties[segment]
