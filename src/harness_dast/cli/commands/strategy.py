@@ -46,9 +46,9 @@ def capture_command(
 ) -> None:
     """Captura vínculo atual numa cópia sem enviar pedidos ao alvo."""
     state = get_state(ctx)
-    zap = open_capture_zap(state.secrets)
+    zap, control_url = open_capture_zap(state.secrets)
     try:
-        data = build_capture(products_dir, zap).execute(product, output)
+        data = build_capture(products_dir, zap, control_url).execute(product, output)
     finally:
         zap.close()
     emit(build_success(data), json_mode=state.json_mode, human=str(data))

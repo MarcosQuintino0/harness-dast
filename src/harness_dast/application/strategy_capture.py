@@ -15,6 +15,7 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.strategy import Strategy
 from harness_dast.domain.strategy_basis import digest_strategy_document
 from harness_dast.domain.strategy_capture import capture_strategy
+from harness_dast.domain.strategy_control import ensure_capture_control_url
 from harness_dast.domain.strategy_preview import preview
 
 
@@ -30,10 +31,12 @@ class CaptureStrategy:
         documents: ProductDocuments,
         specs: SpecLoader,
         zap: ZapControl,
+        control_url: str,
     ) -> None:
         """Recebe portas locais e controle do ZAP da execução atual."""
         self._profiles, self._store, self._approvals = profiles, store, approvals
         self._clock, self._documents, self._specs, self._zap = clock, documents, specs, zap
+        self._control_url = control_url
 
     def execute(self, product: str, output: str) -> dict[str, JsonValue]:
         """Confere aprovação e fontes antes de consultar o motor e gravar cópia."""
@@ -52,6 +55,7 @@ class CaptureStrategy:
         spec = self._specs.load(product, profile)
         preview(profile, spec, flows)
         contract, rules, flows_bytes = self._store.read_dependencies(product, profile)
+        ensure_capture_control_url(self._control_url, profile.environment.base_url)
         version = self._zap.version()
         if (
             self._profiles.load(product) != profile

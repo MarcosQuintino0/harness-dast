@@ -28,16 +28,18 @@ def build_strategy(products_dir: Path | None) -> StrategyService:
     )
 
 
-def open_capture_zap(secrets: SecretRegistry) -> ZapApiClient:
+def open_capture_zap(secrets: SecretRegistry) -> tuple[ZapApiClient, str]:
     """Abre só controle do ZAP; registra a chave para redação, sem tocar o alvo."""
     settings = load_effective_settings()
     key = settings.zap_api_key.get_secret_value() if settings.zap_api_key else None
     if key:
         secrets.register(key)
-    return ZapApiClient(settings.zap_base_url, key)
+    return ZapApiClient(settings.zap_base_url, key), settings.zap_base_url
 
 
-def build_capture(products_dir: Path | None, zap: ZapApiClient) -> CaptureStrategy:
+def build_capture(
+    products_dir: Path | None, zap: ZapApiClient, control_url: str
+) -> CaptureStrategy:
     """Monta captura sem cliente HTTP de alvo."""
     root = products_dir_or_default(products_dir)
     return CaptureStrategy(
@@ -48,4 +50,5 @@ def build_capture(products_dir: Path | None, zap: ZapApiClient) -> CaptureStrate
         FileProductDocuments(root),
         build_spec_loader(root),
         zap,
+        control_url,
     )

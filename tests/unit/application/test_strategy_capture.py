@@ -29,6 +29,7 @@ def _capture(tmp_path: Path, *, approved: bool = True) -> tuple[CaptureStrategy,
         rig.documents,
         InMemorySpecs(rig.spec),
         rig.zap,
+        "http://127.0.0.1:8080",
     )
     return capture, rig
 
