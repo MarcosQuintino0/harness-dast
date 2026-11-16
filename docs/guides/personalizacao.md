@@ -1,6 +1,6 @@
 # Personalização de produto
 
-**Status: proposta V1.8; confira os comandos na versão instalada antes de usá-los.** A personalização organiza escolhas para um produto autorizado. A carta, o perfil e a aprovação humana continuam determinando o que pode ser testado; nenhuma observação do alvo ou escolha da estratégia concede permissão.
+**Status: implementado no código da V1.8; provas de laboratório ainda pendentes.** A personalização organiza escolhas para um produto autorizado. A carta, o perfil e a aprovação humana continuam determinando o que pode ser testado; nenhuma observação do alvo ou escolha da estratégia concede permissão.
 
 ## Quatro camadas
 
@@ -15,8 +15,44 @@ Uma alteração **automática** é neutra para cobertura e fica dentro do envelo
 
 A prévia é local e sem tráfego, descreve trabalho previsto e entradas simbólicas, e não prova que uma operação foi executada ou que uma falha foi detectada. O plano concreto depende do planejamento do scan. Validar ou compilar não aprova o perfil: a execução continua sujeita à aprovação, autorização, janela, prazo e parada. Só uma pessoa executa `hdast profile approve`.
 
+## Consultar, comparar e preparar uma estratégia
+
+Com o produto cadastrado, os comandos abaixo usam arquivos locais. `--products-dir <pasta>` é opcional quando a pasta de produtos já está configurada. A opção global `--json` produz o envelope de máquina da CLI:
+
+```bash
+hdast --json strategy validate <produto>
+hdast --json strategy diff <produto>
+hdast --json plan <produto> --dry-run
+hdast --json strategy migrate <produto>
+```
+
+Os três primeiros não enviam tráfego e não exigem aprovação para consulta. `validate` informa presença, estado da estratégia, estado da aprovação e resumo do envelope. `diff` compara estruturalmente com o caso legado: `changes` lista `strategy` quando presente e `classification` é `automatic` ou `pending`; isso não é uma comparação item por item da cobertura. O estado `validated` sem estratégia significa que não há escolha pendente; não significa que o perfil esteja aprovado.
+
+`plan --dry-run` exige `--dry-run` e rejeita escolha pendente ou vencida. O resultado traz `executed: false` e `preview`: operações com identificador, método, caminho, conta, decisão de probe, dependências e entradas declaradas; também força, regras desabilitadas e máscara de injeção. É uma previsão com limitações explícitas: `body_entries_complete: false` indica que os campos do corpo não estão completos; `scope_check: template_only` limita a verificação ao modelo do caminho; `rules: enabled_except_disabled_catalog_pending_zap` indica catálogo do ZAP ainda pendente, assim como `coverage` e o `scan_status` de cada operação (`pending_probe_and_zap`). A prévia não demonstra a matriz executada nem detecção.
+
+Para perfil sem estratégia, a migração gera `strategy.migrated.yml`, sem ativá-la nem mudar o perfil ou a aprovação. `--output <nome>` escolhe outro nome na forma `strategy.<nome>.yml` (minúsculas, dígitos e hífen); um arquivo existente não é sobrescrito; a migração recusa estratégia existente. A pessoa deve revisar a cópia e ativá-la explicitamente como `strategy.yml` quando desejar. Um resultado de sucesso, com nome ilustrativo, é:
+
+```json
+{"schema_version":1,"ok":true,"data":{"product":"produto","copy":"strategy.migrated.yml","changes":["strategy_added"],"classification":"automatic","approval_changed":false}}
+```
+
+A configuração inválida, estratégia pendente na compilação ou destino recusado retornam `CONFIG_ERROR`, saída 2, sem exibir valores sensíveis. A aprovação só é verificada para execução: `SCOPE_NOT_APPROVED` e violações de escopo usam saída 3. Não edite o registro de aprovação.
+
+Uma estratégia neutra mínima é:
+
+```yaml
+schema_version: 1
+references:
+  target: target.yml
+  data_rules: data-rules.yml
+  flows: flows.yml
+choices: []
+```
+
+Opcionalmente há uma escolha tipada `coverage` / `preserve`, com origem, justificativa fechada, validade ISO e estado; campos livres e permissões extras são recusados. Veja o [ADR da estratégia](../adr/0071-estrategia-versionada.md) para o contrato. Uma escolha deve estar `validated` e vigente para compilar; observação não concede autorização.
+
 ## Perfil anterior e mudanças
 
-Um perfil anterior sem estratégia continua no fluxo existente. Uma migração deve ser explícita, produzir cópia e comparação, preservar os arquivos originais e nunca transportar aprovação para poderes novos. Mudanças em ambiente, contrato, conta, autorização ou motor exigem reavaliar escolhas dependentes. Uma referência insegura, conflito ou valor não reconhecido deve ser recusado; não contorne a recusa editando a aprovação.
+Um perfil anterior sem estratégia continua no fluxo existente. Uma migração deve ser explícita, produzir cópia e comparação, preservar os arquivos originais e nunca transportar aprovação para poderes novos. Mudanças em ambiente, contrato, conta, autorização ou motor exigem reavaliar escolhas dependentes; invalidação seletiva e reutilização são trabalho futuro e não foram demonstradas. Uma referência insegura, conflito ou valor não reconhecido deve ser recusado; não contorne a recusa editando a aprovação.
 
-A versão e os limites são descritos nos [ADRs propostos](../adr/0070-envelope-autorizado.md) e no [inventário](../plans/2026-11-16-v1-8-inventario-contratos.md). Resultados de laboratório não devem ser tratados como prova em produto real.
+A versão e os limites são descritos nos [ADRs](../adr/0070-envelope-autorizado.md) e no [inventário](../plans/2026-11-16-v1-8-inventario-contratos.md). Resultados de laboratório não devem ser tratados como prova em produto real.
