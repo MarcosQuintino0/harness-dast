@@ -1,0 +1,16 @@
+{
+  "run_id": "2026-11-16T11-44-45Z-clinica-piloto-e90e",
+  "auth_on_scanner": [
+    2043,
+    2043
+  ],
+  "csrf": {
+    "scanner_messages": 2043,
+    "writes_reached_target": 658,
+    "csrf_rejected": 0,
+    "writes_with_header": 658,
+    "writes_with_cookie": 658
+  },
+  "rules_left": [],
+  "secret_hits": []
+}
