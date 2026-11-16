@@ -225,7 +225,7 @@ def test_the_next_steps_ask_for_triage_and_cleanup_without_widening_anything() -
     assert "hdast cleanup" in joined
     assert "não pôde testar" in joined
     assert "coerção" in joined
-    assert "ampliar" not in joined.lower()
+    assert "sem ampliar escopo, limites nem janela sem nova autorização" in joined.lower()
 
 
 def test_a_report_with_only_negative_findings_does_not_claim_there_are_none() -> None:

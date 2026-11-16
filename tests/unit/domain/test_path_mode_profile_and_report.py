@@ -166,7 +166,8 @@ def test_report_warns_that_path_injection_coverage_was_partial() -> None:
 def test_report_has_no_partial_coverage_warning_when_no_path_was_refused() -> None:
     text = _text(_traffic(denied=0, denied_by_reason={}, denied_by_detail={}, path_shape_denied=0))
 
-    assert "PARCIAL" not in text
+    assert "cobertura de injeção em segmento de caminho foi PARCIAL" not in text
+    assert "RELATÓRIO PARCIAL" in text  # estatísticas por regra não fornecidas
     assert "Modo de leitura do caminho no proxy: strict" in text
 
 

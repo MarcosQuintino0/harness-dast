@@ -27,11 +27,17 @@ HOSTILE_BODY = (
 )
 
 
-def report(alerts: list[dict[str, str]], **kwargs: object) -> FindingsReport:
+def report(
+    alerts: list[dict[str, str]], *, complete_rules: bool = False, **kwargs: object
+) -> FindingsReport:
     ops = [operation("obter", "GET", "/users/v1/{username}")]
+    scan = scan_result([entry("obter", "GET", "/users/v1/{username}", 4, alert_ids=("9",))])
+    if complete_rules:
+        # Cenário sintético específico com cobertura por regra conhecida e sem lacunas.
+        scan = scan.model_copy(update={"rule_coverage_gaps": ()})
     return assemble_report(
         probe=probe_result(ops),
-        scan=scan_result([entry("obter", "GET", "/users/v1/{username}", 4, alert_ids=("9",))]),
+        scan=scan,
         raw_alerts=alerts,
         evidence={},
         triage=kwargs.get("triage"),  # type: ignore[arg-type]
@@ -190,7 +196,10 @@ def test_report_says_traffic_was_not_measured_without_the_proxy_audit() -> None:
 
 
 def test_markdown_states_up_front_that_the_report_is_partial_when_the_run_stopped() -> None:
-    complete = report([zap_alert()])
+    legacy = report([zap_alert()])
+    assert legacy.coverage.rule_coverage_gaps is None
+    assert "RELATÓRIO PARCIAL" in render_markdown(legacy)
+    complete = report([zap_alert()], complete_rules=True)
     partial = complete.model_copy(
         update={"coverage": complete.coverage.model_copy(update={"partial": True})}
     )
