@@ -5,6 +5,8 @@ description: "Use quando fix-reachability concluiu os ajustes, inclusive abaixo 
 
 # Rodar a varredura (stack up, run, report)
 
+O `authz` monta a leitura de dono sozinho com as contas e fontes disponíveis; quando faltar prova, a lacuna e a ação sugerida aparecem no relatório e na aba Autorização do painel.
+
 A CLI executa e impõe escopo, limites e janela. Você dispara, acompanha, lê o resultado e informa.
 
 ## Antes de começar

@@ -5,6 +5,8 @@ description: "Use quando já houve uma varredura (existe runs/<run_id>/findings.
 
 # Triar os achados
 
+O `authz` monta a leitura de dono sozinho com as contas e fontes disponíveis; quando faltar prova, a lacuna e a ação sugerida aparecem no relatório e na aba Autorização do painel.
+
 Triagem é **anotação consultiva**, feita por você e revisada por uma pessoa. Ela nunca remove achado nem muda severidade: a CLI recusa e o relatório continua contando tudo na severidade proposta pelo ZAP.
 
 ## Passos

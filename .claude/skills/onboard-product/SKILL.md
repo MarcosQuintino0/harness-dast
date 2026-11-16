@@ -5,6 +5,8 @@ description: "Use quando uma pessoa pede para cadastrar um produto novo no harne
 
 # Cadastrar um produto (da carta e do Swagger ao perfil validado)
 
+O `authz` monta a leitura de dono sozinho com as contas e fontes disponíveis; quando faltar prova, a lacuna e a ação sugerida aparecem no relatório e na aba Autorização do painel.
+
 Você conduz a entrevista e transcreve; a CLI gera e valida. Escopo, limite e janela já são impostos em código, mas **você não escreve esses blocos nem inventa esses valores**: a resposta é da carta ou da pessoa, e a CLI gera o `target.yml` a partir de um `carta.yml` (ADR 0036).
 
 ## Regra central
