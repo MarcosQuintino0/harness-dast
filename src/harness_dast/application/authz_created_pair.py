@@ -8,13 +8,15 @@ from harness_dast.application.authz_sender import (
     note,
     problem_note,
 )
+from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import bodies_equivalent, is_success_status, parse_json
 from harness_dast.domain.authz_created import created_identifier, created_read_exchange
 from harness_dast.domain.authz_findings import horizontal_finding
+from harness_dast.domain.authz_flow_bindings import bindings_from_proven_body
 from harness_dast.domain.authz_plan import Planned
 from harness_dast.domain.authz_plan_created_pair import CreatedPairTask
 from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS
-from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.errors import ConfigError, TargetError
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 
@@ -33,6 +35,22 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
             note("horizontal", post, "budget_exhausted", "Teto de escrita compartilhado atingido.")
         )
         return
+    body = _new_body(ctx, post, out)
+    if body is None:
+        return
+    if ctx.settings.counter_checkpoint is not None and ctx.settings.builder is not None:
+        ctx.settings.counter_checkpoint(ctx.settings.builder.next_unique_counter)
+    ctx.shared_writes += 1
+    out.writes += 1
+    reply = ctx.sender.send(
+        post, task.owner[0], body=body, with_body=True, tag="pair:", max_attempts=1
+    )
+    _check_created(ctx, task, out, reply)
+
+
+def _new_body(
+    ctx: CheckContext, post: ExchangeRecord, out: CheckResult
+) -> dict[str, JsonValue] | None:
     builder = ctx.settings.builder
     operation = ctx.settings.operations.get(post.operation_id)
     if builder is None or operation is None:
@@ -41,12 +59,31 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
                 "horizontal",
                 post,
                 "new_data_unavailable",
-                "Não foi possível gerar dados novos pelas regras do perfil.",
+                "Não foi possível gerar dados novos; confira as regras e rode um novo probe "
+                "se o registro for anterior ao contador de valores únicos.",
             )
         )
-        return
+        return None
     try:
-        built = builder.build(operation)
+        original = parse_json((post.body or "").encode())
+        bindings = bindings_from_proven_body(ctx.settings.flows, post.operation_id, original)
+        built = builder.build(operation, bindings)
+        for _ in range(7):
+            if built.body != original and not builder.reuses_unique_body_value(
+                post.operation_id, original, built.body, bound_fields=frozenset(bindings.fields)
+            ):
+                break
+            built = builder.build(operation, bindings)
+    except TargetError:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                post,
+                "flow_binding_unavailable",
+                "O corpo provado não contém uma referência declarada em flows.yml; criação pulada.",
+            )
+        )
+        return None
     except ConfigError:
         out.not_tested.append(
             note(
@@ -56,8 +93,14 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
                 "As regras do perfil não geraram um corpo para a criação.",
             )
         )
-        return
-    if not isinstance(built.body, dict) or built.body == parse_json((post.body or "").encode()):
+        return None
+    if (
+        not isinstance(built.body, dict)
+        or built.body == original
+        or builder.reuses_unique_body_value(
+            post.operation_id, original, built.body, bound_fields=frozenset(bindings.fields)
+        )
+    ):
         out.not_tested.append(
             note(
                 "horizontal",
@@ -66,12 +109,14 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
                 "A criação não gerou corpo JSON novo; ajuste data-rules.yml.",
             )
         )
-        return
-    ctx.shared_writes += 1
-    out.writes += 1
-    reply = ctx.sender.send(
-        post, task.owner[0], body=built.body, with_body=True, tag="pair:", max_attempts=1
-    )
+        return None
+    return built.body
+
+
+def _check_created(
+    ctx: CheckContext, task: CreatedPairTask, out: CheckResult, reply: Reply
+) -> None:
+    post = task.post
     if reply.problem:
         out.not_tested.append(problem_note("horizontal", post, reply))
         return

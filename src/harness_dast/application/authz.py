@@ -12,7 +12,7 @@ escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com
 `--check mass_assignment` não liga a escrita (flags só reduzem).
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Literal
@@ -74,7 +74,8 @@ from harness_dast.domain.authz_writes import (
 )
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.probe_exchange import ExchangeRecord
+from harness_dast.domain.flow import FlowSpec
+from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.run_ref import require_run_id
@@ -187,7 +188,8 @@ class Authz:
                 "O probe desta execução foi uma simulação (--dry-run): não há pedidos a repetir.",
                 hint="Rode o probe sem --dry-run e use o run_id dele.",
             )
-        exchanges, unavailable = self._read_exchanges(request, run_id, profile)
+        log, unavailable = self._read_exchanges(request, run_id, profile)
+        exchanges = log.exchanges if log is not None else ()
         spec = self._specs.load(request.product, profile)
         operation_ids = [op.operation_id for op in spec.operations]
         profile.authz.ensure_operations_exist(operation_ids)
@@ -197,7 +199,39 @@ class Authz:
         if request.dry_run:
             outcome = _dry_outcome(checks, plans)
         else:
-            outcome = self._run(profile, request, spec.operations, plans, checks, started, run_id)
+            flows = (
+                self._documents.load_flows(profile.product)
+                if self._documents and plans.created_pairs.tasks
+                else None
+            )
+            if flows is not None:
+                flows.validate_against(spec)
+            builder = (
+                self._builder(profile, run_id, started, log.next_unique_counter)
+                if plans.created_pairs.tasks
+                and log is not None
+                and log.next_unique_counter is not None
+                else None
+            )
+
+            def checkpoint(counter: int) -> None:
+                if log is not None:
+                    self._store.write_exchanges(
+                        run_id, log.model_copy(update={"next_unique_counter": counter})
+                    )
+
+            outcome = self._run(
+                profile,
+                request,
+                spec.operations,
+                plans,
+                checks,
+                started,
+                run_id,
+                flows,
+                builder,
+                checkpoint,
+            )
         result = AuthzResult(
             run_id=run_id,
             product=profile.product,
@@ -220,7 +254,7 @@ class Authz:
 
     def _read_exchanges(
         self, request: AuthzRequest, run_id: str, profile: ProductProfile
-    ) -> tuple[tuple[ExchangeRecord, ...], str | None]:
+    ) -> tuple[ExchangeLog | None, str | None]:
         """Pedidos do `probe` e, se indisponíveis no modo tolerante, o porquê.
 
         Raises:
@@ -232,13 +266,13 @@ class Authz:
         except ConfigError as error:
             if not request.tolerate_missing_exchanges:
                 raise
-            return (), error.message
+            return None, error.message
         if log.product != profile.product:
             raise ConfigError(
                 "A execução informada é de outro produto.",
                 hint="Use o run_id do probe deste produto.",
             )
-        return log.exchanges, None
+        return log, None
 
     def _run(
         self,
@@ -249,6 +283,9 @@ class Authz:
         checks: tuple[AuthzCheck, ...],
         started: datetime,
         run_id: str,
+        flows: FlowSpec | None,
+        builder: RequestBuilder | None,
+        checkpoint: Callable[[int], None],
     ) -> AuthzOutcome:
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         sender = GuardedSender(
@@ -284,9 +321,9 @@ class Authz:
                 vault=self._vault,
                 run_id=run_id,
                 success=profile.probe.success,
-                builder=self._builder(profile, run_id, started)
-                if plans.created_pairs.tasks
-                else None,
+                flows=flows,
+                counter_checkpoint=checkpoint,
+                builder=builder,
             )
         )
         return runner.run(checks, plans)
@@ -296,6 +333,7 @@ class Authz:
         profile: ProductProfile,
         run_id: str,
         started: datetime,
+        initial_counter: int,
     ) -> RequestBuilder | None:
         if self._documents is None or self._value_sources is None or self._entropy is None:
             return None
@@ -305,7 +343,7 @@ class Authz:
             rules,
             self._value_sources(seed, started),
             run_tag_from_run_id(run_id),
-            initial_counter=32768 + seed % 16384,
+            initial_counter=initial_counter,
         )
 
     def _session(

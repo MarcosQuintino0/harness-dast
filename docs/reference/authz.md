@@ -47,6 +47,8 @@ Ordem fixa. As partes que escrevem só rodam com `authz.allow_writes`; a leitura
 
 Com escrita autorizada, `horizontal` também pode criar um recurso para cada papel não compartilhado com duas contas, usando regras do perfil e POST provado. A conta criadora precisa conseguir lê-lo pelo GET irmão provado e pelo identificador devolvido pelo próprio POST antes de se comparar a leitura da segunda conta. Essa comparação e a atribuição em massa compartilham o teto de 400 escritas. As criações registradas entram em `created_resources`; não há DELETE. Falhas de criação, identificação ou confirmação ficam em `not_tested`. Veja o [ADR 0064](../adr/0064-par-automatico-entre-contas.md).
 
+Campos de corpo declarados como consumidores em `flows.yml` preservam os valores do POST provado; os demais são gerados pelas regras atuais. Referência ausente ou removida por proteção de segredos impede a criação (`flow_binding_unavailable`). O `exchanges.json` registra o próximo contador único do probe e é atualizado antes de cada criação; execuções antigas sem esse contador exigem novo probe para a criação automática.
+
 A comparação automática exige resposta HTTP 201 que satisfaça `probe.success` e identificador que não apareça em um GET já provado. Outros códigos de sucesso ficam `create_unconfirmed` e podem ter deixado recursos no ambiente; APIs que criam com HTTP 200 não entram nessa comparação. Mesmo 201 não prova novidade se o servidor for incoerente. As escritas desse par e da atribuição em massa têm uma tentativa por envio, inclusive restauração, para que retentativas não ultrapassem o teto.
 
 | Verificação | Pedido repetido | Achado quando | Severidade |

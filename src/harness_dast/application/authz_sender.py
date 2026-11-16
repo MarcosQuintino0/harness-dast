@@ -12,7 +12,7 @@ testado" se referem uns aos outros, e separá-los criaria importação circular 
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
@@ -26,6 +26,7 @@ from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
+from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
@@ -117,6 +118,8 @@ class AuthzSettings:
     run_id: str = ""
     builder: RequestBuilder | None = None
     success: SuccessCriteria = field(default_factory=SuccessCriteria)
+    flows: FlowSpec | None = None
+    counter_checkpoint: Callable[[int], None] | None = None
 
 
 class ReplaySender:

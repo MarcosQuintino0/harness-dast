@@ -15,7 +15,7 @@ das RESPOSTAS nunca é gravado. Este módulo é puro.
 import json
 from typing import Final
 
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, StrictInt, ValidationError, field_validator
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
 from harness_dast.domain.authz_sensitive import classify_field_name
@@ -88,12 +88,14 @@ class ExchangeLog(ApiModel):
         run_id: Execução do `probe`.
         product: Produto.
         exchanges: Pedidos com sucesso, na ordem em que o `probe` os enviou.
+        next_unique_counter: Próxima posição de geração única; `None` em registros antigos.
     """
 
     schema_version: int = EXCHANGES_SCHEMA_VERSION
     run_id: str
     product: str
     exchanges: tuple[ExchangeRecord, ...] = ()
+    next_unique_counter: StrictInt | None = Field(default=None, ge=0, le=65536)
 
 
 def _drop_secret_fields(value: JsonValue, omitted: list[str], depth: int = 0) -> JsonValue:
