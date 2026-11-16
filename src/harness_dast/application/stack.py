@@ -37,6 +37,7 @@ from harness_dast.application.ports import (
     ZapScanStopper,
 )
 from harness_dast.application.scan_ports import RunningScans
+from harness_dast.application.stack_freshness import StackFreshnessCheck
 from harness_dast.application.stack_lock import StackLockService
 from harness_dast.application.stack_models import (
     ComposeProject,
@@ -49,6 +50,7 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.proxy_deadline import compute_policy_deadline
 from harness_dast.domain.run import RunId
 from harness_dast.domain.scan_result import ScanProgress
+from harness_dast.domain.stack_binding import stale_error
 
 MAIN_PROJECT = "hdast"
 BASE_SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
@@ -107,6 +109,7 @@ class StackManager:
         running_scans: RunningScans | None = None,
         locks: StackLockService | None = None,
         proxy_env: Callable[[str], Mapping[str, str]] | None = None,
+        freshness: StackFreshnessCheck | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -123,6 +126,7 @@ class StackManager:
             running_scans: Leitura do andamento das varreduras, para o `stop` dizer o que parou.
             locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
             proxy_env: Montagens e identidade do proxy gerenciado para o produto.
+            freshness: Conferência do frescor da pilha, para o `status` (ADR 0081).
         """
         self._profiles = profiles
         self._clock = clock
@@ -136,6 +140,7 @@ class StackManager:
         self._running_scans = running_scans
         self._locks = locks
         self._proxy_env = proxy_env
+        self._freshness = freshness
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -206,7 +211,15 @@ class StackManager:
         if state is None:
             return StackReport(managed=False, state_file=str(self._states.location()), lock=lock)
         report = self._report(state, policy_file=state.policy_dir / "policy.json")
-        return report.model_copy(update={"lock": lock})
+        update: dict[str, object] = {"lock": lock}
+        freshness = self._freshness.inspect() if self._freshness is not None else None
+        if freshness is not None:
+            update["binding"] = freshness.state
+            if freshness.state in ("stale", "unreadable"):
+                error = stale_error(freshness, state.product)
+                update["stale_parts"] = freshness.stale_parts
+                update["stale_message"] = f"{error.message} {error.hint}"
+        return report.model_copy(update=update)
 
     def down(self) -> StackReport:
         """Derruba a pilha e esquece o estado.

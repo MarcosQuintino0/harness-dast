@@ -35,6 +35,10 @@ def _render(report: StackReport) -> str:
         f"  {s.project}/{s.service}: {s.state} {s.health}".rstrip() for s in report.services
     )
     lines.extend(f"  alvo {name}: {url}" for name, url in report.target_urls.items())
+    if report.stale_message:
+        lines.append(f"PILHA DESATUALIZADA: {report.stale_message}")
+    elif report.binding == "fresh":
+        lines.append("Perfil e aprovação: iguais aos do stack up.")
     lines.extend(f"Aviso: {warning}" for warning in report.warnings)
     return "\n".join(lines) + lock
 

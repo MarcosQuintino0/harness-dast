@@ -9,7 +9,12 @@ from datetime import datetime
 
 from harness_dast.application.ports import SecretProvider, SecretVault
 from harness_dast.application.preflight_report import CheckKind, PreflightCheck
-from harness_dast.domain.errors import HarnessError, ScopeViolation, SecretBackendError
+from harness_dast.domain.errors import (
+    HarnessError,
+    ScopeViolation,
+    SecretBackendError,
+    StackStale,
+)
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.window import ensure_any_window_open
@@ -20,7 +25,13 @@ def _kind(error: HarnessError) -> CheckKind:
 
 
 def failure_check(check_id: str, error: HarnessError) -> PreflightCheck:
-    """Converte um erro do harness em verificação que falhou (mensagem mais dica)."""
+    """Converte um erro do harness em verificação que falhou (mensagem mais dica).
+
+    Raises:
+        StackStale: Sempre repassada: pilha desatualizada não é falha do ambiente do alvo.
+    """
+    if isinstance(error, StackStale):
+        raise error
     detail = f"{error.message} {error.hint or ''}".strip()
     return PreflightCheck(id=check_id, ok=False, detail=detail, kind=_kind(error))
 

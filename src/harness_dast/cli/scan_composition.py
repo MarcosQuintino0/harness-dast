@@ -105,7 +105,9 @@ def build_scan(
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Scan(
-        profiles=checked_profiles(root, None if dry_run else net.network.zap),
+        profiles=checked_profiles(
+            root, None if dry_run else net.network.zap, fresh_stack=not dry_run
+        ),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),

@@ -132,6 +132,7 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 | `services` | lista | `{project, service, state, health}` |
 | `target_urls` | mapa | `api` e `management` do alvo piloto |
 | `warnings` | lista de textos | Avisos |
+| `binding`, `stale_parts`, `stale_message` | texto, lista, texto | Frescor da pilha frente ao `target.yml` e à aprovação de agora ([ADR 0081](../adr/0081-pilha-desatualizada.md)): `binding` é `fresh`, `stale` (mudou depois do `stack up`), `unbound` (política sem vínculo) ou `unreadable` (vínculo ausente ou ilegível); `stale_parts` diz o que divergiu (`profile`, `approval`, `binding`) e `stale_message` traz o que fazer: `stack down` e `stack up <produto>`. Nulos sem pilha |
 | `lock` | objeto ou nulo | Quem ocupa a pilha agora (trava por pilha, [ADR 0035](../adr/0035-trava-por-pilha.md)): `state` (`held`, `orphan` ou `unreadable`), `command`, `product`, `lock_id`, `pid`, `started_at` e `message`; nulo com a pilha livre |
 
 `stop` lê os `scan-progress.json` com `status: running` atualizados há até 120 s (`data.scans_running`: execução, operação, posição e percentual do que estava rodando), cria o arquivo `KILL` na pasta da política (a da pilha gerenciada, ou `HDAST_SCOPE_POLICY_DIR`) **antes** de falar com o ZAP e depois pede ao ZAP `ascan/stopAllScans`; ZAP inacessível não é erro (`zap_reachable: false`). `data`: `kill_file`, `kill_created`, `stack_managed`, `zap_reachable`, `zap_scans_stopped`, `zap_message`. O proxy nega todo pedido novo e a trava só se desfaz recriando a pilha (`stack up`). Sem pilha e sem `HDAST_SCOPE_POLICY_DIR`, sai com `2`. `stop` não derruba contêineres: use `stack down`.
@@ -511,6 +512,7 @@ Os valores abaixo existem na hierarquia de erros do código. Novos valores entra
 | `TARGET_ERROR` | `TargetError`: o alvo respondeu de forma que impede o prosseguimento | 6 |
 | `CLEANUP_FAILED` | `CleanupError`: a limpeza falhou | 7 |
 | `STACK_BUSY` | `StackBusy`: a pilha já está ocupada por outra execução (trava por pilha, [ADR 0035](../adr/0035-trava-por-pilha.md)) | 8 |
+| `STACK_STALE` | `StackStale`: o `target.yml` ou a aprovação mudou depois do `stack up` da pilha ativa; o proxy negaria tudo (`approval_changed`). Vem **antes do primeiro pedido** de `preflight`, `probe`, `scan`, `authz`, `negative` e `run` (fora do `--dry-run`), ou da primeira resposta 403 `approval_changed` do proxy ([ADR 0081](../adr/0081-pilha-desatualizada.md)). Envelope de falha comum, sem campos novos; o `hint` manda recriar a pilha | 4 |
 | `INTERNAL` | Erro interno inesperado | 10 |
 | `INTERRUPTED` | Interrompido pelo usuário (Ctrl+C) | 130 |
 

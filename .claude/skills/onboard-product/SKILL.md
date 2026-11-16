@@ -77,6 +77,7 @@ Para consultar sem tráfego, use `uv run hdast --json strategy validate <produto
 | `needs_rule`, `unused_rules`, `DATA_RULES_MISMATCH`, `FLOWS_MISMATCH`, `ACCOUNT_MAP_MISMATCH` | Corrija `data-rules.yml`, `flows.yml` ou `auth.account_map`; `hint` diz qual. |
 | Pessoa quer o teste entre contas, mas a carta não traz hierarquia de papéis nem operações públicas | Não escreva o bloco `authz` por palpite: `role_order` e `public_operations` vêm do dono (ADR 0027). `authz.allow_writes` nunca é seu: só nasce da carta (`attack.allow_authz_writes`), e escrita em `authz.vertical_methods` só vale com ele. |
 | A pessoa diz que existe um GET que prepara os dados do ambiente | Só então escreva `probe.setup_path` com esse caminho (já em `scope.allow`, fora de `deny_paths`). |
+| `STACK_STALE` (saída 4) ou `stack status` com `binding: stale` | O `target.yml` ou a aprovação mudou depois do `stack up`; nada foi enviado ao alvo. Recrie a pilha: `uv run hdast --json stack down` e `uv run hdast --json stack up <produto>`. Faça isso depois de toda edição de `target.yml` com a pilha de pé. Se a aprovação mudou, a pessoa aprova antes. |
 | A cerca recusa demais, ou o escopo parece curto | **Pare** e peça ao dono do produto. Nunca ligue `wide` nem alargue. |
 | Comando que toca o alvo (`preflight`, `probe`, `scan`, `run`, `stack up`) recusa por falta de aprovação (`SCOPE_NOT_APPROVED`) | **Pare**: peça à pessoa que rode `hdast profile approve <produto>`. Não tente aprovar nem contornar. O `profile validate` nunca recusa por aprovação: ele só mostra `data.approval`. |
 

@@ -10,6 +10,7 @@ Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-cod
 | `2` | `AUTHZ_CONFIG_INVALID` | A tabela "quem pode o quê" (`authz.access_matrix`) cita uma operação que não existe no OpenAPI, um papel que nenhuma conta tem, ou uma operação que também está em `public_operations` | A mensagem diz qual; corrija o `target.yml` (a tabela é da pessoa que aprova, não do agente) e peça nova aprovação do escopo |
 | `3` | `SCOPE_VIOLATION` | Autorização vencida, janela fechada ou prazo esgotado | Não há flag que contorne. Janela: espere. Autorização: o dono do produto renova e você atualiza o perfil |
 | `4` | `PREFLIGHT_FAILED` | Segredo ausente, ZAP fora do ar, login recusado ou alvo não saudável | Veja a tabela de verificações abaixo |
+| `4` | `STACK_STALE` | O `target.yml` (ou a aprovação) mudou **depois do `stack up`**, por exemplo ao corrigir `auth.request_encoding` com a pilha de pé. O proxy prende o hash do arquivo e negaria todo pedido (403 `approval_changed`) | Nada foi enviado ao alvo. `uv run hdast stack down` e `uv run hdast stack up <produto>`, e repita. `hdast profile approval` continua dizendo `approved` se só um campo livre mudou: isso não evita a recriação. `uv run hdast stack status` mostra `binding: stale`. Se a aprovação mudou, uma pessoa roda `hdast profile approve` antes. Editar só `data-rules.yml` ou `flows.yml` não exige recriar |
 | `5` | `EXTERNAL_TOOL_ERROR` | Docker ou ZAP falhou, ou caiu no meio | `uv run hdast --json stack status`; reinicie a pilha com `stack up` |
 | `6` | `TARGET_ERROR` | O alvo parou de responder | Verifique o alvo; não repita em laço |
 | `7` | `CLEANUP_FAILED` | Falha ou teto de linhas na limpeza | [limpeza-de-dados.md](limpeza-de-dados.md); a transação sofreu `ROLLBACK` |
@@ -53,6 +54,7 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | Verificação ou mensagem | Causa | O que fazer |
 | --- | --- | --- |
 | `secrets:<apelido>` falha | Variável de ambiente do segredo não definida neste terminal | Defina a variável (o nome está no perfil e na carta) e abra o terminal/Claude Code de novo |
+| Tudo recusado com 403 e `approval_changed` no `audit.jsonl` do proxy, ou `stack status` com `binding: stale` | Perfil ou aprovação mudou depois do `stack up` ([ADR 0081](../adr/0081-pilha-desatualizada.md)); a CLI agora para antes do primeiro pedido com `STACK_STALE` | `stack down` e `stack up <produto>` |
 | `zap` falha ou "chave de API errada" | ZAP fora do ar ou chave diferente da pilha | `stack up` de novo; não misture pilha antiga com variáveis `HDAST_ZAP_*` de outra |
 | `target_setup` falha | O GET de `probe.setup_path` respondeu 4xx ou 5xx, ou o alvo não respondeu | Confira o caminho no perfil e se a carta autoriza esse GET; o caminho precisa estar em `scope.allow` |
 | `target_health` falha | Alvo fora do ar ou `probe.health_path` errado | Suba o alvo; confira o caminho no perfil |

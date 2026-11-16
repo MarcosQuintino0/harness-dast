@@ -6,6 +6,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-16
+
+### Corrigido
+
+- Pilha travada depois de editar o perfil: o proxy gerenciado prende o hash do `target.yml` e da aprovação no `stack up` e, mudando um deles, nega tudo com 403 `approval_changed`, sem a CLI dizer nada. Agora `preflight`, `probe`, `scan`, `authz`, `negative` e `run` falham **antes do primeiro pedido** com o código novo `STACK_STALE` (saída 4, sem valor de saída novo), que manda recriar a pilha (`stack down` e `stack up <produto>`). Um 403 `approval_changed` no meio da execução vira o mesmo erro, não achado nem recusa de escopo comum. `stack status` ganha `binding`, `stale_parts` e `stale_message`. O proxy continua falhando fechado com o hash completo ([ADR 0081](docs/adr/0081-pilha-desatualizada.md)).
+- Skills `fix-reachability`, `run-scan`, `onboard-product` e `test-product`: depois de editar `target.yml` com a pilha de pé, recriar a pilha.
+- Estudo de reutilização: `export-reuse` recusava porque o agente nunca ativava o conhecimento. As skills `run-scan` e `test-product` agora mandam `knowledge capture <produto> --run <run_id>` depois do `run`; o `export-reuse` aceita `knowledge.captured.yml` na falta do `knowledge.yml` (o ativo vence) e a recusa diz qual arquivo falta ou excede o limite ([ADR 0079](docs/adr/0079-exportacao-conhecimento-estudo.md)). A captura não ativa nada nem concede permissão.
+
+### Documentação
+
+- `evals/README.md`: o passo 1 deixa de usar `stack up --build` (exige aprovação) e passa a `docker compose build` com variáveis descartáveis só para a interpolação; o VAmPI é imagem por digest, sem build.
+- Protocolo da rodada cega: origem do conhecimento do estudo de reutilização e a observação de que, no `claude -p` em workspace novo, o `permissions.allow` do `settings.json` é ignorado e as permissões vêm do `--allowedTools` (as negações valem).
+- `docs/guides/problemas-comuns.md` e referências da CLI e dos códigos de saída: `STACK_STALE`.
+
 ### Documentação
 
 - Protocolo da rodada cega completa (`evals/protocolo-da-rodada-cega.md`): o método exato das rodadas de 2026-11-15 (modelo, esforço, permissões, pedido, aprovação e retomada), o que anotar de cada rodada (tempo por etapa e por segmento, tokens, custo, comportamento, resultado, intervenções, falas e diário do agente), um script de ficha e onde arquivar.

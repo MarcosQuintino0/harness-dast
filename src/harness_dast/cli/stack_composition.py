@@ -23,7 +23,11 @@ from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
 from harness_dast.application.stack_models import StackState
-from harness_dast.cli.approval_composition import formal_profiles, open_approval_store
+from harness_dast.cli.approval_composition import (
+    formal_profiles,
+    open_approval_store,
+    open_stack_freshness,
+)
 from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.errors import ConfigError
@@ -96,6 +100,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         running_scans=FileRunArtifacts(settings.runs_dir),
         locks=open_stack_lock(),
         proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
+        freshness=open_stack_freshness(root),
     )
 
 

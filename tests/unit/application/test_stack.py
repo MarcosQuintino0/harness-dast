@@ -5,15 +5,18 @@ import pytest
 
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
+from harness_dast.application.stack_freshness import StackFreshnessCheck
 from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.scan_result import ScanProgress
+from harness_dast.domain.stack_binding import StackDigests
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.runtime import FixedEntropy, ManualClock
 from tests.fakes.stack import (
     CountingRandom,
+    FakeBindingSource,
     FakeCompose,
     FakeStopper,
     InMemoryStackState,
@@ -44,6 +47,7 @@ class Rig:
         tmp_path: Path,
         environ: dict[str, str] | None = None,
         running_scans: RunningScans | None = None,
+        bindings: FakeBindingSource | None = None,
     ) -> None:
         self.profiles = InMemoryProfileRepository()
         self.profiles.add(valid_profile("demo"))
@@ -64,6 +68,7 @@ class Rig:
             environ=self.environ,
             repo_root=tmp_path / "repo",
             running_scans=running_scans,
+            freshness=None if bindings is None else StackFreshnessCheck(self.states, bindings),
         )
 
 
@@ -226,6 +231,32 @@ def test_status_sem_pilha_diz_que_nao_ha_e_com_pilha_mostra_a_trava(tmp_path: Pa
     status = rig.manager.status()
     assert status.managed is True
     assert status.kill_switch is True
+
+
+def test_status_diz_que_a_pilha_esta_desatualizada_e_como_recriar(tmp_path: Path) -> None:
+    recorded = StackDigests(profile_sha256="a" * 64, approval_sha256="b" * 64)
+    changed = StackDigests(profile_sha256="c" * 64, approval_sha256="b" * 64)
+    rig = Rig(tmp_path, bindings=FakeBindingSource(recorded, changed))
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    status = rig.manager.status()
+
+    assert status.binding == "stale"
+    assert status.stale_parts == ("profile",)
+    assert status.stale_message is not None
+    assert "hdast stack down" in status.stale_message
+
+
+def test_status_diz_fresh_quando_corresponde_e_nada_sem_a_conferencia(tmp_path: Path) -> None:
+    same = StackDigests(profile_sha256="a" * 64, approval_sha256="b" * 64)
+    fresh = Rig(tmp_path / "a", bindings=FakeBindingSource(same, same))
+    fresh.manager.up(StackUpRequest(product="demo"))
+    plain = Rig(tmp_path / "b")
+    plain.manager.up(StackUpRequest(product="demo"))
+
+    assert fresh.manager.status().binding == "fresh"
+    assert fresh.manager.status().stale_message is None
+    assert plain.manager.status().binding is None
 
 
 def test_stop_aciona_o_kill_mesmo_com_o_zap_fora_do_ar(tmp_path: Path) -> None:

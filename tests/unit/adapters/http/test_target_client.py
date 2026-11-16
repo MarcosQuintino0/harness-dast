@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
-from harness_dast.domain.errors import ExternalToolError, TargetTimeout, TargetUnreachable
+from harness_dast.domain.errors import (
+    ExternalToolError,
+    StackStale,
+    TargetTimeout,
+    TargetUnreachable,
+)
 from harness_dast.domain.http_messages import ApprovedRequest, HttpRequest, approve
 from harness_dast.domain.scope import Scope, ScopeGuard, ScopeRule
 from tests.fakes.local_server import Received, Reply, free_port, serve
@@ -325,3 +330,40 @@ def test_a_session_cookie_is_never_sent_to_another_origin_of_the_same_account() 
     assert origin_a.requests[1].headers["cookie"] == "SESSION=segredo"
     assert "cookie" not in origin_b.requests[0].headers
     assert client.cookie_value("user_a", "SESSION") == "segredo"
+
+
+PROXY_BODY = b"hdast scope-proxy: request refused\n"
+
+
+def test_recusa_approval_changed_do_proxy_vira_stack_stale_e_nao_resposta() -> None:
+    def handler(r: Received) -> Reply:
+        return Reply(403, PROXY_BODY, [("X-Hdast-Reason", "approval_changed")])
+
+    with serve(handler) as server:
+        client = make_client()
+        with pytest.raises(StackStale) as caught:
+            client.send(approved(f"{server.base_url}/api/x"))
+        client.close()
+
+    assert caught.value.code == "STACK_STALE"
+
+
+@pytest.mark.parametrize(
+    ("status", "headers", "body"),
+    [
+        (403, [("X-Hdast-Reason", "deny_path")], PROXY_BODY),
+        (403, [("X-Hdast-Reason", "path_not_allowed")], PROXY_BODY),
+        (403, [], PROXY_BODY),
+        (403, [("X-Hdast-Reason", "approval_changed")], b"Forbidden"),
+        (500, [("X-Hdast-Reason", "approval_changed")], PROXY_BODY),
+    ],
+)
+def test_outras_recusas_e_403_comuns_continuam_chegando_como_resposta(
+    status: int, headers: list[tuple[str, str]], body: bytes
+) -> None:
+    with serve(lambda r: Reply(status, body, headers)) as server:
+        client = make_client()
+        response = client.send(approved(f"{server.base_url}/api/x"))
+        client.close()
+
+    assert response.status == status
