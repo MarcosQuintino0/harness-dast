@@ -258,13 +258,25 @@ def _findings(report: FindingsReport) -> str:
 def _not_covered(report: FindingsReport) -> str:
     cov = report.coverage
     partial = (
-        '<div class="banner"><b>Relatório parcial.</b> Há operações elegíveis sem varredura '
-        "ou etapas incompletas. O que não foi varrido não deve "
+        '<div class="banner"><b>Relatório parcial.</b> Há lacunas ou cobertura desconhecida '
+        "em operações ou regras. O que não foi varrido não deve "
         "ser lido como seguro.</div>"
         if cov.partial
         else ""
     )
     statements = "".join(f"<li>{h.plain(text)}</li>" for text in report.not_tested_statements)
+    if cov.rule_coverage_gaps is None and cov.scans_run:
+        statements += (
+            "<li>Cobertura por regra indisponível: "
+            "não há prova de execução completa das regras.</li>"
+        )
+    elif cov.rule_coverage_gaps:
+        statements += "".join(
+            f"<li>Operação {h.ident(g.operation_id)}; "
+            f"regra {g.plugin_id if g.plugin_id is not None else 'n/d'}; "
+            f"estado {h.ident(g.state)}; motivo {h.ident(g.reason)}.</li>"
+            for g in cov.rule_coverage_gaps
+        )
     truncated = "".join(
         f"<li>{h.ident(item.operation_id)}: {h.ident(item.outcome)} em {item.progress}%</li>"
         for item in cov.truncated_scans

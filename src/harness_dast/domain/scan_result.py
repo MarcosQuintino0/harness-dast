@@ -206,6 +206,22 @@ class HealthSummary(ApiModel):
     failures: int = 0
 
 
+class RuleCoverageGap(ApiModel):
+    """Uma regra incompleta ou estatística indisponível para uma operação.
+
+    Attributes:
+        operation_id: Operação do plano, sem URL concreta.
+        plugin_id: ID da regra, ou `None` quando a estatística inteira está ausente.
+        state: Estado controlado da regra ou indisponibilidade da medição.
+        reason: Motivo controlado, sem texto externo.
+    """
+
+    operation_id: str
+    plugin_id: int | None = None
+    state: Literal["skipped", "interrupted", "pending", "unknown", "unavailable"]
+    reason: Literal["max_rule_time", "other", "incomplete", "stats_unavailable"]
+
+
 class ScanResult(ApiModel):
     """Resultado completo do `scan` (`scan.json` e `data` do envelope).
 
@@ -223,6 +239,7 @@ class ScanResult(ApiModel):
         include_outcomes: Classes além de `success` efetivamente aplicadas (ADR 0050).
         planned: Varreduras que o plano pediria, na ordem.
         entries: Varreduras executadas, na ordem.
+        rule_coverage_gaps: Lacunas das regras observadas; `None` em resultado antigo.
         skipped: Operações que não foram varridas, com o motivo.
         learned: Mensagem aprendida de cada operação enviada pelo `probe`.
         alerts_total: Alertas brutos coletados.
@@ -253,6 +270,7 @@ class ScanResult(ApiModel):
     include_outcomes: tuple[str, ...] = ()
     planned: tuple[PlannedScan, ...] = ()
     entries: tuple[ScanEntry, ...] = ()
+    rule_coverage_gaps: tuple[RuleCoverageGap, ...] | None = None
     skipped: tuple[ScanSkip, ...] = ()
     learned: tuple[LearnedRef, ...] = ()
     alerts_total: int = 0

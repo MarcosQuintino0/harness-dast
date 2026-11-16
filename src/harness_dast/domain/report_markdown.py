@@ -48,7 +48,7 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
     )
     if coverage.partial:
         lines += [
-            "- **RELATÓRIO PARCIAL:** há operações elegíveis sem varredura ou etapas incompletas; "
+            "- **RELATÓRIO PARCIAL:** há lacunas ou cobertura desconhecida em operações ou regras; "
             "o que não foi varrido não deve ser lido como seguro.",
         ]
     lines += [f"- {escape_inline(item, 600)}" for item in statements]
@@ -72,6 +72,18 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"{'ligada' if policy.url_path_injection else 'desligada'}, "
         f"{len(policy.disabled_rules)} regra(s) desligadas.",
     ]
+    if coverage.rule_coverage_gaps is None and coverage.scans_run:
+        lines.append(
+            "- Cobertura por regra indisponível: não há prova de execução completa das regras."
+        )
+    elif coverage.rule_coverage_gaps:
+        lines.append("- Lacunas de regras (operação, regra, estado, motivo):")
+        for gap in coverage.rule_coverage_gaps:
+            lines.append(
+                f"  - {escape_inline(gap.operation_id)}; "
+                f"{gap.plugin_id if gap.plugin_id is not None else 'n/d'}; "
+                f"{gap.state}; {gap.reason}."
+            )
     lines += _traffic_lines(coverage)
     return (
         lines + _truncated_lines(coverage) + _seeded_lines(coverage) + _not_tested_lines(coverage)

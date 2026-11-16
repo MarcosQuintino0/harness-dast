@@ -209,7 +209,10 @@ def test_the_blind_spots_of_this_kind_of_test_are_always_listed() -> None:
 def test_when_everything_was_tested_the_card_says_nothing_was_left_out() -> None:
     panel_view = with_functions(function("tested"), function("tested", "Ver"))
     panel_view = panel_view.model_copy(
-        update={"left_out": tuple(item for item in view().left_out if item.kind == "blind")}
+        update={
+            "left_out": tuple(item for item in view().left_out if item.kind == "blind"),
+            "coverage_partial": False,
+        }
     )
 
     text = main_text(coverage_html(panel_view))

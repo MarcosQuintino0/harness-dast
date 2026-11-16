@@ -83,6 +83,7 @@ from harness_dast.domain.scan_result import (
     ScanResult,
     ScanStatusName,
 )
+from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.scan_tokens import origin_regex
 from harness_dast.domain.traffic import TrafficSummary, summarize_traffic
 from harness_dast.domain.zap_messages import parse_learned_request
@@ -309,6 +310,7 @@ class Scan:
                 "alerts_total": collected.alerts_total if collected else 0,
                 "alerts_by_risk": collected.by_risk if collected else {},
                 "evidence_messages": collected.evidence_messages if collected else 0,
+                "rule_coverage_gaps": rule_coverage_gaps(outcome.entries, outcome.rule_stats),
                 "rules_removed": removed,
                 "health": live.health.summary,
                 "traffic": self._traffic(prep),

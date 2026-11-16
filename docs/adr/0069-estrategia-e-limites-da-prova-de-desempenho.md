@@ -15,3 +15,5 @@ A declaração de tecnologia permanece consultiva e não exclui regras ([ADR 006
 ## Consequências
 
 A prova de planejamento não substitui detecção ou cobertura executada. Estratos e controles ausentes limitam a conclusão, e ganho no subconjunto não garante ganho na completa ou em produto real. A falta de prova, a divergência dos pares ou o descumprimento da meta conserva o padrão A; não se afirma equivalência antes dos resultados. As decisões sobre ritmo, medição e declaração estão nos ADRs 0066 a 0068.
+
+O resumo de lacunas no scan e no relatório registra regras puladas, interrompidas, pendentes ou desconhecidas e estatísticas indisponíveis. Progresso de 100% e saída bem-sucedida não eliminam essas lacunas; a falta de dados históricos não comprova equivalência executada. Essa apresentação não altera o estimador nem reescreve medições anteriores.

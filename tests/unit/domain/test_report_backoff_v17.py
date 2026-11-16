@@ -14,9 +14,10 @@ def test_recuo_distingue_lacuna_de_recusa_deliberada(reason: str, partial: bool)
     probe = probe_result([operation("list_items", "GET", "/items")])
     scan = scan_result([entry("list_items", "GET", "/items", 1)]).model_copy(
         update={
+            "rule_coverage_gaps": (),
             "traffic": TrafficSummary(
                 enabled=True, denied=1, denied_by_reason={reason: 1}, limit_rps=50
-            )
+            ),
         }
     )
 
