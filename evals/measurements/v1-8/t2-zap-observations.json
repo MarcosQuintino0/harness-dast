@@ -1,0 +1,63 @@
+[
+  {
+    "product": "clinica-piloto",
+    "mode": "vulnerable",
+    "zap_titles": {
+      "Hash Disclosure - BCrypt": 1,
+      "SQL Injection": 1,
+      "Cookie No HttpOnly Flag": 12,
+      "X-Content-Type-Options Header Missing": 11,
+      "Authentication Request Identified": 1,
+      "Session Management Response Identified": 13
+    },
+    "zap_by_severity": {
+      "high": 2,
+      "low": 23,
+      "informational": 14
+    }
+  },
+  {
+    "product": "vampi",
+    "mode": "vulnerable",
+    "zap_titles": {
+      "Cross Site Scripting (Reflected)": 1,
+      "SQL Injection": 1,
+      "Server Leaks Version Information via \"Server\" HTTP Response Header Field": 6,
+      "X-Content-Type-Options Header Missing": 4,
+      "Authentication Request Identified": 1,
+      "Session Management Response Identified": 1
+    },
+    "zap_by_severity": {
+      "high": 2,
+      "low": 10,
+      "informational": 2
+    }
+  },
+  {
+    "product": "clinica-piloto",
+    "mode": "secure",
+    "zap_titles": {
+      "Cookie No HttpOnly Flag": 31,
+      "Authentication Request Identified": 1,
+      "Session Management Response Identified": 31
+    },
+    "zap_by_severity": {
+      "low": 31,
+      "informational": 32
+    }
+  },
+  {
+    "product": "vampi",
+    "mode": "secure",
+    "zap_titles": {
+      "Server Leaks Version Information via \"Server\" HTTP Response Header Field": 13,
+      "X-Content-Type-Options Header Missing": 11,
+      "Authentication Request Identified": 1,
+      "Session Management Response Identified": 1
+    },
+    "zap_by_severity": {
+      "low": 24,
+      "informational": 2
+    }
+  }
+]
