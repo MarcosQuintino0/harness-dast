@@ -33,6 +33,28 @@ _REQUIRED: dict[str, frozenset[str]] = {
 }
 
 
+class KnowledgeEffect(ProfileModel):
+    """Receita sanitizada de efeito comprovado por releitura, sem valor ou ID."""
+
+    post_operation: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,199}$")
+    read_operation: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,199}$")
+    account: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    fields: tuple[str, ...] = Field(min_length=1, max_length=50)
+    proof: Literal["readback_verified"]
+
+    @field_validator("fields")
+    @classmethod
+    def validate_fields(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Aceita apenas nomes estruturais curtos e distintos."""
+        import re
+
+        if len(set(value)) != len(value) or any(
+            re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]{0,99}", name) is None for name in value
+        ):
+            raise ValueError("campos invalidos")
+        return value
+
+
 class KnowledgeEntry(ProfileModel):
     """Declaração fechada e rastreável, sem conteúdo textual arbitrário."""
 
@@ -74,6 +96,7 @@ class Knowledge(ProfileModel):
     schema_version: Literal[1]
     basis: StrategyBasis
     references: StrategyReferences
+    effects: tuple[KnowledgeEffect, ...] = Field(default=(), max_length=500)
     entries: tuple[KnowledgeEntry, ...] = Field(max_length=1000)
 
     @field_validator("schema_version", mode="before")
