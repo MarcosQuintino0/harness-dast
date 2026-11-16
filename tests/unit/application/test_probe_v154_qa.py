@@ -33,3 +33,28 @@ def test_fallback_do_conflito_aponta_campo_do_contrato(route: str, field: str) -
 
     result = Rig(spec=spec, handler=handler).probe().execute(ProbeRequest(product="agenda"))
     assert result.operations[0].conflict_fields == (field,)
+
+
+def test_dica_de_conflito_nao_revela_token_como_nome_de_campo() -> None:
+    secret = "token-sintetico-para-teste"  # noqa: S105 - sentinela de teste
+    spec = ApiSpec(
+        title="T",
+        version="1",
+        operations=(
+            operation(
+                "add",
+                "post",
+                "/api/widgets",
+                body={secret: Schema(type="string", max_length=16)},
+                required=(secret,),
+            ),
+        ),
+    )
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id == "auth.login":
+            return reply(200, {"access_token": secret})
+        return reply(409, {"errors": [{"field": secret}]})
+
+    result = Rig(spec=spec, handler=handler).probe().execute(ProbeRequest(product="agenda"))
+    assert secret not in result.model_dump_json()
