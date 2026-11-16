@@ -244,6 +244,22 @@ def _left_out(view: PanelView) -> str:
     return card(heading("O que ficou de fora") + f"<div>{rows}</div>")
 
 
+def _coverage_details(view: PanelView) -> str:
+    banner = (
+        "<p><b>Cobertura parcial.</b> Há lacunas ou etapas incompletas.</p>"
+        if view.coverage_partial
+        else ""
+    )
+    if not view.coverage_not_tested:
+        return banner
+    rows = "".join(
+        f"<li>{h.text(item.operation_id)} — {h.text(item.method + ' ' + item.path)}: "
+        f"probe {h.text(item.probe_outcome or 'não registrado')}; {h.text(item.message)}</li>"
+        for item in view.coverage_not_tested
+    )
+    return banner + card(heading("Operações sem varredura") + f"<ul>{rows}</ul>")
+
+
 def render_coverage(view: PanelView) -> str:
     """Conteúdo do `<main>` da aba Cobertura."""
     if not view.functions:
@@ -263,4 +279,4 @@ def render_coverage(view: PanelView) -> str:
         '<div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 16px; '
         f'min-width: 0">{render_fence(view)}{_left_out(view)}</div>'
     )
-    return f'{_summary(view)}\n<div class="g">{mapa}{side}</div>'
+    return f'{_coverage_details(view)}{_summary(view)}\n<div class="g">{mapa}{side}</div>'

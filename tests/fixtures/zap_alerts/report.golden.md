@@ -6,6 +6,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 
 ## O que este relatório não testou
 
+- **RELATÓRIO PARCIAL:** há operações elegíveis sem varredura ou etapas incompletas; o que não foi varrido não deve ser lido como seguro.
 - Falhas de autorização \(BOLA/IDOR, BFLA, troca de dados de outro usuário\) exigem comparar respostas de contas diferentes; uma varredura ativa do ZAP não as detecta.
 - Atribuição em massa \(mass assignment\), exposição excessiva de dados em respostas legítimas e falhas de lógica de negócio estão fora do que o ZAP detecta.
 - Só foram varridas as operações que o probe alcançou com sucesso e que o plano permitiu \(sem DELETE, sem o login, sem caminhos negados\); as demais constam como não testadas.
@@ -25,14 +26,14 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 
 ### Operações sem varredura
 
-| Operação | Método e caminho | Motivo |
-|---|---|---|
-| `register` | `POST /users/v1/register` | A varredura parou antes de chegar a esta operação. |
-| `login` | `POST /users/v1/login` | O login não é varrido: senhas inválidas em massa bloqueariam a conta. |
-| `debug` | `GET /users/v1/_debug` | A varredura parou antes de chegar a esta operação. |
-| `update_email` | `PUT /users/v1/{username}/email` | PUT só é varrido sobre recurso criado nesta execução \(flows.yml\) ou com scan.mutating\_methods no perfil. |
-| `delete_user` | `DELETE /users/v1/{username}` | O probe terminou com skipped\_destructive. |
-| `createdb` | `GET /createdb` | O probe terminou com skipped\_denied. |
+| Operação | Método e caminho | Resultado do último probe | Motivo |
+|---|---|---|---|
+| `register` | `POST /users/v1/register` | success | A varredura parou antes de chegar a esta operação. |
+| `login` | `POST /users/v1/login` | success | O login não é varrido: senhas inválidas em massa bloqueariam a conta. |
+| `debug` | `GET /users/v1/_debug` | success | A varredura parou antes de chegar a esta operação. |
+| `update_email` | `PUT /users/v1/{username}/email` | success | PUT só é varrido sobre recurso criado nesta execução \(flows.yml\) ou com scan.mutating\_methods no perfil. |
+| `delete_user` | `DELETE /users/v1/{username}` | skipped\_destructive | O probe terminou com skipped\_destructive. |
+| `createdb` | `GET /createdb` | skipped\_denied | O probe terminou com skipped\_denied. |
 
 ## Resumo
 

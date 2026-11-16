@@ -350,6 +350,8 @@ def _decide_skip(skip: ScanSkip) -> tuple[FunctionStateKind, str | None]:
 def _decide_probe(
     result: OperationResult, skip: ScanSkip | None
 ) -> tuple[FunctionStateKind, str | None]:
+    if str(result.outcome) == "auth_rejected_expected" and skip and skip.reason == "not_success":
+        return "forbidden", "Recusa esperada de login; a varredura não ataca login."
     if result.outcome in _FORBIDDEN_OUTCOMES:
         return "forbidden", _FORBIDDEN_OUTCOMES[result.outcome]
     if result.outcome == "dry_run":

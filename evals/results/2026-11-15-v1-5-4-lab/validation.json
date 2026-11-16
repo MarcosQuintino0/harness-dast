@@ -1,0 +1,207 @@
+{
+  "version": "1.5.4",
+  "branch": "feat/v1-5-4-alcance-confiavel",
+  "production_tree": "f23da900fac0932d65c11112ebe9018bb5a7029f",
+  "integration_test_sha256": "81556f460c19cc6944c8b5137b55523e189747a44bcd6a0046bbe3a0d8feff0e",
+  "gates_with_coverage": [
+    {
+      "gate": "ruff-check",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    {
+      "gate": "ruff-format",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "seconds": 0.31
+    },
+    {
+      "gate": "mypy-windows",
+      "command": [
+        "uv",
+        "run",
+        "mypy"
+      ],
+      "exit_code": 0,
+      "seconds": 12.53
+    },
+    {
+      "gate": "mypy-linux",
+      "command": [
+        "uv",
+        "run",
+        "mypy",
+        "--platform",
+        "linux"
+      ],
+      "exit_code": 0,
+      "seconds": 19.33
+    },
+    {
+      "gate": "lint-imports",
+      "command": [
+        "uv",
+        "run",
+        "lint-imports"
+      ],
+      "exit_code": 0,
+      "seconds": 1.17
+    },
+    {
+      "gate": "vulture",
+      "command": [
+        "uv",
+        "run",
+        "vulture"
+      ],
+      "exit_code": 0,
+      "seconds": 2.09
+    },
+    {
+      "gate": "pytest",
+      "command": [
+        "uv",
+        "run",
+        "pytest",
+        "-q",
+        "--cov",
+        "--cov-report=xml",
+        "--cov-report=json"
+      ],
+      "exit_code": 0,
+      "seconds": 483.69
+    },
+    {
+      "gate": "coverage-floors",
+      "command": [
+        "uv",
+        "run",
+        "python",
+        ".github/scripts/check_coverage_floors.py",
+        "coverage.json",
+        "src/harness_dast/domain=95",
+        "src/harness_dast/application=85"
+      ],
+      "exit_code": 0,
+      "seconds": 0.28
+    },
+    {
+      "gate": "diff-cover",
+      "command": [
+        "uv",
+        "run",
+        "diff-cover",
+        "coverage.xml",
+        "--compare-branch=origin/develop",
+        "--fail-under=90"
+      ],
+      "exit_code": 0,
+      "seconds": 4.3
+    }
+  ],
+  "pytest_with_coverage": {
+    "passed": 9329,
+    "skipped": 4,
+    "deselected": 167,
+    "seconds": 476.78
+  },
+  "coverage": {
+    "domain_branch_percent": 98.4,
+    "application_branch_percent": 97.2,
+    "diff_lines": 139,
+    "diff_missing": 6,
+    "diff_display_percent": 95
+  },
+  "integration": {
+    "final_cases_passed": 3,
+    "first_execution": {
+      "passed": 2,
+      "failed": 1,
+      "deselected": 22,
+      "pytest_seconds": 454.9,
+      "wall_seconds": 466.64
+    },
+    "secure_retest": {
+      "passed": 1,
+      "failed": 0,
+      "deselected": 24,
+      "pytest_seconds": 194.78,
+      "wall_seconds": 200.28
+    },
+    "reason": "Asser??o inicial exigia aus?ncia total de auth_error. A recusa 403 de opera??o protegida ? leg?tima e deve preservar essa classe.",
+    "compose_after": [],
+    "images_rebuilt": true,
+    "random_process_zap_key": true,
+    "sanitized_probe_count": 8
+  },
+  "security": {
+    "pip_audit": "No known vulnerabilities found",
+    "gitleaks_commits_before_report": 17,
+    "gitleaks_leaks": 0,
+    "gitleaks_configuration_changed": false
+  },
+  "qa": {
+    "model": "gpt-6.1-terra",
+    "reasoning_effort": "high",
+    "directed_tests_passed": 97,
+    "independent_cases": 11,
+    "initial_evals_and_skills_tests_passed": 283
+  },
+  "gates_final": [
+    {
+      "gate": "ruff-check",
+      "exit_code": 0,
+      "seconds": 0.16
+    },
+    {
+      "gate": "ruff-format",
+      "exit_code": 0,
+      "seconds": 0.17
+    },
+    {
+      "gate": "mypy-windows",
+      "exit_code": 0,
+      "seconds": 16.62
+    },
+    {
+      "gate": "mypy-linux",
+      "exit_code": 0,
+      "seconds": 21.45
+    },
+    {
+      "gate": "lint-imports",
+      "exit_code": 0,
+      "seconds": 1.59
+    },
+    {
+      "gate": "vulture",
+      "exit_code": 0,
+      "seconds": 2.31
+    },
+    {
+      "gate": "pytest",
+      "exit_code": 0,
+      "seconds": 316.28
+    }
+  ],
+  "pytest_final": {
+    "passed": 9329,
+    "skipped": 4,
+    "deselected": 167,
+    "seconds": 311.97
+  }
+}

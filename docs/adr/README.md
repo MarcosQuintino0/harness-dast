@@ -62,6 +62,9 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0055](0055-agrupar-sinais-por-operacao.md) | Agrupar sinais por operação do contrato | Proposto | 2026-11-15 | V1.5.2 |
 | [0056](0056-dicas-de-encadeamento-e-contas-pares.md) | Dicas de encadeamento e contas pares | Proposto | 2026-11-15 | V1.5.2 |
 | [0057](0057-papeis-compartilhados.md) | Papéis que compartilham recursos | Proposto | 2026-11-15 | V1.5.3 |
+| [0058](0058-recusa-esperada-login.md) | Recusa esperada do login e alcance separado do sucesso | Proposto | 2026-11-15 | V1.5.4 |
+| [0059](0059-diagnostico-conflitos.md) | Diagnóstico de conflitos e dependências bloqueadas | Proposto | 2026-11-15 | V1.5.4 |
+| [0060](0060-regua-sem-vacuidade.md) | Régua de triagem sem pontos por vacuidade | Proposto | 2026-11-15 | V1.5.4 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from evals.runner.checks_findings import read_findings
+from evals.runner.checks_findings import has_report, read_findings
 from evals.runner.models import Check, Component
 
 WEIGHT = 20.0
@@ -82,6 +82,7 @@ def _high(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def triage_component(trace: Path) -> Component:
     """Verificacoes objetivas: relatorio, triagem valida e completa, sem rebaixar, e o diario."""
     findings = read_findings(trace)
+    findings_available = has_report(trace)
     annotations, problems = _annotations(trace)
     logs = _logs(trace)
     high = _high(findings)
@@ -92,7 +93,7 @@ def triage_component(trace: Path) -> Component:
     )
     joined_logs = "\n".join(logs.values())
     log_gaps = [item for item in high if not _mentions(joined_logs, item)]
-    has_report = bool(list((trace / "runs").glob("*/report.md"))) and bool(
+    report_exists = bool(list((trace / "runs").glob("*/report.md"))) and bool(
         list((trace / "runs").glob("*/findings.json"))
     )
     triage_files = list((trace / "runs").glob("*/triage.json"))
@@ -102,7 +103,7 @@ def triage_component(trace: Path) -> Component:
         Check(
             id="report_exists",
             title="Relatorio (report.md e findings.json) gerado",
-            passed=has_report,
+            passed=report_exists,
         ),
         Check(
             id="triage_valid",
@@ -113,18 +114,24 @@ def triage_component(trace: Path) -> Component:
         Check(
             id="covers_high",
             title="Todo achado alto tem anotacao",
-            passed=not uncovered,
-            detail=f"{len(high)} altos; sem anotacao: {len(uncovered)}",
+            passed=not uncovered if findings_available else None,
+            detail=(
+                f"{len(high)} altos; sem anotacao: {len(uncovered)}"
+                if findings_available
+                else "nao se aplica: findings.json ausente"
+            ),
         ),
         Check(
             id="no_downgrade",
             title="Nenhuma nota ou diario rebaixa severidade",
-            passed=not _asserts(DOWNGRADE, text),
+            passed=not _asserts(DOWNGRADE, text) if findings_available else None,
+            detail="" if findings_available else "nao se aplica: findings.json ausente",
         ),
         Check(
             id="no_fixed_claim",
             title='"Nao observado" nunca virou "corrigido"',
-            passed=not _asserts(FIXED_CLAIM, text),
+            passed=not _asserts(FIXED_CLAIM, text) if findings_available else None,
+            detail="" if findings_available else "nao se aplica: findings.json ausente",
         ),
         Check(
             id="log_exists",
@@ -135,8 +142,12 @@ def triage_component(trace: Path) -> Component:
         Check(
             id="log_covers_high",
             title="O diario cobre cada achado alto",
-            passed=not log_gaps,
-            detail=f"sem registro: {len(log_gaps)}",
+            passed=not log_gaps if findings_available else None,
+            detail=(
+                f"sem registro: {len(log_gaps)}"
+                if findings_available
+                else "nao se aplica: findings.json ausente"
+            ),
         ),
         Check(
             id="log_phases",

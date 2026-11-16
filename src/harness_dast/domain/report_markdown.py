@@ -42,16 +42,19 @@ def _percent(value: float | None) -> str:
 
 def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
     lines = ["## O que este relatório não testou", ""]
+    reached = (
+        coverage.probe_reached if coverage.probe_reached is not None else coverage.probe_successes
+    )
     if coverage.partial:
         lines += [
-            "- **RELATÓRIO PARCIAL:** a execução parou antes do fim; só o que foi coletado até "
-            "ali está aqui, e o que não foi varrido não deve ser lido como seguro.",
+            "- **RELATÓRIO PARCIAL:** há operações elegíveis sem varredura ou etapas incompletas; "
+            "o que não foi varrido não deve ser lido como seguro.",
         ]
     lines += [f"- {escape_inline(item, 600)}" for item in statements]
     lines += [
         "",
         f"- Alcançabilidade do probe: {_percent(coverage.reachability)} das operações "
-        f"tentadas ({coverage.probe_successes} de {coverage.operations_sent}); "
+        f"tentadas ({reached} de {coverage.operations_sent}); "
         f"{_percent(coverage.reachability_all)} de todas as {coverage.operations_total} do "
         "OpenAPI.",
         f"- Estado do probe: {escape_inline(coverage.probe_status)}; do scan: "
@@ -145,11 +148,12 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
         "",
         "### Operações sem varredura",
         "",
-        "| Operação | Método e caminho | Motivo |",
-        "|---|---|---|",
+        "| Operação | Método e caminho | Resultado do último probe | Motivo |",
+        "|---|---|---|---|",
     ]
     lines += [
         f"| {cell_code(item.operation_id)} | {cell_code(item.method + ' ' + item.path)} | "
+        f"{escape_inline(item.probe_outcome or 'não registrado')} | "
         f"{escape_inline(item.message, 200)} |"
         for item in coverage.not_tested
     ]

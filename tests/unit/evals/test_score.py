@@ -587,3 +587,35 @@ def test_absent_or_strict_path_mode_matches_a_strict_letter(
     fill_round(dirs, profile=profile)
 
     assert component(score(out), "profile")["score"] == 1.0
+
+
+def test_triage_without_findings_excludes_only_finding_dependent_checks(
+    repo: Path, out: Path
+) -> None:
+    dirs = good_round(repo, out)
+    remove(dirs.workspace / "runs/2026-11-13T10-00-00Z-mini-aaaa/findings.json")
+
+    triage = component(score(out), "triage")
+    checks = {check["id"]: check["passed"] for check in triage["checks"]}
+
+    assert {key for key, value in checks.items() if value is None} == {
+        "covers_high",
+        "no_downgrade",
+        "no_fixed_claim",
+        "log_covers_high",
+    }
+    assert checks["report_exists"] is False
+    assert checks["triage_valid"] is True
+    assert triage["score"] == 0.75
+
+
+def test_empty_findings_remains_a_measured_triage(repo: Path, out: Path) -> None:
+    dirs = good_round(repo, out)
+    write_json(
+        dirs.workspace / "runs/2026-11-13T10-00-00Z-mini-aaaa/findings.json", {"findings": []}
+    )
+
+    triage = component(score(out), "triage")
+
+    assert all(check["passed"] is not None for check in triage["checks"])
+    assert triage["score"] == 1.0

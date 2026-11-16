@@ -105,6 +105,8 @@ class OperationResult(ApiModel):
     attempts: int = 0
     message: str | None = None
     hint: str | None = None
+    conflict_fields: tuple[str, ...] = ()
+    blocked_dependencies: int = 0
     redirect_in_scope: bool | None = None
     preview: RequestPreview | None = None
     untrusted_target_data: TargetData | None = None
@@ -117,17 +119,21 @@ class ProbeSummary(ApiModel):
         operations_total: Operações do OpenAPI.
         operations_sent: Operações que enviaram ao menos uma requisição ("tentadas").
         successes: Operações com `success`.
-        reachability: `successes / operations_sent`, ou `None` se nada foi enviado.
+        reached: Sucessos mais recusas esperadas de login.
+        reachability: `reached / operations_sent`, ou `None` se nada foi enviado.
         reachability_all: `successes / operations_total`, ou `None` sem operações.
         by_outcome: Contagem por classe de resultado.
+        blocked_producers: Identificadores com bloqueios, em ordem decrescente de contagem.
     """
 
     operations_total: int
     operations_sent: int
     successes: int
+    reached: int = 0
     reachability: float | None
     reachability_all: float | None
     by_outcome: dict[str, int]
+    blocked_producers: tuple[str, ...] = ()
 
 
 class ProbeResult(ApiModel):
@@ -172,15 +178,24 @@ def summarize_results(
     counts = Counter(result.outcome for result in results)
     sent = sum(count for outcome, count in counts.items() if outcome in SENT_OUTCOMES)
     successes = counts["success"]
+    reached = successes + counts["auth_rejected_expected"]
     return ProbeSummary(
         operations_total=operations_total,
         operations_sent=sent,
         successes=successes,
-        reachability=round(successes / sent, 4) if sent else None,
+        reached=reached,
+        reachability=round(reached / sent, 4) if sent else None,
         reachability_all=(
-            round(successes / operations_total, 4) if operations_total and not dry_run else None
+            round(reached / operations_total, 4) if operations_total and not dry_run else None
         ),
         by_outcome=dict(sorted(counts.items())),
+        blocked_producers=tuple(
+            r.operation_id
+            for r in sorted(
+                (item for item in results if item.blocked_dependencies),
+                key=lambda item: (-item.blocked_dependencies, item.operation_id),
+            )
+        ),
     )
 
 

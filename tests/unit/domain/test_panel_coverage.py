@@ -44,7 +44,7 @@ def test_the_page_uses_only_the_design_classes_plus_the_known_additions() -> Non
     design = analyse((DESIGN / "coverage.html").read_text(encoding="utf-8"))
     generated = analyse(coverage_html(build_panel_view(with_traffic())))
 
-    assert generated.classes <= design.classes | EXTRA_CLASSES | {"cnt", "k-no", "ch-mu"}
+    assert generated.classes <= design.classes | EXTRA_CLASSES | {"cnt", "k-no", "ch-mu", "ch-am"}
     assert {"stats", "stack", "area", "fn", "lg", "dotk", "k-ok", "k-gr", "k-am", "k-out"} <= (
         generated.classes
     )
@@ -55,7 +55,12 @@ def test_the_tab_is_called_cobertura_and_the_headings_follow_the_design() -> Non
     generated = analyse(coverage_html(build_panel_view(with_traffic())))
 
     assert generated.tabs[3] == "Cobertura"
-    assert generated.headings == ["Mapa do sistema", "A cerca modo estrito", "O que ficou de fora"]
+    assert generated.headings == [
+        "Operações sem varredura",
+        "Mapa do sistema",
+        "A cerca modo estrito",
+        "O que ficou de fora",
+    ]
 
 
 def test_the_page_is_no_longer_the_provisional_one() -> None:
@@ -268,7 +273,7 @@ def test_no_partial_notice_when_nothing_was_barred_by_shape() -> None:
 
     text = main_text(coverage_html(build_panel_view(quiet)))
 
-    assert "Cobertura parcial" not in text
+    assert "endereços disfarçados" not in text
     assert "Ataques por endereço disfarçado" not in text
 
 

@@ -151,6 +151,14 @@ def _probe_text(src: PanelSources) -> str:
     summary = probe.summary
     total = _total(src)
     system = f" (de {fmt_count(total)} no sistema)" if total else ""
+    expected = summary.by_outcome.get("auth_rejected_expected", 0)
+    if expected:
+        reached = summary.successes + expected
+        return (
+            f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
+            f"{x_of_y(reached, summary.operations_sent)} alcançadas: {summary.successes} com "
+            f"sucesso e {expected} com recusa esperada de login."
+        )
     return (
         f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
         f"{x_of_y(summary.successes, summary.operations_sent)} responderam como esperado."
@@ -271,8 +279,12 @@ def settle_stopped(src: PanelSources, stages: Sequence[PanelStage]) -> tuple[Pan
     if any(item.state == "cut" for item in stages):
         return tuple(stages)
     target = next((item.key for item in stages if item.state == "pending"), None)
-    if target is None and src.findings and src.findings.coverage.partial:
-        target = "scan"
+    if target is None and src.findings:
+        coverage = src.findings.coverage
+        if coverage.probe_status != "completed":
+            target = "probe"
+        elif coverage.scan_status != "completed" or coverage.truncated_scans:
+            target = "scan"
     return tuple(
         item.model_copy(update={"state": "cut", "unreached": item.state == "pending"})
         if item.key == target
@@ -293,7 +305,11 @@ def _is_error(src: PanelSources, stopped: PanelStage | None) -> bool:
         return True
     if src.scan is not None and src.scan.entries:
         return False
-    probe_ok = src.probe.summary.successes if src.probe else 0
+    probe_ok = (
+        src.probe.summary.successes + src.probe.summary.by_outcome.get("auth_rejected_expected", 0)
+        if src.probe
+        else 0
+    )
     return stopped.key == "probe" and probe_ok < _MIN_ERROR_PROBE_SUCCESSES
 
 

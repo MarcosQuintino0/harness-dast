@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "harness-dast"
-version = "1.5.3"
+version = "1.5.4"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -245,6 +245,8 @@ ignore_names = [
     "success_codes",
     "tags",
     "by_outcome",
+    # Ranking público do probe, serializado pelo Pydantic para o agente (ADR 0059).
+    "blocked_producers",
     "excerpt",
     "finished_at",
     "header_names",

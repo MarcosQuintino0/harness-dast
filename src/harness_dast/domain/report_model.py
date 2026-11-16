@@ -65,6 +65,7 @@ class NotTested(ApiModel):
         path: Modelo de caminho.
         reason: Motivo estável (`delete`, `login`, `mutating`, `probe_validation_error`...).
         message: Explicação em português.
+        probe_outcome: Resultado do último probe, ou `None` em relatórios antigos.
     """
 
     operation_id: str
@@ -72,6 +73,7 @@ class NotTested(ApiModel):
     path: str
     reason: str
     message: str
+    probe_outcome: str | None = None
 
 
 class TruncatedScan(ApiModel):
@@ -113,10 +115,10 @@ class Coverage(ApiModel):
         operations_total: Operações do OpenAPI.
         operations_sent: Operações que o probe tentou.
         probe_successes: Operações com sucesso no probe.
-        reachability: Sucessos sobre tentadas (ou `None`).
-        reachability_all: Sucessos sobre todas (ou `None`).
-        partial: Se o probe ou o scan pararam antes do fim (prazo, janela, login, ZAP ou alvo): o
-            relatório cobre só o que foi coletado até ali.
+        probe_reached: Operações alcançadas, incluindo recusa esperada de login; `None` em legado.
+        reachability: Alcançadas sobre tentadas (ou `None`).
+        reachability_all: Alcançadas sobre todas (ou `None`).
+        partial: Se há lacunas elegíveis ou etapas incompletas.
         probe_status: Estado final do probe.
         scan_status: Estado final do scan.
         scan_stop_message: Explicação da parada do scan.
@@ -136,6 +138,7 @@ class Coverage(ApiModel):
     operations_total: int
     operations_sent: int
     probe_successes: int
+    probe_reached: int | None = None
     reachability: float | None
     reachability_all: float | None
     partial: bool = False
