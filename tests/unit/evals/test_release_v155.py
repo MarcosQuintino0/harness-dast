@@ -10,6 +10,7 @@ import yaml
 from evals.runner.approve import approve
 from evals.runner.cases import EvalError, RoundDirs, load_case
 from evals.runner.checks_findings import ACHADA, PARCIAL, flaw_status
+from evals.runner.metrics_stages import parse_hdast
 from evals.runner.prepare import prepare
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
@@ -117,3 +118,11 @@ def test_caso_historico_preserva_carta_e_regua_anteriores() -> None:
     assert current.expected.allow_authz_writes is True
     assert old.expected.model_copy(update={"allow_authz_writes": True}) == current.expected
     assert all(not item.detectable for item in old.flaws if item.id in {"V3", "V4"})
+
+
+def test_espera_bloqueante_e_medida_na_fase_de_varredura_sem_valores_de_flags() -> None:
+    invocations = parse_hdast("uv run hdast --json wait --product example --timeout 600")
+
+    assert len(invocations) == 1
+    assert invocations[0].stage == "varredura"
+    assert invocations[0].signature == "wait --product --timeout"
