@@ -1,0 +1,25 @@
+﻿{
+    "phase":  "after_first_t3_pair",
+    "recorded_utc":  "2026-11-16T05:45:44.9727064+00:00",
+    "source_commit":  "75b167e0f33252da85f27e7a0843097334e0537a",
+    "deadline_epoch":  1794819708,
+    "observed":  {
+                     "t3_block_seconds":  819.21,
+                     "clinica_a":  218.032712,
+                     "clinica_b":  119.657724,
+                     "vampi_a":  78.885775,
+                     "vampi_b":  28.841301,
+                     "clinica_gain_pct_descriptive":  45.1193708951343,
+                     "vampi_gain_pct_descriptive":  63.439161242949055,
+                     "t2_a_sql_block_seconds":  236.22
+                 },
+    "plan_minutes":  {
+                         "t3_remaining_pairs":  28,
+                         "targeted_t2_remaining":  30,
+                         "existing_t2_controls":  30,
+                         "t4_four_scenarios":  60,
+                         "validator_reserved":  40
+                     },
+    "decision":  "Continuar T2 e pares2/3; conferir custo a cada bloco. Projeções são orçamento, não previsão de ganho. Extras4/5 somente se critério prévio exigir e houver margem sem sacrificar controles/completas/validador.",
+    "quality":  "Ganho apenas descritivo: DOM40026 pulada na referência, restrições deliberadas de mutação e aferições independentes pendentes. Padrão legacy preservado."
+}
