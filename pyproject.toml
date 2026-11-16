@@ -220,6 +220,9 @@ ignore_names = [
     "check_request",
     "recheck_after_wait",
     "reserve_slot",
+    "GrantQueue",
+    "defer_slots",
+    "retry_after_seconds",
     "read_response_signals",
     "check_destination",
     "log",
@@ -234,6 +237,11 @@ ignore_names = [
     # Campos de modelos que só a serialização do pydantic lê (envelope JSON, probe.json,
     # manifest.json, audit.jsonl) ou que só os testes e o agente consomem.
     "schema_version",
+    # V1.7: campos públicos de metrics.json consumidos por análise externa.
+    "proxy_grant_wait_seconds",
+    "proxy_network_seconds",
+    "cpu_seconds",
+    "memory_peak_bytes",
     "requires_confirmation",
     "constraints",
     "field_name",
