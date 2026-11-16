@@ -55,6 +55,13 @@ def _context(
     )
 
 
+def describe_current_basis(
+    store: StrategyDependencyStore, product: str, profile: ProductProfile
+) -> StrategyBasisContext:
+    """Resume fontes locais sem fingir que o motor foi consultado."""
+    return _context(store, product, profile)[0]
+
+
 def basis_for_engine(
     store: StrategyDependencyStore, product: str, profile: ProductProfile, version: str
 ) -> StrategyBasis | None:

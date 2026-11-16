@@ -8,7 +8,8 @@ from harness_dast.application.ports import (
     StrategyDependencyStore,
     ZapControl,
 )
-from harness_dast.application.strategy import basis_for_engine
+from harness_dast.application.strategy import basis_for_engine, describe_current_basis
+from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.knowledge import Knowledge
 from harness_dast.domain.profile import ProductProfile
@@ -61,3 +62,42 @@ class KnowledgeProfiles:
     def missing_files(self, product: str, profile: ProductProfile) -> tuple[ReferencedFile, ...]:
         """Mantém a verificação de arquivos do repositório subjacente."""
         return self._inner.missing_files(product, profile)
+
+
+class InspectKnowledge:
+    """Consulta conhecimento e diferen?as locais sem acessar motor ou alvo."""
+
+    def __init__(
+        self,
+        profiles: ProfileRepository,
+        store: KnowledgeStore,
+        dependencies: StrategyDependencyStore,
+        clock: Clock,
+    ) -> None:
+        """Recebe fontes independentes e rel?gio injetado."""
+        self._profiles, self._store, self._deps, self._clock = profiles, store, dependencies, clock
+
+    def inspect(self, product: str) -> dict[str, JsonValue]:
+        """Classifica cada refer?ncia sem considerar motor indispon?vel como v?lido."""
+        profile = self._profiles.load(product)
+        raw = self._store.read(product)
+        if raw is None:
+            raise ConfigError("knowledge.yml ausente.")
+        knowledge = Knowledge.from_data(raw)
+        self._deps.check_references(product, knowledge.references)
+        current = describe_current_basis(self._deps, product, profile)
+        reasons = knowledge.review(current, self._clock.now())
+        return {
+            "product": product,
+            "entries": [
+                {"kind": entry.kind, "reasons": list(reason)}
+                for entry, reason in zip(knowledge.entries, reasons, strict=True)
+            ],
+            "reusable": not any(
+                reason
+                for entry, reason in zip(knowledge.entries, reasons, strict=True)
+                if entry.kind != "effect"
+            ),
+            "classification": "proposed" if any(reasons) else "automatic",
+            "engine_status": "unavailable",
+        }
