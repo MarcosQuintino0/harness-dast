@@ -3,8 +3,10 @@
 import pytest
 
 from harness_dast.application import authz_checks_mass, authz_created_pair
+from harness_dast.application.authz import AuthzRequest
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.probe_config import JsonFieldRule, SuccessCriteria
+from tests.fakes.authz_rig import AuthzRig, Clinic
 from tests.fakes.probe_ports import FakeTarget, reply
 from tests.unit.application.test_authz_created_pair import execute, make_rig
 
@@ -106,8 +108,10 @@ def test_falha_logica_da_criacao_nao_conta_como_sucesso() -> None:
     assert any(note.reason == "create_failed" for note in result.not_tested)
 
 
-def test_teto_da_atribuicao_em_massa_impede_reenvio_apos_401(
+@pytest.mark.parametrize("status", [401, 429])
+def test_teto_da_atribuicao_em_massa_impede_reenvio(
     monkeypatch: pytest.MonkeyPatch,
+    status: int,
 ) -> None:
     monkeypatch.setattr(authz_checks_mass, "MAX_MASS_REQUESTS", 1)
     rig = make_rig("api/widgets", exposed=True)
@@ -115,16 +119,41 @@ def test_teto_da_atribuicao_em_massa_impede_reenvio_apos_401(
 
     def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
         if request.operation_id == "authz:createSynthetic" and request.method == "POST":
-            return reply(401, {})
+            return reply(status, {})
         response = delegate(request, jar)
         assert isinstance(response, HttpResponse)
         return response
 
     rig.target = FakeTarget(handler)
-    execute(rig, "api/widgets", ("mass_assignment",))
+    result = execute(rig, "api/widgets", ("mass_assignment",))
 
     writes = [r for r in rig.target.requests if r.operation_id == "authz:createSynthetic"]
     assert len(writes) == 1
+    assert any(note.reason == "inconclusive" for note in result.not_tested)
+    assert next(check for check in result.checks if check.check == "mass_assignment").tested == 0
+
+
+@pytest.mark.parametrize("status", [401, 429])
+def test_atualizacao_com_erro_temporario_e_inconclusiva(status: int) -> None:
+    rig = AuthzRig(Clinic(mass=True), authz={"mass_assignment_methods": ["PUT"]})
+    probe = rig.run_probe()
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id.startswith("authz:") and request.method in ("PUT", "PATCH"):
+            return reply(status, {})
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = rig.authz().execute(
+        AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
+    )
+
+    assert not result.findings
+    assert any(note.reason == "inconclusive" for note in result.not_tested)
+    assert next(check for check in result.checks if check.check == "mass_assignment").tested == 0
 
 
 @pytest.mark.parametrize("failed_account", ["pac_a", "pac_b"])

@@ -61,6 +61,9 @@ def run_post_candidate(
     if reply.status == CONFLICT_STATUS:
         out.not_tested.append(_conflict_note(task))
         return False
+    if reply.status in (401, 429):
+        out.not_tested.append(inconclusive("mass_assignment", exchange, reply))
+        return False
     out.tested += 1
     if not is_success_status(reply.status):
         return True

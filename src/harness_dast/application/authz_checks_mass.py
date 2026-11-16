@@ -150,6 +150,10 @@ def _mass_apply(
     if put.status is None or put.status >= 500:
         out.not_tested.append(inconclusive("mass_assignment", exchange, put))
         return
+    if put.status in (401, 429):
+        pending.attempted = False
+        out.not_tested.append(inconclusive("mass_assignment", exchange, put))
+        return
     out.tested += 1
     if not is_success_status(put.status):
         pending.attempted = False
