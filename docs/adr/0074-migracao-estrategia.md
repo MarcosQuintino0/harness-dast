@@ -1,20 +1,20 @@
-# 0074. Migra??o expl?cita e compatibilidade
+# 0074. Migração explícita e compatibilidade
 
 - **Status:** Proposto
 - **Data:** 2026-11-16
 
 ## Contexto
 
-Perfis sem estrat?gia devem permanecer equivalentes, sem adquirir novos poderes.
+Perfis sem estratégia devem permanecer equivalentes, sem adquirir novos poderes.
 
-## Decis?o
+## Decisão
 
-Vamos manter perfis antigos operacionais sem estrat?gia. A migra??o ? expl?cita, produz c?pia separada e diff, nunca sobrescreve origem nem altera autoriza??o ou registro de aprova??o; n?o cria par?metros protegidos novos. Sa?da usa envelope v1; erro de entrada ou destino inseguro usa `CONFIG_ERROR`, sa?da 2, e n?o deixa escrita parcial. O comando e campos espec?ficos de resultado ser?o fixados com a aplica??o.
+Vamos manter perfis antigos operacionais sem estratégia. A migração é explícita, produz cópia separada e diff, nunca sobrescreve origem nem altera autorização ou registro de aprovação; não cria parâmetros protegidos novos. Saída usa envelope v1; erro de entrada ou destino inseguro usa `CONFIG_ERROR`, saída 2, e não deixa escrita parcial. O comando e campos específicos de resultado serão fixados com a aplicação.
 
 ## Alternativas consideradas
 
-Migrar implicitamente confundiria origem e poderia atribuir ? aprova??o antiga um novo significado.
+Migrar implicitamente confundiria origem e poderia atribuir à aprovação antiga um novo significado.
 
-## Consequ?ncias
+## Consequências
 
-Testes demonstram equival?ncia item por item, aus?ncia de altera??es na origem e recusa de alargamento ou aprova??o transferida.
+Testes demonstram equivalência item por item, ausência de alterações na origem e recusa de alargamento ou aprovação transferida.
