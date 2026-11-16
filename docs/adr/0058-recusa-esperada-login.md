@@ -18,3 +18,5 @@ Relatório e painel distinguem a recusa esperada de falha de autenticação e a 
 ## Consequências
 
 Há mudança no contrato de `probe.json` e nos números de alcance; leitores de arquivos antigos devem admitir os novos campos ausentes. Preflight ainda é a prova de uso das contas, e a operação de login continua sem prova de injeção.
+
+Os compositores de relatório e painel já concentram modelos e seções acima de 300 linhas. Mantêm-se juntos para preservar as interfaces e os arquivos de referência; as novas decisões de lacuna ficam em funções puras nomeadas. `_not_tested` passa a 45 linhas para reunir motivo da varredura e resultado do probe sem duplicar a montagem dos três formatos.

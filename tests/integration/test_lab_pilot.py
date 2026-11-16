@@ -163,7 +163,18 @@ def test_profile_login_rejection_is_reached_in_both_runs(
         assert failing == {"login"}, run.outcomes
         assert summary["successes"] > 0
         assert summary["reached"] == summary["successes"] + 1
-        assert summary["by_outcome"].get("auth_error", 0) == 0
+        login = run.operations["login"]
+        assert login["status"] in {401, 403}
+        protected_rejections = [
+            item
+            for item in run.operations.values()
+            if (item["method"], item["path"]) != (login["method"], login["path"])
+            and item["status"] in {401, 403}
+            and item["outcome"] != "csrf_error"
+        ]
+        assert all(item["outcome"] == "auth_error" for item in protected_rejections)
+        if pilot_session.secure:
+            assert protected_rejections
         assert summary["reachability"] == pytest.approx(
             summary["reached"] / summary["operations_sent"], abs=1e-4
         )

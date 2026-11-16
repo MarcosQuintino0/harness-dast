@@ -16,3 +16,5 @@ Em `conflict_fields` o resultado expõe apenas nomes simples de campos presentes
 ## Consequências
 
 O contrato de `probe.json` recebe campos novos. O esquema não representa marcadores arbitrários de unicidade; o fallback não detecta todos os conflitos e pode sugerir campos que não causaram o 409. O diagnóstico não altera envios ou permissões.
+
+O laço `probe_runner.py` fica com 323 linhas e `_classified` com 57: a composição reúne duração, transporte, classificação e gravação do resultado de uma mesma resposta. As decisões de candidatos e dependências ficam separadas neste módulo puro de domínio, sem introduzir outra porta ou estado global.
