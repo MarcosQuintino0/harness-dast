@@ -30,7 +30,7 @@ O teste exige regra 40018 para SQL ou 6 para travessia e operação concluídas 
 
 ## Evidência A/B e limites
 
-Nos três pares T3 de cada API, os multisets de operação/regra/estado/número de requisições por regra, operação/outcome/número de requisições do ZAP, política, escopo serializado e relação operação/conta/outcome do probe coincidiram entre A e B. Esses campos não incluem prova de todos os pontos de injeção, dos valores enviados ou do dono do recurso. Os ganhos medianos **descritivos** de parede do scan são aproximadamente 45,10% na Clínica e 60,96% no VAmPI; são medidas do subconjunto incompleto, não aceite de qualidade nem previsão confirmada para a completa.
+Nos três pares T3 de cada API, os multisets de operação/regra/estado/número de requisições por regra, operação/outcome/número de requisições do ZAP, política, escopo serializado e relação operação/conta/outcome do probe coincidiram entre A e B. O JSON também registra a soma de requisições **reportada** por regra/estado e o número de operações; uma regra pulada não se torna completa por aparecer com zero. Esses campos não incluem prova de todos os pontos de injeção, dos valores enviados ou do dono do recurso. Os ganhos medianos **descritivos** de parede do scan são aproximadamente 45,10% na Clínica e 60,96% no VAmPI; são medidas do subconjunto incompleto, não aceite de qualidade nem previsão confirmada para a completa.
 
 As T4 vulneráveis têm o mesmo conjunto de operações, outcomes, contagens do ZAP por operação e por regra, regras/estados, exclusões e política entre A/B para cada API. Na Clínica, scan A/B durou 619,49/312,55 s e as assinaturas observadas incluem SQL e travessia; no VAmPI, 133,77/51,58 s, com SQL e XSS refletido observados. A T4 B da Clínica ocorreu antes de previsão prospectiva por causa da seleção por substring: não confirma previsão congelada. A regra 40026 ausente e demais lacunas impedem alegar ganho aceito da completa nas duas APIs, mesmo com números descritivos favoráveis.
 
@@ -47,6 +47,8 @@ Os quatro ledgers T4 registram antes vazio, serviços esperados após subida, `d
 Os dois cenários T2 SQL vulneráveis que passaram após a correção levaram 236,22 s no bloco, e os dez controles T2 restantes levaram 1.151,79 s, incluindo subida e descida. Esses tempos pertencem aos testes V1.7 SQL/travessia, não aos quatro arquivos de controles antigos abaixo; excluem a tentativa anterior que falhou antes do scan.
 
 CPU percentual e memória no JSON são **picos amostrados**, com intervalo/quantidade de amostras; CPU percentual não é CPU acumulada e não representa uso contínuo. Os readbacks presentes foram conferidos pelo validador de amostras: valor, instante durante o scan e ID pertencente às entradas são consistentes; isso comprova somente os instantes amostrados. A primeira versão do parser leu uma chave incorreta, de modo que amostras ausentes dos T2 não podem ser recuperadas por inferência.
+
+Na T4, os picos amostrados do ZAP foram: Clínica A 1.435,65 MiB / 129,06% CPU, Clínica B 1.363,97 MiB / 76,75%; VAmPI A 1.106,94 MiB / 176,97%, VAmPI B 1.055,74 MiB / 47,89%. O proxy atingiu, nas mesmas amostras, respectivamente 30,82%, 67,69%, 28,30% e 57,55% de CPU. Esses valores são picos pontuais de `docker stats`, não médias ou tempos de CPU, e percentuais acima de 100% são possíveis com múltiplos núcleos. Não se pode concluir que o custo total de CPU diminuiu comparando apenas esses picos.
 
 ## Controles existentes e seleção exata
 
