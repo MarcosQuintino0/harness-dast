@@ -1,0 +1,29 @@
+{
+    "generated_utc":  "2026-11-16T10:05:46.4988720Z",
+    "selected":  [
+                     {
+                         "published":  "v18-b-cors-clinica-piloto-secure.json",
+                         "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\other-controls-measurements\\v18-b-cors-clinica-piloto-secure.json",
+                         "sha256":  "08f032b4df30a8539f20e6f026d6a2282d81ee13ce6d3521a125afd2f34d61e5"
+                     },
+                     {
+                         "published":  "v18-b-negative-write-clinica-piloto-secure.json",
+                         "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\other-controls-measurements\\v18-b-negative-write-clinica-piloto-secure.json",
+                         "sha256":  "bb1615e9a70582a367114de3d750b547c57ce564884aa7bd348d9ef8bfa26b4c"
+                     },
+                     {
+                         "published":  "v18-b-cors-vampi-secure.json",
+                         "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\other-controls-2-measurements\\v18-b-cors-vampi-secure.json",
+                         "sha256":  "aec85097397005a9edd25280f977378f444d526049a5d54e063785f5acc1899e"
+                     },
+                     {
+                         "published":  "v18-b-authz-clinica-piloto-secure.json",
+                         "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\other-controls-3-measurements\\v18-b-authz-clinica-piloto-secure.json",
+                         "sha256":  "b399869fa7ec533d3a4eaa88f8288b6553f1656583fb6df07c173eb3f709fe3e"
+                     }
+                 ],
+    "original":  "2 passed, 2 failed em 511.73s: setup500 do VAmPI e assercao antiga8checks",
+    "repetition_2":  "1 passed, 1 failed em229.12s: CORS VAmPI passou, authz completo mas assercao confundiu rate_backoff429 com escopo",
+    "repetition_3":  "1 passed em192.30s: authz e demais assertions passaram com correlacao estrita do429",
+    "scope":  "Somente laboratorio local, pacing proxy aprovado pela fixture antes da pilha; falhas originais preservadas nos logs/JUnit externos"
+}
