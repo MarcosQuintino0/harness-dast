@@ -59,3 +59,23 @@ ZAP. Não se roda um segundo probe antes da completa, para evitar alterar suas
 pré-condições. A métrica de parede continua sendo a do scan; não há alegação de
 velocidade. Recibos de efeito são provados e reutilizados nos controles T2, sem
 inventar uma observação quando a resposta não permite comprová-la.
+
+## Retomada após interrupção da plataforma
+
+Em 2026-11-16, durante `knowledge-final`, a plataforma interrompeu a sessão.
+O coordenador geral desmontou `hdast` e `hdast-pilotrun` e removeu a trava desta
+versão. O arquivo de saída ficou vazio e a tentativa interrompida não conta como
+prova aprovada. Seus diretórios são retidos.
+
+Antes da próxima prova, a coordenação conferiu Compose vazio, branch `4758f8a`
+publicada, worktrees e alterações não commitadas do autor. A retomada preserva o
+teto de **150 minutos efetivos de laboratório**, incluindo builds, resets e
+reprodução independente. As quatro suítes concluídas somam 44,55 minutos
+(410,56 + 512,78 + 1.227,59 + 521,61 segundos). Reservam-se conservadoramente
+dez minutos para a tentativa interrompida, sem alegar seu tempo exato.
+
+O bloco restante fica limitado a **75 minutos efetivos**, com encerramento até
+2026-11-16T16:15:00Z; o total reservado permanece abaixo de 150 minutos. O novo
+prazo de parede acomoda a interrupção externa e as correções independentes, sem
+aumentar carga, força, regras, escopo, permissões ou duração dos perfis.
+Não iniciar cenário sem reserva conservadora para finalização e desmontagem.

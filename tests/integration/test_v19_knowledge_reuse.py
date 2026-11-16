@@ -20,6 +20,7 @@ from tests.integration.run_support import (
 from tests.integration.strategy_support import load_artifact
 from tests.integration.test_lab_v155 import _install
 from tests.integration.test_lab_vampi import SEEDED
+from tests.integration.v19_reuse_evidence import verify_reuse
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 _METRICS_DIR = os.environ.get("HDAST_IT_METRICS_DIR")
@@ -71,6 +72,8 @@ def _first_context(
         authz = load_artifact(cli, run_id, "authz.json")
         receipts = authz.get("effects", [])
         assert captured["effects"] == receipts
+        if product == "clinica-piloto" and mode == "vulnerable":
+            assert receipts, "A prova exige efeito observado, não duas listas vazias"
         assert captured["provenance"]["run_id"] == run_id
         effect = next(entry for entry in captured["entries"] if entry["kind"] == "effect")
         assert effect["state"] == ("validated" if receipts else "proposed")
@@ -146,6 +149,7 @@ def _verify_controls(
     operations = _operations(product)
     only = [value for operation in operations for value in ("--only", operation)]
     _run(cli, stages, "second", "authz", product, "--run", run_id)
+    verify_reuse(cli, product, mode, run_id)
     _run(cli, stages, "second", "negative", product, "--run", run_id)
     _run(cli, stages, "second", "scan", product, "--run", run_id, *only, timeout=1200)
     report = cli.run("report", product, "--run", run_id)
