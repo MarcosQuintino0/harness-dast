@@ -51,6 +51,7 @@ class ScanConfig(ProfileModel):
     """Política da varredura ativa (ZAP) e do gate de severidade.
 
     Attributes:
+        pacing: Ritmo legado ou somente pelo proxy; alterar exige nova aprovação.
         strength: Força de ataque (`LOW` envia menos carga por parâmetro; padrão do spike).
         threshold: Limiar de alerta do ZAP: só alertas com pelo menos esta confiança entram.
         url_path_injection: Injeta também em segmentos de caminho. Ligado por padrão porque o
@@ -74,6 +75,7 @@ class ScanConfig(ProfileModel):
             `none` desliga o gate.
     """
 
+    pacing: Literal["legacy", "proxy"] = "legacy"
     strength: Level = "LOW"
     threshold: Level = "MEDIUM"
     url_path_injection: StrictBool = True

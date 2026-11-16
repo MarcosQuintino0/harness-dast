@@ -27,6 +27,14 @@ from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
 
 
+class ProcessSampler(Protocol):
+    """Amostra CPU e memória somente do processo da CLI, sem seus filhos."""
+
+    def sample(self) -> tuple[float, int | None]:
+        """Retorna CPU acumulada em segundos e pico residente, se disponível."""
+        ...
+
+
 class ScanStart(BaseModel):
     """Pedido de uma varredura de UMA requisição aprendida.
 

@@ -90,6 +90,8 @@ class RunOutcome:
     status: ScanStatusName
     message: str | None
     rule_stats: tuple[OperationRules, ...] = ()
+    local_queue_seconds: float = 0.0
+    authentication_seconds: float = 0.0
 
 
 @dataclass
@@ -99,6 +101,8 @@ class _State:
     seen_alerts: set[str] = field(default_factory=set)
     last: ScanStatus | None = None
     index: int = 0
+    local_queue_seconds: float = 0.0
+    authentication_seconds: float = 0.0
 
 
 class ScanRunner:
@@ -120,8 +124,12 @@ class ScanRunner:
         Raises:
             KeyboardInterrupt: Depois de parar a varredura em curso.
         """
+        queued_at = self._d.clock.now()
         try:
             for index, target in enumerate(targets, start=1):
+                self._state.local_queue_seconds += max(
+                    0.0, (self._d.clock.now() - queued_at).total_seconds()
+                )
                 self._state.index = index
                 self._scan_one(target, len(targets))
         except WindowClosed as error:
@@ -139,7 +147,12 @@ class ScanRunner:
 
     def _stopped(self, status: ScanStatusName, message: str | None) -> RunOutcome:
         return RunOutcome(
-            tuple(self._state.entries), status, message, tuple(self._state.rule_stats)
+            tuple(self._state.entries),
+            status,
+            message,
+            tuple(self._state.rule_stats),
+            round(self._state.local_queue_seconds, 3),
+            round(self._state.authentication_seconds, 3),
         )
 
     def _notify(self, done: int, total: int, operation_id: str | None) -> None:
@@ -152,8 +165,7 @@ class ScanRunner:
         self._notify(self._state.index - 1, total, target.operation_id)
         d.gate.check()
         d.health.ensure_alive()
-        d.tokens.activate(target.account or d.default_account)
-        d.tokens.refresh_if_due()
+        self._authenticate(target.account or d.default_account)
         remaining = (d.deadline - d.clock.now()).total_seconds()
         request = ScanStart(
             url=target.url,
@@ -180,12 +192,24 @@ class ScanRunner:
             raise
         self._record(target, scan_id, status, started, stop_requested=False)
 
+    def _authenticate(self, account: str | None = None) -> None:
+        """Mede login, renovação e troca das regras de identidade, inclusive em falha."""
+        started = self._d.clock.now()
+        try:
+            if account is not None:
+                self._d.tokens.activate(account)
+            self._d.tokens.refresh_if_due()
+        finally:
+            self._state.authentication_seconds += max(
+                0.0, (self._d.clock.now() - started).total_seconds()
+            )
+
     def _wait(self, scan_id: str, target: ScanTarget, total: int) -> ScanStatus:
         d = self._d
         while True:
             d.sleeper.sleep(POLL_SECONDS)
             d.gate.check()
-            d.tokens.refresh_if_due()
+            self._authenticate()
             d.health.tick()
             status = d.scanner.scan_status(scan_id)
             self._state.last = status

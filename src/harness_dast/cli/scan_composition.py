@@ -15,6 +15,7 @@ from harness_dast.adapters.reporting.sinks import (
     JsonFindingsSink,
     MarkdownReportSink,
 )
+from harness_dast.adapters.scan_process import SystemProcessSampler
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
@@ -115,6 +116,7 @@ def build_scan(
         kill_switch=services.kill_switch,
         proxy_audit=open_proxy_audit(),
         live=live,
+        process_sampler=SystemProcessSampler(),
     )
 
 

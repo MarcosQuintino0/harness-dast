@@ -231,6 +231,11 @@ class ScanResult(ApiModel):
         health: Guarda de saúde do alvo.
         traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
             escopo).
+        local_queue_seconds: Soma da espera de cada trabalho na fila serial; sobrepõe o scan.
+        authentication_seconds: Ativação, troca e renovação de identidade e Replacer.
+        zap_delay_seconds: Tempo real de atraso do ZAP, indisponível pela API.
+        process_cpu_seconds: CPU da CLI entre amostras; não inclui ZAP nem proxy.
+        process_peak_memory_bytes: Pico residente da CLI desde seu início, não apenas do scan.
         rules_removed: Se as regras do Replacer do harness foram removidas ao fim.
         notice: Aviso fixo.
     """
@@ -255,6 +260,11 @@ class ScanResult(ApiModel):
     evidence_messages: int = 0
     health: HealthSummary
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)
+    local_queue_seconds: float | None = None
+    authentication_seconds: float | None = None
+    zap_delay_seconds: float | None = None
+    process_cpu_seconds: float | None = None
+    process_peak_memory_bytes: int | None = None
     rules_removed: bool = True
     notice: str = SCAN_NOTICE
 

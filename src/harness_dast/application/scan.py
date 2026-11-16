@@ -38,7 +38,12 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
-from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts, ScanControl
+from harness_dast.application.scan_ports import (
+    ProcessSampler,
+    ProxyAudit,
+    RunArtifacts,
+    ScanControl,
+)
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
 from harness_dast.domain.errors import (
@@ -173,6 +178,7 @@ class Scan:
         kill_switch: KillSwitch | None = None,
         proxy_audit: ProxyAudit | None = None,
         live: ScanLive | None = None,
+        process_sampler: ProcessSampler | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -197,6 +203,7 @@ class Scan:
         self._kill_switch = kill_switch
         self._proxy_audit = proxy_audit
         self._live = live
+        self._process_sampler = process_sampler
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -213,10 +220,11 @@ class Scan:
             ExternalToolError: Não foi possível remover as regras do Replacer ao fim.
             KeyboardInterrupt: Ctrl+C (a varredura é parada e as regras, removidas).
         """
+        sample = self._process_sampler.sample() if self._process_sampler else None
         prepared = self._prepare(request)
         if request.dry_run:
             return self._result(prepared, request, "completed", None)
-        return self._execute_live(prepared, request)
+        return self._execute_live(prepared, request, sample)
 
     def _prepare(self, request: ScanRequest) -> _Prepared:
         started = self._clock.now()
@@ -274,7 +282,9 @@ class Scan:
             zap_limits=build_limits(limits, profile.scan),
         )
 
-    def _execute_live(self, prep: _Prepared, request: ScanRequest) -> ScanResult:
+    def _execute_live(
+        self, prep: _Prepared, request: ScanRequest, sample: tuple[float, int | None] | None
+    ) -> ScanResult:
         context_id = prep.manifest.zap_context_id
         if context_id is None:  # garantido por _ensure_usable; protege o tipo
             raise ConfigError("O manifesto do probe não tem o contexto do ZAP.")
@@ -302,8 +312,19 @@ class Scan:
                 "rules_removed": removed,
                 "health": live.health.summary,
                 "traffic": self._traffic(prep),
+                "local_queue_seconds": outcome.local_queue_seconds,
+                "authentication_seconds": outcome.authentication_seconds,
             }
         )
+        if sample is not None and self._process_sampler is not None:
+            cpu, memory = self._process_sampler.sample()
+            observed = [value for value in (sample[1], memory) if value is not None]
+            result = result.model_copy(
+                update={
+                    "process_cpu_seconds": max(0.0, cpu - sample[0]),
+                    "process_peak_memory_bytes": max(observed) if observed else None,
+                }
+            )
         self._write_rule_stats(request.run_id, zap_version, outcome)
         self._artifacts.write_scan(request.run_id, result)
         self._write_progress(request.run_id, "done", len(plan.targets), status=status)

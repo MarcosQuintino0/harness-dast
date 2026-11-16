@@ -8,6 +8,7 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
+from harness_dast.application.scan_ports import ProcessSampler
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.scan_result import ScanResult
@@ -54,7 +55,9 @@ class ScanRig(Rig):
         assert self._probe_result is not None
         return self._probe_result
 
-    def scan(self, live: ScanLive | None = None) -> Scan:
+    def scan(
+        self, live: ScanLive | None = None, process_sampler: ProcessSampler | None = None
+    ) -> Scan:
         return Scan(
             profiles=self.profiles,
             specs=self._specs(),
@@ -69,6 +72,7 @@ class ScanRig(Rig):
             clock=self.clock,
             sleeper=self.clock,
             live=live,
+            process_sampler=process_sampler,
         )
 
     def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:
