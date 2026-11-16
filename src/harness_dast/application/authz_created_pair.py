@@ -4,7 +4,8 @@ Justificativa do tamanho (acima de 300 linhas): o par criado é um fluxo único 
 (prova de ausência, criação, leitura da dona, comparação da outra conta e recibo), cujos passos
 compartilham o mesmo `CheckContext` e a mesma ordem auditada; separar em módulos obrigaria passar
 esse estado entre eles sem ganho de clareza. As provas de identificador e marcador já vivem em
-`domain/authz_created`."""
+`domain/authz_created`.
+"""
 
 import json
 from dataclasses import dataclass
