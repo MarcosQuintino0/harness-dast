@@ -48,6 +48,7 @@ expected:
     - { alias: admin_a, role: admin, username_env: VAMPI_ADMIN_USERNAME, password_env: VAMPI_ADMIN_PASSWORD }
   cleanup: absent
   path_mode: strict
+  allow_authz_writes: true
 
 # Contas semeadas e publicas do VAmPI (README do projeto): nao sao segredos, entram no ambiente do agente.
 secrets:
