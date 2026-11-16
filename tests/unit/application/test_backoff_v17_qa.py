@@ -40,6 +40,7 @@ def test_recuo_do_proxy_nao_deve_parecer_timeout_do_alvo(tmp_path: Path) -> None
         except TargetTimeout as error:
             return error
         if not verdict.allowed:
+            assert verdict.reason == "rate_backoff"
             remaining = getattr(verdict, "retry_after", None)
             assert isinstance(remaining, int)
             assert remaining > 0
@@ -74,4 +75,5 @@ def test_recuo_do_proxy_nao_deve_parecer_timeout_do_alvo(tmp_path: Path) -> None
     with asyncio.Runner() as runner:
         result = rig.probe().execute(ProbeRequest(product="agenda"))
     assert result.operations[0].outcome in {"success", "rate_limited"}
+    assert upstream_times
     assert all(timestamp >= deadline for timestamp in upstream_times[1:])
