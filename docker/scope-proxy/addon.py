@@ -34,6 +34,7 @@ _ERROR_MARKER = "scope-proxy:"
 _STARTED = "hdast_started"
 _RELEASED = "hdast_released"
 _RELEASED_MONO = "hdast_released_monotonic"
+_RESPONSE_MONO = "hdast_response_monotonic"
 _WAITED = "hdast_waited_ms"
 _AUDITED = "hdast_audited"
 
@@ -140,6 +141,7 @@ class ScopeProxyAddon:
         """Registra a requisição liberada com status, bytes, duração e os sinais de erro interno."""
         if flow.metadata.get(_AUDITED) or flow.response is None:
             return
+        flow.metadata[_RESPONSE_MONO] = time.monotonic()
         # Uma conexão por requisição entre o ZAP e este proxy. Como o endereço da conexão de saída
         # é o IP conferido (não dá para devolver o nome numa conexão aberta), nenhuma conexão de
         # saída é reaproveitada, e o ZAP, ao reaproveitar a de entrada, travava na sexta
@@ -194,7 +196,8 @@ class ScopeProxyAddon:
             None if started is None else max(0, int((time.monotonic() - started) * 1000) - waited)
         )
         released = flow.metadata.get(_RELEASED_MONO)
-        network = None if released is None else max(0, int((time.monotonic() - released) * 1000))
+        ended = flow.metadata.get(_RESPONSE_MONO, time.monotonic())
+        network = None if released is None else max(0, int((ended - released) * 1000))
         raw_path, _, raw_query = request.path.partition("?")
         self._engine.log(
             method=request.method,
