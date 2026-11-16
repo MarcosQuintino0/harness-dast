@@ -185,7 +185,11 @@ class StackManager:
             if project.name == MAIN_PROJECT:
                 env.update(proxy_env)
             self._compose.up(
-                project, env, build=request.build, timeout_seconds=request.timeout_seconds
+                project,
+                env,
+                # A imagem antiga nao conhece o vinculo obrigatorio de aprovacao.
+                build=request.build or project.name == MAIN_PROJECT,
+                timeout_seconds=request.timeout_seconds,
             )
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})
