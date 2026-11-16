@@ -20,7 +20,7 @@ A declaração `technologies.value` vem da carta e é **consultiva**: nenhuma re
 | `cpu_seconds` | CPU da CLI entre amostras; não inclui ZAP nem proxy. |
 | `memory_peak_bytes` | Pico residente histórico da CLI observado nas amostras, não apenas do scan nem dos contêineres. |
 
-Os tempos podem se sobrepor e não se somam para obter tempo de parede. `null` significa indisponível, não zero. As somas do proxy ficam nulas sem linhas elegíveis ou se faltar a medida em qualquer linha elegível. Medidas de contêineres do suporte de testes são separadas da CLI. Verifique disponibilidade, estados, interrupções e recusas antes de interpretar totais.
+Os tempos podem se sobrepor e não se somam para obter tempo de parede. `null` significa indisponível, não zero. As somas do proxy ficam nulas sem linhas elegíveis ou se faltar a medida em qualquer linha elegível. O suporte V1.7 amostra CPU percentual e memória dos contêineres em uma consulta a cada 15 segundos, registrando picos, contagens e intervalo observado; isso é separado da CLI e não equivale a CPU acumulada. Verifique disponibilidade, estados, interrupções e recusas antes de interpretar totais.
 
 ## Preparar a comparação
 
@@ -33,7 +33,7 @@ O teto desta execução é quatro horas de laboratório, incluindo preparo, rese
 ## Executar e julgar T1–T4
 
 1. **T1 — sem alvo:** execute testes unitários e de contrato pertinentes, inclusive matriz, política, aprovação, relógio e proxy. Compare item a item operações, contas, regras, força, pontos de entrada e pré-condições de A e B. T1 prova planejamento, não detecção.
-2. **T2 — controles direcionados:** `uv run pytest -m lab_fast` executa o conjunto rápido disponível. `uv run pytest -m integration tests/integration/test_v17_performance.py -k test_v17_t2_sql` compara SQL genérica e seu controle em ambos os modos e variantes. Este teste não cobre todas as classes: execute e registre controles adicionais necessários, seguros e vulneráveis, ou declare lacunas.
+2. **T2 — controles direcionados:** `uv run pytest -m lab_fast` executa o conjunto rápido disponível. `uv run pytest -m integration tests/integration/test_v17_performance.py -k test_v17_t2_sql` compara SQL genérica e seu controle em ambos os modos e variantes. O mesmo comando com `-k test_v17_t2_path` verifica travessia na Clínica em A/B e nos dois modos. Eles não cobrem todas as classes: execute e registre controles adicionais necessários, seguros e vulneráveis, ou declare lacunas.
 3. **T3 — subconjunto fixo:** `uv run pytest -m integration tests/integration/test_v17_performance.py -k test_v17_t3` agenda três pares A/B por API na ordem AB, BA, AB, com pilha limpa por cenário. Use a mesma política e força da completa. O resultado vale para estratos exercitados; classe ausente, operação não executada ou regra interrompida limita a conclusão. Se pares divergirem no sinal ou mais de 10 pontos percentuais, planeje dois pares adicionais se couberem; senão, resultado inconclusivo. O teste cobre três pares; extras exigem execução e identificação explícitas sem sobrescrever evidências.
 4. **T4 — completa:** `uv run pytest -m integration tests/integration/test_v17_performance.py -k test_v17_t4` agenda A e B em cada API no modo vulnerável. Compare condições equivalentes e confirme detecção dos controles e cobertura executada. B isolada mede duração B, não redução relativa. Referência A ausente ou não comparável torna o ganho inconclusivo.
 
