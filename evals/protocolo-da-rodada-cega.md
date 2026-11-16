@@ -1,5 +1,25 @@
 # Protocolo da rodada cega completa
 
+## Escolha do ritmo na preparação (V1.9.3)
+
+O coordenador pode usar `python -m evals.runner prepare ... --pacing proxy` para a
+próxima rodada. As opções são `legacy` e `proxy`, com `legacy` por padrão. `proxy`
+grava `scan.pacing: proxy` somente em `workspace/products/_template/target.yml`;
+não altera o modelo do repositório, o `init --from-letter` nem promove o ADR 0075.
+Com `legacy`, o arquivo copiado permanece byte a byte igual à fonte.
+
+A escolha fica em `<out>/meta.json` e no campo `pacing` de `agent-metrics.json`
+(`measure`) e do `meta.json` salvo por `measure --save`. Rodada histórica sem esse
+metadado tem ritmo desconhecido (`null`), não presumidamente legacy. O metadado
+registra a escolha na preparação: a execução efetiva deve ser conferida também no
+perfil final e nas métricas do scan, caso o agente tenha alterado a cópia.
+
+O ritmo faz parte da aprovação do perfil. O coordenador confere o perfil gerado e
+segue o mecanismo de aprovação da rodada; o agente não aprova. Se o perfil mudar com
+a pilha já de pé, ela deve ser recriada conforme `STACK_STALE`. O ritmo não amplia
+escopo, métodos, janela, autorização ou limites. Esta entrega não executa rodada cega;
+a comparação futura precisa declarar essa escolha ao interpretar tempos diferentes.
+
 ## Canal de estudo de reutilização V1.9 (preparação offline)
 
 Após a coleta da primeira rodada, o coordenador pode exportar o conhecimento e as

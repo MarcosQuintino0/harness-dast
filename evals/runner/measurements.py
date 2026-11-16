@@ -115,6 +115,7 @@ def save_measurement(
                 "label": label,
                 "round": out.name,
                 "model": metrics.model,
+                "pacing": metrics.pacing,
             },
             indent=2,
         )

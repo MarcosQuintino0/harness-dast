@@ -19,6 +19,7 @@ from evals.runner.cases import (
 )
 from evals.runner.leaks import LeakHit, scan_leaks
 from evals.runner.models import Case
+from evals.runner.pacing import configure_pacing
 from evals.runner.reuse import verify_reuse
 
 MODES = ("vulnerable", "secure", "random")
@@ -170,6 +171,7 @@ def prepare(
     cases_dir: Path = CASES_DIR,
     reuse_from: Path | None = None,
     reuse_package: Path | None = None,
+    pacing: str = "legacy",
 ) -> PrepareResult:
     """Cria `<out>/workspace` e `<out>/sealed`.
 
@@ -190,6 +192,8 @@ def prepare(
     resolved = resolve_mode(case, mode, seed)
     excluded = copy_workspace(case, source, dirs.workspace)
     deliver_inputs(case, source, dirs.workspace)
+    meta = configure_pacing(dirs.workspace, pacing)
+    (out / "meta.json").write_text(meta.model_dump_json(indent=2) + "\n", encoding="utf-8")
     harden_settings(dirs.workspace)
     briefing = build_briefing(case, read_authorization(case_name, case, cases_dir))
     if reuse is not None:

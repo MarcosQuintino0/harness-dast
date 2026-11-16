@@ -38,6 +38,7 @@ from evals.runner.metrics_models import (
     UsageIn,
 )
 from evals.runner.metrics_stages import Invocation, StageTracker, parse_hdast, shell_read_paths
+from evals.runner.pacing import read_pacing
 from evals.runner.run_metrics import CLI_STAGES, parse_run_metrics
 from evals.runner.transcript import SHELL_TOOLS, ToolCall, load_conversation_events
 
@@ -342,6 +343,7 @@ def measure_agent(out: Path, label: str | None = None) -> AgentMetrics:
         schema_version=SCHEMA_VERSION,
         label=label,
         model=walker.model,
+        pacing=read_pacing(out),
         totals=Totals(
             duration_seconds=round(duration, 3) if duration is not None else None,
             thinking_seconds=_sum(stages, "thinking_seconds"),
