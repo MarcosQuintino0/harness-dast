@@ -16,7 +16,11 @@ SPEC = importlib.util.spec_from_file_location("v17_summarize", PATH)
 assert SPEC is not None
 assert SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(MODULE)
+sys.path.insert(0, str(PATH.parent))
+try:
+    SPEC.loader.exec_module(MODULE)
+finally:
+    sys.path.remove(str(PATH.parent))
 
 
 def _record(layer: str, variant: str) -> dict[str, Any]:
