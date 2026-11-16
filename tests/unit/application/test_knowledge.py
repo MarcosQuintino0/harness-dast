@@ -78,3 +78,54 @@ def test_conhecimento_ativo_recusa_motor_ausente(tmp_path: Path) -> None:
     )
     with pytest.raises(ConfigError):
         profiles.load("agenda")
+
+
+def test_probe_recusa_fonte_alterada_entre_validacao_e_leitura(tmp_path: Path) -> None:
+    from harness_dast.adapters.datagen import GeneratorCatalogue
+    from harness_dast.application.probe import Probe, ProbeRequest
+    from harness_dast.domain.datagen import DataRules
+    from harness_dast.domain.flow import FlowSpec
+    from harness_dast.domain.probe_result import ArtifactHashes
+    from harness_dast.domain.profile import ProductProfile
+
+    capture, rig = _setup(tmp_path)
+    capture.execute("agenda")
+    folder = tmp_path / "agenda"
+    (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
+
+    class ChangedDocuments:
+        def load_data_rules(self, product: str) -> DataRules | None:
+            return rig.documents.load_data_rules(product)
+
+        def load_flows(self, product: str) -> FlowSpec | None:
+            (folder / "openapi.json").write_text('{"changed": true}', encoding="utf-8")
+            return rig.documents.load_flows(product)
+
+        def hashes(self, product: str, profile: ProductProfile) -> ArtifactHashes:
+            return rig.documents.hashes(product, profile)
+
+    profiles = KnowledgeProfiles(
+        rig.profiles,
+        FileKnowledgeStore(tmp_path),
+        FileStrategyRepository(tmp_path),
+        rig.clock,
+        rig.zap,
+    )
+    probe = Probe(
+        profiles=profiles,
+        specs=InMemorySpecs(rig.spec),
+        documents=ChangedDocuments(),
+        secrets=rig.secrets,
+        vault=rig.vault,
+        client=rig.target,
+        zap=rig.zap,
+        store=rig.store,
+        clock=rig.clock,
+        sleeper=rig.clock,
+        entropy=rig.entropy,
+        value_sources=GeneratorCatalogue,
+        harness_version="test",
+    )
+    with pytest.raises(ConfigError):
+        probe.execute(ProbeRequest(product="agenda"))
+    assert rig.target.requests == []

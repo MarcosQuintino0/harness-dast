@@ -1,4 +1,4 @@
-"""Integração offline de reserva de mutações no emissor do probe."""
+"""IntegraÃ§Ã£o offline de reserva de mutaÃ§Ãµes no emissor do probe."""
 
 from pathlib import Path
 
@@ -50,3 +50,28 @@ def test_timeout_apos_intencao_impede_repeticao_em_novo_probe(tmp_path: Path) ->
         _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
     assert count == 1
     assert all(request.operation_id != "criar" for request in other.target.requests)
+
+
+@pytest.mark.parametrize(("status", "bloqueia"), [(400, False), (500, True)])
+def test_resposta_observada_ou_erro_interno_define_repeticao(
+    tmp_path: Path, status: int, bloqueia: bool
+) -> None:
+    from tests.fakes.probe_ports import reply
+
+    first = Rig(flows=agenda_flows())
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse | HarnessError:
+        if request.operation_id == "criar":
+            return reply(status, {})
+        return default_handler(request, jar)
+
+    first.target._handler = handler
+    _probe(first, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+    other = Rig(flows=agenda_flows())
+    if bloqueia:
+        with pytest.raises(ConfigError):
+            _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+        assert all(item.operation_id != "criar" for item in other.target.requests)
+    else:
+        result = _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+        assert result.operations[0].outcome == "success"

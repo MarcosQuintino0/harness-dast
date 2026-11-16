@@ -12,3 +12,7 @@ A revisão compara cada dependência com hashes calculados independentemente das
 ## Limites e contrato
 
 O contrato é apenas uma base proposta: captura, CLI, persistência do documento e execução por escolhas ainda não estão implementadas nesta alteração. Validação inválida usa `CONFIG_ERROR` (saída 2); não há novo envelope ou comando. A comparação isolada não comprova aprovação, atualidade das fontes ou motor: o chamador deve obtê-los independentemente. Perfis sem conhecimento não mudam de comportamento.
+
+## Verificação adicional do probe
+
+Depois de ler OpenAPI, regras e fluxos, o probe volta a carregar o perfil e a revalidar o conhecimento antes do envio. Mudança persistente entre as leituras é recusada, e os modelos já lidos seguem na execução. Uma mudança A→B→A durante as leituras não é detectada por essa dupla verificação; ela não equivale a uma captura atômica das fontes. A prova offline em dois processos usa motor, especificação e alvo falsos, com documentos de dados e fluxo em disco; não prova detecção nas APIs reais do laboratório.

@@ -137,3 +137,28 @@ def test_campos_livres_recusados_sem_eco() -> None:
     with pytest.raises(ConfigError) as error:
         Knowledge.from_data(data)
     assert "valor-confidencial" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "environment",
+        "authorization",
+        "accounts",
+        "openapi",
+        "data_rules",
+        "flows",
+        "engine",
+        "planning",
+    ],
+)
+def test_alteracao_invalida_exatamente_as_entradas_dependentes(field: str) -> None:
+    knowledge = Knowledge.from_data(_data())
+    current = knowledge.basis.model_dump()
+    current[field] = "b" * 64
+    reviewed = knowledge.review(
+        StrategyBasisContext.model_validate(current), datetime(2026, 1, 1, tzinfo=UTC)
+    )
+    assert [bool(reasons) for reasons in reviewed] == [
+        field in entry.dependencies for entry in knowledge.entries
+    ]

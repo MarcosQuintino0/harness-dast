@@ -43,7 +43,7 @@ from harness_dast.application.runner_settings import RunnerSettings, RunOutcome
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.datagen import DataRules
-from harness_dast.domain.errors import ExternalToolError, HarnessError, PreflightError
+from harness_dast.domain.errors import ConfigError, ExternalToolError, HarnessError, PreflightError
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_plan import PlannedOperation, plan_probe
@@ -179,6 +179,9 @@ class Probe:
         rules.validate_against(spec)
         if flows is not None:
             flows.validate_against(spec)
+        # A segunda leitura revalida as fontes depois de materializar os modelos usados.
+        if self._profiles.load(request.product) != profile:
+            raise ConfigError("Perfil mudou durante a preparacao do probe.")
         pinned = profile.select_account(request.account).alias if request.account else None
         profile.auth.ensure_operations_exist([op.operation_id for op in spec.operations])
         plan = plan_probe(
