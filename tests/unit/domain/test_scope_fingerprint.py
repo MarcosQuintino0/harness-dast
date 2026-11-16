@@ -421,6 +421,7 @@ def test_every_auth_field_is_in_the_auth_block_or_in_the_free_list() -> None:
 def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block() -> None:
     # Chave nova do `authz` no padrão fica de fora do cálculo; fora do padrão, ela entra.
     changed = {
+        "cors_max_requests": 3,
         "allow_writes": True,
         "shared_roles": [valid_profile_data()["auth"]["accounts"][0]["role"]],
         "derive_mass_candidates": False,

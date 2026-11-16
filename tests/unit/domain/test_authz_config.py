@@ -76,6 +76,7 @@ def test_checks_run_in_the_fixed_order_minus_the_disabled_ones() -> None:
     config = AuthzConfig(disabled_checks=("vertical",))
 
     assert config.enabled_checks() == (
+        "cors",
         "horizontal",
         "excessive_data",
         "anonymous_access",
@@ -158,6 +159,7 @@ def test_a_profile_with_a_non_boolean_allow_writes_is_refused_as_a_config_error(
 
 def test_the_check_order_puts_the_read_only_access_checks_before_vertical() -> None:
     assert CHECK_ORDER == (
+        "cors",
         "horizontal",
         "excessive_data",
         "anonymous_access",

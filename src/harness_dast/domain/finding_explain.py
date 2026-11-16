@@ -694,7 +694,7 @@ _AUTHZ_MASS = FindingExplanation(
 
 _AUTHZ_CORS = FindingExplanation(
     key="authz_cors",
-    title="A política CORS permite acesso de outras origens",
+    title="O sistema permite acesso de outros sites",
     what_happened="Uma origem de teste recebeu permissão de acesso à resposta.",
     why_it_matters="Um site externo pode ler dados expostos conforme a política observada.",
     what_to_do=_steps(
