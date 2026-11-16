@@ -88,17 +88,17 @@ def _remaining(maximum: int) -> int:
     deadline = float(os.environ["HDAST_V17_DEADLINE_EPOCH"])
     remaining = int(deadline - time.time())
     if remaining < 1:
-        pytest.fail("Or?amento V1.7 esgotado; interromper a prova")
+        pytest.fail("Orçamento V1.7 esgotado; interromper a prova")
     return min(maximum, remaining)
 
 
 def _exercise(
     tmp_path: Path, product: str, variant: str, layer: str, index: int, mode: str = "vulnerable"
 ) -> None:
-    assert os.environ.get("HDAST_IT_METRICS_DIR"), "Defina diret?rio externo de m?tricas"
+    assert os.environ.get("HDAST_IT_METRICS_DIR"), "Defina diretório externo de métricas"
     reserve = 600 if layer == "t3" else 1800
     if _remaining(reserve) < reserve:
-        pytest.fail("Sem reserva para completar o cen?rio; resultado inconclusivo")
+        pytest.fail("Sem reserva para completar o cenário; resultado inconclusivo")
     require_docker()
     cli = LabCli(tmp_path, throwaway_pilot_env() if product == "clinica-piloto" else VAMPI_ENV)
     _install(cli, product, variant)

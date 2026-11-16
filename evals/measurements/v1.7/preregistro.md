@@ -22,12 +22,13 @@ A seleção foi feita pelo mecanismo e pelo contrato/perfil, não pelo gabarito:
 | VAmPI | api_views.users.get_by_username | user_a | path `username` | leitura parametrizada |
 | VAmPI | api_views.users.me | user_a | sem parâmetro | identidade |
 | VAmPI | api_views.users.update_email | user_b | path e JSON | escrita/identidade |
-| VAmPI | api_views.users.update_password | user_b | path e JSON | escrita/identidade |
 | VAmPI | api_views.books.get_all_books | user_a | sem parâmetro | produtor de vínculo |
 | VAmPI | api_views.books.add_new_book | user_a | JSON | escrita |
 | VAmPI | api_views.books.get_by_title | user_a | path, get_all_books | dependência |
 
 Contas previstas devem ser aferidas pelos registros do probe e auditoria; default é o definido no perfil. Os valores são os gerados pelo probe e data-rules, não fixados aqui: registrar tipos, parâmetros efetivamente injetados e classes de valores, sem valores sensíveis. Não há multipart, DELETE, login ou todas as combinações de papéis; nenhum resultado deste subconjunto os cobre. As classes SQL, caminho e autorização são hipóteses de mecanismo a aferir nos controles existentes e no gabarito depois da seleção. Controles de CORS, valores proibidos, upload e atribuição em massa não são provados simplesmente por incluir uma operação: exigem T2 próprio. Ausência de uma classe ou controle em A/B é lacuna e impede alegar equivalência da classe.
+
+Antes da primeira prova, `update_password` foi retirada da seleção VAmPI: alterar a própria credencial pode comprometer a identidade no restante da rodada. O estrato de escrita com conta não padrão permanece em `update_email`; mudança de senha não é coberta por T3 e continua na T4 se elegível.
 
 ## Ordem e estimador
 
