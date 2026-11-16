@@ -112,11 +112,37 @@ São duas amostras do mesmo tratamento, portanto medem a variação entre rodada
 - A Clínica passou de 3,4 e 3,5 para 9,0 e 9,2, com 9 de 10 falhas (8 de 10 na 1.5.3); H3 passou de "em parte" para "sim".
 - As quatro rodadas da V1.9.1 rodaram `knowledge capture --run` (transcripts nas pastas de arquivo).
 
+
+## Reutilização (V1.9.2)
+
+Depois da correção do exportador (PR #28, que aceita o valor do modelo oficial e domínios reservados como `.local`), duas rodadas de reuso de verdade com Sonnet 5.5 medium, em modo vulnerável forçado. O pacote foi exportado da rodada inicial da V1.9.1 (semente 25 e 27) e entregue por `prepare --reuse-from --reuse-package`. O `export-reuse` funcionou nas duas, sem recusa. O pacote traz `data-rules.yml`, `flows.yml`, `knowledge.yml` e `target.reuse.yml` em `inputs/reuse/` (sem `strategy.yml`), todos como proposta. Medições: `2026-11-16-clinica-piloto-sonnet55-v192-reuso-vulneravel` e `2026-11-16-vampi-sonnet55-v192-vampi-reuso-vulneravel`.
+
+| Medida | Clínica origem (25) | Clínica sem reuso (26) | **Clínica reuso (31)** | VAmPI origem (27) | VAmPI sem reuso (28) | **VAmPI reuso (32)** |
+| --- | --- | --- | --- | --- | --- | --- |
+| Nota | 8,99 | 9,16 | **8,87** | 8,09 | 8,13 | **8,16** |
+| Alcance efetivo | 0,77 | 1,00 | **0,77** | 0,92 | 0,92 | **0,92** |
+| Falhas achadas | 9 de 10 | 9 de 10 | **9 de 10** (H5 não) | V1 | V1 | **V1** (V3 não) |
+| Duração | 1 734 s | 1 962 s | **1 621 s** | 595 s | 611 s | **653 s** |
+| Cadastro | 83 s | 173 s | **155 s** | 73 s | 78 s | **126 s** |
+| Alcance (etapa) | 284 s | 191 s | **82 s** | 70 s | 75 s | **30 s** |
+| Cadastro + alcance | 367 s | 364 s | **237 s** | 143 s | 153 s | **156 s** |
+| Varredura | 1 305 s | 1 479 s | 1 276 s | 366 s | 374 s | 415 s |
+| Tokens (total) | 3,58 M | 4,64 M | **4,30 M** | 3,64 M | 3,48 M | **3,36 M** |
+| Tokens de saída | 16 585 | 21 362 | 19 057 | 14 867 | 16 640 | 16 234 |
+| Custo | US$ 1,46 | US$ 1,72 | US$ 1,66 | US$ 1,41 | US$ 1,45 | US$ 1,41 |
+| Perguntas ao dono | 0 | 0 | 0 | 0 | 0 | 0 |
+
+O que o agente fez com o pacote:
+- **Clínica (31):** leu `inputs/reuse/` logo no começo (`ls` e `cat` de `data-rules.yml`, `flows.yml`, `knowledge.yml` e `target.reuse.yml`). **Copiou `data-rules.yml` e `flows.yml` para o perfil, byte a byte igual ao pacote**, depois de conferi-los com `spec inspect` (sem `issues`, `needs_rule` nem `unused_rules`). Não ativou `knowledge.yml` nem `target.reuse.yml` (o perfil veio da carta vigente com `init --from-letter`). Não houve estratégia no pacote. Nada do pacote teve de ser corrigido nem levou a erro. Depois rodou `knowledge capture --run`.
+- **VAmPI (32):** leu os quatro arquivos, mas **não copiou nenhum**: reescreveu `data-rules.yml` e `flows.yml` à mão a partir do contrato e usou o pacote como conferência (as regras e os encadeamentos batem com o contrato). Diário: o `knowledge.yml` ficou como proposta `review_required`, e o `target.reuse.yml` não foi usado. Nada levou a erro.
+
+Leitura honesta dos números: as duas diferenças de reuso contra a origem e contra a segunda rodada sem reuso ficam **dentro da variação entre rodadas sem reuso** (nota: 8,99 e 9,16 sem reuso contra 8,87 com; 8,09 e 8,13 contra 8,16). A etapa de cadastro mais alcance caiu na Clínica (367 e 364 s para 237 s), mas a diferença entre as duas rodadas sem reuso já mostra o ruído do alcance (284 s contra 191 s). No VAmPI o reuso não poupou nada (156 s contra 143 e 153 s, com o cadastro mais longo). A duração total depende da varredura, que o reuso não toca. Uma amostra por condição não permite afirmar efeito de reutilização, nem ganho nem perda. Nenhum erro foi atribuído ao pacote, e a detecção ficou igual.
+
 ## Limites
 
 - Oito amostras, uma por condição; a variação entre rodadas do mesmo agente é grande.
 - Modo vulnerável forçado; nenhuma rodada em modo seguro.
 - A aprovação do escopo foi o `evals.runner approve`, código de avaliação, e não uma pessoa em terminal.
-- O reuso não foi exercitado: as rodadas 2, 4, 6 e 8 são repetições normais.
+- As rodadas 2, 4, 6 e 8 são repetições normais, sem reuso. O reuso só foi exercitado na V1.9.2 (seção acima), com uma amostra por produto.
 - Tokens acima do orçamento no VAmPI (2,07x e 2,32x na V1.9; 1,74x e 1,82x na V1.9.1) e na Clínica (1,19x e 1,55x); custo de US$ 1,3 a 1,7 por rodada.
 - Nada disso é prova contra produto real.

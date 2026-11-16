@@ -10,7 +10,7 @@ Método, igual nas duas (protocolo em [protocolo-da-rodada-cega.md](../../protoc
 - **Conversão:** o transcript nativo do Codex foi convertido para o formato do executor (script de `normalize` das rodadas Terra anteriores, com a pasta e o thread como parâmetro). O total nativo de tokens conferiu com a soma por resposta nas duas rodadas.
 - **Imagens:** as da V1.9.1 já estavam construídas (`docker compose build` do passo 1 do `evals/README.md`); não foi preciso reconstruir.
 
-Rastros, transcripts e fichas ficam fora do repositório, em `C:/harness-dast-artefatos/rodadas-cegas/`. Medições em [../../measurements](../../measurements/README.md): `2026-11-16-clinica-piloto-clinica-piloto-terra61-v191-vulneravel` e `2026-11-16-vampi-vampi-terra61-v191-vulneravel` (o rótulo repetiu o nome do caso, por isso o nome duplicado).
+Rastros, transcripts e fichas ficam fora do repositório, em `C:/harness-dast-artefatos/rodadas-cegas/`. Medições em [../../measurements](../../measurements/README.md): `2026-11-16-clinica-piloto-terra61-v191-vulneravel` e `2026-11-16-vampi-terra61-v191-vampi-vulneravel` (renomeadas depois de a primeira gravação repetir o nome do produto).
 
 ## Resultado
 
@@ -77,9 +77,58 @@ Não há referência histórica de Terra no VAmPI. A varredura do Terra no VAmPI
 
 ## Defeitos e observações
 
-- **O avaliador não aceita `triage.json` com BOM UTF-8.** O Terra gravou o `triage.json` do VAmPI com BOM (PowerShell), e o `score` falhou com `JSONDecodeError` em `checks_triage.py` (`json.loads(file.read_text(encoding="utf-8"))`). Para medir, o BOM foi removido só da cópia em `trace/` (o workspace ficou intacto) e o `score` foi refeito; a falha está registrada no arquivo de apoio `nota-bom.txt` da rodada arquivada. Convém ler com `utf-8-sig`.
+- **O avaliador não aceita `triage.json` com BOM UTF-8.** O Terra gravou o `triage.json` do VAmPI com BOM (PowerShell), e o `score` falhou com `JSONDecodeError` em `checks_triage.py` (`json.loads(file.read_text(encoding="utf-8"))`). Para medir, o BOM foi removido só da cópia em `trace/` (o workspace ficou intacto) e o `score` foi refeito; a falha está registrada no arquivo de apoio `nota-bom.txt` da rodada arquivada. Corrigido depois no PR #29 (a CLI e a régua leem com `utf-8-sig`).
 - **Conhecimento:** nas duas rodadas o agente deixou `knowledge.captured.yml` no perfil (`knowledge capture --run`), como as skills da V1.9.1 mandam. Não houve `STACK_STALE` em resultado de ferramenta; o Terra recriou a pilha antes de editar (9 e 14 menções a `stack down` nos transcripts, que incluem leitura das skills).
-- O `export-reuse` não foi tentado: depende da correção em outra branch.
+- O `export-reuse` não foi tentado nestas duas rodadas; as de reuso estão na seção "Reutilização (V1.9.2)".
+
+
+## Reutilização (V1.9.2)
+
+Com o exportador corrigido (PR #28), duas rodadas Terra da V1.9.2 (semente 33 e 34), em modo vulnerável forçado, ainda com `codex exec` e os mesmos parâmetros. Medições: `2026-11-16-clinica-piloto-terra61-v192-reuso-vulneravel` e `2026-11-16-vampi-terra61-v192-vampi-reuso-vulneravel`.
+
+### A exportação
+
+| Origem | Resultado |
+| --- | --- |
+| Clínica Terra 1.9.1 (semente 29) | **Recusada:** `erro: Constante de dados sem enum correspondente no OpenAPI.` (`evals/runner/reuse_recipes.py`, linha 108) |
+| VAmPI Terra 1.9.1 (semente 30) | Exportada: `data-rules.yml`, `flows.yml`, `knowledge.yml` e `target.reuse.yml` |
+
+Causa da recusa (arquivo `trace/profile/final/clinica-piloto/data-rules.yml`): a regra do agente de origem `{ field: crm, operation: criarMedico }` usa `generator: choice` com seis valores literais (`'1135789-SP'`, `'2246801-RJ'` e outros), que não estão em nenhum enum do OpenAPI. O protocolo só deixa passar constantes e escolhas cujos valores estão no enum do contrato. Classifiquei como causa do agente de origem (a regra funciona como especificada) e rodei essa rodada como **normal**, sem pacote. Observação de projeto para quem mantém o exportador: um `choice` com valores sintéticos próprios é uma regra de dados comum e a recusa é conservadora; vale decidir se isso deve passar.
+
+### Resultado
+
+| Medida | Clínica origem (29) | **Clínica 33 (normal, reuso recusado)** | VAmPI origem (30) | **VAmPI reuso (34)** |
+| --- | --- | --- | --- | --- |
+| Nota | 8,84 | **9,19** | 8,25 | **8,25** |
+| Alcance efetivo | 0,77 | 0,94 | 0,92 | **0,92** |
+| Falhas achadas | 9 de 10 | 9 de 10 (H5 não) | V1 | V1 (V3 não) |
+| Duração | 1 760 s | 1 902 s | 510 s | 676 s |
+| Cadastro | 114 s | 105 s | 76 s | **121 s** |
+| Alcance (etapa) | 314 s | 274 s | 61 s | **19 s** |
+| Cadastro + alcance | 428 s | 379 s | 137 s | **140 s** |
+| Varredura | 1 177 s | 1 425 s | 281 s | 458 s |
+| Tokens (com leitura de cache) | 19,23 M | 24,18 M | 4,20 M | 5,37 M |
+| Tokens de saída | 19 480 | 21 245 | 9 159 | 10 913 |
+| Respostas do modelo | 191 | 241 | 57 | 70 |
+| Perguntas ao dono | 0 | 0 | 0 | 0 |
+
+- **VAmPI (34), o que aproveitou:** leu `inputs/reuse/` (`data-rules.yml`, `flows.yml`, `target.reuse.yml` e `knowledge.yml`), **copiou `data-rules.yml` e `flows.yml` para o perfil, byte a byte igual ao pacote**, e deixou `knowledge.yml` como proposta `review_required` sem ativar (diário: a primeira captura estrutural coincide em ambiente, autorização, OpenAPI e motor; contas e planejamento diferem). Não houve estratégia no pacote. Nada do pacote teve de ser corrigido nem causou erro. A varredura parou porque o VAmPI deixou de responder, como na origem.
+- **Clínica (33):** sem pacote; é uma segunda amostra sem reuso do Terra.
+
+Leitura: a nota e a detecção não mudaram (8,25 contra 8,25). Cadastro mais alcance ficou igual (137 contra 140 s). A duração total e os tokens subiram no VAmPI por causa da varredura, que o reuso não toca (281 contra 458 s). Com uma amostra por condição, isso é ruído: a diferença entre as duas rodadas sem reuso da Clínica (8,84 e 9,19; 1 760 e 1 902 s) já tem o mesmo tamanho.
+
+### Quadro Sonnet 5.5 × Terra 6.1 (V1.9.1 e V1.9.2, 2026-11-16)
+
+| Rodada | Sonnet | Terra |
+| --- | --- | --- |
+| Clínica inicial | 8,99, 1 734 s, 3,58 M, 9 de 10 | 8,84, 1 760 s, 19,23 M, 9 de 10 |
+| Clínica segunda, sem reuso | 9,16, 1 962 s, 4,64 M, 9 de 10 | 9,19, 1 902 s, 24,18 M, 9 de 10 |
+| Clínica com reuso | 8,87, 1 621 s, 4,30 M, 9 de 10 | recusado pelo exportador |
+| VAmPI inicial | 8,09, 595 s, 3,64 M, V1 | 8,25, 510 s, 4,20 M, V1 |
+| VAmPI segunda, sem reuso | 8,13, 611 s, 3,48 M | n/d |
+| VAmPI com reuso | 8,16, 653 s, 3,36 M | 8,25, 676 s, 5,37 M, V1 |
+
+Notas e falhas ficam muito próximas entre os dois modelos (V3 e H5 não são achadas por nenhum). Os tokens do Terra são maiores só porque o Codex relê o contexto em cada resposta; custo em dólar o Codex não informa.
 
 ## Limites
 
