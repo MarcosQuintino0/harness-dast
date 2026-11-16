@@ -72,15 +72,20 @@ class Strategy(ProfileModel):
         except ValidationError:
             raise ConfigError("Estratégia inválida.", hint=_HINT) from None
 
-    def ensure_compilable(self, now: datetime, basis: StrategyBasis | None = None) -> None:
-        """Recusa escolha pendente, vencida ou sem vínculo atual; não concede aprovação."""
+    def ensure_metadata_valid(self, now: datetime) -> None:
+        """Confere estado e validade para preparação; não autoriza qualquer envio."""
         ensure_aware(now)
         if any(
-            choice.state != "validated"
-            or choice.valid_until < now.astimezone(UTC).date()
-            or basis is None
-            or choice.basis is None
-            or choice.basis != basis
+            choice.state != "validated" or choice.valid_until < now.astimezone(UTC).date()
             for choice in self.choices
         ):
             raise ConfigError("Estratégia pendente ou vencida.", hint=_HINT)
+
+    def ensure_compilable(self, now: datetime, basis: StrategyBasis | None = None) -> None:
+        """Confere estado, validade e vínculo atual; não concede aprovação por si só."""
+        self.ensure_metadata_valid(now)
+        if any(
+            basis is None or choice.basis is None or choice.basis != basis
+            for choice in self.choices
+        ):
+            raise ConfigError("Vínculo da estratégia indisponível ou alterado.", hint=_HINT)

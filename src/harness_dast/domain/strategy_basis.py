@@ -35,6 +35,14 @@ def _digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _engine_digest(version: str | None) -> str | None:
+    if not isinstance(version, str) or len(version) > 100 or not version.strip():
+        return None
+    if not version.isprintable():
+        return None
+    return _digest(version.encode())
+
+
 def digest_strategy_document(content: bytes | None) -> str:
     """Identifica bytes exatos, distinguindo documento ausente de documento vazio."""
     return _digest(b"absent\0" if content is None else b"present\0" + content)
@@ -96,7 +104,5 @@ def describe_strategy_basis(
         openapi=openapi_sha256,
         data_rules=data_rules_sha256,
         flows=flows_sha256,
-        engine=_digest(engine_version.encode())
-        if engine_version and engine_version.strip()
-        else None,
+        engine=_engine_digest(engine_version),
     )

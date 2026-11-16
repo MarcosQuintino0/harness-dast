@@ -63,3 +63,24 @@ def test_ausencia_de_vinculo_nunca_valida_escolha() -> None:
     strategy = Strategy.from_data({**data(), "choices": [choice()]})
     with pytest.raises(ConfigError):
         strategy.ensure_compilable(datetime(2026, 11, 16, tzinfo=UTC))
+
+
+@pytest.mark.parametrize("version", [None, "", "  ", "2.17\nsecret", "x" * 101, 123])
+def test_identidade_motor_invalida_falha_fechada(version: object) -> None:
+    digest = digest_strategy_document(b"x")
+    result = make_strategy_basis(
+        valid_profile(),
+        openapi_sha256=digest,
+        data_rules_sha256=digest,
+        flows_sha256=digest,
+        engine_version=version,  # type: ignore[arg-type]  # Entrada externa malformada.
+    )
+    assert result is None
+
+
+def test_metadados_validos_nao_comprovam_vinculo() -> None:
+    strategy = Strategy.from_data({**data(), "choices": [choice()]})
+    now = datetime(2026, 11, 16, tzinfo=UTC)
+    strategy.ensure_metadata_valid(now)
+    with pytest.raises(ConfigError):
+        strategy.ensure_compilable(now)
