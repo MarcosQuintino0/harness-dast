@@ -13,6 +13,18 @@ Vamos manter perfis antigos operacionais sem estratégia. A migração é explí
 
 ## Alternativas consideradas
 
+## Complemento proposto: captura explícita do vínculo atual
+
+Proposto em 2026-11-16 antes do código complementar: `hdast strategy capture <produto> [--output strategy.captured.yml]` consulta somente a versão do ZAP local configurado, sem enviar pedido ao alvo. É uma ação explícita distinta das consultas secas e da migração neutra, que continuam sem rede.
+
+O comando exige perfil formal aprovado e vigente, valida documentos e planejamento locais e aceita somente estratégia ausente ou neutra. Produz cópia exclusiva com referências fixas e uma escolha `coverage/preserve`, origem `observation`, razão `preserve_baseline`, validade limitada à autorização e vínculo atual calculado independentemente. O estado validado descreve essas invariantes neutras; a observação não concede permissão. Não lê execução anterior, não altera perfil/aprovação/estratégia ativa e não ativa a cópia.
+
+Sucesso usa envelope v1 com `product`, `copy`, `changes: ["strategy_bound"]`, `classification: "automatic"`, `approval_changed: false` e `activated: false`, saída 0. Entrada/destino/documento/motor inválido não deixa cópia e usa `CONFIG_ERROR`, saída 2; falta de aprovação/vigência usa saída 3; indisponibilidade do ZAP usa o erro externo vigente. O destino segue `strategy.<nome>.yml`, confinado ao produto e sem sobrescrita. A execução posterior revalida todas as dependências, incluindo a versão observada do motor, e não confia no conteúdo capturado como autoridade.
+
+Essa captura de metadados atuais não implementa reutilização de contas, dados, recursos, fluxos executados ou conhecimento de execuções passadas da V1.9. A corrida após a consulta e a revalidação por concessão do proxy continuam pendentes.
+
+## Alternativas de captura
+
 Migrar implicitamente confundiria origem e poderia atribuir à aprovação antiga um novo significado.
 
 ## Consequências
