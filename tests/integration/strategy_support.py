@@ -53,7 +53,7 @@ def record_control(product: str, mode: str, artifacts: dict[str, dict[str, Any]]
             "status": data["status"],
             "requests_sent": data.get("requests_sent"),
             "checks": data.get("checks"),
-            "classes": data.get("classes"),
+            "by_class": data.get("by_class"),
             "by_operation": data.get("by_operation"),
             "entries": data.get("entries"),
             "planned": data.get("planned"),
