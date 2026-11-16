@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tests.integration.lab_support import CliResult
-from tests.integration.v17_lifecycle import Lifecycle, LifecycleError, snapshot
+from tests.integration.v17_lifecycle import Lifecycle, LifecycleError, docker_metadata, snapshot
 
 _ID = "a" * 64
 _SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway", "vampi")
@@ -161,3 +161,32 @@ def test_ledger_antigo_nao_e_sobrescrito(tmp_path: Path) -> None:
     with pytest.raises(FileExistsError):
         Lifecycle(tmp_path, "rodada", "vampi", FakeRunner())
     assert lifecycle.path.read_text(encoding="utf-8") == original
+
+
+def test_consulta_externa_usa_somente_metadata_restrita(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        assert kwargs["timeout"] == 30
+        assert kwargs.get("shell") is not True
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("shutil.which", lambda _: "docker")
+    monkeypatch.setattr("subprocess.run", fake_run)
+    result = docker_metadata("hdast")
+    assert result.returncode == 0
+    assert calls[0][1:6] == [
+        "ps",
+        "-a",
+        "--no-trunc",
+        "--filter",
+        "label=com.docker.compose.project=hdast",
+    ]
+    assert "{{.ID}}" in calls[0][-1]
+    assert "{{.State}}" in calls[0][-1]
+
+
+def test_consulta_recusa_projeto_fora_da_lista() -> None:
+    with pytest.raises(ValueError, match="projeto inesperado"):
+        docker_metadata("outro-projeto")
