@@ -1,7 +1,6 @@
 """Aceite da revogação por concessão com arquivos temporários e sem rede."""
 
 import asyncio
-import hashlib
 import io
 from datetime import timedelta
 from pathlib import Path
@@ -11,12 +10,13 @@ import pytest
 
 from harness_dast.adapters.scope_proxy.decision import Reason
 from harness_dast.adapters.scope_proxy.engine import ScopeProxyEngine
+from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.grant_queue import GrantQueue
-from harness_dast.adapters.scope_proxy.policy import ApprovalBinding
+from harness_dast.adapters.scope_proxy.policy import load_policy
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.run import RunId
 from tests.fakes.approvals import approval_for
 from tests.fakes.profile_data import dump_yaml, valid_profile_data
-from tests.unit.adapters.scope_proxy.helpers import make_policy
 from tests.unit.adapters.scope_proxy.test_engine import Clocks
 
 
@@ -27,22 +27,23 @@ def rig(
     data["scope"]["windows"] = [window]
     profile = ProductProfile.from_data(data)
     approval_dir = root / "approvals"
-    profile_dir = root / "product"
+    products_dir = root / "products"
+    profile_dir = products_dir / "demo"
     approval_dir.mkdir()
-    profile_dir.mkdir()
+    profile_dir.mkdir(parents=True)
     approval = approval_dir / "demo.json"
     target = profile_dir / "target.yml"
     approval.write_text(approval_for(profile).model_dump_json(), encoding="utf-8")
     target.write_text(dump_yaml(data), encoding="utf-8")
-    binding = ApprovalBinding(
-        product=profile.product,
-        approval_sha256=hashlib.sha256(approval.read_bytes()).hexdigest(),
-        profile_sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
-        authorization=profile.scope.authorization,
-        windows=profile.scope.windows,
-    )
-    policy = make_policy().model_copy(update={"binding": binding})
     clocks = Clocks()
+    store = FileProxyPolicyStore(products_dir, approval_dir, lambda _: profile)
+    policy_path = store.publish(
+        profile,
+        RunId(value="2026-11-13T12-00-00Z-demo-abcd"),
+        clocks.wall + timedelta(hours=1),
+        root,
+    )
+    policy = load_policy(policy_path)
     engine = ScopeProxyEngine(
         policy,
         policy_dir=root,
