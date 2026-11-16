@@ -8,7 +8,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.application.authz import Authz, AuthzRequest
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.domain.api_model import ApiSpec
-from harness_dast.domain.api_schema import Schema
+from harness_dast.domain.api_schema import JsonValue, Schema
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
@@ -55,7 +55,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
             ),
         ),
     )
-    objects: dict[str, dict[str, object]] = {}
+    objects: dict[str, dict[str, JsonValue]] = {}
 
     def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
         if request.url.endswith("/api/auth/login"):
