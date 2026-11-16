@@ -195,3 +195,30 @@ def test_the_created_read_goes_through_the_scope_guard_and_deny_paths_stops_it()
     assert all(not r.url.endswith("/api/medicos/2") for r in rig.target.requests)
     assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
     assert "resposta do próprio POST" in result.findings[0].evidence
+
+
+def test_created_resource_read_uses_creator_when_probe_reader_used_another_account() -> None:
+    rig = post_rig(Clinic(creates=("nivelAcesso",)))
+    probe = rig.run_probe()
+    log = rig.store.exchanges[probe.run_id]
+    rig.store.exchanges[probe.run_id] = log.model_copy(
+        update={
+            "exchanges": tuple(
+                item.model_copy(update={"account": "pac_b"})
+                if item.method == "GET" and item.path == "/api/medicos/{id}"
+                else item
+                for item in log.exchanges
+            )
+        }
+    )
+
+    result = rig.authz().execute(
+        AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
+    )
+
+    assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
+    reads = authz_requests(rig, "GET")
+    posts = authz_requests(rig, "POST")
+    assert posts
+    assert reads
+    assert all(r.account == posts[0].account for r in reads)
