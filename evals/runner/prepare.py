@@ -7,6 +7,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 from evals.runner import exclusions, gitutil
 from evals.runner.briefing import build_briefing
 from evals.runner.cases import (
@@ -19,6 +21,7 @@ from evals.runner.cases import (
 )
 from evals.runner.leaks import LeakHit, scan_leaks
 from evals.runner.models import Case
+from evals.runner.reuse import verify_reuse
 
 MODES = ("vulnerable", "secure", "random")
 BRIEFING_NAME = "EVAL-BRIEFING.md"
@@ -167,6 +170,8 @@ def prepare(
     source: Path = REPO_ROOT,
     allow_leaks: bool = False,
     cases_dir: Path = CASES_DIR,
+    reuse_from: Path | None = None,
+    reuse_package: Path | None = None,
 ) -> PrepareResult:
     """Cria `<out>/workspace` e `<out>/sealed`.
 
@@ -174,6 +179,13 @@ def prepare(
         EvalError: Pasta de saida nao vazia, caso invalido, git ausente ou termo do gabarito.
     """
     case = load_case(case_name, cases_dir)
+    if (reuse_from is None) != (reuse_package is None):
+        raise EvalError("Informe juntos --reuse-from e --reuse-package.")
+    reuse = (
+        verify_reuse(reuse_from, reuse_package, case_name) if reuse_from and reuse_package else None
+    )
+    if reuse is not None and allow_leaks:
+        raise EvalError("O estudo de reuso não aceita --allow-leaks.")
     dirs = RoundDirs(out)
     if out.exists() and any(out.iterdir()):
         raise EvalError(f"{out} nao esta vazia: use uma pasta nova para cada rodada.")
@@ -182,6 +194,24 @@ def prepare(
     deliver_inputs(case, source, dirs.workspace)
     harden_settings(dirs.workspace)
     briefing = build_briefing(case, read_authorization(case_name, case, cases_dir))
+    if reuse is not None:
+        product, content = reuse
+        if product != case.product:
+            raise EvalError("Produto de origem difere do destino.")
+        knowledge = dirs.workspace / "inputs" / "reuse" / "knowledge.yml"
+        if knowledge.parent.exists():
+            raise EvalError("A pasta inputs/reuse já existe na cópia.")
+        data = yaml.safe_load(content)
+        for entry in data["entries"]:
+            entry["state"] = "review_required"
+        knowledge.parent.mkdir(parents=True)
+        knowledge.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+        briefing += (
+            "\n## Complemento da carta: conhecimento anterior\n\n"
+            "O dono entrega `inputs/reuse/knowledge.yml` para este produto. "
+            "Os itens estão pendentes de revisão; valide suas fontes e o motor atual "
+            "antes de qualquer uso. Este arquivo não concede autorização nem aprovação.\n"
+        )
     (dirs.workspace / BRIEFING_NAME).write_text(briefing, encoding="utf-8")
     leaks = tuple(scan_leaks(dirs.workspace, case.leak_terms))
     write_sealed(case, dirs, resolved, mode, seed, draw_secrets(case))

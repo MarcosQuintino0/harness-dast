@@ -1,5 +1,30 @@
 # Protocolo da rodada cega completa
 
+## Canal de estudo de reutilização V1.9 (preparação offline)
+
+Após a coleta da primeira rodada, o coordenador pode exportar o único arquivo
+permitido, `knowledge.yml`, e seu manifesto, para um destino novo fora do workspace:
+
+```powershell
+uv run python -m evals.runner export-reuse --out <rodada1> --destination <pacote>
+uv run python -m evals.runner prepare --case <caso> --mode random --seed <semente> --out <rodada2> --reuse-from <rodada1> --reuse-package <pacote>
+```
+
+O runner confere caso lacrado, coleta, modelo, segredos conhecidos, termos do
+gabarito, tipo dos arquivos e integridade do pacote; recalcula as fontes da origem
+exceto motor; recusa conteúdo extra e não
+aceita `--allow-leaks` com reuso. No novo workspace, só
+`inputs/reuse/knowledge.yml` é entregue no complemento da carta, com todos os itens
+`review_required`. A cópia da rodada segue isolada e o manifesto não vai ao agente.
+Não se copiam perfis, aprovações, estado, IDs de execução, respostas nem resultados.
+
+**Limite:** a exportação não comprova validade no segundo contexto. O consumo depende
+de validar as fontes e o motor atuais na CLI. Até essa validação e a promoção segura
+dos itens estarem implementadas e verificadas, não se pode alegar reuso validado nem
+retrabalho poupado. Um operador instruído por fora desse canal torna o estudo assistido.
+Na execução futura, registre modelo, caso, sementes, intervenções, diferenças de
+alcance e detecção, tempo e tokens, sem executar rodadas em paralelo nem expor o lacre.
+
 Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Claude Code ou o Codex. Ele registra **exatamente** como foram feitas as rodadas da tarde de 2026-11-15, as que mediram a V1.5.3 com 8 de 10 falhas achadas ([resultado](results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md)). Siga igual, para que as rodadas novas possam ser comparadas com essas.
 
 **O agente avaliado não precisa ser o Claude.** Pode ser qualquer IA que trabalhe como agente de código: Claude Code, Codex ou outra. O protocolo fixa o caso, o pedido e o que se mede; a ferramenta, o modelo e o esforço são escolhidos por estudo e anotados em cada rodada. As rodadas de 2026-11-15 usaram o Claude Code, e os comandos dele aparecem como **exemplo verificado**. A rodada de 2026-11-14 usou o Codex e serve de exemplo para um agente de outro fornecedor.
