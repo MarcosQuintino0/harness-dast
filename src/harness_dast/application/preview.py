@@ -26,16 +26,24 @@ class RecordingSource:
         """
         self._inner = inner
         self._generators: dict[str, str] = {}
+        self._unique: dict[str, bool] = {}
 
     def __call__(self, request: ValueRequest) -> JsonValue:
         """Delega à fonte real e registra `campo -> gerador` (o valor não é guardado)."""
         self._generators[request.field_path] = request.generator
+        self._unique[request.field_path] = request.unique
         return self._inner(request)
 
     def take(self) -> dict[str, str]:
         """Devolve o que foi registrado desde a última chamada e zera o registro."""
         taken = self._generators
         self._generators = {}
+        return taken
+
+    def take_unique(self) -> dict[str, bool]:
+        """Devolve origem e unicidade, sem valores, e limpa o registro."""
+        taken = self._unique
+        self._unique = {}
         return taken
 
 

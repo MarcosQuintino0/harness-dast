@@ -162,7 +162,9 @@ def test_reachability_of_both_runs_is_the_same_and_only_the_login_probe_fails(
 ) -> None:
     for run in (pilot_session.first, pilot_session.second):
         summary = run.result.data["summary"]
-        failing = {n for n, op in run.operations.items() if op["outcome"] == "auth_error"}
+        failing = {
+            n for n, op in run.operations.items() if op["outcome"] == "auth_rejected_expected"
+        }
         # A operação `login` do OpenAPI vai com credenciais geradas, que o alvo recusa de propósito.
         assert failing == {"login"}, run.outcomes
         assert summary["operations_total"] == 29
@@ -170,7 +172,7 @@ def test_reachability_of_both_runs_is_the_same_and_only_the_login_probe_fails(
         assert summary["operations_sent"] == 26
         assert summary["successes"] == 25
         assert summary["reachability"] == pytest.approx(
-            summary["successes"] / summary["operations_sent"], abs=1e-4
+            summary["reached"] / summary["operations_sent"], abs=1e-4
         )
 
 
@@ -289,7 +291,7 @@ def test_a_token_that_expires_mid_run_is_renewed_once_per_request(tuned_pilot: L
     assert retried, "nenhum token venceu durante a execução; ajuste o tempo de vida do teste"
     assert all(op["attempts"] <= 2 for op in run.operations.values())
     assert len(logins) > 4  # três contas + a operação de login + ao menos uma renovação
-    assert run.outcomes["auth_error"] == 1  # só a operação de login do OpenAPI
+    assert run.outcomes["auth_rejected_expected"] == 1  # opera??o sint?tica de login
 
 
 def _write_rules(cli: LabCli, extra: list[dict[str, Any]]) -> None:
@@ -329,6 +331,7 @@ def test_deliberately_bad_data_rules_are_reported_with_the_per_field_detail(
     assert first.operations["criarConsulta"]["outcome"] == "skipped_dependency"
     conflict = second.operations["criarConvenio"]
     assert conflict["outcome"] == "conflict"
+    assert "codigo" in conflict["conflict_fields"]
     assert '"field": "codigo"' in conflict["untrusted_target_data"]["excerpt"]
 
 
