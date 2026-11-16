@@ -2,12 +2,21 @@
 
 import json
 import socket
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
+from harness_dast.application.strategy import StrategyProfiles
 from harness_dast.cli.app import build_app, run_app
+from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.strategy_basis import digest_strategy_document, make_strategy_basis
+from tests.fakes.clock import FixedClock
 from tests.fakes.profile_data import dump_yaml, valid_profile_data
 
 pytestmark = pytest.mark.contract
@@ -166,3 +175,72 @@ def test_previa_legada_e_estrategia_neutra_sao_iguais_sem_rede(
     assert legacy["data"]["executed"] is False
     assert strategy["data"]["executed"] is False
     assert legacy["data"]["preview"] == strategy["data"]["preview"]
+
+
+@pytest.mark.parametrize(
+    "factor",
+    ["environment", "authorization", "accounts", "openapi", "data_rules", "flows", "planning"],
+)
+def test_drift_em_fontes_locais_fica_pendente_e_bloqueia_execucao(
+    product: Path,
+    capsys: pytest.CaptureFixture[str],
+    factor: str,
+) -> None:
+    profile_data = valid_profile_data()
+    basis = make_strategy_basis(
+        ProductProfile.from_data(profile_data),
+        openapi_sha256=digest_strategy_document((product / "openapi.json").read_bytes()),
+        data_rules_sha256=digest_strategy_document((product / "data-rules.yml").read_bytes()),
+        flows_sha256=digest_strategy_document((product / "flows.yml").read_bytes()),
+        engine_version="2.17",
+    )
+    assert basis is not None
+    strategy = yaml.safe_load(STRATEGY)
+    strategy["choices"] = [
+        {
+            "name": "coverage",
+            "value": "preserve",
+            "source": "owner",
+            "reason": "preserve_baseline",
+            "state": "validated",
+            "valid_until": "2999-12-31",
+            "basis": basis.model_dump(),
+        }
+    ]
+    (product / "strategy.yml").write_text(yaml.safe_dump(strategy), encoding="utf-8")
+    initial_code, initial = _invoke(capsys, product, "strategy", "validate", "demo")
+    assert initial_code == 0
+    if factor == "environment":
+        profile_data["environment"]["name"] = "outro"
+    elif factor == "authorization":
+        profile_data["scope"]["authorization"]["reference"] = "CHG-9999"
+    elif factor == "accounts":
+        profile_data["auth"]["accounts"][0]["role"] = "outro"
+    elif factor == "planning":
+        profile_data["probe"] = {"health_path": "/api/status"}
+    else:
+        filenames = {
+            "openapi": "openapi.json",
+            "data_rules": "data-rules.yml",
+            "flows": "flows.yml",
+        }
+        path = product / filenames[factor]
+        path.write_bytes(path.read_bytes() + b"\n")
+    (product / "target.yml").write_text(dump_yaml(profile_data), encoding="utf-8")
+
+    code, result = _invoke(capsys, product, "strategy", "validate", "demo")
+    plan_code, plan = _invoke(capsys, product, "plan", "demo", "--dry-run")
+
+    assert code == 0
+    assert result["data"]["basis_context"][factor] != initial["data"]["basis_context"][factor]
+    assert result["data"]["strategy_state"] == "review_required"
+    assert result["data"]["basis_status"] == "engine_unavailable"
+    assert plan_code == 2
+    assert plan["error"]["code"] == "CONFIG_ERROR"
+    profiles = StrategyProfiles(
+        FileProfileRepository(product.parent),
+        FileStrategyRepository(product.parent),
+        FixedClock(datetime(2026, 11, 16, tzinfo=UTC)),
+    )
+    with pytest.raises(ConfigError):
+        profiles.load("demo")

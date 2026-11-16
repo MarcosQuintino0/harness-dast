@@ -8,15 +8,108 @@ import pytest
 from harness_dast.application.scan import Scan, ScanRequest
 from harness_dast.application.scope_approval import ApprovedProfileRepository
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scan_plan import ScanPlan, ScanTarget
 from harness_dast.domain.scan_policy import build_limits, build_policy
 from harness_dast.domain.scope_approval import ScopeApproval
-from harness_dast.domain.strategy import StrategyReferences
+from harness_dast.domain.strategy import Strategy, StrategyReferences
+from harness_dast.domain.strategy_basis import (
+    StrategyBasis,
+    digest_strategy_document,
+    make_strategy_basis,
+)
 from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from tests.fakes.approvals import InMemoryApprovalStore, approval_for
-from tests.fakes.profile_data import valid_profile
+from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.rig import agenda_flows
 from tests.fakes.scan_rig import ScanRig
+
+
+@pytest.mark.parametrize(
+    "factor",
+    [
+        "environment",
+        "authorization",
+        "accounts",
+        "openapi",
+        "data_rules",
+        "flows",
+        "engine",
+        "probe",
+    ],
+)
+def test_escolha_validada_rejeita_alteracao_real_de_dependencia(factor: str) -> None:
+    profile_data = valid_profile_data()
+    docs = {"openapi": b"contrato", "data_rules": b"regras", "flows": b"fluxos"}
+
+    def basis(engine: str) -> StrategyBasis | None:
+        return make_strategy_basis(
+            ProductProfile.from_data(profile_data),
+            openapi_sha256=digest_strategy_document(docs["openapi"]),
+            data_rules_sha256=digest_strategy_document(docs["data_rules"]),
+            flows_sha256=digest_strategy_document(docs["flows"]),
+            engine_version=engine,
+        )
+
+    original = basis("2.17")
+    assert original is not None
+    strategy = Strategy.from_data(
+        {
+            "schema_version": 1,
+            "references": {
+                "target": "target.yml",
+                "data_rules": "data-rules.yml",
+                "flows": "flows.yml",
+            },
+            "choices": [
+                {
+                    "name": "coverage",
+                    "value": "preserve",
+                    "source": "owner",
+                    "reason": "preserve_baseline",
+                    "state": "validated",
+                    "valid_until": "2999-12-31",
+                    "basis": original.model_dump(),
+                }
+            ],
+        }
+    )
+    now = datetime(2026, 11, 16, tzinfo=UTC)
+    strategy.ensure_compilable(now, original)
+    if factor == "environment":
+        profile_data["environment"]["name"] = "outro"
+    elif factor == "authorization":
+        profile_data["scope"]["authorization"]["reference"] = "CHG-9999"
+    elif factor == "accounts":
+        profile_data["auth"]["accounts"][0]["role"] = "outro"
+    elif factor == "probe":
+        profile_data["probe"] = {"health_path": "/api/status"}
+    elif factor in docs:
+        docs[factor] += b" alterado"
+    current = basis("2.18" if factor == "engine" else "2.17")
+
+    with pytest.raises(ConfigError):
+        strategy.ensure_compilable(now, current)
+
+
+def test_configuracao_de_limpeza_nao_muda_vinculo_de_cobertura() -> None:
+    profile_data = valid_profile_data()
+    digest = digest_strategy_document(b"conteudo")
+
+    def basis() -> StrategyBasis | None:
+        return make_strategy_basis(
+            ProductProfile.from_data(profile_data),
+            openapi_sha256=digest,
+            data_rules_sha256=digest,
+            flows_sha256=digest,
+            engine_version="2.17",
+        )
+
+    original = basis()
+    profile_data["cleanup"] = valid_profile_data(with_cleanup=True)["cleanup"]
+
+    assert original is not None
+    assert basis() == original
 
 
 class _StrategyStore:
