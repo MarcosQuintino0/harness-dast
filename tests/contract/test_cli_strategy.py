@@ -65,7 +65,16 @@ def test_consultas_locais_nao_abrem_rede_nem_alteram_arquivos(
 
 
 @pytest.mark.parametrize(
-    "content", ["schema_version: [", "{}", STRATEGY + "secret-key: sentinel-secret\n"]
+    "content",
+    [
+        "schema_version: [",
+        "{}",
+        STRATEGY + "secret-key: sentinel-secret\n",
+        STRATEGY.replace("schema_version: 1", "schema_version: .nan"),
+        STRATEGY.replace("schema_version: 1", "schema_version: .inf"),
+        STRATEGY.replace("target: target.yml", "target: ../target.yml"),
+        STRATEGY.replace("choices: []", "choices: &cycle [*cycle]"),
+    ],
 )
 def test_estrategia_invalida_recusada_sem_ecoar_valores(
     product: Path,
@@ -97,3 +106,18 @@ def test_migracao_produz_copia_sem_alterar_perfil_ou_aprovacao(
     assert (product / result["data"]["copy"]).is_file()
     assert {name: (product / name).read_bytes() for name in before} == before
     assert not list((tmp_path / "state").rglob("approvals/*"))
+
+
+def test_migracao_de_estrategia_existente_nao_descarta_escolhas(
+    product: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    original = product / "strategy.yml"
+    original.write_text(STRATEGY, encoding="utf-8")
+
+    code, result = _invoke(capsys, product, "strategy", "migrate", "demo")
+
+    assert code == 2
+    assert result["error"]["code"] == "CONFIG_ERROR"
+    assert original.read_text(encoding="utf-8") == STRATEGY
+    assert not (product / "strategy.migrated.yml").exists()

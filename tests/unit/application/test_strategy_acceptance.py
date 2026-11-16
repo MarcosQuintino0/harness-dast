@@ -10,6 +10,7 @@ from harness_dast.application.scope_approval import ApprovedProfileRepository
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.scan_plan import ScanPlan, ScanTarget
 from harness_dast.domain.scan_policy import build_limits, build_policy
+from harness_dast.domain.strategy import StrategyReferences
 from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from tests.fakes.approvals import InMemoryApprovalStore, approval_for
 from tests.fakes.profile_data import valid_profile
@@ -34,7 +35,7 @@ class _StrategyStore:
             "choices": [],
         }
 
-    def check_references(self, product: str) -> None:
+    def check_references(self, product: str, references: StrategyReferences) -> None:
         pass
 
     def migrate(self, product: str, output: str) -> str:
