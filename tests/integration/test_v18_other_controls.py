@@ -33,6 +33,7 @@ VAMPI_BASE = "http://vampi:5000"
 
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 def test_cors_seguro_b(tmp_path: Path, product: str) -> None:
+    """Coleta e encerra a mesma pilha; o ciclo indivisível justifica mais de 40 linhas."""
     require_docker()
     env = throwaway_pilot_env()
     env.update(SEEDED)
@@ -85,6 +86,7 @@ def test_cors_seguro_b(tmp_path: Path, product: str) -> None:
 
 
 def test_authz_com_matriz_e_escrita_seguro_b(tmp_path: Path) -> None:
+    """Agrupa asserts do contrato e coleta antes do reset; o ciclo supera 40 linhas."""
     require_docker()
     cli = LabCli(tmp_path, throwaway_pilot_env())
     authz_checks._install_with_writes(cli)
@@ -131,6 +133,7 @@ def test_authz_com_matriz_e_escrita_seguro_b(tmp_path: Path) -> None:
 
 
 def test_negative_com_escrita_e_restauracao_seguro_b(tmp_path: Path) -> None:
+    """Mantém escrita, restauração, coleta e encerramento no mesmo ciclo de mais de 40 linhas."""
     require_docker()
     cli = LabCli(tmp_path, throwaway_pilot_env())
     folder = cli.install_product("clinica-piloto", PILOT_PROFILE)

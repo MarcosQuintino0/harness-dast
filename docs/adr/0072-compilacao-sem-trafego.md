@@ -9,7 +9,7 @@ O plano deve mostrar o trabalho antes de qualquer pedido ao alvo.
 
 ## Decisão
 
-`hdast strategy validate <produto>`, `hdast strategy diff <produto>` e `hdast plan <produto> --dry-run` validam e compilam sem rede, sem exigir aprovação para prévia. Na pilha gerenciada, a aprovação e o perfil vinculados, a autorização, a janela, o prazo e a parada são revalidados por concessão; a prova real da coordenação observou recusa após revogação. A reprodução independente está em andamento. A prévia usa fontes locais e identifica a matriz prevista e entradas simbólicas; não afirma cobertura executada. O plano concreto depende do planejamento do scan. A equivalência da matriz de operações, contas, regras, força, pontos e pré-condições é critério de prova item por item; hash não substitui essa prova. As opções novas não alteram ritmo ou cobertura.
+`hdast strategy validate <produto>`, `hdast strategy diff <produto>` e `hdast plan <produto> --dry-run` validam e compilam sem rede, sem exigir aprovação para prévia. Na pilha gerenciada, a aprovação e o perfil vinculados, a autorização, a janela, o prazo e a parada são revalidados por concessão; a prova real da coordenação observou recusa após revogação. A reprodução independente passou em cinco testes; veja o [parecer de fechamento](../reviews/2026-11-16-v1-8-validacao-fechamento.md). A prévia usa fontes locais e identifica a matriz prevista e entradas simbólicas; não afirma cobertura executada. O plano concreto depende do planejamento do scan. A equivalência da matriz de operações, contas, regras, força, pontos e pré-condições é critério de prova item por item; hash não substitui essa prova. As opções novas não alteram ritmo ou cobertura.
 
 ## Fronteiras e integração
 

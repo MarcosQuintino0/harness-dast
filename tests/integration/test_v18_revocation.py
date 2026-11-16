@@ -62,7 +62,11 @@ def _wait_for(
 def test_revogacao_durante_probe_trava_concessoes_no_proxy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Compila, inicia o probe, revoga o arquivo temporario e observa a recusa real."""
+    """Compila, inicia o probe, revoga o arquivo temporário e observa a recusa real.
+
+    O ciclo supera 40 linhas para preservar coleta e encerramento do mesmo processo/pilha,
+    inclusive quando uma asserção falha entre a concessão e a revogação.
+    """
     require_docker()
     cli = LabCli(tmp_path, SEEDED)
     _install(cli)

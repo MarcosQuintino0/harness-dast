@@ -14,6 +14,8 @@ Nome dos arquivos: `AAAA-MM-DD-assunto.md` para o relatório e `AAAA-MM-DD-assun
 
 | Relatório | Resposta | Escopo | Parecer |
 | --- | --- | --- | --- |
+| [Fechamento V1.8](relatorio-v1.8-fechamento.md) | [Validação nova](2026-11-16-v1-8-validacao-fechamento.md), [QA](2026-11-16-v1-8-qa-fechamento.md) e [matrizes](../../evals/measurements/v1-8/closure/t4-summary.md) | Envelope/estratégia, revalidação por concessão, captura real e T2/T4 B após rebase V1.7 | Continuar condicionado aos gates finais; promoção B recusada por erro da previsão; modelo e init continuam legacy |
+| [Registro inicial V1.8](relatorio-v1.8.md) | [Fechamento posterior](relatorio-v1.8-fechamento.md) | Estado anterior ao rebase e à liberação da área do proxy | Registro histórico parcial; suas pendências são respondidas no fechamento, sem reescrever o original |
 | [relatorio-v1.7.md](relatorio-v1.7.md) | [Validação independente](validacao-v1.7.md), [QA inicial](qa-v1.7.md) e [matriz final](../../evals/measurements/v1.7/quality-evidence.md) | Ritmo serial opcional, métricas, tecnologias consultivas e T1–T4 | Gates verdes; corrigir para aceite integral, com `legacy` padrão e qualidade/previsão inconclusivas |
 | [relatorio-v1.5.5.md](relatorio-v1.5.5.md) | [QA inicial](qa-v1.5.5.md), [encadeamento](qa-v1.5.5-encadeamento.md) e [suíte](qa-v1.5.5-suite.md) | Espera, massa, CORS, par novo, triagem e avaliação | Gates verdes e oito provas nas duas APIs; aceites B/D/F parciais no VAmPI; sem crAPI ou rodada cega |
 | [2026-11-13-qa-m1-m2.md](2026-11-13-qa-m1-m2.md) | [2026-11-13-qa-m1-m2-resposta.md](2026-11-13-qa-m1-m2-resposta.md) | M1 (fundação) e primeira metade do M2 (domínio) | Reprovado para fechar o M2 como estava; aprovado com ressalvas para o M1. 19 constatações (A-01 a A-19) |
