@@ -177,6 +177,18 @@
         "peak_per_wall_second": 28,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 295,
+          "window_open": 325,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -350,6 +362,18 @@
         "peak_per_wall_second": 46,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 295,
+          "window_open": 325,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -529,6 +553,18 @@
         "peak_per_wall_second": 28,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 288,
+          "window_open": 324,
+          "path_not_confirmed": 36
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 36
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -708,6 +744,18 @@
         "peak_per_wall_second": 43,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 288,
+          "window_open": 324,
+          "path_not_confirmed": 36
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 36
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -883,6 +931,18 @@
         "peak_per_wall_second": 26,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 304,
+          "window_open": 334,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1056,6 +1116,18 @@
         "peak_per_wall_second": 45,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 304,
+          "window_open": 334,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1237,6 +1309,18 @@
         "peak_per_wall_second": 27,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 288,
+          "window_open": 327,
+          "path_not_confirmed": 39
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 39
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1416,6 +1500,18 @@
         "peak_per_wall_second": 42,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 288,
+          "window_open": 327,
+          "path_not_confirmed": 39
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 39
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1588,6 +1684,18 @@
         "peak_per_wall_second": 24,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 133,
+          "window_open": 163,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1760,6 +1868,18 @@
         "peak_per_wall_second": 41,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 133,
+          "window_open": 163,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -1943,6 +2063,18 @@
         "peak_per_wall_second": 19,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 128,
+          "window_open": 158,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -2126,6 +2258,18 @@
         "peak_per_wall_second": 39,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 128,
+          "window_open": 158,
+          "path_not_confirmed": 30
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 30
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -2411,6 +2555,18 @@
         "peak_per_wall_second": 34,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2862,
+          "window_open": 3156,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -2696,6 +2852,18 @@
         "peak_per_wall_second": 48,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2859,
+          "window_open": 3153,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -2981,6 +3149,18 @@
         "peak_per_wall_second": 35,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2862,
+          "window_open": 3156,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -3266,6 +3446,18 @@
         "peak_per_wall_second": 48,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2859,
+          "window_open": 3153,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -3551,6 +3743,18 @@
         "peak_per_wall_second": 33,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2862,
+          "window_open": 3156,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -3836,6 +4040,18 @@
         "peak_per_wall_second": 48,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 2859,
+          "window_open": 3153,
+          "path_not_confirmed": 294
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 294
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -4092,6 +4308,18 @@
         "peak_per_wall_second": 28,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -4348,6 +4576,18 @@
         "peak_per_wall_second": 46,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -4604,6 +4844,18 @@
         "peak_per_wall_second": 28,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -4860,6 +5112,18 @@
         "peak_per_wall_second": 44,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -5116,6 +5380,18 @@
         "peak_per_wall_second": 28,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -5372,6 +5648,18 @@
         "peak_per_wall_second": 45,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 728,
+          "window_open": 848,
+          "path_not_confirmed": 120
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 120
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -5922,6 +6210,18 @@
         "peak_per_wall_second": 36,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 7911,
+          "window_open": 8807,
+          "path_not_confirmed": 896
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 896
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -6472,6 +6772,18 @@
         "peak_per_wall_second": 48,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 7902,
+          "window_open": 8798,
+          "path_not_confirmed": 896
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 896
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -6790,6 +7102,18 @@
         "peak_per_wall_second": 31,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 1344,
+          "window_open": 1525,
+          "path_not_confirmed": 181
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 181
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     },
     {
@@ -7108,6 +7432,18 @@
         "peak_per_wall_second": 47,
         "limit_rps": 50.0,
         "conclusion": "descriptive; missing rows or wall clock changes prevent proof of every grant"
+      },
+      "offline_scope_check": {
+        "counts": {
+          "path_matches": 1343,
+          "window_open": 1524,
+          "path_not_confirmed": 181
+        },
+        "unconfirmed_reasons": {
+          "malformed_request": 181
+        },
+        "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
+        "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
       }
     }
   ],
@@ -7124,7 +7460,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 396,
+      "operation_rule_rows_B": 396
     },
     {
       "product": "clinica-piloto",
@@ -7138,7 +7477,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 396,
+      "operation_rule_rows_B": 396
     },
     {
       "product": "clinica-piloto",
@@ -7152,7 +7494,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 396,
+      "operation_rule_rows_B": 396
     },
     {
       "product": "vampi",
@@ -7166,7 +7511,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 264,
+      "operation_rule_rows_B": 264
     },
     {
       "product": "vampi",
@@ -7180,7 +7528,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 264,
+      "operation_rule_rows_B": 264
     },
     {
       "product": "vampi",
@@ -7194,7 +7545,10 @@
       "same_policy": true,
       "same_scope": true,
       "scope_equality_does_not_prove_runtime_authorization": true,
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 264,
+      "operation_rule_rows_B": 264
     }
   ],
   "limitations": [
@@ -7238,7 +7592,10 @@
         "writes_with_header": 5036,
         "writes_with_cookie": 5036
       },
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 1232,
+      "operation_rule_rows_B": 1232
     },
     {
       "product": "vampi",
@@ -7280,7 +7637,10 @@
         "writes_with_header": 0,
         "writes_with_cookie": 0
       },
-      "quality_accepted": false
+      "quality_accepted": false,
+      "same_operation_rule_state_request_multiset": true,
+      "operation_rule_rows_A": 440,
+      "operation_rule_rows_B": 440
     }
   ],
   "lifecycle": [
