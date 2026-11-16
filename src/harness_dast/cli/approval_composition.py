@@ -37,7 +37,7 @@ def checked_profiles(
 ) -> ProfileRepository:
     """Repositório de perfis que recusa o perfil sem aprovação humana vigente.
 
-    `with_knowledge=False` (o `cleanup`) ignora o `knowledge.yml`: a limpeza não consome conhecimento.
+    `with_knowledge=False` (o `cleanup`) ignora o `knowledge.yml`: a limpeza não o consome.
     """
     deps = FileStrategyRepository(products_dir)
     profiles = StrategyProfiles(formal_profiles(products_dir), deps, SystemClock(), zap)
