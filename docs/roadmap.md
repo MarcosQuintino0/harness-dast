@@ -272,9 +272,9 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Envelope, estratégia neutra, validação, diff estrutural e migração explícita | Implementado em código e testes, ADRs 0070 a 0074 propostos |
 | Prévia sem tráfego e consumo do plano concreto pelo executor serial | Implementado; prévia simbólica tem limitações explícitas de entradas e catálogo |
 | Vínculos de dependências e invalidação | Captura pública em cópia e conferência ativa das fontes e versão atual do ZAP implementadas; secos e cleanup sem provedor recusam escolha preenchida; versão não autentica instância |
-| Revogação depois de compilar | Vigia de fontes/stop e recusa por concessão de snapshot com idade >200 ms; autorização/janela/prazo por concessão. Micro no bind real caiu de 5,776 para 0,026 ms de mediana; T4 e repetição da corrida em andamento na rodada 3 |
-| Provas e aceite da versão | Provas da coordenação concluídas; reprodução independente e gates finais registrados no [fechamento](reviews/relatorio-v1.8-fechamento.md), que complementa o registro inicial |
-| Promoção de `proxy` em perfis novos (ADR 0075) | Não promovido: previsão prospectiva excedeu 10 pontos percentuais de erro nas duas APIs; init, modelo e perfis antigos preservados |
+| Revogação depois de compilar | Vigia de fontes/stop e recusa por concessão de snapshot com idade >200 ms; autorização/janela/prazo por concessão. Micro no bind real caiu de 5,776 para 0,026 ms de mediana; corrida real repetida sem concessão posterior à recusa |
+| Provas e aceite da versão | Quatro T4 e metas temporais passaram na [rodada 3](reviews/relatorio-v1.8-rodada3.md); validador novo decidiu corrigir lacuna de prova. PR em rascunho, sem aceite global; registros anteriores preservados |
+| Promoção de `proxy` em perfis novos (ADR 0075) | Não promovido: nova previsão passou, mas contagens divergiram sem explicação suficiente (SSTI Clínica e Parameter Tampering VAmPI); init, modelo e perfis antigos preservados |
 | Reutilização de conhecimento e estado entre execuções | Planejado para V1.9; não entregue pela V1.8 |
 
 ## Itens em aberto

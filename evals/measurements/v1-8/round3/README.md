@@ -65,3 +65,31 @@ Os artefatos brutos desta rodada ficam em
 versionados; estado descartável, credenciais e documentos brutos não são copiados.
 Tempos T4 são os intervalos `scan.started_at`–`scan.finished_at`, distintos do tempo
 total de pytest, build e preparação.
+
+## Resultados
+
+As quatro T4 passaram em 1.463,09 s. A Clínica fez A em 593,680062 s e B em
+311,032483 s; VAmPI fez A em 126,310181 s e B em 49,884473 s. Ambas as A
+atenderam ao teto de regressão de 5% e ambas as B passaram a previsão nas duas
+fórmulas congeladas. A [matriz completa](t4-comparison.json) preserva a divergência
+histórica de 47 para 61 pedidos de SSTI na Clínica e de 4 para 28 de Parameter
+Tampering na nova B do VAmPI frente à nova A e à referência histórica.
+**Não promover** o init: o aumento não prova perda, mas os dados disponíveis não
+explicam a diferença nem atestam equivalência dos vetores.
+
+A [corrida real](revocation-vampi.json) passou: concessão, revogação da aprovação
+temporária e recusa `approval_changed`, sem concessão posterior. A observação de
+1,031 s inclui a taxa do cliente e não mede a validade de 200 ms do snapshot.
+
+Na primeira chamada, o comparador recusou o hash do congelamento: o protocolo
+registrava bytes CRLF da worktree original, enquanto o blob Git e o checkout
+principal usavam LF. O comparador passou a verificar a reconstrução exata das
+terminações, preservando hash registrado e observado e recusando alteração de
+conteúdo ou terminações mistas. O SHA-256 LF é
+`d548396364f7a6aed57c3c400bd862344a2058eece93857a51fc9e86d17847c5`;
+o CRLF reproduz exatamente o hash congelado
+`243fb1b0ec5d8b63b6dc5149327f49faff0ef7f59f81ad7348cc3942eeb7d597`.
+Nenhum arquivo congelado foi modificado.
+
+Os limites dos controles anteriores, concorrência offline observada, nova
+validação e entrega estão no [relatório da rodada 3](../../../../docs/reviews/relatorio-v1.8-rodada3.md).
