@@ -18,6 +18,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from harness_dast.adapters.scope_proxy.approval_watch import file_signature
 from harness_dast.adapters.scope_proxy.policy import (
     KILL_FLAG_NAME,
     SCHEMA_VERSION,
@@ -99,8 +100,8 @@ class FileProxyPolicyStore:
             raise ConfigError("Perfil mudou ao vincular o proxy.", hint="Reinicie a pilha.")
         try:
             if (
-                _stat_signature(target.stat()) != target_stat
-                or _stat_signature(approval_path.stat()) != approval_stat
+                file_signature(target.stat()) != target_stat
+                or file_signature(approval_path.stat()) != approval_stat
             ):
                 raise ConfigError("Fonte alterada ao vincular proxy.", hint="Reinicie a pilha.")
         except OSError:
@@ -170,17 +171,13 @@ class FileProxyPolicyStore:
         return (directory / KILL_FLAG_NAME).exists()
 
 
-def _stat_signature(value: os.stat_result) -> tuple[int, int, int, int, int]:
-    return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
-
-
 def _read_snapshot(path: Path) -> tuple[bytes, tuple[int, int, int, int, int]]:
     try:
         with path.open("rb") as handle:
-            before = _stat_signature(os.fstat(handle.fileno()))
+            before = file_signature(os.fstat(handle.fileno()))
             raw = handle.read(1024 * 1024 + 1)
-            after = _stat_signature(os.fstat(handle.fileno()))
-        stable = before == after == _stat_signature(path.stat()) and len(raw) <= 1024 * 1024
+            after = file_signature(os.fstat(handle.fileno()))
+        stable = before == after == file_signature(path.stat()) and len(raw) <= 1024 * 1024
     except OSError:
         raise ConfigError(
             "Nao foi possivel vincular fonte local do proxy.",

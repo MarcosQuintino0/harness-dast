@@ -1,8 +1,15 @@
 import hashlib
+import os
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
-from harness_dast.adapters.scope_proxy.approval_watch import FileWatch
+import pytest
+
+import harness_dast.adapters.scope_proxy.approval_watch as watch_module
+import harness_dast.adapters.scope_proxy.generate as generate_module
+from harness_dast.adapters.scope_proxy.approval_watch import FileWatch, file_signature
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.policy import load_policy
 from harness_dast.domain.run import RunId
@@ -53,3 +60,60 @@ def test_publish_vincula_aprovacao_validada_e_perfil_congelado(tmp_path: Path) -
     assert binding is not None
     assert binding.approval_sha256 == hashlib.sha256(raw).hexdigest()
     assert binding.profile_sha256 == hashlib.sha256(b"profile bytes").hexdigest()
+
+
+def test_releitura_aceita_ctime_divergente_no_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "target.yml"
+    raw = b"original"
+    path.write_bytes(raw)
+    real_stat = Path.stat
+
+    def stat_with_different_ctime(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        value = real_stat(self, follow_symlinks=follow_symlinks)
+        if self != path:
+            return value
+        # O dubl? representa o ctime divergente observado entre stat e fstat no Windows.
+        return cast(
+            os.stat_result,
+            SimpleNamespace(
+                st_dev=value.st_dev,
+                st_ino=value.st_ino,
+                st_size=value.st_size,
+                st_mtime_ns=value.st_mtime_ns,
+                st_ctime_ns=value.st_ctime_ns + 1,
+            ),
+        )
+
+    def windows_signature(value: os.stat_result) -> tuple[int, int, int, int, int]:
+        return file_signature(value, windows=True)
+
+    monkeypatch.setattr(watch_module, "file_signature", windows_signature)
+    monkeypatch.setattr(generate_module, "file_signature", windows_signature)
+    monkeypatch.setattr(Path, "stat", stat_with_different_ctime)
+
+    snapshot, _ = generate_module._read_snapshot(path)
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    assert snapshot == raw
+    assert watch.unchanged()
+
+
+def test_hash_recusa_mutacao_com_tamanho_e_mtime_preservados(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "target.yml"
+    raw = b"original"
+    path.write_bytes(raw)
+    monkeypatch.setattr(
+        watch_module, "file_signature", lambda value: file_signature(value, windows=True)
+    )
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    before = path.stat()
+    original_signature = file_signature(before, windows=True)
+
+    path.write_bytes(b"alterado")
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+
+    assert file_signature(path.stat(), windows=True) == original_signature
+    assert not watch.unchanged()

@@ -3,6 +3,7 @@
 import hashlib
 import os
 import stat
+import sys
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -12,8 +13,18 @@ from harness_dast.domain.scope_approval import ScopeApproval
 _MAX_BYTES = 1024 * 1024
 
 
-def _signature(value: os.stat_result) -> tuple[int, int, int, int, int]:
-    return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+def file_signature(
+    value: os.stat_result, *, windows: bool | None = None
+) -> tuple[int, int, int, int, int]:
+    """Retorna metadados de identidade; no Windows ctime pode divergir entre stat e fstat."""
+    on_windows = sys.platform == "win32" if windows is None else windows
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_size,
+        value.st_mtime_ns,
+        0 if on_windows else value.st_ctime_ns,
+    )
 
 
 class FileWatch:
@@ -32,13 +43,15 @@ class FileWatch:
             current = path.stat()
             if not stat.S_ISREG(before.st_mode) or len(raw) > _MAX_BYTES:
                 return
-            if _signature(before) != _signature(after) or _signature(after) != _signature(current):
+            if file_signature(before) != file_signature(after) or file_signature(
+                after
+            ) != file_signature(current):
                 return
             if hashlib.sha256(raw).hexdigest() != digest:
                 return
             if product is not None and ScopeApproval.model_validate_json(raw).product != product:
                 return
-            self._signature = _signature(current)
+            self._signature = file_signature(current)
         except (OSError, ValidationError):
             return
 
@@ -48,12 +61,12 @@ class FileWatch:
             return False
         try:
             with self._path.open("rb") as handle:
-                before = _signature(os.fstat(handle.fileno()))
+                before = file_signature(os.fstat(handle.fileno()))
                 raw = handle.read(_MAX_BYTES + 1)
-                after = _signature(os.fstat(handle.fileno()))
+                after = file_signature(os.fstat(handle.fileno()))
             return (
                 len(raw) <= _MAX_BYTES
-                and before == self._signature == after == _signature(self._path.stat())
+                and before == self._signature == after == file_signature(self._path.stat())
                 and hashlib.sha256(raw).hexdigest() == self._digest
             )
         except OSError:
