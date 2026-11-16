@@ -13,6 +13,10 @@ Vamos oferecer `hdast strategy validate <produto>`, `hdast strategy diff <produt
 
 ## Alternativas consideradas
 
+As portas `StrategyStore` e `StrategyDependencyStore` ficam em `application/ports.py`, pois o armazenamento de arquivos é uma fronteira externa e os testes usam implementações em memória. `FileStrategyRepository` traduz essa fronteira; validação, hashes e comparação permanecem no domínio. Não há dependência nova.
+
+A integração preserva o orquestrador existente em `application/scan.py`, já maior que 300 linhas, por um hook localizado. Mantém no mesmo ciclo as etapas de configuração, execução e limpeza do Replacer; evita refatorar simultaneamente o executor reservado à V1.7. Os modelos e a compilação ficam em módulos novos.
+
 Compilar a cada envio permitiria alteração concorrente em disco; usar somente hash não prova equivalência.
 
 ## Consequências
