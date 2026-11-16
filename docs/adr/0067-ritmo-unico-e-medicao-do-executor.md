@@ -1,6 +1,6 @@
 # ADR 0067: Ritmo único e medição do executor
 
-Status: Aceito. Data: 2026-11-16.
+Status: Proposto. Data: 2026-11-16.
 
 ## Contexto
 
