@@ -56,13 +56,14 @@ def _in_enum(value: object, schemas: list[Schema]) -> bool:
     )
 
 
-_RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")
+# `.local` é do mDNS (RFC 6762): nunca resolve em DNS público, como os de teste.
+_RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost", ".local")
 _RESERVED_DOMAINS = ("example.com", "example.net", "example.org")
 _LABEL = re.compile(r"[a-z0-9-]+")
 
 
 def _reserved_host(value: str) -> bool:
-    """Aceita só nome de host em domínio reservado para teste (RFC 2606/6761)."""
+    """Aceita só nome de host em domínio reservado (RFC 2606/6761) ou de mDNS (RFC 6762)."""
     if len(value) > 253 or not all(_LABEL.fullmatch(label) for label in value.split(".")):
         return False
     return value.endswith(_RESERVED_SUFFIXES) or any(
