@@ -265,15 +265,16 @@ Implementados os ritmos `legacy` (padrão) e `proxy` (comparação protegida pel
 
 ### V1.8: contratos da personalização
 
-Bloco independente da V1.7, cuja integração deve ocorrer antes da V1.8. A numeração deste bloco segue o [briefing específico](plans/2026-11-16-execucao-v1-8-personalizacao.md).
+Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`. A numeração deste bloco segue o [briefing específico](plans/2026-11-16-execucao-v1-8-personalizacao.md); as decisões de continuação estão no [plano de fechamento](plans/2026-11-16-v1-8-fechamento.md).
 
 | Componente | Status |
 | --- | --- |
 | Envelope, estratégia neutra, validação, diff estrutural e migração explícita | Implementado em código e testes, ADRs 0070 a 0074 propostos |
 | Prévia sem tráfego e consumo do plano concreto pelo executor serial | Implementado; prévia simbólica tem limitações explícitas de entradas e catálogo |
 | Vínculos de dependências e invalidação | Captura pública em cópia e conferência ativa das fontes e versão atual do ZAP implementadas; secos e cleanup sem provedor recusam escolha preenchida; versão não autentica instância |
-| Revogação depois de compilar | Parcial: portões e polling do scan; concessão individual do proxy pendente |
-| Provas e aceite da versão | Parcial; consultar [relatório](reviews/relatorio-v1.8.md), matrizes por regra e parecer do validador |
+| Revogação depois de compilar | Implementada por concessão no proxy gerenciado; corrida real de revogação provada no Docker e testes de janela/prazo/stop/fila passaram |
+| Provas e aceite da versão | Provas da coordenação concluídas; reprodução independente e gates finais registrados no [fechamento](reviews/relatorio-v1.8-fechamento.md), que complementa o registro inicial |
+| Promoção de `proxy` em perfis novos (ADR 0075) | Não promovido: previsão prospectiva excedeu 10 pontos percentuais de erro nas duas APIs; init, modelo e perfis antigos preservados |
 | Reutilização de conhecimento e estado entre execuções | Planejado para V1.9; não entregue pela V1.8 |
 
 ## Itens em aberto
