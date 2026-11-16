@@ -11,3 +11,5 @@ Data: 2026-11-16. Branch de integração: `feat/v1-7-velocidade`; base `24ec850`
 - Programação: Terra6.1 high, worktrees exclusivas proxy/métricas, executor, declaração; QA independente Terra6.1 high em outra worktree. Documentação Terra6.1 high após integrar; crítico inicial e validador final Terra6.1 medium novos sem herdar conversa.
 - Docker observado disponível: versão29.7.2, sem pilhas Compose. A trava externa ainda será adquirida exclusivamente antes da primeira integração; nenhum agente programador ou QA sobe pilha.
 - O coordenador executa os gates finais, prova local e PR para `develop`; PR não será mesclado. CI ausente em PRs anteriores exige gates locais documentados.
+
+Replanejamento anterior à primeira prova: teto fechado de4h de laboratório, incluindo T2 do validador, devido à estimativa com perfis5req/s, 12T3 e quatroT4 sem baseline anterior. A seção12.2 do plano registra a conta, os checkpoints e a parada por orçamento. Qualidade, força, regras e teto de taxa preservados.
