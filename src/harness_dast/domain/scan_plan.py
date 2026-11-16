@@ -249,12 +249,12 @@ def _decide(
     method = result.method.upper()
     if planned is None:
         return "not_planned", "A operação não existe mais no OpenAPI atual; refaça o probe."
+    if login_path is not None and method == "POST" and result.path == login_path:
+        return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
     if result.outcome not in allowed_outcomes:
         return "not_success", "O probe não teve sucesso nesta operação; não há requisição válida."
     if method == "DELETE":
         return "delete", "DELETE nunca é varrido: o varredor apagaria dados de verdade."
-    if login_path is not None and method == "POST" and result.path == login_path:
-        return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
     if planned.decision == "skipped_denied":
         return "denied", "O caminho está em scope.deny_paths."
     if planned.decision != "send":

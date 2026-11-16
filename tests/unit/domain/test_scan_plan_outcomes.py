@@ -155,3 +155,21 @@ def test_resolve_refuses_a_class_the_profile_does_not_list(requested: tuple[str,
 def test_resolve_refuses_a_class_outside_the_closed_list(requested: tuple[str, ...]) -> None:
     with pytest.raises(ConfigError, match="include-outcome aceita só"):
         resolve_include_outcomes(("not_found",), requested)
+
+
+@pytest.mark.parametrize("login_path", ["/api/session", "/api/access"])
+def test_recusa_do_login_tem_motivo_login_antes_de_nao_sucesso(login_path: str) -> None:
+    ops = [
+        operation("session", "POST", login_path, "auth_rejected_expected"),
+        operation("other_method", "GET", login_path, "auth_error"),
+        operation("protected", "POST", "/api/private", "auth_error"),
+    ]
+
+    candidates, skipped = _plan(ops, frozenset(), login_path=login_path)
+
+    assert candidates == ()
+    assert _reasons(skipped) == {
+        "session": "login",
+        "other_method": "not_success",
+        "protected": "not_success",
+    }
