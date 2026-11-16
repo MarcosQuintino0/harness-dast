@@ -11,7 +11,7 @@ from harness_dast.application.ports import (
 from harness_dast.application.strategy import basis_for_engine, describe_current_basis
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.knowledge import Knowledge
+from harness_dast.domain.knowledge import Knowledge, KnowledgeEffect
 from harness_dast.domain.profile import ProductProfile
 
 
@@ -52,7 +52,7 @@ class KnowledgeProfiles:
         if any(
             reasons
             for entry, reasons in zip(knowledge.entries, checks, strict=True)
-            if entry.kind != "effect"
+            if entry.kind != "effect" and entry.state == "validated"
         ):
             raise ConfigError(
                 "Conhecimento vencido ou fontes alteradas; revise antes de reutilizar."
@@ -96,8 +96,39 @@ class InspectKnowledge:
             "reusable": not any(
                 reason
                 for entry, reason in zip(knowledge.entries, reasons, strict=True)
-                if entry.kind != "effect"
+                if entry.kind != "effect" and entry.state == "validated"
             ),
             "classification": "proposed" if any(reasons) else "automatic",
             "engine_status": "unavailable",
         }
+
+
+def load_validated_effects(
+    product: str,
+    profile: ProductProfile,
+    store: KnowledgeStore,
+    dependencies: StrategyDependencyStore,
+    clock: Clock,
+    zap: ZapControl | None,
+) -> tuple[KnowledgeEffect, ...]:
+    """Entrega receitas atuais ou vazio; nunca amplia trabalho ou autorizacao."""
+    if profile.product != product:
+        raise ConfigError("Produto divergente na verificacao do conhecimento.")
+    raw = store.read(product)
+    if raw is None:
+        return ()
+    knowledge = Knowledge.from_data(raw)
+    dependencies.check_references(product, knowledge.references)
+    effect = next(entry for entry in knowledge.entries if entry.kind == "effect")
+    if effect.state != "validated" or effect.source != "observation" or not knowledge.effects:
+        return ()
+    if zap is None:
+        return ()
+    basis = basis_for_engine(dependencies, product, profile, zap.version())
+    if basis is None:
+        return ()
+    checks = knowledge.review(basis, clock.now())
+    for entry, reasons in zip(knowledge.entries, checks, strict=True):
+        if entry.kind == "effect":
+            return () if reasons else knowledge.effects
+    return ()

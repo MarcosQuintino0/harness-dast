@@ -72,7 +72,7 @@ def _data() -> dict[str, object]:
             },
             {
                 "kind": "effect",
-                "source": "observation",
+                "source": "contract",
                 "reason": "references_existing_documents",
                 "state": "validated",
                 "valid_until": "2027-01-01",

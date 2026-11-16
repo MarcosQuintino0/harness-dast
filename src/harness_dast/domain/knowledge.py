@@ -6,6 +6,7 @@ from typing import Literal, Self
 from pydantic import Field, ValidationError, field_validator
 
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse, KnowledgeRuleUse
 from harness_dast.domain.secret_ref import ProfileModel
 from harness_dast.domain.strategy import StrategyReferences
 from harness_dast.domain.strategy_basis import StrategyBasis, StrategyBasisContext
@@ -31,6 +32,23 @@ _REQUIRED: dict[str, frozenset[str]] = {
     "effect": frozenset({"environment", "authorization", "accounts", "openapi", "flows"}),
     "authentication": frozenset({"environment", "authorization", "accounts"}),
 }
+
+
+class KnowledgeProvenance(ProfileModel):
+    """Resumos das fontes da captura; nao autenticam a autoria dos arquivos."""
+
+    run_id: str
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    probe_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    authz_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("run_id")
+    @classmethod
+    def validate_run_id(cls, value: str) -> str:
+        """Rejeita identificador fora do formato do produto."""
+        from harness_dast.domain.run_ref import require_run_id
+
+        return require_run_id(value)
 
 
 class KnowledgeEffect(ProfileModel):
@@ -96,6 +114,10 @@ class Knowledge(ProfileModel):
     schema_version: Literal[1]
     basis: StrategyBasis
     references: StrategyReferences
+    provenance: KnowledgeProvenance | None = None
+    observed_accounts: tuple[str, ...] = Field(default=(), max_length=20)
+    observed_rules: tuple[KnowledgeRuleUse, ...] = Field(default=(), max_length=5000)
+    observed_flows: tuple[KnowledgeFlowUse, ...] = Field(default=(), max_length=5000)
     effects: tuple[KnowledgeEffect, ...] = Field(default=(), max_length=500)
     entries: tuple[KnowledgeEntry, ...] = Field(max_length=1000)
 
@@ -126,6 +148,31 @@ class Knowledge(ProfileModel):
             not {"engine", "planning"}.issubset(entry.dependencies) for entry in knowledge.entries
         ):
             raise ConfigError("Vinculo com motor ou planejamento ausente em knowledge.yml.")
+        if (
+            knowledge.observed_accounts
+            or knowledge.observed_rules
+            or knowledge.observed_flows
+            or knowledge.effects
+        ) and knowledge.provenance is None:
+            raise ConfigError("Observacoes sem proveniencia.")
+        if knowledge.effects and (
+            knowledge.provenance is None or knowledge.provenance.authz_sha256 is None
+        ):
+            raise ConfigError("Efeitos sem evidencia de autorizacao.")
+        categories = {
+            "account": bool(knowledge.observed_accounts),
+            "authentication": bool(knowledge.observed_accounts),
+            "data": bool(knowledge.observed_rules),
+            "flow": bool(knowledge.observed_flows),
+            "effect": bool(knowledge.effects),
+        }
+        if any(
+            entry.source == "observation"
+            and entry.state == "validated"
+            and (knowledge.provenance is None or not categories[entry.kind])
+            for entry in knowledge.entries
+        ):
+            raise ConfigError("Observacao validada sem recibo correspondente.")
         return knowledge
 
     def review(self, current: StrategyBasisContext, now: datetime) -> tuple[tuple[str, ...], ...]:
