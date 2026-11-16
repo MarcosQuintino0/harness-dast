@@ -1,0 +1,493 @@
+[
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-secure0",
+    "run_id": "2026-11-16T00-27-19Z-clinica-piloto-d5d5",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 29,
+      "reached": 30,
+      "reachability": 0.9677,
+      "reachability_all": 0.7317,
+      "by_outcome": {
+        "auth_error": 1,
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 29
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "auth_error",
+        "status": 403,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-secure0",
+    "run_id": "2026-11-16T00-28-27Z-clinica-piloto-cc9a",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 29,
+      "reached": 30,
+      "reachability": 0.9677,
+      "reachability_all": 0.7317,
+      "by_outcome": {
+        "auth_error": 1,
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 29
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "auth_error",
+        "status": 403,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-tuned0",
+    "run_id": "2026-11-16T00-30-23Z-clinica-piloto-25f3",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 23,
+      "successes": 21,
+      "reached": 22,
+      "reachability": 0.9565,
+      "reachability_all": 0.5366,
+      "by_outcome": {
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_dependency": 8,
+        "skipped_scope": 2,
+        "success": 21,
+        "validation_error": 1
+      },
+      "blocked_producers": [
+        "criarPaciente",
+        "criarConsulta",
+        "criarReceita"
+      ]
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "criarConsulta",
+        "method": "POST",
+        "path": "/api/consultas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 5
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "listarReceitasDaConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}/receitas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "atualizarStatusConsulta",
+        "method": "PATCH",
+        "path": "/api/consultas/{id}/status",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarPaciente",
+        "method": "GET",
+        "path": "/api/pacientes/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "atualizarPaciente",
+        "method": "PUT",
+        "path": "/api/pacientes/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "criarReceita",
+        "method": "POST",
+        "path": "/api/receitas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 1
+      },
+      {
+        "operation_id": "buscarReceita",
+        "method": "GET",
+        "path": "/api/receitas/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-tuned0",
+    "run_id": "2026-11-16T00-30-30Z-clinica-piloto-0de0",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 20,
+      "successes": 18,
+      "reached": 19,
+      "reachability": 0.95,
+      "reachability_all": 0.4634,
+      "by_outcome": {
+        "auth_rejected_expected": 1,
+        "conflict": 1,
+        "skipped_denied": 8,
+        "skipped_dependency": 11,
+        "skipped_scope": 2,
+        "success": 18
+      },
+      "blocked_producers": [
+        "criarConvenio",
+        "criarPaciente",
+        "criarConsulta",
+        "criarReceita"
+      ]
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "criarConvenio",
+        "method": "POST",
+        "path": "/api/convenios",
+        "outcome": "conflict",
+        "status": 409,
+        "conflict_fields": [
+          "codigo"
+        ],
+        "blocked_dependencies": 11
+      },
+      {
+        "operation_id": "buscarConvenio",
+        "method": "GET",
+        "path": "/api/convenios/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "atualizarConvenio",
+        "method": "PUT",
+        "path": "/api/convenios/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "criarPaciente",
+        "method": "POST",
+        "path": "/api/pacientes",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 8
+      },
+      {
+        "operation_id": "criarConsulta",
+        "method": "POST",
+        "path": "/api/consultas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 5
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "listarReceitasDaConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}/receitas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "atualizarStatusConsulta",
+        "method": "PATCH",
+        "path": "/api/consultas/{id}/status",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarPaciente",
+        "method": "GET",
+        "path": "/api/pacientes/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "atualizarPaciente",
+        "method": "PUT",
+        "path": "/api/pacientes/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "criarReceita",
+        "method": "POST",
+        "path": "/api/receitas",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 1
+      },
+      {
+        "operation_id": "buscarReceita",
+        "method": "GET",
+        "path": "/api/receitas/{id}",
+        "outcome": "skipped_dependency",
+        "status": null,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-vulnerable0",
+    "run_id": "2026-11-16T00-24-11Z-clinica-piloto-6384",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 30,
+      "reached": 31,
+      "reachability": 1.0,
+      "reachability_all": 0.7561,
+      "by_outcome": {
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 30
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary-primeira-completa",
+    "scenario": "pilot-vulnerable0",
+    "run_id": "2026-11-16T00-25-19Z-clinica-piloto-3157",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 30,
+      "reached": 31,
+      "reachability": 1.0,
+      "reachability_all": 0.7561,
+      "by_outcome": {
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 30
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary",
+    "scenario": "pilot-secure0",
+    "run_id": "2026-11-16T00-34-22Z-clinica-piloto-7eea",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 29,
+      "reached": 30,
+      "reachability": 0.9677,
+      "reachability_all": 0.7317,
+      "by_outcome": {
+        "auth_error": 1,
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 29
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "auth_error",
+        "status": 403,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  },
+  {
+    "execution": "summary",
+    "scenario": "pilot-secure0",
+    "run_id": "2026-11-16T00-35-31Z-clinica-piloto-0585",
+    "status": "completed",
+    "summary": {
+      "operations_total": 41,
+      "operations_sent": 31,
+      "successes": 29,
+      "reached": 30,
+      "reachability": 0.9677,
+      "reachability_all": 0.7317,
+      "by_outcome": {
+        "auth_error": 1,
+        "auth_rejected_expected": 1,
+        "skipped_denied": 8,
+        "skipped_scope": 2,
+        "success": 29
+      },
+      "blocked_producers": []
+    },
+    "observations": [
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "outcome": "auth_rejected_expected",
+        "status": 401,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "outcome": "auth_error",
+        "status": 403,
+        "conflict_fields": [],
+        "blocked_dependencies": 0
+      }
+    ]
+  }
+]

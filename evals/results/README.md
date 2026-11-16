@@ -9,6 +9,8 @@ Esta pasta preserva material detalhado de **laboratórios locais com dados sint�
 | Clínica Piloto, 2026-11-15 (tarde), Claude Sonnet 5.5 medium, modo amplo, V1.5.2 e V1.5.3 | Três rodadas: login recusado (corrigido), modo seguro com alarmes entre médicos (corrigido) e modo vulnerável com **8 de 10 falhas, nota 9,16** | [Índice e resultados](2026-11-15-clinica-piloto-rodadas-da-tarde/README.md) |
 | Clínica Piloto, 2026-11-15, V1.5.2 | Provas automatizadas de integração de contas, paginação e sinais; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-2-lab/README.md) |
 | Clínica Piloto, 2026-11-15, V1.5.3 | Prova de papéis compartilhados nos dois modos, com controle positivo entre pacientes; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-3-lab/README.md) |
+| V1.5.4, 2026-11-15 | Recálculo isolado da triagem: Terra 6,29 → 5,79; Sonnet 9,16 → 9,16 | [Método e notas](2026-11-15-v1-5-4/README.md) |
+| Clínica Piloto, 2026-11-15, V1.5.4 | Login sintético nos dois modos e conflito com 11 dependências; três casos aprovados após corrigir uma asserção; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-4-lab/README.md) |
 
 Cada estudo identifica o commit testado, as intervenções e as limitações de comparação. Não entram credenciais, arquivos de aprovação, estado privado do laboratório nem raciocínio interno privado do modelo. As cópias de evidências passam por verificação de segredos e trazem manifesto com SHA-256 e origem. `evals/` inteira é excluída pelo preparador de futuras cópias cegas.
 
