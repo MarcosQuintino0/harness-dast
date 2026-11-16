@@ -19,6 +19,7 @@ from harness_dast.adapters.scan_process import SystemProcessSampler
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.scan_client import ZapScanClient
@@ -28,7 +29,7 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
-from harness_dast.cli.approval_composition import checked_profiles
+from harness_dast.cli.approval_composition import checked_profiles, open_approval_store
 from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import (
     NetworkHandle,
@@ -117,6 +118,8 @@ def build_scan(
         proxy_audit=open_proxy_audit(),
         live=live,
         process_sampler=SystemProcessSampler(),
+        strategy_store=FileStrategyRepository(root),
+        approvals=open_approval_store(),
     )
 
 

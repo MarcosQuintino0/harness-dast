@@ -23,6 +23,7 @@ from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.ports import (
+    ApprovalStore,
     Clock,
     KillSwitch,
     ProductDocuments,
@@ -46,11 +47,13 @@ from harness_dast.application.scan_ports import (
 )
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
+from harness_dast.application.strategy import StrategyStore, load_strategy
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
     HarnessError,
     PreflightError,
+    ScopeNotApproved,
 )
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
@@ -85,6 +88,8 @@ from harness_dast.domain.scan_result import (
 )
 from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.scan_tokens import origin_regex
+from harness_dast.domain.scope_fingerprint import block_digests
+from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from harness_dast.domain.traffic import TrafficSummary, summarize_traffic
 from harness_dast.domain.zap_messages import parse_learned_request
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
@@ -180,6 +185,8 @@ class Scan:
         proxy_audit: ProxyAudit | None = None,
         live: ScanLive | None = None,
         process_sampler: ProcessSampler | None = None,
+        strategy_store: StrategyStore | None = None,
+        approvals: ApprovalStore | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -205,6 +212,8 @@ class Scan:
         self._proxy_audit = proxy_audit
         self._live = live
         self._process_sampler = process_sampler
+        self._strategy_store = strategy_store
+        self._approvals = approvals
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -292,6 +301,21 @@ class Scan:
         base_url = prep.profile.environment.base_url
         zap_version = self._check_zap(request.run_id, context_id)
         plan = self._plan(prep, base_url)
+        if self._strategy_store is not None and self._approvals is not None:
+            snapshot = compile_scan_snapshot(
+                prep.profile,
+                self._approvals.read(request.product),
+                load_strategy(self._strategy_store, request.product),
+                self._clock.now(),
+                baseline=plan,
+                proposed=plan,
+                baseline_policy=prep.policy,
+                proposed_policy=prep.policy,
+                baseline_limits=prep.zap_limits,
+                proposed_limits=prep.zap_limits,
+            )
+            plan = snapshot.scan_plan
+            prep = replace(prep, policy=snapshot.policy, zap_limits=snapshot.limits)
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
         runner = ScanRunner(self._deps(prep, request, live, context_id))
@@ -400,8 +424,23 @@ class Scan:
         run_id = request.run_id
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         limited = profile.model_copy(update={"limits": prep.limits})
+
+        def revalidate() -> None:
+            current = self._profiles.load(request.product)
+            if block_digests(current) != block_digests(profile):
+                raise ScopeNotApproved(
+                    "O perfil aprovado mudou durante a execução.",
+                    hint="Interrompa e confira a aprovação antes de executar novamente.",
+                    state="changed",
+                )
+
         gate = RunGate(
-            limited, self._clock, prep.started, self._kill_switch, deadline=prep.deadline
+            limited,
+            self._clock,
+            prep.started,
+            self._kill_switch,
+            deadline=prep.deadline,
+            revalidate=revalidate,
         )
         sender = GuardedSender(
             guard=profile.guard(),

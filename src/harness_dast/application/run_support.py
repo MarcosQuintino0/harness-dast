@@ -5,6 +5,7 @@ por `domain.http_messages.approve` (que chama o `ScopeGuard`), é auditada ANTES
 só então chega ao `TargetClient`, que por sua vez só aceita `ApprovedRequest`.
 """
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from harness_dast.application.ports import Clock, KillSwitch, RunStore, Sleeper, TargetClient
@@ -41,6 +42,7 @@ class RunGate:
         started_at: datetime,
         kill_switch: KillSwitch | None = None,
         deadline: datetime | None = None,
+        revalidate: Callable[[], None] | None = None,
     ) -> None:
         """Cria o portão.
 
@@ -52,10 +54,12 @@ class RunGate:
             kill_switch: Trava de emergência a consultar; `None` não consulta.
             deadline: Prazo absoluto de uma execução maior (o `run` encadeado). Só reduz: vale o
                 menor entre ele e o do perfil.
+            revalidate: Conferência opcional da aprovação e do perfil fixado antes de cada gate.
         """
         self._profile = profile
         self._kill_switch = kill_switch
         self._clock = clock
+        self._revalidate = revalidate
         own = started_at + timedelta(minutes=profile.limits.max_duration_minutes)
         self._deadline = own if deadline is None else min(own, deadline)
 
@@ -72,6 +76,8 @@ class RunGate:
                 KILL_SWITCH_MESSAGE,
                 hint="Recrie a pilha com hdast stack up para voltar a enviar requisições.",
             )
+        if self._revalidate is not None:
+            self._revalidate()
         now = self._clock.now()
         if now >= self._deadline:
             raise DeadlineReached(
