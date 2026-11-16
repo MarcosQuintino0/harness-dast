@@ -1,0 +1,293 @@
+{
+  "product": "vampi",
+  "mode": "vulnerable",
+  "run_id": "2026-11-16T13-05-21Z-vampi-10a5",
+  "statuses": {
+    "authz": "completed",
+    "negative": "completed",
+    "scan": "completed"
+  },
+  "operations": [
+    "api_views.users.get_by_username",
+    "api_views.books.get_by_title"
+  ],
+  "findings": [
+    {
+      "title": "Cross Site Scripting (Reflected)",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "high"
+    },
+    {
+      "title": "SQL Injection",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "high"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.register_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.update_email",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.update_password",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.books.add_new_book",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.books.get_by_title",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.register_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.books.get_by_title",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.books.add_new_book",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Authentication Request Identified",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "informational"
+    }
+  ],
+  "authz_techniques": {
+    "authz_anonymous_access": 3
+  },
+  "authz_not_tested": {
+    "no_object_identifier": 6,
+    "baseline_failed": 3,
+    "create_not_readable": 1,
+    "new_marker_unavailable": 1,
+    "no_json_response": 1,
+    "infrastructure_path": 4,
+    "anonymous_already_open": 3,
+    "no_role_order": 1
+  },
+  "negative_requests": 0,
+  "negative_operations_tested": 0,
+  "negative_findings": 0,
+  "negative_by_class": [
+    {
+      "case_class": "wrong_type",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "missing_required",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "below_minimum",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "above_maximum",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "not_in_enum",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "too_long",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "too_short",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    }
+  ],
+  "scan_entries": [
+    {
+      "operation_id": "api_views.users.get_by_username",
+      "method": "GET",
+      "path": "/users/v1/{username}",
+      "message_id": 11,
+      "scan_id": "0",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 14.221,
+      "requests": 487,
+      "alert_count": 36,
+      "alert_ids": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "59",
+        "60",
+        "61",
+        "62",
+        "63",
+        "64",
+        "65",
+        "66",
+        "69",
+        "70"
+      ],
+      "note": null,
+      "seed_outcome": null
+    },
+    {
+      "operation_id": "api_views.books.get_by_title",
+      "method": "GET",
+      "path": "/books/v1/{book_title}",
+      "message_id": 18,
+      "scan_id": "1",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 14.197,
+      "requests": 467,
+      "alert_count": 0,
+      "alert_ids": [],
+      "note": null,
+      "seed_outcome": null
+    }
+  ],
+  "traffic": {
+    "enabled": true,
+    "allowed": 266,
+    "denied": 693,
+    "denied_by_reason": {
+      "malformed_request": 606,
+      "path_not_allowed": 85,
+      "origin_not_allowed": 2
+    },
+    "denied_by_detail": {
+      "path_encoded_slash": 218,
+      "path_not_allowed": 85,
+      "path_dot_segment": 4,
+      "path_empty_segment": 24,
+      "path_matrix_param": 110,
+      "path_double_encoding": 72,
+      "path_trailing_dot_space": 112,
+      "path_control_char": 66,
+      "origin_not_allowed": 2
+    },
+    "path_shape_denied": 606,
+    "allowed_outside_allow": 0,
+    "path_mode": "strict",
+    "allowed_by_method": {
+      "GET": 257,
+      "POST": 9
+    },
+    "duration_seconds": 26.903,
+    "average_rps": 9.89,
+    "peak_rps": 25,
+    "limit_rps": 50.0
+  },
+  "identity": [
+    955,
+    955
+  ],
+  "csrf": {
+    "scanner_messages": 955,
+    "writes_reached_target": 8,
+    "csrf_rejected": 0,
+    "writes_with_header": 0,
+    "writes_with_cookie": 0
+  },
+  "rules_left": [],
+  "secret_hits": []
+}

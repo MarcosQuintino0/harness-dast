@@ -1,0 +1,73 @@
+{
+  "product": "vampi",
+  "mode": "vulnerable",
+  "stages": [
+    {
+      "context": "first",
+      "command": "stack up",
+      "exit_code": 0
+    },
+    {
+      "context": "first",
+      "command": "preflight vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "first",
+      "command": "probe vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "first",
+      "command": "knowledge capture",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "stack up",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "preflight vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "probe vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "authz vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "negative vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "scan vampi",
+      "exit_code": 0
+    },
+    {
+      "context": "second",
+      "command": "report",
+      "exit_code": 0
+    }
+  ],
+  "first_hashes": {
+    "target_yml": "e297489018392f10544062360aadac7c963d43990218d51ba2f189fb750269b9",
+    "data_rules": "13a51b64a27448abe52a44cba90136bdaab3c2bba76d03a0db65da975a142b22",
+    "flows": "f32d565e6e524377f899b93d06b79992454dfcf8dcdf07fc99b2ab28ba7094bc",
+    "openapi": "35200f354f9c9968182fc19458295ed45bb4c368150348c46d5146a7e40a61c9"
+  },
+  "second_hashes": {
+    "target_yml": "e297489018392f10544062360aadac7c963d43990218d51ba2f189fb750269b9",
+    "data_rules": "13a51b64a27448abe52a44cba90136bdaab3c2bba76d03a0db65da975a142b22",
+    "flows": "f32d565e6e524377f899b93d06b79992454dfcf8dcdf07fc99b2ab28ba7094bc",
+    "openapi": "35200f354f9c9968182fc19458295ed45bb4c368150348c46d5146a7e40a61c9"
+  }
+}
