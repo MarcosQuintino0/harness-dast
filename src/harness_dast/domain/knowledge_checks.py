@@ -3,7 +3,6 @@
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.api_schema import (
     Schema,
-    find_property_path,
     flatten_schema,
     split_field_path,
 )
@@ -57,9 +56,12 @@ def ensure_rule_use(use: KnowledgeRuleUse, rules: DataRules | None, spec: ApiSpe
     if use.location == "body":
         media = operation.request_body.preferred() if operation.request_body else None
         schema = media.body_schema if media else None
-        if schema is None or find_property_path(schema, split_field_path(use.field)) is None:
+        if not _contains_field(schema, use.field):
             raise ConfigError("Campo do recibo nao existe no contrato.")
-    elif not any(p.location == use.location and p.name == use.field for p in operation.parameters):
+    elif not (
+        any(p.location == use.location and p.name == use.field for p in operation.parameters)
+        or (use.location == "path" and use.field in operation.path_placeholders)
+    ):
         raise ConfigError("Parametro do recibo nao existe no contrato.")
     resolved = rules.resolve(use.operation, use.location, tuple(use.field.split(".")))
     if (
@@ -113,10 +115,14 @@ def ensure_effect(use: KnowledgeEffect, profile: ProductProfile, spec: ApiSpec) 
 def _contains_field(schema: Schema | None, name: str) -> bool:
     if schema is None:
         return False
-    current = flatten_schema(schema)
-    if find_property_path(current, split_field_path(name)) is not None:
-        return True
-    return (
-        current.items is not None
-        and find_property_path(current.items, split_field_path(name)) is not None
-    )
+    current = schema
+    for segment in split_field_path(name):
+        current = flatten_schema(current)
+        if current.truncated:
+            return False
+        if current.items is not None:
+            current = flatten_schema(current.items)
+        if segment not in current.properties:
+            return False
+        current = current.properties[segment]
+    return True

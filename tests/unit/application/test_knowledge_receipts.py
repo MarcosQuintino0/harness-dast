@@ -42,3 +42,26 @@ def test_falha_nao_registra_receita_como_observada() -> None:
     assert result.operations[0].outcome != "success"
     assert result.operations[0].rule_uses == ()
     assert result.operations[0].flow_uses == ()
+
+
+def test_recibo_de_campo_em_array_confere_contra_schema() -> None:
+    from harness_dast.domain.api_model import ApiSpec
+    from harness_dast.domain.api_schema import Schema
+    from harness_dast.domain.knowledge_checks import ensure_rule_use
+    from harness_dast.domain.knowledge_receipts import KnowledgeRuleUse
+    from tests.unit.api_helpers import body_operation, obj
+
+    schema = obj(
+        ("items",), items=Schema(type="array", items=obj(("nome",), nome=Schema(type="string")))
+    )
+    operation = body_operation(schema, operation_id="criar")
+    spec = ApiSpec(title="T", version="1", operations=(operation,))
+    rules = rules_from(rule("items.nome", "alphanumeric", operation="criar"))
+    receipt = KnowledgeRuleUse(
+        operation="criar",
+        rule_index=0,
+        generator="alphanumeric",
+        field="items.nome",
+        location="body",
+    )
+    ensure_rule_use(receipt, rules, spec)
