@@ -56,7 +56,13 @@ Opcionalmente há uma escolha tipada `coverage` / `preserve`, com origem, justif
 
 ## Perfil anterior e mudanças
 
-Um perfil anterior sem estratégia continua no fluxo existente. Uma migração deve ser explícita, produzir cópia e comparação, preservar os arquivos originais e nunca transportar aprovação para poderes novos. Mudanças em ambiente, contrato, conta, autorização ou motor exigem reavaliar escolhas dependentes; invalidação seletiva e reutilização são trabalho futuro e não foram demonstradas. Uma referência insegura, conflito ou valor não reconhecido deve ser recusado; não contorne a recusa editando a aprovação.
+Um perfil anterior sem estratégia continua no fluxo existente. Uma migração deve ser explícita, produzir cópia e comparação, preservar os arquivos originais e nunca transportar aprovação para poderes novos. Mudanças em ambiente, contrato, conta, autorização ou motor exigem reavaliar escolhas dependentes; a invalidação seletiva e a reutilização entre contextos ainda não foram demonstradas em estudo. Uma referência insegura, conflito ou valor não reconhecido deve ser recusado; não contorne a recusa editando a aprovação.
+
+## Conhecimento entre execuções
+
+O objetivo é reaproveitar fatos e ajustes com origem, validade e vínculo ao contexto, sem repetir entrevista ou reparos que permaneçam válidos. Mudanças no ambiente, contrato, contas, autorização ou motor exigem reavaliar as partes dependentes. Observação nunca concede permissão; autorização e aprovação humana continuam necessárias. Não transporte tokens, cookies, credenciais, respostas completas, identificadores de recursos nem gabarito.
+
+O estudo separado em dois contextos ainda não foi executado; reutilização automática e equivalência de detecção não estão demonstradas. A captura cria proposta sem ativar; com execução concluída pode vincular recibos de uso real, sem transformar observação em permissão. Revise-a antes da ativação explícita. Na segunda execução, preserve reparos válidos e faça novo probe para renovar estado e identificadores. Um resultado desconhecido de mutação não é sucesso e não deve ser repetido às cegas: o diário bloqueia a mesma classe de trabalho entre estágios, e a pessoa precisa verificar o estado da ação afetada. Detalhes e limites em [conhecimento](../reference/knowledge.md).
 
 A versão e os limites são descritos nos [ADRs](../adr/0070-envelope-autorizado.md) e no [inventário](../plans/2026-11-16-v1-8-inventario-contratos.md). Resultados de laboratório não devem ser tratados como prova em produto real.
 

@@ -18,10 +18,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import quote
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from harness_dast.domain.api_model import Operation, Parameter, safe_identifier
 from harness_dast.domain.api_schema import (
+    MAX_STRING,
     ApiModel,
     JsonValue,
     Schema,
@@ -33,6 +34,7 @@ from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import BoundValue, ResolvedBindings
 from harness_dast.domain.implicit_values import FieldNotGeneratable, implicit_draw
+from harness_dast.domain.knowledge_receipts import KnowledgeRuleUse
 from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE
 from harness_dast.domain.multipart_schema import PartPlan, plan_parts
 from harness_dast.domain.routing_headers import is_routing_header
@@ -43,7 +45,7 @@ from harness_dast.domain.synthetic_files import (
     default_filename,
     parse_file_spec,
 )
-from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, validate_run_tag
+from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, unique_token, validate_run_tag
 
 MAX_BUILD_DEPTH = 12
 MAX_ITEMS = 20
@@ -113,6 +115,8 @@ class BuiltRequest(ApiModel):
     body_media_type: str | None = None
     files: tuple[FileSpec, ...] = ()
     skipped_fields: tuple[str, ...] = ()
+    rule_uses: tuple[KnowledgeRuleUse, ...] = ()
+    bound_uses: tuple[tuple[str, str], ...] = ()
 
 
 class _Omitted:
@@ -201,7 +205,13 @@ class RequestBuilder:
     """
 
     def __init__(
-        self, rules: DataRules, source: ValueSource, run_tag: str, *, initial_counter: int = 0
+        self,
+        rules: DataRules,
+        source: ValueSource,
+        run_tag: str,
+        *,
+        initial_counter: int = 0,
+        expected_rules: tuple[KnowledgeRuleUse, ...] = (),
     ) -> None:
         """Cria o montador.
 
@@ -210,6 +220,8 @@ class RequestBuilder:
             source: Fonte de valores (catálogo de geradores com semente e relógio injetados).
             run_tag: Etiqueta da execução, de `run_tag_from_run_id`.
             initial_counter: Posição inicial do contador de valores únicos.
+
+            expected_rules: Receitas validadas para conferir regras reaplicadas.
 
         Raises:
             ConfigError: Etiqueta inválida.
@@ -220,11 +232,32 @@ class RequestBuilder:
         self._unique_counter = initial_counter
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
+        self._rule_uses: list[KnowledgeRuleUse] = []
+        self._bound_uses: set[tuple[str, str]] = set()
+        self._expected_rules = expected_rules
 
     @property
     def next_unique_counter(self) -> int:
         """Próxima posição do contador, para continuar a mesma execução."""
         return self._unique_counter
+
+    def fresh_text(self, minimum: int, maximum: int | None) -> str:
+        """Gera marcador opaco com contador da execução dentro dos limites de tamanho.
+
+        Não garante ausência em recursos preexistentes; quem o usa deve observá-la.
+        """
+        if minimum < 0 or minimum > MAX_STRING or (maximum is not None and minimum > maximum):
+            raise ConfigError("Limites inválidos para marcador sintético.")
+        limit = min(maximum, MAX_STRING) if maximum is not None else MAX_STRING
+        token = unique_token(self._run_tag, self._next_counter(), limit)
+        return token.ljust(minimum, "x")
+
+    def body_rule_marker_eligible(self, operation_id: str, field: str) -> bool | None:
+        """Aceita regra única ou texto aleatório; `None` indica ausência de regra explícita."""
+        resolved = self._rules.resolve(operation_id, "body", (field,))
+        if resolved is None:
+            return None
+        return resolved.rule.unique or resolved.rule.generator == "alphanumeric"
 
     def reuses_unique_body_value(
         self,
@@ -281,6 +314,8 @@ class RequestBuilder:
             ConfigError: Campo obrigatório sem como gerar valor (a dica pede uma regra),
                 valor de regra que viola o esquema, valor único repetido ou esgotado.
         """
+        self._rule_uses = []
+        self._bound_uses = set()
         bound = bindings or ResolvedBindings()
         skipped: list[str] = []
         values = {
@@ -299,6 +334,8 @@ class RequestBuilder:
             body_media_type=media_type,
             files=files,
             skipped_fields=tuple(skipped),
+            rule_uses=tuple(self._rule_uses),
+            bound_uses=tuple(sorted(self._bound_uses)),
         )
 
     def _parameters(
@@ -346,6 +383,7 @@ class RequestBuilder:
 
     def _parameter_value(self, parameter: Parameter, ctx: _Ctx) -> JsonValue | _Omitted:
         if parameter.name in ctx.bound.params:
+            self._bound_uses.add(("param", parameter.name))
             return self._bound(ctx.bound.params[parameter.name], parameter.value_schema)
         if parameter.required:
             return self._make(parameter.value_schema, ctx)
@@ -454,6 +492,7 @@ class RequestBuilder:
         flat = flatten_schema(schema)
         key = ".".join(ctx.segments)
         if ctx.location == "body" and key in ctx.bound.fields:
+            self._bound_uses.add(("field", key))
             return self._bound(ctx.bound.fields[key], flat)
         if ctx.depth > MAX_BUILD_DEPTH:
             raise FieldNotGeneratable(
@@ -565,9 +604,33 @@ class RequestBuilder:
                 run_tag=self._run_tag,
             )
         )
+        if resolved is not None:
+            self._record_rule(ctx, resolved, generator)
         if unique:
             self._remember_unique(resolved.index if resolved else -1, value, ctx)
         return value
+
+    def _record_rule(self, ctx: _Ctx, resolved: ResolvedRule, generator: str) -> None:
+        try:
+            receipt = KnowledgeRuleUse(
+                operation=ctx.operation_id,
+                rule_index=resolved.index,
+                generator=generator,
+                field=".".join(ctx.segments),
+                location=ctx.location,
+            )
+        except ValidationError:
+            # Campos externos fora do formato seguro seguem executando, sem recibo reutilizável.
+            return
+        for expected in self._expected_rules:
+            if (expected.operation, expected.location, expected.field) == (
+                receipt.operation,
+                receipt.location,
+                receipt.field,
+            ) and expected != receipt:
+                raise ConfigError("Regra reutilizada diverge da receita validada.")
+        if receipt not in self._rule_uses:
+            self._rule_uses.append(receipt)
 
     def _next_counter(self) -> int:
         counter = self._unique_counter

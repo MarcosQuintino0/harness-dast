@@ -20,6 +20,32 @@ from tests.unit.api_helpers import TAG, body_operation, builder, obj, rule, rule
 STRING = Schema(type="string")
 
 
+def test_fresh_text_respects_bounds_and_advances_counter() -> None:
+    source = builder()
+    first = source.fresh_text(12, 20)
+    second = source.fresh_text(12, 20)
+    assert len(first) == len(second) == 12
+    assert first != second
+    assert source.next_unique_counter == 2
+
+
+@pytest.mark.parametrize(("minimum", "maximum"), [(5, 4), (0, 3), (2001, None)])
+def test_fresh_text_refuses_impossible_bounds(minimum: int, maximum: int | None) -> None:
+    with pytest.raises(ConfigError):
+        builder().fresh_text(minimum, maximum)
+
+
+def test_marker_respects_explicit_constant_and_accepts_random_text() -> None:
+    rules = rules_from(
+        rule("fixed", "constant", value="x"),
+        rule("text", "alphanumeric", length=12),
+    )
+    source = builder(rules)
+    assert source.body_rule_marker_eligible("create", "fixed") is False
+    assert source.body_rule_marker_eligible("create", "text") is True
+    assert source.body_rule_marker_eligible("create", "missing") is None
+
+
 def test_build_includes_required_and_optional_fields() -> None:
     schema = obj(("a",), a=STRING, b=Schema(type="integer"))
 

@@ -8,7 +8,7 @@ Nenhuma porta decide regra de negócio: elas só buscam e gravam.
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 
@@ -30,6 +30,9 @@ from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.knowledge_evidence import KnowledgeRunEvidence
+from harness_dast.domain.knowledge_receipts import KnowledgeRuleUse
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
@@ -44,6 +47,58 @@ from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.wait import WaitResult
+
+
+class MutationJournal(Protocol):
+    """Reserva intenções antes do envio e registra apenas resultado conhecido."""
+
+    def begin(
+        self,
+        key: str,
+        previous_state: Literal["absent", "present", "unknown"],
+        snapshot: MutationSnapshot | None = None,
+    ) -> None:
+        """Reserva chave estável; pendência impede repetição."""
+        ...
+
+    def finish(self, key: str, outcome: Literal["succeeded", "failed", "observed"]) -> None:
+        """Conclui uma intenção com resultado conhecido."""
+        ...
+
+
+class KnowledgeRecipeReader(Protocol):
+    """Seleciona receitas comprovadas aplicáveis aos documentos atuais."""
+
+    def validate(
+        self,
+        product: str,
+        profile: ProductProfile,
+        spec: ApiSpec,
+        rules: DataRules,
+        flows: FlowSpec | None,
+    ) -> tuple[KnowledgeRuleUse, ...]:
+        """Devolve regras validadas sem alterar perfil, fluxos ou autorização."""
+        ...
+
+
+class KnowledgeRunStore(Protocol):
+    """Lê artefatos de uma execução sem persistir seus conteúdos no conhecimento."""
+
+    def read(self, run_id: str) -> KnowledgeRunEvidence:
+        """Valida e resume os artefatos identificados pela execução."""
+        ...
+
+
+class KnowledgeStore(Protocol):
+    """Armazena documento de conhecimento sem conceder autoridade."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê conhecimento ativo, quando presente."""
+        ...
+
+    def write_capture(self, product: str, knowledge: object) -> str:
+        """Grava cópia separada sem substituir arquivo existente."""
+        ...
 
 
 class StrategyStore(Protocol):

@@ -48,6 +48,7 @@ def test_a_post_with_location_reads_the_created_resource_and_reports_the_finding
     assert "continua no ambiente" in found["nivelAcesso"].evidence
     assert [r.url.rsplit("/", 1)[1] for r in authz_requests(rig, "GET")] == ["2", "3"]
     assert result.created_resources == 2
+    assert result.effects == ()  # efeito de atribuição em massa é achado, não recibo reutilizável
 
 
 def test_a_post_creates_one_resource_per_candidate_and_never_deletes() -> None:
@@ -88,7 +89,7 @@ def test_a_location_on_another_host_is_ignored_and_the_body_id_is_used() -> None
     assert "leitura do recurso criado" in result.findings[0].evidence
 
 
-def test_when_the_created_read_fails_the_post_response_is_what_counts() -> None:
+def test_when_the_created_read_fails_the_post_echo_is_not_proof() -> None:
     rig = post_rig(Clinic(creates=("nivelAcesso",), post_echo=True))
     probe = rig.run_probe()
     rig.clinic.readable = False
@@ -97,8 +98,9 @@ def test_when_the_created_read_fails_the_post_response_is_what_counts() -> None:
         AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
     )
 
-    assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
-    assert "resposta do próprio POST" in result.findings[0].evidence
+    assert not result.findings
+    assert notes(result, "effect_unobservable")
+    assert result.effects == ()
 
 
 def test_a_traversal_location_never_becomes_a_request() -> None:
@@ -193,5 +195,5 @@ def test_the_created_read_goes_through_the_scope_guard_and_deny_paths_stops_it()
     result = run_mass(rig)
 
     assert all(not r.url.endswith("/api/medicos/2") for r in rig.target.requests)
-    assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
-    assert "resposta do próprio POST" in result.findings[0].evidence
+    assert not result.findings
+    assert any(n.reason == "effect_unobservable" for n in result.not_tested)

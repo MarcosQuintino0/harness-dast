@@ -13,6 +13,7 @@ from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_fields import CandidateSource
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_token import TamperVariant
+from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.probe_result import ProbeStatus
 from harness_dast.domain.zap_alert import Severity
 
@@ -217,5 +218,6 @@ class AuthzResult(ApiModel):
     checks: tuple[CheckSummary, ...] = ()
     findings: tuple[AuthzFinding, ...] = ()
     not_tested: tuple[AuthzNotTested, ...] = ()
+    effects: tuple[KnowledgeEffect, ...] = ()
     limits: tuple[str, ...] = AUTHZ_LIMITS
     notice: str = AUTHZ_NOTICE

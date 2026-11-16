@@ -17,6 +17,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.9.0] - 2026-11-16
+
+### Conhecimento executável conservador
+
+- `knowledge capture`, `knowledge validate` e `knowledge diff`: referências tipadas a contas, dados, fluxos e autenticação, vinculadas às fontes e ao motor atual. Captura separada e ativação explícita; observação de efeito permanece proposta. Nenhuma observação concede permissão.
+- Diário compartilhado de intenções antes das mutações de probe, authz e negative e dos lotes mutantes do ZAP. Resultado desconhecido bloqueia repetição entre comandos, com preservação de resultados parciais; resposta observada não declara sucesso de efeito.
+- Par automático aceita 2xx mediante identificador novo nas leituras ou inventários anteriores das duas contas e leitura da dona com marcador novo. O marcador é gerado genericamente dentro do contrato; não exige alterar as regras de dados do laboratório. Sem as provas, o par fica não testado. Ausência visível não prova inexistência global em APIs com ocultação ou paginação oculta. Atribuição em massa sem leitura de efeito vinculada continua inconclusiva.
+- Canal do estudo de reutilização com arquivos permitidos, receitas validadas, detecção de segredos/vazamento, manifesto, declaração na carta e chegada como propostas em contexto novo. O estudo e as rodadas cegas ficam para depois do merge, conforme o briefing.
+- Provas T2 e T4 da V1.9 no laboratório: reutilização do conhecimento em novo contexto e authz dirigido nas duas APIs e modos; uma varredura completa por API com ritmo `legacy` (Clínica 98 achados do ZAP e 4 de authz; VAmPI 31 e 3). O verificador da T2 amarra leitura anterior, escrita, leitura posterior e snapshot à mesma receita, conta, mutação e período da rodada. Lacunas registradas no relatório: par com 200 no VAmPI e atribuição em massa V4.
+- Quatro provas dirigidas das regras 90035/40008 passaram, sem nova T4 nesse diagnóstico. A causa histórica não foi integralmente demonstrada; `init --from-letter` e o padrão do modelo continuam `legacy`. Detalhes em [passo zero](docs/reviews/2026-11-16-v1-9-passo0.md).
+
 ## [1.8.0] - 2026-11-16
 
 ### Base conservadora da personalização

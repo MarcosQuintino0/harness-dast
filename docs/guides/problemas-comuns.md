@@ -93,5 +93,7 @@ Após esgotar as tentativas ou duas rodadas sem melhora, siga com varredura parc
 | `cleanup` recusa sem terminal (saída `2`) | A confirmação só vale digitada, em terminal interativo | Rode você, num terminal; `--dry-run` não exige terminal |
 | `cleanup` recusa o script | O portão de SQL exige amarração por coluna real e variáveis permitidas | Peça à pessoa que escreveu o script ([cleanup.md](../reference/cleanup.md)) |
 | Relatório sem achados | Não prova segurança | Leia "O que este relatório não testou" |
+| "Já existe mutação com resultado desconhecido para esta operação e conta" (no `probe`, `authz`, `negative` ou `scan`) | Uma escrita anterior pode ter chegado ao alvo e o resultado não foi confirmado; o harness não a repete às cegas | **Ação humana.** Confira o estado no ambiente de teste e, só depois, remova o arquivo `.jsonl` pendente citado na mensagem, em `<pasta de estado>/mutations/`. O agente não remove. Detalhes em [knowledge.md](../reference/knowledge.md) |
+| "Não foi possível gravar o diário de mutações (erro de E/S)" | Pasta de estado sem permissão ou sem espaço | Corrija a pasta indicada e repita; nada foi enviado |
 
 Parar tudo, a qualquer momento: `uv run hdast stop`.

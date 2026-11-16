@@ -92,6 +92,18 @@ Bloco independente da V1.7; as decisões seguem **Propostas** até a revisão e 
 | [0074](0074-migracao-estrategia.md) | Migração explícita, cópia e compatibilidade |
 | [0075](0075-ritmo-proxy-em-perfis-novos.md) | Ritmo proxy em perfis novos, condicionado à prova | Proposto | 2026-11-16 | Retomada V1.8; complementa 0067 |
 
+## Contratos da V1.9
+
+As decisões continuam **Propostas**, sujeitas à revisão humana.
+
+| ADR | Contrato |
+| --- | --- |
+| [0076](0076-conhecimento-e-invalidacao.md) | Conhecimento tipado, captura, inspeção e invalidação por dependência |
+| [0077](0077-diario-mutacoes.md) | Intenção durável antes do envio e bloqueio de resultado desconhecido |
+| [0078](0078-prova-par-massa.md) | Prova conservadora de par criado e limites da observação de atribuição em massa |
+| [0079](0079-exportacao-conhecimento-estudo.md) | Canal declarado e auditado de exportação para o estudo |
+| [0080](0080-diario-estagios.md) | Diário compartilhado entre probe, authz, negative e lotes mutantes do scan |
+
 ## Quando escrever um ADR
 
 - Dependência nova.

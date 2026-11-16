@@ -1,5 +1,36 @@
 # Protocolo da rodada cega completa
 
+## Canal de estudo de reutilização V1.9 (preparação offline)
+
+Após a coleta da primeira rodada, o coordenador pode exportar o conhecimento e as
+receitas permitidas, com manifesto, para um destino novo fora do workspace:
+
+```powershell
+uv run python -m evals.runner export-reuse --out <rodada1> --destination <pacote>
+uv run python -m evals.runner prepare --case <caso> --mode random --seed <semente> --out <rodada2> --reuse-from <rodada1> --reuse-package <pacote>
+```
+
+O runner confere caso lacrado, coleta, modelo, segredos conhecidos, termos do
+gabarito, tipo dos arquivos e integridade do pacote; recalcula as fontes da origem
+exceto motor; recusa conteúdo extra e não
+aceita `--allow-leaks` com reuso. No novo workspace, o complemento da carta lista
+`inputs/reuse/knowledge.yml`, `target.reuse.yml` e as receitas validadas presentes:
+`data-rules.yml`, `flows.yml` e `strategy.yml`. Todos são propostas; conhecimento e
+escolhas de estratégia chegam com `review_required`. O manifesto não vai ao agente.
+Constantes e escolhas de dados só passam se todos os campos correspondentes têm esses
+valores no enum do OpenAPI. Outros argumentos textuais livres são recusados, salvo
+valores fechados ou padrões do catálogo de geradores. A projeção do perfil contém
+apenas contas e referências da carta, tipo de autenticação e, quando declarado no
+OpenAPI, o caminho de login; não substitui o `target.yml` gerado da carta vigente.
+O `knowledge.yml` leva a proveniência da rodada de origem (`run_id` e os hashes do manifesto, do probe e do authz), que o modelo exige e que não são segredo; fora essa proveniência, não se copiam aprovações, estado, IDs de execução, respostas nem resultados. Um teste fixa o que vai no pacote.
+
+**Limite:** a exportação não comprova validade no segundo contexto. O consumo depende
+de validar as fontes e o motor atuais na CLI. Até essa validação e a promoção segura
+dos itens estarem implementadas e verificadas, não se pode alegar reuso validado nem
+retrabalho poupado. Um operador instruído por fora desse canal torna o estudo assistido.
+Na execução futura, registre modelo, caso, sementes, intervenções, diferenças de
+alcance e detecção, tempo e tokens, sem executar rodadas em paralelo nem expor o lacre.
+
 Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Claude Code ou o Codex. Ele registra **exatamente** como foram feitas as rodadas da tarde de 2026-11-15, as que mediram a V1.5.3 com 8 de 10 falhas achadas ([resultado](results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md)). Siga igual, para que as rodadas novas possam ser comparadas com essas.
 
 **O agente avaliado não precisa ser o Claude.** Pode ser qualquer IA que trabalhe como agente de código: Claude Code, Codex ou outra. O protocolo fixa o caso, o pedido e o que se mede; a ferramenta, o modelo e o esforço são escolhidos por estudo e anotados em cada rodada. As rodadas de 2026-11-15 usaram o Claude Code, e os comandos dele aparecem como **exemplo verificado**. A rodada de 2026-11-14 usou o Codex e serve de exemplo para um agente de outro fornecedor.
@@ -354,9 +385,9 @@ Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura
 - Rodar duas rodadas ao mesmo tempo.
 - Copiar transcripts ou `sealed/` para o repositório.
 
-### R?gua da V1.5.4
+### Régua da V1.5.4
 
-Uma recusa esperada de autentica??o no login conta para alcance, separada dos sucessos HTTP. A varredura prossegue parcialmente ap?s as tentativas previstas, respeitando as travas; relat?rio e di?rio registram as lacunas. Sem `findings.json` em qualquer execu??o, as quatro verifica??es do crit?rio (f) dependentes de achados s?o `n/a`, fora da m?dia; as demais continuam exigidas. Um arquivo de achados vazio permanece evid?ncia v?lida. Rodadas antigas mant?m seus resultados de probe originais.
+Uma recusa esperada de autenticação no login conta para alcance, separada dos sucessos HTTP. A varredura prossegue parcialmente após as tentativas previstas, respeitando as travas; relatório e diário registram as lacunas. Sem `findings.json` em qualquer execução, as quatro verificações do critério (f) dependentes de achados são `n/a`, fora da média; as demais continuam exigidas. Um arquivo de achados vazio permanece evidência válida. Rodadas antigas mantêm seus resultados de probe originais.
 
 ### V1.5.5 e comparação histórica
 

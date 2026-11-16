@@ -13,13 +13,16 @@ aqui decide veredito de segurança.
 from harness_dast.application.authz_sender import INTERRUPTIONS
 from harness_dast.application.negative_sender import NegativeSender
 from harness_dast.domain.authz_compare import is_success_status
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.negative_result import NegativeNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 RESTORABLE_METHODS = frozenset({"PUT", "PATCH"})
 
 
-def restore_original(sender: NegativeSender, exchange: ExchangeRecord) -> bool:
+def restore_original(
+    sender: NegativeSender, exchange: ExchangeRecord, snapshot: MutationSnapshot | None = None
+) -> bool:
     """Reenvia o pedido válido original; `True` só com 2xx.
 
     Raises:
@@ -28,14 +31,16 @@ def restore_original(sender: NegativeSender, exchange: ExchangeRecord) -> bool:
         DeadlineReached: Prazo esgotado.
         ExternalToolError: Falha do proxy.
     """
-    reply = sender.send(exchange, exchange.target, exchange.body, tag="restore:")
+    reply = sender.send(exchange, exchange.target, exchange.body, tag="restore:", snapshot=snapshot)
     return reply.problem is None and is_success_status(reply.status)
 
 
-def try_restore(sender: NegativeSender, exchange: ExchangeRecord) -> bool:
+def try_restore(
+    sender: NegativeSender, exchange: ExchangeRecord, snapshot: MutationSnapshot | None = None
+) -> bool:
     """Como `restore_original`, mas devolve `False` se uma parada a impedir."""
     try:
-        return restore_original(sender, exchange)
+        return restore_original(sender, exchange, snapshot)
     except INTERRUPTIONS:
         return False
 

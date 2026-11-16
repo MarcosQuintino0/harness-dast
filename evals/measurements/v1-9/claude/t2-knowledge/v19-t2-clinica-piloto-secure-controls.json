@@ -1,0 +1,529 @@
+{
+  "product": "clinica-piloto",
+  "mode": "secure",
+  "run_id": "2026-11-16T14-43-25Z-clinica-piloto-6c14",
+  "statuses": {
+    "authz": "completed",
+    "negative": "completed",
+    "scan": "completed"
+  },
+  "operations": [
+    "buscarPacientesPorNome",
+    "buscarPaciente",
+    "criarConvenio",
+    "baixarDocumento"
+  ],
+  "findings": [
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarStatusConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "login",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarReceita",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarMedicos",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "verificarSaude",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarReceitasDaConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "relatorioLento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "obterCsrf",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarConvenios",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "baixarArquivo",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarReceita",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConvenioPorCodigo",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarPerfil",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarMedicoPorCrm",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "obterPerfil",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarDocumentos",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarPacientesPorNome",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarMedico",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarMedico",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarPacientes",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "baixarDocumento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarConsultas",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "enviarDocumento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Authentication Request Identified",
+      "operation_id": "login",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarPerfil",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "relatorioLento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarReceitasDaConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarStatusConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "login",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarReceita",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarConvenios",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarPacientes",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "obterCsrf",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "obterPerfil",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarMedicos",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarMedico",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "enviarDocumento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "baixarDocumento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarReceita",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarMedicoPorCrm",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConvenioPorCodigo",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarMedico",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "verificarSaude",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarDocumentos",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarConsultas",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "baixarArquivo",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarPacientesPorNome",
+      "proposed_severity": "informational"
+    }
+  ],
+  "authz_techniques": {},
+  "authz_not_tested": {
+    "no_peer_account": 8,
+    "no_object_identifier": 12,
+    "shared_role": 9,
+    "create_failed": 2,
+    "new_identifier_unavailable": 2,
+    "no_json_response": 2,
+    "no_sample_data": 1,
+    "infrastructure_path": 2,
+    "anonymous_already_open": 1,
+    "no_role_order": 1,
+    "no_json_body": 1,
+    "create_conflict": 3,
+    "already_in_target_state": 1,
+    "no_safe_test_value": 5
+  },
+  "negative_requests": 9,
+  "negative_operations_tested": 3,
+  "negative_findings": 0,
+  "negative_by_class": [
+    {
+      "case_class": "wrong_type",
+      "planned": 2,
+      "sent": 2,
+      "rejected": 2,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "missing_required",
+      "planned": 2,
+      "sent": 2,
+      "rejected": 2,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "below_minimum",
+      "planned": 2,
+      "sent": 2,
+      "rejected": 2,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "above_maximum",
+      "planned": 1,
+      "sent": 1,
+      "rejected": 1,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "not_in_enum",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "too_long",
+      "planned": 2,
+      "sent": 2,
+      "rejected": 2,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    },
+    {
+      "case_class": "too_short",
+      "planned": 0,
+      "sent": 0,
+      "rejected": 0,
+      "accepted": 0,
+      "server_error": 0,
+      "inconclusive": 0
+    }
+  ],
+  "scan_entries": [
+    {
+      "operation_id": "baixarDocumento",
+      "method": "GET",
+      "path": "/api/documentos/download",
+      "message_id": 69,
+      "scan_id": "0",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 20.417,
+      "requests": 622,
+      "alert_count": 0,
+      "alert_ids": [],
+      "note": null,
+      "seed_outcome": null
+    },
+    {
+      "operation_id": "buscarPacientesPorNome",
+      "method": "GET",
+      "path": "/api/pacientes/busca",
+      "message_id": 77,
+      "scan_id": "1",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 18.372,
+      "requests": 613,
+      "alert_count": 0,
+      "alert_ids": [],
+      "note": null,
+      "seed_outcome": null
+    },
+    {
+      "operation_id": "criarConvenio",
+      "method": "POST",
+      "path": "/api/convenios",
+      "message_id": 155,
+      "scan_id": "2",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 28.573,
+      "requests": 927,
+      "alert_count": 0,
+      "alert_ids": [],
+      "note": null,
+      "seed_outcome": null
+    },
+    {
+      "operation_id": "buscarPaciente",
+      "method": "GET",
+      "path": "/api/pacientes/{id}",
+      "message_id": 217,
+      "scan_id": "3",
+      "outcome": "completed",
+      "progress": 100,
+      "truncated": false,
+      "duration_seconds": 14.291,
+      "requests": 502,
+      "alert_count": 0,
+      "alert_ids": [],
+      "note": null,
+      "seed_outcome": null
+    }
+  ],
+  "traffic": {
+    "enabled": true,
+    "allowed": 1378,
+    "denied": 1301,
+    "denied_by_reason": {
+      "malformed_request": 1131,
+      "path_not_allowed": 166,
+      "origin_not_allowed": 4
+    },
+    "denied_by_detail": {
+      "path_encoded_slash": 389,
+      "path_not_allowed": 166,
+      "path_dot_segment": 8,
+      "path_empty_segment": 52,
+      "path_matrix_param": 207,
+      "path_double_encoding": 134,
+      "path_trailing_dot_space": 213,
+      "path_control_char": 128,
+      "origin_not_allowed": 4
+    },
+    "path_shape_denied": 1131,
+    "allowed_outside_allow": 0,
+    "path_mode": "strict",
+    "allowed_by_method": {
+      "GET": 713,
+      "POST": 665
+    },
+    "duration_seconds": 90.644,
+    "average_rps": 15.2,
+    "peak_rps": 33,
+    "limit_rps": 50.0
+  },
+  "identity": [
+    2665,
+    2665
+  ],
+  "csrf": {
+    "scanner_messages": 2665,
+    "writes_reached_target": 662,
+    "csrf_rejected": 0,
+    "writes_with_header": 662,
+    "writes_with_cookie": 662
+  },
+  "rules_left": [],
+  "secret_hits": []
+}

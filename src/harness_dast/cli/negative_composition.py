@@ -4,10 +4,13 @@ Sem contêiner de injeção: liga as portas do caso de uso aos adaptadores reais
 rede (cliente do alvo, cache de tokens) que `probe`, `scan` e `authz` usam.
 """
 
+import os
 from pathlib import Path
 
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemSleeper
 from harness_dast.application.negative import Negative
@@ -49,4 +52,5 @@ def build_negative(
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
     )

@@ -21,11 +21,13 @@ from pydantic import ValidationError
 from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.mutation_guard import finish_mutation
 from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.ports import (
     ApprovalStore,
     Clock,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -195,6 +197,7 @@ class Scan:
         strategy_store: StrategyStore | None = None,
         approvals: ApprovalStore | None = None,
         basis_for: Callable[[str, ProductProfile, str], StrategyBasis | None] | None = None,
+        mutation_journal: MutationJournal | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -223,6 +226,7 @@ class Scan:
         self._strategy_store = strategy_store
         self._approvals = approvals
         self._basis_for = basis_for
+        self._mutation_journal = mutation_journal
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -330,6 +334,8 @@ class Scan:
             )
             plan = snapshot.scan_plan
             prep = replace(prep, policy=snapshot.policy, zap_limits=snapshot.limits)
+        if self._profiles.load(request.product) != prep.profile:
+            raise ConfigError("Perfil mudou durante a preparação do scan; recomece a etapa.")
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
         runner = ScanRunner(self._deps(prep, request, live, context_id))
@@ -368,6 +374,9 @@ class Scan:
         self._write_rule_stats(request.run_id, zap_version, outcome)
         self._artifacts.write_scan(request.run_id, result)
         self._write_progress(request.run_id, "done", len(plan.targets), status=status)
+        if self._mutation_journal is not None:
+            for key in outcome.finished_mutations:
+                finish_mutation(self._mutation_journal, key, "observed")
         if not removed:
             raise ExternalToolError(
                 "Não foi possível remover as regras do Replacer ao fim do scan.",
@@ -533,6 +542,8 @@ class Scan:
             deadline=prep.deadline,
             base_url=prep.profile.environment.base_url,
             on_progress=self._live_hook(prep, request),
+            product=prep.profile.product,
+            mutation_journal=self._mutation_journal,
         )
 
     def _live_hook(

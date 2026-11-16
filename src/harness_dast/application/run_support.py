@@ -8,10 +8,18 @@ só então chega ao `TargetClient`, que por sua vez só aceita `ApprovedRequest`
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from harness_dast.application.ports import Clock, KillSwitch, RunStore, Sleeper, TargetClient
+from harness_dast.application.ports import (
+    Clock,
+    KillSwitch,
+    MutationJournal,
+    RunStore,
+    Sleeper,
+    TargetClient,
+)
 from harness_dast.domain.audit import decision_entry, result_entry
 from harness_dast.domain.errors import HarnessError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
+from harness_dast.domain.knowledge_mutation import mutation_key
 from harness_dast.domain.probe_policy import TokenBucket
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope import ScopeGuard
@@ -158,6 +166,8 @@ class GuardedSender:
         limiter: RateLimiter,
         trail: AuditTrail,
         clock: Clock,
+        journal: MutationJournal | None = None,
+        journal_product: str = "",
     ) -> None:
         """Cria o emissor.
 
@@ -168,6 +178,8 @@ class GuardedSender:
             limiter: Limitador de taxa.
             trail: Trilha de auditoria.
             clock: Relógio injetado (duração).
+            journal: Diario opcional de mutacoes.
+            journal_product: Produto associado as chaves.
         """
         self._guard = guard
         self._client = client
@@ -175,6 +187,8 @@ class GuardedSender:
         self._limiter = limiter
         self._trail = trail
         self._clock = clock
+        self._journal = journal
+        self._journal_product = journal_product
 
     def send(self, request: HttpRequest) -> HttpResponse:
         """Envia a requisição.
@@ -200,13 +214,29 @@ class GuardedSender:
             raise
         seq = self._trail.decide(request, None)
         started = self._clock.now()
+        key = self._mutation_key(request)
+        if key is not None and self._journal is not None:
+            self._journal.begin(key, "unknown")
         try:
             response = self._client.send(approved)
         except HarnessError as error:
             self._trail.finish(seq, request, status=None, error=error.code, ms=self._ms(started))
             raise
         self._trail.finish(seq, request, status=response.status, error=None, ms=self._ms(started))
+        if key is not None and self._journal is not None and response.status < 500:
+            self._journal.finish(key, "observed")
         return response
+
+    def _mutation_key(self, request: HttpRequest) -> str | None:
+        if (
+            self._journal is None
+            or request.route != "zap"
+            or request.method not in {"POST", "PUT", "PATCH", "DELETE"}
+        ):
+            return None
+        return mutation_key(
+            self._journal_product, request.operation_id, request.account, request.method
+        )
 
     def _ms(self, started: datetime) -> int:
         return int((self._clock.now() - started).total_seconds() * 1000)

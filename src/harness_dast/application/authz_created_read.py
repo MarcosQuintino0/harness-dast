@@ -3,8 +3,8 @@
 Única exceção à regra de que o `authz` só repete pedidos gravados em `exchanges.json`: monta UM
 tipo de pedido novo, o `GET` do recurso criado, com o modelo de caminho que o `probe` provou e o
 identificador que o servidor devolveu à própria requisição (`domain/authz_created`). O pedido
-passa pelo `ReplaySender` e pelo `ScopeGuard` como os demais; recusado ou sem resposta útil, vale
-a resposta do próprio `POST`.
+passa pelo `ReplaySender` e pelo `ScopeGuard` como os demais; quando há leitor, recusa ou resposta
+sem prova nunca é substituída pela resposta do próprio `POST`.
 """
 
 from dataclasses import dataclass
@@ -31,7 +31,7 @@ class CreatedRead:
 
 
 def read_created(ctx: CheckContext, task: MassTask, post: Reply) -> CreatedRead:
-    """Lê o recurso criado pelo `POST`; sem leitura útil, usa a resposta do próprio `POST`.
+    """Lê o recurso criado; só sem leitor planejado usa a resposta do próprio `POST`.
 
     Raises:
         StopRun: O alvo ficou sem resposta em várias requisições seguidas.
@@ -48,9 +48,11 @@ def read_created(ctx: CheckContext, task: MassTask, post: Reply) -> CreatedRead:
         )
         target = created_read_exchange(task.read, identifier) if identifier else None
         if target is not None:
-            got = ctx.sender.send(target, target.account)
+            tag = "effect_recipe_after:" if task.candidate_readers else ""
+            got = ctx.sender.send(target, target.account, tag=tag)
             parsed = parse_json(got.body) if is_success_status(got.status) else None
             if parsed is not None:
                 return CreatedRead(parsed, "created_read")
+        return CreatedRead(None, None)
     echoed = parse_json(post.body)
     return CreatedRead(echoed, "post_response" if echoed is not None else None)

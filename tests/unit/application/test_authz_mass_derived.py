@@ -47,6 +47,7 @@ def test_a_response_only_field_accepted_by_the_server_becomes_a_finding_and_is_r
     assert found["saldo"].proposed_severity == "high"
     assert "valor anterior foi restaurado" in found["saldo"].evidence
     assert rig.clinic.extra["pac_a"] == {"nivelAcesso": "basico", "saldo": 10}
+    assert result.effects == ()  # efeito de atribuição em massa é achado, não recibo reutilizável
 
 
 def test_a_derived_field_the_server_ignores_is_tested_without_a_finding() -> None:

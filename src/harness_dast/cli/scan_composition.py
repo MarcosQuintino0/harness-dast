@@ -4,6 +4,7 @@ Sem contêiner de injeção. `open_scan_network` abre o cliente do ZAP com a API
 além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adaptadores reais.
 """
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,9 +17,11 @@ from harness_dast.adapters.reporting.sinks import (
     MarkdownReportSink,
 )
 from harness_dast.adapters.scan_process import SystemProcessSampler
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
@@ -122,6 +125,7 @@ def build_scan(
         process_sampler=SystemProcessSampler(),
         strategy_store=FileStrategyRepository(root),
         approvals=open_approval_store(),
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
         basis_for=lambda product, profile, version: basis_for_engine(
             FileStrategyRepository(root), product, profile, version
         ),

@@ -31,6 +31,7 @@ from harness_dast.application.ports import (
     Clock,
     EntropySource,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -44,9 +45,11 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
+from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
+from harness_dast.domain.authz_effect_plan import apply_effect_recipes
 from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
 from harness_dast.domain.authz_plan import (
     Planned,
@@ -75,6 +78,7 @@ from harness_dast.domain.authz_writes import (
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import FlowSpec
+from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
@@ -136,6 +140,8 @@ class Authz:
         documents: ProductDocuments | None = None,
         value_sources: ValueSourceFactory | None = None,
         entropy: EntropySource | None = None,
+        mutation_journal: MutationJournal | None = None,
+        effect_loader: Callable[[str, ProductProfile], tuple[KnowledgeEffect, ...]] | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -157,6 +163,8 @@ class Authz:
         self._documents = documents
         self._value_sources = value_sources
         self._entropy = entropy
+        self._mutation_journal = mutation_journal
+        self._effect_loader = effect_loader
 
     def execute(self, request: AuthzRequest) -> AuthzResult:
         """Executa o `authz`.
@@ -195,7 +203,12 @@ class Authz:
         profile.authz.ensure_operations_exist(operation_ids)
         profile.authz.ensure_matrix_valid(operation_ids, [a.role for a in profile.auth.accounts])
         checks = profile.authz.enabled_checks(request.checks)
-        plans = _plan(profile, exchanges, checks, spec.operations, unavailable)
+        effects = (
+            self._effect_loader(request.product, profile)
+            if self._effect_loader is not None and not request.dry_run
+            else ()
+        )
+        plans = _plan(profile, exchanges, checks, spec.operations, unavailable, effects)
         if request.dry_run:
             outcome = _dry_outcome(checks, plans)
         else:
@@ -220,6 +233,8 @@ class Authz:
                         run_id, log.model_copy(update={"next_unique_counter": counter})
                     )
 
+            if self._profiles.load(request.product) != profile:
+                raise ConfigError("Perfil mudou durante a preparação do authz; recomece a etapa.")
             outcome = self._run(
                 profile,
                 request,
@@ -247,6 +262,7 @@ class Authz:
             checks=_all_checks(outcome.checks, profile),
             findings=outcome.findings,
             not_tested=outcome.not_tested,
+            effects=outcome.effects,
         )
         if not request.dry_run:
             self._artifacts.write_authz(run_id, result)
@@ -324,6 +340,8 @@ class Authz:
                 flows=flows,
                 counter_checkpoint=checkpoint,
                 builder=builder,
+                mutation_journal=self._mutation_journal,
+                credential_fields=_credential_fields(profile),
             )
         )
         return runner.run(checks, plans)
@@ -361,12 +379,22 @@ class Authz:
         )
 
 
+def _credential_fields(profile: ProductProfile) -> frozenset[str]:
+    auth = profile.auth
+    if isinstance(auth, PasswordLoginAuth):
+        return frozenset(
+            (auth.username_field, auth.password_field, auth.token_response_field.rsplit(".", 1)[-1])
+        )
+    return frozenset({auth.header_name})
+
+
 def _plan(
     profile: ProductProfile,
     exchanges: tuple[ExchangeRecord, ...],
     checks: tuple[AuthzCheck, ...],
     operations: tuple[Operation, ...],
     unavailable: str | None = None,
+    effects: tuple[KnowledgeEffect, ...] = (),
 ) -> AuthzPlans:
     config = profile.authz
     roles = {account.alias: account.role for account in profile.auth.accounts}
@@ -411,6 +439,15 @@ def _plan(
             if config.allow_writes
             else Planned((), (mass_blocked_note(),))
         )
+        if effects:
+            mass = apply_effect_recipes(
+                mass,
+                exchanges,
+                {op.operation_id: op for op in operations},
+                effects,
+                public,
+                profile.infrastructure_paths,
+            )
     write: Planned[WriteTask] = Planned((), ())
     if "horizontal_write" in checks:
         write = (

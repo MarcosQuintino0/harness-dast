@@ -76,7 +76,7 @@ def test_201_com_identificador_previamente_lido_nao_e_comparado() -> None:
     assert not [
         r
         for r in rig.target.requests
-        if r.operation_id.startswith("authz:pair:") and r.method == "GET"
+        if r.operation_id.startswith("authz:pair:") and r.method == "POST"
     ]
 
 
@@ -175,6 +175,10 @@ def test_falha_logica_da_leitura_nao_prova_acesso(failed_account: str) -> None:
             request.operation_id.startswith("authz:pair:")
             and request.method == "GET"
             and request.account == failed_account
+            and any(
+                r.method == "POST" and r.operation_id.startswith("authz:pair:")
+                for r in rig.target.requests
+            )
         ):
             return reply(200, {"status": "failed"})
         response = delegate(request, jar)

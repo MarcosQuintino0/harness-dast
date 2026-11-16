@@ -10,6 +10,8 @@ cria recurso tem fluxo próprio (`authz_mass_post`: nada a restaurar). A restaur
 `authz_restore`, comum às duas verificações de escrita. Nunca `DELETE`.
 """
 
+from dataclasses import replace
+
 from harness_dast.application.authz_mass_common import (
     as_object,
     choose_injection,
@@ -29,6 +31,7 @@ from harness_dast.application.authz_sender import (
     CheckContext,
     CheckResult,
     Reply,
+    StopRun,
     inconclusive,
     note,
     problem_note,
@@ -40,10 +43,12 @@ from harness_dast.domain.authz_compare import (
     is_success_status,
     parse_json,
 )
+from harness_dast.domain.authz_config import normalize_field_name
 from harness_dast.domain.authz_findings import mass_assignment_finding
 from harness_dast.domain.authz_plan import Planned
 from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS, MassTask
 from harness_dast.domain.authz_result import AuthzNotTested
+from harness_dast.domain.mutation_snapshot import MutationSnapshot, project_snapshot
 
 
 def run_mass(ctx: CheckContext, plan: Planned[MassTask]) -> CheckResult:
@@ -69,11 +74,19 @@ def _mass_task(ctx: CheckContext, task: MassTask, out: CheckResult) -> None:
         if ctx.shared_writes >= MAX_MASS_REQUESTS - (0 if task.created else 1):
             out.not_tested.append(_budget_note(task))
             return
+        reader = next(
+            (read for name, read in task.candidate_readers if name == candidate.name), None
+        )
+        selected = replace(
+            task,
+            read=reader or task.read,
+            candidate_readers=((candidate.name, reader),) if reader is not None else (),
+        )
         if task.created:
-            if not run_post_candidate(ctx, task, original, candidate, out):
+            if not run_post_candidate(ctx, selected, original, candidate, out):
                 return
         else:
-            _mass_one(ctx, task, original, candidate, out)
+            _mass_one(ctx, selected, original, candidate, out)
 
 
 def _budget_note(task: MassTask) -> AuthzNotTested:
@@ -97,14 +110,35 @@ def _mass_one(
     if candidate.source == "declared":
         # O valor declarado não depende do estado: um valor repetido é recusado sem ler.
         chosen = choose_injection(exchange, original, candidate, None)
-        before = _read(ctx, task) if isinstance(chosen, Injection) else None
+        before = _read(ctx, task, phase="before") if isinstance(chosen, Injection) else None
     else:
-        before = _read(ctx, task)
+        before = _read(ctx, task, phase="before")
         chosen = choose_injection(
             exchange, original, candidate, current_value(before, candidate.name)
         )
     if not isinstance(chosen, Injection):
         out.not_tested.append(chosen)
+        return
+    if task.read is not None and before is None:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "baseline_failed",
+                "A leitura anterior pela conta escritora falhou; a escrita não foi enviada.",
+            )
+        )
+        return
+    current = current_value(before, chosen.name)
+    if before is not None and type(current) is type(chosen.value) and current == chosen.value:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "already_in_target_state",
+                "A leitura anterior já mostrava o valor de teste; a escrita não foi enviada.",
+            )
+        )
         return
     pending = Pending()
     try:
@@ -136,12 +170,14 @@ def _mass_apply(
     pending.attempted = True
     out.writes += 1
     ctx.shared_writes += 1
+    snapshot = _observed_snapshot(ctx, before, extra.name)
     put = ctx.sender.send(
         exchange,
         exchange.account,
         body={**original, extra.name: extra.value},
         with_body=True,
         max_attempts=1,
+        snapshot=snapshot,
     )
     if put.problem is not None:
         pending.attempted = False
@@ -149,7 +185,16 @@ def _mass_apply(
         return
     if put.status is None or put.status >= 500:
         out.not_tested.append(inconclusive("mass_assignment", exchange, put))
-        return
+        out.not_tested.append(
+            unrestored_note(
+                "mass_assignment", exchange, _what(extra.name), "do PUT", "outcome_unknown"
+            )
+        )
+        pending.attempted = False
+        raise StopRun(
+            "stopped_target_unresponsive",
+            "A escrita teve resultado desconhecido; confira o estado antes de continuar.",
+        )
     if put.status in (401, 429):
         pending.attempted = False
         out.not_tested.append(inconclusive("mass_assignment", exchange, put))
@@ -158,11 +203,40 @@ def _mass_apply(
     if not is_success_status(put.status):
         pending.attempted = False
         return
-    after = _read(ctx, task, fallback=put)
+    after = _read(ctx, task, fallback=put, phase="after")
     changed, previous = injected_effect(before, after, extra.name, extra.value)
+    if task.read is not None and after is None:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "effect_unobservable",
+                "A leitura posterior falhou; o efeito da escrita não foi confirmado.",
+            )
+        )
+        out.not_tested.append(
+            unrestored_note(
+                "mass_assignment", exchange, _what(extra.name), "do PUT", "outcome_unknown"
+            )
+        )
+        pending.attempted = False
+        raise StopRun(
+            "stopped_target_unresponsive",
+            "Não foi possível observar o efeito da escrita; confira o estado antes de continuar.",
+        )
     if not changed:
+        if task.candidate_readers:
+            out.not_tested.append(
+                note(
+                    "mass_assignment",
+                    exchange,
+                    "effect_unobservable",
+                    "A leitura da receita não comprovou o efeito da escrita.",
+                )
+            )
         pending.attempted = False
         return
+    # Efeito de atribuição em massa é um achado: nunca vira recibo reutilizável (ADR 0078).
     pending.previous, pending.known = previous, True
     out.writes += 1
     ctx.shared_writes += 1
@@ -205,13 +279,32 @@ def _what(field_name: str) -> str:
     return f"o campo extra '{field_name}' foi enviado"
 
 
-def _read(ctx: CheckContext, task: MassTask, fallback: Reply | None = None) -> JsonValue | None:
+def _read(
+    ctx: CheckContext, task: MassTask, fallback: Reply | None = None, *, phase: str
+) -> JsonValue | None:
     """Corpo JSON da leitura seguinte (um GET provado pelo `probe`) ou da própria resposta."""
     if task.read is None:
         return parse_json(fallback.body) if fallback is not None else None
-    return read_body(ctx, task.read)
+    tag = f"effect_recipe_{phase}:" if task.candidate_readers else ""
+    return read_body(ctx, task.read, tag=tag)
 
 
 def _previous_value(before: JsonValue | None, name: str) -> JsonValue:
     """Valor da leitura anterior com o mesmo nome do campo enviado (`None` se não há)."""
     return before.get(name) if isinstance(before, dict) else None
+
+
+def _observed_snapshot(
+    ctx: CheckContext, before: JsonValue | None, name: str
+) -> MutationSnapshot | None:
+    if not isinstance(before, dict):
+        return None
+    matches = [
+        (key, value)
+        for key, value in before.items()
+        if normalize_field_name(key) == normalize_field_name(name)
+    ]
+    if len(matches) != 1:
+        return None
+    field, value = matches[0]
+    return project_snapshot(field, value, "observed", forbidden=ctx.settings.credential_fields)

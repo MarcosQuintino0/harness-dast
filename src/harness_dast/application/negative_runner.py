@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from harness_dast.application.authz_sender import INTERRUPTIONS, Reply, StopRun
+from harness_dast.application.mutation_guard import MutationJournalBlocked
 from harness_dast.application.negative_restore import (
     RESTORABLE_METHODS,
     restore_original,
@@ -23,7 +24,9 @@ from harness_dast.application.negative_restore import (
 )
 from harness_dast.application.negative_sender import NegativeSender
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
+from harness_dast.domain.authz_compare import parse_json
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.mutation_snapshot import MutationSnapshot, project_snapshot
 from harness_dast.domain.negative_findings import build_negative_finding
 from harness_dast.domain.negative_plan import NegativeCase, NegativePlan
 from harness_dast.domain.negative_request import render_case
@@ -128,6 +131,15 @@ class NegativeRunner:
             for case in plan.cases:
                 self._case(case)
                 done += 1
+        except MutationJournalBlocked as error:
+            status, message = "stopped_zap", error.message
+            self._notes.append(
+                NegativeNotTested(
+                    reason="mutation_outcome_unknown",
+                    message="O diário bloqueou a operação; reconcilie o estado antes de continuar.",
+                )
+            )
+            self._notes.append(_stopped_note(len(plan.cases) - done - 1))
         except INTERRUPTIONS as error:
             status, message = _stop_status(error)
             self._notes.append(_stopped_note(len(plan.cases) - done - 1))
@@ -164,6 +176,12 @@ class NegativeRunner:
                 "input_accepted" if reaction.verdict == "accepted" else "input_server_error"
             )
             self._failure(case, technique, reply.status or 0)
+            if (
+                reaction.verdict == "server_error"
+                and case.exchange.method.upper() in {"POST", "PUT", "PATCH"}
+                and self._sender.journals_mutations
+            ):
+                raise MutationJournalBlocked("Efeito da mutação após 5xx é desconhecido.")
         elif reaction.verdict == "inconclusive":
             self._inconclusive(case, reaction.reason or "inconclusive", reply)
 
@@ -175,14 +193,30 @@ class NegativeRunner:
         target, body = render_case(case)
         try:
             reserve = need_restore(case.exchange.method)
-            return self._sender.send(case.exchange, target, body, reserve=reserve)
+            return self._sender.send(
+                case.exchange, target, body, reserve=reserve, snapshot=self._snapshot(case)
+            )
+        except MutationJournalBlocked:
+            raise
         except (StopRun, ExternalToolError):
             # Janela e prazo são conferidos ANTES do envio (nada saiu); aqui a escrita pode ter
             # chegado ao alvo, então a restauração é tentada e, sem confirmação, avisada.
             if case.exchange.method.upper() in RESTORABLE_METHODS and not try_restore(
-                self._sender, case.exchange
+                self._sender, case.exchange, self._snapshot(case)
             ):
                 self._notes.append(unrestored_note(case.exchange, interrupted=True))
+            if self._sender.journals_mutations and case.exchange.method.upper() in {
+                "POST",
+                "PUT",
+                "PATCH",
+            }:
+                self._notes.append(
+                    _case_note(
+                        case,
+                        "mutation_outcome_unknown",
+                        "O efeito pode ser desconhecido; reconcilie o estado.",
+                    )
+                )
             raise
 
     def _problem(self, case: NegativeCase, reply: Reply) -> None:
@@ -234,7 +268,11 @@ class NegativeRunner:
     def _restore(self, case: NegativeCase) -> tuple[bool, Exception | None]:
         exchange = case.exchange
         try:
-            ok = restore_original(self._sender, exchange)
+            ok = restore_original(self._sender, exchange, self._snapshot(case))
+        except MutationJournalBlocked as stop:
+            self._notes.append(unrestored_note(exchange, interrupted=True))
+            self._closed[case.key] = "restore_pending"
+            return False, stop
         except INTERRUPTIONS as stop:
             self._notes.append(unrestored_note(exchange, interrupted=True))
             self._closed[case.key] = "restore_pending"
@@ -245,6 +283,19 @@ class NegativeRunner:
         self._notes.append(unrestored_note(exchange, interrupted=False))
         self._closed[case.key] = "restore_pending"
         return False, None
+
+    def _snapshot(self, case: NegativeCase) -> MutationSnapshot | None:
+        if case.location != "body" or case.field in case.exchange.omitted_fields:
+            return None
+        original = parse_json((case.exchange.body or "").encode())
+        if not isinstance(original, dict) or case.field not in original:
+            return None
+        return project_snapshot(
+            case.field,
+            original[case.field],
+            "request_baseline",
+            forbidden=self._sender.credential_fields,
+        )
 
     def _count_created(self, case: NegativeCase) -> None:
         key = case.key

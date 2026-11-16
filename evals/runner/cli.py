@@ -21,6 +21,7 @@ from evals.runner.measurements import (
 from evals.runner.metrics import measure_agent
 from evals.runner.prepare import MODES, prepare
 from evals.runner.render import failures, render_classify, render_score
+from evals.runner.reuse import export_reuse
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
     prep.add_argument("--seed", type=int, default=0)
     prep.add_argument("--out", type=Path, required=True)
     prep.add_argument("--allow-leaks", action="store_true")
+    prep.add_argument("--reuse-from", type=Path)
+    prep.add_argument("--reuse-package", type=Path)
+    reuse = sub.add_parser("export-reuse", help="exporta conhecimento coletado para estudo")
+    reuse.add_argument("--out", type=Path, required=True)
+    reuse.add_argument("--destination", type=Path, required=True)
     approve_parser = sub.add_parser(
         "approve", help="coordenador aprova o escopo do perfil da rodada (ADR 0037)"
     )
@@ -86,8 +92,18 @@ def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
     if args.command == "measure":
         return _measure(args, today)
     out: Path = args.out
+    if args.command == "export-reuse":
+        return f"exportação: {export_reuse(out, args.destination)}; validade contextual pendente"
     if args.command == "prepare":
-        result = prepare(args.case, args.mode, args.seed, out, allow_leaks=args.allow_leaks)
+        result = prepare(
+            args.case,
+            args.mode,
+            args.seed,
+            out,
+            allow_leaks=args.allow_leaks,
+            reuse_from=args.reuse_from,
+            reuse_package=args.reuse_package,
+        )
         return (
             f"workspace: {result.workspace}\nlacre (NAO mostrar ao agente): {result.sealed}\n"
             f"exclusoes: {len(result.excluded)}; termos do gabarito na copia: {len(result.leaks)}"

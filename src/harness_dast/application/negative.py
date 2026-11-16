@@ -27,6 +27,7 @@ from harness_dast.application.negative_sender import NegativeSender, NegativeSet
 from harness_dast.application.ports import (
     Clock,
     KillSwitch,
+    MutationJournal,
     ProfileRepository,
     RunStore,
     SecretProvider,
@@ -99,6 +100,7 @@ class Negative:
         token_cache: TokenCache | None = None,
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
+        mutation_journal: MutationJournal | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -117,6 +119,7 @@ class Negative:
         self._token_cache = token_cache
         self._login_budget = login_budget
         self._kill_switch = kill_switch
+        self._mutation_journal = mutation_journal
 
     def execute(self, request: NegativeRequest) -> NegativeResult:
         """Executa o `negative`.
@@ -156,11 +159,14 @@ class Negative:
             plan = _unavailable(plan, unavailable)
         elif not exchanges:
             plan = _unavailable(plan, None)
-        outcome = (
-            _dry_outcome(plan)
-            if request.dry_run
-            else self._run(profile, request, plan, started, run_id, limit)
-        )
+        if request.dry_run:
+            outcome = _dry_outcome(plan)
+        else:
+            if self._profiles.load(request.product) != profile:
+                raise ConfigError(
+                    "Perfil mudou durante a preparação do negative; recomece a etapa."
+                )
+            outcome = self._run(profile, request, plan, started, run_id, limit)
         result = NegativeResult(
             run_id=run_id,
             product=profile.product,
@@ -261,6 +267,9 @@ class Negative:
             dispatcher=dispatcher,
             sessions=pool,
             max_requests=limit,
+            product=profile.product,
+            mutation_journal=self._mutation_journal,
+            credential_fields=_credential_fields(profile),
         )
         runner = NegativeRunner(
             NegativeSender(settings), product=profile.product, max_requests=limit
@@ -280,6 +289,15 @@ class Negative:
             dispatcher=dispatcher,
             token_cache=self._token_cache,
         )
+
+
+def _credential_fields(profile: ProductProfile) -> frozenset[str]:
+    auth = profile.auth
+    if isinstance(auth, PasswordLoginAuth):
+        return frozenset(
+            (auth.username_field, auth.password_field, auth.token_response_field.rsplit(".", 1)[-1])
+        )
+    return frozenset({auth.header_name})
 
 
 def _username_field(profile: ProductProfile) -> str | None:

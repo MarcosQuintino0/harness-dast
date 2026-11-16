@@ -18,6 +18,7 @@ class CreatedPairTask:
     owner: tuple[str, str]
     actor: tuple[str, str]
     existing_targets: frozenset[str] = frozenset()
+    collection: ExchangeRecord | None = None
 
 
 def plan_created_pairs(
@@ -50,6 +51,14 @@ def plan_created_pairs(
             read for read in reads if read.target.split("?", 1)[0].rsplit("/", 1)[0] == parent
         ]
         reader = created_reader(post, same_parent)
+        collection = next(
+            (
+                read
+                for read in reads
+                if read.path == post.path and read.target == post.target and "?" not in read.target
+            ),
+            None,
+        )
         for role in dict.fromkeys(roles.values()):
             accounts = [alias for alias, value in roles.items() if value == role]
             if len(accounts) < 2 or (post.operation_id, role) in seen:
@@ -83,6 +92,7 @@ def plan_created_pairs(
                         (accounts[0], role),
                         (accounts[1], role),
                         frozenset(read.target.split("?", 1)[0] for read in known),
+                        collection,
                     )
                 )
     return Planned(tuple(tasks), tuple(notes))

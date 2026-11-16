@@ -42,16 +42,16 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
                 "create",
                 "post",
                 "/api/widgets",
-                body={"group_id": INT, "serial": serial},
-                required=("group_id", "serial"),
+                body={"group_id": INT, "serial": serial, "label": STR},
+                required=("group_id", "serial", "label"),
                 produces={"id": INT},
             ),
             operation(
                 "read",
                 "get",
-                "/api/widgets/{id}",
-                parameters=(parameter("id"),),
-                produces={"id": INT, "group_id": INT, "serial": serial},
+                "/api/widgets/{serial}",
+                parameters=(parameter("serial"),),
+                produces={"id": INT, "group_id": INT, "serial": serial, "label": STR},
             ),
         ),
     )
@@ -62,9 +62,9 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
             return reply(200, {"access_token": "generic-token"})
         if request.method == "POST" and request.url.endswith("/api/widgets"):
             body = json.loads(request.body or b"{}")
-            key = str(len(objects) + 1)
+            key = str(body["serial"])
             objects[key] = {"id": key, **body}
-            return reply(201, {"id": key})
+            return reply(201, {"serial": key})
         if request.method == "GET" and "/api/widgets/" in request.url:
             found = objects.get(request.url.rsplit("/", 1)[-1])
             return reply(200, found) if found is not None else reply(404, {})
@@ -73,7 +73,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
     rig = Rig(profile=profile, spec=spec, handler=handler)
     probe = rig.probe().execute(ProbeRequest(product="example"))
     old_serial: str | int = 17 if small_integer else "old"
-    old_body = {"group_id": 89, "serial": old_serial}
+    old_body = {"group_id": 89, "serial": old_serial, "label": "old"}
     exchanges = (
         ExchangeRecord(
             operation_id="create",
@@ -88,7 +88,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
         ExchangeRecord(
             operation_id="read",
             method="GET",
-            path="/api/widgets/{id}",
+            path="/api/widgets/{serial}",
             target="/api/widgets/999",
             account="owner_a",
             status=200,
@@ -105,7 +105,8 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
                     "match": {"field": "serial", "operation": "create"},
                     "generator": "integer" if small_integer else "alphanumeric",
                     "unique": True,
-                }
+                },
+                {"match": {"field": "label"}, "generator": "alphanumeric", "unique": True},
             ],
         }
     )
@@ -147,6 +148,6 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
     if small_integer:
         assert 1 <= body["serial"] <= 100
     readers = [r.account for r in rig.target.requests if r.operation_id == "authz:pair:read"]
-    assert readers == ["owner_a", "peer_b"]
+    assert readers == ["owner_a", "peer_b", "owner_a", "peer_b"]
     assert result.created_resources == 1
     assert any(f.technique == "authz_horizontal" for f in result.findings)

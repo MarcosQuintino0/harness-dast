@@ -9,13 +9,18 @@ prefixo `negative:` identifica o pedido na auditoria.
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from harness_dast.application.authz_sender import Reply, StopRun
 from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
+from harness_dast.application.ports import MutationJournal
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.errors import PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.request_encoding import join_url
@@ -39,6 +44,9 @@ class NegativeSettings:
     dispatcher: OperationDispatcher
     sessions: SessionPool
     max_requests: int | None = None
+    product: str = ""
+    mutation_journal: MutationJournal | None = None
+    credential_fields: frozenset[str] = frozenset()
 
 
 class NegativeSender:
@@ -69,6 +77,16 @@ class NegativeSender:
         """Contas que enviaram, na ordem do primeiro envio."""
         return tuple(self._accounts)
 
+    @property
+    def journals_mutations(self) -> bool:
+        """Indica se efeitos incertos bloqueiam a continuação do estágio."""
+        return self._s.mutation_journal is not None
+
+    @property
+    def credential_fields(self) -> frozenset[str]:
+        """Nomes protegidos do perfil para projeções no diário."""
+        return self._s.credential_fields
+
     def _attempts_left(self, reserve: int) -> int | None:
         if self._s.max_requests is None:
             return None
@@ -82,6 +100,7 @@ class NegativeSender:
         *,
         tag: str = "",
         reserve: int = 0,
+        snapshot: MutationSnapshot | None = None,
     ) -> Reply:
         """Envia o método do `exchange` ao `target`, com `body`, pela conta dona do pedido.
 
@@ -111,21 +130,32 @@ class NegativeSender:
             operation_id=f"{PREFIX}{tag}{exchange.operation_id}",
             account=exchange.account,
         )
+        mutating = exchange.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+        key = self._begin_mutation(exchange, snapshot) if mutating else None
         try:
             session = self._s.sessions.get(exchange.account)
             sent = self._s.dispatcher.send(
-                request, session, allow_reauth=True, max_attempts=self._attempts_left(reserve)
+                request,
+                session,
+                allow_reauth=True,
+                max_attempts=1 if mutating else self._attempts_left(reserve),
             )
         except (WindowClosed, DeadlineReached):
+            # Com uma única tentativa, a recusa do portão vem antes de qualquer byte da mutação.
+            self._finish_mutation(key, "failed")
             raise
         except ScopeViolation:
+            self._finish_mutation(key, "failed")
             return Reply(None, problem="scope")
         except PreflightError:
+            self._finish_mutation(key, "failed")
             return Reply(None, problem="account")
         if exchange.account not in self._accounts:
             self._accounts.append(exchange.account)
         self._sent += sent.attempts
         response = sent.response
+        if response is not None and response.status < 500:
+            self._finish_mutation(key, "observed")
         failed = response is None or response.status in TRANSPORT_FAILURE_STATUSES
         self._failures = self._failures + 1 if failed else 0
         if self._failures >= UNRESPONSIVE_THRESHOLD:
@@ -136,3 +166,19 @@ class NegativeSender:
         if response is None:
             return Reply(None)
         return Reply(response.status, location=response.location)
+
+    def _begin_mutation(
+        self, exchange: ExchangeRecord, snapshot: MutationSnapshot | None
+    ) -> str | None:
+        journal = self._s.mutation_journal
+        if journal is None:
+            return None
+        key = mutation_key(
+            self._s.product, exchange.operation_id, exchange.account, exchange.method
+        )
+        begin_mutation(journal, key, snapshot)
+        return key
+
+    def _finish_mutation(self, key: str | None, outcome: Literal["failed", "observed"]) -> None:
+        if key is not None and self._s.mutation_journal is not None:
+            finish_mutation(self._s.mutation_journal, key, outcome)

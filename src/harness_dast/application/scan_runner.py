@@ -14,12 +14,14 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.ports import Clock, Sleeper
+from harness_dast.application.mutation_guard import begin_mutation
+from harness_dast.application.ports import Clock, MutationJournal, Sleeper
 from harness_dast.application.run_support import DeadlineReached, RunGate, WindowClosed
 from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl, ScanStart
 from harness_dast.application.scan_tokens import AccountTokens
 from harness_dast.domain.errors import ExternalToolError, PreflightError
+from harness_dast.domain.knowledge_mutation import mutation_key
 from harness_dast.domain.rule_stats import MAX_REASON, OperationRules
 from harness_dast.domain.scan_plan import ScanTarget
 from harness_dast.domain.scan_policy import POLL_SECONDS, ScanLimits, ScanPolicy, scan_cap_minutes
@@ -80,6 +82,8 @@ class RunnerDeps:
     deadline: datetime
     base_url: str
     on_progress: Callable[[int, int, str | None], None] | None = None
+    product: str = ""
+    mutation_journal: MutationJournal | None = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +96,7 @@ class RunOutcome:
     rule_stats: tuple[OperationRules, ...] = ()
     local_queue_seconds: float = 0.0
     authentication_seconds: float = 0.0
+    finished_mutations: tuple[str, ...] = ()
 
 
 @dataclass
@@ -103,6 +108,7 @@ class _State:
     index: int = 0
     local_queue_seconds: float = 0.0
     authentication_seconds: float = 0.0
+    finished_mutations: list[str] = field(default_factory=list)
 
 
 class ScanRunner:
@@ -153,6 +159,7 @@ class ScanRunner:
             tuple(self._state.rule_stats),
             round(self._state.local_queue_seconds, 3),
             round(self._state.authentication_seconds, 3),
+            tuple(self._state.finished_mutations),
         )
 
     def _notify(self, done: int, total: int, operation_id: str | None) -> None:
@@ -175,6 +182,12 @@ class ScanRunner:
             policy_name=d.policy.name,
             max_scan_minutes=scan_cap_minutes(d.limits, remaining),
         )
+        key: str | None = None
+        if d.mutation_journal is not None and target.method.upper() in {"POST", "PUT", "PATCH"}:
+            key = mutation_key(
+                d.product, target.operation_id, target.account or d.default_account, target.method
+            )
+            begin_mutation(d.mutation_journal, key)
         try:
             scan_id = d.scanner.start_scan(request)
         except ScanRefused as error:
@@ -191,6 +204,20 @@ class ScanRunner:
             self._interrupt(target, scan_id, total)
             raise
         self._record(target, scan_id, status, started, stop_requested=False)
+        entry = self._state.entries[-1]
+        if (
+            key is not None
+            and status.state.upper() == "FINISHED"
+            and status.progress == 100
+            and entry.outcome == "completed"
+            and not entry.truncated
+        ):
+            self._state.finished_mutations.append(key)
+        elif key is not None:
+            prior = entry.note or "O lote não teve conclusão integral confirmada."
+            self._state.entries[-1] = entry.model_copy(
+                update={"note": prior + " Diário pendente; reconcilie antes de repetir."}
+            )
 
     def _authenticate(self, account: str | None = None) -> None:
         """Mede login, renovação e troca das regras de identidade, inclusive em falha."""
@@ -219,6 +246,13 @@ class ScanRunner:
 
     def _record_refused(self, target: ScanTarget, error: ScanRefused) -> None:
         _log.warning("scan_refused", operation_id=target.operation_id, reason=error.message)
+        note = f"O ZAP recusou iniciar a varredura: {error.message}"
+        if self._d.mutation_journal is not None and target.method.upper() in {
+            "POST",
+            "PUT",
+            "PATCH",
+        }:
+            note += " O diário mantém a intenção pendente; reconcilie antes de repetir."
         self._state.entries.append(
             ScanEntry(
                 operation_id=target.operation_id,
@@ -227,7 +261,7 @@ class ScanRunner:
                 message_id=target.message_id,
                 seed_outcome=target.seed_outcome,
                 outcome="refused",
-                note=f"O ZAP recusou iniciar a varredura: {error.message}",
+                note=note,
             )
         )
 

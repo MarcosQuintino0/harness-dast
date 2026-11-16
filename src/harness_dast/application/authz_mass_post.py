@@ -75,6 +75,8 @@ def run_post_candidate(
     changed, _ = injected_effect(None, seen.body, chosen.name, chosen.value)
     if changed:
         out.findings.append(_finding(ctx, task, candidate, chosen, (changed, reply.status, seen)))
+    elif task.candidate_readers:
+        out.not_tested.append(_unobservable_note(task, chosen.name))
     return True
 
 
@@ -119,7 +121,7 @@ def _unobservable_note(task: MassTask, field_name: str) -> AuthzNotTested:
         "mass_assignment",
         task.exchange,
         "effect_unobservable",
-        f"O POST aceitou o campo '{field_name}', mas nem a leitura do recurso criado nem a "
-        "resposta do POST permitiram ver o efeito. Um recurso foi criado e pode ficar no "
+        f"O POST aceitou o campo '{field_name}', mas o efeito não foi confirmado. "
+        "Um recurso foi criado e pode ficar no "
         "ambiente de teste (use `hdast cleanup` ou o reset do ambiente).",
     )

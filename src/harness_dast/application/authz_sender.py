@@ -16,18 +16,23 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
-from harness_dast.application.ports import SecretVault
+from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
+from harness_dast.application.ports import MutationJournal, SecretVault
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
+from harness_dast.domain.authz_effects import verified_effect
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.knowledge import KnowledgeEffect
+from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
@@ -90,6 +95,13 @@ class CheckResult:
     writes: int = 0
     created: int = 0
     matrix: AccessMatrixReport | None = None
+    effects: list[KnowledgeEffect] = field(default_factory=list)
+
+    def remember_effect(self, write: str, read: str, account: str, fields: tuple[str, ...]) -> None:
+        """Acrescenta apenas recibo estrutural válido de efeito já comprovado."""
+        effect = verified_effect(write, read, account, fields)
+        if effect is not None:
+            self.effects.append(effect)
 
 
 @dataclass(frozen=True)
@@ -120,6 +132,8 @@ class AuthzSettings:
     success: SuccessCriteria = field(default_factory=SuccessCriteria)
     flows: FlowSpec | None = None
     counter_checkpoint: Callable[[int], None] | None = None
+    mutation_journal: MutationJournal | None = None
+    credential_fields: frozenset[str] = frozenset()
 
 
 class ReplaySender:
@@ -164,6 +178,7 @@ class ReplaySender:
         tag: str = "",
         origin: str | None = None,
         max_attempts: int | None = None,
+        snapshot: MutationSnapshot | None = None,
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
 
@@ -194,7 +209,22 @@ class ReplaySender:
             operation_id=f"authz:{tag}{exchange.operation_id}",
             account=account,
         )
-        return self._dispatch(request, account, max_attempts=max_attempts)
+        journal = self._s.mutation_journal
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE") or journal is None:
+            return self._dispatch(request, account, max_attempts=max_attempts)
+        key = mutation_key(self._s.product, exchange.operation_id, account, request.method)
+        begin_mutation(journal, key, snapshot)
+        try:
+            result = self._dispatch(request, account, max_attempts=1)
+        except (WindowClosed, DeadlineReached):
+            # Com uma única tentativa, a recusa do portão vem antes de qualquer byte da mutação.
+            finish_mutation(journal, key, "failed")
+            raise
+        if result.problem is not None:
+            finish_mutation(journal, key, "failed")
+        elif result.status is not None and result.status < 500:
+            finish_mutation(journal, key, "observed")
+        return result
 
     def anonymous(self, exchange: ExchangeRecord) -> Reply:
         """Repete o `GET` gravado SEM credencial, uma vez por alvo (depois, do cache).

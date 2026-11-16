@@ -246,7 +246,7 @@ class NegativeRig(AuthzRig):
         data = profile_data or catalog_profile_data(**negative)
         super().__init__(self.catalog, profile=ProductProfile.from_data(data), spec=catalog_spec())
 
-    def negative(self, kill_switch: Any = None) -> Negative:
+    def negative(self, kill_switch: Any = None, mutation_journal: Any = None) -> Negative:
         return Negative(
             profiles=self.profiles,
             specs=self._specs(),
@@ -258,6 +258,7 @@ class NegativeRig(AuthzRig):
             clock=self.clock,
             sleeper=self.clock,
             kill_switch=kill_switch,
+            mutation_journal=mutation_journal,
         )
 
     def seed(self, *exchanges: ExchangeRecord) -> ProbeResult:
