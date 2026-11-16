@@ -151,6 +151,14 @@ def _probe_text(src: PanelSources) -> str:
     summary = probe.summary
     total = _total(src)
     system = f" (de {fmt_count(total)} no sistema)" if total else ""
+    expected = summary.by_outcome.get("auth_rejected_expected", 0)
+    if expected:
+        reached = summary.successes + expected
+        return (
+            f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
+            f"{x_of_y(reached, summary.operations_sent)} alcançadas: {summary.successes} com "
+            f"sucesso e {expected} com recusa esperada de login."
+        )
     return (
         f"Tentou {plural(summary.operations_sent, 'função', 'funções')}{system}; "
         f"{x_of_y(summary.successes, summary.operations_sent)} responderam como esperado."

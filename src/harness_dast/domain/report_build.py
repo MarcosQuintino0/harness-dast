@@ -78,22 +78,32 @@ def build_resolver(probe: ProbeResult, scan: ScanResult) -> AlertResolver:
 
 
 def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
-    scanned = {entry.operation_id for entry in scan.entries}
+    scanned = {entry.operation_id for entry in scan.entries if entry.outcome != "refused"}
+    refused = {entry.operation_id: entry for entry in scan.entries if entry.outcome == "refused"}
     skipped = {item.operation_id: item for item in scan.skipped}
     found: list[NotTested] = []
     for item in probe.operations:
         if item.operation_id in scanned:
             continue
         skip = skipped.get(item.operation_id)
-        reason = skip.reason if skip else f"probe_{item.outcome}"
+        refusal = refused.get(item.operation_id)
+        expected_login = str(item.outcome) == "auth_rejected_expected"
+        reason = "scan_refused" if refusal else skip.reason if skip else f"probe_{item.outcome}"
         message = (
-            skip.message if skip else (item.message or f"O probe terminou com {item.outcome}.")
+            (refusal.note or "O ZAP recusou iniciar a varredura.")
+            if refusal
+            else skip.message
+            if skip
+            else (item.message or f"O probe terminou com {item.outcome}.")
         )
-        if str(item.outcome) == "auth_rejected_expected":
+        if expected_login and skip and skip.reason == "not_success" and refusal is None:
+            reason = "login"
+            message = "O login não é varrido para evitar bloqueio da conta."
+        if expected_login:
             message = "Recusa esperada das credenciais sintéticas no login. " + message
         elif item.message and skip and item.message != skip.message:
             message = f"{message} Resultado do probe: {item.message}"
-        if item.status == 404:
+        if item.status == 404 and refusal is None:
             if skip is None:
                 reason = "scan_sem_registro"
                 message = "Não há motivo de ausência de varredura registrado no scan."
@@ -126,7 +136,7 @@ def _seeded_scans(probe: ProbeResult, scan: ScanResult) -> tuple[SeededScan, ...
             probe_status=statuses.get(entry.operation_id),
         )
         for entry in scan.entries
-        if entry.seed_outcome
+        if entry.seed_outcome and entry.outcome != "refused"
     )
 
 
@@ -185,11 +195,11 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
         probe_status=probe.status,
         scan_status=scan.status,
         scan_stop_message=scan.stop_message,
-        scans_run=len(scan.entries),
+        scans_run=sum(entry.outcome != "refused" for entry in scan.entries),
         truncated_scans=tuple(
             TruncatedScan(operation_id=e.operation_id, outcome=e.outcome, progress=e.progress)
             for e in scan.entries
-            if e.outcome != "completed"
+            if e.outcome in {"truncated", "stopped"}
         ),
         not_tested=_not_tested(probe, scan),
         include_outcomes=scan.include_outcomes,
@@ -278,7 +288,7 @@ def assemble_report(
     comparison: ComparisonInfo | None = None
     if baseline is not None:
         ensure_comparable(baseline, probe.product)
-        scanned = {entry.operation_id for entry in scan.entries}
+        scanned = {entry.operation_id for entry in scan.entries if entry.outcome != "refused"}
         findings, gone, comparison = compare_findings(findings, baseline, scanned)
     return FindingsReport(
         run_id=probe.run_id,

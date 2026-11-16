@@ -50,7 +50,7 @@ class LiveView(ApiModel):
         fence_mode: Modo da cerca (`strict` ou `wide`), ou `None`.
         stages: Etapas, na ordem.
         functions_tried: Funções que o alcance tentou, ou `None` antes do alcance.
-        functions_reached: Funções que responderam como esperado, ou `None`.
+        functions_reached: Funções alcançadas, inclusive recusa esperada de login, ou `None`.
         scan_done: Funções já varridas, ou `None` fora da varredura.
         scan_total: Funções que a varredura vai atacar, ou `None`.
         current_function: Nome simples da função em ataque, ou `None`.

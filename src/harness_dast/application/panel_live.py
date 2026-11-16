@@ -173,7 +173,9 @@ class LiveBoard:
             return
         if probe is not None and not probe.dry_run:
             state.tried = probe.summary.operations_sent
-            state.reached = probe.summary.successes
+            state.reached = probe.summary.successes + probe.summary.by_outcome.get(
+                "auth_rejected_expected", 0
+            )
 
     def _write(self, state: _State, phase: LivePhase, *, summary: RunSummary | None = None) -> None:
         try:

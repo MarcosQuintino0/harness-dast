@@ -143,6 +143,80 @@ def test_scanned_unreached_operation_still_marks_coverage_partial() -> None:
     assert coverage_is_partial(probe, scan)
 
 
+@pytest.mark.parametrize(("method", "path"), [("GET", "/stock"), ("POST", "/sessions")])
+def test_refused_scan_is_listed_as_unscanned(method: str, path: str) -> None:
+    from harness_dast.domain.panel_build import build_panel_view
+    from harness_dast.domain.panel_coverage import render_coverage
+    from tests.unit.domain.panel_helpers import sources
+
+    probe = probe_result([operation("pending", method, path)])
+    refused = entry("pending", method, path, 1, outcome="refused").model_copy(
+        update={"note": "O ZAP recusou iniciar a varredura: indisponível."}
+    )
+    scan = scan_result([refused])
+    report = assemble_report(
+        probe=probe,
+        scan=scan,
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    panel = render_coverage(build_panel_view(sources(probe=probe, scan=scan)))
+
+    assert report.coverage.partial
+    assert report.coverage.scans_run == 0
+    assert report.coverage.truncated_scans == ()
+    (item,) = report.coverage.not_tested
+    assert (item.operation_id, item.method, item.path, item.probe_outcome) == (
+        "pending",
+        method,
+        path,
+        "success",
+    )
+    assert item.reason == "scan_refused"
+    for text in (render_markdown(report), render_html(report), panel):
+        assert "pending" in text
+        assert path in text
+        assert "indisponível" in text
+
+
+def test_refused_scan_without_note_explains_why_it_did_not_run() -> None:
+    from harness_dast.domain.report_build import coverage_gaps
+
+    probe = probe_result([operation("read", "GET", "/inventory")])
+    scan = scan_result([entry("read", "GET", "/inventory", 1, outcome="refused")])
+    (gap,) = coverage_gaps(probe, scan)
+    assert gap.message == "O ZAP recusou iniciar a varredura."
+
+
+def test_old_not_success_skip_for_expected_login_is_a_design_exclusion() -> None:
+    from harness_dast.domain.report_build import coverage_gaps, coverage_is_partial
+
+    item = operation("sign_in", "POST", "/sessions").model_copy(
+        update={"outcome": "auth_rejected_expected", "status": 401}
+    )
+    probe = probe_result([item])
+    scan = scan_result(
+        [],
+        skipped=[
+            ScanSkip(
+                operation_id="sign_in",
+                method="POST",
+                path="/sessions",
+                reason="not_success",
+                message="O probe não teve sucesso.",
+            )
+        ],
+    )
+    assert coverage_gaps(probe, scan) == ()
+    assert not coverage_is_partial(probe, scan)
+
+
 @pytest.mark.parametrize("path", ["/sessions", "/access/token"])
 def test_expected_login_rejection_is_reached_and_excluded_from_scanning(path: str) -> None:
     from harness_dast.domain.panel_build import build_panel_view
@@ -183,6 +257,9 @@ def test_expected_login_rejection_is_reached_and_excluded_from_scanning(path: st
     assert report.coverage.probe_reached == 1
     assert report.coverage.probe_successes == 0
     assert not report.coverage.partial
+    stages = build_panel_view(sources(probe=probe, scan=scan)).stages
+    probe_stage = next(stage for stage in stages if stage.key == "probe")
+    assert "0 com sucesso e 1 com recusa esperada de login" in probe_stage.summary
     for text in (render_markdown(report), render_html(report), panel):
         assert "Recusa esperada" in text
         assert "login não é varrido" in text
