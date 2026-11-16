@@ -9,10 +9,15 @@
     "T4": "Uma varredura completa por API, somente vulneravel, sem --only ou politica reduzida"
   },
   "directed_operations": {
-    "clinica-piloto": ["buscarPacientesPorNome", "buscarPaciente"],
+    "clinica-piloto": ["buscarPacientesPorNome", "buscarPaciente", "criarConvenio"],
     "vampi": ["api_views.users.get_by_username", "api_views.books.get_by_title"]
   },
   "selection_reason": "Entrada textual do contrato e leitura parametrizada; nenhum alvo escolhido pelo gabarito da rodada cega",
+  "refinement": {
+    "registered_at_utc": "2026-11-16T05:01:00Z",
+    "reason": "Acrescentar uma escrita para conferir o par XSRF na reproducao independente T2, preservando as leituras iniciais; nao repetir completas por erro de assercao do suporte",
+    "t4_test_correction": "Facts.notifications nao e preenchido por collect_facts; conferir o contador de endpoints efetivamente fornecido, sem tratar None como zero"
+  },
   "acceptance": [
     "Nenhuma estrategia alarga autorizacao, escopo, janela, limites ou politica",
     "Perfil legado e plano com estrategia preservam trabalho item a item",

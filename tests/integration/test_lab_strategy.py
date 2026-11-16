@@ -108,6 +108,16 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
         facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
         record_metrics(
+            f"v18-t4-{product}-identity",
+            {
+                "auth_on_scanner": facts.auth_on_scanner,
+                "csrf": facts.csrf,
+                "rules_left": facts.rules_left,
+                "secret_hits": facts.secret_hits,
+                "target_endpoints": facts.target_endpoints,
+            },
+        )
+        record_metrics(
             f"v18-t2-{product}-{mode}-identity",
             {
                 "auth_on_scanner": facts.auth_on_scanner,
@@ -179,7 +189,7 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
         assert facts.secret_hits == []
         assert facts.auth_on_scanner[0] == facts.auth_on_scanner[1] > 0
         if product == "clinica-piloto":
-            assert facts.notifications == 0
+            assert not any("/api/notificacoes" in key for key in facts.target_endpoints)
             assert facts.csrf["writes_reached_target"] > 0
             assert facts.csrf["writes_with_header"] == facts.csrf["writes_reached_target"]
             assert facts.csrf["writes_with_cookie"] == facts.csrf["writes_reached_target"]
