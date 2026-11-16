@@ -46,6 +46,10 @@ class ProxyRow(ApiModel):
     query_params: tuple[str, ...] = ()
     signals: tuple[str, ...] = ()
     signal_skip: str | None = None
+    waited_ms: int | None = Field(default=None, ge=0)
+    duration_ms: int | None = Field(default=None, ge=0)
+    network_ms: int | None = Field(default=None, ge=0)
+    grant_wait_ms: int | None = Field(default=None, ge=0)
 
 
 class TrafficSummary(ApiModel):

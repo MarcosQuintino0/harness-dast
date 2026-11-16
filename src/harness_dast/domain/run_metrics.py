@@ -114,6 +114,41 @@ class DisabledRuleMetric(ApiModel):
     source: Literal["default", "profile"]
 
 
+class TimingMetrics(ApiModel):
+    """Tempos somados, que podem se sobrepor; aus?ncia significa n?o medido."""
+
+    local_queue_seconds: float | None = None
+    authentication_seconds: float | None = None
+    zap_delay_seconds: float | None = None
+    proxy_grant_wait_seconds: float | None = None
+    proxy_network_seconds: float | None = None
+    cpu_seconds: float | None = None
+    memory_peak_bytes: int | None = None
+
+
+def _timing(scan: ScanResult | None, rows: Sequence[ProxyRow] | None) -> TimingMetrics:
+    selected: list[ProxyRow] = []
+    if scan is not None and rows is not None:
+        start, end = _moment(scan.started_at), _moment(scan.finished_at)
+        if start is not None and end is not None:
+            selected = [r for r in rows if start <= r.at <= end and r.decision == "allow"]
+    waits = [r.grant_wait_ms for r in selected]
+    network = [r.network_ms for r in selected]
+    return TimingMetrics(
+        local_queue_seconds=getattr(scan, "local_queue_seconds", None),
+        authentication_seconds=getattr(scan, "authentication_seconds", None),
+        zap_delay_seconds=getattr(scan, "zap_delay_seconds", None),
+        cpu_seconds=getattr(scan, "process_cpu_seconds", None),
+        memory_peak_bytes=getattr(scan, "process_peak_memory_bytes", None),
+        proxy_grant_wait_seconds=round(sum(x for x in waits if x is not None) / 1000, 3)
+        if waits and all(x is not None for x in waits)
+        else None,
+        proxy_network_seconds=round(sum(x for x in network if x is not None) / 1000, 3)
+        if network and all(x is not None for x in network)
+        else None,
+    )
+
+
 class RunMetrics(ApiModel):
     """Conteúdo de `metrics.json`.
 
@@ -149,6 +184,7 @@ class RunMetrics(ApiModel):
     operations: tuple[OperationMetric, ...] = ()
     rules: RuleMetrics = Field(default_factory=RuleMetrics)
     traffic: TrafficMetrics = Field(default_factory=TrafficMetrics)
+    timing: TimingMetrics = Field(default_factory=TimingMetrics)
     disabled_rules: tuple[DisabledRuleMetric, ...] = ()
 
 
@@ -362,5 +398,6 @@ def build_run_metrics(
         operations=operations,
         rules=_rule_metrics(operations),
         traffic=_traffic(scan, proxy_rows),
+        timing=_timing(scan, proxy_rows),
         disabled_rules=_disabled(scan),
     )
