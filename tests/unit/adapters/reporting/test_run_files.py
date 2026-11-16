@@ -123,6 +123,16 @@ def test_optional_files_are_empty_or_none_when_absent(store: FileRunArtifacts) -
     assert store.read_triage(RUN_ID) is None
 
 
+def test_triage_with_utf8_bom_is_read_when_an_editor_wrote_the_mark(
+    tmp_path: Path, store: FileRunArtifacts
+) -> None:
+    triage = {"schema_version": 1, "annotations": []}
+    (run_dir(tmp_path) / "triage.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps(triage).encode("utf-8")
+    )
+    assert store.read_triage(RUN_ID) == triage
+
+
 @pytest.mark.parametrize(
     ("name", "content", "reader"),
     [

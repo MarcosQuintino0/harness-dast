@@ -256,7 +256,8 @@ class FileRunArtifacts:
         try:
             if path.stat().st_size > MAX_FILE_BYTES:
                 raise _corrupt(name, command)
-            return path.read_text(encoding="utf-8")
+            # utf-8-sig aceita (e remove) a marca BOM: `triage.json` é editado por pessoa ou agente.
+            return path.read_text(encoding="utf-8-sig")
         except FileNotFoundError:
             raise ConfigError(
                 f"A execução não tem {name}.",

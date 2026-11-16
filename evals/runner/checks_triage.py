@@ -36,7 +36,8 @@ def _annotations(trace: Path) -> tuple[list[dict[str, Any]], list[str]]:
     annotations: list[dict[str, Any]] = []
     problems: list[str] = []
     for file in sorted((trace / "runs").glob("*/triage.json")):
-        data = json.loads(file.read_text(encoding="utf-8"))
+        # O agente pode gravar com BOM (editores do Windows); a CLI aceita, a regua tambem.
+        data = json.loads(file.read_text(encoding="utf-8-sig"))
         if set(data) - {"schema_version", "annotations"}:
             problems.append(f"{file.parent.name}: campo de topo nao permitido")
         seen: set[str] = set()
