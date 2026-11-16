@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 from tests.integration.lab_support import LabCli, proxy_audit, require_docker
-from tests.integration.run_support import record_metrics, run_scenario, throwaway_pilot_env
+from tests.integration.run_support import (
+    collect_facts,
+    record_metrics,
+    run_scenario,
+    throwaway_pilot_env,
+)
 from tests.integration.strategy_support import (
     activate_strategy,
     install_strategy,
@@ -97,6 +102,17 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
         assert scan["entries"]
         assert all(row["host"] == product for row in scenario.audit)
         assert not any(row["method"] == "DELETE" for row in scenario.audit)
+        base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
+        facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
+        assert facts.rules_left == []
+        assert facts.secret_hits == []
+        assert facts.auth_on_scanner[0] == facts.auth_on_scanner[1] > 0
+        if product == "clinica-piloto":
+            assert facts.notifications == 0
+            assert facts.csrf["writes_reached_target"] > 0
+            assert facts.csrf["writes_with_header"] == facts.csrf["writes_reached_target"]
+            assert facts.csrf["writes_with_cookie"] == facts.csrf["writes_reached_target"]
+            assert facts.csrf["csrf_rejected"] == 0
         record_metrics(
             f"v18-t4-{product}-quality",
             {
@@ -109,6 +125,10 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
                 "traffic": scan.get("traffic"),
                 "findings_by_severity": dict(scenario.by_severity()),
                 "finding_titles": dict(scenario.finding_titles()),
+                "auth_on_scanner": facts.auth_on_scanner,
+                "csrf": facts.csrf,
+                "rules_left": facts.rules_left,
+                "secret_hits": facts.secret_hits,
             },
         )
     finally:
