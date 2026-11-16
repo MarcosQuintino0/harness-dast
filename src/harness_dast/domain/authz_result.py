@@ -39,6 +39,13 @@ AUTHZ_NOTICE: Final = (
 )
 
 AUTHZ_LIMITS: Final[tuple[str, ...]] = (
+    "CORS amostra somente GETs provados, com uma origem sob .invalid e uma tentativa por "
+    "operação, até cors_max_requests; não cobre preflight, outras origens ou todas as operações.",
+    "Par horizontal automático exige escrita autorizada, duas contas de papel não "
+    "compartilhado, POST e GET irmão provados, HTTP 201 com sucesso lógico e identificador "
+    "devolvido que não apareceu nas leituras anteriores; criação com HTTP 200 é inconclusiva. "
+    "O teto de 400 escritas é compartilhado com atribuição em massa, "
+    "com uma tentativa por escrita.",
     "BOLA em leituras (GET) com identificador no caminho ou na consulta; escritas só com "
     "allow_writes (PUT e PATCH, um campo por pedido, nunca DELETE); identificador no corpo não "
     "é testado.",

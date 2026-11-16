@@ -59,6 +59,10 @@ def test_cors_em_alvos_do_laboratorio(tmp_path: Path, product: str, mode: str) -
             assert bool(findings) == (mode == "vulnerable")
             if findings:
                 assert findings[0]["proposed_severity"] == "high"
-        record_metrics(f"lab-cors-{product}-{mode}", {"summary": summary, "findings": findings})
+        payload = {"product": product, "mode": mode, "summary": summary, "findings": findings}
+        (tmp_path / "cors-summary.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        record_metrics(f"lab-cors-{product}-{mode}", payload)
     finally:
         cli.stack_down()

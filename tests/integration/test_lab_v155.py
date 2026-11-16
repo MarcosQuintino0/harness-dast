@@ -130,6 +130,9 @@ def test_mass_e_par_automatico_nas_duas_apis(tmp_path: Path, product: str, mode:
         summary = _summary(product, mode, data)
         summary["pair_posts"] = len(posts)
         summary["pair_post_accounts"] = sorted({row["account"] for row in posts})
+        (tmp_path / "v155-summary.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         record_metrics(f"v155-{product}-{mode}", summary)
         assert data["status"] == "completed"
         assert posts, "O par automático deve tentar criar com contas do perfil."
@@ -158,7 +161,17 @@ def test_mass_e_par_automatico_nas_duas_apis(tmp_path: Path, product: str, mode:
                 exchanges = json.loads(
                     (cli.runs / run_id / "exchanges.json").read_text(encoding="utf-8")
                 )
-                assert exchanges
+                recorded = {item["operation_id"]: item for item in exchanges["exchanges"]}
+                assert recorded["obterPerfil"]["account"] == "paciente_b"
+                assert recorded["atualizarPerfil"]["account"] == "paciente_a"
+                confirmations = [
+                    row
+                    for row in rows
+                    if row["phase"] == "result"
+                    and row["operation_id"] == "authz:obterPerfil"
+                    and row["account"] == "paciente_a"
+                ]
+                assert len(confirmations) >= 2
         else:
             assert any(row["account"] == "user_a" for row in posts)
         if mode == "secure":

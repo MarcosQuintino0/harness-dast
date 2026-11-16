@@ -11,4 +11,6 @@ Cabeçalhos duplicados são combinados pelo cliente e não correspondem a uma or
 
 ## Limites
 
+Há uma tentativa por operação, inclusive quando o despachante normalmente repetiria após 401 ou 429, para que o teto conte pedidos HTTP efetivos.
+
 Uma amostra pequena não prova a política de todas as operações, métodos ou origens. Não testa preflight, origens específicas de confiança nem explora conteúdo. Erros, recusas e ausência de respostas são inconclusivos. Não prova que o navegador tenha uma sessão ou que a resposta contenha dados sensíveis. As políticas podem variar por caminho; a agregação mostra apenas a primeira evidência de cada classe.
