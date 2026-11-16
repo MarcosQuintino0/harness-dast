@@ -166,6 +166,7 @@ class AttackSection(ProfileModel):
     """Intensidade do ataque e permissão de escrita do teste entre contas (opcionais).
 
     Attributes:
+        technologies: Tecnologias declaradas na carta, com frase e origem, apenas consultivas.
         strength: `LOW`, `MEDIUM` ou `HIGH` -> `scan.strength`. Ausente mantém o padrão do
             perfil (a CLI não decide por conta própria).
         authz_shared_roles: Papéis que compartilham recursos, com origem e frase da carta.
@@ -188,6 +189,7 @@ class AttackSection(ProfileModel):
             `true` só com `source: carta` e a frase em `quote` (ADR 0052).
     """
 
+    technologies: Answer | None = None
     strength: Answer | None = None
     authz_shared_roles: Answer | None = None
     allow_authz_writes: Answer | None = None

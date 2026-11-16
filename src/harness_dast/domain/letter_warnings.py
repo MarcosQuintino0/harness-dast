@@ -162,4 +162,20 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                 ),
             )
         )
+    warnings.extend(_technology_warning(profile))
     return tuple(warnings)
+
+
+def _technology_warning(profile: ProductProfile) -> tuple[LetterIssue, ...]:
+    if profile.technologies is None:
+        return ()
+    return (
+        LetterIssue(
+            field="attack.technologies",
+            code="TECHNOLOGIES_ADVISORY",
+            message=(
+                "A declaração não confirma a tecnologia nem reduz a cobertura: "
+                "todas as regras continuam ativas."
+            ),
+        ),
+    )

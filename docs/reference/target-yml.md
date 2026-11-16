@@ -564,3 +564,17 @@ O YAML é carregado em modo seguro, com limite de tamanho (256 KiB) e de profund
 ## `data-rules.yml` e `flows.yml`
 
 Veja [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md). O encadeamento aceita vários níveis, sem ciclos (ADR 0021).
+
+
+## Tecnologias declaradas (ADR 0068)
+
+`technologies` é opcional e gerado de `attack.technologies` da carta, com lista `value` de identificadores minúsculos, `source: carta` e a frase não vazia em `quote`. Exemplo:
+
+```yaml
+technologies:
+  value: [h2]
+  source: carta
+  quote: "O banco de dados utilizado é H2."
+```
+
+A declaração é consultiva: não confirma a tecnologia nem reduz a cobertura; todas as regras continuam ativas. Não infira valores. Quando ausente ou desconhecida, não aparece no perfil gerado e preserva a aprovação anterior. Uma declaração ou mudança nela altera a impressão digital e exige nova aprovação.

@@ -44,6 +44,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Não haverá limpeza automática por SQL: o ambiente é descartável. O perfil não deve ter bloco de limpeza.
 
 8. Informações técnicas do time do produto
+   - O banco de dados utilizado é H2.
    - Login: POST /api/auth/login com JSON {"username", "password"}; a resposta traz o token no campo
      access_token, enviado como "Authorization: Bearer <token>".
    - Escritas (POST, PUT, PATCH) exigem proteção XSRF por cookie duplicado: cookie XSRF-TOKEN e

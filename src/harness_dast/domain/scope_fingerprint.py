@@ -47,6 +47,7 @@ Aprovação da versão 1 vale como não aprovada e uma pessoa aprova de novo.
 
 BLOCKS: Final[tuple[tuple[str, str], ...]] = (
     ("environment", "ambiente alvo"),
+    ("technologies", "tecnologias declaradas, informação consultiva"),
     ("scope.allow", "o que pode ser alcançado"),
     ("scope.deny_paths", "caminhos proibidos"),
     ("scope.path_mode", "modo de caminho"),
@@ -247,6 +248,8 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
         "negative": _negative(profile),
         "cleanup": None if profile.cleanup is None else profile.cleanup.model_dump(mode="json"),
     }
+    if profile.technologies is not None:
+        blocks["technologies"] = profile.technologies.model_dump(mode="json")
     if profile.negative.is_default():
         del blocks["negative"]
     return {block_id: blocks[block_id] for block_id in BLOCK_IDS if block_id in blocks}
