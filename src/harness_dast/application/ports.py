@@ -30,6 +30,7 @@ from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
@@ -49,7 +50,12 @@ from harness_dast.domain.wait import WaitResult
 class MutationJournal(Protocol):
     """Reserva inten??es antes do envio e registra apenas resultado conhecido."""
 
-    def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
+    def begin(
+        self,
+        key: str,
+        previous_state: Literal["absent", "present", "unknown"],
+        snapshot: MutationSnapshot | None = None,
+    ) -> None:
         """Reserva chave est?vel; pend?ncia impede repeti??o."""
         ...
 

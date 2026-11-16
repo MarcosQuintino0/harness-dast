@@ -36,7 +36,7 @@ _REQUIRED: dict[str, frozenset[str]] = {
 class KnowledgeEffect(ProfileModel):
     """Receita sanitizada de efeito comprovado por releitura, sem valor ou ID."""
 
-    post_operation: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,199}$")
+    write_operation: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,199}$")
     read_operation: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,199}$")
     account: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
     fields: tuple[str, ...] = Field(min_length=1, max_length=50)

@@ -8,6 +8,8 @@ antecipadas (janela, prazo, ZAP, alvo sem resposta) interrompem o laço e voltam
 
 from dataclasses import dataclass, field
 
+from pydantic import ValidationError
+
 from harness_dast.application.account_session import AccountSession
 from harness_dast.application.dispatcher import OperationDispatcher, SendOutcome
 from harness_dast.application.preview import build_preview
@@ -24,6 +26,7 @@ from harness_dast.domain.errors import (
 from harness_dast.domain.excerpt import sanitize_excerpt
 from harness_dast.domain.flow import ResolvedBindings
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse
 from harness_dast.domain.outcome import Outcome, classify_response, parse_json_body
 from harness_dast.domain.probe_conflict import annotate_blocked, conflict_fields
 from harness_dast.domain.probe_exchange import ExchangeRecord, build_exchange
@@ -238,6 +241,8 @@ class ProbeRunner:
             planned,
             outcome,
             status=response.status,
+            rule_uses=prepared.built.rule_uses if outcome == "success" else (),
+            flow_uses=self._flow_uses(planned) if outcome == "success" else (),
             conflict_fields=tuple(
                 name
                 for name in conflict_fields(
@@ -256,6 +261,33 @@ class ProbeRunner:
             else None,
             **common,
         )
+
+    def _flow_uses(self, planned: PlannedOperation) -> tuple[KnowledgeFlowUse, ...]:
+        if self._s.flows is None:
+            return ()
+        receipts: list[KnowledgeFlowUse] = []
+        for binding in self._s.flows.bindings:
+            if binding.produces.operation not in planned.depends_on:
+                continue
+            for consumer in binding.consumed_by:
+                if consumer.operation != planned.operation_id:
+                    continue
+                kind, name = consumer.target
+                try:
+                    receipts.append(
+                        KnowledgeFlowUse.model_validate(
+                            {
+                                "producer": binding.produces.operation,
+                                "consumer": consumer.operation,
+                                "source_field": binding.produces.field,
+                                "target_kind": kind,
+                                "target_field": name,
+                            }
+                        )
+                    )
+                except ValidationError:
+                    continue
+        return tuple(receipts)
 
     def _remember(
         self, planned: PlannedOperation, request: HttpRequest, response: HttpResponse

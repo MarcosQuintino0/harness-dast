@@ -12,6 +12,7 @@ from typing import Final, Literal
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse, KnowledgeRuleUse
 from harness_dast.domain.multipart_encoding import MultipartPart
 from harness_dast.domain.outcome import SENT_OUTCOMES, Outcome
 from harness_dast.domain.run import RunLimits
@@ -110,6 +111,8 @@ class OperationResult(ApiModel):
     redirect_in_scope: bool | None = None
     preview: RequestPreview | None = None
     untrusted_target_data: TargetData | None = None
+    rule_uses: tuple[KnowledgeRuleUse, ...] = ()
+    flow_uses: tuple[KnowledgeFlowUse, ...] = ()
 
 
 class ProbeSummary(ApiModel):

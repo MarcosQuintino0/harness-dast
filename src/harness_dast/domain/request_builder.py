@@ -18,7 +18,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import quote
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from harness_dast.domain.api_model import Operation, Parameter, safe_identifier
 from harness_dast.domain.api_schema import (
@@ -34,6 +34,7 @@ from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import BoundValue, ResolvedBindings
 from harness_dast.domain.implicit_values import FieldNotGeneratable, implicit_draw
+from harness_dast.domain.knowledge_receipts import KnowledgeRuleUse
 from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE
 from harness_dast.domain.multipart_schema import PartPlan, plan_parts
 from harness_dast.domain.routing_headers import is_routing_header
@@ -114,6 +115,7 @@ class BuiltRequest(ApiModel):
     body_media_type: str | None = None
     files: tuple[FileSpec, ...] = ()
     skipped_fields: tuple[str, ...] = ()
+    rule_uses: tuple[KnowledgeRuleUse, ...] = ()
 
 
 class _Omitted:
@@ -221,6 +223,7 @@ class RequestBuilder:
         self._unique_counter = initial_counter
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
+        self._rule_uses: list[KnowledgeRuleUse] = []
 
     @property
     def next_unique_counter(self) -> int:
@@ -300,6 +303,7 @@ class RequestBuilder:
             ConfigError: Campo obrigatório sem como gerar valor (a dica pede uma regra),
                 valor de regra que viola o esquema, valor único repetido ou esgotado.
         """
+        self._rule_uses = []
         bound = bindings or ResolvedBindings()
         skipped: list[str] = []
         values = {
@@ -318,6 +322,7 @@ class RequestBuilder:
             body_media_type=media_type,
             files=files,
             skipped_fields=tuple(skipped),
+            rule_uses=tuple(self._rule_uses),
         )
 
     def _parameters(
@@ -584,9 +589,26 @@ class RequestBuilder:
                 run_tag=self._run_tag,
             )
         )
+        if resolved is not None:
+            self._record_rule(ctx, resolved, generator)
         if unique:
             self._remember_unique(resolved.index if resolved else -1, value, ctx)
         return value
+
+    def _record_rule(self, ctx: _Ctx, resolved: ResolvedRule, generator: str) -> None:
+        try:
+            receipt = KnowledgeRuleUse(
+                operation=ctx.operation_id,
+                rule_index=resolved.index,
+                generator=generator,
+                field=".".join(ctx.segments),
+                location=ctx.location,
+            )
+        except ValidationError:
+            # Campos externos fora do formato seguro seguem executando, sem recibo reutiliz?vel.
+            return
+        if receipt not in self._rule_uses:
+            self._rule_uses.append(receipt)
 
     def _next_counter(self) -> int:
         counter = self._unique_counter
