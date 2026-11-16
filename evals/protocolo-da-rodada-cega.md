@@ -22,7 +22,7 @@ valores no enum do OpenAPI. Outros argumentos textuais livres são recusados, sa
 valores fechados ou padrões do catálogo de geradores. A projeção do perfil contém
 apenas contas e referências da carta, tipo de autenticação e, quando declarado no
 OpenAPI, o caminho de login; não substitui o `target.yml` gerado da carta vigente.
-Não se copiam aprovações, estado, IDs de execução, respostas nem resultados.
+O `knowledge.yml` leva a proveniência da rodada de origem (`run_id` e os hashes do manifesto, do probe e do authz), que o modelo exige e que não são segredo; fora essa proveniência, não se copiam aprovações, estado, IDs de execução, respostas nem resultados. Um teste fixa o que vai no pacote.
 
 **Limite:** a exportação não comprova validade no segundo contexto. O consumo depende
 de validar as fontes e o motor atuais na CLI. Até essa validação e a promoção segura

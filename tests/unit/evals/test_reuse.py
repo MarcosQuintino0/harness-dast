@@ -545,3 +545,26 @@ def test_symlink_is_rejected(repo: Path, out: Path, tmp_path: Path) -> None:
         pytest.skip("Sistema não permite criar link simbólico no teste")
     with pytest.raises(EvalError, match="Links"):
         export_reuse(out, tmp_path / "package")
+
+
+def test_package_carries_provenance_of_origin_round_and_nothing_else_identifying(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    run_id = "2026-11-16T14-30-24Z-mini-bed9"
+    _source(repo, out)
+    path = out / "trace/profile/final/mini/knowledge.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["provenance"] = {
+        "run_id": run_id,
+        "manifest_sha256": "a" * 64,
+        "probe_sha256": "b" * 64,
+        "authz_sha256": None,
+    }
+    write(path, yaml.safe_dump(data))
+
+    package = export_reuse(out, tmp_path / "package")
+    _, files = verify_reuse(out, package, "mini")
+
+    carried = yaml.safe_load(files["knowledge.yml"])["provenance"]
+    assert carried == data["provenance"]
+    assert all(run_id not in text for name, text in files.items() if name != "knowledge.yml")

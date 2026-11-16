@@ -25,6 +25,7 @@ segunda rodada. A cópia recebe as propostas em `inputs/reuse/`, declaradas na c
 conhecimento e escolhas de estratégia ficam `review_required`. Como a serialização
 canônica muda os bytes das receitas, seus hashes são recalculados nessas propostas,
 depois da validação das fontes originais; isso não valida o segundo contexto.
+O `knowledge.yml` exportado mantém a `provenance` que o modelo exige: `run_id` e os hashes do manifesto, do probe e do authz da rodada de origem. Não são segredo, não autenticam autoria e identificam só a origem; nenhum outro arquivo do pacote carrega o identificador da execução (teste em `tests/unit/evals/test_reuse.py`).
 A preparação não transfere aprovação nem valida o contexto atual. O motor, contrato,
 ambiente, contas e autorização precisam ser verificados de forma independente antes
 de qualquer consumo. Um manifesto não autentica a origem nem é prova de atualidade.
