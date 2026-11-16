@@ -70,6 +70,10 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0063](0063-verificacao-cors.md) | Verificação CORS | Proposto | 2026-11-15 | V1.5.5 |
 | [0064](0064-par-automatico-entre-contas.md) | Par automático entre contas | Proposto | 2026-11-15 | V1.5.5 |
 | [0065](0065-triagem-de-todas-as-origens.md) | Triagem de todas as origens | Proposto | 2026-11-15 | V1.5.5 |
+| [0066](0066-concessao-real-e-medicao-do-proxy.md) | Concessão real e medição do proxy | Proposto | 2026-11-16 | V1.7 |
+| [0067](0067-ritmo-unico-e-medicao-do-executor.md) | Ritmo único e medição do executor | Proposto | 2026-11-16 | V1.7 |
+| [0068](0068-tecnologias-consultivas.md) | Declaração consultiva de tecnologias | Proposto | 2026-11-16 | V1.7 |
+| [0069](0069-estrategia-e-limites-da-prova-de-desempenho.md) | Estratégia e limites da prova de desempenho | Proposto | 2026-11-16 | V1.7 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

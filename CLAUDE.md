@@ -16,6 +16,8 @@ A V1.5.4 distingue a recusa esperada de credenciais sintéticas na operação de
 
 A V1.5.5 traz `hdast wait` bloqueante, leitura da atribuição em massa pela conta escritora, CORS no `authz`, tentativa de par horizontal com recurso novo e conferência final de triagem de todas as origens. Gates completos e oito cenários na Clínica Piloto e no VAmPI passaram. Os aceites B, D e F são parciais: V4 do VAmPI não foi comprovada e seu POST 200 não confirma o novo par; V3 foi comprovada pela leitura já provada pelo probe. O caso `vampi-estrito` preserva o histórico. Sem rodada cega, varredura completa, crAPI ou produto real nesta entrega. Provas e limites no [relatório](docs/reviews/relatorio-v1.5.5.md).
 
+A V1.7 implementa `scan.pacing` (`legacy` por padrão, `proxy` opcional e protegido pela aprovação), concessão real e recuo temporário de 429 sem repetição no proxy, métricas aditivas e declaração consultiva de tecnologias proveniente da carta. A declaração não exclui regras. Tempos de fila, identidade e resposta podem se sobrepor; CPU e pico residente medem a CLI, e atraso efetivo do ZAP e parcela paralelizável continuam indisponíveis. O protocolo e os limites de prova estão em [scan-performance](docs/reference/scan-performance.md); não presumir ganho ou equivalência executada a partir dos testes sem alvo. Nenhuma prova contra produto real.
+
 ## Parte A. Ao DESENVOLVER o projeto
 
 ### Princípio e camadas

@@ -17,6 +17,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.7.0] - 2026-11-16
+
+### Ritmo serial e medição
+
+- `scan.pacing: legacy | proxy` permite comparar o atraso fixo anterior com concessão no proxy. `legacy` continua padrão; `proxy` muda a aprovação e preserva força, regras, contas e limites.
+- O proxy concede pela hora real, preserva fila limitada, reconfere travas após esperas e aplica recuo temporário de 429 sem repetir pedidos. Sua imagem precisa ser reconstruída.
+- `metrics.json` recebe tempos de fila, identidade, concessão, resposta e recursos da CLI. Valores ausentes ficam nulos; tempos sobrepostos não são tempo de parede. O atraso efetivo do ZAP continua indisponível.
+- A carta pode gerar uma declaração consultiva de tecnologias com origem e frase, protegida pela aprovação. Todas as regras continuam ativas, pois uma declaração errada pode não produzir sinal observável.
+- Subconjuntos fixos e protocolo T1–T4 versionados, com estimador pré-registrado por regra. Ganho, cobertura executada e detecção dependem das provas de laboratório; sem prova, B permanece opcional. Sem rodada cega nesta versão.
+
 ## [1.5.5] - 2026-11-15
 
 ### Achar mais e reduzir espera
