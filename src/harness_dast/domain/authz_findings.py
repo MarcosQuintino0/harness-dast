@@ -30,7 +30,7 @@ from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.zap_alert import Severity
 
 TECHNIQUE_LABEL: Final[dict[AuthzTechnique, str]] = {
-    "authz_cors": "Pol?tica CORS permissiva",
+    "authz_cors": "Política CORS permissiva",
     "authz_horizontal": "Acesso horizontal entre contas do mesmo papel (BOLA/IDOR)",
     "authz_vertical": "Acesso vertical: papel menor chama operação de papel maior (BFLA)",
     "authz_excessive_data": "Exposição excessiva de dados (campos fora do esquema)",

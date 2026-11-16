@@ -22,7 +22,9 @@ def run_cors(ctx: CheckContext, plan: Planned[ExchangeRecord]) -> CheckResult:
     origin = "https://" + hashlib.sha256(ctx.settings.run_id.encode()).hexdigest()[:24] + ".invalid"
     seen: set[CorsPolicy] = set()
     for exchange in plan.tasks:
-        reply = ctx.sender.send(exchange, exchange.account, tag="cors:", origin=origin)
+        reply = ctx.sender.send(
+            exchange, exchange.account, tag="cors:", origin=origin, max_attempts=1
+        )
         if reply.problem is not None:
             out.not_tested.append(problem_note("cors", exchange, reply))
             continue
