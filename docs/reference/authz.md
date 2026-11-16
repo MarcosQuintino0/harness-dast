@@ -1,5 +1,17 @@
 # `hdast authz`: teste de autorização entre contas
 
+## Novidades da V1.5.5
+
+- `cors` amostra GETs provados e repete uma origem sob `.invalid`; veja [CORS](cors.md) e o [ADR 0063](../adr/0063-verificacao-cors.md).
+- A atribuição em massa prefere GET da conta escritora; na falta dele, repete com essa conta um GET provado por outra conta, do mesmo modelo e alvo concreto. Antes, depois e restauração usam esse leitor ([ADR 0062](../adr/0062-leitura-atribuicao-massa-conta-escritora.md)).
+- `horizontal`, com escrita autorizada, tenta criar um recurso como a primeira conta de cada papel com duas contas não compartilhadas. Os campos consumidores declarados em `flows.yml` conservam as referências do POST provado; os demais são gerados novamente. Essas referências ainda precisam ser válidas para a conta criadora. Só compara após HTTP 201, sucesso lógico, identificador devolvido não conhecido e leitura confirmada pela criadora. O corpo do POST não substitui a confirmação. APIs que criam com 200 ficam `create_unconfirmed` ([ADR 0064](../adr/0064-par-automatico-entre-contas.md)).
+- O teto de 400 escritas é compartilhado entre o par automático e atribuição em massa, com uma tentativa por escrita e espaço reservado para restauração. CORS também tem uma tentativa por operação para preservar seu teto.
+- Anotações de todas as origens em `triage.json` são reconhecidas ao calcular `triage_orphans`. As notas adicionais ainda não aparecem junto aos achados dessas seções; a conferência final usa o arquivo de triagem ([ADR 0065](../adr/0065-triagem-de-todas-as-origens.md)).
+
+Os motivos novos do par são `new_data_unavailable`, `flow_binding_unavailable`, `create_failed`, `create_unconfirmed`, `created_target_preexisting`, `created_identifier_unavailable`, `created_owner_read_failed` e `created_read_different`; seguem também os motivos de escopo, conta, orçamento e escrita não autorizizada. Nenhum significa que a API passou no teste.
+
+`exchanges.json` ganhou `next_unique_counter`, inteiro opcional de 0 a 65536. O probe publica o próximo contador; o authz o continua e grava o avanço antes de cada POST. Um registro antigo sem esse campo permite as repetições existentes, mas deixa a criação automática sem teste: rode um novo probe. O campo não contém valores gerados ou segredos e não amplia a autorização.
+
 Decisões: [ADR 0041](../adr/0041-tabela-quem-pode-o-que.md) (tabela "quem pode o quê"), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md), [ADR 0042](../adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md) (escrita em recurso de outra conta e identificador na consulta), [ADR 0040](../adr/0040-candidatos-de-campo-proibido-do-openapi.md) (campos da atribuição em massa tirados do OpenAPI e `POST`), [ADR 0040](../adr/0040-candidatos-de-campo-proibido-do-openapi.md) (campos da atribuição em massa tirados do OpenAPI e `POST`), [ADR 0039](../adr/0039-pedido-sem-login-e-token-adulterado.md) (pedido sem login e token adulterado) e [ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md) (estágio ligado por padrão no `run` e escrita só com a carta). O ZAP varre uma requisição por vez, com uma identidade, e não conhece o esquema de resposta do produto; por isso não acha BOLA, BFLA, atribuição em massa nem exposição excessiva de dados. O `authz` é um estágio **determinístico, sem ZAP**, que roda depois do `probe` e repete com outras contas, **sem login** e **com o token adulterado** os pedidos que o `probe` já provou com sucesso.
 
 ```bash

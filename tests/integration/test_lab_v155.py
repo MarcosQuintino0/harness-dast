@@ -31,12 +31,38 @@ def _install(cli: LabCli, product: str) -> None:
     target = folder / "target.yml"
     profile = yaml.safe_load(target.read_text(encoding="utf-8"))
     profile.pop("cleanup", None)
-    profile["scope"]["allow"][0]["methods"] = ["GET", "POST", "PUT", "PATCH"]
+    profile["scope"]["allow"][0]["methods"] = [
+        method for method in profile["scope"]["allow"][0]["methods"] if method != "DELETE"
+    ]
     profile["authz"] = {"allow_writes": True}
     if product == "vampi":
         profile["authz"]["public_operations"] = ["api_views.users.get_by_username"]
     if product == "clinica-piloto":
         profile["authz"]["shared_roles"] = ["medico"]
+        # A criação exige referência ao próprio dono. O perfil declara esse vínculo;
+        # a regra do harness não infere posse por nomes de campo ou de papel.
+        accounts = profile["auth"]["accounts"]
+        first = next(item for item in accounts if item["alias"] == "paciente_b")
+        accounts.remove(first)
+        accounts.insert(0, first)
+        flow_path = folder / "flows.yml"
+        flows = yaml.safe_load(flow_path.read_text(encoding="utf-8"))
+        for binding in flows["bindings"]:
+            binding["consumed_by"] = [
+                consumer
+                for consumer in binding["consumed_by"]
+                if not (
+                    consumer["operation"] == "criarConsulta"
+                    and consumer.get("field") == "pacienteId"
+                )
+            ]
+        flows["bindings"].append(
+            {
+                "produces": {"operation": "obterPerfil", "field": "pacienteId"},
+                "consumed_by": [{"operation": "criarConsulta", "field": "pacienteId"}],
+            }
+        )
+        flow_path.write_text(yaml.safe_dump(flows), encoding="utf-8")
         for rule in profile["auth"]["account_map"]:
             rule["operations"] = [
                 operation
@@ -157,7 +183,7 @@ def test_mass_e_par_automatico_nas_duas_apis(tmp_path: Path, product: str, mode:
                 for f in data["findings"]
             )
             if mode == "vulnerable":
-                assert "paciente_a" in summary["pair_post_accounts"]
+                assert "paciente_b" in summary["pair_post_accounts"]
                 exchanges = json.loads(
                     (cli.runs / run_id / "exchanges.json").read_text(encoding="utf-8")
                 )

@@ -187,6 +187,7 @@ def test_the_fingerprint_does_not_collide_across_field_boundaries() -> None:
 
 def test_every_technique_has_a_label() -> None:
     assert set(TECHNIQUE_LABEL) == {
+        "authz_cors",
         "authz_horizontal",
         "authz_vertical",
         "authz_excessive_data",

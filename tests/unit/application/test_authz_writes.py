@@ -77,6 +77,7 @@ def test_the_default_run_without_writes_still_does_the_read_only_checks() -> Non
     assert authz_writes_sent(rig) == []
     assert result.status == "completed"
     assert [c.check for c in result.checks] == [
+        "cors",
         "horizontal",
         "excessive_data",
         "anonymous_access",
@@ -172,10 +173,17 @@ def test_missing_exchanges_in_the_run_stage_become_not_tested_instead_of_an_erro
     assert result.status == "completed"
     assert result.findings == ()
     assert result.requests_sent == 0
-    for name in ("horizontal", "excessive_data", "anonymous_access", "tampered_token", "vertical"):
+    for name in (
+        "cors",
+        "horizontal",
+        "excessive_data",
+        "anonymous_access",
+        "tampered_token",
+        "vertical",
+    ):
         assert notes(result, name, "exchanges_unavailable"), name
     skipped_all = [c for c in result.checks if c.check not in WRITE_CHECKS]
-    assert [c.status for c in skipped_all] == ["skipped"] * 6
+    assert [c.status for c in skipped_all] == ["skipped"] * 7
     assert "exchanges" in notes(result, "horizontal", "exchanges_unavailable")[0].message
 
 
