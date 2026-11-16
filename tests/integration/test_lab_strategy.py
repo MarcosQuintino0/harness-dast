@@ -69,7 +69,7 @@ def test_strategy_preserva_controles_direcionados(
     try:
         up = cli.run("stack", "up", product, *flags, timeout=900)
         assert up.code == 0, up.stdout + up.stderr
-        bind_live_strategy(cli, product)
+        bind_live_strategy(cli, product, mode)
         preflight = cli.run("preflight", product)
         assert preflight.code == 0, preflight.stdout + preflight.stderr
         probe = cli.run("probe", product, timeout=900)

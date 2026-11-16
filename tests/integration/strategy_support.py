@@ -56,7 +56,7 @@ def load_artifact(cli: LabCli, run_id: str, name: str) -> dict[str, Any]:
     return loaded
 
 
-def bind_live_strategy(cli: LabCli, product: str) -> None:
+def bind_live_strategy(cli: LabCli, product: str, mode: str = "unspecified") -> None:
     """Cria o vínculo pelo comando público e ativa explicitamente a cópia no laboratório."""
     folder = cli.products / product
     before = (folder / "target.yml").read_bytes()
@@ -69,6 +69,18 @@ def bind_live_strategy(cli: LabCli, product: str) -> None:
     assert captured.data["approval_changed"] is False
     assert (folder / "target.yml").read_bytes() == before
     assert active.read_bytes() == strategy_before
+    record_metrics(
+        f"v18-capture-{product}-{mode}",
+        {
+            "product": product,
+            "mode": mode,
+            "command": "strategy capture",
+            "exit_code": captured.code,
+            "envelope": captured.envelope,
+            "profile_unchanged": True,
+            "active_strategy_unchanged": True,
+        },
+    )
     active.rename(folder / "strategy.unbound.yml")
     (folder / "strategy.captured.yml").rename(active)
 
