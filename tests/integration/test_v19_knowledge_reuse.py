@@ -33,8 +33,14 @@ def _metrics_destination(monkeypatch: pytest.MonkeyPatch) -> None:
 def _run(
     cli: LabCli, stages: list[dict[str, object]], context: str, *args: str, timeout: int = 900
 ) -> CliResult:
+    stage: dict[str, object] = {
+        "context": context,
+        "command": " ".join(args[:2]),
+        "exit_code": None,
+    }
+    stages.append(stage)
     result = cli.run(*args, timeout=timeout)
-    stages.append({"context": context, "command": " ".join(args[:2]), "exit_code": result.code})
+    stage["exit_code"] = result.code
     assert result.code == 0, result.stdout + result.stderr
     return result
 
@@ -109,7 +115,9 @@ def _record_controls(
             "authz_not_tested": dict(
                 Counter(item["reason"] for item in artifacts["authz"].get("not_tested", []))
             ),
-            "negative_checks": artifacts["negative"].get("checks"),
+            "negative_requests": artifacts["negative"].get("requests_sent"),
+            "negative_operations_tested": artifacts["negative"].get("operations_tested"),
+            "negative_findings": len(artifacts["negative"].get("findings", [])),
             "negative_by_class": artifacts["negative"].get("by_class"),
             "scan_entries": artifacts["scan"]["entries"],
             "traffic": artifacts["scan"].get("traffic"),
