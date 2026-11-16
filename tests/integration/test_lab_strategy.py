@@ -8,6 +8,7 @@ import pytest
 
 from tests.integration.lab_support import LabCli, proxy_audit, require_docker
 from tests.integration.run_support import (
+    Scenario,
     collect_facts,
     record_metrics,
     run_scenario,
@@ -71,9 +72,9 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         assert authz.code == 0, authz.stdout + authz.stderr
         negative = cli.run("negative", product, "--run", run_id, timeout=900)
         assert negative.code == 0, negative.stdout + negative.stderr
-        # Uma entrada textual de consulta e uma leitura por identificador.
+        # Entradas de leitura e uma escrita para conferir identidade e o par XSRF.
         operations = (
-            ("buscarPacientesPorNome", "buscarPaciente")
+            ("buscarPacientesPorNome", "buscarPaciente", "criarConvenio")
             if product == "clinica-piloto"
             else ("api_views.users.get_by_username", "api_views.books.get_by_title")
         )
@@ -101,11 +102,34 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
             for name in ("authz", "negative", "scan")
         }
         record_control(product, mode, artifacts)
+        scenario = Scenario(
+            f"v18-t2-{product}-{mode}", cli, report, cli.runs / run_id, proxy_audit(cli), {}, 0.0
+        )
+        base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
+        facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
+        record_metrics(
+            f"v18-t2-{product}-{mode}-identity",
+            {
+                "auth_on_scanner": facts.auth_on_scanner,
+                "csrf": facts.csrf,
+                "rules_left": facts.rules_left,
+                "secret_hits": facts.secret_hits,
+            },
+        )
+        assert facts.rules_left == []
+        assert facts.secret_hits == []
+        assert facts.auth_on_scanner[0] == facts.auth_on_scanner[1] > 0
+        if product == "clinica-piloto":
+            assert facts.csrf["writes_reached_target"] > 0
+            assert facts.csrf["writes_with_header"] == facts.csrf["writes_reached_target"]
+            assert facts.csrf["writes_with_cookie"] == facts.csrf["writes_reached_target"]
+            assert facts.csrf["csrf_rejected"] == 0
         assert all(data["status"] == "completed" for data in artifacts.values())
         assert len(artifacts["scan"]["entries"]) == len(operations)
         assert all(item["outcome"] == "completed" for item in artifacts["scan"]["entries"])
         assert not any(row["method"] == "DELETE" for row in proxy_audit(cli))
-        assert all(row["host"] == product for row in proxy_audit(cli))
+        assert all(row["host"] == product for row in proxy_audit(cli) if row["decision"] == "allow")
+        assert artifacts["scan"]["traffic"]["allowed_outside_allow"] == 0
         if mode == "secure":
             findings = artifacts["authz"]["findings"]
             assert all(item["technique"] == "authz_anonymous_access" for item in findings)
@@ -146,7 +170,8 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
         assert scan["rules_removed"] is True
         assert scan["entries"]
         assert all(item["outcome"] == "completed" for item in scan["entries"])
-        assert all(row["host"] == product for row in scenario.audit)
+        assert all(row["host"] == product for row in scenario.audit if row["decision"] == "allow")
+        assert scan["traffic"]["allowed_outside_allow"] == 0
         assert not any(row["method"] == "DELETE" for row in scenario.audit)
         base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
         facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
