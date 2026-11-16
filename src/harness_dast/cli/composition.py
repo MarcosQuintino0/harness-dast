@@ -42,7 +42,11 @@ from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
 from harness_dast.application.validate_profile import ValidateProfile
-from harness_dast.cli.approval_composition import checked_profiles, open_approval_store
+from harness_dast.cli.approval_composition import (
+    checked_profiles,
+    formal_profiles,
+    open_approval_store,
+)
 from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
     load_effective_settings,
@@ -149,6 +153,7 @@ class NetworkHandle:
             verify_tls: Se o certificado do alvo é verificado (vem do perfil).
         """
         api_key = settings.zap_api_key.get_secret_value() if settings.zap_api_key else None
+        self.settings = settings
         if api_key:
             secrets.register(api_key)
         self.zap = ZapApiClient(settings.zap_base_url, api_key)
@@ -177,7 +182,7 @@ def open_network(product: str, products_dir: Path | None, secrets: SecretRegistr
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profile = checked_profiles(root).load(product)
+    profile = formal_profiles(root).load(product)
     settings = load_effective_settings()
     return NetworkHandle(settings, secrets, verify_tls=profile.environment.verify_tls)
 
@@ -192,7 +197,7 @@ def build_preflight(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Preflight(
-        profiles=checked_profiles(root),
+        profiles=checked_profiles(root, network.zap),
         secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
@@ -213,12 +218,14 @@ def build_probe(
     secrets: SecretRegistry,
     network: NetworkHandle,
     shared: SharedServices | None = None,
+    *,
+    dry_run: bool = False,
 ) -> Probe:
     """Monta o caso de uso `hdast probe` sobre a rede já aberta."""
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Probe(
-        profiles=checked_profiles(root),
+        profiles=checked_profiles(root, None if dry_run else network.zap),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),

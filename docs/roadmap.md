@@ -263,6 +263,20 @@ Entrega dos itens A a F do [plano](plans/2026-11-15-plano-v1-5-4-alcance-confiav
 
 Implementados os ritmos `legacy` (padrão) e `proxy` (comparação protegida pela aprovação), concessão real, recuo temporário sem repetição e recusa imediata `rate_backoff` com `Retry-After` restante. A declaração de tecnologias é consultiva e não exclui regras; lacunas por regra e dados antigos desconhecidos são refletidos no relatório. Os 12 controles T2 direcionados passaram; em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. A regra DOM 40026 `skipped` impede aceite de cobertura e estimativa completa. A B da Clínica ocorreu antes do congelamento da previsão; não há previsão prospectiva válida para ela. Os limites condicionais da parcela paralelizável não comprovam 40% e V1.10 permanece fechada. [Protocolo e limites](reference/scan-performance.md), [pré-registro](../evals/measurements/v1.7/preregistro.md) e [QA estático](reviews/qa-v1.7.md). Nenhuma prova contra produto real.
 
+### V1.8: contratos da personalização
+
+Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`. A numeração deste bloco segue o [briefing específico](plans/2026-11-16-execucao-v1-8-personalizacao.md); as decisões de continuação estão no [plano de fechamento](plans/2026-11-16-v1-8-fechamento.md).
+
+| Componente | Status |
+| --- | --- |
+| Envelope, estratégia neutra, validação, diff estrutural e migração explícita | Implementado em código e testes, ADRs 0070 a 0074 propostos |
+| Prévia sem tráfego e consumo do plano concreto pelo executor serial | Implementado; prévia simbólica tem limitações explícitas de entradas e catálogo |
+| Vínculos de dependências e invalidação | Captura pública em cópia e conferência ativa das fontes e versão atual do ZAP implementadas; secos e cleanup sem provedor recusam escolha preenchida; versão não autentica instância |
+| Revogação depois de compilar | Vigia de fontes/stop e recusa por concessão de snapshot com idade >200 ms; autorização/janela/prazo por concessão. Micro no bind real caiu de 5,776 para 0,026 ms de mediana; corrida real repetida sem concessão posterior à recusa |
+| Provas e aceite da versão | Quatro T4 e metas temporais passaram na [rodada 3](reviews/relatorio-v1.8-rodada3.md); validador novo decidiu corrigir lacuna de prova. PR em rascunho, sem aceite global; registros anteriores preservados |
+| Promoção de `proxy` em perfis novos (ADR 0075) | Não promovido: nova previsão passou, mas contagens divergiram sem explicação suficiente (SSTI Clínica e Parameter Tampering VAmPI); init, modelo e perfis antigos preservados |
+| Reutilização de conhecimento e estado entre execuções | Planejado para V1.9; não entregue pela V1.8 |
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |

@@ -1,0 +1,114 @@
+{
+  "frozen_utc": "2026-11-16T10:53:26.981141+00:00",
+  "source": "evals/measurements/v1.7/performance-evidence.json",
+  "source_sha256": "433267ef1d24286e2e3b5683040eecf61f9f66216986c0b27086d0d13c6c4119",
+  "estimator": "wall_t4_a * median(wall_t3_b) / median(wall_t3_a)",
+  "criterion": "mediana guard <= 1 ms; T4 A <= 1.05 * T4 A V1.7; erro absoluto do ganho B <= 10 pp por API; qualidade igual, independente",
+  "excluded_rule": 40026,
+  "exclusion_reason": "DOM XSS skipped historicamente; nao prova navegador",
+  "limitations": [
+    "Novo estimador de tempo de parede, distinto do estimador por regra da V1.7; nao altera o resultado historico inconclusivo.",
+    "Razao no subconjunto T3 pressupoe proporcionalidade na T4; nao e identidade nem garantia.",
+    "A T4 B historica e conhecida, portanto esta previsao e prospectiva apenas para nova T4 B V1.8; existe risco de vies de selecao.",
+    "A regra 40026 ja nao contribui tempo executado; sua exclusao nao remove custo mensuravel.",
+    "Rodadas T4 B anteriores s?o conhecidas; previs?o congelada antes das novas T4 A e B da rodada 3, com risco de vi?s de sele??o.",
+    "Regra 40026 s? pode ser exclu?da se estado e motivo coincidirem com a refer?ncia hist?rica."
+  ],
+  "products": {
+    "clinica-piloto": {
+      "t4_a": {
+        "run_id": "2026-11-16T06-52-24Z-clinica-piloto-5f96",
+        "scan_seconds": 619.491791,
+        "sha256": "37725b480abcfd1cc230bf930ae6290a90db38b83022544ebad24fc4f2cd8dec"
+      },
+      "t3": {
+        "A": [
+          {
+            "run_id": "2026-11-16T05-29-01Z-clinica-piloto-17c8",
+            "scan_seconds": 218.032712,
+            "sha256": "c93728cc03e29be7961d6f81d85b28509caa678dd6222256b4916d564fc27537"
+          },
+          {
+            "run_id": "2026-11-16T06-14-54Z-clinica-piloto-985c",
+            "scan_seconds": 217.962806,
+            "sha256": "77e44b42752b22ac5564a931f182ad0c5fac0f385eb4f17c6f786edc8e06a602"
+          },
+          {
+            "run_id": "2026-11-16T06-27-42Z-clinica-piloto-78e9",
+            "scan_seconds": 218.082487,
+            "sha256": "e6ed0e74503b6821382536deea293391e9577933d88216f253213b2c4a8d4ac4"
+          }
+        ],
+        "B": [
+          {
+            "run_id": "2026-11-16T05-36-56Z-clinica-piloto-ebd3",
+            "scan_seconds": 119.657724,
+            "sha256": "61c614bcda71649d16e4eb07220d3cdb0610e460ed6870b7b0ad49630801dc8c"
+          },
+          {
+            "run_id": "2026-11-16T06-09-21Z-clinica-piloto-b057",
+            "scan_seconds": 119.79994,
+            "sha256": "74a804c40e36940164e2ff6daa83cba3aa96dfa9b6e30e87fdc4233ee7c45d19"
+          },
+          {
+            "run_id": "2026-11-16T06-35-39Z-clinica-piloto-9ced",
+            "scan_seconds": 119.728451,
+            "sha256": "030f898d7472a8b30a412d3d4c0703b0086ad74e2d0a6433ec1a6b563a34b9f5"
+          }
+        ]
+      },
+      "median_t3_a_seconds": 218.032712,
+      "median_t3_b_seconds": 119.728451,
+      "predicted_t4_b_seconds": 340.18194730176884,
+      "predicted_gain_pct": 45.086932184744825
+    },
+    "vampi": {
+      "t4_a": {
+        "run_id": "2026-11-16T07-04-59Z-vampi-7f2c",
+        "scan_seconds": 133.769327,
+        "sha256": "cd30d701a1be5abf839cff2e78c9e63364057c2946aa3770bdfa57edeb8a856b"
+      },
+      "t3": {
+        "A": [
+          {
+            "run_id": "2026-11-16T05-34-38Z-vampi-f17e",
+            "scan_seconds": 78.885775,
+            "sha256": "cefc618f9325ae30c257c2e5040052ab9137bbcfc2dc10e184971d4ab4080985"
+          },
+          {
+            "run_id": "2026-11-16T06-25-24Z-vampi-a771",
+            "scan_seconds": 78.97311,
+            "sha256": "3fce3f9584369c471a75e143c647fe87ab3b0eb864b60a83315489a18ab74dcf"
+          },
+          {
+            "run_id": "2026-11-16T06-33-19Z-vampi-01d2",
+            "scan_seconds": 78.952229,
+            "sha256": "d041228db0ec05b8a037c9e19d62c00418cada63403f63918398274ac66fb342"
+          }
+        ],
+        "B": [
+          {
+            "run_id": "2026-11-16T05-41-00Z-vampi-efb5",
+            "scan_seconds": 28.841301,
+            "sha256": "5cee291dc3fe83bcda51341856362cc21ce854c6a561f904161d0335b76326d7"
+          },
+          {
+            "run_id": "2026-11-16T06-13-21Z-vampi-f0bf",
+            "scan_seconds": 30.923786,
+            "sha256": "f59a98d18817fff5a839bdc8a30fbbe0ddd618743a319785a96492798379c4d2"
+          },
+          {
+            "run_id": "2026-11-16T06-39-37Z-vampi-703c",
+            "scan_seconds": 30.82264,
+            "sha256": "368b972dc6c9530ff4e6aa0076137fb682f5dd5a227024c68f4c0c282937e05e"
+          }
+        ]
+      },
+      "median_t3_a_seconds": 78.952229,
+      "median_t3_b_seconds": 30.82264,
+      "predicted_t4_b_seconds": 52.22301968400766,
+      "predicted_gain_pct": 60.96039289783699
+    }
+  },
+  "round": 3
+}

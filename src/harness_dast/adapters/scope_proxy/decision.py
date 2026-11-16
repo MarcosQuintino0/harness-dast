@@ -32,6 +32,7 @@ class Reason(StrEnum):
     UPSTREAM_ERROR = "upstream_error"
     KILL_SWITCH = "kill_switch"
     RUN_EXPIRED = "run_expired"
+    APPROVAL_CHANGED = "approval_changed"
     RATE_QUEUE_FULL = "rate_queue_full"
     RATE_BACKOFF = "rate_backoff"
     AUDIT_FAILURE = "audit_failure"

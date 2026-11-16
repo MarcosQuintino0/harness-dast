@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-11-16T09-20-24Z-vampi-8bee",
+  "elapsed_seconds": 52.141,
+  "revoked_after_seconds": 52.047,
+  "denial_after_seconds": null,
+  "process_exit_code": null,
+  "decisions": [
+    {
+      "decision": "allow",
+      "reason": "allowed"
+    }
+  ]
+}

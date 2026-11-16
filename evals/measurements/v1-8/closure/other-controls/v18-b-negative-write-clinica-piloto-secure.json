@@ -1,0 +1,355 @@
+{
+  "run_id": "2026-11-16T09-51-08Z-clinica-piloto-0944",
+  "pacing": "proxy",
+  "secret_hit_count": 0,
+  "proxy_denials_by_reason": {
+    "rate_backoff": 1
+  },
+  "scope_denials": 0,
+  "proxy_rows": 70,
+  "mode": "secure",
+  "seconds": {},
+  "rounds": {
+    "write": {
+      "exit_code": 0,
+      "seconds": 53.0,
+      "status": "completed",
+      "stop_message": null,
+      "requests_sent": 59,
+      "operations_tested": 12,
+      "accounts": [
+        "admin_a",
+        "paciente_a",
+        "medico_a"
+      ],
+      "created_resources": 5,
+      "restored_resources": 4,
+      "by_class": {
+        "wrong_type": {
+          "planned": 31,
+          "sent": 31,
+          "rejected": 20,
+          "accepted": 9,
+          "server_error": 0,
+          "inconclusive": 2
+        },
+        "missing_required": {
+          "planned": 16,
+          "sent": 14,
+          "rejected": 14,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        },
+        "below_minimum": {
+          "planned": 2,
+          "sent": 2,
+          "rejected": 2,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        },
+        "above_maximum": {
+          "planned": 1,
+          "sent": 1,
+          "rejected": 1,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        },
+        "not_in_enum": {
+          "planned": 3,
+          "sent": 3,
+          "rejected": 3,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        },
+        "too_long": {
+          "planned": 3,
+          "sent": 3,
+          "rejected": 3,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        },
+        "too_short": {
+          "planned": 1,
+          "sent": 1,
+          "rejected": 1,
+          "accepted": 0,
+          "server_error": 0,
+          "inconclusive": 0
+        }
+      },
+      "response_status_counts": {
+        "400": 44,
+        "200": 8,
+        "201": 5,
+        "409": 2
+      },
+      "status_families": {
+        "4xx": 46,
+        "2xx": 9
+      },
+      "requests_by_method": {
+        "GET": 9,
+        "POST": 28,
+        "PUT": 21,
+        "PATCH": 1
+      },
+      "proxy_denials_by_reason": {
+        "rate_backoff": 1
+      },
+      "unexpected_proxy_denials": 0,
+      "cli_429_results": 2,
+      "restore_requests": 4,
+      "findings": [
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "atualizarPerfil",
+          "method": "PUT",
+          "path_template": "/api/me",
+          "location": "body",
+          "field": "nome",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 200,
+          "baseline_status": 200,
+          "restored": true,
+          "created": false
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "criarConvenio",
+          "method": "POST",
+          "path_template": "/api/convenios",
+          "location": "body",
+          "field": "nome",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 201,
+          "baseline_status": 201,
+          "restored": null,
+          "created": true
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "atualizarConvenio",
+          "method": "PUT",
+          "path_template": "/api/convenios/{}",
+          "location": "body",
+          "field": "nome",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 200,
+          "baseline_status": 200,
+          "restored": true,
+          "created": false
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "criarPaciente",
+          "method": "POST",
+          "path_template": "/api/pacientes",
+          "location": "body",
+          "field": "dataNascimento",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 201,
+          "baseline_status": 201,
+          "restored": null,
+          "created": true
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "criarConsulta",
+          "method": "POST",
+          "path_template": "/api/consultas",
+          "location": "body",
+          "field": "motivo",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 201,
+          "baseline_status": 201,
+          "restored": null,
+          "created": true
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "atualizarPaciente",
+          "method": "PUT",
+          "path_template": "/api/pacientes/{}",
+          "location": "body",
+          "field": "dataNascimento",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 200,
+          "baseline_status": 200,
+          "restored": true,
+          "created": false
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "criarReceita",
+          "method": "POST",
+          "path_template": "/api/receitas",
+          "location": "body",
+          "field": "medicamento",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 201,
+          "baseline_status": 201,
+          "restored": null,
+          "created": true
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "criarReceita",
+          "method": "POST",
+          "path_template": "/api/receitas",
+          "location": "body",
+          "field": "posologia",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 201,
+          "baseline_status": 201,
+          "restored": null,
+          "created": true
+        },
+        {
+          "technique": "input_accepted",
+          "proposed_severity": "low",
+          "operation_id": "atualizarPaciente",
+          "method": "PUT",
+          "path_template": "/api/pacientes/{}",
+          "location": "body",
+          "field": "nome",
+          "case_class": "wrong_type",
+          "declared": "type string",
+          "observed_status": 200,
+          "baseline_status": 200,
+          "restored": true,
+          "created": false
+        }
+      ],
+      "operations": [
+        {
+          "operation_id": "baixarDocumento",
+          "method": "GET",
+          "sent": 2,
+          "rejected": 2,
+          "accepted": 0,
+          "server_error": 0
+        },
+        {
+          "operation_id": "listarPacientes",
+          "method": "GET",
+          "sent": 5,
+          "rejected": 5,
+          "accepted": 0,
+          "server_error": 0
+        },
+        {
+          "operation_id": "buscarPacientesPorNome",
+          "method": "GET",
+          "sent": 2,
+          "rejected": 2,
+          "accepted": 0,
+          "server_error": 0
+        },
+        {
+          "operation_id": "criarConvenio",
+          "method": "POST",
+          "sent": 6,
+          "rejected": 5,
+          "accepted": 1,
+          "server_error": 0
+        },
+        {
+          "operation_id": "atualizarConvenio",
+          "method": "PUT",
+          "sent": 6,
+          "rejected": 5,
+          "accepted": 1,
+          "server_error": 0
+        },
+        {
+          "operation_id": "atualizarPerfil",
+          "method": "PUT",
+          "sent": 5,
+          "rejected": 4,
+          "accepted": 1,
+          "server_error": 0
+        },
+        {
+          "operation_id": "criarMedico",
+          "method": "POST",
+          "sent": 6,
+          "rejected": 5,
+          "accepted": 0,
+          "server_error": 0
+        },
+        {
+          "operation_id": "criarPaciente",
+          "method": "POST",
+          "sent": 6,
+          "rejected": 4,
+          "accepted": 1,
+          "server_error": 0
+        },
+        {
+          "operation_id": "criarConsulta",
+          "method": "POST",
+          "sent": 6,
+          "rejected": 5,
+          "accepted": 1,
+          "server_error": 0
+        },
+        {
+          "operation_id": "atualizarStatusConsulta",
+          "method": "PATCH",
+          "sent": 1,
+          "rejected": 1,
+          "accepted": 0,
+          "server_error": 0
+        },
+        {
+          "operation_id": "atualizarPaciente",
+          "method": "PUT",
+          "sent": 6,
+          "rejected": 4,
+          "accepted": 2,
+          "server_error": 0
+        },
+        {
+          "operation_id": "criarReceita",
+          "method": "POST",
+          "sent": 4,
+          "rejected": 2,
+          "accepted": 2,
+          "server_error": 0
+        }
+      ],
+      "not_tested_by_reason": {
+        "no_testable_field": 15,
+        "budget": 7,
+        "unsupported_body": 1,
+        "infrastructure_path": 1,
+        "create_conflict": 2,
+        "created_limit": 1
+      }
+    }
+  },
+  "runs": {},
+  "files_with_an_invalid_value": [],
+  "proxy_audit_lines_with_an_invalid_value": []
+}

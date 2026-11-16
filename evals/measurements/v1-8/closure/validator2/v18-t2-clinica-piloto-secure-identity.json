@@ -1,0 +1,16 @@
+{
+  "run_id": "2026-11-16T10-15-40Z-clinica-piloto-3132",
+  "auth_on_scanner": [
+    2665,
+    2665
+  ],
+  "csrf": {
+    "scanner_messages": 2665,
+    "writes_reached_target": 662,
+    "csrf_rejected": 0,
+    "writes_with_header": 662,
+    "writes_with_cookie": 662
+  },
+  "rules_left": [],
+  "secret_hits": []
+}

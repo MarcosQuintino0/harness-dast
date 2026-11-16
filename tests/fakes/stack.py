@@ -20,6 +20,7 @@ class FakeCompose:
     def __init__(self) -> None:
         self.running: dict[str, ComposeProject] = {}
         self.envs: dict[str, dict[str, str]] = {}
+        self.builds: dict[str, bool] = {}
         self.calls: list[tuple[str, str]] = []
         self.fail_on: str | None = None
 
@@ -27,6 +28,7 @@ class FakeCompose:
         self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
     ) -> None:
         self.calls.append(("up", project.name))
+        self.builds[project.name] = build
         if self.fail_on == "up":
             raise ExternalToolError("docker falhou", hint="tente de novo")
         self.running[project.name] = project

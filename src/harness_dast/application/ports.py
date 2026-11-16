@@ -42,7 +42,68 @@ from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
+from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.wait import WaitResult
+
+
+class StrategyStore(Protocol):
+    """Armazena estratégias sem conceder autorização."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str, references: StrategyReferences) -> None:
+        """Confere contenção das referências."""
+        ...
+
+    def migrate(self, product: str, output: str) -> str:
+        """Cria cópia neutra sem sobrescrever."""
+        ...
+
+
+class StrategyDependencyStore(Protocol):
+    """Armazena estratégia e lê dependências de uma escolha de forma limitada."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str, references: StrategyReferences) -> None:
+        """Confere contenção das referências."""
+        ...
+
+    def migrate(self, product: str, output: str) -> str:
+        """Cria cópia neutra sem sobrescrever."""
+        ...
+
+    def read_dependencies(
+        self, product: str, profile: ProductProfile
+    ) -> tuple[bytes, bytes | None, bytes | None]:
+        """Lê contrato e documentos opcionais com limite e confinamento."""
+        ...
+
+
+class StrategyCaptureStore(Protocol):
+    """Armazenamento para captura explícita, sem substituir documentos existentes."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str, references: StrategyReferences) -> None:
+        """Confere a contenção das referências."""
+        ...
+
+    def read_dependencies(
+        self, product: str, profile: ProductProfile
+    ) -> tuple[bytes, bytes | None, bytes | None]:
+        """Lê os documentos locais com tamanho e caminhos limitados."""
+        ...
+
+    def write_capture(self, product: str, output: str, strategy: Strategy) -> str:
+        """Cria cópia exclusiva da estratégia validada."""
+        ...
 
 
 class WaitReader(Protocol):

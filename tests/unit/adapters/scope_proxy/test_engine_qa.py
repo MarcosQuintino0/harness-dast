@@ -279,7 +279,7 @@ def test_check_request_denies_when_kill_flag_cannot_be_inspected(
     def denied(self: Path) -> bool:
         raise PermissionError("sem acesso")
 
-    monkeypatch.setattr(Path, "exists", denied)
+    monkeypatch.setattr(Path, "lstat", denied)
 
     assert not check(engine, "GET", f"{API}/v1/users").allowed
 

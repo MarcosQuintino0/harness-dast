@@ -22,6 +22,7 @@ from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.negative import negative_command
 from harness_dast.cli.commands.panel import panel_command
+from harness_dast.cli.commands.plan import plan_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
@@ -31,6 +32,7 @@ from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.secret import build_secret_app
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
+from harness_dast.cli.commands.strategy import build_strategy_app
 from harness_dast.cli.commands.version import version_command
 from harness_dast.cli.commands.wait import wait_command
 from harness_dast.cli.journal_recording import record_invocation
@@ -75,6 +77,8 @@ def build_app() -> typer.Typer:
     app.command("doctor")(doctor_command)
     app.command("init")(init_command)
     app.add_typer(build_profile_app(), name="profile")
+    app.add_typer(build_strategy_app(), name="strategy")
+    app.command("plan")(plan_command)
     app.add_typer(build_spec_app(), name="spec")
     app.command("preflight")(preflight_command)
     app.command("probe")(probe_command)

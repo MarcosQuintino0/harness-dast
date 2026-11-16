@@ -1,0 +1,39 @@
+{
+    "validator":  "GPT 6.1 Terra medium novo",
+    "reviewed_source_commit":  "d200826",
+    "report_commit":  "47c29c7",
+    "verdict":  "corrigir",
+    "files":  [
+                  {
+                      "source_path":  "C:\\harness-dast-artefatos\\v1-8\\round3\\validator3\\v18-capture-clinica-piloto-secure.json",
+                      "source_sha256":  "4cd6572fe1537f2f0969a205f2f0fa1909a3079d59fb4be79e1869908ac4e12f",
+                      "repository_path":  "evals/measurements/v1-8/round3/validator3/v18-capture-clinica-piloto-secure.json",
+                      "git_blob":  "c0433604b6d34142cdab489ebad786d5d7918686"
+                  },
+                  {
+                      "source_path":  "C:\\harness-dast-artefatos\\v1-8\\round3\\validator3\\v18-revocation-vampi.json",
+                      "source_sha256":  "36b8db297db0088e411cfa245f0b92808d679028cbdbbb419d2bbedc3cdd10e2",
+                      "repository_path":  "evals/measurements/v1-8/round3/validator3/v18-revocation-vampi.json",
+                      "git_blob":  "d888943a1baecbba03f04848ae7278dce8b32fc3"
+                  },
+                  {
+                      "source_path":  "C:\\harness-dast-artefatos\\v1-8\\round3\\validator3\\v18-t2-clinica-piloto-secure-detections.json",
+                      "source_sha256":  "59247760a7e121067398493acef72662db3f676fcfa8dd2c7722187a7f58f1af",
+                      "repository_path":  "evals/measurements/v1-8/round3/validator3/v18-t2-clinica-piloto-secure-detections.json",
+                      "git_blob":  "780ab0da860ba086b571b9d94d193ab8602841d3"
+                  },
+                  {
+                      "source_path":  "C:\\harness-dast-artefatos\\v1-8\\round3\\validator3\\v18-t2-clinica-piloto-secure-identity.json",
+                      "source_sha256":  "806bc4da986f89540a724c7483feec9f0c55697a10b87354d4c874a481738086",
+                      "repository_path":  "evals/measurements/v1-8/round3/validator3/v18-t2-clinica-piloto-secure-identity.json",
+                      "git_blob":  "ef5daebd59ce978f1d92a9c8c142b5123b3162f1"
+                  },
+                  {
+                      "source_path":  "C:\\harness-dast-artefatos\\v1-8\\round3\\validator3\\v18-t2-clinica-piloto-secure.json",
+                      "source_sha256":  "f3cd6c9191d7579f46e0358a032df41bcab3a37335518a335f417251b4294973",
+                      "repository_path":  "evals/measurements/v1-8/round3/validator3/v18-t2-clinica-piloto-secure.json",
+                      "git_blob":  "5716f03c0c3312f9b32d8484906a50607939e239"
+                  }
+              ],
+    "line_endings":  "Git may store LF while original external files use CRLF; source hashes and stored blobs are distinct provenance identifiers."
+}

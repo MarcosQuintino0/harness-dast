@@ -141,7 +141,9 @@ def authz_command(
     with hold_stack("authz", product, needed=not dry_run):
         network = open_network(product, products_dir, state.secrets)
         try:
-            result = build_authz(products_dir, state.secrets, network).execute(request)
+            result = build_authz(products_dir, state.secrets, network, dry_run=dry_run).execute(
+                request
+            )
         finally:
             network.close()
     run_id = None if result.dry_run else result.run_id

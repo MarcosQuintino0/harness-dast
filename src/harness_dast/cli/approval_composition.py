@@ -13,9 +13,11 @@ from pathlib import Path
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.stack_state import default_state_dir
+from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
-from harness_dast.application.ports import ApprovalPrompt, ProfileRepository
+from harness_dast.application.ports import ApprovalPrompt, ProfileRepository, ZapControl
 from harness_dast.application.scope_approval import ApprovedProfileRepository, ScopeApprovals
+from harness_dast.application.strategy import StrategyProfiles
 
 
 def open_approval_store(environ: Mapping[str, str] | None = None) -> FileApprovalStore:
@@ -23,9 +25,16 @@ def open_approval_store(environ: Mapping[str, str] | None = None) -> FileApprova
     return FileApprovalStore(default_state_dir(os.environ if environ is None else environ))
 
 
-def checked_profiles(products_dir: Path) -> ProfileRepository:
-    """Repositório de perfis que recusa o perfil sem aprovação humana vigente."""
+def formal_profiles(products_dir: Path) -> ProfileRepository:
+    """Perfil aprovado para montar infraestrutura, sem autorizar trabalho no alvo."""
     return ApprovedProfileRepository(FileProfileRepository(products_dir), open_approval_store())
+
+
+def checked_profiles(products_dir: Path, zap: ZapControl | None = None) -> ProfileRepository:
+    """Repositório de perfis que recusa o perfil sem aprovação humana vigente."""
+    return StrategyProfiles(
+        formal_profiles(products_dir), FileStrategyRepository(products_dir), SystemClock(), zap
+    )
 
 
 def build_scope_approvals(products_dir: Path, prompt: ApprovalPrompt) -> ScopeApprovals:

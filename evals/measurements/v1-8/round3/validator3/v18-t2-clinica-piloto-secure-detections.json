@@ -1,0 +1,320 @@
+{
+  "run_id": "2026-11-16T11-44-45Z-clinica-piloto-e90e",
+  "findings": [
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarStatusConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "login",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarReceita",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarMedicos",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "verificarSaude",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarReceitasDaConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "relatorioLento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "obterCsrf",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarConvenios",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "baixarArquivo",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarReceita",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConvenioPorCodigo",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarPerfil",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarMedicoPorCrm",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarPaciente",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "obterPerfil",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarDocumentos",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarConsulta",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarPacientesPorNome",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "buscarMedico",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "criarMedico",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "atualizarConvenio",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarPacientes",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "baixarDocumento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "listarConsultas",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Cookie No HttpOnly Flag",
+      "operation_id": "enviarDocumento",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Authentication Request Identified",
+      "operation_id": "login",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarConvenios",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarPerfil",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "relatorioLento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarReceita",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarReceitasDaConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "atualizarStatusConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "login",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarPaciente",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarReceita",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConsulta",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarPacientes",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "obterCsrf",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "obterPerfil",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarMedicos",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConvenio",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarMedico",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "enviarDocumento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "baixarDocumento",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarMedicoPorCrm",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarConvenioPorCodigo",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "criarMedico",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "verificarSaude",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarDocumentos",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "listarConsultas",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "baixarArquivo",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "buscarPacientesPorNome",
+      "proposed_severity": "informational"
+    }
+  ]
+}

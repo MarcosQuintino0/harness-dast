@@ -166,10 +166,14 @@ services:
       dockerfile: docker/scope-proxy/Dockerfile
     image: hdast/scope-proxy:local
     # uid 10001 criado na imagem; é também o dono dos tmpfs abaixo. Nunca root.
-    user: "10001:10001"
+    user: "${HDAST_PROXY_UID:-10001}:${HDAST_PROXY_GID:-10001}"
     # init: PID 1 próprio, que repassa sinais e colhe processos filhos.
     init: true
+    environment:
+      HDAST_MANAGED_POLICY: "${HDAST_MANAGED_POLICY:-0}"
     volumes:
+      - ${HDAST_APPROVAL_DIR:-./docker/scope-proxy/policy}:/approvals:ro
+      - ${HDAST_PRODUCT_DIR:-./docker/scope-proxy/policy}:/product:ro
       # Política da execução, SOMENTE LEITURA: nem um proxy comprometido a altera. O
       # arquivo-sinal KILL criado nesta pasta, no host, aciona a parada de emergência.
       - ${HDAST_SCOPE_POLICY_DIR:-./docker/scope-proxy/policy}:/policy:ro
@@ -198,8 +202,8 @@ services:
     tmpfs:
       # CA de interceptação TLS: gerada no início do contêiner, só em memória. A chave
       # privada nunca é gravada no repositório, na imagem nem em volume.
-      - /run/mitm:uid=10001,gid=10001,mode=0700,size=16m
-      - /run/home:uid=10001,gid=10001,mode=0700,size=8m
+      - /run/mitm:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=16m
+      - /run/home:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=8m
 
   # ------------------------------------------------------------ Lab (alvo)
   vampi:

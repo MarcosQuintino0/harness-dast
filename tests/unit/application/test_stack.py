@@ -86,6 +86,14 @@ def test_up_gera_chave_politica_e_estado_e_sobe_so_o_compose_raiz_para_produto_e
     assert env["HDAST_SCOPE_POLICY_DIR"] == state.policy_dir.as_posix()
 
 
+def test_up_reconstroi_proxy_mesmo_sem_flag_build(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    assert rig.compose.builds["hdast"] is True
+
+
 def test_up_respeita_a_chave_ja_definida_no_ambiente(tmp_path: Path) -> None:
     rig = Rig(tmp_path, {"HDAST_ZAP_API_KEY": "minha-chave-fixa"})
 

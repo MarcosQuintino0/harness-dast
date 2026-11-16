@@ -1,0 +1,104 @@
+{
+    "source_commit":  "2746d006ac8f90ec4ee665f83cac6e42179bb742",
+    "decision":  "continuar condicionado aos gates e relatorio complementar",
+    "selected_tests":  "5 passed em 880.93s",
+    "offline":  "34 passed",
+    "initial_selection":  "5 deselected, saida5: nao e prova",
+    "lock":  "Adquirida exclusivamente pelo validador e removida so depois de stack down e compose vazio",
+    "sources":  [
+                    {
+                        "published":  "v18-capture-clinica-piloto-secure.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-capture-clinica-piloto-secure.json",
+                        "sha256":  "4cd6572fe1537f2f0969a205f2f0fa1909a3079d59fb4be79e1869908ac4e12f"
+                    },
+                    {
+                        "published":  "v18-capture-clinica-piloto-vulnerable.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-capture-clinica-piloto-vulnerable.json",
+                        "sha256":  "ee8bd1ed0e7b084e49dc5fe7836981aedf9511ad5738b1ffc9fabb0deee3132b"
+                    },
+                    {
+                        "published":  "v18-capture-vampi-secure.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-capture-vampi-secure.json",
+                        "sha256":  "7fcb3a2bb3212ca3fdf5a783d937bdeed8165cee106974cc85ec5318194ab051"
+                    },
+                    {
+                        "published":  "v18-capture-vampi-vulnerable.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-capture-vampi-vulnerable.json",
+                        "sha256":  "b52b55ab034dc15d5cf1c611ea933d9654d60c7c7e06e63a317f6940a2200305"
+                    },
+                    {
+                        "published":  "v18-revocation-vampi.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-revocation-vampi.json",
+                        "sha256":  "78a82eebf23b0c53c6832e3b666d62d68ccea76db87b39db422e16bfc8f588e3"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-secure-detections.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-secure-detections.json",
+                        "sha256":  "4829d5c7f36dcedc18e08022720ab50e368f1685cad34dad13f8d6f196639a61"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-secure-identity.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-secure-identity.json",
+                        "sha256":  "27ce88aec4ddf82cb41e03fdd7159c60fa653b5248a1b782ce47ef546960696d"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-secure.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-secure.json",
+                        "sha256":  "de533dcec6555873acddae51753fe4a4ea56501201fd5d140ffc9db0502cb18a"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-vulnerable-detections.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-vulnerable-detections.json",
+                        "sha256":  "eaadd5151969f0813fac1b81ed03c1070671b141614dc217912e405fef080056"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-vulnerable-identity.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-vulnerable-identity.json",
+                        "sha256":  "0d1c85b0c078f527dc2da8e80fbebffa3f6bfcb01f309a3564784b0975080a28"
+                    },
+                    {
+                        "published":  "v18-t2-clinica-piloto-vulnerable.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-clinica-piloto-vulnerable.json",
+                        "sha256":  "382f9c90289f9e6d25ef915d02060886b7f81a8405e120da1b3ef3598253e585"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-secure-anonymous-baseline.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-secure-anonymous-baseline.json",
+                        "sha256":  "da946ff9f6365d3c7a800a0ca9419037a349e92138c036a375b80ad2897ea19b"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-secure-detections.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-secure-detections.json",
+                        "sha256":  "e122599d4d7a5e9ad5a5068a1b87118c0d11cf574926bcb85b32646962fd7c6e"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-secure-identity.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-secure-identity.json",
+                        "sha256":  "3f2da22fbe034d046085111bdecf6d7d1b4409775a898afc41c6f6c733b0c502"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-secure.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-secure.json",
+                        "sha256":  "e528f695552409f0ec8116011cad4660d7aa9b010a0a00682af6535c7038ab36"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-vulnerable-detections.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-vulnerable-detections.json",
+                        "sha256":  "fc35e7719cfa9d9dc7bd89f92b3c14269ffd2048ec9efec2deb9899c535b1d11"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-vulnerable-identity.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-vulnerable-identity.json",
+                        "sha256":  "bd2943ba54961bde98c7de2f972590781fbe136bc3d68689cc3c69af5c1a6101"
+                    },
+                    {
+                        "published":  "v18-t2-vampi-vulnerable.json",
+                        "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-measurements\\v18-t2-vampi-vulnerable.json",
+                        "sha256":  "3da9ba5f3120de5ee20358beff9b0a94d110899ed3b7733189e45fdd22a8ef6d"
+                    }
+                ],
+    "junit":  {
+                  "source":  "C:\\harness-dast-artefatos\\v1-8\\closure\\validator2-junit-run.xml",
+                  "sha256":  "759e85eaaa22d157374d13e46c96967d4d7cf5bfc2dd669591b0454bf091732c"
+              }
+}

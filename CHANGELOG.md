@@ -17,6 +17,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.8.0] - 2026-11-16
+
+### Base conservadora da personalização
+
+- Envelope derivado do perfil, estratégia versionada e plano concreto congelado, com os contratos propostos nos ADRs 0070 a 0074. A estratégia neutra preserva operações, política, limites e ritmo do executor serial.
+- Consultas locais `strategy validate`, `strategy diff` e `plan --dry-run`; migração explícita com `strategy migrate`, cópia separada, comparação estrutural e preservação da autorização e da aprovação existentes. `strategy capture` cria cópia vinculada às fontes atuais e à versão do controle local da pilha gerenciada, sob trava e sem ativação automática.
+- Vínculos das escolhas com ambiente, autorização, contas, planejamento, documentos e motor. A execução ativa confere fontes e versão observada antes do primeiro pedido ao alvo; indisponibilidade ou divergência recusa. Consultas secas e cleanup sem provedor recusam escolha preenchida; `choices: []` e perfis legados seguem operacionais. A versão não autentica a identidade da instância.
+- Revalidação local da aprovação, perfil e stop por vigia com hash completo, retirando o I/O do caminho de concessão. Cada concessão recusa snapshot com idade superior a 200 ms desde o início da última verificação bem-sucedida; erro, encerramento ou mudança observada trava a saída. Autorização, janela e prazo continuam verificados por concessão. A imagem principal é reconstruída na subida para impedir reutilização de código antigo.
+- O custo mediano de `_detect` no bind real caiu de 5,775922 para 0,026176 ms. As quatro T4 da rodada 3 passaram; A ficou mais rápida que a V1.7 nas duas APIs e B ficou dentro da nova previsão congelada. Não houve promoção no init: as contagens de SSTI na Clínica e Parameter Tampering no VAmPI divergiram sem explicação suficiente. Modelo, init e perfis existentes seguem `legacy` (ADR 0075).
+- A regra DOM XSS 40026 permanece sem navegador e é exclusão pré-existente igual à linha de base nas comparações. Skills, referência e testes de cópia cega atualizados. O [relatório da rodada 3](docs/reviews/relatorio-v1.8-rodada3.md) complementa o [fechamento anterior](docs/reviews/relatorio-v1.8-fechamento.md) e o [registro inicial](docs/reviews/relatorio-v1.8.md), preservando as falhas e os limites das provas. Sem rodada cega nesta versão, conforme o briefing, e sem prova em produto real.
+
 ## [1.7.0] - 2026-11-16
 
 ### Ritmo serial e medição

@@ -10,7 +10,7 @@ O estado (chave do ZAP, senhas descartáveis do alvo) fica no `StackStateStore`,
 repositório e de `runs/`. Este módulo não imprime nem devolve segredos.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -106,6 +106,7 @@ class StackManager:
         repo_root: Path,
         running_scans: RunningScans | None = None,
         locks: StackLockService | None = None,
+        proxy_env: Callable[[str], Mapping[str, str]] | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -121,6 +122,7 @@ class StackManager:
             repo_root: Raiz do repositório (onde estão `compose.yaml` e `lab/`).
             running_scans: Leitura do andamento das varreduras, para o `stop` dizer o que parou.
             locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
+            proxy_env: Montagens e identidade do proxy gerenciado para o produto.
         """
         self._profiles = profiles
         self._clock = clock
@@ -133,6 +135,7 @@ class StackManager:
         self._root = repo_root
         self._running_scans = running_scans
         self._locks = locks
+        self._proxy_env = proxy_env
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -146,6 +149,7 @@ class StackManager:
         profile = self._profiles.load(request.product)
         profile.ensure_runnable(now)
         target = lab_target_for(profile.environment.base_url)
+        proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
         run_id = RunId.create(
             started_at=now, product=profile.product, suffix=self._entropy.hex_suffix()
@@ -178,8 +182,14 @@ class StackManager:
             env = self._up_env(
                 project, state, _target_options(target, request), (zap_port, proxy_port)
             )
+            if project.name == MAIN_PROJECT:
+                env.update(proxy_env)
             self._compose.up(
-                project, env, build=request.build, timeout_seconds=request.timeout_seconds
+                project,
+                env,
+                # A imagem antiga nao conhece o vinculo obrigatorio de aprovacao.
+                build=request.build or project.name == MAIN_PROJECT,
+                timeout_seconds=request.timeout_seconds,
             )
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})

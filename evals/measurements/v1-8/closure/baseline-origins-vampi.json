@@ -1,0 +1,289 @@
+{
+  "run_id": "2026-11-16T07-04-59Z-vampi-7f2c",
+  "sources": {
+    "zap": {
+      "status": "disponivel",
+      "sha256": "21edd5cb6070d0605e04863d89a1daf378a9198aa5c154ec298f1b7aaf4c535d",
+      "path": "C:\\harness-dast-artefatos\\v1.7-velocidade\\tmp-t4-a\\test_v17_t4_A_vampi_0\\runs\\2026-11-16T07-04-59Z-vampi-7f2c\\findings.json",
+      "findings": [
+        {
+          "title": "Cross Site Scripting (Reflected)",
+          "plugin_id": "40012",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_all_users",
+          "method": "GET",
+          "path_template": "/users/v1"
+        },
+        {
+          "title": "Cross Site Scripting (Reflected)",
+          "plugin_id": "40012",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.debug",
+          "method": "GET",
+          "path_template": "/users/v1/_debug"
+        },
+        {
+          "title": "SQL Injection",
+          "plugin_id": "40018",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_all_users",
+          "method": "GET",
+          "path_template": "/users/v1"
+        },
+        {
+          "title": "SQL Injection",
+          "plugin_id": "40018",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.debug",
+          "method": "GET",
+          "path_template": "/users/v1/_debug"
+        },
+        {
+          "title": "SQL Injection",
+          "plugin_id": "40018",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_by_username",
+          "method": "GET",
+          "path_template": "/users/v1/{}"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_all_users",
+          "method": "GET",
+          "path_template": "/users/v1"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.me",
+          "method": "GET",
+          "path_template": "/me"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.register_user",
+          "method": "POST",
+          "path_template": "/users/v1/register"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.debug",
+          "method": "GET",
+          "path_template": "/users/v1/_debug"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.update_email",
+          "method": "PUT",
+          "path_template": "/users/v1/{}/email"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.main.basic",
+          "method": "GET",
+          "path_template": "/"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.get_all_books",
+          "method": "GET",
+          "path_template": "/books/v1"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.main.populate_db",
+          "method": "GET",
+          "path_template": "/createdb"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_by_username",
+          "method": "GET",
+          "path_template": "/users/v1/{}"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.update_password",
+          "method": "PUT",
+          "path_template": "/users/v1/{}/password"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.add_new_book",
+          "method": "POST",
+          "path_template": "/books/v1"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.login_user",
+          "method": "POST",
+          "path_template": "/users/v1/login"
+        },
+        {
+          "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "plugin_id": "10036",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.get_by_title",
+          "method": "GET",
+          "path_template": "/books/v1/{}"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.main.populate_db",
+          "method": "GET",
+          "path_template": "/createdb"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.main.basic",
+          "method": "GET",
+          "path_template": "/"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.get_all_books",
+          "method": "GET",
+          "path_template": "/books/v1"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.register_user",
+          "method": "POST",
+          "path_template": "/users/v1/register"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.login_user",
+          "method": "POST",
+          "path_template": "/users/v1/login"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_by_username",
+          "method": "GET",
+          "path_template": "/users/v1/{}"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.me",
+          "method": "GET",
+          "path_template": "/me"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.get_all_users",
+          "method": "GET",
+          "path_template": "/users/v1"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.debug",
+          "method": "GET",
+          "path_template": "/users/v1/_debug"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.get_by_title",
+          "method": "GET",
+          "path_template": "/books/v1/{}"
+        },
+        {
+          "title": "X-Content-Type-Options Header Missing",
+          "plugin_id": "10021",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.books.add_new_book",
+          "method": "POST",
+          "path_template": "/books/v1"
+        },
+        {
+          "title": "Authentication Request Identified",
+          "plugin_id": "10111",
+          "technique": "zap_active_scan",
+          "operation_id": "api_views.users.login_user",
+          "method": "POST",
+          "path_template": "/users/v1/login"
+        }
+      ]
+    },
+    "authz": {
+      "status": "completed",
+      "sha256": "1363fb7678b6bcf55189432e6205cec973bd17e02cd8371eaf6f7946aa4d868e",
+      "path": "C:\\harness-dast-artefatos\\v1.7-velocidade\\tmp-t4-a\\test_v17_t4_A_vampi_0\\runs\\2026-11-16T07-04-59Z-vampi-7f2c\\authz.json",
+      "findings": [
+        {
+          "title": "GET /users/v1 responde a quem não fez login",
+          "plugin_id": null,
+          "technique": "authz_anonymous_access",
+          "operation_id": "api_views.users.get_all_users",
+          "method": "GET",
+          "path_template": "/users/v1"
+        },
+        {
+          "title": "GET /users/v1/_debug responde a quem não fez login",
+          "plugin_id": null,
+          "technique": "authz_anonymous_access",
+          "operation_id": "api_views.users.debug",
+          "method": "GET",
+          "path_template": "/users/v1/_debug"
+        },
+        {
+          "title": "GET /books/v1 responde a quem não fez login",
+          "plugin_id": null,
+          "technique": "authz_anonymous_access",
+          "operation_id": "api_views.books.get_all_books",
+          "method": "GET",
+          "path_template": "/books/v1"
+        }
+      ]
+    },
+    "negative": {
+      "status": "completed",
+      "sha256": "30d54e42d8b5ce5b675b3dfdbda9081ed5d697c7fb7ce4ef5eb410a4539d88f1",
+      "path": "C:\\harness-dast-artefatos\\v1.7-velocidade\\tmp-t4-a\\test_v17_t4_A_vampi_0\\runs\\2026-11-16T07-04-59Z-vampi-7f2c\\negative.json",
+      "findings": []
+    }
+  }
+}

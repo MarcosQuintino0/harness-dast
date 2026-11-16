@@ -1,0 +1,16 @@
+{
+  "run_id": "2026-11-16T10-20-46Z-vampi-73e0",
+  "auth_on_scanner": [
+    960,
+    960
+  ],
+  "csrf": {
+    "scanner_messages": 960,
+    "writes_reached_target": 8,
+    "csrf_rejected": 0,
+    "writes_with_header": 0,
+    "writes_with_cookie": 0
+  },
+  "rules_left": [],
+  "secret_hits": []
+}

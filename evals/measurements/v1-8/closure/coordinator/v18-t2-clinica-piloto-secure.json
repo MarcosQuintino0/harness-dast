@@ -1,0 +1,629 @@
+{
+  "product": "clinica-piloto",
+  "mode": "secure",
+  "run_id": "2026-11-16T09-38-40Z-clinica-piloto-94e1",
+  "authz": {
+    "status": "completed",
+    "requests_sent": 176,
+    "checks": [
+      {
+        "check": "cors",
+        "status": "completed",
+        "candidates": 5,
+        "tested": 5,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "horizontal",
+        "status": "completed",
+        "candidates": 5,
+        "tested": 1,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "excessive_data",
+        "status": "completed",
+        "candidates": 20,
+        "tested": 17,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "anonymous_access",
+        "status": "completed",
+        "candidates": 19,
+        "tested": 19,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "tampered_token",
+        "status": "completed",
+        "candidates": 19,
+        "tested": 18,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "vertical",
+        "status": "skipped",
+        "candidates": 0,
+        "tested": 0,
+        "findings": 0,
+        "message": "Nenhuma operação pôde ser testada; veja not_tested."
+      },
+      {
+        "check": "access_matrix",
+        "status": "skipped",
+        "candidates": 0,
+        "tested": 0,
+        "findings": 0,
+        "message": "Perfil sem authz.access_matrix: nada a testar."
+      },
+      {
+        "check": "mass_assignment",
+        "status": "completed",
+        "candidates": 46,
+        "tested": 29,
+        "findings": 0,
+        "message": null
+      },
+      {
+        "check": "horizontal_write",
+        "status": "skipped",
+        "candidates": 0,
+        "tested": 0,
+        "findings": 0,
+        "message": "Nenhuma operação pôde ser testada; veja not_tested."
+      }
+    ],
+    "by_class": null,
+    "by_operation": null,
+    "entries": null,
+    "planned": null,
+    "skipped": null,
+    "policy": null,
+    "limits": [
+      "CORS amostra somente GETs provados, com uma origem sob .invalid e uma tentativa por operação, até cors_max_requests; não cobre preflight, outras origens ou todas as operações.",
+      "Par horizontal automático exige escrita autorizada, duas contas de papel não compartilhado, POST e GET irmão provados, HTTP 201 com sucesso lógico e identificador devolvido que não apareceu nas leituras anteriores; criação com HTTP 200 é inconclusiva. O teto de 400 escritas é compartilhado com atribuição em massa, com uma tentativa por escrita.",
+      "BOLA em leituras (GET) com identificador no caminho ou na consulta; escritas só com allow_writes (PUT e PATCH, um campo por pedido, nunca DELETE); identificador no corpo não é testado.",
+      "Exposição excessiva só em respostas de GET; respostas de POST, PUT e PATCH não são comparadas com o esquema.",
+      "additionalProperties do OpenAPI não é modelado: objeto sem properties no esquema é tratado como livre.",
+      "BFLA só em operações atribuídas por regra explícita de auth.account_map e nos métodos de authz.vertical_methods; exige authz.role_order.",
+      "Atribuição em massa: os campos de authz.mass_assignment_fields mais, por operação, até authz.max_derived_candidates campos tirados do OpenAPI, um por pedido; só campos escalares de primeiro nível, e dono do recurso (ownerId, tenantId) só se declarado. Num POST, cada campo testado deixa um recurso criado no alvo (limpe com `hdast cleanup` ou o reset do ambiente); valores únicos não são gerados de novo (409 vira create_conflict).",
+      "Operações que o probe não alcançou com sucesso não são repetidas.",
+      "Pedido sem login e token adulterado só em GET; autenticação só por cookie de sessão não é modelada, então 'sem achado' no pedido sem login não prova segurança.",
+      "Tabela quem pode o quê (authz.access_matrix): só proibições são testadas, um pedido por papel proibido e por operação, com a primeira conta do papel; só 401 e 403 provam a negação (404 e 400 são 'não testado'); papel fora da tabela não é testado nem presumido proibido; POST e PUT e PATCH só com allow_writes e DELETE nunca; um POST aceito deixa um recurso criado no alvo.",
+      "Token adulterado: só JWT (remover assinatura, alg none, uma reivindicação a mais) e texto embaralhado; nunca se forja assinatura nem se troca identidade. 2xx com corpo diferente não é achado."
+    ],
+    "traffic": null,
+    "findings_by_technique": {},
+    "not_tested_reasons": {
+      "no_peer_account": 8,
+      "no_object_identifier": 12,
+      "shared_role": 9,
+      "create_failed": 4,
+      "no_json_response": 2,
+      "no_sample_data": 1,
+      "infrastructure_path": 2,
+      "anonymous_already_open": 1,
+      "no_role_order": 1,
+      "no_json_body": 1,
+      "create_conflict": 3,
+      "already_in_target_state": 1,
+      "no_safe_test_value": 5
+    }
+  },
+  "negative": {
+    "status": "completed",
+    "requests_sent": 9,
+    "checks": null,
+    "by_class": [
+      {
+        "case_class": "wrong_type",
+        "planned": 2,
+        "sent": 2,
+        "rejected": 2,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "missing_required",
+        "planned": 2,
+        "sent": 2,
+        "rejected": 2,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "below_minimum",
+        "planned": 2,
+        "sent": 2,
+        "rejected": 2,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "above_maximum",
+        "planned": 1,
+        "sent": 1,
+        "rejected": 1,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "not_in_enum",
+        "planned": 0,
+        "sent": 0,
+        "rejected": 0,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "too_long",
+        "planned": 2,
+        "sent": 2,
+        "rejected": 2,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      },
+      {
+        "case_class": "too_short",
+        "planned": 0,
+        "sent": 0,
+        "rejected": 0,
+        "accepted": 0,
+        "server_error": 0,
+        "inconclusive": 0
+      }
+    ],
+    "by_operation": null,
+    "entries": null,
+    "planned": null,
+    "skipped": null,
+    "policy": null,
+    "limits": [
+      "Só parâmetro de consulta e campo de primeiro nível de corpo JSON, nas operações que o probe alcançou (exchanges.json). Caminho, cabeçalho, cookie, formulário, multipart, campo aninhado, lista, pattern, formato, oneOf e anyOf não são exercitados.",
+      "Um valor proibido por pedido, mínimo e conferido contra o esquema; não é fuzzing nem teste de injeção (isso é do ZAP).",
+      "Aceitar pode ser coerção legítima ou parâmetro ignorado, e 5xx pode vir do estado do alvo: por isso a severidade é baixa em leitura e todo achado é para triagem.",
+      "Rejeitar não prova que a validação é a do esquema: um 400 por outro motivo também conta.",
+      "Escrita só com negative.allow_writes (da carta), nunca DELETE; PUT e PATCH aceitos são restaurados sem releitura (melhor esforço) e um POST aceito deixa um recurso criado (limpe com `hdast cleanup` ou o reset do ambiente).",
+      "O orçamento (negative.max_cases_per_operation e negative.max_requests) corta casos: veja not_tested."
+    ],
+    "traffic": null,
+    "findings_by_technique": {},
+    "not_tested_reasons": {
+      "no_testable_field": 16,
+      "writes_not_authorized": 10,
+      "infrastructure_path": 1
+    }
+  },
+  "scan": {
+    "status": "completed",
+    "requests_sent": null,
+    "checks": null,
+    "by_class": null,
+    "by_operation": null,
+    "entries": [
+      {
+        "operation_id": "baixarDocumento",
+        "method": "GET",
+        "path": "/api/documentos/download",
+        "message_id": 65,
+        "scan_id": "0",
+        "outcome": "completed",
+        "progress": 100,
+        "truncated": false,
+        "duration_seconds": 14.201,
+        "requests": 622,
+        "alert_count": 0,
+        "alert_ids": [],
+        "note": null,
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "buscarPacientesPorNome",
+        "method": "GET",
+        "path": "/api/pacientes/busca",
+        "message_id": 73,
+        "scan_id": "1",
+        "outcome": "completed",
+        "progress": 100,
+        "truncated": false,
+        "duration_seconds": 12.2,
+        "requests": 613,
+        "alert_count": 0,
+        "alert_ids": [],
+        "note": null,
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "criarConvenio",
+        "method": "POST",
+        "path": "/api/convenios",
+        "message_id": 151,
+        "scan_id": "2",
+        "outcome": "completed",
+        "progress": 100,
+        "truncated": false,
+        "duration_seconds": 22.305,
+        "requests": 927,
+        "alert_count": 0,
+        "alert_ids": [],
+        "note": null,
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "buscarPaciente",
+        "method": "GET",
+        "path": "/api/pacientes/{id}",
+        "message_id": 213,
+        "scan_id": "3",
+        "outcome": "completed",
+        "progress": 100,
+        "truncated": false,
+        "duration_seconds": 8.118,
+        "requests": 502,
+        "alert_count": 0,
+        "alert_ids": [],
+        "note": null,
+        "seed_outcome": null
+      }
+    ],
+    "planned": [
+      {
+        "operation_id": "baixarDocumento",
+        "method": "GET",
+        "path": "/api/documentos/download",
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "buscarPacientesPorNome",
+        "method": "GET",
+        "path": "/api/pacientes/busca",
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "criarConvenio",
+        "method": "POST",
+        "path": "/api/convenios",
+        "seed_outcome": null
+      },
+      {
+        "operation_id": "buscarPaciente",
+        "method": "GET",
+        "path": "/api/pacientes/{id}",
+        "seed_outcome": null
+      }
+    ],
+    "skipped": [
+      {
+        "operation_id": "baixarArquivo",
+        "method": "GET",
+        "path": "/api/arquivos/{nome}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarConsultas",
+        "method": "GET",
+        "path": "/api/consultas",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarConvenios",
+        "method": "GET",
+        "path": "/api/convenios",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarConvenioPorCodigo",
+        "method": "GET",
+        "path": "/api/convenios/codigo/{codigo}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarConvenio",
+        "method": "GET",
+        "path": "/api/convenios/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "atualizarConvenio",
+        "method": "PUT",
+        "path": "/api/convenios/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "obterCsrf",
+        "method": "GET",
+        "path": "/api/csrf",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarDocumentos",
+        "method": "GET",
+        "path": "/api/documentos",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "enviarDocumento",
+        "method": "POST",
+        "path": "/api/documentos/enviar",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca",
+        "method": "GET",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_2",
+        "method": "PUT",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_1",
+        "method": "POST",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_6",
+        "method": "OPTIONS",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_5",
+        "method": "HEAD",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_4",
+        "method": "PATCH",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "obterPerfil",
+        "method": "GET",
+        "path": "/api/me",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "atualizarPerfil",
+        "method": "PUT",
+        "path": "/api/me",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarMedicos",
+        "method": "GET",
+        "path": "/api/medicos",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "criarMedico",
+        "method": "POST",
+        "path": "/api/medicos",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "criarConsulta",
+        "method": "POST",
+        "path": "/api/consultas",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarReceitasDaConsulta",
+        "method": "GET",
+        "path": "/api/consultas/{id}/receitas",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "atualizarStatusConsulta",
+        "method": "PATCH",
+        "path": "/api/consultas/{id}/status",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarMedicoPorCrm",
+        "method": "GET",
+        "path": "/api/medicos/crm/{crm}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarMedico",
+        "method": "GET",
+        "path": "/api/medicos/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "enviarNotificacao",
+        "method": "POST",
+        "path": "/api/notificacoes/enviar",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "listarPacientes",
+        "method": "GET",
+        "path": "/api/pacientes",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "criarPaciente",
+        "method": "POST",
+        "path": "/api/pacientes",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "atualizarPaciente",
+        "method": "PUT",
+        "path": "/api/pacientes/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "criarReceita",
+        "method": "POST",
+        "path": "/api/receitas",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "buscarReceita",
+        "method": "GET",
+        "path": "/api/receitas/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "relatorioLento",
+        "method": "GET",
+        "path": "/api/relatorios/lento",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "verificarSaude",
+        "method": "GET",
+        "path": "/api/saude",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "removerConvenio",
+        "method": "DELETE",
+        "path": "/api/convenios/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "isca_3",
+        "method": "DELETE",
+        "path": "/api/isca/**",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      },
+      {
+        "operation_id": "removerPaciente",
+        "method": "DELETE",
+        "path": "/api/pacientes/{id}",
+        "reason": "not_selected",
+        "message": "Fora da seleção de --only."
+      }
+    ],
+    "policy": {
+      "name": "hdast-scan",
+      "strength": "LOW",
+      "threshold": "MEDIUM",
+      "url_path_injection": true,
+      "injectable_mask": 51,
+      "disabled_rules": [
+        10104,
+        30001,
+        30002,
+        40032,
+        40034,
+        40035,
+        40043,
+        40044,
+        90034
+      ]
+    },
+    "limits": {
+      "requests_per_second": 50.0,
+      "max_duration_minutes": 30,
+      "threads_per_host": 8,
+      "delay_ms": 0,
+      "max_scan_minutes": 10,
+      "max_rule_minutes": 2
+    },
+    "traffic": {
+      "enabled": true,
+      "allowed": 1378,
+      "denied": 1301,
+      "denied_by_reason": {
+        "malformed_request": 1131,
+        "path_not_allowed": 166,
+        "origin_not_allowed": 4
+      },
+      "denied_by_detail": {
+        "path_encoded_slash": 389,
+        "path_not_allowed": 166,
+        "path_dot_segment": 8,
+        "path_empty_segment": 52,
+        "path_matrix_param": 207,
+        "path_double_encoding": 134,
+        "path_trailing_dot_space": 213,
+        "path_control_char": 128,
+        "origin_not_allowed": 4
+      },
+      "path_shape_denied": 1131,
+      "allowed_outside_allow": 0,
+      "path_mode": "strict",
+      "allowed_by_method": {
+        "GET": 713,
+        "POST": 665
+      },
+      "duration_seconds": 64.538,
+      "average_rps": 21.35,
+      "peak_rps": 39,
+      "limit_rps": 50.0
+    },
+    "findings_by_technique": {},
+    "not_tested_reasons": {}
+  }
+}
