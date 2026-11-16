@@ -23,7 +23,7 @@ from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
 from harness_dast.application.stack_models import StackState
-from harness_dast.cli.approval_composition import checked_profiles
+from harness_dast.cli.approval_composition import formal_profiles
 from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
 
@@ -81,7 +81,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
     settings = load_settings()
     root = products_dir if products_dir is not None else settings.products_dir
     return StackManager(
-        profiles=checked_profiles(root),
+        profiles=formal_profiles(root),
         clock=SystemClock(),
         entropy=SystemEntropy(),
         random=SystemRandom(),

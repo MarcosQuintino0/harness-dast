@@ -9,6 +9,7 @@ from harness_dast.application.ports import (
     SpecLoader,
     StrategyDependencyStore,
     StrategyStore,
+    ZapControl,
 )
 from harness_dast.application.scope_approval import current_check
 from harness_dast.domain.api_schema import JsonValue
@@ -37,7 +38,10 @@ def load_strategy(store: StrategyStore, product: str) -> Strategy | None:
 
 
 def _context(
-    store: StrategyDependencyStore, product: str, profile: ProductProfile
+    store: StrategyDependencyStore,
+    product: str,
+    profile: ProductProfile,
+    engine_version: str | None = None,
 ) -> tuple[StrategyBasisContext, StrategyBasis | None]:
     contract, data_rules, flows = store.read_dependencies(product, profile)
     inputs = {
@@ -46,28 +50,42 @@ def _context(
         "flows_sha256": digest_strategy_document(flows),
     }
     return (
-        describe_strategy_basis(profile, **inputs, engine_version=None),
-        make_strategy_basis(profile, **inputs, engine_version=None),
+        describe_strategy_basis(profile, **inputs, engine_version=engine_version),
+        make_strategy_basis(profile, **inputs, engine_version=engine_version),
     )
+
+
+def basis_for_engine(
+    store: StrategyDependencyStore, product: str, profile: ProductProfile, version: str
+) -> StrategyBasis | None:
+    """Calcula vínculo com a versão efetiva obtida na execução atual."""
+    return _context(store, product, profile, version)[1]
 
 
 class StrategyProfiles:
     """Recusa estratégia inválida ou pendente na fronteira de comandos com tráfego."""
 
     def __init__(
-        self, inner: ProfileRepository, store: StrategyDependencyStore, clock: Clock
+        self,
+        inner: ProfileRepository,
+        store: StrategyDependencyStore,
+        clock: Clock,
+        zap: ZapControl | None = None,
     ) -> None:
         """Recebe perfil, armazenamento e relógio."""
         self._inner, self._store, self._clock = inner, store, clock
+        self._zap = zap
 
     def load(self, product: str) -> ProductProfile:
         """Carrega perfil e valida estratégia presente antes de executar."""
         profile = self._inner.load(product)
         strategy = load_strategy(self._store, product)
         if strategy is not None:
+            strategy.ensure_metadata_valid(self._clock.now())
             basis = None
             if strategy.choices:
-                _, basis = _context(self._store, product, profile)
+                version = self._zap.version() if self._zap is not None else None
+                _, basis = _context(self._store, product, profile, version)
             strategy.ensure_compilable(self._clock.now(), basis)
         return profile
 

@@ -78,7 +78,7 @@ def probe_command(
     with hold_stack("probe", product, needed=not dry_run):
         network = open_network(product, products_dir, state.secrets)
         try:
-            use_case = build_probe(products_dir, state.secrets, network)
+            use_case = build_probe(products_dir, state.secrets, network, dry_run=dry_run)
             request = ProbeRequest(
                 product=product,
                 seed=seed,

@@ -109,7 +109,7 @@ def scan_command(
     with hold_stack("scan", product, needed=not dry_run):
         net = open_scan_network(product, products_dir, state.secrets)
         try:
-            result = build_scan(products_dir, state.secrets, net).execute(
+            result = build_scan(products_dir, state.secrets, net, dry_run=dry_run).execute(
                 ScanRequest(
                     product=product,
                     run_id=run,

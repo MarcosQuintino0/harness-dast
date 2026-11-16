@@ -29,6 +29,7 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
+from harness_dast.application.strategy import basis_for_engine
 from harness_dast.cli.approval_composition import checked_profiles, open_approval_store
 from harness_dast.cli.authz_composition import build_authz
 from harness_dast.cli.composition import (
@@ -45,7 +46,6 @@ from harness_dast.cli.negative_composition import build_negative
 from harness_dast.cli.panel_index_composition import build_indexed_panel, build_live_board
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
-    load_effective_settings,
     open_kill_switch,
     open_proxy_audit,
 )
@@ -83,7 +83,7 @@ def open_scan_network(
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     network = open_network(product, products_dir, secrets)
-    settings = load_effective_settings()
+    settings = network.settings
     api_key = settings.zap_api_key.get_secret_value() if settings.zap_api_key else None
     return ScanNetwork(network, ZapScanClient(settings.zap_base_url, api_key))
 
@@ -94,13 +94,15 @@ def build_scan(
     net: ScanNetwork,
     shared: SharedServices | None = None,
     live: ScanLive | None = None,
+    *,
+    dry_run: bool = False,
 ) -> Scan:
     """Monta o caso de uso `hdast scan` sobre a rede já aberta."""
     root = products_dir_or_default(products_dir)
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Scan(
-        profiles=checked_profiles(root),
+        profiles=checked_profiles(root, None if dry_run else net.network.zap),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -120,6 +122,9 @@ def build_scan(
         process_sampler=SystemProcessSampler(),
         strategy_store=FileStrategyRepository(root),
         approvals=open_approval_store(),
+        basis_for=lambda product, profile, version: basis_for_engine(
+            FileStrategyRepository(root), product, profile, version
+        ),
     )
 
 
@@ -136,7 +141,7 @@ def build_run_pipeline(
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profiles = checked_profiles(root)
+    profiles = checked_profiles(root, net.network.zap)
     clock = SystemClock()
     kill_switch = open_kill_switch()
     shared = SharedServices(

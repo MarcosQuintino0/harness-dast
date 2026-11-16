@@ -95,6 +95,7 @@ from harness_dast.domain.scan_result import (
 from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.scan_tokens import origin_regex
 from harness_dast.domain.scope_fingerprint import block_digests
+from harness_dast.domain.strategy_basis import StrategyBasis
 from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from harness_dast.domain.traffic import TrafficSummary, summarize_traffic
 from harness_dast.domain.zap_messages import parse_learned_request
@@ -193,6 +194,7 @@ class Scan:
         process_sampler: ProcessSampler | None = None,
         strategy_store: StrategyStore | None = None,
         approvals: ApprovalStore | None = None,
+        basis_for: Callable[[str, ProductProfile, str], StrategyBasis | None] | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -220,6 +222,7 @@ class Scan:
         self._process_sampler = process_sampler
         self._strategy_store = strategy_store
         self._approvals = approvals
+        self._basis_for = basis_for
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -308,10 +311,14 @@ class Scan:
         zap_version = self._check_zap(request.run_id, context_id)
         plan = self._plan(prep, base_url)
         if self._strategy_store is not None and self._approvals is not None:
+            strategy = load_strategy(self._strategy_store, request.product)
+            basis = None
+            if strategy is not None and strategy.choices and self._basis_for is not None:
+                basis = self._basis_for(request.product, prep.profile, zap_version)
             snapshot = compile_scan_snapshot(
                 prep.profile,
                 self._approvals.read(request.product),
-                load_strategy(self._strategy_store, request.product),
+                strategy,
                 self._clock.now(),
                 baseline=plan,
                 proposed=plan,
@@ -319,6 +326,7 @@ class Scan:
                 proposed_policy=prep.policy,
                 baseline_limits=prep.zap_limits,
                 proposed_limits=prep.zap_limits,
+                basis=basis,
             )
             plan = snapshot.scan_plan
             prep = replace(prep, policy=snapshot.policy, zap_limits=snapshot.limits)
