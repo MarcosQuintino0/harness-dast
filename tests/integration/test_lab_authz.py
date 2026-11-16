@@ -1,7 +1,7 @@
 """Teste de autorização entre contas (V1.4) contra a Clínica Piloto, nos modos vulnerável e seguro.
 
 Nível RÁPIDO: uma pilha por modo, um `probe` e um `authz` com todas as verificações. Prova o
-CONTRATO do estágio, não o gabarito: as oito verificações aparecem com estado, nenhum `DELETE`
+CONTRATO do estágio, não o gabarito: as nove verificações aparecem com estado, nenhum `DELETE`
 sai, todo pedido do `authz` passa pela cerca, nenhum segredo vai para os artefatos, os recursos
 criados e a restauração ficam registrados e o `run` liga o estágio por padrão. As observações
 das verificações são gravadas em `HDAST_IT_METRICS_DIR/lab-authz-<modo>-v3.json`. A prova da
@@ -36,6 +36,7 @@ from tests.integration.run_support import (
     secret_values,
     throwaway_pilot_env,
 )
+from tests.integration.test_lab_negative import Round, unexpected_proxy_denials
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 
@@ -281,7 +282,10 @@ def test_every_authz_request_went_through_the_fence_and_none_was_out_of_scope(
     assert len(allowed) == lab.authz["requests_sent"]
     assert len(allowed) > 0
     window = lab.proxy_in_authz_window()
-    assert not [row for row in window if row["decision"] != "allow"]
+    # Um recuo operacional só é aceito com tentativa 429 correlacionada à trilha da CLI;
+    # qualquer outra recusa, inclusive approval_changed, continua falhando o teste.
+    audited = Round("authz", 0, 0.0, {}, lab.cli_audit, window)
+    assert unexpected_proxy_denials(audited) == []
     # Pedido que estourou o tempo no cliente pode não ter linha no proxy dentro da janela; todo
     # pedido que recebeu resposta tem de ter.
     answered = [r for r in lab.authz_rows("result") if r["status"] is not None]
