@@ -5,6 +5,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     VAMPI_OPENAPI,
@@ -36,6 +38,15 @@ def activate_strategy(cli: LabCli, product: str) -> None:
     assert valid.code == 0, valid.stdout + valid.stderr
     planned = cli.run("plan", product, "--dry-run")
     assert planned.code == 0, planned.stdout + planned.stderr
+
+
+def set_lab_pacing(cli: LabCli, product: str, pacing: str) -> None:
+    """Escolhe a variante da prova no perfil sintético antes da aprovação do suporte."""
+    assert pacing in {"legacy", "proxy"}
+    path = cli.products / product / "target.yml"
+    profile = yaml.safe_load(path.read_text(encoding="utf-8"))
+    profile.setdefault("scan", {})["pacing"] = pacing
+    path.write_text(yaml.safe_dump(profile, allow_unicode=True), encoding="utf-8")
 
 
 def load_artifact(cli: LabCli, run_id: str, name: str) -> dict[str, Any]:

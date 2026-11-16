@@ -22,6 +22,7 @@ from tests.integration.strategy_support import (
     legacy_anonymous_findings,
     load_artifact,
     record_control,
+    set_lab_pacing,
 )
 from tests.integration.test_lab_v155 import _install
 from tests.integration.test_lab_vampi import SEEDED
@@ -49,7 +50,10 @@ def _cli(root: Path, product: str) -> LabCli:
 @pytest.mark.lab_fast
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
-def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, mode: str) -> None:
+@pytest.mark.parametrize("pacing", ["legacy"])
+def test_strategy_preserva_controles_direcionados(
+    tmp_path: Path, product: str, mode: str, pacing: str
+) -> None:
     """Agrupa a prova em uma pilha por modo para respeitar o orçamento de laboratório.
 
     A sequência ultrapassa 40 linhas para manter preparação, controles, coleta e encerramento
@@ -59,6 +63,7 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
     cli = _cli(tmp_path, product)
     # Mesma preparação já usada na prova V1.5.5, sem conhecimento no algoritmo/skill.
     _install(cli, product)
+    set_lab_pacing(cli, product, pacing)
     activate_strategy(cli, product)
     flags = ["--build", *(["--secure"] if mode == "secure" else [])]
     try:
@@ -80,6 +85,8 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
             if product == "clinica-piloto"
             else ("api_views.users.get_by_username", "api_views.books.get_by_title")
         )
+        if product == "clinica-piloto" and pacing == "proxy":
+            operations += ("baixarDocumento",)
         only = [value for operation in operations for value in ("--only", operation)]
         scan = cli.run("scan", product, "--run", run_id, *only, timeout=1200)
         assert scan.code == 0, scan.stdout + scan.stderr
@@ -100,6 +107,10 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
             assert any(item["title"] == "SQL Injection" for item in zap_findings)
         else:
             assert all(item["proposed_severity"] != "high" for item in zap_findings)
+        if product == "clinica-piloto" and pacing == "proxy":
+            assert any(item["title"] == "Path Traversal" for item in zap_findings) == (
+                mode == "vulnerable"
+            )
         artifacts = {
             name: load_artifact(cli, run_id, name + ".json")
             for name in ("authz", "negative", "scan")

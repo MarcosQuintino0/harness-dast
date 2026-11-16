@@ -134,9 +134,9 @@ class LabCli:
         """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
 
         O laboratório de integração prova o ZAP, o proxy e o alvo, não a aprovação (ela tem os
-        próprios testes de contrato). É chamado antes de cada comando; gravar de novo a
-        mesma aprovação é inofensivo, e o teste que edita o perfil depois de instalar não
-        precisa lembrar de aprovar de novo.
+        próprios testes de contrato). É chamado antes de cada comando; uma aprovação igual
+        não é regravada, preservando a identidade do arquivo observada pelo proxy. O teste
+        que edita o perfil depois de instalar não precisa lembrar de aprovar de novo.
         """
         store = FileApprovalStore(default_state_dir(self.env))
         repository = FileProfileRepository(self.products)
@@ -147,7 +147,9 @@ class LabCli:
                 profile = repository.load(folder.name)
             except ConfigError:
                 continue  # perfil inválido de propósito: a CLI o recusa pelo próprio erro
-            store.write(approval_for(profile))
+            approval = approval_for(profile)
+            if store.read(folder.name) != approval:
+                store.write(approval)
 
     def confirm_cleanup_as_person(self, product: str, run_id: str, typed: str) -> CleanupReport:
         """Roda o caso de uso `cleanup` EM PROCESSO com a pessoa (dublê) num terminal interativo.
