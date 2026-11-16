@@ -13,3 +13,5 @@ Data: 2026-11-16. Branch de integração: `feat/v1-7-velocidade`; base `24ec850`
 - O coordenador executa os gates finais, prova local e PR para `develop`; PR não será mesclado. CI ausente em PRs anteriores exige gates locais documentados.
 
 Replanejamento anterior à primeira prova: teto fechado de4h de laboratório, incluindo T2 do validador, devido à estimativa com perfis5req/s, 12T3 e quatroT4 sem baseline anterior. A seção12.2 do plano registra a conta, os checkpoints e a parada por orçamento. Qualidade, força, regras e teto de taxa preservados.
+
+Correção factual pré-prova: os perfis atuais de laboratório declaram50req/s,8threads,30min. A projeção5req/s/2threads vinha de documentação/testesanteriores e não desses arquivos. A/B usarão os valores efetivos dos perfis atuais sem mudar limites;4h permanece teto conservador. Ver plano12.3. Nenhuma prova foi feita antes desta correção.
