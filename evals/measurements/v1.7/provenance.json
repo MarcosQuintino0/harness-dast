@@ -1,0 +1,129 @@
+{
+  "generated_utc": "2026-11-16T08:13:46.288615+00:00",
+  "external_root": "C:\\harness-dast-artefatos\\v1.7-velocidade",
+  "original_deadline_epoch": 1794819708,
+  "root_reservation_started_utc": "2026-11-16T05:01:48.7734568+00:00",
+  "handoff": {
+    "root_explicit_stack_down_exit": 0,
+    "last_stack_was_already_unmanaged": true,
+    "compose_empty_before_release": true,
+    "root_lock_removed_only_after_owner_check": true,
+    "verified_by": "root",
+    "validator_acquired_own_lock": true,
+    "deadline_was_not_reset": true
+  },
+  "incident_notes": [
+    "Initial T2 before scan failed after login429 and retry timeout. Actual remote Retry-After was not recorded; synthetic58s reproduces incompatibility, not the exact remote value.",
+    "T3 VAmPI2A setup createdb500 before scan. Cause unknown; one fresh repetition preserved alongside failed attempt.",
+    "T4 filter A- also selected B-clinica-piloto before forecast freeze. No prospective Clinica prediction; keep the result and deviation.",
+    "Original legacy controls block failed one outdated assertion on correlated login rate_backoff429. Narrow test correlation fixed; new full negative evidence stored separately."
+  ],
+  "logs": [
+    {
+      "file": "lab/controls-other.log",
+      "sha256": "06f5ac954a8202dc771765f2d89c3693adf512732052b41fcc34a631e67095b2",
+      "bytes": 3064,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "1 failed, 11 passed in 1277.71s (0:21:17)"
+      ]
+    },
+    {
+      "file": "lab/fast-only.log",
+      "sha256": "e277ff50a6837b96c3080cc2c32376f45b78bbc619c131fb644ed92ff8abb76a",
+      "bytes": 226,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "6 passed in 319.28s (0:05:19)"
+      ]
+    },
+    {
+      "file": "lab/final-down.log",
+      "sha256": "8b281c7f3c83cef21ce0ca5aeec636e0f9a04686bbb348b49f6751d75318e77f",
+      "bytes": 814,
+      "encoding": "utf-16",
+      "pytest_summary": []
+    },
+    {
+      "file": "lab/negative-recheck.log",
+      "sha256": "fca46f248437cd085866b9671eba02f636caf5bd522638f07bde26ca1af5c017",
+      "bytes": 228,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "18 passed in 859.16s (0:14:19)"
+      ]
+    },
+    {
+      "file": "lab/t2-a-vulnerable-fix1.log",
+      "sha256": "8833a5c584a44f002532f42cccfd968c8f18b1f04a1b45b46864b2aef2c001fe",
+      "bytes": 256,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "2 passed, 34 deselected in 236.22s (0:03:56)"
+      ]
+    },
+    {
+      "file": "lab/t2-a-vulnerable.log",
+      "sha256": "1f9d432f8804a78ffe3934d7d15d6867acf12173261d1b9799bffe20d4a4dcef",
+      "bytes": 6916,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "1 failed, 34 deselected in 108.03s (0:01:48)"
+      ]
+    },
+    {
+      "file": "lab/t2-remaining.log",
+      "sha256": "7026824cf16b5d48c27009590f56b1ba78d27ea8356b984b9b2b48fa6084806e",
+      "bytes": 260,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "10 passed, 26 deselected in 1151.79s (0:19:11)"
+      ]
+    },
+    {
+      "file": "lab/t3-first-pair.log",
+      "sha256": "1e58af76ff5b34edb463dfeb1b6f9496e4348d8869e42d6f91650d8dfe6cc311",
+      "bytes": 256,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "4 passed, 32 deselected in 819.21s (0:13:39)"
+      ]
+    },
+    {
+      "file": "lab/t3-pairs2-3.log",
+      "sha256": "7a5d952f088b0b1d522b7124dc56672e2e7b62faeb7fb048e8e845c5d258790e",
+      "bytes": 7510,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "1 failed, 3 passed, 28 deselected in 720.77s (0:12:00)"
+      ]
+    },
+    {
+      "file": "lab/t3-resume.log",
+      "sha256": "12b7f8897545f6c6944ccaff2579d531e11ec7d9839621f2698c24b9ecd0657c",
+      "bytes": 256,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "5 passed, 31 deselected in 935.77s (0:15:35)"
+      ]
+    },
+    {
+      "file": "lab/t4-a.log",
+      "sha256": "c5b90bcf8211f7e1979d8fa85e8d0cc3fd11ac55ccd82a02d0dd798c062fbf8c",
+      "bytes": 258,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "3 passed, 33 deselected in 1413.75s (0:23:33)"
+      ]
+    },
+    {
+      "file": "lab/t4-b-vampi.log",
+      "sha256": "fece0819cb726d1077eb7e27649375b679dab7249be7b6a45caa93102798efd5",
+      "bytes": 226,
+      "encoding": "utf-16",
+      "pytest_summary": [
+        "1 passed in 102.87s (0:01:42)"
+      ]
+    }
+  ]
+}
