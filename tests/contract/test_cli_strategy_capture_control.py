@@ -8,12 +8,50 @@ import pytest
 
 from harness_dast.cli import strategy_composition
 from harness_dast.cli.commands import strategy as commands
+from harness_dast.cli.stack_lock_composition import hold_stack
 from tests.contract.test_cli_strategy_capture import _invoke, _Zap
 from tests.contract.test_cli_strategy_capture import setup_capture as setup_capture
 from tests.fakes.approvals import approve_product_on_disk
 from tests.fakes.profile_data import dump_yaml, valid_profile_data
 
 pytestmark = pytest.mark.contract
+
+
+def test_captura_respeita_trava_ocupada_e_prossegue_depois_de_liberada(
+    setup_capture: tuple[Path, _Zap],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    folder, zap = setup_capture
+    approve_product_on_disk(folder.parent, "demo")
+
+    with hold_stack("teste", "demo"):
+        code, envelope = _invoke(capsys, folder)
+        assert code == 8
+        assert envelope["error"]["code"] == "STACK_BUSY"
+        assert zap.calls == 0
+        assert not (folder / "strategy.captured.yml").exists()
+
+    code, envelope = _invoke(capsys, folder)
+    assert code == 0
+    assert envelope["ok"] is True
+    assert zap.calls == 1
+
+
+def test_captura_libera_trava_quando_motor_falha(
+    setup_capture: tuple[Path, _Zap],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    folder, zap = setup_capture
+    approve_product_on_disk(folder.parent, "demo")
+    zap.fail = True
+
+    failed, _ = _invoke(capsys, folder)
+    zap.fail = False
+    retried, result = _invoke(capsys, folder)
+
+    assert failed == 5
+    assert retried == 0
+    assert result["ok"] is True
 
 
 @pytest.mark.parametrize(
