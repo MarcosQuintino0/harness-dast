@@ -13,7 +13,13 @@ def _work(record: dict[str, Any]) -> tuple[Counter[tuple[Any, ...]], list[str]]:
     stats = record.get("rule_stats") or {}
     entries = scan.get("entries") or []
     operations = stats.get("operations") or []
-    if scan.get("status") != "completed" or not entries or scan.get("skipped"):
+    skips = scan.get("skipped") or []
+    gaps = [
+        row
+        for row in skips
+        if not (record.get("layer") == "t3" and row.get("reason") == "not_selected")
+    ]
+    if scan.get("status") != "completed" or not entries or gaps:
         issues.append("scan ausente, incompleto ou com operações puladas")
     for entry in entries:
         if entry.get("outcome") != "completed" or entry.get("truncated"):

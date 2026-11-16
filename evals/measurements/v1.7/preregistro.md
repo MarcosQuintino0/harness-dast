@@ -2,6 +2,8 @@
 
 Nenhuma execução de laboratório foi feita neste ramo. A referência A desta rodada não substitui a referência cega V1.5.5, que não existe. As variantes usam cópias temporárias do perfil, `scan.pacing` `legacy` (A) ou `proxy` (B), sem alterar regras, força, limites, dados nem perfis reais. Tecnologia é apenas advisory e não autoriza excluir regras. Não alterar este protocolo depois de conhecer os resultados; publicar emenda datada e motivo separadamente.
 
+O isolamento global dos testes remove variáveis `HDAST_*`. O `conftest.py` de integração restaura apenas o diretório de métricas e o prazo global, sem segredos, após o isolamento; sem isso não haveria coleta nem prazo na execução.
+
 ## T3: seleção e estratos
 
 A seleção foi feita pelo mecanismo e pelo contrato/perfil, não pelo gabarito: diversifica consulta, caminho, corpo JSON, leitura, escrita, conta, CSRF e encadeamento. O probe continua integral para estabelecer dependências. A disponibilidade depende de sucesso do probe e da cerca: seleção não é prova de cobertura.
