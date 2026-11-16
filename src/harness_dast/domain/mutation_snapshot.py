@@ -42,7 +42,7 @@ class MutationSnapshot(ApiModel):
     @classmethod
     def validate_value(cls, value: bool | int | float) -> bool | int | float:
         """Recusa números não finitos ou fora do limite para o diário privado."""
-        if not math.isfinite(value) or abs(value) > _MAX_ABS:
+        if abs(value) > _MAX_ABS or (isinstance(value, float) and not math.isfinite(value)):
             raise ValueError("escalar fora dos limites do diário")
         return value
 

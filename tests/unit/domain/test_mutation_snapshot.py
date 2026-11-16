@@ -25,6 +25,7 @@ def test_snapshot_preserva_apenas_escalar_e_origem(source: str) -> None:
         ("price", "secret"),
         ("price", {"id": 1}),
         ("price", 1e50),
+        ("price", 10**1000),
         ("opaque", 42),
     ],
 )
