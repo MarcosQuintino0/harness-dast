@@ -12,6 +12,7 @@ Esta pasta preserva material detalhado de **laboratórios locais com dados sint�
 | Clínica Piloto, 2026-11-15, V1.5.3 | Prova de papéis compartilhados nos dois modos, com controle positivo entre pacientes; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-3-lab/README.md) |
 | V1.5.4, 2026-11-15 | Recálculo isolado da triagem: Terra 6,29 → 5,79; Sonnet 9,16 → 9,16 | [Método e notas](2026-11-15-v1-5-4/README.md) |
 | Clínica Piloto, 2026-11-15, V1.5.4 | Login sintético nos dois modos e conflito com 11 dependências; três casos aprovados após corrigir uma asserção; não é rodada cega | [Medidas e limites](2026-11-15-v1-5-4-lab/README.md) |
+| Sonnet 5.5, 2026-11-16, V1.9 e V1.9.1 | Oito rodadas cegas (Clinica e VAmPI): a V1.9 travou o proxy com approval_changed (3,5 e 3,4 na Clinica); a V1.9.1 chegou a 8,99 e 9,16 com 9 de 10 falhas; export-reuse recusado nas quatro iniciais | [Rodadas e limites](2026-11-16-sonnet55-v19/README.md) |
 
 Cada estudo identifica o commit testado, as intervenções e as limitações de comparação. Não entram credenciais, arquivos de aprovação, estado privado do laboratório nem raciocínio interno privado do modelo. As cópias de evidências passam por verificação de segredos e trazem manifesto com SHA-256 e origem. `evals/` inteira é excluída pelo preparador de futuras cópias cegas.
 

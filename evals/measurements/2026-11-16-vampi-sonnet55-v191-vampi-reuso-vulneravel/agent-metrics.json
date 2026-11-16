@@ -1,0 +1,505 @@
+{
+  "schema_version": 1,
+  "label": "Sonnet 5.5 medium, V1.9.1, VAmPI vulneravel, rodada 4 (normal, reuso recusado)",
+  "model": "claude-sonnet-5-5",
+  "totals": {
+    "duration_seconds": 610.905,
+    "thinking_seconds": 196.672,
+    "waiting_seconds": 414.235,
+    "tokens": {
+      "input": 66,
+      "output": 16640,
+      "cache_creation": 117164,
+      "cache_read": 3344658
+    },
+    "turns": 32,
+    "tool_calls": 34,
+    "tool_calls_by_tool": {
+      "Bash": 27,
+      "Grep": 1,
+      "Read": 4,
+      "Skill": 1,
+      "Write": 1
+    },
+    "hdast_commands": {
+      "doctor": 1,
+      "init": 2,
+      "preflight": 3,
+      "probe": 1,
+      "profile": 3,
+      "profile validate": 3,
+      "report": 2,
+      "run": 1,
+      "spec inspect": 3,
+      "stack down": 1,
+      "stack status": 2,
+      "stack up": 2,
+      "wait": 1
+    }
+  },
+  "stages": {
+    "leitura": {
+      "seconds": 10.522,
+      "thinking_seconds": 10.403,
+      "waiting_seconds": 0.119,
+      "tokens": {
+        "input": 8,
+        "output": 494,
+        "cache_creation": 40743,
+        "cache_read": 150276
+      },
+      "tool_calls": 4,
+      "hdast_commands": {}
+    },
+    "cadastro": {
+      "seconds": 77.745,
+      "thinking_seconds": 41.792,
+      "waiting_seconds": 35.953,
+      "tokens": {
+        "input": 18,
+        "output": 4868,
+        "cache_creation": 27666,
+        "cache_read": 796254
+      },
+      "tool_calls": 11,
+      "hdast_commands": {
+        "doctor": 1,
+        "init": 2,
+        "profile": 3,
+        "profile validate": 3,
+        "spec inspect": 3
+      }
+    },
+    "alcance": {
+      "seconds": 74.627,
+      "thinking_seconds": 67.105,
+      "waiting_seconds": 7.522,
+      "tokens": {
+        "input": 12,
+        "output": 3180,
+        "cache_creation": 7850,
+        "cache_read": 625693
+      },
+      "tool_calls": 6,
+      "hdast_commands": {
+        "probe": 1
+      }
+    },
+    "varredura": {
+      "seconds": 374.074,
+      "thinking_seconds": 20.065,
+      "waiting_seconds": 354.009,
+      "tokens": {
+        "input": 12,
+        "output": 1502,
+        "cache_creation": 15847,
+        "cache_read": 680584
+      },
+      "tool_calls": 6,
+      "hdast_commands": {
+        "preflight": 3,
+        "run": 1,
+        "stack up": 2,
+        "wait": 1
+      }
+    },
+    "triagem": {
+      "seconds": 67.373,
+      "thinking_seconds": 54.532,
+      "waiting_seconds": 12.841,
+      "tokens": {
+        "input": 14,
+        "output": 6334,
+        "cache_creation": 24117,
+        "cache_read": 946328
+      },
+      "tool_calls": 6,
+      "hdast_commands": {
+        "report": 2
+      }
+    },
+    "outro": {
+      "seconds": 6.566,
+      "thinking_seconds": 2.775,
+      "waiting_seconds": 3.791,
+      "tokens": {
+        "input": 2,
+        "output": 262,
+        "cache_creation": 941,
+        "cache_read": 145523
+      },
+      "tool_calls": 1,
+      "hdast_commands": {
+        "stack down": 1,
+        "stack status": 2
+      }
+    }
+  },
+  "loops": {
+    "repeated_hdast_commands": [
+      {
+        "name": "preflight",
+        "count": 2
+      },
+      {
+        "name": "profile validate",
+        "count": 2
+      },
+      {
+        "name": "spec inspect",
+        "count": 2
+      },
+      {
+        "name": "profile",
+        "count": 1
+      },
+      {
+        "name": "report --run",
+        "count": 1
+      },
+      {
+        "name": "stack status",
+        "count": 1
+      }
+    ],
+    "failed_then_retried": [
+      {
+        "name": "preflight",
+        "count": 1
+      }
+    ],
+    "files_read_more_than_once": [],
+    "failed_calls": 2
+  },
+  "quality": {
+    "events": 98,
+    "events_malformed": 0,
+    "events_without_timestamp": 0,
+    "messages_without_usage": 0
+  },
+  "run_metrics": [
+    {
+      "run_id": "2026-11-16T19-28-35Z-vampi-7cd8",
+      "stages_seconds": {
+        "preflight": null,
+        "probe": 1.248,
+        "scan": 257.727,
+        "authz": 1.856,
+        "report": 0.162
+      },
+      "gaps_count": 0.0,
+      "gaps_total_seconds": 0.0,
+      "gaps_longest_seconds": 0.0,
+      "rules": [
+        {
+          "plugin_id": "90036",
+          "name": "Server Side Template Injection (Blind)",
+          "time_ms": 24512.0,
+          "requests": 420.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "6",
+          "name": "Path Traversal",
+          "time_ms": 19171.0,
+          "requests": 335.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90020",
+          "name": "Remote OS Command Injection",
+          "time_ms": 17992.0,
+          "requests": 315.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90019",
+          "name": "Server Side Code Injection",
+          "time_ms": 16343.0,
+          "requests": 280.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40003",
+          "name": "CRLF Injection",
+          "time_ms": 13971.0,
+          "requests": 245.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40018",
+          "name": "SQL Injection",
+          "time_ms": 13885.0,
+          "requests": 230.0,
+          "alerts": 3.0
+        },
+        {
+          "plugin_id": "40020",
+          "name": "SQL Injection - Hypersonic SQL (Time Based)",
+          "time_ms": 12011.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90037",
+          "name": "Remote OS Command Injection (Time Based)",
+          "time_ms": 12002.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40019",
+          "name": "SQL Injection - MySQL (Time Based)",
+          "time_ms": 11939.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40027",
+          "name": "SQL Injection - MsSQL (Time Based)",
+          "time_ms": 11937.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40008",
+          "name": "Parameter Tampering",
+          "time_ms": 11215.0,
+          "requests": 191.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40012",
+          "name": "Cross Site Scripting (Reflected)",
+          "time_ms": 10422.0,
+          "requests": 178.0,
+          "alerts": 2.0
+        },
+        {
+          "plugin_id": "7",
+          "name": "Remote File Inclusion",
+          "time_ms": 9930.0,
+          "requests": 175.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40009",
+          "name": "Server Side Include",
+          "time_ms": 7976.0,
+          "requests": 140.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90021",
+          "name": "XPath Injection",
+          "time_ms": 6220.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90035",
+          "name": "Server Side Template Injection",
+          "time_ms": 6120.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40021",
+          "name": "SQL Injection - Oracle (Time Based)",
+          "time_ms": 6054.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20019",
+          "name": "External Redirect",
+          "time_ms": 6050.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40022",
+          "name": "SQL Injection - PostgreSQL (Time Based)",
+          "time_ms": 6049.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "100043",
+          "name": "Swagger UI Secret & Vulnerability Detector",
+          "time_ms": 4440.0,
+          "requests": 60.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10048",
+          "name": "Remote Code Execution - Shell Shock",
+          "time_ms": 4026.0,
+          "requests": 70.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90017",
+          "name": "XSLT Injection",
+          "time_ms": 3665.0,
+          "requests": 60.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40016",
+          "name": "Cross Site Scripting (Persistent) - Prime",
+          "time_ms": 2078.0,
+          "requests": 35.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40042",
+          "name": "Spring Actuator Information Leak",
+          "time_ms": 1302.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40045",
+          "name": "Spring4Shell",
+          "time_ms": 1224.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20018",
+          "name": "Remote Code Execution - CVE-2012-1823",
+          "time_ms": 1217.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10045",
+          "name": "Source Code Disclosure - /WEB-INF Folder",
+          "time_ms": 1177.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "50000",
+          "name": "Script Active Scan Rules",
+          "time_ms": 806.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20017",
+          "name": "Source Code Disclosure - CVE-2012-1823",
+          "time_ms": 636.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40048",
+          "name": "Remote Code Execution (React2Shell)",
+          "time_ms": 633.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40029",
+          "name": "Trace.axd Information Leak",
+          "time_ms": 629.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40017",
+          "name": "Cross Site Scripting (Persistent) - Spider",
+          "time_ms": 626.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "0",
+          "name": "Directory Browsing",
+          "time_ms": 604.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40028",
+          "name": "ELMAH Information Leak",
+          "time_ms": 591.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10106",
+          "name": "HTTP Only Site",
+          "time_ms": 578.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40026",
+          "name": "Cross Site Scripting (DOM Based)",
+          "time_ms": 42.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20015",
+          "name": "Heartbleed OpenSSL Vulnerability",
+          "time_ms": 16.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40014",
+          "name": "Cross Site Scripting (Persistent)",
+          "time_ms": 14.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90024",
+          "name": "Generic Padding Oracle",
+          "time_ms": 13.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90029",
+          "name": "SOAP XML Injection",
+          "time_ms": 11.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10047",
+          "name": "HTTPS Content Available via HTTP",
+          "time_ms": 8.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10058",
+          "name": "GET for POST",
+          "time_ms": 8.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90023",
+          "name": "XML External Entity Attack",
+          "time_ms": 8.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90026",
+          "name": "SOAP Action Spoofing",
+          "time_ms": 7.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        }
+      ]
+    }
+  ]
+}
