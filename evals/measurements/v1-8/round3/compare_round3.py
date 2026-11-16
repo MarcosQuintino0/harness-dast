@@ -46,6 +46,17 @@ def dom(record: dict[str, Any]) -> list[tuple[str, str, str, Any]]:
     )
 
 
+def contains_unknown(value: object) -> bool:
+    """Nulo em qualquer campo impede alegar igualdade de contexto observada."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return any(contains_unknown(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(contains_unknown(item) for item in value)
+    return False
+
+
 def diagnostic(record: dict[str, Any]) -> dict[str, Any]:
     """Apresenta contexto e lacunas sem inferir identidade ou igualdade de campos ausentes."""
     scan = record.get("scan") or {}
@@ -182,7 +193,8 @@ def compare(
         "b": diag_b,
         "context_equal": {
             key: diag_a["context"][key] == diag_b["context"][key]
-            if diag_a["context"][key] is not None and diag_b["context"][key] is not None
+            if not contains_unknown(diag_a["context"][key])
+            and not contains_unknown(diag_b["context"][key])
             else None
             for key in diag_a["context"]
         },

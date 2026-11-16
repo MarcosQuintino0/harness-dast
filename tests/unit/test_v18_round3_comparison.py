@@ -68,3 +68,13 @@ def test_exclusao_dom_exige_registro_para_cada_operacao(tmp_path: Path) -> None:
     b.write_text(json.dumps(record), encoding="utf-8")
     result = _module().compare(a, b)
     assert not result["dom_40026"]["historical_exclusion_valid"]
+
+
+def test_campo_aninhado_ausente_nao_vira_igualdade(tmp_path: Path) -> None:
+    record = _record()
+    record["scan"]["policy"] = {"name": "hdast", "strength": None}
+    a, b = tmp_path / "a.json", tmp_path / "b.json"
+    a.write_text(json.dumps(record), encoding="utf-8")
+    b.write_text(json.dumps(record), encoding="utf-8")
+    result = _module().compare(a, b)
+    assert result["diagnostics"]["context_equal"]["policy"] is None
