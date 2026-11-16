@@ -17,6 +17,7 @@ class CreatedPairTask:
     read: ExchangeRecord
     owner: tuple[str, str]
     actor: tuple[str, str]
+    existing_targets: frozenset[str] = frozenset()
 
 
 def plan_created_pairs(
@@ -32,11 +33,8 @@ def plan_created_pairs(
     posts = unique_exchanges(
         [e for e in exchanges if e.method == "POST" and is_success_status(e.status)]
     )
-    reads = [
-        e
-        for e in exchanges
-        if e.method == "GET" and is_success_status(e.status) and e.operation_id not in public
-    ]
+    known = [e for e in exchanges if e.method == "GET" and is_success_status(e.status)]
+    reads = [e for e in known if e.operation_id not in public]
     tasks: list[CreatedPairTask] = []
     notes = []
     seen: set[tuple[str, str]] = set()
@@ -79,6 +77,12 @@ def plan_created_pairs(
                 )
             else:
                 tasks.append(
-                    CreatedPairTask(post, reader, (accounts[0], role), (accounts[1], role))
+                    CreatedPairTask(
+                        post,
+                        reader,
+                        (accounts[0], role),
+                        (accounts[1], role),
+                        frozenset(read.target.split("?", 1)[0] for read in known),
+                    )
                 )
     return Planned(tuple(tasks), tuple(notes))

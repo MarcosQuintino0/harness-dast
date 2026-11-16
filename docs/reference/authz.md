@@ -45,7 +45,9 @@ O bloco `authz` inteiro entra na impressão digital da aprovação humana ([ADR 
 
 Ordem fixa. As partes que escrevem só rodam com `authz.allow_writes`; a leitura horizontal dos pedidos já provados continua funcionando sem escrita autorizada.
 
-Com escrita autorizada, `horizontal` também pode criar um recurso para cada papel não compartilhado com duas contas, usando regras do perfil e POST provado. A conta criadora precisa conseguir lê-lo pelo GET irmão provado e pelo identificador devolvido pelo próprio POST antes de se comparar a leitura da segunda conta. Essa comparação e a atribuição em massa compartilham o teto de 400 escritas. Cada criação aceita entra em `created_resources`; não há DELETE. Falhas de criação, identificação ou confirmação ficam em `not_tested`. Veja o [ADR 0064](../adr/0064-par-automatico-entre-contas.md).
+Com escrita autorizada, `horizontal` também pode criar um recurso para cada papel não compartilhado com duas contas, usando regras do perfil e POST provado. A conta criadora precisa conseguir lê-lo pelo GET irmão provado e pelo identificador devolvido pelo próprio POST antes de se comparar a leitura da segunda conta. Essa comparação e a atribuição em massa compartilham o teto de 400 escritas. As criações registradas entram em `created_resources`; não há DELETE. Falhas de criação, identificação ou confirmação ficam em `not_tested`. Veja o [ADR 0064](../adr/0064-par-automatico-entre-contas.md).
+
+A comparação automática exige resposta HTTP 201 que satisfaça `probe.success` e identificador que não apareça em um GET já provado. Outros códigos de sucesso ficam `create_unconfirmed` e podem ter deixado recursos no ambiente; APIs que criam com HTTP 200 não entram nessa comparação. Mesmo 201 não prova novidade se o servidor for incoerente. As escritas desse par e da atribuição em massa têm uma tentativa por envio, inclusive restauração, para que retentativas não ultrapassem o teto.
 
 | Verificação | Pedido repetido | Achado quando | Severidade |
 | --- | --- | --- | --- |

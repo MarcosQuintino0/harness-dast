@@ -3,6 +3,7 @@
 from harness_dast.application.authz_sender import (
     CheckContext,
     CheckResult,
+    Reply,
     inconclusive,
     note,
     problem_note,
@@ -68,26 +69,39 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
         return
     ctx.shared_writes += 1
     out.writes += 1
-    reply = ctx.sender.send(post, task.owner[0], body=built.body, with_body=True, tag="pair:")
+    reply = ctx.sender.send(
+        post, task.owner[0], body=built.body, with_body=True, tag="pair:", max_attempts=1
+    )
     if reply.problem:
         out.not_tested.append(problem_note("horizontal", post, reply))
         return
-    if not is_success_status(reply.status):
+    if not _successful(ctx, reply):
         out.not_tested.append(
             note(
                 "horizontal",
                 post,
                 "create_failed",
-                f"A conta criadora não criou o recurso (status {reply.status}).",
+                f"A criação não foi confirmada (status {reply.status}); confira o ambiente.",
             )
         )
         return
-    out.created += 1
+    if reply.status != 201:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                post,
+                "create_unconfirmed",
+                "A resposta não confirmou criação com HTTP 201; pode ter deixado "
+                "um recurso no ambiente.",
+            )
+        )
+        return
     identifier = created_identifier(
         location=reply.location, body=reply.body, reader=task.read, base_url=ctx.settings.base_url
     )
     target = created_read_exchange(task.read, identifier) if identifier else None
     if target is None:
+        out.created += 1
         out.not_tested.append(
             note(
                 "horizontal",
@@ -97,7 +111,26 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
             )
         )
         return
+    if target.target.split("?", 1)[0] in task.existing_targets:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                post,
+                "created_target_preexisting",
+                "O identificador já aparecia em leitura provada; não é possível confirmar que "
+                "o objeto é novo. A operação pode ter deixado recurso no ambiente.",
+            )
+        )
+        return
+    out.created += 1
     _compare(ctx, task, target, out)
+
+
+def _successful(ctx: CheckContext, reply: Reply) -> bool:
+    if not is_success_status(reply.status):
+        return False
+    rule = ctx.settings.success.json_field_absent_or_not_equal
+    return rule is None or not rule.is_failure(parse_json(reply.body))
 
 
 def _compare(
@@ -107,7 +140,7 @@ def _compare(
     if owner.problem:
         out.not_tested.append(problem_note("horizontal", target, owner))
         return
-    if not is_success_status(owner.status) or not owner.body.strip():
+    if not _successful(ctx, owner) or not owner.body.strip():
         out.not_tested.append(
             note(
                 "horizontal",
@@ -124,7 +157,7 @@ def _compare(
     if peer.status in (401, 403, 404):
         out.tested += 1
         return
-    if not is_success_status(peer.status):
+    if not _successful(ctx, peer):
         out.not_tested.append(inconclusive("horizontal", target, peer))
         return
     if not bodies_equivalent(owner.body, peer.body, ctx.volatile):
