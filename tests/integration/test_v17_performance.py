@@ -24,6 +24,7 @@ from tests.integration.run_support import (
     throwaway_pilot_env,
 )
 from tests.integration.test_lab_fast import VAMPI_ENV
+from tests.integration.v17_lifecycle import Lifecycle
 from tests.integration.v17_matrix import PILOT, VAMPI
 from tests.integration.v17_resources import ResourceSampler
 from tests.integration.v17_zap_config import FastZapView
@@ -180,11 +181,14 @@ def _exercise(
     cli = LabCli(tmp_path, throwaway_pilot_env() if product == "clinica-piloto" else VAMPI_ENV)
     _install(cli, product, variant)
     name = f"v17-{layer}-{product}-{mode}-{index}-{variant}"
+    lifecycle = Lifecycle(Path(os.environ["HDAST_IT_METRICS_DIR"]), name, product)
+    lifecycle.before_up()
     try:
         assert (
             cli.run("stack", "up", product, "--build", f"--{mode}", timeout=_remaining(900)).code
             == 0
         )
+        lifecycle.after_up()
         zap_view = FastZapView(cli.state_file())
         if layer == "t4":
             started = time.monotonic()
@@ -253,7 +257,7 @@ def _exercise(
                 f"Controle {title} ausente ou falso positivo; registrar lacuna"
             )
     finally:
-        cli.stack_down()
+        lifecycle.down(cli)
 
 
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
