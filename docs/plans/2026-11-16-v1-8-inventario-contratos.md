@@ -44,7 +44,7 @@ Cada linha lista campos existentes; `.*` significa todos os subcampos nomeados n
 | `data-rules.yml` regras e valores sintéticos | fatos | P | Mudam alcance; não dão permissão, valores não aparecem no diff. |
 | `flows.yml` produtores, consumidores e dependências | fatos | P | Mudam pré-condições; ciclos e referências inseguras recusados. |
 | `strategy.yml` referências e metadados | estratégia | A/P/H | `choices` aceita lista vazia ou escolha tipada `coverage: preserve`; P/H não viram poder. |
-| plano compilado, concessão, estado, evidências e recursos criados | execução | transitório | A execução usa snapshot; revalida autorização, janela, prazo e stop ao conceder. |
+| plano compilado, concessão, estado, evidências e recursos criados | execução | transitório | Requisito de aceite: snapshot e revalidação de autorização, janela, prazo e stop ao conceder; verificar implementação e prova. |
 
 ## Campos auxiliares e entradas de origem
 
