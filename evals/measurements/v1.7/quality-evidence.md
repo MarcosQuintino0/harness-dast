@@ -11,6 +11,23 @@ Recorte das evidências redigidas de `C:\harness-dast-artefatos\v1.7-velocidade\
 | VAmPI vulnerável | Parcial: linhas coletadas sem divergência de host/porta/método; caminho cru, janela e linhas ausentes ainda exigem análise própria. | T3 selecionou 7 operações e executou 6; `update_email` ficou `mutating`. T4 executou 10; login, DELETE e duas mutações não foram varridos, por motivos no JSON. Políticas A/B iguais. | Parcial: entradas T3/T4 concluídas, mas 40026 `skipped` em todas. | SQL em `get_by_username` observado em T2 A/B. XSS refletido também apareceu nos artefatos, mas não há aqui um controle direcionado validado para todas as classes. | T3 tem a mesma relação operação/conta/resultado do probe nos pares. Na T4, as combinações distintas de decisões diferem: `auth.login` de `user_a` aparece em A e não em B; isso não prova troca de identidade e exige explicação. |
 | VAmPI seguro | Parcial: mesmo limite da auditoria; não há T3/T4 seguro neste recorte. | T2 SQL de uma operação; demais pontos e classes não são cobertos. | A operação e a regra 40018 concluíram, porém 40026 foi `skipped`; não há readback nas duas amostras rápidas. | Sem SQL no controle selecionado A/B; o teste não prova ausência de todo falso positivo. Travessia e V4 massa não têm controle vulnerável comprovado neste alvo. | Alias de probe e contagem de cabeçalhos não provam titularidade nem identidade por requisição; controles de autorização seguem no bloco em execução. |
 
+### Controles direcionados A/B neste recorte
+
+O teste exige regra 40018 para SQL ou 6 para travessia e operação concluídas antes de verificar o achado; em todas as linhas a regra 40026 ficou `skipped`. O readback diz respeito àquela execução curta, não à variante em geral.
+
+| API / modo | Variante | SQL no controle | Travessia no controle | Readback pontual |
+| --- | --- | --- | --- | --- |
+| Clínica vulnerável | A | Observado | Observada | SQL ausente; travessia observada 20 ms |
+| Clínica vulnerável | B | Observado | Observada | Ausente em ambos |
+| Clínica segura | A | Não observado | Não observada | Observado 20 ms em ambos |
+| Clínica segura | B | Não observado | Não observada | Ausente em ambos |
+| VAmPI vulnerável | A | Observado | Sem controle | Ausente |
+| VAmPI vulnerável | B | Observado | Sem controle | Ausente |
+| VAmPI seguro | A | Não observado | Sem controle | Ausente |
+| VAmPI seguro | B | Não observado | Sem controle | Ausente |
+
+`Não observado` significa apenas que o controle selecionado não reportou o achado naquela execução; não é prova de ausência da classe em toda a aplicação. A e B nos testes acima referem-se à configuração instalada; nos casos sem readback não se afirma que o atraso efetivo foi observado. Os quatro módulos adicionais usam somente A por padrão.
+
 ## Evidência A/B e limites
 
 Nos três pares T3 de cada API, os multisets de operação/regra/estado, operação/outcome/número de requisições do ZAP, política, escopo serializado e relação operação/conta/outcome do probe coincidiram entre A e B. Esses campos não incluem prova de todos os pontos de injeção, dos valores enviados ou do dono do recurso. Os ganhos medianos **descritivos** de parede do scan são aproximadamente 45,10% na Clínica e 60,96% no VAmPI; são medidas do subconjunto incompleto, não aceite de qualidade nem previsão confirmada para a completa.
