@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from harness_dast.cli.output import build_success, emit, get_state
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.cli.strategy_composition import build_capture, build_strategy, open_capture_zap
 
 _DIR = typer.Option("--products-dir", show_default=False)
@@ -46,11 +47,12 @@ def capture_command(
 ) -> None:
     """Captura vínculo atual numa cópia sem enviar pedidos ao alvo."""
     state = get_state(ctx)
-    zap, control_url = open_capture_zap(product, products_dir, state.secrets)
-    try:
-        data = build_capture(products_dir, zap, control_url).execute(product, output)
-    finally:
-        zap.close()
+    with hold_stack("strategy capture", product):
+        zap, control_url = open_capture_zap(product, products_dir, state.secrets)
+        try:
+            data = build_capture(products_dir, zap, control_url).execute(product, output)
+        finally:
+            zap.close()
     emit(build_success(data), json_mode=state.json_mode, human=str(data))
 
 

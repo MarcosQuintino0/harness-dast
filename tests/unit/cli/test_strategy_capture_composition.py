@@ -1,12 +1,43 @@
 """A captura usa somente controle publicado pela pilha gerenciada."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from harness_dast.cli import strategy_composition
-from harness_dast.domain.errors import ConfigError
+from harness_dast.cli.app import build_app, run_app
+from harness_dast.cli.commands import strategy as strategy_commands
+from harness_dast.domain.errors import ConfigError, StackBusy
 from harness_dast.observability.logging import SecretRegistry
+
+
+class _BusyLock:
+    def __enter__(self) -> None:
+        raise StackBusy("Pilha ocupada.")
+
+    def __exit__(self, *_args: object) -> None:
+        pass
+
+
+def test_captura_recusa_pilha_ocupada_sem_consultar_controle(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(strategy_commands, "hold_stack", lambda *_: _BusyLock())
+    monkeypatch.setattr(
+        strategy_commands,
+        "open_capture_zap",
+        lambda *_: pytest.fail("controle não deve ser aberto"),
+    )
+
+    assert (
+        run_app(
+            build_app(), ["--json", "strategy", "capture", "demo", "--products-dir", str(tmp_path)]
+        )
+        == 8
+    )
+    assert not (tmp_path / "demo" / "strategy.captured.yml").exists()
 
 
 def test_captura_recusa_sem_pilha_antes_de_criar_cliente(monkeypatch: pytest.MonkeyPatch) -> None:
