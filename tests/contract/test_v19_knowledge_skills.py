@@ -59,7 +59,9 @@ def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
         "não existe comando de promoção",
         "mudança a→b→a",
         "inclusive em outro estágio",
-        "mesmo 201 pode ficar não testado",
+        "id gerado pelo servidor",
+        "paginação ou filtros ocultos",
+        "scanrefused",
     ):
         assert phrase in reference.lower()
 

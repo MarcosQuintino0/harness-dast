@@ -15,8 +15,10 @@ envio real e falha fechada se o armazenamento não estiver utilizável.
 
 O `scan` reserva antes de iniciar no ZAP cada lote de POST, PUT ou PATCH. A conclusão é apenas
 observação do lote, nunca prova do estado do alvo. O registro só é concluído após confirmação de
-término pelo ZAP e gravação dos artefatos finais da CLI; erro, interrupção ou falha de gravação
-conservam a pendência. Recusa explícita de início pelo ZAP é falha sem envio. GET segue fora do
+término pelo ZAP em `FINISHED` com progresso 100, sem truncamento, e gravação dos artefatos finais
+da CLI. `FINISHED` abaixo de 100, `STOPPED`, erro, interrupção ou falha de gravação conservam a
+pendência. `ScanRefused` também conserva a pendência: a resposta da API não prova que nenhum pedido
+foi enviado. GET segue fora do
 diário, embora uma API possa atribuir-lhe efeito: o contrato não demonstra essa semântica.
 `--dry-run` não escreve diário nem envia tráfego. O diário não amplia escopo nem permissões e
 não fornece operação de recuperação cega.
