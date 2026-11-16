@@ -12,7 +12,7 @@ from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.authz_write_rig import exchange, seed
 from tests.fakes.probe_ports import FakeTarget, InMemoryDocuments
-from tests.fakes.rig import INT, STR, operation
+from tests.fakes.rig import INT, STR, operation, parameter
 from tests.unit.application.test_authz_created_pair import make_rig
 
 
@@ -24,23 +24,34 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
         "createSynthetic",
         "post",
         "/api/widgets",
-        body={"group_id": INT, "id": serial_schema, "nonce": STR},
-        required=("group_id", "id", "nonce"),
+        body={"group_id": INT, "id": serial_schema, "label": STR},
+        required=("group_id", "id", "label"),
         produces={"id": INT},
     )
     producer = operation("makeGroup", "post", "/api/groups", produces={"id": INT})
+    reader = operation(
+        "readSynthetic",
+        "get",
+        "/api/widgets/{id}",
+        parameters=(parameter("id"),),
+        produces={"id": INT, "label": STR},
+    )
     rig.spec = rig.spec.model_copy(
         update={
             "operations": (
                 *(
-                    create if op.operation_id == "createSynthetic" else op
+                    create
+                    if op.operation_id == "createSynthetic"
+                    else reader
+                    if op.operation_id == "readSynthetic"
+                    else op
                     for op in rig.spec.operations
                 ),
                 producer,
             )
         }
     )
-    old = {"group_id": 89, "id": 17 if small_integer else "old", "nonce": "old"}
+    old = {"group_id": 89, "id": 17 if small_integer else "old", "label": "old"}
     probe = seed(
         rig,
         exchange("createSynthetic", "POST", "/api/widgets", "/api/widgets", body=old),
@@ -63,7 +74,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
                     "generator": "integer" if small_integer else "alphanumeric",
                     "unique": True,
                 },
-                {"match": {"field": "nonce"}, "generator": "alphanumeric", "unique": True},
+                {"match": {"field": "label"}, "generator": "alphanumeric", "unique": True},
             ],
         }
     )

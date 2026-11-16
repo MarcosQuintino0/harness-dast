@@ -42,8 +42,8 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
                 "create",
                 "post",
                 "/api/widgets",
-                body={"group_id": INT, "serial": serial, "nonce": STR},
-                required=("group_id", "serial", "nonce"),
+                body={"group_id": INT, "serial": serial, "label": STR},
+                required=("group_id", "serial", "label"),
                 produces={"id": INT},
             ),
             operation(
@@ -51,7 +51,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
                 "get",
                 "/api/widgets/{serial}",
                 parameters=(parameter("serial"),),
-                produces={"id": INT, "group_id": INT, "serial": serial},
+                produces={"id": INT, "group_id": INT, "serial": serial, "label": STR},
             ),
         ),
     )
@@ -73,7 +73,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
     rig = Rig(profile=profile, spec=spec, handler=handler)
     probe = rig.probe().execute(ProbeRequest(product="example"))
     old_serial: str | int = 17 if small_integer else "old"
-    old_body = {"group_id": 89, "serial": old_serial, "nonce": "old"}
+    old_body = {"group_id": 89, "serial": old_serial, "label": "old"}
     exchanges = (
         ExchangeRecord(
             operation_id="create",
@@ -106,7 +106,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
                     "generator": "integer" if small_integer else "alphanumeric",
                     "unique": True,
                 },
-                {"match": {"field": "nonce"}, "generator": "alphanumeric", "unique": True},
+                {"match": {"field": "label"}, "generator": "alphanumeric", "unique": True},
             ],
         }
     )

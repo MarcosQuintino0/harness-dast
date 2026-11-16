@@ -8,12 +8,16 @@ investigação. As conclusões do laboratório V1.5.5 são históricas, não rep
 A versão anterior exigia 201 e comparava o identificador devolvido apenas com as leituras já
 provadas no probe. Essa lista é amostra, não prova de ausência. A implementação agora extrai o
 identificador do corpo novo, consulta dona e par antes do POST e exige 404 em ambas, compara o
-identificador devolvido em qualquer 2xx e exige na leitura da dona um marcador novo e independente,
-gerado por regra `unique`, antes da leitura da conta par. Não envia o POST se não
-houver identificador prévio ou se a leitura prévia falhar. Um 404 pode ocultar objeto existente:
-a prova é apenas de ausência visível, não global. APIs que geram o identificador no servidor,
-sem identificador no corpo enviado, ficam não testadas. Esta restrição pode reduzir cobertura
-frente à V1.8 e precisa ser medida; não se afirma que as provas anteriores permanecem válidas.
+identificador devolvido em qualquer 2xx e exige na leitura da dona um marcador novo e independente
+antes da leitura da conta par. Um 404 pode ocultar objeto existente: a prova é apenas de ausência
+visível, não global. Restrições de prova podem reduzir cobertura frente à V1.8 e precisam de
+medição; não se afirma que as provas anteriores permanecem válidas.
+Para IDs gerados pelo servidor foi acrescentada alternativa com inventários anteriores das duas
+contas e marcador sintético. A coleção deve ter GET provado, array de objetos sem query ou máximo
+de itens no OpenAPI, IDs e marcador em cada item; a resposta da criação precisa informar ID ausente
+dos inventários. A falta de parâmetros não prova ausência de paginação ou filtro implícito; o
+inventário não prova inexistência global. O marcador usa campo textual comum aos schemas, sem
+enum, formato, padrão, vínculo ou classificação sensível, e não substitui regras explícitas.
 O OpenAPI do VAmPI também descreve criação de livro com resposta de mensagem e status, sem
 identificador. A coleção de livros não declara garantia de completude: ausência de parâmetros
 de paginação não prova que a listagem não seja parcial ou filtrada. Não se usa essa lista como

@@ -1,6 +1,7 @@
 """Cria recurso sintético e compara leitura das duas contas pela cerca."""
 
 import json
+from dataclasses import dataclass
 
 from harness_dast.application.authz_sender import (
     CheckContext,
@@ -12,14 +13,23 @@ from harness_dast.application.authz_sender import (
 )
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import bodies_equivalent, is_success_status, parse_json
+from harness_dast.domain.authz_config import normalize_field_name
 from harness_dast.domain.authz_created import created_identifier, created_read_exchange
 from harness_dast.domain.authz_findings import horizontal_finding
 from harness_dast.domain.authz_flow_bindings import bindings_from_proven_body
+from harness_dast.domain.authz_pair_inventory import inventory_ids, supports_inventory
+from harness_dast.domain.authz_pair_marker import marker_fields
 from harness_dast.domain.authz_plan import Planned
 from harness_dast.domain.authz_plan_created_pair import CreatedPairTask
 from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS
 from harness_dast.domain.errors import ConfigError, TargetError
 from harness_dast.domain.probe_exchange import ExchangeRecord
+
+
+@dataclass(frozen=True)
+class _Before:
+    target: ExchangeRecord | None
+    inventory: frozenset[str] = frozenset()
 
 
 def run_created_pairs(ctx: CheckContext, plan: Planned[CreatedPairTask], out: CheckResult) -> None:
@@ -40,32 +50,11 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     body = _new_body(ctx, post, out)
     if body is None:
         return
-    target = _confirm_absent(ctx, task, body, out)
-    if target is None:
-        return
-    original = parse_json((post.body or "").encode())
-    prior = original if isinstance(original, dict) else {}
-    identifier = target.target.rsplit("/", 1)[-1]
-    builder = ctx.settings.builder
-    markers: dict[str, JsonValue] = {
-        name: value
-        for name, value in body.items()
-        if isinstance(value, str | int | bool)
-        and str(value) != identifier
-        and name in prior
-        and prior[name] != value
-        and builder is not None
-        and builder.reuses_unique_body_value(post.operation_id, {name: value}, {name: value})
-    }
+    markers = _make_marker(ctx, task, body, out)
     if not markers:
-        out.not_tested.append(
-            note(
-                "horizontal",
-                post,
-                "new_marker_unavailable",
-                "Não há marcador novo independente para confirmar a leitura após o POST.",
-            )
-        )
+        return
+    before = _prepare_before(ctx, task, body, out, markers)
+    if before is None:
         return
     if ctx.settings.counter_checkpoint is not None and ctx.settings.builder is not None:
         ctx.settings.counter_checkpoint(ctx.settings.builder.next_unique_counter)
@@ -74,19 +63,114 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     reply = ctx.sender.send(
         post, task.owner[0], body=body, with_body=True, tag="pair:", max_attempts=1
     )
-    _check_created(ctx, task, out, reply, target, markers)
+    _check_created(ctx, task, out, reply, before, markers)
 
 
-def _confirm_absent(
+def _make_marker(
     ctx: CheckContext, task: CreatedPairTask, body: dict[str, JsonValue], out: CheckResult
-) -> ExchangeRecord | None:
+) -> dict[str, str]:
+    original = parse_json((task.post.body or "").encode())
+    prior = original if isinstance(original, dict) else {}
+    builder = ctx.settings.builder
+    if builder is not None:
+        bindings = bindings_from_proven_body(ctx.settings.flows, task.post.operation_id, original)
+        candidates = marker_fields(
+            ctx.settings.operations.get(task.post.operation_id),
+            ctx.settings.operations.get(task.read.operation_id),
+            frozenset(bindings.fields),
+        )
+        marker_name = normalize_field_name(task.read.path.rsplit("/", 1)[-1].strip("{}"))
+        for name, minimum, maximum in candidates:
+            if name not in body or normalize_field_name(name) in {marker_name, "id"}:
+                continue
+            explicit = builder.body_rule_unique(task.post.operation_id, name)
+            if explicit is False:
+                continue
+            if explicit is True:
+                existing = body[name]
+                if isinstance(existing, str) and existing != prior.get(name):
+                    return {name: existing}
+                continue
+            try:
+                value = builder.fresh_text(minimum, maximum)
+                if value == prior.get(name):
+                    value = builder.fresh_text(minimum, maximum)
+            except ConfigError:
+                continue
+            if value != prior.get(name):
+                body[name] = value
+                return {name: value}
+    out.not_tested.append(
+        note(
+            "horizontal",
+            task.post,
+            "new_marker_unavailable",
+            "Não há campo textual independente que permita gerar e ler um marcador novo.",
+        )
+    )
+    return {}
+
+
+def _prepare_before(
+    ctx: CheckContext,
+    task: CreatedPairTask,
+    body: dict[str, JsonValue],
+    out: CheckResult,
+    markers: dict[str, str],
+) -> _Before | None:
     identifier = created_identifier(
         location=None,
         body=json.dumps(body).encode(),
         reader=task.read,
         base_url=ctx.settings.base_url,
     )
-    target = created_read_exchange(task.read, identifier) if identifier else None
+    if identifier is None:
+        return _snapshot_collection(ctx, task, out, markers)
+    target = _confirm_absent(ctx, task, identifier, out)
+    return _Before(target) if target is not None else None
+
+
+def _snapshot_collection(
+    ctx: CheckContext, task: CreatedPairTask, out: CheckResult, markers: dict[str, str]
+) -> _Before | None:
+    collection = task.collection
+    operation = ctx.settings.operations.get(collection.operation_id) if collection else None
+    if collection is None or not supports_inventory(operation, task.read, frozenset(markers)):
+        out.not_tested.append(
+            note(
+                "horizontal",
+                task.post,
+                "new_identifier_unavailable",
+                "Sem identificador antecipado nem coleção provada sem parâmetros de consulta.",
+            )
+        )
+        return None
+    found: set[str] = set()
+    for account in (task.owner[0], task.actor[0]):
+        reply = ctx.sender.send(collection, account, tag="pair:", max_attempts=1)
+        ids = (
+            inventory_ids(reply.body, task.read, ctx.settings.base_url, markers)
+            if _successful(ctx, reply)
+            else None
+        )
+        if reply.problem is not None or ids is None:
+            out.not_tested.append(
+                note(
+                    "horizontal",
+                    collection,
+                    "inventory_unavailable",
+                    "A coleção não retornou inventário JSON válido para as duas contas.",
+                )
+            )
+            return None
+        found.update(ids)
+    return _Before(None, frozenset(found))
+
+
+def _confirm_absent(
+    ctx: CheckContext, task: CreatedPairTask, identifier: str, out: CheckResult
+) -> ExchangeRecord | None:
+    target = created_read_exchange(task.read, identifier)
     if target is None:
         out.not_tested.append(
             note(
@@ -200,8 +284,8 @@ def _check_created(
     task: CreatedPairTask,
     out: CheckResult,
     reply: Reply,
-    expected: ExchangeRecord,
-    markers: dict[str, JsonValue],
+    expected: _Before,
+    markers: dict[str, str],
 ) -> None:
     post = task.post
     if reply.problem:
@@ -231,7 +315,11 @@ def _check_created(
             )
         )
         return
-    if target.target != expected.target or target.target.split("?", 1)[0] in task.existing_targets:
+    if (
+        (expected.target is not None and target.target != expected.target.target)
+        or identifier in expected.inventory
+        or target.target.split("?", 1)[0] in task.existing_targets
+    ):
         out.not_tested.append(
             note(
                 "horizontal",
@@ -257,7 +345,7 @@ def _compare(
     task: CreatedPairTask,
     target: ExchangeRecord,
     out: CheckResult,
-    markers: dict[str, JsonValue],
+    markers: dict[str, str],
 ) -> None:
     owner = ctx.sender.send(target, task.owner[0], tag="pair:")
     if owner.problem:

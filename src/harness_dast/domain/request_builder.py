@@ -22,6 +22,7 @@ from pydantic import Field
 
 from harness_dast.domain.api_model import Operation, Parameter, safe_identifier
 from harness_dast.domain.api_schema import (
+    MAX_STRING,
     ApiModel,
     JsonValue,
     Schema,
@@ -43,7 +44,7 @@ from harness_dast.domain.synthetic_files import (
     default_filename,
     parse_file_spec,
 )
-from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, validate_run_tag
+from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, unique_token, validate_run_tag
 
 MAX_BUILD_DEPTH = 12
 MAX_ITEMS = 20
@@ -225,6 +226,22 @@ class RequestBuilder:
     def next_unique_counter(self) -> int:
         """Próxima posição do contador, para continuar a mesma execução."""
         return self._unique_counter
+
+    def fresh_text(self, minimum: int, maximum: int | None) -> str:
+        """Gera marcador opaco com contador da execução dentro dos limites de tamanho.
+
+        Não garante ausência em recursos preexistentes; quem o usa deve observá-la.
+        """
+        if minimum < 0 or minimum > MAX_STRING or (maximum is not None and minimum > maximum):
+            raise ConfigError("Limites inválidos para marcador sintético.")
+        limit = min(maximum, MAX_STRING) if maximum is not None else MAX_STRING
+        token = unique_token(self._run_tag, self._next_counter(), limit)
+        return token.ljust(minimum, "x")
+
+    def body_rule_unique(self, operation_id: str, field: str) -> bool | None:
+        """Indica se regra explícita de campo raiz é única, ou `None` se não existe."""
+        resolved = self._rules.resolve(operation_id, "body", (field,))
+        return resolved.rule.unique if resolved is not None else None
 
     def reuses_unique_body_value(
         self,

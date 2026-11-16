@@ -15,6 +15,7 @@ from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.probe_exchange import ExchangeRecord
 from tests.fakes.authz_rig import AuthzRig, Clinic, clinic_spec
 from tests.fakes.authz_write_rig import exchange, seed
 from tests.fakes.probe_ports import FakeTarget, InMemoryDocuments, reply
@@ -91,6 +92,7 @@ def execute(
     checks: tuple[AuthzCheck, ...] = ("horizontal",),
     journal: MutationJournal | None = None,
     profiles: ProfileRepository | None = None,
+    extra_exchanges: tuple[ExchangeRecord, ...] = (),
 ) -> AuthzResult:
     api_path = "/" + path
     probe = seed(
@@ -104,6 +106,7 @@ def execute(
             body={"label": "old", "id": "old"},
         ),
         exchange("readSynthetic", "GET", api_path + "/{id}", api_path + "/999", account="adm"),
+        *extra_exchanges,
     )
     rules = DataRules.from_data(
         {
