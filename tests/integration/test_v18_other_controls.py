@@ -107,7 +107,7 @@ def test_authz_com_matriz_e_escrita_seguro_b(tmp_path: Path) -> None:
                 **authz_checks._observations(lab),
             },
         )
-        authz_checks.test_all_eight_checks_appear_in_authz_json_with_a_status(lab)
+        authz_checks.test_all_nine_checks_appear_in_authz_json_with_a_status(lab)
         authz_checks.test_no_delete_request_left_the_harness(lab)
         authz_checks.test_every_authz_request_went_through_the_fence_and_none_was_out_of_scope(lab)
         authz_checks.test_no_token_or_secret_appears_in_the_artifacts_audits_or_cli_output(lab)

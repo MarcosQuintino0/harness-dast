@@ -253,10 +253,10 @@ def lab(
         cli.stack_down()
 
 
-def test_all_eight_checks_appear_in_authz_json_with_a_status(lab: AuthzLab) -> None:
+def test_all_nine_checks_appear_in_authz_json_with_a_status(lab: AuthzLab) -> None:
     names = [item["check"] for item in lab.authz["checks"]]
     assert names == list(CHECK_ORDER)
-    assert len(names) == 8
+    assert len(names) == 9
     assert {item["status"] for item in lab.authz["checks"]} <= {
         "completed",
         "partial",
