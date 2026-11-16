@@ -8,6 +8,7 @@ from harness_dast.application.ports import (
     ProductDocuments,
     ProfileRepository,
     ReferencedFile,
+    SpecLoader,
     StrategyStore,
 )
 from harness_dast.application.scope_approval import current_check
@@ -16,6 +17,7 @@ from harness_dast.domain.envelope import describe_envelope
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.strategy import Strategy
+from harness_dast.domain.strategy_preview import preview
 
 
 def load_strategy(store: StrategyStore, product: str) -> Strategy | None:
@@ -58,11 +60,13 @@ class StrategyService:
         approvals: ApprovalStore,
         clock: Clock,
         documents: ProductDocuments,
+        specs: SpecLoader,
     ) -> None:
         """Recebe as portas necessárias às operações locais."""
         self._profiles, self._store = profiles, store
         self._approvals, self._clock = approvals, clock
         self._documents = documents
+        self._specs = specs
 
     def inspect(self, product: str) -> dict[str, JsonValue]:
         """Descreve estratégia, estado de aprovação e envelope sem exigir aprovação."""
@@ -104,7 +108,14 @@ class StrategyService:
         strategy = load_strategy(self._store, product)
         if strategy is not None:
             strategy.ensure_compilable(self._clock.now())
-        return {**info, "coverage": "pending_probe_and_zap", "executed": False}
+        profile = self._profiles.load(product)
+        spec = self._specs.load(product, profile)
+        flows = self._documents.load_flows(product)
+        return {
+            **info,
+            "preview": preview(profile, spec, flows).model_dump(mode="json"),
+            "executed": False,
+        }
 
     def migrate(self, product: str, output: str) -> dict[str, JsonValue]:
         """Gera cópia de estratégia neutra sem modificar perfil ou aprovação."""

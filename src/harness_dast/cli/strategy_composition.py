@@ -8,7 +8,7 @@ from harness_dast.adapters.storage.strategy_repository import FileStrategyReposi
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.application.strategy import StrategyService
 from harness_dast.cli.approval_composition import open_approval_store
-from harness_dast.cli.composition import products_dir_or_default
+from harness_dast.cli.composition import build_spec_loader, products_dir_or_default
 
 
 def build_strategy(products_dir: Path | None) -> StrategyService:
@@ -20,4 +20,5 @@ def build_strategy(products_dir: Path | None) -> StrategyService:
         open_approval_store(),
         SystemClock(),
         FileProductDocuments(root),
+        build_spec_loader(root),
     )
