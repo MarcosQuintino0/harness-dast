@@ -179,6 +179,7 @@ def coverage_is_partial(probe: ProbeResult, scan: ScanResult) -> bool:
         or unreached
         or bool(coverage_gaps(probe, scan))
         or any(entry.outcome != "completed" for entry in scan.entries)
+        or scan.traffic.denied_by_reason.get("rate_backoff", 0) > 0
     )
 
 

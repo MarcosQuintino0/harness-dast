@@ -62,3 +62,16 @@ def outside_allow_note(traffic: TrafficSummary) -> str | None:
         "leitura do caminho fora de scope.allow (sem casar deny_paths); o servidor pode ter "
         "roteado esses pedidos para outro caminho do mesmo host (risco aceito, ADR 0026)."
     )
+
+
+def backoff_warning(traffic: TrafficSummary) -> str | None:
+    """Explica a lacuna de pedidos recusados durante o recuo remoto, sem atribuição inventada."""
+    count = traffic.denied_by_reason.get("rate_backoff", 0)
+    if count <= 0:
+        return None
+    return (
+        f"AVISO: cobertura PARCIAL: {count} pedido(s) foram recusados durante o recuo "
+        "temporário solicitado pelo destino (rate_backoff) e não chegaram ao alvo. "
+        "A contagem é global da etapa; ela não comprova recuperação nem atribuição "
+        "individual de cada pedido a uma regra ou operação."
+    )
