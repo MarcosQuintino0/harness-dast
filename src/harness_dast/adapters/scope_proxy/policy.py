@@ -25,8 +25,9 @@ from pydantic import (
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.proxy_deadline import STACK_MARGIN_MINUTES
-from harness_dast.domain.run import MAX_DURATION_MINUTES, RunId, RunLimits
+from harness_dast.domain.run import MAX_DURATION_MINUTES, SLUG_PATTERN, RunId, RunLimits
 from harness_dast.domain.scope import PathMode, Scope
+from harness_dast.domain.window import Authorization, ExecutionWindow
 
 SCHEMA_VERSION = 1
 """Versão do schema do arquivo; mudar o formato exige novo número e ADR."""
@@ -36,6 +37,18 @@ KILL_FLAG_NAME = "KILL"
 
 MAX_POLICY_BYTES = 1_048_576
 _HINT = "Gere o arquivo de política a partir do perfil (ver docker/scope-proxy/README.md)."
+
+
+class ApprovalBinding(BaseModel):
+    """Fontes locais e validade congeladas para uma pilha gerenciada."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    product: str = Field(pattern=rf"^{SLUG_PATTERN}$")
+    approval_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    profile_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    authorization: Authorization
+    windows: tuple[ExecutionWindow, ...] = Field(min_length=1)
 
 
 class ProxyPolicy(BaseModel):
@@ -60,6 +73,7 @@ class ProxyPolicy(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    binding: ApprovalBinding | None = None
     schema_version: StrictInt
     run_id: str
     scope: Scope

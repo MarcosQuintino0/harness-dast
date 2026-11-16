@@ -24,7 +24,7 @@ from mitmproxy.proxy.server_hooks import ServerConnectionHookData
 from harness_dast.adapters.scope_proxy.decision import ALLOW, Reason, Verdict, deny
 from harness_dast.adapters.scope_proxy.engine import ScopeProxyEngine
 from harness_dast.adapters.scope_proxy.grant_queue import GrantQueue
-from harness_dast.adapters.scope_proxy.policy import load_policy
+from harness_dast.adapters.scope_proxy.policy import ProxyPolicy, load_policy
 from harness_dast.adapters.scope_proxy.signals import SignalReading, read_response_signals
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.retry_after import retry_after_seconds
@@ -253,11 +253,17 @@ def _refusal(status: int, reason: Reason, *, retry_after: int | None = None) -> 
     return http.Response.make(status, b"hdast scope-proxy: request refused\n", headers)
 
 
+def _ensure_managed_binding(policy: ProxyPolicy) -> None:
+    if os.environ.get("HDAST_MANAGED_POLICY") == "1" and policy.binding is None:
+        raise ConfigError("Politica gerenciada sem vinculo de aprovacao.", hint="Recrie a pilha.")
+
+
 def _build_addon() -> ScopeProxyAddon:
     policy_file = Path(os.environ.get("HDAST_POLICY_FILE", "/policy/policy.json"))
     audit_file = Path(os.environ.get("HDAST_AUDIT_FILE", "/audit/audit.jsonl"))
     try:
         policy = load_policy(policy_file)
+        _ensure_managed_binding(policy)
         # Aberto sem `with`: o arquivo vive tanto quanto o processo do proxy.
         handle = audit_file.open("a", encoding="utf-8")
     except (ConfigError, OSError) as error:

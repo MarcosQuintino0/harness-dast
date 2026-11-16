@@ -10,13 +10,18 @@ são locais.
 Também aciona a trava de emergência (arquivo `KILL` ao lado da política).
 """
 
+import hashlib
 import os
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+
+from pydantic import ValidationError
 
 from harness_dast.adapters.scope_proxy.policy import (
     KILL_FLAG_NAME,
     SCHEMA_VERSION,
+    ApprovalBinding,
     ProxyPolicy,
     parse_policy,
 )
@@ -24,6 +29,7 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.run import RunId
+from harness_dast.domain.scope_approval import ScopeApproval, check_approval
 
 POLICY_FILE_NAME = "policy.json"
 _WRITE_HINT = "Confira o espaço em disco e a permissão de escrita da pasta de estado."
@@ -56,6 +62,59 @@ def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: dateti
 class FileProxyPolicyStore:
     """Grava a política e aciona a trava no sistema de arquivos (implementa `ProxyPolicyStore`)."""
 
+    def __init__(
+        self,
+        products_dir: Path | None = None,
+        approvals_dir: Path | None = None,
+        reload_profile: Callable[[str], ProductProfile] | None = None,
+    ) -> None:
+        """Recebe as fontes reais; os tres argumentos sao obrigatorios em pilha gerenciada."""
+        self._products_dir = products_dir
+        self._approvals_dir = approvals_dir
+        self._reload_profile = reload_profile
+        if any(
+            value is not None for value in (products_dir, approvals_dir, reload_profile)
+        ) and any(value is None for value in (products_dir, approvals_dir, reload_profile)):
+            raise ValueError("Fontes da politica gerenciada incompletas")
+
+    def _bind(self, profile: ProductProfile) -> ApprovalBinding:
+        if (
+            self._products_dir is None
+            or self._approvals_dir is None
+            or self._reload_profile is None
+        ):
+            raise ConfigError("Fontes da politica incompletas.", hint="Recrie a pilha.")
+        target = self._products_dir / profile.product / "target.yml"
+        approval_path = self._approvals_dir / f"{profile.product}.json"
+        target_raw, target_stat = _read_snapshot(target)
+        approval_raw, approval_stat = _read_snapshot(approval_path)
+        try:
+            approval = ScopeApproval.model_validate_json(approval_raw)
+        except ValidationError:
+            raise ConfigError(
+                "Aprovacao invalida ao vincular o proxy.", hint="Revise a aprovacao."
+            ) from None
+        check_approval(profile, approval).ensure_approved()
+        if self._reload_profile(profile.product) != profile:
+            raise ConfigError("Perfil mudou ao vincular o proxy.", hint="Reinicie a pilha.")
+        try:
+            if (
+                _stat_signature(target.stat()) != target_stat
+                or _stat_signature(approval_path.stat()) != approval_stat
+            ):
+                raise ConfigError("Fonte alterada ao vincular proxy.", hint="Reinicie a pilha.")
+        except OSError:
+            raise ConfigError(
+                "Fonte alterada ao vincular o proxy.", hint="Reinicie a pilha."
+            ) from None
+        return ApprovalBinding(
+            product=profile.product,
+            approval_sha256=hashlib.sha256(approval_raw).hexdigest(),
+            profile_sha256=hashlib.sha256(target_raw).hexdigest(),
+            authorization=profile.scope.authorization,
+            windows=profile.scope.windows,
+        )
+
     def publish(
         self, profile: ProductProfile, run_id: RunId, not_after: datetime, directory: Path
     ) -> Path:
@@ -68,6 +127,8 @@ class FileProxyPolicyStore:
             ConfigError: A política gerada é inválida ou a gravação falhou.
         """
         policy = build_proxy_policy(profile, run_id, not_after)
+        if self._products_dir is not None:
+            policy = policy.model_copy(update={"binding": self._bind(profile)})
         raw = (policy.model_dump_json(indent=2) + "\n").encode("utf-8")
         parse_policy(raw)
         target = directory / POLICY_FILE_NAME
@@ -107,3 +168,24 @@ class FileProxyPolicyStore:
     def kill_active(self, directory: Path) -> bool:
         """Diz se o arquivo `KILL` existe em `directory`."""
         return (directory / KILL_FLAG_NAME).exists()
+
+
+def _stat_signature(value: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+
+
+def _read_snapshot(path: Path) -> tuple[bytes, tuple[int, int, int, int, int]]:
+    try:
+        with path.open("rb") as handle:
+            before = _stat_signature(os.fstat(handle.fileno()))
+            raw = handle.read(1024 * 1024 + 1)
+            after = _stat_signature(os.fstat(handle.fileno()))
+        stable = before == after == _stat_signature(path.stat()) and len(raw) <= 1024 * 1024
+    except OSError:
+        raise ConfigError(
+            "Nao foi possivel vincular fonte local do proxy.",
+            hint="Confira as fontes e reinicie a pilha.",
+        ) from None
+    if not stable:
+        raise ConfigError("Fonte alterada ou grande demais.", hint="Reinicie a pilha.")
+    return raw, after

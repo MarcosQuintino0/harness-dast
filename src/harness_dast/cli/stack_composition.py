@@ -23,9 +23,10 @@ from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
 from harness_dast.application.stack_models import StackState
-from harness_dast.cli.approval_composition import formal_profiles
+from harness_dast.cli.approval_composition import formal_profiles, open_approval_store
 from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
+from harness_dast.domain.errors import ConfigError
 
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
 
@@ -80,19 +81,50 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
     """
     settings = load_settings()
     root = products_dir if products_dir is not None else settings.products_dir
+    profiles = formal_profiles(root)
+    approval_dir = open_approval_store().location("demo").parent
     return StackManager(
-        profiles=formal_profiles(root),
+        profiles=profiles,
         clock=SystemClock(),
         entropy=SystemEntropy(),
         random=SystemRandom(),
-        policies=FileProxyPolicyStore(),
+        policies=FileProxyPolicyStore(root, approval_dir, profiles.load),
         compose=DockerComposeCli(os.environ),
         states=open_state_store(),
         environ=os.environ,
         repo_root=default_repo_root(),
         running_scans=FileRunArtifacts(settings.runs_dir),
         locks=open_stack_lock(),
+        proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
     )
+
+
+def _proxy_mount_env(products_dir: Path, approvals_dir: Path, product: str) -> dict[str, str]:
+    """Monta fontes inteiras em leitura e mantem a identidade nao privilegiada no POSIX."""
+    try:
+        approval = approvals_dir / f"{product}.json"
+        owner = approval.stat()
+        if os.name == "nt":
+            uid, gid = 10001, 10001
+        else:
+            uid, gid = owner.st_uid, owner.st_gid
+            if uid == 0:
+                raise ConfigError(
+                    "A aprovacao pertence ao root; o proxy nao pode usar essa identidade.",
+                    hint="Use uma conta sem privilegios para a pilha.",
+                )
+        return {
+            "HDAST_APPROVAL_DIR": approvals_dir.resolve(strict=True).as_posix(),
+            "HDAST_PRODUCT_DIR": (products_dir / product).resolve(strict=True).as_posix(),
+            "HDAST_PROXY_UID": str(uid),
+            "HDAST_PROXY_GID": str(gid),
+            "HDAST_MANAGED_POLICY": "1",
+        }
+    except OSError:
+        raise ConfigError(
+            "Nao foi possivel montar as fontes da aprovacao do proxy.",
+            hint="Confira as pastas e tente novamente.",
+        ) from None
 
 
 def open_zap_stopper() -> ZapApiClient:

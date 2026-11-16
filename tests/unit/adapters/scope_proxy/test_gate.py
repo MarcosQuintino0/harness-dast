@@ -99,6 +99,6 @@ def test_check_trava_se_nao_consegue_verificar_o_arquivo_sinal(
         raise PermissionError("negado")
 
     gate, _, _ = make(tmp_path)
-    monkeypatch.setattr(Path, "exists", fail)
+    monkeypatch.setattr(Path, "lstat", fail)
 
     assert gate.check().reason is Reason.KILL_SWITCH

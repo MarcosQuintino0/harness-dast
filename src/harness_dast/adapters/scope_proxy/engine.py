@@ -42,6 +42,8 @@ class ScopeProxyEngine:
         stdout: TextIO,
         now: Callable[[], datetime],
         monotonic: Callable[[], float],
+        approval_dir: Path = Path("/approvals"),
+        profile_dir: Path = Path("/product"),
     ) -> None:
         """Monta o motor.
 
@@ -52,6 +54,8 @@ class ScopeProxyEngine:
             stdout: Saída padrão, que recebe as mesmas linhas.
             now: Relógio com fuso (injetado).
             monotonic: Relógio monotônico (injetado).
+            approval_dir: Diretorio da aprovacao.
+            profile_dir: Diretorio do perfil.
         """
         self._policy = policy
         self._now = now
@@ -60,6 +64,9 @@ class ScopeProxyEngine:
             kill_flag=policy_dir / KILL_FLAG_NAME,
             deadline=deadline_of(policy, now()),
             now=now,
+            binding=policy.binding,
+            approval_dir=approval_dir,
+            profile_dir=profile_dir,
         )
         self._limiter = RateLimiter(
             requests_per_second=policy.limits.requests_per_second,
