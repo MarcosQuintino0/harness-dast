@@ -15,6 +15,7 @@ from tests.integration.lab_support import (
     LabCli,
     proxy_audit,
     require_docker,
+    run_audit,
 )
 from tests.integration.run_support import (
     MemorySampler,
@@ -68,6 +69,13 @@ def _record(scenario: Scenario, product: str, variant: str, layer: str) -> None:
                 {k: row.get(k) for k in ("ts", "decision", "reason", "host", "method")}
                 for row in scenario.audit
             ],
+            "accounts": [
+                {
+                    key: row.get(key)
+                    for key in ("phase", "route", "decision", "operation_id", "account", "method")
+                }
+                for row in run_audit(scenario.cli, directory.name)
+            ],
             "auth_on_scanner": facts.auth_on_scanner,
             "csrf": facts.csrf,
             "rules_left": facts.rules_left,
@@ -84,7 +92,9 @@ def _remaining(maximum: int) -> int:
     return min(maximum, remaining)
 
 
-def _exercise(tmp_path: Path, product: str, variant: str, layer: str, index: int) -> None:
+def _exercise(
+    tmp_path: Path, product: str, variant: str, layer: str, index: int, mode: str = "vulnerable"
+) -> None:
     assert os.environ.get("HDAST_IT_METRICS_DIR"), "Defina diret?rio externo de m?tricas"
     reserve = 600 if layer == "t3" else 1800
     if _remaining(reserve) < reserve:
@@ -92,9 +102,12 @@ def _exercise(tmp_path: Path, product: str, variant: str, layer: str, index: int
     require_docker()
     cli = LabCli(tmp_path, throwaway_pilot_env() if product == "clinica-piloto" else VAMPI_ENV)
     _install(cli, product, variant)
-    name = f"v17-{layer}-{product}-{index}-{variant}"
+    name = f"v17-{layer}-{product}-{mode}-{index}-{variant}"
     try:
-        assert cli.run("stack", "up", product, "--build", timeout=_remaining(900)).code == 0
+        assert (
+            cli.run("stack", "up", product, "--build", f"--{mode}", timeout=_remaining(900)).code
+            == 0
+        )
         if layer == "t4":
             started = time.monotonic()
             with MemorySampler() as sampler:
@@ -115,6 +128,12 @@ def _exercise(tmp_path: Path, product: str, variant: str, layer: str, index: int
             assert probe.code == 0
             run_id = str(probe.envelope["run_id"])
             operations = PILOT if product == "clinica-piloto" else VAMPI
+            if layer == "t2":
+                operations = (
+                    ("buscarPacientesPorNome",)
+                    if product == "clinica-piloto"
+                    else ("api_views.users.get_by_username",)
+                )
             flags = [part for operation in operations for part in ("--only", operation)]
             started = time.monotonic()
             with MemorySampler() as sampler:
@@ -125,6 +144,25 @@ def _exercise(tmp_path: Path, product: str, variant: str, layer: str, index: int
                 name, cli, result, cli.runs / run_id, proxy_audit(cli), dict(sampler.peaks), seconds
             )
         _record(scenario, product, variant, layer)
+        if layer == "t2":
+            scan = json.loads((scenario.run_dir / "scan.json").read_text(encoding="utf-8"))
+            assert scan["status"] == "completed", "Scan não concluído: controle inconclusivo"
+            assert any(
+                entry["operation_id"] == operations[0] and entry["outcome"] == "completed"
+                for entry in scan["entries"]
+            ), "Operação não concluída: controle inconclusivo"
+            stats = json.loads((scenario.run_dir / "rule-stats.json").read_text(encoding="utf-8"))
+            assert any(
+                rule["plugin_id"] == 40018 and rule["state"] == "completed"
+                for operation in stats["operations"]
+                if operation["operation_id"] == operations[0]
+                for rule in operation["rules"]
+            ), "Regra SQL genérica ausente ou interrompida: controle inconclusivo"
+            findings = json.loads((scenario.run_dir / "findings.json").read_text(encoding="utf-8"))
+            sql = any(item.get("title") == "SQL Injection" for item in findings.get("findings", []))
+            assert sql == (mode == "vulnerable"), (
+                "Controle SQL ausente ou falso positivo; registrar lacuna"
+            )
     finally:
         cli.stack_down()
 
@@ -141,3 +179,11 @@ def test_v17_t3(tmp_path: Path, product: str, index: int, variant: str) -> None:
 @pytest.mark.parametrize("variant", ["A", "B"])
 def test_v17_t4(tmp_path: Path, product: str, variant: str) -> None:
     _exercise(tmp_path, product, variant, "t4", 1)
+
+
+@pytest.mark.lab_fast
+@pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
+@pytest.mark.parametrize("mode", ["vulnerable", "secure"])
+@pytest.mark.parametrize("variant", ["A", "B"])
+def test_v17_t2_sql(tmp_path: Path, product: str, mode: str, variant: str) -> None:
+    _exercise(tmp_path, product, variant, "t2", 1, mode)
