@@ -34,7 +34,7 @@ def test_v18_guard_cost(tmp_path: Path) -> None:
     """Usa montagens reais, porta válida e diretório exclusivo de evidências."""
     require_docker()
     output_dir = Path(os.environ["HDAST_IT_METRICS_DIR"])
-    label = os.environ["HDAST_GUARD_BENCH_LABEL"]
+    label = os.environ["V18_GUARD_BENCH_LABEL"]
     assert label in ("before", "after")
     cli = LabCli(tmp_path, VAMPI_ENV)
     _install(cli, "vampi", "B")

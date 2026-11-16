@@ -6,10 +6,12 @@ import json
 import platform
 import statistics
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from harness_dast.adapters.scope_proxy import approval_watch, gate
+from harness_dast.adapters.scope_proxy.decision import Reason
 from harness_dast.adapters.scope_proxy.policy import load_policy
 
 SAMPLES = 1000
@@ -22,7 +24,7 @@ approval = Path("/approvals") / (policy.binding.product + ".json")
 profile = Path("/product/target.yml")
 
 
-def clock():
+def clock() -> datetime:
     return datetime.now(UTC)
 
 
@@ -31,7 +33,7 @@ run_gate = gate.RunGate(
 )
 
 
-def stat_only():
+def stat_only() -> None:
     """Simula identidade mínima dos dois arquivos e a consulta do sinal de parada."""
     kill.parent.stat()
     try:
@@ -45,7 +47,7 @@ def stat_only():
         _ = value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns
 
 
-def measure(fn):
+def measure(fn: Callable[[], Reason | None]) -> dict[str, object]:
     samples = []
     for i in range(WARMUP + SAMPLES):
         start = time.perf_counter_ns()
@@ -66,7 +68,7 @@ def measure(fn):
     }
 
 
-def sha(path):
+def sha(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
