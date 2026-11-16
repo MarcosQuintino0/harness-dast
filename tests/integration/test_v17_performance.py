@@ -251,6 +251,13 @@ def test_v17_t3(tmp_path: Path, product: str, index: int, variant: str) -> None:
     _exercise(tmp_path, product, variant, "t3", index)
 
 
+@pytest.mark.skipif(os.environ.get("V17_EXTRA_PAIRS") != "1", reason="pares extras não solicitados")
+@pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
+@pytest.mark.parametrize(("index", "variant"), [(4, "B"), (4, "A"), (5, "A"), (5, "B")])
+def test_v17_t3_extra(tmp_path: Path, product: str, index: int, variant: str) -> None:
+    _exercise(tmp_path, product, variant, "t3", index)
+
+
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("variant", ["A", "B"])
 def test_v17_t4(tmp_path: Path, product: str, variant: str) -> None:
