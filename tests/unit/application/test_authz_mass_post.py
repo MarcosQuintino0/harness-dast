@@ -48,7 +48,7 @@ def test_a_post_with_location_reads_the_created_resource_and_reports_the_finding
     assert "continua no ambiente" in found["nivelAcesso"].evidence
     assert [r.url.rsplit("/", 1)[1] for r in authz_requests(rig, "GET")] == ["2", "3"]
     assert result.created_resources == 2
-    assert {effect.fields for effect in result.effects} == {("nivelAcesso",), ("ativo",)}
+    assert result.effects == ()  # efeito de atribuição em massa é achado, não recibo reutilizável
 
 
 def test_a_post_creates_one_resource_per_candidate_and_never_deletes() -> None:

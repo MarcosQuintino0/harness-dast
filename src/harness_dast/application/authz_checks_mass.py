@@ -205,7 +205,6 @@ def _mass_apply(
         return
     after = _read(ctx, task, fallback=put, phase="after")
     changed, previous = injected_effect(before, after, extra.name, extra.value)
-    confirmed_read = bool(changed) and task.read is not None and before is not None
     if task.read is not None and after is None:
         out.not_tested.append(
             note(
@@ -237,18 +236,7 @@ def _mass_apply(
             )
         pending.attempted = False
         return
-    if (
-        confirmed_read
-        and task.read is not None
-        and task.read.account == exchange.account
-        and any(
-            normalize_field_name(path.rsplit(".", 1)[-1]) == normalize_field_name(extra.name)
-            for path in changed
-        )
-    ):
-        out.remember_effect(
-            exchange.operation_id, task.read.operation_id, exchange.account, (extra.name,)
-        )
+    # Efeito de atribuição em massa é um achado: nunca vira recibo reutilizável (ADR 0078).
     pending.previous, pending.known = previous, True
     out.writes += 1
     ctx.shared_writes += 1

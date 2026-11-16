@@ -119,8 +119,7 @@ def test_receita_ativa_releitura_provada_sem_nova_escrita() -> None:
     assert reads[0].account == "pac_a"
     assert original.findings
     assert result.findings
-    assert result.effects
-    assert result.effects[0].read_operation == "readObject"
+    assert result.effects == ()  # o efeito é um achado; nunca vira recibo reutilizável
 
 
 def test_leitura_sem_efeito_nao_usa_echo_para_inventar_achado() -> None:

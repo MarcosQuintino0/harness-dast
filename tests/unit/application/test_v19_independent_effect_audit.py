@@ -52,7 +52,7 @@ def test_receita_com_efeito_provado_identifica_leituras_na_auditoria() -> None:
         AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
     )
 
-    assert result.effects
+    assert result.effects == ()
     assert result.findings
     entries = [entry for entry in rig.store.all_audit() if entry.phase == "result"]
     before = next(

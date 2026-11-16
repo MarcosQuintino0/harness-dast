@@ -52,7 +52,7 @@ class KnowledgeProfiles:
         self._deps.check_references(product, knowledge.references)
         if self._zap is None:
             raise ConfigError(
-                "Conhecimento validado exige o motor atual, que esta consulta sem tráfego não abre.",
+                "Conhecimento validado exige o motor atual, que esta consulta não abre.",
                 hint="Rode o comando ativo, ou rebaixe a entrada para proposta em knowledge.yml.",
             )
         basis = basis_for_engine(self._deps, product, profile, self._zap.version())

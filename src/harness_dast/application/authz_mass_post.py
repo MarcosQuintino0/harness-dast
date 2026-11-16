@@ -74,27 +74,10 @@ def run_post_candidate(
         return False
     changed, _ = injected_effect(None, seen.body, chosen.name, chosen.value)
     if changed:
-        _remember_readback(task, seen, chosen, out)
         out.findings.append(_finding(ctx, task, candidate, chosen, (changed, reply.status, seen)))
     elif task.candidate_readers:
         out.not_tested.append(_unobservable_note(task, chosen.name))
     return True
-
-
-def _remember_readback(
-    task: MassTask, seen: CreatedRead, chosen: Injection, out: CheckResult
-) -> None:
-    if (
-        seen.via == "created_read"
-        and task.read is not None
-        and task.read.account == task.exchange.account
-    ):
-        out.remember_effect(
-            task.exchange.operation_id,
-            task.read.operation_id,
-            task.exchange.account,
-            (chosen.name,),
-        )
 
 
 def _finding(

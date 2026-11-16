@@ -118,7 +118,7 @@ def test_receita_guarda_snapshot_antes_do_put_e_restaura_o_valor(tmp_path: Path)
         AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
     )
     assert len(seen) == 2
-    assert result.effects
+    assert result.effects == ()
     assert result.findings
     assert rig.clinic.extra["pac_a"]["saldo"] == 10
     assert not list(tmp_path.glob("*.jsonl"))
