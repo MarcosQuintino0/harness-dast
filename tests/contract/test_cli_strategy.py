@@ -26,8 +26,8 @@ def product(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory = tmp_path / "demo"
     directory.mkdir()
     (directory / "target.yml").write_text(dump_yaml(valid_profile_data()), encoding="utf-8")
-    (directory / "data-rules.yml").write_text("{}\n", encoding="utf-8")
-    (directory / "flows.yml").write_text("{}\n", encoding="utf-8")
+    (directory / "data-rules.yml").write_text("schema_version: 1\nrules: []\n", encoding="utf-8")
+    (directory / "flows.yml").write_text("schema_version: 1\nbindings: []\n", encoding="utf-8")
     return directory
 
 

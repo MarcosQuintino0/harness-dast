@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from harness_dast.application.scan import Scan, ScanRequest
+from harness_dast.application.scope_approval import ApprovedProfileRepository
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.scan_plan import ScanPlan, ScanTarget
 from harness_dast.domain.scan_policy import build_limits, build_policy
@@ -71,6 +72,44 @@ def test_scan_real_com_falsos_preserva_trabalho_com_estrategia() -> None:
     actual = _scan_com_estrategia(True)
 
     assert actual == baseline
+
+
+def test_revogacao_durante_scan_interrompe_job_e_grava_resultado() -> None:
+    rig = ScanRig(flows=agenda_flows())
+    probe = rig.run_probe()
+    approvals = InMemoryApprovalStore()
+    approvals.write(approval_for(rig.profiles.load("agenda")))
+    rig.zap.script = [(10, "RUNNING"), (100, "FINISHED")]
+
+    def revoke(scan_id: str, poll: int) -> None:
+        if scan_id == "0" and poll == 0:
+            approvals.items.clear()
+
+    rig.zap.on_status = revoke
+    scan = Scan(
+        profiles=ApprovedProfileRepository(rig.profiles, approvals),
+        specs=rig._specs(),
+        documents=rig.documents,
+        secrets=rig.secrets,
+        vault=rig.vault,
+        client=rig.target,
+        zap=rig.zap,
+        scanner=rig.scanner,
+        store=rig.store,
+        artifacts=rig.artifacts,
+        clock=rig.clock,
+        sleeper=rig.clock,
+        strategy_store=_StrategyStore(True),
+        approvals=approvals,
+    )
+
+    result = scan.execute(ScanRequest(product="agenda", run_id=probe.run_id))
+
+    assert result.status == "stopped_window"
+    assert len(rig.zap.started) == 1
+    assert rig.zap.was_stopped("0") is True
+    assert result.entries[0].outcome == "stopped"
+    assert rig.artifacts.scans[probe.run_id] == result
 
 
 @pytest.mark.parametrize(
