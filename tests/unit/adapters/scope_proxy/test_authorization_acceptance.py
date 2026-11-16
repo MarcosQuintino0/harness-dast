@@ -57,9 +57,16 @@ def rig(
     return engine, clocks, approval, target
 
 
+def refresh(engine: ScopeProxyEngine) -> None:
+    watch = engine._gate._watch
+    assert watch is not None
+    watch.run_once()
+
+
 def test_revogar_apos_compilar_impede_envio(tmp_path: Path) -> None:
     engine, _, approval, _ = rig(tmp_path)
     approval.unlink()
+    refresh(engine)
     sent: list[str] = []
 
     async def scenario() -> None:
@@ -80,6 +87,7 @@ def test_revogar_durante_espera_impede_concessao(tmp_path: Path) -> None:
     async def sleep(delay: float) -> None:
         approval.unlink()
         clocks.mono += delay
+        refresh(engine)
 
     async def scenario() -> None:
         result = await GrantQueue(engine, sleep=sleep).acquire()
@@ -98,6 +106,7 @@ def test_substituicao_atomica_de_fonte_fecha_concessao(tmp_path: Path, source: s
     replacement = path.with_suffix(".new")
     replacement.write_bytes(path.read_bytes() + b" ")
     replacement.replace(path)
+    refresh(engine)
 
     assert (
         asyncio.run(GrantQueue(engine, sleep=asyncio.sleep).acquire()).reason
@@ -116,6 +125,7 @@ def test_aprovacao_restaurada_nao_religa_pilha(tmp_path: Path) -> None:
     engine, _, approval, _ = rig(tmp_path)
     original = approval.read_bytes()
     approval.unlink()
+    refresh(engine)
 
     async def scenario() -> None:
         queue = GrantQueue(engine, sleep=asyncio.sleep)
@@ -137,6 +147,7 @@ def test_falha_de_leitura_fecha_concessao(tmp_path: Path, monkeypatch: pytest.Mo
         return original_open(path, "rb")
 
     monkeypatch.setattr(Path, "open", deny_read)
+    refresh(engine)
     assert (
         asyncio.run(GrantQueue(engine, sleep=asyncio.sleep).acquire()).reason
         is Reason.APPROVAL_CHANGED
@@ -150,6 +161,7 @@ def test_stop_durante_espera_fecha_concessao(tmp_path: Path) -> None:
     async def sleep(delay: float) -> None:
         clocks.mono += delay
         (tmp_path / "KILL").touch()
+        refresh(engine)
 
     assert asyncio.run(GrantQueue(engine, sleep=sleep).acquire()).reason is Reason.KILL_SWITCH
 
@@ -161,6 +173,7 @@ def test_revogacao_tem_prioridade_sobre_recuo(tmp_path: Path) -> None:
         queue = GrantQueue(engine, sleep=asyncio.sleep)
         queue.defer(60)
         approval.unlink()
+        refresh(engine)
         assert (await queue.acquire()).reason is Reason.APPROVAL_CHANGED
 
     asyncio.run(scenario())
@@ -173,6 +186,7 @@ def test_prazo_durante_espera_fecha_concessao(tmp_path: Path) -> None:
     async def sleep(delay: float) -> None:
         clocks.mono += delay
         clocks.wall += timedelta(days=2)
+        refresh(engine)
 
     assert asyncio.run(GrantQueue(engine, sleep=sleep).acquire()).reason is Reason.RUN_EXPIRED
 
@@ -184,5 +198,6 @@ def test_fim_da_janela_durante_espera_fecha_concessao(tmp_path: Path) -> None:
     async def sleep(delay: float) -> None:
         clocks.mono += delay
         clocks.wall += timedelta(minutes=1)
+        refresh(engine)
 
     assert asyncio.run(GrantQueue(engine, sleep=sleep).acquire()).reason is Reason.RUN_EXPIRED

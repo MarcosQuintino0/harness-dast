@@ -62,6 +62,10 @@ class ScopeProxyAddon:
         """Aplica a política de TLS: só a política decide se o certificado é verificado."""
         ctx.options.update(ssl_insecure=not self._engine.tls_verify_upstream)
 
+    def done(self) -> None:
+        """Invalida a vigia ao encerrar o addon."""
+        self._engine.close()
+
     def configure(self, updated: set[str]) -> None:
         """Recusa iniciar se uma opção insegura estiver ligada."""
         for name, expected in _REQUIRED_OPTIONS.items():

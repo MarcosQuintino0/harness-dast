@@ -67,6 +67,8 @@ class ScopeProxyEngine:
             binding=policy.binding,
             approval_dir=approval_dir,
             profile_dir=profile_dir,
+            monitored=policy.binding is not None,
+            monotonic_clock=monotonic,
         )
         self._limiter = RateLimiter(
             requests_per_second=policy.limits.requests_per_second,
@@ -76,6 +78,10 @@ class ScopeProxyEngine:
         self._audit = AuditLog(
             file=audit_file, stdout=stdout, on_failure=self._gate.mark_audit_failure
         )
+
+    def close(self) -> None:
+        """Fecha a vigia e impede novas concessoes."""
+        self._gate.close()
 
     def now(self) -> datetime:
         """Instante atual, para a cola carimbar o momento em que um pedido foi liberado."""
