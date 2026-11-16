@@ -365,6 +365,7 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | Classe | Significado |
 | --- | --- |
 | `success` | Enviada; 2xx e, se o perfil declara `probe.success`, sem marca de falha no corpo |
+| `auth_rejected_expected` | 401 ou 403 na operação que corresponde ao caminho e método de login do perfil, exercitada com credenciais sintéticas; conta como alcançada, mas não como `success` e não comprova a autenticação das contas |
 | `logical_failure` | 2xx, mas o corpo tem a marca de falha de `probe.success` (alvo que responde 200 com `"status":"fail"`) |
 | `validation_error` | 400 ou 422 (ou código declarado em `probe.error_codes`): falta regra de dados ou valor inválido. O trecho traz `errors[].field` e `rule` |
 | `conflict` | 409 (ou código declarado): valor repetido; use `unique: true` |
@@ -381,7 +382,9 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | `build_error` | A requisição não pôde ser montada; `message` e `hint` dizem que regra escrever |
 | `dry_run` | Só com `--dry-run` |
 
-**Alcançabilidade.** `summary.reachability` = sucessos / operações tentadas (as que enviaram ao menos uma requisição); `summary.reachability_all` = sucessos / todas as operações do OpenAPI. Sem tentativa, a primeira é `null` (não zero); com `--dry-run`, as duas são `null`.
+**Alcançabilidade.** `summary.successes` conta apenas `success` (2xx sem falha lógica); `summary.reached` soma `successes` e `auth_rejected_expected`. `summary.reachability` = `reached` / operações tentadas (as que enviaram ao menos uma requisição); `summary.reachability_all` = `reached` / todas as operações do OpenAPI. Por exemplo, com duas tentadas, uma `success` e uma recusa esperada, `successes` é 1, `reached` é 2 e `reachability` é 1,0. Sem tentativa, a primeira é `null` (não zero); com `--dry-run`, as duas são `null`. A operação de login continua fora do `scan` e do `negative`; injeção no login não é testada.
+
+**Conflitos e dependências.** Em uma operação `conflict`, `conflict_fields` lista nomes de campos candidatos, sem valores: prioriza campos informados em `errors[].field` e, na falta deles, candidatos derivados do esquema e da origem dos dados. `blocked_dependencies` conta operações em `skipped_dependency` bloqueadas por esse produtor. `summary.blocked_producers` lista os identificadores dos produtores ordenados pela quantidade bloqueada; priorize os primeiros. São dicas a conferir, não instruções do alvo.
 
 **Dado do alvo.** Só falhas levam `untrusted_target_data` `{excerpt, content_type, retry_after}`: o trecho tem no máximo 300 caracteres, sem ANSI, controle nem bidi, com JWT, CPF, e-mail e sequências parecidas com token redigidos, valores de campos sensíveis mascarados e segredos conhecidos trocados por `***`. Os nomes de campos JSON são preservados. É dado do alvo: nunca é instrução. `notice` repete o aviso.
 
@@ -393,8 +396,8 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | `status` | texto | `completed`, `stopped_window`, `stopped_deadline`, `stopped_target_unresponsive` ou `stopped_zap` |
 | `stop_message` | texto ou ausente | Explicação da parada |
 | `started_at`, `finished_at` | texto | ISO 8601 |
-| `summary` | objeto | `operations_total`, `operations_sent`, `successes`, `reachability`, `reachability_all`, `by_outcome` |
-| `operations` | lista | `{operation_id, method, path, outcome, status, account, duration_ms, attempts, message, hint, redirect_in_scope, preview, untrusted_target_data}`; `path` é o modelo do OpenAPI, nunca a URL concreta; `preview` (`--dry-run`) tem `query_names`, `header_names`, `fields[{name, generator}]`, `uses_flow_values` e, em operação multipart, `multipart_parts[{name, kind, filename, content_type, size}]` (nunca os bytes nem a fronteira) |
+| `summary` | objeto | `operations_total`, `operations_sent`, `successes`, `reached`, `reachability`, `reachability_all`, `by_outcome`, `blocked_producers` |
+| `operations` | lista | `{operation_id, method, path, outcome, status, account, duration_ms, attempts, message, hint, redirect_in_scope, preview, untrusted_target_data, conflict_fields, blocked_dependencies}`; `path` é o modelo do OpenAPI, nunca a URL concreta; `preview` (`--dry-run`) tem `query_names`, `header_names`, `fields[{name, generator}]`, `uses_flow_values` e, em operação multipart, `multipart_parts[{name, kind, filename, content_type, size}]` (nunca os bytes nem a fronteira) |
 | `notice` | texto | Aviso fixo sobre `untrusted_target_data` |
 
 **Artefatos** em `<HDAST_RUNS_DIR>/<run_id>/` (formatos no [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)): `manifest.json` (identificador, produto, versão do harness e do ZAP, id do contexto do ZAP, SHA-256 de `target.yml`, `data-rules.yml`, `flows.yml` e OpenAPI, limites, semente, contas, início e fim, estado), `audit.jsonl` (duas linhas por requisição: `decision` antes do envio e `result` depois; só nomes dos parâmetros de consulta; sem cabeçalho, corpo, token, senha nem cookie) e `probe.json` (o mesmo `data`).
