@@ -15696,7 +15696,8 @@
       "pair_post_accounts": [
         "paciente_b"
       ],
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "v155-clinica-piloto-vulnerable.json",
@@ -15814,7 +15815,8 @@
       "pair_post_accounts": [
         "paciente_b"
       ],
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "v155-vampi-secure.json",
@@ -15901,7 +15903,8 @@
       "pair_post_accounts": [
         "user_a"
       ],
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "v155-vampi-vulnerable.json",
@@ -16000,7 +16003,8 @@
       "pair_post_accounts": [
         "user_a"
       ],
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "lab-cors-clinica-piloto-secure.json",
@@ -16022,7 +16026,8 @@
       "not_tested_by_reason": null,
       "pair_posts": null,
       "pair_post_accounts": null,
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "lab-cors-clinica-piloto-vulnerable.json",
@@ -16058,7 +16063,8 @@
       "not_tested_by_reason": null,
       "pair_posts": null,
       "pair_post_accounts": null,
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "lab-cors-vampi-secure.json",
@@ -16080,7 +16086,8 @@
       "not_tested_by_reason": null,
       "pair_posts": null,
       "pair_post_accounts": null,
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     },
     {
       "file": "lab-cors-vampi-vulnerable.json",
@@ -16102,9 +16109,212 @@
       "not_tested_by_reason": null,
       "pair_posts": null,
       "pair_post_accounts": null,
-      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A",
+      "pytest_status": "passed before first failure in controls-other.log"
     }
   ],
   "legacy_controls_snapshot_utc": "2026-11-16T07:38:37.368988+00:00",
-  "legacy_block_pytest_result": "not observed in this snapshot"
+  "legacy_block_pytest_result": {
+    "status": "failed",
+    "passed": 11,
+    "failed": 1,
+    "wall_seconds": 1277.71,
+    "log_sha256": "06f5ac954a8202dc771765f2d89c3693adf512732052b41fcc34a631e67095b2",
+    "failed_test": "test_every_request_of_the_stage_went_through_the_fence_and_none_was_out_of_scope[vulnerable]",
+    "classification": "test expected zero proxy denials; one correlated operational rate_backoff 429 occurred during write login; no evidence that this denial was a scope violation; earlier completed assertions and later unexecuted assertions must remain distinct"
+  },
+  "legacy_negative_original": [
+    {
+      "file": "lab-negative-vulnerable.json",
+      "sha256": "7348b0daef1cab2c892a508cedafa8345865c3152b7d506e98053b6c15e97cc0",
+      "mode": "vulnerable",
+      "variant": "legacy/A",
+      "seconds": {
+        "stack_up_build": 40.5,
+        "probe": 67.2,
+        "run_skip_scan_pair": 176.2
+      },
+      "rounds": {
+        "read": {
+          "exit_code": 0,
+          "seconds": 2.5,
+          "status": "completed",
+          "requests_sent": 9,
+          "operations_tested": 3,
+          "accounts": [
+            "admin_a"
+          ],
+          "created_resources": 0,
+          "restored_resources": 0,
+          "by_class": {
+            "wrong_type": {
+              "planned": 2,
+              "sent": 2,
+              "rejected": 2,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "missing_required": {
+              "planned": 2,
+              "sent": 2,
+              "rejected": 2,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "below_minimum": {
+              "planned": 2,
+              "sent": 2,
+              "rejected": 2,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "above_maximum": {
+              "planned": 1,
+              "sent": 1,
+              "rejected": 1,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "too_long": {
+              "planned": 2,
+              "sent": 2,
+              "rejected": 2,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            }
+          },
+          "status_families": {
+            "4xx": 9
+          },
+          "requests_by_method": {
+            "GET": 9
+          },
+          "restore_requests": 0,
+          "not_tested_by_reason": {
+            "no_testable_field": 16,
+            "writes_not_authorized": 10,
+            "infrastructure_path": 1
+          }
+        },
+        "write": {
+          "exit_code": 0,
+          "seconds": 52.9,
+          "status": "completed",
+          "requests_sent": 59,
+          "operations_tested": 12,
+          "accounts": [
+            "admin_a",
+            "paciente_a",
+            "medico_a"
+          ],
+          "created_resources": 5,
+          "restored_resources": 4,
+          "by_class": {
+            "wrong_type": {
+              "planned": 31,
+              "sent": 31,
+              "rejected": 20,
+              "accepted": 9,
+              "server_error": 0,
+              "inconclusive": 2
+            },
+            "missing_required": {
+              "planned": 16,
+              "sent": 14,
+              "rejected": 14,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "below_minimum": {
+              "planned": 2,
+              "sent": 2,
+              "rejected": 2,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "above_maximum": {
+              "planned": 1,
+              "sent": 1,
+              "rejected": 1,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "not_in_enum": {
+              "planned": 3,
+              "sent": 3,
+              "rejected": 3,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "too_long": {
+              "planned": 3,
+              "sent": 3,
+              "rejected": 3,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            },
+            "too_short": {
+              "planned": 1,
+              "sent": 1,
+              "rejected": 1,
+              "accepted": 0,
+              "server_error": 0,
+              "inconclusive": 0
+            }
+          },
+          "status_families": {
+            "4xx": 46,
+            "2xx": 9
+          },
+          "requests_by_method": {
+            "GET": 9,
+            "POST": 28,
+            "PUT": 21,
+            "PATCH": 1
+          },
+          "restore_requests": 4,
+          "not_tested_by_reason": {
+            "no_testable_field": 16,
+            "budget": 7,
+            "unsupported_body": 1,
+            "infrastructure_path": 1,
+            "create_conflict": 2,
+            "created_limit": 1
+          }
+        }
+      },
+      "invalid_value_leak_files_count": 0,
+      "invalid_value_leak_proxy_rows_count": 0,
+      "interpretation": "stage metrics recorded; pytest stopped at scope assertion before remaining negative assertions; completed does not imply full coverage"
+    }
+  ],
+  "legacy_snapshot_after_failure_utc": "2026-11-16T07:50:15.093736+00:00",
+  "legacy_negative_incident": {
+    "pytest_assertion": "zero proxy denies",
+    "stack_audit_denied_total": 4,
+    "stack_audit_denied_by_reason": {
+      "rate_backoff": 4
+    },
+    "write_round_denied": 1,
+    "write_round_reason": "rate_backoff",
+    "write_round_status": 429,
+    "cli_allowed_decision_seq": 77,
+    "cli_result_status": 429,
+    "cli_retry_seq": 78,
+    "cli_retry_status": 200,
+    "account_alias": "medico_a",
+    "operation_id": "auth.login",
+    "classification": "operational denial at proxy, not evidence of out-of-scope request; correlation is documented, not proof of full negative coverage",
+    "followup": "test correction proposed in 2aca105, c088946 and 0f33e07; real recheck pending"
+  }
 }
