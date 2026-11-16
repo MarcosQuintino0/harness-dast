@@ -157,6 +157,7 @@ def test_unique_values_avoid_409_on_a_second_consecutive_run_without_reset(
     assert pilot_session.second.outcomes["success"] == pilot_session.first.outcomes["success"]
 
 
+@pytest.mark.lab_fast
 def test_reachability_of_both_runs_is_the_same_and_only_the_login_probe_fails(
     pilot_session: PilotSession,
 ) -> None:
@@ -302,6 +303,7 @@ def _write_rules(cli: LabCli, extra: list[dict[str, Any]]) -> None:
     path.write_text(yaml.safe_dump(rules, sort_keys=False), encoding="utf-8")
 
 
+@pytest.mark.lab_fast
 def test_deliberately_bad_data_rules_are_reported_with_the_per_field_detail(
     tuned_pilot: LabCli,
 ) -> None:
