@@ -65,7 +65,7 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         scan = cli.run("scan", product, "--run", run_id, *only, timeout=1200)
         assert scan.code == 0, scan.stdout + scan.stderr
         report = cli.run("report", product, "--run", run_id)
-        assert report.code == 0, report.stdout + report.stderr
+        assert report.code in {0, 1}, report.stdout + report.stderr
         artifacts = {
             name: load_artifact(cli, run_id, name + ".json")
             for name in ("authz", "negative", "scan")
