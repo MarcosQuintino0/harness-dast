@@ -43,6 +43,30 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     target = _confirm_absent(ctx, task, body, out)
     if target is None:
         return
+    original = parse_json((post.body or "").encode())
+    prior = original if isinstance(original, dict) else {}
+    identifier = target.target.rsplit("/", 1)[-1]
+    builder = ctx.settings.builder
+    markers: dict[str, JsonValue] = {
+        name: value
+        for name, value in body.items()
+        if isinstance(value, str | int | bool)
+        and str(value) != identifier
+        and name in prior
+        and prior[name] != value
+        and builder is not None
+        and builder.reuses_unique_body_value(post.operation_id, {name: value}, {name: value})
+    }
+    if not markers:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                post,
+                "new_marker_unavailable",
+                "Não há marcador novo independente para confirmar a leitura após o POST.",
+            )
+        )
+        return
     if ctx.settings.counter_checkpoint is not None and ctx.settings.builder is not None:
         ctx.settings.counter_checkpoint(ctx.settings.builder.next_unique_counter)
     ctx.shared_writes += 1
@@ -50,7 +74,7 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     reply = ctx.sender.send(
         post, task.owner[0], body=body, with_body=True, tag="pair:", max_attempts=1
     )
-    _check_created(ctx, task, out, reply, target)
+    _check_created(ctx, task, out, reply, target, markers)
 
 
 def _confirm_absent(
@@ -86,6 +110,20 @@ def _confirm_absent(
                 if _successful(ctx, before)
                 else "created_absence_unconfirmed",
                 "A leitura anterior não confirmou ausência do identificador (HTTP 404).",
+            )
+        )
+        return None
+    peer_before = ctx.sender.send(target, task.actor[0], tag="pair:", max_attempts=1)
+    if peer_before.problem is not None:
+        out.not_tested.append(problem_note("horizontal", target, peer_before))
+        return None
+    if peer_before.status != 404:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                target,
+                "peer_absence_unconfirmed",
+                "A conta par não confirmou ausência visível antes da criação (HTTP 404).",
             )
         )
         return None
@@ -163,6 +201,7 @@ def _check_created(
     out: CheckResult,
     reply: Reply,
     expected: ExchangeRecord,
+    markers: dict[str, JsonValue],
 ) -> None:
     post = task.post
     if reply.problem:
@@ -203,7 +242,7 @@ def _check_created(
             )
         )
         return
-    _compare(ctx, task, target, out)
+    _compare(ctx, task, target, out, markers)
 
 
 def _successful(ctx: CheckContext, reply: Reply) -> bool:
@@ -214,7 +253,11 @@ def _successful(ctx: CheckContext, reply: Reply) -> bool:
 
 
 def _compare(
-    ctx: CheckContext, task: CreatedPairTask, target: ExchangeRecord, out: CheckResult
+    ctx: CheckContext,
+    task: CreatedPairTask,
+    target: ExchangeRecord,
+    out: CheckResult,
+    markers: dict[str, JsonValue],
 ) -> None:
     owner = ctx.sender.send(target, task.owner[0], tag="pair:")
     if owner.problem:
@@ -227,6 +270,20 @@ def _compare(
                 target,
                 "created_owner_read_failed",
                 "A conta criadora não conseguiu confirmar a leitura do recurso criado.",
+            )
+        )
+        return
+    observed = parse_json(owner.body)
+    if not isinstance(observed, dict) or not any(
+        name in observed and type(observed[name]) is type(value) and observed[name] == value
+        for name, value in markers.items()
+    ):
+        out.not_tested.append(
+            note(
+                "horizontal",
+                target,
+                "new_marker_unconfirmed",
+                "A leitura da dona não confirmou o marcador novo enviado na criação.",
             )
         )
         return

@@ -8,7 +8,7 @@ import pytest
 from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.application import authz_checks_mass, authz_created_pair
 from harness_dast.application.authz import Authz, AuthzRequest
-from harness_dast.application.authz_ports import AuthzMutationJournal
+from harness_dast.application.ports import MutationJournal, ProfileRepository
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_result import AuthzResult
@@ -89,7 +89,8 @@ def execute(
     rig: AuthzRig,
     path: str,
     checks: tuple[AuthzCheck, ...] = ("horizontal",),
-    journal: AuthzMutationJournal | None = None,
+    journal: MutationJournal | None = None,
+    profiles: ProfileRepository | None = None,
 ) -> AuthzResult:
     api_path = "/" + path
     probe = seed(
@@ -125,7 +126,7 @@ def execute(
     )
     rig.documents = InMemoryDocuments(rules)
     usecase = Authz(
-        profiles=rig.profiles,
+        profiles=profiles or rig.profiles,
         specs=rig._specs(),
         documents=rig.documents,
         value_sources=GeneratorCatalogue,
@@ -194,6 +195,45 @@ def test_created_pair_200_existing_identifier_is_not_tested() -> None:
     assert any(n.reason == "created_target_preexisting" for n in result.not_tested)
 
 
+def test_existing_resource_visible_to_peer_is_not_created_or_reported() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id == "authz:pair:readSynthetic" and request.account == "pac_b":
+            return reply(200, {"id": "existing"})
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(n.reason == "peer_absence_unconfirmed" for n in result.not_tested)
+    assert not [r for r in rig.target.requests if r.operation_id == "authz:pair:createSynthetic"]
+
+
+def test_existing_response_without_new_marker_is_not_reported() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+    posted = False
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        nonlocal posted
+        if request.operation_id == "authz:pair:createSynthetic":
+            posted = True
+        if posted and request.operation_id == "authz:pair:readSynthetic":
+            return reply(200, {"label": "old"})
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(n.reason == "new_marker_unconfirmed" for n in result.not_tested)
+
+
 def test_server_generated_identifier_without_prior_proof_is_not_created() -> None:
     rig = make_rig("api/widgets", exposed=True)
     create = operation(
@@ -229,7 +269,7 @@ class MemoryJournal:
             raise ConfigError("Mutação pendente")
         self.pending.add(key)
 
-    def finish(self, key: str, outcome: Literal["succeeded", "failed"]) -> None:
+    def finish(self, key: str, outcome: Literal["succeeded", "failed", "observed"]) -> None:
         self.pending.remove(key)
         self.completed.append(outcome)
 
@@ -249,7 +289,7 @@ def test_journal_records_before_send_and_completes_known_response() -> None:
 
     rig.target = FakeTarget(handler)
     execute(rig, "api/widgets", journal=journal)
-    assert journal.completed == ["succeeded"]
+    assert journal.completed == ["observed"]
     assert not journal.pending
 
 
@@ -268,8 +308,9 @@ def test_journal_keeps_uncertain_result_and_blocks_repeat() -> None:
     rig.target = FakeTarget(handler)
     execute(rig, "api/widgets", journal=journal)
     assert len(journal.pending) == 1
-    with pytest.raises(ConfigError, match="pendente"):
-        execute(rig, "api/widgets", journal=journal)
+    result = execute(rig, "api/widgets", journal=journal)
+    assert result.status == "stopped_zap"
+    assert any(n.reason == "mutation_outcome_unknown" for n in result.not_tested)
     assert (
         len([r for r in rig.target.requests if r.operation_id == "authz:pair:createSynthetic"]) == 1
     )

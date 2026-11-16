@@ -7,15 +7,18 @@ Estado: Proposto. Data: 2026-11-16.
 O sucesso HTTP de uma criação não prova por si só que o identificador devolvido era novo.
 Para comparar duas contas, o corpo sintético precisa fornecer identificador compatível com o
 marcador do GET provado. Antes do POST, a dona consulta esse identificador pelo caminho guardado;
-somente 404 permite prosseguir. A resposta 2xx precisa identificá-lo novamente e a dona precisa
-conseguir ler o recurso depois. A conta par só é comparada após essas condições. Ausência de ID,
+somente 404 para ambas as contas permite prosseguir. A resposta 2xx precisa identificá-lo novamente,
+e a dona precisa ler um marcador independente, enviado no corpo e gerado por regra `unique`,
+antes da comparação com a conta par. Ausência de ID,
 divergência, recusa de escopo ou ausência não observada ficam não testadas. IDs só vivem em
 memória, não no diário. Os pedidos continuam sujeitos à carta, ao escopo e ao teto de escritas.
 
-O 404 comprova ausência *visível à conta consultada*, não ausência global: APIs podem ocultar
+O 404 comprova ausência *visível às contas consultadas*, não ausência global: APIs podem ocultar
 objetos existentes com 404. Sem uma garantia do produto sobre o significado desse status, a
 conclusão de novidade permanece limitada; o resultado deve ser interpretado nesse limite. Uma
 API que gera o ID apenas no servidor não permite esta prova antecipada por esse mecanismo.
+O marcador reduz confusão com um objeto preexistente, mas uma API que atualize um objeto oculto
+em vez de criá-lo ainda impede comprovar novidade global.
 
 A atribuição em massa permanece limitada a candidatos derivados genericamente do contrato ou
 declarados, e exige observação do efeito. Uma resposta de sucesso sem o campo e sem leitura

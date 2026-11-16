@@ -60,7 +60,7 @@ def build_authz(
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
-        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "authz-mutations"),
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
     )
 
 

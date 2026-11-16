@@ -27,6 +27,7 @@ from harness_dast.application.authz_sender import (
     StopRun,
 )
 from harness_dast.application.cors_check import run_cors
+from harness_dast.application.mutation_guard import MutationJournalBlocked
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_matrix_plan import MatrixPlan
@@ -148,6 +149,18 @@ class AuthzRunner:
             status, message = "stopped_window", error.message
         except DeadlineReached as error:
             status, message = "stopped_deadline", error.message
+        except MutationJournalBlocked as error:
+            status, message = "stopped_zap", error.message
+            if current is not None:
+                result = self._ctx.live.get(current)
+                if result is not None:
+                    result.not_tested.append(
+                        AuthzNotTested(
+                            check=current,
+                            reason="mutation_outcome_unknown",
+                            message="Diário bloqueou a operação; reconcilie o estado.",
+                        )
+                    )
         except ExternalToolError as error:
             status, message = "stopped_zap", error.message
         partial = current if status != "completed" and current not in results else None

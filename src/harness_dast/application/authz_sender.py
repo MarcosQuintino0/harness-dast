@@ -11,14 +11,13 @@ Passa de 300 linhas de propósito: `ReplaySender`, `Reply`, `CheckResult` e as a
 testado" se referem uns aos outros, e separá-los criaria importação circular sem ganho.
 """
 
-import hashlib
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from harness_dast.application.authz_ports import AuthzMutationJournal
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
-from harness_dast.application.ports import SecretVault
+from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
+from harness_dast.application.ports import MutationJournal, SecretVault
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
@@ -30,6 +29,7 @@ from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.knowledge_mutation import mutation_key
 from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
@@ -122,7 +122,7 @@ class AuthzSettings:
     success: SuccessCriteria = field(default_factory=SuccessCriteria)
     flows: FlowSpec | None = None
     counter_checkpoint: Callable[[int], None] | None = None
-    mutation_journal: AuthzMutationJournal | None = None
+    mutation_journal: MutationJournal | None = None
 
 
 class ReplaySender:
@@ -200,14 +200,13 @@ class ReplaySender:
         journal = self._s.mutation_journal
         if request.method not in ("POST", "PUT", "PATCH", "DELETE") or journal is None:
             return self._dispatch(request, account, max_attempts=max_attempts)
-        identity = json.dumps([self._s.product, exchange.operation_id, account, request.method])
-        key = hashlib.sha256(identity.encode()).hexdigest()
-        journal.begin(key, "unknown")
+        key = mutation_key(self._s.product, exchange.operation_id, account, request.method)
+        begin_mutation(journal, key)
         result = self._dispatch(request, account, max_attempts=1)
         if result.problem is not None:
-            journal.finish(key, "failed")
-        elif is_success_status(result.status):
-            journal.finish(key, "succeeded")
+            finish_mutation(journal, key, "failed")
+        elif result.status is not None and result.status < 500:
+            finish_mutation(journal, key, "observed")
         return result
 
     def anonymous(self, exchange: ExchangeRecord) -> Reply:

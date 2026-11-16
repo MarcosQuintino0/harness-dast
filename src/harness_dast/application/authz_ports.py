@@ -5,24 +5,12 @@ e a regra é a mesma (porta declarada por quem a consome, sem regra de negócio)
 `adapters/reporting/run_files.py`.
 """
 
-from typing import Literal, Protocol
+from typing import Protocol
 
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult
-
-
-class AuthzMutationJournal(Protocol):
-    """Reserva durável de uma classe de mutação, sem valores do alvo."""
-
-    def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
-        """Registra a intenção antes do envio ou recusa uma pendência."""
-        ...
-
-    def finish(self, key: str, outcome: Literal["succeeded", "failed"]) -> None:
-        """Registra desfecho conhecido e libera a reserva."""
-        ...
 
 
 class AuthzArtifacts(Protocol):

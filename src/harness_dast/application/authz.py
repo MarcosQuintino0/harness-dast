@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import Literal
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.authz_ports import AuthzArtifacts, AuthzMutationJournal
+from harness_dast.application.authz_ports import AuthzArtifacts
 from harness_dast.application.authz_runner import (
     AuthzOutcome,
     AuthzPlans,
@@ -31,6 +31,7 @@ from harness_dast.application.ports import (
     Clock,
     EntropySource,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -136,7 +137,7 @@ class Authz:
         documents: ProductDocuments | None = None,
         value_sources: ValueSourceFactory | None = None,
         entropy: EntropySource | None = None,
-        mutation_journal: AuthzMutationJournal | None = None,
+        mutation_journal: MutationJournal | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -222,6 +223,8 @@ class Authz:
                         run_id, log.model_copy(update={"next_unique_counter": counter})
                     )
 
+            if self._profiles.load(request.product) != profile:
+                raise ConfigError("Perfil mudou durante a preparação do authz; recomece a etapa.")
             outcome = self._run(
                 profile,
                 request,

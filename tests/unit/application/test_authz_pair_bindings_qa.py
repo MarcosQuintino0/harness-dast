@@ -24,8 +24,8 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
         "createSynthetic",
         "post",
         "/api/widgets",
-        body={"group_id": INT, "id": serial_schema},
-        required=("group_id", "id"),
+        body={"group_id": INT, "id": serial_schema, "nonce": STR},
+        required=("group_id", "id", "nonce"),
         produces={"id": INT},
     )
     producer = operation("makeGroup", "post", "/api/groups", produces={"id": INT})
@@ -40,7 +40,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
             )
         }
     )
-    old = {"group_id": 89, "id": 17 if small_integer else "old"}
+    old = {"group_id": 89, "id": 17 if small_integer else "old", "nonce": "old"}
     probe = seed(
         rig,
         exchange("createSynthetic", "POST", "/api/widgets", "/api/widgets", body=old),
@@ -62,7 +62,8 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
                     "match": {"field": "id", "operation": "createSynthetic"},
                     "generator": "integer" if small_integer else "alphanumeric",
                     "unique": True,
-                }
+                },
+                {"match": {"field": "nonce"}, "generator": "alphanumeric", "unique": True},
             ],
         }
     )
