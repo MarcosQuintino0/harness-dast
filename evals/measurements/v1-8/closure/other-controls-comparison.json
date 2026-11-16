@@ -9,7 +9,9 @@
       "b": {
         "path": "C:\\harness-dast-wt\\v1-8-perf\\evals\\measurements\\v1-8\\closure\\other-controls\\v18-b-negative-write-clinica-piloto-secure.json",
         "sha256": "7127fe6811e343bf2493b0259b15c3b14984b4df79901f291c0e9c4e42035422",
-        "run_id": "2026-11-16T09-51-08Z-clinica-piloto-0944"
+        "run_id": "2026-11-16T09-51-08Z-clinica-piloto-0944",
+        "repository_path": "evals/measurements/v1-8/closure/other-controls/v18-b-negative-write-clinica-piloto-secure.json",
+        "repository_git_blob": "f037ffa0a18e95c5df02dac3286212486477ac1b"
       }
     },
     "context": {
@@ -764,7 +766,9 @@
       "b": {
         "path": "C:\\harness-dast-wt\\v1-8-perf\\evals\\measurements\\v1-8\\closure\\other-controls\\v18-b-cors-clinica-piloto-secure.json",
         "sha256": "60e8e345fec2460afaa466bc96ca7d817ea9e97f8138a3bc118a0245c02a0345",
-        "run_id": "2026-11-16T09-45-33Z-clinica-piloto-2c46"
+        "run_id": "2026-11-16T09-45-33Z-clinica-piloto-2c46",
+        "repository_path": "evals/measurements/v1-8/closure/other-controls/v18-b-cors-clinica-piloto-secure.json",
+        "repository_git_blob": "40f65c9d2982c69ce842a26451220f1bf59978f3"
       }
     },
     "context": {
@@ -833,7 +837,9 @@
       "b": {
         "path": "C:\\harness-dast-wt\\v1-8-perf\\evals\\measurements\\v1-8\\closure\\other-controls\\v18-b-cors-vampi-secure.json",
         "sha256": "ddb59054d8981de996451a78b4fd1a2ce5ba7da96aa6384148e063428ec2683e",
-        "run_id": "2026-11-16T09-55-17Z-vampi-e610"
+        "run_id": "2026-11-16T09-55-17Z-vampi-e610",
+        "repository_path": "evals/measurements/v1-8/closure/other-controls/v18-b-cors-vampi-secure.json",
+        "repository_git_blob": "cec831daf1925279b0507c0228ec2b7855e6d2a9"
       }
     },
     "context": {

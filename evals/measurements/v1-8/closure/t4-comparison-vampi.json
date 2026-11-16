@@ -11,7 +11,9 @@
     },
     "origins_a": {
       "path": "C:\\harness-dast-wt\\v1-8-perf\\evals\\measurements\\v1-8\\closure\\baseline-origins-vampi.json",
-      "sha256": "3c59e7ce825cb3de23c84fc1590222b62d3b8f20ca840d29f31174d88074e53e"
+      "sha256": "3c59e7ce825cb3de23c84fc1590222b62d3b8f20ca840d29f31174d88074e53e",
+      "repository_path": "evals/measurements/v1-8/closure/baseline-origins-vampi.json",
+      "repository_git_blob": "03413784ce510cf96befbb7838f36bdc9bbb7745"
     },
     "origins_b": {
       "path": "C:\\harness-dast-artefatos\\v1-8\\closure\\t4-measurements\\v17-t4-vampi-vulnerable-1-B-origins.json",

@@ -11,7 +11,9 @@
     },
     "origins_a": {
       "path": "C:\\harness-dast-wt\\v1-8-perf\\evals\\measurements\\v1-8\\closure\\baseline-origins-clinica.json",
-      "sha256": "00c4beac17ce8589164d7b6cfc7ad301e3823adb7789f23e162c917650bf7140"
+      "sha256": "00c4beac17ce8589164d7b6cfc7ad301e3823adb7789f23e162c917650bf7140",
+      "repository_path": "evals/measurements/v1-8/closure/baseline-origins-clinica.json",
+      "repository_git_blob": "8af1dcb8c3cbc22696e4f91f5dbdaaaabe04feec"
     },
     "origins_b": {
       "path": "C:\\harness-dast-artefatos\\v1-8\\closure\\t4-measurements\\v17-t4-clinica-piloto-vulnerable-1-B-origins.json",
