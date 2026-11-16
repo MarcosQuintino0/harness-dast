@@ -4,6 +4,7 @@ import pytest
 
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.cors import cors_finding
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.report_build import assemble_report
 from harness_dast.domain.signal_result import ProxySignals, SignalFinding
@@ -48,7 +49,12 @@ def test_anotacao_de_achado_existente_nao_e_orfa_em_qualquer_origem(origin: str)
         ),
     )
     negative = negative_result(product="example", findings=(accepted(severity="high"),))
-    selected = {"authz": authz, "proxy_signals": signals, "negative": negative}[origin]
+    sources: dict[str, AuthzResult | ProxySignals | NegativeResult] = {
+        "authz": authz,
+        "proxy_signals": signals,
+        "negative": negative,
+    }
+    selected = sources[origin]
     fingerprint = selected.findings[0].fingerprint
     orphan = "f" * 64
     annotations = [
