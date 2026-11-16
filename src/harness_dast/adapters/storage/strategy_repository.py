@@ -6,6 +6,7 @@ from pathlib import Path
 from harness_dast.adapters.storage.product_paths import product_dir_path, resolve_product_file
 from harness_dast.adapters.storage.strict_yaml import MAX_PROFILE_BYTES, parse_yaml_document
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.strategy import StrategyReferences
 
 _COPY_NAME = re.compile(r"strategy\.[a-z0-9-]+\.yml\Z")
 _MIGRATED = (
@@ -37,9 +38,9 @@ class FileStrategyRepository:
             raise ConfigError("Não foi possível ler strategy.yml em UTF-8.") from None
         return parse_yaml_document(text, "strategy.yml")
 
-    def check_references(self, product: str) -> None:
+    def check_references(self, product: str, references: StrategyReferences) -> None:
         """Recusa referências que escapem da pasta do produto por links simbólicos."""
-        for name in ("target.yml", "data-rules.yml", "flows.yml"):
+        for name in (references.target, references.data_rules, references.flows):
             resolve_product_file(self._root, product, name)
 
     def migrate(self, product: str, output: str) -> str:
@@ -49,7 +50,10 @@ class FileStrategyRepository:
         directory = product_dir_path(self._root, product)
         if not directory.is_dir():
             raise ConfigError("Produto inexistente.")
-        self.check_references(product)
+        self.check_references(
+            product,
+            StrategyReferences(target="target.yml", data_rules="data-rules.yml", flows="flows.yml"),
+        )
         path = directory / output
         created = False
         try:

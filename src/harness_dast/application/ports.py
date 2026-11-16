@@ -42,6 +42,7 @@ from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
+from harness_dast.domain.strategy import StrategyReferences
 from harness_dast.domain.wait import WaitResult
 
 
@@ -52,7 +53,7 @@ class StrategyStore(Protocol):
         """Lê estratégia ou devolve None quando ausente."""
         ...
 
-    def check_references(self, product: str) -> None:
+    def check_references(self, product: str, references: StrategyReferences) -> None:
         """Confere contenção das referências."""
         ...
 

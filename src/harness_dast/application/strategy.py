@@ -24,7 +24,7 @@ def load_strategy(store: StrategyStore, product: str) -> Strategy | None:
     if data is None:
         return None
     strategy = Strategy.from_data(data)
-    store.check_references(product)
+    store.check_references(product, strategy.references)
     return strategy
 
 
