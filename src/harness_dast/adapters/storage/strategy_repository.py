@@ -3,11 +3,13 @@
 import re
 from pathlib import Path
 
+import yaml
+
 from harness_dast.adapters.storage.product_paths import product_dir_path, resolve_product_file
 from harness_dast.adapters.storage.strict_yaml import MAX_PROFILE_BYTES, parse_yaml_document
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.strategy import StrategyReferences
+from harness_dast.domain.strategy import Strategy, StrategyReferences
 
 _COPY_NAME = re.compile(r"strategy\.[a-z0-9-]+\.yml\Z")
 _MAX_DEPENDENCY_BYTES = 8 * 1024 * 1024
@@ -77,21 +79,30 @@ class FileStrategyRepository:
 
     def migrate(self, product: str, output: str) -> str:
         """Cria uma cópia neutra com nome restrito, sem sobrescrever nenhum arquivo."""
+        self.check_references(
+            product,
+            StrategyReferences(target="target.yml", data_rules="data-rules.yml", flows="flows.yml"),
+        )
+        return self._write_copy(product, output, _MIGRATED)
+
+    def write_capture(self, product: str, output: str, strategy: Strategy) -> str:
+        """Grava estratégia capturada numa cópia exclusiva, nunca a ativa."""
+        self.check_references(product, strategy.references)
+        text = yaml.safe_dump(strategy.model_dump(mode="json"), sort_keys=False, allow_unicode=True)
+        return self._write_copy(product, output, text)
+
+    def _write_copy(self, product: str, output: str, text: str) -> str:
         if not _COPY_NAME.fullmatch(output):
             raise ConfigError("Nome de destino inválido para a cópia da estratégia.")
         directory = product_dir_path(self._root, product)
         if not directory.is_dir():
             raise ConfigError("Produto inexistente.")
-        self.check_references(
-            product,
-            StrategyReferences(target="target.yml", data_rules="data-rules.yml", flows="flows.yml"),
-        )
         path = directory / output
         created = False
         try:
             with path.open("x", encoding="utf-8", newline="\n") as stream:
                 created = True
-                stream.write(_MIGRATED)
+                stream.write(text)
         except OSError:
             if created:
                 try:

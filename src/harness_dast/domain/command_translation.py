@@ -19,6 +19,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "strategy validate": "Conferiu a estratégia e seus arquivos locais, sem tocar o alvo.",
     "strategy diff": "Comparou a estratégia com o comportamento anterior, sem tocar o alvo.",
     "strategy migrate": "Criou uma cópia de estratégia para revisão, sem mudar a aprovação.",
+    "strategy capture": "Capturou uma cópia da estratégia, sem tocar o alvo nem ativá-la.",
     "plan": "Mostrou uma prévia do trabalho previsto, sem tocar o alvo.",
     "spec inspect": "Leu o Swagger e contou as funções do sistema.",
     "preflight": "Conferiu se as contas de teste conseguem entrar.",

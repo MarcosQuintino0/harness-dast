@@ -42,7 +42,7 @@ from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
-from harness_dast.domain.strategy import StrategyReferences
+from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.wait import WaitResult
 
 
@@ -81,6 +81,28 @@ class StrategyDependencyStore(Protocol):
         self, product: str, profile: ProductProfile
     ) -> tuple[bytes, bytes | None, bytes | None]:
         """Lê contrato e documentos opcionais com limite e confinamento."""
+        ...
+
+
+class StrategyCaptureStore(Protocol):
+    """Armazenamento para captura explícita, sem substituir documentos existentes."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str, references: StrategyReferences) -> None:
+        """Confere a contenção das referências."""
+        ...
+
+    def read_dependencies(
+        self, product: str, profile: ProductProfile
+    ) -> tuple[bytes, bytes | None, bytes | None]:
+        """Lê os documentos locais com tamanho e caminhos limitados."""
+        ...
+
+    def write_capture(self, product: str, output: str, strategy: Strategy) -> str:
+        """Cria cópia exclusiva da estratégia validada."""
         ...
 
 
