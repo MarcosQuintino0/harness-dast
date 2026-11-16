@@ -17,4 +17,8 @@ A regra 40026 (DOM XSS) requer navegador e permanece uma exclusão pré-existent
 
 ## Alternativas e consequências
 
-Manter `legacy` na geração evita mudar o ritmo antes da prova, mas mantém a sobreposição de atrasos. Migrar perfis antigos implicitamente mudaria o significado de uma aprovação anterior e foi rejeitado. A prova e a mudança de geração são condicionais, não demonstram ganho em produto real e não eliminam a lacuna DOM XSS. Os resultados serão registrados após sua execução; este ADR não afirma sucesso.
+Manter `legacy` na geração evita mudar o ritmo antes da prova, mas mantém a sobreposição de atrasos. Migrar perfis antigos implicitamente mudaria o significado de uma aprovação anterior e foi rejeitado. A prova não demonstra ganho em produto real e não elimina a lacuna DOM XSS.
+
+## Resultado da retomada
+
+A [previsão congelada](../../evals/measurements/v1-8/closure/forecast-frozen.json) foi anterior às novas T4 B. Os erros observados foram 15,596637 pontos percentuais na Clínica e 22,432817 no VAmPI, acima do teto de 10 em ambas. **Não promover**: `init --from-letter` e o padrão do modelo permanecem `legacy`; perfis e aprovações existentes permanecem inalterados, inclusive perfis explicitamente `proxy`. A [comparação](../../evals/measurements/v1-8/closure/t4-summary.md) também limita a conclusão sobre pontos de injeção e identidade por pedido. Controles adicionais e validação independente permanecem pendentes; não se declara aceite global.
