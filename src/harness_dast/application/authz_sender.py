@@ -24,12 +24,15 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
+from harness_dast.domain.authz_effects import verified_effect
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
@@ -92,6 +95,13 @@ class CheckResult:
     writes: int = 0
     created: int = 0
     matrix: AccessMatrixReport | None = None
+    effects: list[KnowledgeEffect] = field(default_factory=list)
+
+    def remember_effect(self, write: str, read: str, account: str, fields: tuple[str, ...]) -> None:
+        """Acrescenta apenas recibo estrutural válido de efeito já comprovado."""
+        effect = verified_effect(write, read, account, fields)
+        if effect is not None:
+            self.effects.append(effect)
 
 
 @dataclass(frozen=True)
@@ -168,6 +178,7 @@ class ReplaySender:
         tag: str = "",
         origin: str | None = None,
         max_attempts: int | None = None,
+        snapshot: MutationSnapshot | None = None,
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
 
@@ -202,7 +213,7 @@ class ReplaySender:
         if request.method not in ("POST", "PUT", "PATCH", "DELETE") or journal is None:
             return self._dispatch(request, account, max_attempts=max_attempts)
         key = mutation_key(self._s.product, exchange.operation_id, account, request.method)
-        begin_mutation(journal, key)
+        begin_mutation(journal, key, snapshot)
         result = self._dispatch(request, account, max_attempts=1)
         if result.problem is not None:
             finish_mutation(journal, key, "failed")

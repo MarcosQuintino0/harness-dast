@@ -19,9 +19,10 @@ from harness_dast.application.authz_sender import (
 )
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import holds_value, is_success_status, parse_json
-from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_config import AuthzCheck, normalize_field_name
 from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS
 from harness_dast.domain.authz_result import AuthzNotTested
+from harness_dast.domain.mutation_snapshot import project_snapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 
@@ -78,12 +79,23 @@ def restore(
     """
     if not is_restorable(previous):
         return None
+    observed = any(
+        normalize_field_name(path.rsplit(".", 1)[-1]) == normalize_field_name(field[0])
+        for path in changed
+    )
     ctx.sender.send(
         exchange,
         exchange.account,
         body={**original, field[0]: previous},
         with_body=True,
         max_attempts=max_attempts,
+        snapshot=(
+            project_snapshot(
+                field[0], field[1], "observed", forbidden=ctx.settings.credential_fields
+            )
+            if observed
+            else None
+        ),
     )
     again = read_body(ctx, read)
     return again is not None and not holds_value(again, changed, field[1])

@@ -20,6 +20,7 @@ from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.errors import PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.request_encoding import join_url
@@ -45,6 +46,7 @@ class NegativeSettings:
     max_requests: int | None = None
     product: str = ""
     mutation_journal: MutationJournal | None = None
+    credential_fields: frozenset[str] = frozenset()
 
 
 class NegativeSender:
@@ -80,6 +82,11 @@ class NegativeSender:
         """Indica se efeitos incertos bloqueiam a continuação do estágio."""
         return self._s.mutation_journal is not None
 
+    @property
+    def credential_fields(self) -> frozenset[str]:
+        """Nomes protegidos do perfil para projeções no diário."""
+        return self._s.credential_fields
+
     def _attempts_left(self, reserve: int) -> int | None:
         if self._s.max_requests is None:
             return None
@@ -93,6 +100,7 @@ class NegativeSender:
         *,
         tag: str = "",
         reserve: int = 0,
+        snapshot: MutationSnapshot | None = None,
     ) -> Reply:
         """Envia o método do `exchange` ao `target`, com `body`, pela conta dona do pedido.
 
@@ -123,7 +131,7 @@ class NegativeSender:
             account=exchange.account,
         )
         mutating = exchange.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
-        key = self._begin_mutation(exchange) if mutating else None
+        key = self._begin_mutation(exchange, snapshot) if mutating else None
         try:
             session = self._s.sessions.get(exchange.account)
             sent = self._s.dispatcher.send(
@@ -157,14 +165,16 @@ class NegativeSender:
             return Reply(None)
         return Reply(response.status, location=response.location)
 
-    def _begin_mutation(self, exchange: ExchangeRecord) -> str | None:
+    def _begin_mutation(
+        self, exchange: ExchangeRecord, snapshot: MutationSnapshot | None
+    ) -> str | None:
         journal = self._s.mutation_journal
         if journal is None:
             return None
         key = mutation_key(
             self._s.product, exchange.operation_id, exchange.account, exchange.method
         )
-        begin_mutation(journal, key)
+        begin_mutation(journal, key, snapshot)
         return key
 
     def _finish_mutation(self, key: str | None, outcome: Literal["failed", "observed"]) -> None:

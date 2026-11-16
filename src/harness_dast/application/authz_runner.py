@@ -43,6 +43,7 @@ from harness_dast.domain.authz_result import (
     CheckSummary,
 )
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_result import ProbeStatus
 
@@ -75,6 +76,7 @@ class AuthzOutcome:
     accounts: tuple[str, ...]
     created_resources: int = 0
     access_matrix: AccessMatrixReport | None = None
+    effects: tuple[KnowledgeEffect, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -179,6 +181,7 @@ class AuthzRunner:
         summaries: list[CheckSummary] = []
         findings: list[AuthzFinding] = []
         not_tested: list[AuthzNotTested] = []
+        effects: list[KnowledgeEffect] = []
         for check in checks:
             result = results.get(check)
             if result is None:
@@ -191,6 +194,9 @@ class AuthzRunner:
                 )
                 continue
             findings.extend(result.findings)
+            for effect in result.effects:
+                if effect not in effects:
+                    effects.append(effect)
             not_tested.extend(result.not_tested)
             summaries.append(_summary(check, result, partial=check == partial))
         return AuthzOutcome(
@@ -203,6 +209,7 @@ class AuthzRunner:
             accounts=self._sender.accounts,
             created_resources=sum(item.created for item in results.values()),
             access_matrix=_matrix_of(results),
+            effects=tuple(effects),
         )
 
 

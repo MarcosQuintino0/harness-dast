@@ -48,6 +48,7 @@ def test_a_post_with_location_reads_the_created_resource_and_reports_the_finding
     assert "continua no ambiente" in found["nivelAcesso"].evidence
     assert [r.url.rsplit("/", 1)[1] for r in authz_requests(rig, "GET")] == ["2", "3"]
     assert result.created_resources == 2
+    assert {effect.fields for effect in result.effects} == {("nivelAcesso",), ("ativo",)}
 
 
 def test_a_post_creates_one_resource_per_candidate_and_never_deletes() -> None:
@@ -99,6 +100,7 @@ def test_when_the_created_read_fails_the_post_response_is_what_counts() -> None:
 
     assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
     assert "resposta do próprio POST" in result.findings[0].evidence
+    assert result.effects == ()
 
 
 def test_a_traversal_location_never_becomes_a_request() -> None:

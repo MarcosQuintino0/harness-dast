@@ -37,6 +37,15 @@ declarados, e exige observação do efeito. Uma resposta de sucesso sem o campo 
 compatível não prova efeito; não se usa conhecimento específico de produto para inventar
 relações entre operações ou privilégios. A carta decide permissões, não a observação.
 
+Quando uma releitura pela conta escritora comprova o efeito, `authz.json.effects` recebe somente
+`write_operation`, `read_operation`, `account`, `fields` e `proof=readback_verified`; resposta de
+escrita isolada não produz recibo, e campos classificados como segredo ou dado pessoal não são
+exportados como receita. Receitas de efeito validadas podem associar um GET já provado
+na conta ao candidato existente sem criar candidato nem escrita, preservando a detecção que viria
+do corpo da resposta original. O perfil, método, conta, esquema, escopo e limites atuais continuam
+determinando o que pode ser enviado. GET de atualização precisa do mesmo alvo concreto; GET de
+criação exige marcador de identificador no caminho. Receita desatualizada não é usada.
+
 ## Consequências
 
 200 e outros 2xx passam pelo mesmo caminho de comprovação que 201. Alguns pares antes comparados

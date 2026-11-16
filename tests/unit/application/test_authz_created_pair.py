@@ -15,6 +15,7 @@ from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from tests.fakes.authz_rig import AuthzRig, Clinic, clinic_spec
 from tests.fakes.authz_write_rig import exchange, seed
@@ -163,6 +164,15 @@ def test_created_pair_accepts_new_identifier_confirmed_before_and_after(status: 
     result = execute(rig, "api/widgets")
     assert result.created_resources == 1
     assert result.findings
+    assert len(result.effects) == 1
+    effect = result.effects[0]
+    assert (effect.write_operation, effect.read_operation, effect.account, effect.fields) == (
+        "createSynthetic",
+        "readSynthetic",
+        "pac_a",
+        ("label",),
+    )
+    assert effect.proof == "readback_verified"
 
 
 def test_created_pair_200_without_identifier_is_not_tested() -> None:
@@ -267,7 +277,12 @@ class MemoryJournal:
         self.pending: set[str] = set()
         self.completed: list[str] = []
 
-    def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
+    def begin(
+        self,
+        key: str,
+        previous_state: Literal["absent", "present", "unknown"],
+        snapshot: MutationSnapshot | None = None,
+    ) -> None:
         assert previous_state == "unknown"
         if key in self.pending:
             raise ConfigError("Mutação pendente")
@@ -351,6 +366,7 @@ def test_failed_owner_confirmation_is_not_a_finding() -> None:
     result = execute(rig, "api/widgets")
     assert result.created_resources == 0
     assert not result.findings
+    assert not result.effects
     assert any(n.reason == "created_owner_read_failed" for n in result.not_tested)
 
 

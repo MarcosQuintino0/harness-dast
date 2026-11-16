@@ -42,6 +42,7 @@ class MassTask:
     read: ExchangeRecord | None
     candidates: tuple[Candidate, ...] = ()
     created: bool = False
+    candidate_readers: tuple[tuple[str, ExchangeRecord], ...] = ()
 
 
 def is_json_object(text: str | None) -> bool:

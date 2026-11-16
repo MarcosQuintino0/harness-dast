@@ -13,8 +13,9 @@ from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.knowledge_mutation import mutation_key
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scan_result import ScanResult
-from tests.fakes.negative_rig import CREATE, UPDATE, Catalog, NegativeRig
+from tests.fakes.negative_rig import CREATE, PRICE, PRODUCTS, UPDATE, Catalog, NegativeRig, exchange
 from tests.fakes.probe_ports import FakeTarget
+from tests.fakes.rig import operation
 from tests.fakes.scan_ports import InMemoryRunArtifacts
 from tests.unit.application.test_authz_created_pair import execute, make_rig
 from tests.unit.application.test_scan import ready
@@ -205,6 +206,31 @@ def test_negative_preserva_achado_quando_500_bloqueia_restauracao(tmp_path: Path
     }
     assert len(rig.sent("PUT")) == 1
     assert rig.artifacts.negative[probe.run_id] == result
+
+
+def test_negative_grava_projecao_baseline_antes_do_envio_incerto(tmp_path: Path) -> None:
+    import json
+
+    rig = NegativeRig(Catalog(mode="crash"), allow_writes=True)
+    create = operation("criarProduto", "post", PRODUCTS, body={"preco": PRICE}, required=("preco",))
+    rig.spec = rig.spec.model_copy(
+        update={
+            "operations": tuple(
+                create if op.operation_id == "criarProduto" else op for op in rig.spec.operations
+            )
+        }
+    )
+    prior = exchange("criarProduto", "POST", PRODUCTS, PRODUCTS, body={"preco": 5}, status=201)
+    probe = rig.seed(prior)
+    result = negative_service(rig, FileMutationJournal(tmp_path)).execute(
+        NegativeRequest(product="agenda", run_id=probe.run_id)
+    )
+    assert result.status == "stopped_zap"
+    pending = list(tmp_path.glob("*.jsonl"))
+    assert len(pending) == 1
+    record = json.loads(pending[0].read_text(encoding="utf-8"))
+    assert record["previous_state"] == "unknown"
+    assert record["snapshot"] == {"field": "preco", "value": 5, "source": "request_baseline"}
 
 
 def test_scan_pendencia_recusa_antes_de_iniciar_zap(tmp_path: Path) -> None:

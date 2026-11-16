@@ -18,7 +18,7 @@ from harness_dast.application.authz_sender import (
 )
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_candidates import Candidate, Injection
-from harness_dast.domain.authz_compare import injected_effect, is_success_status
+from harness_dast.domain.authz_compare import injected_effect, is_success_status, parse_json
 from harness_dast.domain.authz_findings import mass_assignment_finding
 from harness_dast.domain.authz_plan_mass import MassTask
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
@@ -32,6 +32,8 @@ def run_post_candidate(
     original: dict[str, JsonValue],
     candidate: Candidate,
     out: CheckResult,
+    *,
+    recipe_read: bool = False,
 ) -> bool:
     """Testa um campo num `POST`; devolve `False` quando não adianta tentar os demais.
 
@@ -72,10 +74,39 @@ def run_post_candidate(
     if seen.via is None:
         out.not_tested.append(_unobservable_note(task, chosen.name))
         return False
-    changed, _ = injected_effect(None, seen.body, chosen.name, chosen.value)
+    changed, seen = _observed_effect(seen, reply.body, chosen, recipe_read=recipe_read)
     if changed:
+        _remember_readback(task, seen, chosen, out)
         out.findings.append(_finding(ctx, task, candidate, chosen, (changed, reply.status, seen)))
     return True
+
+
+def _observed_effect(
+    seen: CreatedRead, post_body: bytes, chosen: Injection, *, recipe_read: bool
+) -> tuple[tuple[str, ...], CreatedRead]:
+    changed, _ = injected_effect(None, seen.body, chosen.name, chosen.value)
+    if not changed and recipe_read and seen.via == "created_read":
+        echoed = parse_json(post_body)
+        changed, _ = injected_effect(None, echoed, chosen.name, chosen.value)
+        if changed:
+            return changed, CreatedRead(echoed, "post_response")
+    return changed, seen
+
+
+def _remember_readback(
+    task: MassTask, seen: CreatedRead, chosen: Injection, out: CheckResult
+) -> None:
+    if (
+        seen.via == "created_read"
+        and task.read is not None
+        and task.read.account == task.exchange.account
+    ):
+        out.remember_effect(
+            task.exchange.operation_id,
+            task.read.operation_id,
+            task.exchange.account,
+            (chosen.name,),
+        )
 
 
 def _finding(

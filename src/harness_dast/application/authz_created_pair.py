@@ -383,6 +383,9 @@ def _compare(
         )
         return
     out.created += 1
+    out.remember_effect(
+        task.post.operation_id, task.read.operation_id, task.owner[0], tuple(markers)
+    )
     peer = ctx.sender.send(target, task.actor[0], tag="pair:")
     if peer.problem:
         out.not_tested.append(problem_note("horizontal", target, peer))

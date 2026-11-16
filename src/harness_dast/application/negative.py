@@ -269,6 +269,7 @@ class Negative:
             max_requests=limit,
             product=profile.product,
             mutation_journal=self._mutation_journal,
+            credential_fields=_credential_fields(profile),
         )
         runner = NegativeRunner(
             NegativeSender(settings), product=profile.product, max_requests=limit
@@ -288,6 +289,15 @@ class Negative:
             dispatcher=dispatcher,
             token_cache=self._token_cache,
         )
+
+
+def _credential_fields(profile: ProductProfile) -> frozenset[str]:
+    auth = profile.auth
+    if isinstance(auth, PasswordLoginAuth):
+        return frozenset(
+            (auth.username_field, auth.password_field, auth.token_response_field.rsplit(".", 1)[-1])
+        )
+    return frozenset({auth.header_name})
 
 
 def _username_field(profile: ProductProfile) -> str | None:
