@@ -17,6 +17,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.5.5] - 2026-11-15
+
+### Achar mais e reduzir espera
+
+- `hdast wait` acompanha uma execução em uma chamada bloqueante; sua saída 0 indica consulta bem-sucedida, inclusive no prazo, e o código da execução terminada fica em `data.exit_code`.
+- `authz` amplia a conferência de atribuição em massa com leitura pela conta que escreveu, verifica CORS em uma amostra limitada de GETs e tenta formar pares horizontais com recursos criados durante a execução, somente com escrita autorizada pela carta.
+- As skills pedem uma conferência final de anotações dos achados altos. A avaliação preserva o caso histórico `vampi-estrito`; a régua e os casos atuais devem refletir somente o que for comprovado.
+- Provas na Clínica Piloto e no VAmPI, QA e gates de fechamento estão **pendentes**. Não houve rodada cega nesta versão. Veja o [rascunho do relatório](docs/reviews/relatorio-v1.5.5.md).
+
 ## [1.5.4] - 2026-11-15
 
 ### Alcance confiável e varredura parcial

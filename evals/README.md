@@ -291,3 +291,7 @@ executor, do rastro e dos parâmetros. Veja [ADR 0053](../docs/adr/0053-avaliaca
 ### Alcance e cobertura parcial na V1.5.4
 
 A recusa esperada de credenciais sint?ticas na opera??o de login conta como alcan?ada, mas n?o como sucesso HTTP. O login permanece exclu?do de `scan` e `negative` pelas travas existentes. Conflitos e depend?ncias n?o resolvidas permanecem lacunas; ap?s as tentativas permitidas, a varredura segue parcialmente e o relat?rio e di?rio registram opera??es exclu?das e motivos. A r?gua n?o reclassifica resultados hist?ricos.
+
+### Casos e régua da V1.5.5
+
+O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; rodadas antigas devem usar o caso exato da rodada e o lacre ou `--case-file` conforme acima. A régua atual reconhece a classe CORS na H3 da Clínica. V3 e V4 do VAmPI só devem ser marcadas detectáveis após prova no laboratório; consulte o [relatório da versão](../docs/reviews/relatorio-v1.5.5.md) para o resultado e a situação do crAPI. Nenhuma rodada cega foi executada nesta versão; o dono poderá pedir depois rodadas em pelo menos duas APIs.

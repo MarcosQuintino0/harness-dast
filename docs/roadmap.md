@@ -251,6 +251,10 @@ Implementada nos itens A a H do [plano da versão](plans/2026-11-15-plano-v1-5-2
 
 Implementada nos itens A a D do [plano](plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md), com ADR 0057 Proposto: a carta declara papéis compartilhados, a aprovação cobre o campo preenchido e os testes horizontais registram a comparação omitida. Caso, régua, dicas e quatro skills atualizados. O [relatório da versão](reviews/relatorio-v1.5.3.md) registra gates e integração nos dois modos: sem alarme entre médicos e com BOLA entre pacientes preservado no vulnerável. O efeito das skills em agente cego e a varredura completa não foram medidos; não há prova contra produto real.
 
+### V1.5.5: achar mais e reduzir espera
+
+Em desenvolvimento: espera bloqueante, leitura pela conta que escreveu, verificação CORS, par horizontal automático e conferência final da triagem. Casos e régua da avaliação acompanham a versão; a prova de B, C e D na Clínica Piloto e no VAmPI, o QA e os gates finais estão pendentes. Não há rodada cega nesta versão; o dono poderá pedi-la depois em pelo menos duas APIs. [Rascunho do relatório](reviews/relatorio-v1.5.5.md).
+
 ### V1.5.4: alcance confiável e varredura parcial
 
 Entrega dos itens A a F do [plano](plans/2026-11-15-plano-v1-5-4-alcance-confiavel.md): recusa sintética do login separada de `auth_error`, conflitos explicados pelo contrato e pelas dependências, falhas localizadas sem interromper o restante e continuação com cobertura parcial explícita. A avaliação elimina pontos de triagem por vacuidade e preserva os resultados históricos. O [relatório da versão](reviews/relatorio-v1.5.4.md) registra decisões, gates, integração e limites. O login permanece fora da varredura e do `negative`. Não há rodada cega nova nesta versão nem prova contra produto real.
