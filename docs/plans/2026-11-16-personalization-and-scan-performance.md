@@ -304,3 +304,13 @@ A primeira versão foi criticada em 2026-11-16 por um subagente novo GPT 6.1 Ter
 Na segunda revisão, o mesmo crítico confirmou a incorporação.
 
 Esta revisão 2 muda a estratégia de prova e a ordem. **Antes de abrir a branch da V1.7, ela deve passar por uma nova crítica independente**, focada em três pontos: a varredura de controle representa a completa? A extrapolação por regra é válida? A proteção da seleção por tecnologia basta?
+
+### 12.1 Nova crítica independente da revisão 2 — V1.7 (2026-11-16)
+
+Parecer de um GPT 6.1 Terra medium novo, sem herdar a conversa, na worktree isolada `v1-7-critica`: **corrigir** antes de programar. Correções incorporadas nesta execução:
+
+1. **T3 mede o subconjunto.** A seleção de 6–10 operações por API será pré-registrada com método, conta/autenticação, pontos de entrada, parâmetros, dependências e classes de controle. Estratos ausentes ficam explícitos. As rotas são escolhidas pelo mecanismo, não pelo gabarito. A cobertura das classes é uma verificação posterior; se faltar classe ou estrato, a alegação correspondente é inconclusiva. Resultado, pedidos, regras indisponíveis e interrupções são comparados, não apenas alertas ou hashes.
+2. **Soma por regra não é tempo de parede.** Sobreposição e custos de fila, login, rede e preparação impedem tratá-la como identidade. O estimador e seu tratamento de dados ausentes serão registrados antes dos pares. Regra ausente, truncada ou interrompida nunca vale zero. Uma T4 B isolada só verifica a duração B, não confirma redução relativa sem uma A completa comparável. Se faltar referência A comparável, ou o erro exceder 10 pontos percentuais, o ganho da completa é inconclusivo e B permanece desligada por padrão. Se for necessário obter nova A completa por API, o teto adicional é 50 minutos, registrado antes de usar o laboratório (orçamento máximo replanejado: 3 h 10 min, sujeito a parada e registro de inconclusão).
+3. **Tecnologia errada sem sinal continua sendo possível.** Contradição observada exige refazer toda a família nas operações anteriores ou marcar lacuna; ausência de contradição não confirma a declaração. Como a seleção é opcional e qualidade é eliminatória, esta execução preservará todas as regras ativas; pode preparar o contrato da declaração, aprovação e avaliação, mas não ativará exclusões por tecnologia. A exclusão efetiva fica pendente de decisão explícita sobre essa limitação e de prova aceita, sem alegar equivalência inexistente.
+
+Esses ajustes não autorizam tráfego, não mudam limites nem dispensam T1–T4, QA ou o validador final. Sem prova, registrar parcial ou inconclusivo, nunca sucesso. Não haverá rodada cega, conforme a decisão específica do briefing de execução.
