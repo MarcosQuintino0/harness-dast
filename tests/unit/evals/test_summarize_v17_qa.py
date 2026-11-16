@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from tests.integration.v17_matrix import VAMPI
+from tests.integration.v17_matrix import PILOT, VAMPI
 
 PATH = Path(__file__).resolve().parents[3] / "evals" / "measurements" / "v1.7" / "summarize.py"
 SPEC = importlib.util.spec_from_file_location("v17_summarize", PATH)
@@ -23,14 +23,17 @@ finally:
     sys.path.remove(str(PATH.parent))
 
 
-def _record(layer: str, variant: str) -> dict[str, Any]:
-    entries = [{"operation_id": op, "outcome": "completed", "truncated": False} for op in VAMPI]
+def _record(layer: str, variant: str, product: str = "vampi") -> dict[str, Any]:
+    operations = VAMPI if product == "vampi" else PILOT
+    entries = [
+        {"operation_id": op, "outcome": "completed", "truncated": False} for op in operations
+    ]
     rules = [
         {"operation_id": op, "rules": [{"plugin_id": 6, "state": "completed", "time_ms": 100}]}
-        for op in VAMPI
+        for op in operations
     ]
     return {
-        "product": "vampi",
+        "product": product,
         "mode": "vulnerable",
         "variant": variant,
         "layer": layer,
@@ -39,12 +42,17 @@ def _record(layer: str, variant: str) -> dict[str, Any]:
             "started_at": "2026-11-16T10:00:00+00:00",
             "finished_at": "2026-11-16T10:01:00+00:00",
             "entries": entries,
-            "planned": [{"operation_id": op} for op in VAMPI],
+            "planned": [{"operation_id": op} for op in operations],
             "skipped": [],
             "policy": {"strength": "HIGH"},
+            "limits": {"delay_ms": 20 if variant == "A" else 0, "threads_per_host": 8},
         },
         "rule_stats": {"operations": rules},
-        "profile": {"scope": {"allow": ["lab"]}, "limits": {"requests_per_second": 50}},
+        "profile": {
+            "scope": {"allow": ["lab"]},
+            "limits": {"requests_per_second": 50},
+            "scan": {"pacing": "legacy" if variant == "A" else "proxy"},
+        },
         "accounts": [
             {
                 "phase": "decision",
@@ -59,7 +67,7 @@ def _record(layer: str, variant: str) -> dict[str, Any]:
 
 
 def _write(folder: Path, layer: str, index: int, variant: str, data: dict[str, Any]) -> None:
-    path = folder / f"v17-{layer}-vampi-vulnerable-{index}-{variant}.json"
+    path = folder / f"v17-{layer}-{data['product']}-vulnerable-{index}-{variant}.json"
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
@@ -129,6 +137,30 @@ def test_rejeita_hash_alterado_na_confirmacao(tmp_path: Path) -> None:
     _write(tmp_path, "t4", 1, "B", _record("t4", "B"))
     summary, _ = MODULE.summarize(tmp_path, frozen)
     assert "hash" in summary["groups"]["vampi/vulnerable"]["t4_confirmation"]["reason"]
+
+
+def test_uma_previsao_nova_nao_substitui_mapa_congelado_da_outra_api(tmp_path: Path) -> None:
+    _complete(tmp_path)
+    prior = MODULE.summarize(tmp_path)[1]
+    _write(tmp_path, "t4", 1, "B", _record("t4", "B"))
+    for index in (1, 2, 3):
+        for variant in ("A", "B"):
+            _write(tmp_path, "t3", index, variant, _record("t3", variant, "clinica-piloto"))
+    _write(tmp_path, "t4", 1, "A", _record("t4", "A", "clinica-piloto"))
+    summary, predictions = MODULE.summarize(tmp_path, prior)
+    assert "clinica-piloto/vulnerable" in predictions
+    assert summary["groups"]["vampi/vulnerable"]["t4_confirmation"][
+        "difference_pp"
+    ] == pytest.approx(0)
+
+
+@pytest.mark.parametrize("delay", [None, -1, 20, "0", True])
+def test_sem_ritmo_b_comprovado_nao_congela_previsao(tmp_path: Path, delay: object) -> None:
+    _complete(tmp_path)
+    record = _record("t3", "B")
+    record["scan"]["limits"]["delay_ms"] = delay
+    _write(tmp_path, "t3", 2, "B", record)
+    assert MODULE.summarize(tmp_path)[1] == {}
 
 
 def test_arquivo_malformado_ou_duracao_ausente_fica_inconclusivo(tmp_path: Path) -> None:

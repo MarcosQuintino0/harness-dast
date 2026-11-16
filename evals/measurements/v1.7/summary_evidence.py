@@ -1,12 +1,24 @@
-"""Valida e resume evid?ncia observada, sem inferir qualidade."""
+"""Valida e resume evidência observada, sem inferir qualidade."""
 
+import importlib.util
 import math
 from collections import Counter, defaultdict
 from datetime import datetime
 from itertools import pairwise
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def load_local(filename: str, module_name: str) -> Any:
+    """Carrega a ferramenta versionada ao lado do resumo."""
+    spec = importlib.util.spec_from_file_location(module_name, Path(__file__).with_name(filename))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("comparador indisponível")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class Record(BaseModel):
@@ -62,6 +74,19 @@ class Record(BaseModel):
             if value.get(key) is not None and not isinstance(value[key], dict):
                 raise ValueError(f"{key} inválido")
         return value
+
+
+def pacing_valid(record: Record) -> bool:
+    """Exige variante instalada e atraso efetivo observado no resultado do scan."""
+    config = record.profile.get("scan")
+    limits = record.scan.get("limits")
+    if not isinstance(config, dict) or not isinstance(limits, dict):
+        return False
+    expected = "legacy" if record.variant == "A" else "proxy"
+    delay = limits.get("delay_ms")
+    if not isinstance(delay, (int, float)) or isinstance(delay, bool):
+        return False
+    return config.get("pacing") == expected and (delay > 0 if record.variant == "A" else delay == 0)
 
 
 def duration(scan: dict[str, Any]) -> float | None:

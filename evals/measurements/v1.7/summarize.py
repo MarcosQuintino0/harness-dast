@@ -2,7 +2,6 @@
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import math
 import re
@@ -13,7 +12,7 @@ from runpy import run_path
 from typing import Any
 
 from pydantic import ValidationError
-from summary_evidence import Record, audit, duration, rule_totals
+from summary_evidence import Record, audit, duration, load_local, pacing_valid, rule_totals
 
 _NAME = re.compile(r"^v17-(t2-path|t2|t3|t4)-(.+)-(vulnerable|secure)-([1-5])-([AB])\.json$")
 _MATRIX = run_path(str(Path(__file__).resolve().parents[3] / "tests/integration/v17_matrix.py"))
@@ -21,20 +20,17 @@ PILOT = tuple(_MATRIX["PILOT"])
 VAMPI = tuple(_MATRIX["VAMPI"])
 
 
-def _load_local(filename: str, module_name: str) -> Any:
-    spec = importlib.util.spec_from_file_location(module_name, Path(__file__).with_name(filename))
-    if spec is None or spec.loader is None:
-        raise RuntimeError("comparador indisponível")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 def _valid_pairs(records: dict[tuple[str, int, str], Record], indices: list[int]) -> bool:
-    comparator = _load_local("compare.py", "v17_compare")
+    comparator = load_local("compare.py", "v17_compare")
     for index in indices:
         first, second = records.get(("t3", index, "A")), records.get(("t3", index, "B"))
         if first is None or second is None:
+            return False
+        if not pacing_valid(first) or not pacing_valid(second):
+            return False
+        limits_a = {k: v for k, v in first.scan["limits"].items() if k != "delay_ms"}
+        limits_b = {k: v for k, v in second.scan["limits"].items() if k != "delay_ms"}
+        if limits_a != limits_b:
             return False
         # A comparação sempre inclui a ressalva de qualidade que depende de revisão humana.
         issues = comparator.compare(first.model_dump(), second.model_dump())["issues"]
@@ -70,6 +66,8 @@ def _baseline(records: dict[tuple[str, int, str], Record]) -> Record | None:
         return None
     base = records.get(("t4", 1, "A"))
     if base is None:
+        return None
+    if not pacing_valid(base):
         return None
     uncertain = {"not_run", "not_learned", "not_planned", "not_success"}
     if any(item.get("reason") in uncertain for item in base.scan.get("skipped", [])):
@@ -209,8 +207,8 @@ def summarize(
         "groups": {},
     }
     predictions: dict[str, Any] = {}
-    comparator = _load_local("compare.py", "v17_compare")
-    estimator = _load_local("analyze.py", "v17_analyze")
+    comparator = load_local("compare.py", "v17_compare")
+    estimator = load_local("analyze.py", "v17_analyze")
     for (product, mode), records in sorted(groups.items()):
         name = f"{product}/{mode}"
         rows: dict[str, Any] = {}
@@ -255,12 +253,12 @@ def summarize(
         prediction = None if (product, mode) in duplicate_groups else prediction_input(records)
         if prediction is not None:
             result = estimator.predict(prediction)
-            frozen = {"input": prediction, "result": result}
+            frozen_candidate = {"input": prediction, "result": result}
             canonical = json.dumps(
-                frozen, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                frozen_candidate, ensure_ascii=False, sort_keys=True, separators=(",", ":")
             )
             predictions[name] = {
-                **frozen,
+                **frozen_candidate,
                 "sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
             }
     return output, predictions
