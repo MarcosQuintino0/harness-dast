@@ -1,6 +1,6 @@
 # Personalização de produto
 
-**Status: implementado no código da V1.8; provas de laboratório ainda pendentes.** A personalização organiza escolhas para um produto autorizado. A carta, o perfil e a aprovação humana continuam determinando o que pode ser testado; nenhuma observação do alvo ou escolha da estratégia concede permissão.
+**Status: implementado na V1.8; captura, vínculo do motor e revogação tiveram provas da coordenação em laboratório, com reprodução independente em andamento.** A personalização organiza escolhas para um produto autorizado. A carta, o perfil e a aprovação humana continuam determinando o que pode ser testado; nenhuma observação do alvo ou escolha da estratégia concede permissão.
 
 ## Quatro camadas
 
