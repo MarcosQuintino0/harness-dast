@@ -47,3 +47,15 @@ exclusiva `C:\harness-dast-artefatos\lab.lock`, desmontagem e Compose vazio.
 
 O estudo real em dois contextos e os testes cegos ficam com Claude Code após o
 merge, como determina o briefing. Ensaio de exportação seco não recebe esse nome.
+
+## Emenda anterior à primeira T4: fatos observados
+
+Após a crítica preliminar independente, a captura deve consumir recibos reais do
+probe (`knowledge capture --run`). A T4 usa os comandos públicos em sequência:
+preflight, um único probe, captura e ativação explícita, scan integral, authz,
+negative e report. A ordem dos pedidos ao alvo e os mesmos arquivos/política da
+referência são preservados; a captura consulta somente metadados locais/controle
+ZAP. Não se roda um segundo probe antes da completa, para evitar alterar suas
+pré-condições. A métrica de parede continua sendo a do scan; não há alegação de
+velocidade. Recibos de efeito são provados e reutilizados nos controles T2, sem
+inventar uma observação quando a resposta não permite comprová-la.

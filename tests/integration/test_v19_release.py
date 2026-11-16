@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.lab_support import proxy_audit, require_docker
-from tests.integration.run_support import Scenario
+from tests.integration.lab_support import CliResult, LabCli, proxy_audit, require_docker
+from tests.integration.run_support import Scenario, record_metrics
 from tests.integration.test_lab_strategy import _cli
 from tests.integration.test_v17_performance import _install, _record
 from tests.integration.v17_resources import ResourceSampler
@@ -14,6 +14,15 @@ from tests.integration.v17_zap_config import FastZapView
 from tests.integration.v18_origin import collect_origins
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_full]
+
+
+def _command(
+    cli: LabCli, stages: list[dict[str, object]], *args: str, timeout: int = 900
+) -> CliResult:
+    result = cli.run(*args, timeout=timeout)
+    stages.append({"command": args[0], "exit_code": result.code})
+    assert result.code in {0, 1} if args[0] == "report" else result.code == 0, result.stdout
+    return result
 
 
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
@@ -26,18 +35,23 @@ def test_v19_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
     require_docker()
     cli = _cli(tmp_path, product)
     _install(cli, product, "A")
+    stages: list[dict[str, object]] = []
     try:
         up = cli.run("stack", "up", product, "--build", timeout=900)
         assert up.code == 0, up.stdout + up.stderr
-        captured = cli.run("knowledge", "capture", product)
-        assert captured.code == 0, captured.stdout + captured.stderr
+        started = time.monotonic()
+        _command(cli, stages, "preflight", product)
+        probe = _command(cli, stages, "probe", product)
+        run_id = str(probe.envelope["run_id"])
+        captured = _command(cli, stages, "knowledge", "capture", product, "--run", run_id)
         assert captured.data["activated"] is False
         folder = cli.products / product
         (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
-        started = time.monotonic()
         with ResourceSampler(zap=FastZapView(cli.state_file())) as sampler:
-            result = cli.run("run", product, timeout=3600)
-        run_id = str(result.data.get("run_id") or result.envelope.get("run_id") or "")
+            _command(cli, stages, "scan", product, "--run", run_id, timeout=3600)
+        _command(cli, stages, "authz", product, "--run", run_id)
+        _command(cli, stages, "negative", product, "--run", run_id)
+        result = _command(cli, stages, "report", product, "--run", run_id)
         scenario = Scenario(
             f"v19-t4-{product}",
             cli,
@@ -48,8 +62,6 @@ def test_v19_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
             time.monotonic() - started,
         )
         _record(scenario, product, "A", "t4", "vulnerable", sampler)
-        from tests.integration.run_support import record_metrics
-
         record_metrics(f"v19-t4-{product}-origins", collect_origins(scenario.run_dir))
         assert result.code in {0, 1}, result.stdout + result.stderr
         scan = scenario.load("scan.json")
@@ -61,4 +73,5 @@ def test_v19_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
         assert scan["traffic"]["allowed_outside_allow"] == 0
         assert not any(row["method"] == "DELETE" for row in scenario.audit)
     finally:
+        record_metrics(f"v19-t4-{product}-stages", {"product": product, "stages": stages})
         cli.stack_down()

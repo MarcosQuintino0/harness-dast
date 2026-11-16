@@ -1,0 +1,209 @@
+{
+  "product": "vampi",
+  "mode": "secure",
+  "exit_code": 0,
+  "run_id": "2026-11-16T13-27-06Z-vampi-7c7d",
+  "status": "completed",
+  "requests_sent": 13,
+  "created_resources": 4,
+  "checks": [
+    {
+      "check": "cors",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "horizontal",
+      "status": "completed",
+      "candidates": 2,
+      "tested": 1,
+      "findings": 0,
+      "message": null
+    },
+    {
+      "check": "excessive_data",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "anonymous_access",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "tampered_token",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "vertical",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "access_matrix",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "mass_assignment",
+      "status": "completed",
+      "candidates": 8,
+      "tested": 8,
+      "findings": 0,
+      "message": null
+    },
+    {
+      "check": "horizontal_write",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    }
+  ],
+  "findings": [],
+  "not_tested_reasons": {
+    "no_object_identifier": 6,
+    "create_not_readable": 1,
+    "created_identifier_unavailable": 1
+  },
+  "not_tested": [
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.main.populate_db",
+      "method": "GET",
+      "path": "/createdb",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.main.basic",
+      "method": "GET",
+      "path": "/",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.users.get_all_users",
+      "method": "GET",
+      "path": "/users/v1",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.users.debug",
+      "method": "GET",
+      "path": "/users/v1/_debug",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.users.me",
+      "method": "GET",
+      "path": "/me",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.books.get_all_books",
+      "method": "GET",
+      "path": "/books/v1",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.users.register_user",
+      "method": "POST",
+      "path": "/users/v1/register",
+      "reason": "create_not_readable"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "api_views.books.add_new_book",
+      "method": "POST",
+      "path": "/books/v1",
+      "reason": "created_identifier_unavailable"
+    }
+  ],
+  "pair_audit": [
+    {
+      "seq": 20,
+      "phase": "decision",
+      "method": "GET",
+      "account": "user_a",
+      "operation_id": "authz:pair:api_views.books.get_by_title",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 20,
+      "phase": "result",
+      "method": "GET",
+      "account": "user_a",
+      "operation_id": "authz:pair:api_views.books.get_by_title",
+      "decision": null,
+      "status": 404,
+      "error": null
+    },
+    {
+      "seq": 21,
+      "phase": "decision",
+      "method": "GET",
+      "account": "user_b",
+      "operation_id": "authz:pair:api_views.books.get_by_title",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 21,
+      "phase": "result",
+      "method": "GET",
+      "account": "user_b",
+      "operation_id": "authz:pair:api_views.books.get_by_title",
+      "decision": null,
+      "status": 404,
+      "error": null
+    },
+    {
+      "seq": 22,
+      "phase": "decision",
+      "method": "POST",
+      "account": "user_a",
+      "operation_id": "authz:pair:api_views.books.add_new_book",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 22,
+      "phase": "result",
+      "method": "POST",
+      "account": "user_a",
+      "operation_id": "authz:pair:api_views.books.add_new_book",
+      "decision": null,
+      "status": 200,
+      "error": null
+    }
+  ]
+}
