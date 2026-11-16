@@ -17,6 +17,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Login recusado pelo alvo: a mensagem passa a trazer o código HTTP e uma dica escolhida por ele. Num 415 (ou 400/422) ela aponta `auth.request_encoding` (formulário ou JSON), que é campo livre e não muda a aprovação. Uma rodada cega de 2026-11-15 parou no `preflight` porque o alvo só aceitava JSON e a mensagem dizia só "confira usuário e senha".
 - Régua da avaliação cega: no modo seguro, sem nenhum `findings.json`, o critério de falsos alarmes deixa de valer nota cheia e fica fora da conta ("não se aplica").
 
+## [1.5.4] - 2026-11-15
+
+### Alcance confiável e varredura parcial
+
+- O `probe` distingue a recusa esperada do login do perfil (`auth_rejected_expected`) de falhas de autenticação em operações protegidas. Alcance e sucesso 2xx são contados separadamente; a exclusão do login no `scan` e no `negative` permanece.
+- Conflitos mostram campos candidatos pela resposta ou pelo contrato e pelas regras de dados; o resumo prioriza produtores pela quantidade de dependências bloqueadas, sem nomes específicos de produto.
+- Falhas localizadas interrompem só a operação. Depois das tentativas de alcance, as skills seguem para a varredura parcial e registram operações e motivos que ficaram fora; relatório e painel mostram essas lacunas.
+- Sem `findings.json`, quatro verificações de triagem dependentes de achados ficam `n/a` e saem da média. Reavaliações históricas e limites no [relatório da versão](docs/reviews/relatorio-v1.5.4.md).
+
 ## [1.5.3] - 2026-11-15
 
 ### Papéis que compartilham recursos (ADR 0057)

@@ -38,7 +38,7 @@ Outcome = Literal[
 
 - Enviadas: `success`, `logical_failure` (2xx mas a regra de corpo do perfil diz falha),
   `validation_error` (400/422), `conflict` (409), `auth_error` (401/403),
-  `auth_rejected_expected` (recusa do login sint?tico), `csrf_error` (403 de
+  `auth_rejected_expected` (recusa do login sintético), `csrf_error` (403 de
   CSRF), `not_found` (404/410), `rate_limited` (429), `server_error` (5xx), `client_error`
   (demais 4xx), `redirect` (3xx; nunca seguido) e `timeout`.
 - Não enviadas: `skipped_scope`, `skipped_denied`, `skipped_destructive`, `skipped_dependency`,
@@ -136,7 +136,7 @@ def classify_response(
         success_rule: Regra de corpo do perfil (`probe.success`), ou `None` (vale 2xx).
         csrf: Configuração de CSRF do perfil, ou `None`.
         error_codes: Mapa de códigos de erro do perfil (`probe.error_codes`), ou `None`.
-        is_login: Se m?todo e caminho identificam o login do perfil.
+        is_login: Se método e caminho identificam o login do perfil.
     """
     status = response.status
     if _HTTP_OK_FIRST <= status <= _HTTP_OK_LAST:

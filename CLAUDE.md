@@ -12,6 +12,8 @@ A V1.5.2 (ADRs 0053 a 0056) atualiza a carta e a régua da avaliação, preserva
 
 A V1.5.3 (ADR 0057) permite à carta declarar papéis que compartilham recursos (`attack.authz_shared_roles`), gerando `authz.shared_roles` no perfil; as comparações `horizontal` e `horizontal_write` entre contas do mesmo papel listado ficam não testadas (`shared_role`). O campo preenchido exige origem e frase da carta e muda a aprovação; vazio preserva a impressão digital anterior. Provada no laboratório nos dois modos: nenhum achado horizontal entre médicos, BOLA entre pacientes preservado no vulnerável e nenhum achado de autorização no seguro. Gates e limites estão no [relatório da V1.5.3](docs/reviews/relatorio-v1.5.3.md); nada foi provado contra produto real.
 
+A V1.5.4 distingue a recusa esperada de credenciais sintéticas na operação de login do perfil (`auth_rejected_expected`), separa alcance de sucesso 2xx e explica conflitos com candidatos do contrato e dependências bloqueadas. As skills seguem para a varredura parcial após as tentativas de alcance, mantendo as paradas de segurança; relatório e painel listam as lacunas. A régua deixa de conceder pontos de triagem por condições vazias quando não há `findings.json`. O login continua fora do `scan` e do `negative`; alcance não significa autenticação válida nem cobertura de injeção no login. Evidências e limites estão no [relatório da V1.5.4](docs/reviews/relatorio-v1.5.4.md); nenhuma prova contra produto real.
+
 ## Parte A. Ao DESENVOLVER o projeto
 
 ### Princípio e camadas

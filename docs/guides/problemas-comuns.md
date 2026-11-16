@@ -69,7 +69,7 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | `outcome` | O que significa e o que fazer |
 | --- | --- |
 | `validation_error` (400/422) | Falta regra de dados: veja `errors[].field` e escreva em `data-rules.yml` |
-| `conflict` (409) | Veja candidatos no `hint` (campo informado na resposta ou derivado do esquema); priorize o produtor que bloqueia mais operações e use `unique: true` na regra adequada |
+| `conflict` (409) | Veja candidatos em `conflict_fields` (campo informado na resposta ou derivado do esquema); priorize `summary.blocked_producers` por `blocked_dependencies` e use `unique: true` na regra adequada |
 | `not_found` (404) | Falta encadeamento: `flows.yml` |
 | `auth_rejected_expected` (401/403) | Login do perfil recusou credenciais sintéticas: conta como alcançado, separado de sucesso 2xx; não prova autenticação real. Login fica fora do `scan` e `negative`; injeção nele não foi testada |
 | `auth_error` (401/403) | Tente `auth.account_map` com contas da carta; se persistir, interrompa só essa operação, registre pendência no diário e nas lacunas e siga |

@@ -34,7 +34,7 @@ Parar uma operação não para o fluxo. Pare o fluxo por falta de aprovação, a
 | `outcome` ou sinal | Causa provável | O que fazer |
 | --- | --- | --- |
 | `validation_error` (400, 422) | Falta regra ou valor inválido | `errors[].field` e `rule` dizem o campo: escreva a regra em `data-rules.yml` (gerador do catálogo, `args`). |
-| `conflict` (409) | Valor repetido | Confira os candidatos do `hint`: primeiro `errors[].field` informado pelo alvo; senão, campos derivados do esquema e da origem dos valores. Priorize o produtor que bloqueia mais operações e use `unique: true` na regra adequada. |
+| `conflict` (409) | Valor repetido | Confira `conflict_fields`: primeiro `errors[].field` informado pelo alvo; senão, campos derivados do esquema e da origem dos valores. Priorize o produtor que bloqueia mais operações (`blocked_dependencies`, ordem em `summary.blocked_producers`) e use `unique: true` na regra adequada. |
 | `not_found` (404) | Falta encadeamento | `flows.yml`: produtor (`produces`) e consumidores (`consumed_by`). |
 | `build_error` | Campo obrigatório sem gerador | `hint` diz a regra a escrever. |
 | `build_error` ou `validation_error` em operação de envio de arquivo (`multipart/form-data`) | O alvo exige um tipo de arquivo ou nome que o padrão não manda | Regra `synthetic_file` no campo do arquivo em `data-rules.yml` (`kind`: `text`, `csv`, `json` ou `png`; `name`). O arquivo é sempre sintético e pequeno. Com `png` o `scan` alcança a operação mas não a varre (`binary_body`); com tipo de texto, só se a carta autorizar a varredura de upload (`scan.allow_upload_scan`, que nunca é seu). `upload_scan_not_authorized` no `scan` é por desenho: não é falha de alcance. |

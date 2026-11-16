@@ -13,7 +13,7 @@ Somente POST no caminho `auth.token_path` do perfil, ao receber 401 ou 403, é `
 
 Login continua fora do scan, pois varreduras gerariam tentativas que podem bloquear contas; o negative também o exclui como infraestrutura e os pedidos anônimos não entram em `exchanges.json`. A injeção no login permanece não testada nesta versão. As demais travas e autorizações permanecem vigentes.
 
-Relatório e painel distinguem a recusa esperada de falha de autenticação e a contam no alcance. O contrato de `findings.json` acrescenta `probe_reached` à cobertura e `probe_outcome` e `probe_message` aos itens não testados, opcionais para arquivos históricos; cobertura parcial registra lacunas elegíveis.
+Relatório e painel distinguem a recusa esperada de falha de autenticação e a contam no alcance. O contrato de `findings.json` acrescenta `probe_reached` à cobertura e `probe_outcome` aos itens não testados, opcionais para arquivos históricos; a mensagem existente incorpora o motivo do último probe e a cobertura parcial registra lacunas elegíveis.
 
 ## Consequências
 
