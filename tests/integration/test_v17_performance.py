@@ -39,23 +39,53 @@ def _install(cli: LabCli, product: str, variant: str) -> None:
     path.write_text(yaml.safe_dump(profile, allow_unicode=True), encoding="utf-8")
 
 
-def _record(scenario: Scenario, product: str, variant: str, layer: str) -> None:
+def _record(scenario: Scenario, product: str, variant: str, layer: str, mode: str) -> None:
     base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
     facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
     assert not facts.secret_hits, "Segredo detectado: artefatos não publicados"
     directory = scenario.run_dir
     data = {
         name: json.loads((directory / name).read_text(encoding="utf-8"))
-        for name in ("scan.json", "metrics.json", "rule-stats.json", "findings.json")
+        for name in (
+            "scan.json",
+            "metrics.json",
+            "rule-stats.json",
+            "findings.json",
+            "probe.json",
+            "manifest.json",
+        )
         if (directory / name).exists()
     }
     scan = data.get("scan.json", {})
+    profile = yaml.safe_load(
+        (scenario.cli.products / product / "target.yml").read_text(encoding="utf-8")
+    )
     record_metrics(
         scenario.name,
         {
             "product": product,
             "variant": variant,
             "layer": layer,
+            "mode": mode,
+            "profile": {key: profile.get(key) for key in ("scope", "limits", "scan")},
+            "manifest": data.get("manifest.json"),
+            "probe": [
+                {
+                    key: operation.get(key)
+                    for key in (
+                        "operation_id",
+                        "method",
+                        "path",
+                        "outcome",
+                        "status",
+                        "account",
+                        "attempts",
+                        "blocked_dependencies",
+                        "preview",
+                    )
+                }
+                for operation in data.get("probe.json", {}).get("operations", [])
+            ],
             "run_seconds": scenario.seconds,
             "exit_code": scenario.result.code,
             "scan": scan,
@@ -66,7 +96,27 @@ def _record(scenario: Scenario, product: str, variant: str, layer: str) -> None:
                 for f in data.get("findings.json", {}).get("findings", [])
             ],
             "proxy_audit": [
-                {k: row.get(k) for k in ("ts", "decision", "reason", "host", "method")}
+                {
+                    k: row.get(k)
+                    for k in (
+                        "ts",
+                        "decision",
+                        "reason",
+                        "detail",
+                        "host",
+                        "port",
+                        "method",
+                        "path",
+                        "query_params",
+                        "status",
+                        "duration_ms",
+                        "waited_ms",
+                        "network_ms",
+                        "grant_wait_ms",
+                        "signals",
+                        "signal_skip",
+                    )
+                }
                 for row in scenario.audit
             ],
             "accounts": [
@@ -127,7 +177,7 @@ def _exercise(
             probe = cli.run("probe", product, timeout=_remaining(900))
             assert probe.code == 0
             run_id = str(probe.envelope["run_id"])
-            operations = PILOT if product == "clinica-piloto" else VAMPI
+            operations: tuple[str, ...] = PILOT if product == "clinica-piloto" else VAMPI
             if layer == "t2":
                 operations = (
                     ("buscarPacientesPorNome",)
@@ -143,7 +193,7 @@ def _exercise(
             scenario = Scenario(
                 name, cli, result, cli.runs / run_id, proxy_audit(cli), dict(sampler.peaks), seconds
             )
-        _record(scenario, product, variant, layer)
+        _record(scenario, product, variant, layer, mode)
         if layer == "t2":
             scan = json.loads((scenario.run_dir / "scan.json").read_text(encoding="utf-8"))
             assert scan["status"] == "completed", "Scan não concluído: controle inconclusivo"

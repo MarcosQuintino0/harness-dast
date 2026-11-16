@@ -5,9 +5,10 @@ import math
 import statistics
 import sys
 from pathlib import Path
+from typing import Any, TypeGuard
 
 
-def _positive(value: object) -> bool:
+def _positive(value: object) -> TypeGuard[int | float]:
     return (
         isinstance(value, (int, float))
         and not isinstance(value, bool)
@@ -16,7 +17,7 @@ def _positive(value: object) -> bool:
     )
 
 
-def predict(data: dict) -> dict:
+def predict(data: dict[str, Any]) -> dict[str, Any]:
     """Exige todas as regras de T4 A e três ou cinco amostras completas em cada variante."""
     rules, wall = data.get("rules"), data.get("wall_a")
     if not isinstance(rules, dict) or not rules or not _positive(wall):

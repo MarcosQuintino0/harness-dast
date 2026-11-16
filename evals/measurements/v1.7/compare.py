@@ -4,9 +4,10 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 
-def _work(record: dict) -> tuple[Counter, list[str]]:
+def _work(record: dict[str, Any]) -> tuple[Counter[tuple[Any, ...]], list[str]]:
     issues = []
     scan = record.get("scan") or {}
     stats = record.get("rule_stats") or {}
@@ -21,7 +22,7 @@ def _work(record: dict) -> tuple[Counter, list[str]]:
     observed = Counter(item.get("operation_id") for item in operations)
     if expected != observed:
         issues.append("estatísticas por operação ausentes ou duplicadas")
-    work: Counter = Counter()
+    work: Counter[tuple[Any, ...]] = Counter()
     for operation in operations:
         rules = operation.get("rules") or []
         if operation.get("unavailable_reason") or not rules:
@@ -33,7 +34,7 @@ def _work(record: dict) -> tuple[Counter, list[str]]:
     return work, issues
 
 
-def compare(a: dict, b: dict) -> dict:
+def compare(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     """Compara regras, política e contas observadas; sem dados retorna inconclusivo."""
     work_a, issues_a = _work(a)
     work_b, issues_b = _work(b)
@@ -44,7 +45,7 @@ def compare(a: dict, b: dict) -> dict:
     if work_a != work_b:
         issues.append("operações/regras executadas divergem")
 
-    def accounts(record: dict) -> Counter:
+    def accounts(record: dict[str, Any]) -> Counter[tuple[Any, ...]]:
         return Counter(
             (row.get("operation_id"), row.get("account"), row.get("method"), row.get("route"))
             for row in record.get("accounts", [])
