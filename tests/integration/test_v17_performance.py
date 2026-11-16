@@ -153,6 +153,7 @@ def _record(
                 else "unavailable",
                 "attempts": resources.zap_attempts,
                 "unavailable": resources.zap_unavailable,
+                "errors_by_code": dict(resources.zap_errors),
                 "idle": resources.zap_idle,
                 "samples": list(resources.zap_samples) if resources.complete else [],
             },

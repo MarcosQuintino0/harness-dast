@@ -26,7 +26,7 @@ def _scan(state: str = "RUNNING", progress: str = "42", ident: str = "7") -> dic
 
 
 def test_leitura_entre_duas_consultas_ativas_preserva_so_dados_seguros() -> None:
-    view = FakeZapView([_scan(), {"optionDelayInMs": "20"}, _scan(progress="43")])
+    view = FakeZapView([_scan(), {"DelayInMs": "20"}, _scan(progress="43")])
     result = sample_zap(view)
     assert result is not None
     assert result["delay_ms"] == 20
@@ -38,7 +38,7 @@ def test_leitura_entre_duas_consultas_ativas_preserva_so_dados_seguros() -> None
 def test_transporte_consulta_somente_api_zap_e_nao_publica_chave(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    bodies = iter([_scan(), {"optionDelayInMs": "20"}, _scan()])
+    bodies = iter([_scan(), {"DelayInMs": "20"}, _scan()])
     seen: list[str] = []
 
     def fake_get(url: str, **kwargs: Any) -> Any:
@@ -65,7 +65,7 @@ def test_nenhuma_leitura_de_opcao_quando_nao_ha_scan_ativo() -> None:
 
 
 def test_scan_que_termina_durante_leitura_nao_gera_amostra() -> None:
-    view = FakeZapView([_scan(), {"optionDelayInMs": "0"}, _scan("FINISHED", "100")])
+    view = FakeZapView([_scan(), {"DelayInMs": "0"}, _scan("FINISHED", "100")])
     assert sample_zap(view) is None
 
 
@@ -77,16 +77,46 @@ def test_tempo_limite_da_api_nao_interrompe_a_varredura() -> None:
     sampler = ResourceSampler(zap=UnavailableZap([]))
     sampler._sample_zap()
     assert sampler.zap_unavailable == 1
+    assert sampler.zap_errors == {"transport": 1}
     assert sampler.zap_samples == []
 
 
 @pytest.mark.parametrize("delay", [None, "", "-1", "1.5", True, "1e3"])
 def test_valor_de_opcao_invalido_fica_indisponivel(delay: object) -> None:
-    view = FakeZapView([_scan(), {"optionDelayInMs": delay}])
+    view = FakeZapView([_scan(), {"DelayInMs": delay}])
     sampler = ResourceSampler(zap=view)
     sampler._sample_zap()
     assert sampler.zap_unavailable == 1
+    assert sampler.zap_errors == {"invalid_format": 1}
     assert sampler.zap_samples == []
+
+
+def test_chave_errada_nao_confirma_atraso() -> None:
+    view = FakeZapView([_scan(), {"optionDelayInMs": "20"}])
+    sampler = ResourceSampler(zap=view)
+    sampler._sample_zap()
+    assert sampler.zap_errors == {"invalid_format": 1}
+    assert sampler.zap_samples == []
+
+
+def test_envelope_de_erro_da_api_fica_categorizado_sem_mensagem() -> None:
+    view = FakeZapView([{"code": "bad_action", "message": "nao-publicar"}])
+    sampler = ResourceSampler(zap=view)
+    sampler._sample_zap()
+    assert sampler.zap_errors == {"api_error": 1}
+    assert "nao-publicar" not in str(sampler.zap_errors)
+
+
+def test_status_http_fica_categorizado_sem_detalhes() -> None:
+    class FailedZap(FakeZapView):
+        def _get(self, path: str, **params: str) -> dict[str, Any]:
+            response = httpx.Response(403, request=httpx.Request("GET", "http://local"))
+            raise httpx.HTTPStatusError("nao-publicar", request=response.request, response=response)
+
+    sampler = ResourceSampler(zap=FailedZap([]))
+    sampler._sample_zap()
+    assert sampler.zap_errors == {"http_403": 1}
+    assert "nao-publicar" not in str(sampler.zap_errors)
 
 
 @pytest.mark.parametrize(

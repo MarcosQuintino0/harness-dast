@@ -22,6 +22,17 @@ class FastZapView(ZapView):
         return value
 
 
+class ZapReadbackApiError(ValueError):
+    """A API retornou envelope de erro; não guarda sua mensagem nem URL."""
+
+
+def _read(view: ZapView, path: str) -> dict[str, Any]:
+    value = view._get(path)
+    if "code" in value:
+        raise ZapReadbackApiError("resposta de erro da API")
+    return value
+
+
 def _integer(value: object) -> int | None:
     if isinstance(value, bool):
         return None
@@ -53,13 +64,14 @@ def active_scans(body: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 def sample_zap(view: ZapView) -> dict[str, Any] | None:
     """Lê atraso entre duas consultas que confirmam o mesmo scan ativo; sem URLs ou chave."""
-    before = active_scans(view._get("/JSON/ascan/view/scans/"))
+    before = active_scans(_read(view, "/JSON/ascan/view/scans/"))
     if not before:
         return None
-    delay = _integer(view._get("/JSON/ascan/view/optionDelayInMs/").get("optionDelayInMs"))
+    # ApiImplementor remove o prefixo option do nome de resposta; a rota mantém o prefixo.
+    delay = _integer(_read(view, "/JSON/ascan/view/optionDelayInMs/").get("DelayInMs"))
     if delay is None:
         raise ValueError("atraso inválido")
-    after = active_scans(view._get("/JSON/ascan/view/scans/"))
+    after = active_scans(_read(view, "/JSON/ascan/view/scans/"))
     common = sorted(before.keys() & after.keys())
     if not common:
         return None

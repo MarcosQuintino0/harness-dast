@@ -11,7 +11,7 @@ from typing import Self
 import httpx
 
 from tests.integration.lab_support import ZapView
-from tests.integration.v17_zap_config import sample_zap
+from tests.integration.v17_zap_config import ZapReadbackApiError, sample_zap
 
 _LINE = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s*/")
 _MEMORY = re.compile(r"^([0-9]+(?:\.[0-9]+)?)(B|KiB|MiB|GiB)$")
@@ -53,6 +53,7 @@ class ResourceSampler:
         self.complete = False
         self.zap_attempts = 0
         self.zap_unavailable = 0
+        self.zap_errors: dict[str, int] = {}
         self.zap_idle = 0
         self.zap_samples: list[dict[str, object]] = []
         self._zap = zap
@@ -83,13 +84,29 @@ class ResourceSampler:
         self.zap_attempts += 1
         try:
             sample = sample_zap(self._zap)
-        except (httpx.HTTPError, ValueError, TypeError, OSError):
-            self.zap_unavailable += 1
+        except httpx.HTTPStatusError as error:
+            self._zap_error(f"http_{error.response.status_code}")
+            return
+        except (httpx.RequestError, OSError):
+            self._zap_error("transport")
+            return
+        except httpx.HTTPError:
+            self._zap_error("http_error")
+            return
+        except ZapReadbackApiError:
+            self._zap_error("api_error")
+            return
+        except (ValueError, TypeError):
+            self._zap_error("invalid_format")
             return
         if sample is None:
             self.zap_idle += 1
         else:
             self.zap_samples.append(sample)
+
+    def _zap_error(self, code: str) -> None:
+        self.zap_unavailable += 1
+        self.zap_errors[code] = self.zap_errors.get(code, 0) + 1
 
     def _sample(self) -> None:
         self.attempts += 1
