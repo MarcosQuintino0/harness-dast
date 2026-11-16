@@ -147,7 +147,11 @@ def _correlated_backoff(
     used: set[int],
 ) -> int | None:
     """Associa uma única recusa operacional à tentativa auditada pela CLI."""
-    if row.get("reason") != "rate_backoff" or row.get("status") != 429:
+    if (
+        row.get("decision") != "deny"
+        or row.get("reason") != "rate_backoff"
+        or row.get("status") != 429
+    ):
         return None
     for result in results:
         seq = result.get("seq")

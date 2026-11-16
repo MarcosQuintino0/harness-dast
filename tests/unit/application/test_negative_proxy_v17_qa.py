@@ -95,3 +95,10 @@ def test_parametros_diferentes_nao_sao_a_mesma_tentativa() -> None:
     proxy, cli = _row()
     proxy["query_params"] = ["outro"]
     assert unexpected_proxy_denials(_round([proxy], cli)) == [proxy]
+
+
+@pytest.mark.parametrize("decision", [None, "unknown", "not_sent"])
+def test_estado_desconhecido_nao_e_aceito_como_recusa_operacional(decision: str | None) -> None:
+    proxy, cli = _row()
+    proxy["decision"] = decision
+    assert unexpected_proxy_denials(_round([proxy], cli)) == [proxy]
