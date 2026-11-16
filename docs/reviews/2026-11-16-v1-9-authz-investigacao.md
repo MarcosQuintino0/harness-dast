@@ -17,7 +17,9 @@ contas e marcador sintético. A coleção deve ter GET provado, array de objetos
 de itens no OpenAPI, IDs e marcador em cada item; a resposta da criação precisa informar ID ausente
 dos inventários. A falta de parâmetros não prova ausência de paginação ou filtro implícito; o
 inventário não prova inexistência global. O marcador usa campo textual comum aos schemas, sem
-enum, formato, padrão, vínculo ou classificação sensível, e não substitui regras explícitas.
+enum, formato, padrão, vínculo, credencial declarada ou classificação de privilégio. O valor
+alfanumérico já gerado por regra explícita pode ser usado; constante não é substituída. Conteúdo
+confidencial sintético fica apenas na memória durante a comparação.
 O OpenAPI do VAmPI também descreve criação de livro com resposta de mensagem e status, sem
 identificador. A coleção de livros não declara garantia de completude: ausência de parâmetros
 de paginação não prova que a listagem não seja parcial ou filtrada. Não se usa essa lista como

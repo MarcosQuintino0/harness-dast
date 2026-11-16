@@ -45,6 +45,7 @@ from harness_dast.application.ports import (
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
+from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.authz_anonymous import plan_access
 from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
@@ -330,6 +331,7 @@ class Authz:
                 counter_checkpoint=checkpoint,
                 builder=builder,
                 mutation_journal=self._mutation_journal,
+                credential_fields=_credential_fields(profile),
             )
         )
         return runner.run(checks, plans)
@@ -365,6 +367,15 @@ class Authz:
             dispatcher=dispatcher,
             token_cache=self._token_cache,
         )
+
+
+def _credential_fields(profile: ProductProfile) -> frozenset[str]:
+    auth = profile.auth
+    if isinstance(auth, PasswordLoginAuth):
+        return frozenset(
+            (auth.username_field, auth.password_field, auth.token_response_field.rsplit(".", 1)[-1])
+        )
+    return frozenset({auth.header_name})
 
 
 def _plan(

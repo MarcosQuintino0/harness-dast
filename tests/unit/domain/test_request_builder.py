@@ -35,6 +35,17 @@ def test_fresh_text_refuses_impossible_bounds(minimum: int, maximum: int | None)
         builder().fresh_text(minimum, maximum)
 
 
+def test_marker_respects_explicit_constant_and_accepts_random_text() -> None:
+    rules = rules_from(
+        rule("fixed", "constant", value="x"),
+        rule("text", "alphanumeric", length=12),
+    )
+    source = builder(rules)
+    assert source.body_rule_marker_eligible("create", "fixed") is False
+    assert source.body_rule_marker_eligible("create", "text") is True
+    assert source.body_rule_marker_eligible("create", "missing") is None
+
+
 def test_build_includes_required_and_optional_fields() -> None:
     schema = obj(("a",), a=STRING, b=Schema(type="integer"))
 

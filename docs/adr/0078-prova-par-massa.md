@@ -11,9 +11,12 @@ provada pelo probe, cujo OpenAPI declare array de objetos sem parâmetros de con
 de itens. As duas contas leem a coleção antes do POST; JSON inválido, item sem ID ou sem marcador,
 marcador já presente ou recusa impedem a criação. A resposta 2xx precisa fornecer ID ausente dos
 dois inventários e das leituras já conhecidas. A dona precisa ler o marcador independente enviado
-no corpo antes da comparação com a conta par. O marcador usa regra `unique` já declarada ou campo
-textual simples compatível entre schemas de criação e leitura, não vinculado nem sensível; neste
-caso é gerado com etiqueta e contador da execução. Regras explícitas não únicas são preservadas.
+no corpo antes da comparação com a conta par. O marcador usa valor sintético de regra `unique`,
+valor alfanumérico aleatório já gerado por regra explícita, ou campo textual simples compatível
+entre schemas de criação e leitura; neste último caso é gerado com etiqueta e contador da execução.
+Campos vinculados, credenciais declaradas no perfil, campos de privilégio e formatos restritos
+ficam de fora. Dados confidenciais sintéticos podem ser marcadores, somente em memória; regras
+explícitas de constante e outras receitas não elegíveis são preservadas.
 Ausência de ID,
 divergência, recusa de escopo ou ausência não observada ficam não testadas. IDs só vivem em
 memória, não no diário. Os pedidos continuam sujeitos à carta, ao escopo e ao teto de escritas.

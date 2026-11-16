@@ -123,6 +123,7 @@ class AuthzSettings:
     flows: FlowSpec | None = None
     counter_checkpoint: Callable[[int], None] | None = None
     mutation_journal: MutationJournal | None = None
+    credential_fields: frozenset[str] = frozenset()
 
 
 class ReplaySender:

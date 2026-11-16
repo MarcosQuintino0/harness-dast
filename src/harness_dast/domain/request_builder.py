@@ -238,10 +238,12 @@ class RequestBuilder:
         token = unique_token(self._run_tag, self._next_counter(), limit)
         return token.ljust(minimum, "x")
 
-    def body_rule_unique(self, operation_id: str, field: str) -> bool | None:
-        """Indica se regra explícita de campo raiz é única, ou `None` se não existe."""
+    def body_rule_marker_eligible(self, operation_id: str, field: str) -> bool | None:
+        """Aceita regra única ou texto aleatório; `None` indica ausência de regra explícita."""
         resolved = self._rules.resolve(operation_id, "body", (field,))
-        return resolved.rule.unique if resolved is not None else None
+        if resolved is None:
+            return None
+        return resolved.rule.unique or resolved.rule.generator == "alphanumeric"
 
     def reuses_unique_body_value(
         self,

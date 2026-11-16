@@ -78,12 +78,13 @@ def _make_marker(
             ctx.settings.operations.get(task.post.operation_id),
             ctx.settings.operations.get(task.read.operation_id),
             frozenset(bindings.fields),
+            ctx.settings.credential_fields,
         )
         marker_name = normalize_field_name(task.read.path.rsplit("/", 1)[-1].strip("{}"))
         for name, minimum, maximum in candidates:
             if name not in body or normalize_field_name(name) in {marker_name, "id"}:
                 continue
-            explicit = builder.body_rule_unique(task.post.operation_id, name)
+            explicit = builder.body_rule_marker_eligible(task.post.operation_id, name)
             if explicit is False:
                 continue
             if explicit is True:
@@ -361,8 +362,10 @@ def _compare(
             )
         )
         return
-    observed = parse_json(owner.body)
-    if not isinstance(observed, dict) or not any(
+    observed = _owner_object(ctx, task, target, out, owner.body)
+    if observed is None:
+        return
+    if not any(
         name in observed and type(observed[name]) is type(value) and observed[name] == value
         for name, value in markers.items()
     ):
@@ -411,3 +414,48 @@ def _compare(
             statuses=(owner.status, peer.status),
         )
     )
+
+
+def _owner_object(
+    ctx: CheckContext, task: CreatedPairTask, target: ExchangeRecord, out: CheckResult, body: bytes
+) -> dict[str, JsonValue] | None:
+    observed = parse_json(body)
+    if isinstance(observed, list):
+        if len(observed) != 1 or not isinstance(observed[0], dict):
+            out.not_tested.append(
+                note(
+                    "horizontal",
+                    target,
+                    "created_read_ambiguous",
+                    "A leitura da dona não retornou exatamente um objeto identificável.",
+                )
+            )
+            return None
+        observed = observed[0]
+        found = created_identifier(
+            location=None,
+            body=json.dumps(observed).encode(),
+            reader=task.read,
+            base_url=ctx.settings.base_url,
+        )
+        if found is None or target.target.rsplit("/", 1)[-1] != found:
+            out.not_tested.append(
+                note(
+                    "horizontal",
+                    target,
+                    "created_read_ambiguous",
+                    "O objeto lido pela dona não confirmou o identificador da criação.",
+                )
+            )
+            return None
+    if not isinstance(observed, dict):
+        out.not_tested.append(
+            note(
+                "horizontal",
+                target,
+                "new_marker_unconfirmed",
+                "A leitura da dona não confirmou o marcador novo enviado na criação.",
+            )
+        )
+        return None
+    return observed

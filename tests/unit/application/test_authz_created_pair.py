@@ -93,6 +93,7 @@ def execute(
     journal: MutationJournal | None = None,
     profiles: ProfileRepository | None = None,
     extra_exchanges: tuple[ExchangeRecord, ...] = (),
+    rules_override: DataRules | None = None,
 ) -> AuthzResult:
     api_path = "/" + path
     probe = seed(
@@ -127,7 +128,7 @@ def execute(
             ],
         }
     )
-    rig.documents = InMemoryDocuments(rules)
+    rig.documents = InMemoryDocuments(rules_override or rules)
     usecase = Authz(
         profiles=profiles or rig.profiles,
         specs=rig._specs(),

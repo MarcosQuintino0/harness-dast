@@ -35,7 +35,7 @@ def test_inventario_com_limite_de_itens_declarado_e_recusado(maximum: int) -> No
     assert not supports_inventory(listing, reader, frozenset({"label"}))
 
 
-def test_marcador_recusa_vinculos_segredos_padrao_e_enumeracao() -> None:
+def test_marcador_recusa_vinculos_credenciais_padrao_e_enumeracao() -> None:
     fields = {
         "label": STR,
         "related": STR,
@@ -46,4 +46,21 @@ def test_marcador_recusa_vinculos_segredos_padrao_e_enumeracao() -> None:
     }
     post = operation("create", "post", "/items", body=fields)
     read = operation("read", "get", "/items/{id}", parameters=(parameter("id"),), produces=fields)
-    assert marker_fields(post, read, frozenset({"related"})) == (("label", 0, None),)
+    assert marker_fields(post, read, frozenset({"related"}), frozenset({"password"})) == (
+        ("label", 0, None),
+    )
+
+
+@pytest.mark.parametrize("name", ["confidential_note", "private_value", "secret_annotation"])
+def test_texto_sintetico_confidencial_pode_ser_marcador(name: str) -> None:
+    fields = {name: STR}
+    post = operation("create", "post", "/items", body=fields)
+    read = operation("read", "get", "/items/{id}", parameters=(parameter("id"),), produces=fields)
+    assert marker_fields(post, read, frozenset()) == ((name, 0, None),)
+
+
+def test_campos_de_credencial_do_perfil_e_format_password_sao_recusados() -> None:
+    fields = {"phrase": STR, "other": Schema(type="string", format="password")}
+    post = operation("create", "post", "/items", body=fields)
+    read = operation("read", "get", "/items/{id}", parameters=(parameter("id"),), produces=fields)
+    assert marker_fields(post, read, frozenset(), frozenset({"phrase"})) == ()
