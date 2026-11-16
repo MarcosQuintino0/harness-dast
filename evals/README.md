@@ -287,3 +287,7 @@ e o SHA-256 do arquivo. Um caso explicitamente fornecido não substitui lacre ex
 a rodada Terra de 14/11, o caso reconstruído é `evals/cases/clinica-piloto-historico-terra-wide.yml`;
 as alterações vêm do patch arquivado junto ao resultado. A nota depende também da versão do
 executor, do rastro e dos parâmetros. Veja [ADR 0053](../docs/adr/0053-avaliacao-v1-5-2.md).
+
+### Alcance e cobertura parcial na V1.5.4
+
+A recusa esperada de credenciais sint?ticas na opera??o de login conta como alcan?ada, mas n?o como sucesso HTTP. O login permanece exclu?do de `scan` e `negative` pelas travas existentes. Conflitos e depend?ncias n?o resolvidas permanecem lacunas; ap?s as tentativas permitidas, a varredura segue parcialmente e o relat?rio e di?rio registram opera??es exclu?das e motivos. A r?gua n?o reclassifica resultados hist?ricos.
