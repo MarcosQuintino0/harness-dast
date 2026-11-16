@@ -62,6 +62,28 @@ class StrategyStore(Protocol):
         ...
 
 
+class StrategyDependencyStore(Protocol):
+    """Armazena estratégia e lê dependências de uma escolha de forma limitada."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str, references: StrategyReferences) -> None:
+        """Confere contenção das referências."""
+        ...
+
+    def migrate(self, product: str, output: str) -> str:
+        """Cria cópia neutra sem sobrescrever."""
+        ...
+
+    def read_dependencies(
+        self, product: str, profile: ProductProfile
+    ) -> tuple[bytes, bytes | None, bytes | None]:
+        """Lê contrato e documentos opcionais com limite e confinamento."""
+        ...
+
+
 class WaitReader(Protocol):
     """Fornece uma observação validada da execução."""
 

@@ -6,7 +6,9 @@ import pytest
 
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.strategy import Strategy
+from tests.fakes.profile_data import valid_profile_data
 
 
 def test_migracao_cria_copia_neutra_sem_sobrescrever(tmp_path: Path) -> None:
@@ -52,3 +54,23 @@ def test_leitura_recusa_yaml_com_chave_repetida(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError):
         FileStrategyRepository(tmp_path).read("produto")
+
+
+def test_dependencias_leem_somente_documentos_esperados(tmp_path: Path) -> None:
+    product = tmp_path / "demo"
+    product.mkdir()
+    (product / "openapi.json").write_bytes(b"{}")
+    (product / "flows.yml").write_bytes(b"flows: []\n")
+    profile = ProductProfile.from_data(valid_profile_data())
+
+    got = FileStrategyRepository(tmp_path).read_dependencies("demo", profile)
+
+    assert got == (b"{}", None, b"flows: []\n")
+
+
+def test_dependencia_recusa_caminho_oculto(tmp_path: Path) -> None:
+    (tmp_path / "demo").mkdir()
+    profile = ProductProfile.from_data(valid_profile_data()).model_copy(update={"openapi": ".env"})
+
+    with pytest.raises(ConfigError):
+        FileStrategyRepository(tmp_path).read_dependencies("demo", profile)
