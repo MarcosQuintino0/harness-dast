@@ -18,6 +18,7 @@ class StrategyBasisContext(ProfileModel):
     environment: str = Field(pattern=_SHA, min_length=64, max_length=64)
     authorization: str = Field(pattern=_SHA, min_length=64, max_length=64)
     accounts: str = Field(pattern=_SHA, min_length=64, max_length=64)
+    planning: str = Field(pattern=_SHA, min_length=64, max_length=64)
     openapi: str = Field(pattern=_SHA, min_length=64, max_length=64)
     data_rules: str = Field(pattern=_SHA, min_length=64, max_length=64)
     flows: str = Field(pattern=_SHA, min_length=64, max_length=64)
@@ -75,15 +76,23 @@ def describe_strategy_basis(
 ) -> StrategyBasisContext:
     """Resume as fontes atuais mesmo quando a versão do motor não está disponível."""
     blocks = block_digests(profile)
-    protected = {key: value for key, value in blocks.items() if key != "environment"}
+    protected = {
+        key: value for key, value in blocks.items() if key not in {"environment", "auth", "cleanup"}
+    }
     authorization = json.dumps(protected, sort_keys=True, separators=(",", ":"))
     accounts = json.dumps(
         profile.auth.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+    )
+    planning = json.dumps(
+        {"openapi": profile.openapi, "probe": profile.probe.model_dump(mode="json")},
+        sort_keys=True,
+        separators=(",", ":"),
     )
     return StrategyBasisContext(
         environment=blocks["environment"],
         authorization=_digest(authorization.encode()),
         accounts=_digest(accounts.encode()),
+        planning=_digest(planning.encode()),
         openapi=openapi_sha256,
         data_rules=data_rules_sha256,
         flows=flows_sha256,

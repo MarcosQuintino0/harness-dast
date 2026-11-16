@@ -15,6 +15,7 @@ _BASIS = StrategyBasis(
             "environment",
             "authorization",
             "accounts",
+            "planning",
             "openapi",
             "data_rules",
             "flows",

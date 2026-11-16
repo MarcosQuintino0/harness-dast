@@ -15,6 +15,16 @@ def test_documento_ausente_difere_de_vazio() -> None:
     assert digest_strategy_document(None) != digest_strategy_document(b"")
 
 
+def test_mudanca_na_limpeza_nao_muda_vinculo() -> None:
+    profile = valid_profile()
+    altered = valid_profile(with_cleanup=True)
+    digest = digest_strategy_document(b"x")
+    args = dict(
+        openapi_sha256=digest, data_rules_sha256=digest, flows_sha256=digest, engine_version="2.17"
+    )
+    assert make_strategy_basis(profile, **args) == make_strategy_basis(altered, **args)
+
+
 def test_motor_indisponivel_nao_gera_vinculo() -> None:
     digest = digest_strategy_document(b"x")
     assert (
