@@ -26,7 +26,8 @@ finally:
 def _record(layer: str, variant: str, product: str = "vampi") -> dict[str, Any]:
     operations = VAMPI if product == "vampi" else PILOT
     entries = [
-        {"operation_id": op, "outcome": "completed", "truncated": False} for op in operations
+        {"operation_id": op, "outcome": "completed", "truncated": False, "scan_id": str(index)}
+        for index, op in enumerate(operations)
     ]
     rules = [
         {"operation_id": op, "rules": [{"plugin_id": 6, "state": "completed", "time_ms": 100}]}
@@ -48,6 +49,16 @@ def _record(layer: str, variant: str, product: str = "vampi") -> dict[str, Any]:
             "limits": {"delay_ms": 20 if variant == "A" else 0, "threads_per_host": 8},
         },
         "rule_stats": {"operations": rules},
+        "zap_config_sampling": {
+            "status": "observed",
+            "samples": [
+                {
+                    "at": "2026-11-16T10:00:30+00:00",
+                    "delay_ms": 20 if variant == "A" else 0,
+                    "scans": [{"id": "0", "state": "RUNNING", "progress": 42}],
+                }
+            ],
+        },
         "profile": {
             "scope": {"allow": ["lab"]},
             "limits": {"requests_per_second": 50},
@@ -159,6 +170,28 @@ def test_sem_ritmo_b_comprovado_nao_congela_previsao(tmp_path: Path, delay: obje
     _complete(tmp_path)
     record = _record("t3", "B")
     record["scan"]["limits"]["delay_ms"] = delay
+    _write(tmp_path, "t3", 2, "B", record)
+    assert MODULE.summarize(tmp_path)[1] == {}
+
+
+@pytest.mark.parametrize(
+    "case", ["ausente", "divergente", "outro_scan", "fora_janela", "concluido"]
+)
+def test_leitura_indisponivel_ou_invalidada_nao_confirma_ritmo(tmp_path: Path, case: str) -> None:
+    _complete(tmp_path)
+    record = _record("t3", "B")
+    sampling = record["zap_config_sampling"]
+    sample = sampling["samples"][0]
+    if case == "ausente":
+        sampling["samples"] = []
+    elif case == "divergente":
+        sample["delay_ms"] = 20
+    elif case == "outro_scan":
+        sample["scans"][0]["id"] = "999"
+    elif case == "fora_janela":
+        sample["at"] = "2026-11-16T09:59:59+00:00"
+    else:
+        sample["scans"][0]["state"] = "FINISHED"
     _write(tmp_path, "t3", 2, "B", record)
     assert MODULE.summarize(tmp_path)[1] == {}
 

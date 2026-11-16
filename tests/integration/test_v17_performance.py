@@ -26,6 +26,7 @@ from tests.integration.run_support import (
 from tests.integration.test_lab_fast import VAMPI_ENV
 from tests.integration.v17_matrix import PILOT, VAMPI
 from tests.integration.v17_resources import ResourceSampler
+from tests.integration.v17_zap_config import FastZapView
 
 pytestmark = pytest.mark.integration
 
@@ -141,9 +142,19 @@ def _record(
                 "interval_seconds": resources.interval,
                 "observed_seconds": resources.seconds,
                 "attempts": resources.attempts,
-                "peak_cpu_percent": resources.cpu_peaks,
-                "cpu_samples": resources.cpu_samples,
-                "memory_samples": resources.memory_samples,
+                "peak_cpu_percent": dict(resources.cpu_peaks),
+                "cpu_samples": dict(resources.cpu_samples),
+                "memory_samples": dict(resources.memory_samples),
+                "complete": resources.complete,
+            },
+            "zap_config_sampling": {
+                "status": "observed"
+                if resources.complete and resources.zap_samples
+                else "unavailable",
+                "attempts": resources.zap_attempts,
+                "unavailable": resources.zap_unavailable,
+                "idle": resources.zap_idle,
+                "samples": list(resources.zap_samples) if resources.complete else [],
             },
         },
     )
@@ -173,9 +184,10 @@ def _exercise(
             cli.run("stack", "up", product, "--build", f"--{mode}", timeout=_remaining(900)).code
             == 0
         )
+        zap_view = FastZapView(cli.state_file())
         if layer == "t4":
             started = time.monotonic()
-            with ResourceSampler() as sampler:
+            with ResourceSampler(zap=zap_view) as sampler:
                 result = cli.run("run", product, timeout=_remaining(3600))
             run_id = str(result.data.get("run_id") or result.envelope.get("run_id") or "")
             scenario = Scenario(
@@ -203,7 +215,7 @@ def _exercise(
                 operations = ("baixarDocumento",)
             flags = [part for operation in operations for part in ("--only", operation)]
             started = time.monotonic()
-            with ResourceSampler() as sampler:
+            with ResourceSampler(zap=zap_view) as sampler:
                 result = cli.run("scan", product, "--run", run_id, *flags, timeout=_remaining(3600))
             seconds = time.monotonic() - started
             cli.run("report", product, "--run", run_id, timeout=_remaining(900))

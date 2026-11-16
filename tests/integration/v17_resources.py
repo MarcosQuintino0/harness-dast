@@ -8,6 +8,11 @@ import threading
 import time
 from typing import Self
 
+import httpx
+
+from tests.integration.lab_support import ZapView
+from tests.integration.v17_zap_config import sample_zap
+
 _LINE = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s*/")
 _MEMORY = re.compile(r"^([0-9]+(?:\.[0-9]+)?)(B|KiB|MiB|GiB)$")
 _UNITS = {"B": 1 / 1048576, "KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0}
@@ -37,7 +42,7 @@ def parse_sample(line: str) -> tuple[str, float | None, float | None] | None:
 class ResourceSampler:
     """Picos e contagens amostrados; CPU percentual não representa CPU acumulada."""
 
-    def __init__(self, interval: float = 15.0) -> None:
+    def __init__(self, interval: float = 15.0, *, zap: ZapView | None = None) -> None:
         self.interval = interval
         self.peaks: dict[str, float] = {}
         self.cpu_peaks: dict[str, float] = {}
@@ -45,6 +50,12 @@ class ResourceSampler:
         self.memory_samples: dict[str, int] = {}
         self.attempts = 0
         self.seconds = 0.0
+        self.complete = False
+        self.zap_attempts = 0
+        self.zap_unavailable = 0
+        self.zap_idle = 0
+        self.zap_samples: list[dict[str, object]] = []
+        self._zap = zap
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._started = 0.0
@@ -56,13 +67,29 @@ class ResourceSampler:
 
     def __exit__(self, *exc: object) -> None:
         self._stop.set()
-        self._thread.join(timeout=45)
+        self._thread.join(timeout=50)
+        self.complete = not self._thread.is_alive()
         self.seconds = time.monotonic() - self._started
 
     def _loop(self) -> None:
         while not self._stop.is_set():
             self._sample()
+            self._sample_zap()
             self._stop.wait(self.interval)
+
+    def _sample_zap(self) -> None:
+        if self._zap is None:
+            return
+        self.zap_attempts += 1
+        try:
+            sample = sample_zap(self._zap)
+        except (httpx.HTTPError, ValueError, TypeError, OSError):
+            self.zap_unavailable += 1
+            return
+        if sample is None:
+            self.zap_idle += 1
+        else:
+            self.zap_samples.append(sample)
 
     def _sample(self) -> None:
         self.attempts += 1

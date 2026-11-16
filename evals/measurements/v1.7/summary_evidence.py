@@ -35,6 +35,7 @@ class Record(BaseModel):
     proxy_audit: list[dict[str, Any]] = []
     accounts: list[dict[str, Any]] = []
     resource_sampling: dict[str, Any] | None = None
+    zap_config_sampling: dict[str, Any] | None = None
     peak_memory_mib: dict[str, float] = {}
     findings: list[dict[str, Any]] = []
 
@@ -77,7 +78,7 @@ class Record(BaseModel):
 
 
 def pacing_valid(record: Record) -> bool:
-    """Exige variante instalada e atraso efetivo observado no resultado do scan."""
+    """Exige configuração declarada e leitura consistente durante scans ativos desta execução."""
     config = record.profile.get("scan")
     limits = record.scan.get("limits")
     if not isinstance(config, dict) or not isinstance(limits, dict):
@@ -86,7 +87,52 @@ def pacing_valid(record: Record) -> bool:
     delay = limits.get("delay_ms")
     if not isinstance(delay, (int, float)) or isinstance(delay, bool):
         return False
-    return config.get("pacing") == expected and (delay > 0 if record.variant == "A" else delay == 0)
+    if config.get("pacing") != expected or not (delay > 0 if record.variant == "A" else delay == 0):
+        return False
+    sampling = record.zap_config_sampling or {}
+    samples = sampling.get("samples")
+    if sampling.get("status") != "observed" or not isinstance(samples, list) or not samples:
+        return False
+    return all(_pacing_sample_valid(sample, record.scan, delay) for sample in samples)
+
+
+def _pacing_sample_valid(sample: Any, scan: dict[str, Any], delay: float) -> bool:
+    if not isinstance(sample, dict) or not isinstance(sample.get("delay_ms"), int):
+        return False
+    if isinstance(sample.get("delay_ms"), bool) or sample["delay_ms"] != delay:
+        return False
+    try:
+        instant = datetime.fromisoformat(sample["at"])
+        start = datetime.fromisoformat(scan["started_at"])
+        end = datetime.fromisoformat(scan["finished_at"])
+        if any(value.utcoffset() is None for value in (instant, start, end)):
+            return False
+        if not start <= instant <= end:
+            return False
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+    entries = scan.get("entries", [])
+    if not isinstance(entries, list):
+        return False
+    ids = {
+        str(entry.get("scan_id"))
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("scan_id") is not None
+    }
+    scans = sample.get("scans")
+    if not isinstance(scans, list) or not scans or not ids:
+        return False
+    return all(
+        isinstance(row, dict)
+        and isinstance(row.get("id"), str)
+        and row["id"] in ids
+        and isinstance(row.get("state"), str)
+        and row.get("state") in {"RUNNING", "PAUSED"}
+        and isinstance(row.get("progress"), int)
+        and not isinstance(row.get("progress"), bool)
+        and 0 <= row["progress"] < 100
+        for row in scans
+    )
 
 
 def duration(scan: dict[str, Any]) -> float | None:

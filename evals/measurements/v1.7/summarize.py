@@ -225,6 +225,8 @@ def summarize(
                 "findings": record.findings,
                 "audit": audit(record),
                 "resource_sampling": record.resource_sampling,
+                "zap_config_sampling": record.zap_config_sampling,
+                "pacing_readback_consistent": pacing_valid(record),
                 "peak_memory_mib": record.peak_memory_mib or None,
             }
         for index in sorted({i for layer, i, _ in records if layer == "t3"}):
