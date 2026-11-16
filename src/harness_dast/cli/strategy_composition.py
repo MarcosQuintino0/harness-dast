@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
@@ -18,4 +19,5 @@ def build_strategy(products_dir: Path | None) -> StrategyService:
         FileStrategyRepository(root),
         open_approval_store(),
         SystemClock(),
+        FileProductDocuments(root),
     )

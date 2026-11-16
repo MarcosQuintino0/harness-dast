@@ -23,14 +23,7 @@ def diff_command(
     ctx: typer.Context, product: str, products_dir: Annotated[Path | None, _DIR] = None
 ) -> None:
     """Mostra a classificação da estratégia sem expor valores livres."""
-    data = build_strategy(products_dir).inspect(product)
-    pending = data["strategy_state"] == "review_required"
-    data.update(
-        {
-            "changes": ["coverage"] if pending else [],
-            "classification": "pending" if pending else "automatic",
-        }
-    )
+    data = build_strategy(products_dir).diff(product)
     emit(build_success(data), json_mode=get_state(ctx).json_mode, human=str(data))
 
 

@@ -45,6 +45,22 @@ from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.wait import WaitResult
 
 
+class StrategyStore(Protocol):
+    """Armazena estratégias sem conceder autorização."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """Lê estratégia ou devolve None quando ausente."""
+        ...
+
+    def check_references(self, product: str) -> None:
+        """Confere contenção das referências."""
+        ...
+
+    def migrate(self, product: str, output: str) -> str:
+        """Cria cópia neutra sem sobrescrever."""
+        ...
+
+
 class WaitReader(Protocol):
     """Fornece uma observação validada da execução."""
 

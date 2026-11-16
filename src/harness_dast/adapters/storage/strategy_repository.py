@@ -50,9 +50,19 @@ class FileStrategyRepository:
         if not directory.is_dir():
             raise ConfigError("Produto inexistente.")
         self.check_references(product)
+        path = directory / output
+        created = False
         try:
-            with (directory / output).open("x", encoding="utf-8", newline="\n") as stream:
+            with path.open("x", encoding="utf-8", newline="\n") as stream:
+                created = True
                 stream.write(_MIGRATED)
         except OSError:
+            if created:
+                try:
+                    path.unlink()
+                except OSError:
+                    raise ConfigError(
+                        "Falha ao gravar a cópia e ao remover o arquivo incompleto."
+                    ) from None
             raise ConfigError("Não foi possível criar a cópia; confira se já existe.") from None
         return output

@@ -33,6 +33,7 @@ from harness_dast.application.ports import (
     SecretVault,
     Sleeper,
     SpecLoader,
+    StrategyStore,
     TargetClient,
     ZapControl,
 )
@@ -47,7 +48,7 @@ from harness_dast.application.scan_ports import (
 )
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
-from harness_dast.application.strategy import StrategyStore, load_strategy
+from harness_dast.application.strategy import load_strategy
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
