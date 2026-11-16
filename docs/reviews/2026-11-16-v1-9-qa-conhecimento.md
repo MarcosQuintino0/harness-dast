@@ -9,3 +9,9 @@ A integração revisada grava pendências de probe em `mutations/` e authz em `a
 O conhecimento vincula as categorias às fontes e recusa uso ativo com dependência alterada; `effect` permanece proposta e não é habilitada pelo loader. A dupla leitura em `probe` reduz corridas, mas não prova ausência de troca ABA entre leituras e materialização. O teste de dois processos usa alvos e motor falsos e os mesmos documentos em disco; não demonstra a segunda rodada cega nem ausência de retrabalho em APIs reais. A invalidação é conservadora: categoria stale pode bloquear a carga inteira, sem significar uso automático de entrada stale.
 
 O teste independente da exportação falhou sobre o commit revisado; Ruff passou. Não executei Docker, alvo, estudo cego ou suíte geral. As provas dirigidas posteriores devem indicar o commit integrado, preservar o resultado anterior e não substituir a avaliação humana.
+
+## Revalidação após correção de exportação
+
+Sobre a integração `24b229d` e `6357bc5`, os três arquivos independentes de par, diário entre comandos e exportação passaram: **9/9**. Ruff e mypy dirigidos aos três arquivos também passaram. O teste de Bearer desconhecido aceita recusa ou descarte e confirma que o marcador não existe no pacote. Corrigida a assinatura do falso de diário para coincidir com o protocolo, sem alterar o teste de zero POST.
+
+Estes resultados são T1 offline; não substituem T2/T4, comparação das classes com V1.8, prova de novidade global para 200, garantia de persistência após falta de energia nem estudo em duas rodadas cegas. As provas de laboratório e os gates gerais pertencem à coordenação; não foram reproduzidos nesta revisão.

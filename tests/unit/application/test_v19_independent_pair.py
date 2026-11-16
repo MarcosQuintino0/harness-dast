@@ -77,7 +77,7 @@ def test_v19_independent_journal_failure_prevents_mutation() -> None:
         def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
             raise ConfigError("diário indisponível")
 
-        def finish(self, key: str, outcome: Literal["succeeded", "failed"]) -> None:
+        def finish(self, key: str, outcome: Literal["succeeded", "failed", "observed"]) -> None:
             raise AssertionError("não há resultado sem intenção")
 
     rig = make_rig("api/widgets", exposed=True)
