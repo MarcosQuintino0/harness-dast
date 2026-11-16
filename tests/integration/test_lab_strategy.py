@@ -1,0 +1,115 @@
+"""T2/T4 da estratégia neutra nas duas APIs; exige laboratório exclusivo e local."""
+
+import secrets
+from pathlib import Path
+
+import pytest
+
+from tests.integration.lab_support import LabCli, proxy_audit, require_docker
+from tests.integration.run_support import record_metrics, run_scenario, throwaway_pilot_env
+from tests.integration.strategy_support import (
+    activate_strategy,
+    install_strategy,
+    load_artifact,
+    record_control,
+)
+from tests.integration.test_lab_v155 import _install
+from tests.integration.test_lab_vampi import SEEDED
+
+pytestmark = pytest.mark.integration
+
+
+def _cli(root: Path, product: str) -> LabCli:
+    env = (
+        throwaway_pilot_env()
+        if product == "clinica-piloto"
+        else {**SEEDED, "HDAST_ZAP_API_KEY": secrets.token_hex(32)}
+    )
+    return LabCli(root, env)
+
+
+@pytest.mark.lab_fast
+@pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
+@pytest.mark.parametrize("mode", ["vulnerable", "secure"])
+def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, mode: str) -> None:
+    require_docker()
+    cli = _cli(tmp_path, product)
+    # Mesma preparação já usada na prova V1.5.5, sem conhecimento no algoritmo/skill.
+    _install(cli, product)
+    activate_strategy(cli, product)
+    flags = ["--build", *(["--secure"] if mode == "secure" else [])]
+    try:
+        up = cli.run("stack", "up", product, *flags, timeout=900)
+        assert up.code == 0, up.stdout + up.stderr
+        preflight = cli.run("preflight", product)
+        assert preflight.code == 0, preflight.stdout + preflight.stderr
+        probe = cli.run("probe", product, timeout=900)
+        assert probe.code == 0, probe.stdout + probe.stderr
+        run_id = str(probe.envelope["run_id"])
+        authz = cli.run("authz", product, "--run", run_id, timeout=900)
+        assert authz.code == 0, authz.stdout + authz.stderr
+        negative = cli.run("negative", product, "--run", run_id, timeout=900)
+        assert negative.code == 0, negative.stdout + negative.stderr
+        # Uma entrada textual de consulta e uma leitura por identificador.
+        operations = (
+            ("buscarPacientesPorNome", "buscarPaciente")
+            if product == "clinica-piloto"
+            else ("api_views.users.get_by_username", "api_views.books.get_by_title")
+        )
+        only = [value for operation in operations for value in ("--only", operation)]
+        scan = cli.run("scan", product, "--run", run_id, *only, timeout=1200)
+        assert scan.code == 0, scan.stdout + scan.stderr
+        report = cli.run("report", product, "--run", run_id)
+        assert report.code == 0, report.stdout + report.stderr
+        artifacts = {
+            name: load_artifact(cli, run_id, name + ".json")
+            for name in ("authz", "negative", "scan")
+        }
+        record_control(product, mode, artifacts)
+        assert all(data["status"] == "completed" for data in artifacts.values())
+        assert not any(row["method"] == "DELETE" for row in proxy_audit(cli))
+        assert all(row["host"] == product for row in proxy_audit(cli))
+        if mode == "secure":
+            assert not artifacts["authz"]["findings"]
+        if product == "clinica-piloto" and mode == "vulnerable":
+            techniques = {item["technique"] for item in artifacts["authz"]["findings"]}
+            assert {"authz_horizontal", "authz_mass_assignment", "authz_cors"} <= techniques
+    finally:
+        cli.stack_down()
+
+
+@pytest.mark.lab_full
+@pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
+def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
+    require_docker()
+    cli = _cli(tmp_path, product)
+    install_strategy(cli, product)
+    try:
+        up = cli.run("stack", "up", product, "--build", timeout=900)
+        assert up.code == 0, up.stdout + up.stderr
+        scenario = run_scenario(f"v18-t4-{product}", cli, product=product, timeout=3600)
+        assert scenario.result.code in {0, 1}, scenario.result.stdout + scenario.result.stderr
+        run = scenario.load("run.json")
+        scan = scenario.load("scan.json")
+        assert run["status"] in {"completed", "findings"}
+        assert scan["status"] == "completed"
+        assert scan["rules_removed"] is True
+        assert scan["entries"]
+        assert all(row["host"] == product for row in scenario.audit)
+        assert not any(row["method"] == "DELETE" for row in scenario.audit)
+        record_metrics(
+            f"v18-t4-{product}-quality",
+            {
+                "product": product,
+                "mode": "vulnerable",
+                "run_id": scenario.run_id,
+                "status": run["status"],
+                "scan_status": scan["status"],
+                "entries": scan["entries"],
+                "traffic": scan.get("traffic"),
+                "findings_by_severity": dict(scenario.by_severity()),
+                "finding_titles": dict(scenario.finding_titles()),
+            },
+        )
+    finally:
+        cli.stack_down()

@@ -1,0 +1,23 @@
+{
+  "version": "1.8.0",
+  "registered_at_utc": "2026-11-16T04:16:00Z",
+  "scope": "laboratorio local; estrategia neutra; executor serial preservado",
+  "budget_minutes": 120,
+  "layers": {
+    "T1": "Matriz prevista e concreta comparada item a item com e sem estrategia; contratos e recusas sem alvo",
+    "T2": "Clinica Piloto e VAmPI, vulneravel e seguro; authz, negative e scan de duas operacoes por mecanismo",
+    "T4": "Uma varredura completa por API, somente vulneravel, sem --only ou politica reduzida"
+  },
+  "directed_operations": {
+    "clinica-piloto": ["buscarPacientesPorNome", "buscarPaciente"],
+    "vampi": ["api_views.users.get_by_username", "api_views.books.get_by_title"]
+  },
+  "selection_reason": "Entrada textual do contrato e leitura parametrizada; nenhum alvo escolhido pelo gabarito da rodada cega",
+  "acceptance": [
+    "Nenhuma estrategia alarga autorizacao, escopo, janela, limites ou politica",
+    "Perfil legado e plano com estrategia preservam trabalho item a item",
+    "Nao apresentar hashes, skips, lacunas ou etapas truncadas como prova positiva",
+    "Preservar controles observados, atribuicao de conta e evidencias; seguro sem novos achados reproduziveis"
+  ],
+  "excluded": ["T3 A/B: sem mudanca de velocidade", "T5 rodada cega: dispensada pelo briefing"]
+}

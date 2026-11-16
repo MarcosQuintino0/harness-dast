@@ -1,0 +1,64 @@
+"""Apoio da prova V1.8: ativação explícita e observações sem respostas ou credenciais."""
+
+import json
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+from tests.integration.lab_support import (
+    PILOT_PROFILE,
+    VAMPI_OPENAPI,
+    VAMPI_PROFILE,
+    LabCli,
+)
+from tests.integration.run_support import record_metrics
+
+
+def install_strategy(cli: LabCli, product: str) -> Path:
+    """Instala a cópia do laboratório e ativa só a estratégia gerada explicitamente."""
+    source = PILOT_PROFILE if product == "clinica-piloto" else VAMPI_PROFILE
+    extras = () if product == "clinica-piloto" else (VAMPI_OPENAPI,)
+    folder = cli.install_product(product, source, extras)
+    activate_strategy(cli, product)
+    return folder
+
+
+def activate_strategy(cli: LabCli, product: str) -> None:
+    """Migra sem alterar o perfil; o teste decide ativar o arquivo neutro produzido."""
+    folder = cli.products / product
+    before = (folder / "target.yml").read_bytes()
+    result = cli.run("strategy", "migrate", product)
+    assert result.code == 0, result.stdout + result.stderr
+    assert (folder / "target.yml").read_bytes() == before
+    assert not (folder / "strategy.yml").exists()
+    (folder / "strategy.migrated.yml").rename(folder / "strategy.yml")
+    valid = cli.run("strategy", "validate", product)
+    assert valid.code == 0, valid.stdout + valid.stderr
+    planned = cli.run("plan", product, "--dry-run")
+    assert planned.code == 0, planned.stdout + planned.stderr
+
+
+def load_artifact(cli: LabCli, run_id: str, name: str) -> dict[str, Any]:
+    """Lê somente um artefato redigido que o teste precisa conferir."""
+    loaded = json.loads((cli.runs / run_id / name).read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def record_control(product: str, mode: str, artifacts: dict[str, dict[str, Any]]) -> None:
+    """Registra cobertura, técnicas e lacunas sem valores enviados ou respostas."""
+    payload: dict[str, Any] = {"product": product, "mode": mode}
+    for stage, data in artifacts.items():
+        payload[stage] = {
+            "status": data["status"],
+            "requests_sent": data.get("requests_sent"),
+            "checks": data.get("checks"),
+            "entries": data.get("entries"),
+            "findings_by_technique": dict(
+                Counter(item["technique"] for item in data.get("findings", []))
+            ),
+            "not_tested_reasons": dict(
+                Counter(item["reason"] for item in data.get("not_tested", []))
+            ),
+        }
+    record_metrics(f"v18-t2-{product}-{mode}", payload)
