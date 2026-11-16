@@ -82,7 +82,7 @@ class CaptureKnowledge:
         common = {
             "reason": "references_existing_documents",
             "source": "contract",
-            "state": "validated",
+            "state": "proposed",
             "valid_until": profile.scope.authorization.valid_until,
         }
         entries = tuple(
@@ -91,8 +91,7 @@ class CaptureKnowledge:
                     **common,
                     "kind": kind,
                     "dependencies": (*deps, "planning"),
-                    "state": "proposed" if kind == "effect" else "validated",
-                    "source": "owner" if kind in {"account", "authentication"} else "contract",
+                    "state": "proposed",
                 }
             )
             for kind, deps in (

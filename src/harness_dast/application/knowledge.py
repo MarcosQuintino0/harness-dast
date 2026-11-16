@@ -47,9 +47,14 @@ class KnowledgeProfiles:
         if raw is None:
             return profile
         knowledge = Knowledge.from_data(raw)
+        if not any(e.kind != "effect" and e.state == "validated" for e in knowledge.entries):
+            return profile  # só proposta: nada é consumido, então nada depende do motor
         self._deps.check_references(product, knowledge.references)
         if self._zap is None:
-            raise ConfigError("Não é possível validar conhecimento sem o motor atual.")
+            raise ConfigError(
+                "Conhecimento validado exige o motor atual, que esta consulta sem tráfego não abre.",
+                hint="Rode o comando ativo, ou rebaixe a entrada para proposta em knowledge.yml.",
+            )
         basis = basis_for_engine(self._deps, product, profile, self._zap.version())
         if basis is None:
             raise ConfigError("Motor indisponível para validar conhecimento.")
@@ -98,14 +103,20 @@ class InspectKnowledge:
                 {"kind": entry.kind, "reasons": list(reason)}
                 for entry, reason in zip(knowledge.entries, reasons, strict=True)
             ],
-            "reusable": not any(
-                reason
-                for entry, reason in zip(knowledge.entries, reasons, strict=True)
-                if entry.kind != "effect" and entry.state == "validated"
-            ),
+            "reusable": _reusable(knowledge, reasons),
             "classification": "proposed" if any(reasons) else "automatic",
             "engine_status": "unavailable",
         }
+
+
+def _reusable(knowledge: Knowledge, reasons: tuple[tuple[str, ...], ...]) -> bool:
+    """Há entrada validada consumível e nenhuma delas tem motivo de invalidação."""
+    validated = [
+        reason
+        for entry, reason in zip(knowledge.entries, reasons, strict=True)
+        if entry.kind != "effect" and entry.state == "validated"
+    ]
+    return bool(validated) and not any(validated)
 
 
 def load_validated_effects(

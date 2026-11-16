@@ -41,14 +41,29 @@ class FileMutationJournal:
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
             (self._directory / "completed").mkdir(exist_ok=True)
+        except OSError:
+            raise self._io_error() from None
+        try:
             with path.open("x", encoding="utf-8", newline="\n") as stream:
                 stream.write(json.dumps(record) + "\n")
                 stream.flush()
                 os.fsync(stream.fileno())
-        except OSError:
+        except FileExistsError:
             raise ConfigError(
-                "Não foi possível registrar a intenção; não envie a mutação."
+                "Já existe mutação com resultado desconhecido para esta operação e conta.",
+                hint=(
+                    "Confira no alvo se a mudança foi aplicada e, só depois, remova o arquivo "
+                    f"pendente {path} (ação humana); o harness não repete a mutação às cegas."
+                ),
             ) from None
+        except OSError:
+            raise self._io_error() from None
+
+    def _io_error(self) -> ConfigError:
+        return ConfigError(
+            "Não foi possível gravar o diário de mutações (erro de E/S); não envie a mutação.",
+            hint=f"Confira a permissão e o espaço da pasta {self._directory}.",
+        )
 
     def finish(self, key: str, outcome: Outcome) -> None:
         """Registra resultado conhecido; falha de gravação deixa a intenção bloqueada."""

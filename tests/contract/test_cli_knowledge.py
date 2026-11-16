@@ -67,7 +67,7 @@ def test_captura_e_diff_reconhecem_efeito_proposto(
         == 0
     )
     result = json.loads(capsys.readouterr().out)
-    assert result["data"]["reusable"] is False
+    assert result["data"]["reusable"] is False  # sem --run, tudo é proposta: nada a reutilizar
     effect = next(item for item in result["data"]["entries"] if item["kind"] == "effect")
     assert "state" in effect["reasons"]
 

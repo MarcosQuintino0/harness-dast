@@ -262,7 +262,7 @@ def build_cleanup(
     """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
     root = products_dir_or_default(products_dir)
     return Cleanup(
-        profiles=checked_profiles(root),
+        profiles=checked_profiles(root, with_knowledge=False),
         scripts=FileCleanupScripts(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),

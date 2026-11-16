@@ -141,6 +141,8 @@ class NegativeSender:
                 max_attempts=1 if mutating else self._attempts_left(reserve),
             )
         except (WindowClosed, DeadlineReached):
+            # Com uma única tentativa, a recusa do portão vem antes de qualquer byte da mutação.
+            self._finish_mutation(key, "failed")
             raise
         except ScopeViolation:
             self._finish_mutation(key, "failed")

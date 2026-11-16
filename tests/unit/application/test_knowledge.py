@@ -35,10 +35,23 @@ def _setup(tmp_path: Path, *, approved: bool = True) -> tuple[CaptureKnowledge, 
     ), rig
 
 
+def _validate_captured(folder: Path) -> None:
+    """Simula a captura com recibos de uma rodada: promove as entradas de contrato a validadas."""
+    import yaml
+
+    path = folder / "knowledge.captured.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    for entry in data["entries"]:
+        if entry["kind"] != "effect":
+            entry["state"] = "validated"
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+
+
 def test_captura_e_reuso_validam_fontes_sem_pedido(tmp_path: Path) -> None:
     capture, rig = _setup(tmp_path)
     result = capture.execute("agenda")
     folder = tmp_path / "agenda"
+    _validate_captured(folder)
     assert result["activated"] is False
     assert not (folder / "knowledge.yml").exists()
     (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
@@ -68,6 +81,7 @@ def test_conhecimento_ativo_recusa_motor_ausente(tmp_path: Path) -> None:
     capture, rig = _setup(tmp_path)
     capture.execute("agenda")
     folder = tmp_path / "agenda"
+    _validate_captured(folder)
     (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
     profiles = KnowledgeProfiles(
         rig.profiles,
@@ -76,8 +90,35 @@ def test_conhecimento_ativo_recusa_motor_ausente(tmp_path: Path) -> None:
         rig.clock,
         None,
     )
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigError, match="motor atual"):
         profiles.load("agenda")
+
+
+def test_captura_sem_run_emite_somente_propostas_sem_origem_do_dono(tmp_path: Path) -> None:
+    import yaml
+
+    capture, _ = _setup(tmp_path)
+    capture.execute("agenda")
+    data = yaml.safe_load(
+        (tmp_path / "agenda" / "knowledge.captured.yml").read_text(encoding="utf-8")
+    )
+    assert {entry["state"] for entry in data["entries"]} == {"proposed"}
+    assert "owner" not in {entry["source"] for entry in data["entries"]}
+
+
+def test_conhecimento_apenas_proposto_e_ignorado_sem_motor(tmp_path: Path) -> None:
+    capture, rig = _setup(tmp_path)
+    capture.execute("agenda")
+    folder = tmp_path / "agenda"
+    (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
+    profiles = KnowledgeProfiles(
+        rig.profiles,
+        FileKnowledgeStore(tmp_path),
+        FileStrategyRepository(tmp_path),
+        rig.clock,
+        None,
+    )
+    assert profiles.load("agenda") == rig.profile
 
 
 def test_probe_recusa_fonte_alterada_entre_validacao_e_leitura(tmp_path: Path) -> None:
@@ -91,6 +132,7 @@ def test_probe_recusa_fonte_alterada_entre_validacao_e_leitura(tmp_path: Path) -
     capture, rig = _setup(tmp_path)
     capture.execute("agenda")
     folder = tmp_path / "agenda"
+    _validate_captured(folder)
     (folder / "knowledge.captured.yml").rename(folder / "knowledge.yml")
 
     class ChangedDocuments:
@@ -129,3 +171,21 @@ def test_probe_recusa_fonte_alterada_entre_validacao_e_leitura(tmp_path: Path) -
     with pytest.raises(ConfigError):
         probe.execute(ProbeRequest(product="agenda"))
     assert rig.target.requests == []
+
+
+def test_cleanup_ignora_conhecimento_mesmo_validado_e_sem_motor(tmp_path: Path) -> None:
+    from harness_dast.cli.approval_composition import checked_profiles
+    from tests.fakes.approvals import approve_product_on_disk
+    from tests.fakes.profile_data import dump_yaml, valid_profile_data
+
+    folder = tmp_path / "demo"
+    folder.mkdir()
+    (folder / "target.yml").write_text(dump_yaml(valid_profile_data()), encoding="utf-8")
+    (folder / "knowledge.yml").write_text("não é um conhecimento válido: [", encoding="utf-8")
+    approve_product_on_disk(tmp_path, "demo")
+
+    profile = checked_profiles(tmp_path, with_knowledge=False).load("demo")
+
+    assert profile.product == "demo"
+    with pytest.raises(ConfigError):
+        checked_profiles(tmp_path).load("demo")

@@ -75,3 +75,28 @@ def test_linha_de_base_nao_e_tratada_como_estado_observado(tmp_path: Path) -> No
     with pytest.raises(ConfigError):
         FileMutationJournal(tmp_path).begin(key, "present", snapshot)
     FileMutationJournal(tmp_path).begin(key, "unknown", snapshot)
+
+
+def test_pendencia_existente_explica_resultado_desconhecido_e_como_reconciliar(
+    tmp_path: Path,
+) -> None:
+    key = "c" * 64
+    FileMutationJournal(tmp_path).begin(key, "unknown")
+
+    with pytest.raises(ConfigError) as caught:
+        FileMutationJournal(tmp_path).begin(key, "unknown")
+
+    assert "Já existe mutação com resultado desconhecido" in caught.value.message
+    assert str(tmp_path / (key + ".jsonl")) in (caught.value.hint or "")
+    assert "remova" in (caught.value.hint or "")
+
+
+def test_falha_de_io_no_diario_nao_se_passa_por_pendencia(tmp_path: Path) -> None:
+    blocker = tmp_path / "ocupado"
+    blocker.write_text("arquivo no lugar da pasta", encoding="utf-8")
+
+    with pytest.raises(ConfigError) as caught:
+        FileMutationJournal(blocker).begin("d" * 64, "unknown")
+
+    assert "resultado desconhecido" not in caught.value.message
+    assert "gravar" in caught.value.message

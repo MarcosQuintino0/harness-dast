@@ -32,10 +32,17 @@ def formal_profiles(products_dir: Path) -> ProfileRepository:
     return ApprovedProfileRepository(FileProfileRepository(products_dir), open_approval_store())
 
 
-def checked_profiles(products_dir: Path, zap: ZapControl | None = None) -> ProfileRepository:
-    """Repositório de perfis que recusa o perfil sem aprovação humana vigente."""
+def checked_profiles(
+    products_dir: Path, zap: ZapControl | None = None, *, with_knowledge: bool = True
+) -> ProfileRepository:
+    """Repositório de perfis que recusa o perfil sem aprovação humana vigente.
+
+    `with_knowledge=False` (o `cleanup`) ignora o `knowledge.yml`: a limpeza não consome conhecimento.
+    """
     deps = FileStrategyRepository(products_dir)
     profiles = StrategyProfiles(formal_profiles(products_dir), deps, SystemClock(), zap)
+    if not with_knowledge:
+        return profiles
     return KnowledgeProfiles(profiles, FileKnowledgeStore(products_dir), deps, SystemClock(), zap)
 
 

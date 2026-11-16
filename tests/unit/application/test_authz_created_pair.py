@@ -1,7 +1,7 @@
 """Contrato da criação e leitura de pares sintéticos no authz."""
 
 import json
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
 
@@ -95,6 +95,7 @@ def execute(
     profiles: ProfileRepository | None = None,
     extra_exchanges: tuple[ExchangeRecord, ...] = (),
     rules_override: DataRules | None = None,
+    kill_switch: Any = None,
 ) -> AuthzResult:
     api_path = "/" + path
     probe = seed(
@@ -144,6 +145,7 @@ def execute(
         clock=rig.clock,
         sleeper=rig.clock,
         mutation_journal=journal,
+        kill_switch=kill_switch,
     )
     return usecase.execute(AuthzRequest(product="agenda", run_id=probe.run_id, checks=checks))
 

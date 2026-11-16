@@ -214,7 +214,12 @@ class ReplaySender:
             return self._dispatch(request, account, max_attempts=max_attempts)
         key = mutation_key(self._s.product, exchange.operation_id, account, request.method)
         begin_mutation(journal, key, snapshot)
-        result = self._dispatch(request, account, max_attempts=1)
+        try:
+            result = self._dispatch(request, account, max_attempts=1)
+        except (WindowClosed, DeadlineReached):
+            # Com uma única tentativa, a recusa do portão vem antes de qualquer byte da mutação.
+            finish_mutation(journal, key, "failed")
+            raise
         if result.problem is not None:
             finish_mutation(journal, key, "failed")
         elif result.status is not None and result.status < 500:
