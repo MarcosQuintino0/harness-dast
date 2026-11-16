@@ -16316,5 +16316,210 @@
     "operation_id": "auth.login",
     "classification": "operational denial at proxy, not evidence of out-of-scope request; correlation is documented, not proof of full negative coverage",
     "followup": "test correction proposed in 2aca105, c088946 and 0f33e07; real recheck pending"
+  },
+  "fast_only": {
+    "status": "passed",
+    "passed": 6,
+    "wall_seconds": 319.28,
+    "log_sha256": "e277ff50a6837b96c3080cc2c32376f45b78bbc619c131fb644ed92ff8abb76a",
+    "records": [
+      {
+        "fixture": "fast-pilot0",
+        "run_id": "2026-11-16T07-47-53Z-clinica-piloto-a78c",
+        "scan_sha256": "86eeaf9706ac126c4d91173d8587d8d2ab2af1dc21c32ae6fa3e96930d5c817f",
+        "cli_audit_sha256": "7d72f1910d96e93f6af1120d6d5a0f52314fe48c78a1793b465960afeee50cf1",
+        "proxy_audit_sha256": "18157c43047d74cfd424cbd79393af9b42eee9f52621a7d4f985b83553c04cd0",
+        "rule_stats_sha256": "7cca730a99ef5828efe3fbe9c6a2b71ede72992e679a943931b7b38bdfde1a99",
+        "scan_status": "completed",
+        "limits": {
+          "requests_per_second": 50.0,
+          "max_duration_minutes": 6,
+          "threads_per_host": 8,
+          "delay_ms": 20,
+          "max_scan_minutes": 6,
+          "max_rule_minutes": 2
+        },
+        "policy": {
+          "name": "hdast-scan",
+          "strength": "LOW",
+          "threshold": "MEDIUM",
+          "url_path_injection": true,
+          "injectable_mask": 51,
+          "disabled_rules": [
+            10104,
+            30001,
+            30002,
+            40032,
+            40034,
+            40035,
+            40043,
+            40044,
+            90034
+          ]
+        },
+        "entries": [
+          {
+            "operation": "buscarPacientesPorNome",
+            "outcome": "completed",
+            "truncated": false,
+            "requests": 628
+          },
+          {
+            "operation": "criarConvenio",
+            "outcome": "completed",
+            "truncated": false,
+            "requests": 828
+          }
+        ],
+        "skip_reasons": {
+          "not_selected": 39
+        },
+        "unfinished_rules": [
+          {
+            "plugin_id": 40026,
+            "state": "skipped",
+            "reason": "other",
+            "operations": 2
+          }
+        ],
+        "traffic": {
+          "enabled": true,
+          "allowed": 835,
+          "denied": 628,
+          "denied_by_reason": {
+            "malformed_request": 545,
+            "path_not_allowed": 81,
+            "origin_not_allowed": 2
+          },
+          "denied_by_detail": {
+            "path_encoded_slash": 183,
+            "path_not_allowed": 81,
+            "path_dot_segment": 4,
+            "path_empty_segment": 24,
+            "path_matrix_param": 106,
+            "path_double_encoding": 66,
+            "path_trailing_dot_space": 101,
+            "path_control_char": 61,
+            "origin_not_allowed": 2
+          },
+          "path_shape_denied": 545,
+          "allowed_outside_allow": 0,
+          "path_mode": "strict",
+          "allowed_by_method": {
+            "GET": 288,
+            "POST": 547
+          },
+          "duration_seconds": 44.828,
+          "average_rps": 18.63,
+          "peak_rps": 33,
+          "limit_rps": 50.0
+        },
+        "proxy_denied_by_reason": {
+          "rate_backoff": 1,
+          "malformed_request": 545,
+          "path_not_allowed": 81,
+          "origin_not_allowed": 2
+        },
+        "limitation": "independent fast control; legacy pacing, fixture profile; no T3/T4 equivalence or secure-mode claim"
+      },
+      {
+        "fixture": "fast-rate0",
+        "run_id": "2026-11-16T07-50-32Z-vampi-0855",
+        "scan_sha256": "a582b6fff7d112846b7d229a1b9b22df2e742ce2faeed76a2c63b869c9e698a3",
+        "cli_audit_sha256": "d0857bb6fe4f3da0c64ddc974eabbe7f451eb47008cfdfa2c93438d6015f370b",
+        "proxy_audit_sha256": "8c9731524f4ac96eab7d645c560530f02ce8720dc7883b4d1dff7ec484574384",
+        "rule_stats_sha256": "d4040c9f27282b331e8189a8cf2da24af1e071951a9c655820666563293ec21a",
+        "scan_status": "completed",
+        "limits": {
+          "requests_per_second": 5.0,
+          "max_duration_minutes": 6,
+          "threads_per_host": 2,
+          "delay_ms": 200,
+          "max_scan_minutes": 6,
+          "max_rule_minutes": 2
+        },
+        "policy": {
+          "name": "hdast-scan",
+          "strength": "LOW",
+          "threshold": "MEDIUM",
+          "url_path_injection": true,
+          "injectable_mask": 51,
+          "disabled_rules": [
+            10104,
+            30001,
+            30002,
+            40032,
+            40034,
+            40035,
+            40043,
+            40044,
+            90034
+          ]
+        },
+        "entries": [
+          {
+            "operation": "api_views.users.get_by_username",
+            "outcome": "completed",
+            "truncated": false,
+            "requests": 487
+          }
+        ],
+        "skip_reasons": {
+          "not_selected": 13
+        },
+        "unfinished_rules": [
+          {
+            "plugin_id": 40026,
+            "state": "skipped",
+            "reason": "other",
+            "operations": 1
+          }
+        ],
+        "traffic": {
+          "enabled": true,
+          "allowed": 141,
+          "denied": 352,
+          "denied_by_reason": {
+            "malformed_request": 307,
+            "path_not_allowed": 44,
+            "origin_not_allowed": 1
+          },
+          "denied_by_detail": {
+            "path_encoded_slash": 109,
+            "path_not_allowed": 44,
+            "path_dot_segment": 2,
+            "path_empty_segment": 14,
+            "path_matrix_param": 55,
+            "path_double_encoding": 36,
+            "path_trailing_dot_space": 56,
+            "path_control_char": 35,
+            "origin_not_allowed": 1
+          },
+          "path_shape_denied": 307,
+          "allowed_outside_allow": 0,
+          "path_mode": "strict",
+          "allowed_by_method": {
+            "GET": 136,
+            "POST": 5
+          },
+          "duration_seconds": 101.609,
+          "average_rps": 1.39,
+          "peak_rps": 5,
+          "limit_rps": 5.0
+        },
+        "proxy_denied_by_reason": {
+          "malformed_request": 307,
+          "path_not_allowed": 44,
+          "origin_not_allowed": 1
+        },
+        "limitation": "independent fast control; legacy pacing, fixture profile; no T3/T4 equivalence or secure-mode claim"
+      }
+    ],
+    "notes": [
+      "Pilot vulnerable only; validates scanner auth header, CSRF pairing, no leak, replacer cleanup and proxy denial accounting.",
+      "VAmPI 5 req/s and 2 threads; independent low-limit control, not 50/8 benchmark.",
+      "Tests do not build the proxy image themselves; they rely on the previously built image.",
+      "These fixtures use old stack_down helper without per-scenario lifecycle ledger."
+    ]
   }
 }
