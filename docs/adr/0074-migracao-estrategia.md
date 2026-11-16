@@ -15,7 +15,7 @@ Vamos manter perfis antigos operacionais sem estratégia. A migração é explí
 
 ## Complemento proposto: captura explícita do vínculo atual
 
-Proposto em 2026-11-16 antes do código complementar: `hdast strategy capture <produto> [--output strategy.captured.yml]` consulta somente a versão do ZAP local configurado, sem enviar pedido ao alvo. É uma ação explícita distinta das consultas secas e da migração neutra, que continuam sem rede.
+Proposto em 2026-11-16 antes do código complementar: `hdast strategy capture <produto> [--output strategy.captured.yml]` consulta somente a versão do ZAP da pilha local gerenciada e ativa do produto, sem enviar pedido ao alvo. Usa apenas o endpoint e a chave publicados pelo gerenciador, sem override de URL, e recusa controle remoto ou colisão com a porta do alvo local. A captura toma a trava interna da pilha durante conferência, consulta e escrita; pilha ocupada usa `STACK_BUSY`, saída 8. É uma ação explícita distinta das consultas secas e da migração neutra, que continuam sem rede.
 
 O comando exige perfil formal aprovado e vigente, valida documentos e planejamento locais e aceita somente estratégia ausente ou neutra. Produz cópia exclusiva com referências fixas e uma escolha `coverage/preserve`, origem `observation`, razão `preserve_baseline`, validade limitada à autorização e vínculo atual calculado independentemente. O estado validado descreve essas invariantes neutras; a observação não concede permissão. Não lê execução anterior, não altera perfil/aprovação/estratégia ativa e não ativa a cópia.
 
