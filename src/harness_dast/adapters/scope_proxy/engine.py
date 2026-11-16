@@ -125,6 +125,10 @@ class ScopeProxyEngine:
         """Aplica recuo temporário a todas as concessões da execução."""
         self._limiter.defer(seconds)
 
+    def backoff_remaining(self) -> float:
+        """Tempo restante do recuo solicitado pelo destino."""
+        return self._limiter.backoff_remaining()
+
     def check_destination(self, host: str, port: int, addresses: list[str]) -> Verdict:
         """Confere os endereços que o DNS devolveu para `host`, antes de conectar."""
         return check_addresses(addresses, allow_local=self._local_allowed(host, port))

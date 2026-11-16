@@ -95,10 +95,10 @@ class ScopeProxyAddon:
         if verdict.allowed:
             verdict = await self._wait_for_slot(flow)
         if not verdict.allowed:
-            status = 429 if verdict.reason is Reason.RATE_QUEUE_FULL else 403
+            status = 429 if verdict.reason in (Reason.RATE_QUEUE_FULL, Reason.RATE_BACKOFF) else 403
             self._log(flow, verdict, status=status)
             flow.metadata[_AUDITED] = True
-            flow.response = _refusal(status, verdict.reason)
+            flow.response = _refusal(status, verdict.reason, retry_after=verdict.retry_after)
             return
         flow.metadata[_RELEASED] = self._engine.now()
         flow.metadata[_RELEASED_MONO] = time.monotonic()
@@ -151,7 +151,7 @@ class ScopeProxyAddon:
             delay = retry_after_seconds(
                 flow.response.headers.get("Retry-After"), self._engine.now()
             )
-            self._engine.defer_slots(delay if delay is not None else 1.0)
+            self._grant_queue.defer(delay if delay is not None else 1.0)
         body = flow.response.raw_content
         size = len(body) if body is not None else None
         # ADR 0049: a leitura só OBSERVA (conta categorias, nunca nega nem grava corpo) e falha
@@ -242,14 +242,14 @@ def _wants_upgrade(request: http.Request) -> bool:
     )
 
 
-def _refusal(status: int, reason: Reason) -> http.Response:
+def _refusal(status: int, reason: Reason, *, retry_after: int | None = None) -> http.Response:
     headers = {
         "Content-Type": "text/plain; charset=utf-8",
         _REASON_HEADER: reason.value,
         "Connection": "close",
     }
     if status == 429:
-        headers["Retry-After"] = "1"
+        headers["Retry-After"] = str(retry_after if retry_after is not None else 1)
     return http.Response.make(status, b"hdast scope-proxy: request refused\n", headers)
 
 

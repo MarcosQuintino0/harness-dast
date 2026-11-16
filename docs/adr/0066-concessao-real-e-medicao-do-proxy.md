@@ -15,6 +15,13 @@ ausentes, inválidos ou fora desse intervalo provocam pausa de um segundo. Outro
 renovar o recuo. A trava e o prazo não são prorrogados, e a taxa não aumenta. Não há tentativas
 automáticas, inclusive de mutações.
 
+Enquanto o recuo estiver ativo, o proxy recusa imediatamente com HTTP 429,
+`X-Hdast-Reason: rate_backoff` e `Retry-After` igual ao tempo restante arredondado para
+cima. A recusa é auditada como `deny` e não chega ao destino. Pedidos já na fila são
+despertados; parada e prazo continuam prioritários. Isso evita manter a conexão aberta
+além do timeout do cliente sem encurtar o recuo remoto. Uma recusa é lacuna, não cobertura
+executada; a aplicação deve propagar essa condição ao resultado e ao relatório.
+
 O JSON de métricas recebe `timing` aditivo. `proxy_grant_wait_seconds` soma a espera real dos
 pedidos liberados; `proxy_network_seconds` soma o tempo entre concessão e resposta ou erro no
 proxy, incluindo DNS, conexão e processamento do servidor, não apenas latência de rede. Recusas
