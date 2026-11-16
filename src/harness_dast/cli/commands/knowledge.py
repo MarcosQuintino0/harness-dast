@@ -5,7 +5,10 @@ from typing import Annotated
 
 import typer
 
-from harness_dast.adapters.storage.knowledge_repository import FileKnowledgeStore
+from harness_dast.adapters.storage.knowledge_repository import (
+    FileKnowledgeRunStore,
+    FileKnowledgeStore,
+)
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
@@ -17,6 +20,7 @@ from harness_dast.cli.composition import build_spec_loader, products_dir_or_defa
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.cli.strategy_composition import open_capture_zap
+from harness_dast.config.settings import load_settings
 
 _DIR = typer.Option("--products-dir", show_default=False)
 
@@ -37,7 +41,10 @@ def validate_command(
 
 
 def capture_command(
-    ctx: typer.Context, product: str, products_dir: Annotated[Path | None, _DIR] = None
+    ctx: typer.Context,
+    product: str,
+    products_dir: Annotated[Path | None, _DIR] = None,
+    run_id: Annotated[str | None, typer.Option("--run")] = None,
 ) -> None:
     """Captura referências e vínculo do motor, sem alcançar o alvo."""
     root = products_dir_or_default(products_dir)
@@ -54,8 +61,9 @@ def capture_command(
                 build_spec_loader(root),
                 zap,
                 control,
+                FileKnowledgeRunStore(load_settings().runs_dir),
             )
-            data = service.execute(product)
+            data = service.execute(product, run_id)
         finally:
             zap.close()
     emit(build_success(data), json_mode=get_state(ctx).json_mode, human=str(data))

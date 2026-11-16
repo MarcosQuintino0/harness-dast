@@ -204,7 +204,13 @@ class RequestBuilder:
     """
 
     def __init__(
-        self, rules: DataRules, source: ValueSource, run_tag: str, *, initial_counter: int = 0
+        self,
+        rules: DataRules,
+        source: ValueSource,
+        run_tag: str,
+        *,
+        initial_counter: int = 0,
+        expected_rules: tuple[KnowledgeRuleUse, ...] = (),
     ) -> None:
         """Cria o montador.
 
@@ -213,6 +219,8 @@ class RequestBuilder:
             source: Fonte de valores (catálogo de geradores com semente e relógio injetados).
             run_tag: Etiqueta da execução, de `run_tag_from_run_id`.
             initial_counter: Posição inicial do contador de valores únicos.
+
+            expected_rules: Receitas validadas para conferir regras reaplicadas.
 
         Raises:
             ConfigError: Etiqueta inválida.
@@ -224,6 +232,7 @@ class RequestBuilder:
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
         self._rule_uses: list[KnowledgeRuleUse] = []
+        self._expected_rules = expected_rules
 
     @property
     def next_unique_counter(self) -> int:
@@ -605,8 +614,15 @@ class RequestBuilder:
                 location=ctx.location,
             )
         except ValidationError:
-            # Campos externos fora do formato seguro seguem executando, sem recibo reutiliz?vel.
+            # Campos externos fora do formato seguro seguem executando, sem recibo reutilizável.
             return
+        for expected in self._expected_rules:
+            if (expected.operation, expected.location, expected.field) == (
+                receipt.operation,
+                receipt.location,
+                receipt.field,
+            ) and expected != receipt:
+                raise ConfigError("Regra reutilizada diverge da receita validada.")
         if receipt not in self._rule_uses:
             self._rule_uses.append(receipt)
 

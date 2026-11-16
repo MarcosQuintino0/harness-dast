@@ -1,8 +1,10 @@
 """Captura e verificação de referências de conhecimento sem alcançar o alvo."""
 
+from harness_dast.application.knowledge_observations import from_run
 from harness_dast.application.ports import (
     ApprovalStore,
     Clock,
+    KnowledgeRunStore,
     KnowledgeStore,
     ProductDocuments,
     ProfileRepository,
@@ -34,6 +36,7 @@ class CaptureKnowledge:
         specs: SpecLoader,
         zap: ZapControl,
         control_url: str,
+        runs: KnowledgeRunStore | None = None,
     ) -> None:
         """Recebe fontes independentes, relógio e controle local do motor."""
         self._profiles, self._store, self._deps, self._approvals = (
@@ -44,8 +47,9 @@ class CaptureKnowledge:
         )
         self._clock, self._documents, self._specs, self._zap = clock, documents, specs, zap
         self._control_url = control_url
+        self._runs = runs
 
-    def execute(self, product: str) -> dict[str, JsonValue]:
+    def execute(self, product: str, run_id: str | None = None) -> dict[str, JsonValue]:
         """Valida documentos e aprovação, e cria cópia sem enviar pedido ao alvo."""
         profile = self._profiles.load(product)
         current_check(self._approvals, profile).ensure_approved()
@@ -63,7 +67,8 @@ class CaptureKnowledge:
         preview(profile, spec, flows)
         dependencies = self._deps.read_dependencies(product, profile)
         ensure_capture_control_url(self._control_url, profile.environment.base_url)
-        basis = basis_for_engine(self._deps, product, profile, self._zap.version())
+        version = self._zap.version()
+        basis = basis_for_engine(self._deps, product, profile, version)
         if basis is None:
             raise ConfigError("Motor indisponível para captura de conhecimento.")
         if (
@@ -109,5 +114,32 @@ class CaptureKnowledge:
             ),
             entries=entries,
         )
+        if run_id is not None:
+            if self._runs is None:
+                raise ConfigError("Leitor de execucoes indisponivel.")
+            observed = self._runs.read(run_id)
+            knowledge = from_run(
+                knowledge,
+                observed,
+                profile,
+                spec,
+                data,
+                flows,
+                self._documents.hashes(product, profile),
+                version,
+            )
+            current = self._runs.read(run_id).provenance
+            initial = observed.provenance
+            if (
+                self._deps.read_dependencies(product, profile) != dependencies
+                or current.run_id != initial.run_id
+                or current.manifest_sha256 != initial.manifest_sha256
+                or current.probe_sha256 != initial.probe_sha256
+                or current.authz_sha256 != initial.authz_sha256
+                or self._profiles.load(product) != profile
+            ):
+                raise ConfigError("Fontes mudaram durante a captura; repita a operacao.")
+            current_check(self._approvals, profile).ensure_approved()
+            profile.scope.authorization.ensure_valid(self._clock.now())
         name = self._store.write_capture(product, knowledge.model_dump(mode="json"))
         return {"product": product, "copy": name, "activated": False, "approval_changed": False}

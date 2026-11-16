@@ -24,3 +24,11 @@ Na execução, o repositório aprovado verifica vínculo e validade das categori
 Depois de ler OpenAPI, regras e fluxos, o probe recarrega o perfil e revalida o conhecimento antes do envio. Mudança persistente entre as leituras é recusada, e os modelos já lidos seguem na execução. Uma mudança A para B e novamente para A durante as leituras não é detectada: a dupla verificação não é uma captura atômica das fontes.
 
 A prova offline em dois processos usa motor, especificação e alvo falsos, com documentos de dados e fluxo em disco. Ela não prova detecção nas APIs do laboratório, não demonstra redução de retrabalho e não comprova observação de efeito.
+
+## Captura explícita de observações por execução
+
+`hdast knowledge capture PRODUTO --run RUNID` lê manifesto, probe e, quando existe, authz da mesma execução. Exige execução concluída não simulada, produto, perfil, arquivos e versão do motor correspondentes às fontes atuais. `probe.json` passa a registrar, apenas em operações 2xx, referências sanitizadas às regras efetivamente aplicadas e aos encadeamentos resolvidos; os recibos não guardam valores ou identificadores concretos. Os apelidos associados a operações 2xx indicam uso da conta configurada, não comprovam a identidade de quem está por trás dela. Regra ou fluxo sem recibo ficam propostos e o fluxo legado dos documentos permanece disponível.
+
+Receitas de efeito só entram quando `authz.json` contém recibos de releitura verificada, com operação de escrita, leitura, conta e nomes de campos; escrita isolada não comprova efeito. O consumidor revalida validade e fontes, e o authz só pode aplicar receitas a candidatos do plano existente. Nenhuma receita concede autorização nova.
+
+A captura guarda run_id e hashes de manifesto, probe e authz quando disponível. Os hashes permitem comparar arquivos, mas não autenticam autoria e não impedem forja local; a cópia em outro contexto não inclui os artefatos originais. Cada referência é confrontada com perfil e contrato atuais, e dados, respostas, tokens, cookies, credenciais e identificadores de recurso não são copiados. Recibos incompatíveis são recusados na captura; referências propostas não suprimem cobertura.

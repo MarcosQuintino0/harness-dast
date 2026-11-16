@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from tests.integration.lab_support import CliResult, LabCli, manifest, proxy_audit, require_docker
 from tests.integration.run_support import (
@@ -59,10 +60,20 @@ def _first_context(
         _run(cli, stages, "first", "preflight", product)
         probe = _run(cli, stages, "first", "probe", product)
         run_id = str(probe.envelope["run_id"])
-        capture = _run(cli, stages, "first", "knowledge", "capture", product)
+        _run(cli, stages, "first", "authz", product, "--run", run_id)
+        capture = _run(cli, stages, "first", "knowledge", "capture", product, "--run", run_id)
         assert capture.data["activated"] is False
         assert capture.data["approval_changed"] is False
         assert capture.data["copy"] == "knowledge.captured.yml"
+        captured = yaml.safe_load(
+            (cli.products / product / "knowledge.captured.yml").read_text(encoding="utf-8")
+        )
+        authz = load_artifact(cli, run_id, "authz.json")
+        receipts = authz.get("effects", [])
+        assert captured["effects"] == receipts
+        assert captured["provenance"]["run_id"] == run_id
+        effect = next(entry for entry in captured["entries"] if entry["kind"] == "effect")
+        assert effect["state"] == ("validated" if receipts else "proposed")
         return run_id, dict(manifest(cli, run_id)["hashes"])
     finally:
         cli.stack_down()

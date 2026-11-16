@@ -19,6 +19,7 @@ from harness_dast.application.ports import (
     Clock,
     EntropySource,
     KillSwitch,
+    KnowledgeRecipeReader,
     MutationJournal,
     ProductDocuments,
     ProfileRepository,
@@ -123,6 +124,7 @@ class Probe:
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
         mutation_journal: MutationJournal | None = None,
+        knowledge_recipes: KnowledgeRecipeReader | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -145,6 +147,7 @@ class Probe:
         self._login_budget = login_budget
         self._kill_switch = kill_switch
         self._mutation_journal = mutation_journal
+        self._knowledge_recipes = knowledge_recipes
 
     def execute(self, request: ProbeRequest) -> ProbeResult:
         """Executa o `probe`.
@@ -179,6 +182,11 @@ class Probe:
         rules.validate_against(spec)
         if flows is not None:
             flows.validate_against(spec)
+        expected_rules = (
+            self._knowledge_recipes.validate(request.product, profile, spec, rules, flows)
+            if self._knowledge_recipes is not None
+            else ()
+        )
         # A segunda leitura revalida as fontes depois de materializar os modelos usados.
         if self._profiles.load(request.product) != profile:
             raise ConfigError("Perfil mudou durante a preparacao do probe.")
@@ -197,7 +205,9 @@ class Probe:
             started_at=started, product=profile.product, suffix=self._entropy.hex_suffix()
         )
         recorder = RecordingSource(self._value_sources(seed, started))
-        builder = RequestBuilder(rules, recorder, run_tag_from_run_id(run_id.value))
+        builder = RequestBuilder(
+            rules, recorder, run_tag_from_run_id(run_id.value), expected_rules=expected_rules
+        )
         accounts = _accounts_used(profile, plan, pinned)
         return _Run(
             request,

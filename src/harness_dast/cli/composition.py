@@ -19,6 +19,7 @@ from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
+from harness_dast.adapters.storage.knowledge_repository import FileKnowledgeStore
 from harness_dast.adapters.storage.letter_reader import FileLetterReader
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
@@ -29,6 +30,7 @@ from harness_dast.adapters.storage.product_scaffolder import (
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
 from harness_dast.adapters.storage.stack_state import default_state_dir
+from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
@@ -38,6 +40,7 @@ from harness_dast.application.doctor import Doctor
 from harness_dast.application.init_from_letter import InitFromLetter
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
+from harness_dast.application.knowledge import ExecutableKnowledge
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import KillSwitch, OperatorPrompt, SecretPrompt
 from harness_dast.application.preflight import Preflight
@@ -241,6 +244,12 @@ def build_probe(
         value_sources=GeneratorCatalogue,
         harness_version=harness_version(),
         mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
+        knowledge_recipes=ExecutableKnowledge(
+            FileKnowledgeStore(root),
+            FileStrategyRepository(root),
+            SystemClock(),
+            None if dry_run else network.zap,
+        ),
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
