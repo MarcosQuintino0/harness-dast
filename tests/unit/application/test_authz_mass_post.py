@@ -89,7 +89,7 @@ def test_a_location_on_another_host_is_ignored_and_the_body_id_is_used() -> None
     assert "leitura do recurso criado" in result.findings[0].evidence
 
 
-def test_when_the_created_read_fails_the_post_response_is_what_counts() -> None:
+def test_when_the_created_read_fails_the_post_echo_is_not_proof() -> None:
     rig = post_rig(Clinic(creates=("nivelAcesso",), post_echo=True))
     probe = rig.run_probe()
     rig.clinic.readable = False
@@ -98,8 +98,8 @@ def test_when_the_created_read_fails_the_post_response_is_what_counts() -> None:
         AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
     )
 
-    assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
-    assert "resposta do próprio POST" in result.findings[0].evidence
+    assert not result.findings
+    assert notes(result, "effect_unobservable")
     assert result.effects == ()
 
 
@@ -195,5 +195,5 @@ def test_the_created_read_goes_through_the_scope_guard_and_deny_paths_stops_it()
     result = run_mass(rig)
 
     assert all(not r.url.endswith("/api/medicos/2") for r in rig.target.requests)
-    assert [f.fields[0] for f in result.findings] == ["nivelAcesso"]
-    assert "resposta do próprio POST" in result.findings[0].evidence
+    assert not result.findings
+    assert any(n.reason == "effect_unobservable" for n in result.not_tested)

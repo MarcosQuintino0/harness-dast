@@ -41,11 +41,11 @@ class Pending:
     previous: JsonValue = None
 
 
-def read_body(ctx: CheckContext, read: ExchangeRecord | None) -> JsonValue | None:
+def read_body(ctx: CheckContext, read: ExchangeRecord | None, *, tag: str = "") -> JsonValue | None:
     """Corpo JSON da leitura (um `GET` provado, pela conta dele), ou `None` se falhou."""
     if read is None:
         return None
-    reply = ctx.sender.send(read, read.account)
+    reply = ctx.sender.send(read, read.account, tag=tag)
     return parse_json(reply.body) if is_success_status(reply.status) else None
 
 
@@ -79,7 +79,7 @@ def restore(
     """
     if not is_restorable(previous):
         return None
-    observed = any(
+    observed = read is not None and any(
         normalize_field_name(path.rsplit(".", 1)[-1]) == normalize_field_name(field[0])
         for path in changed
     )
@@ -138,11 +138,12 @@ def unrestored_note(
         after: Depois de quê a execução pode ter parado, por exemplo "do PUT".
         cause: `interrupted` (a execução parou) ou outro valor (restauração não confirmada).
     """
-    why = (
-        f"a execução parou depois {after} e a restauração não pôde ser feita ou confirmada"
-        if cause == "interrupted"
-        else "a restauração não foi confirmada"
-    )
+    if cause == "outcome_unknown":
+        why = "o efeito é desconhecido e nenhuma restauração foi enviada"
+    elif cause == "interrupted":
+        why = f"a execução parou depois {after} e a restauração não pôde ser feita ou confirmada"
+    else:
+        why = "a restauração não foi confirmada"
     return note(
         check,
         exchange,

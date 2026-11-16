@@ -75,7 +75,9 @@ def test_v19_independent_post_readback_refutes_echo(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(support, "Objects", EchoButIgnore)
     rig, result = support._run(True)
-    assert any(r.operation_id == "authz:readObject" for r in rig.target.requests)
+    assert any(
+        r.operation_id == "authz:effect_recipe_after:readObject" for r in rig.target.requests
+    )
     assert not result.findings
     assert not result.effects
 
@@ -114,7 +116,10 @@ def test_v19_independent_put_readback_refutes_echo_or_preexisting(before: int) -
     delegate = rig.clinic
 
     def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
-        if request.operation_id == "authz:readAlternative":
+        if request.operation_id in (
+            "authz:effect_recipe_before:readAlternative",
+            "authz:effect_recipe_after:readAlternative",
+        ):
             return reply(200, {"saldo": before})
         if request.operation_id == "authz:atualizarPerfil":
             return reply(200, {"saldo": 11})
@@ -145,6 +150,8 @@ def test_v19_independent_put_readback_refutes_echo_or_preexisting(before: int) -
     result = service.execute(
         AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
     )
-    assert any(r.operation_id == "authz:readAlternative" for r in rig.target.requests)
+    assert any(
+        r.operation_id == "authz:effect_recipe_before:readAlternative" for r in rig.target.requests
+    )
     assert not result.findings
     assert not result.effects

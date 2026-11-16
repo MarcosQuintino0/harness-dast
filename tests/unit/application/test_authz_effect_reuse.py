@@ -108,7 +108,11 @@ def test_receita_ativa_releitura_provada_sem_nova_escrita() -> None:
     updated, result = _run(True)
     baseline_posts = [r for r in baseline.target.requests if r.operation_id == "authz:submit"]
     updated_posts = [r for r in updated.target.requests if r.operation_id == "authz:submit"]
-    reads = [r for r in updated.target.requests if r.operation_id == "authz:readObject"]
+    reads = [
+        r
+        for r in updated.target.requests
+        if r.operation_id == "authz:effect_recipe_after:readObject"
+    ]
     assert len(baseline_posts) == len(updated_posts) == 1
     assert not [r for r in baseline.target.requests if r.operation_id == "authz:readObject"]
     assert len(reads) == 1
@@ -119,10 +123,9 @@ def test_receita_ativa_releitura_provada_sem_nova_escrita() -> None:
     assert result.effects[0].read_operation == "readObject"
 
 
-def test_leitura_sem_efeito_preserva_achado_baseline_sem_inventar_recibo() -> None:
+def test_leitura_sem_efeito_nao_usa_echo_para_inventar_achado() -> None:
     _, baseline = _run(False, reveal=False)
     _, result = _run(True, reveal=False)
     assert baseline.findings
-    assert result.findings
+    assert not result.findings
     assert result.effects == ()
-    assert "resposta do próprio POST" in result.findings[0].evidence

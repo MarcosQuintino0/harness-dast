@@ -31,6 +31,7 @@ from harness_dast.application.authz_sender import (
     CheckContext,
     CheckResult,
     Reply,
+    StopRun,
     inconclusive,
     note,
     problem_note,
@@ -76,14 +77,16 @@ def _mass_task(ctx: CheckContext, task: MassTask, out: CheckResult) -> None:
         reader = next(
             (read for name, read in task.candidate_readers if name == candidate.name), None
         )
-        selected = replace(task, read=reader) if reader is not None else task
+        selected = replace(
+            task,
+            read=reader or task.read,
+            candidate_readers=((candidate.name, reader),) if reader is not None else (),
+        )
         if task.created:
-            if not run_post_candidate(
-                ctx, selected, original, candidate, out, recipe_read=reader is not None
-            ):
+            if not run_post_candidate(ctx, selected, original, candidate, out):
                 return
         else:
-            _mass_one(ctx, selected, original, candidate, out, recipe_read=reader is not None)
+            _mass_one(ctx, selected, original, candidate, out)
 
 
 def _budget_note(task: MassTask) -> AuthzNotTested:
@@ -102,27 +105,44 @@ def _mass_one(
     original: dict[str, JsonValue],
     candidate: Candidate,
     out: CheckResult,
-    *,
-    recipe_read: bool = False,
 ) -> None:
     exchange = task.exchange
     if candidate.source == "declared":
         # O valor declarado não depende do estado: um valor repetido é recusado sem ler.
         chosen = choose_injection(exchange, original, candidate, None)
-        before = _read(ctx, task) if isinstance(chosen, Injection) and not recipe_read else None
+        before = _read(ctx, task, phase="before") if isinstance(chosen, Injection) else None
     else:
-        before = _read(ctx, task) if not recipe_read else None
+        before = _read(ctx, task, phase="before")
         chosen = choose_injection(
             exchange, original, candidate, current_value(before, candidate.name)
         )
     if not isinstance(chosen, Injection):
         out.not_tested.append(chosen)
         return
+    if task.read is not None and before is None:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "baseline_failed",
+                "A leitura anterior pela conta escritora falhou; a escrita não foi enviada.",
+            )
+        )
+        return
+    current = current_value(before, chosen.name)
+    if before is not None and type(current) is type(chosen.value) and current == chosen.value:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "already_in_target_state",
+                "A leitura anterior já mostrava o valor de teste; a escrita não foi enviada.",
+            )
+        )
+        return
     pending = Pending()
     try:
-        _mass_apply(
-            ctx, task, original, (candidate, chosen), before, out, pending, recipe_read=recipe_read
-        )
+        _mass_apply(ctx, task, original, (candidate, chosen), before, out, pending)
     except INTERRUPTIONS:
         after_interruption(
             ctx,
@@ -144,8 +164,6 @@ def _mass_apply(
     before: JsonValue | None,
     out: CheckResult,
     pending: Pending,
-    *,
-    recipe_read: bool = False,
 ) -> None:
     candidate, extra = chosen
     exchange = task.exchange
@@ -167,7 +185,16 @@ def _mass_apply(
         return
     if put.status is None or put.status >= 500:
         out.not_tested.append(inconclusive("mass_assignment", exchange, put))
-        return
+        out.not_tested.append(
+            unrestored_note(
+                "mass_assignment", exchange, _what(extra.name), "do PUT", "outcome_unknown"
+            )
+        )
+        pending.attempted = False
+        raise StopRun(
+            "stopped_target_unresponsive",
+            "A escrita teve resultado desconhecido; confira o estado antes de continuar.",
+        )
     if put.status in (401, 429):
         pending.attempted = False
         out.not_tested.append(inconclusive("mass_assignment", exchange, put))
@@ -176,12 +203,38 @@ def _mass_apply(
     if not is_success_status(put.status):
         pending.attempted = False
         return
-    after = _read(ctx, task, fallback=put)
+    after = _read(ctx, task, fallback=put, phase="after")
     changed, previous = injected_effect(before, after, extra.name, extra.value)
     confirmed_read = bool(changed) and task.read is not None and before is not None
-    if not changed and recipe_read:
-        changed, previous = injected_effect(before, parse_json(put.body), extra.name, extra.value)
+    if task.read is not None and after is None:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "effect_unobservable",
+                "A leitura posterior falhou; o efeito da escrita não foi confirmado.",
+            )
+        )
+        out.not_tested.append(
+            unrestored_note(
+                "mass_assignment", exchange, _what(extra.name), "do PUT", "outcome_unknown"
+            )
+        )
+        pending.attempted = False
+        raise StopRun(
+            "stopped_target_unresponsive",
+            "Não foi possível observar o efeito da escrita; confira o estado antes de continuar.",
+        )
     if not changed:
+        if task.candidate_readers:
+            out.not_tested.append(
+                note(
+                    "mass_assignment",
+                    exchange,
+                    "effect_unobservable",
+                    "A leitura da receita não comprovou o efeito da escrita.",
+                )
+            )
         pending.attempted = False
         return
     if (
@@ -238,11 +291,14 @@ def _what(field_name: str) -> str:
     return f"o campo extra '{field_name}' foi enviado"
 
 
-def _read(ctx: CheckContext, task: MassTask, fallback: Reply | None = None) -> JsonValue | None:
+def _read(
+    ctx: CheckContext, task: MassTask, fallback: Reply | None = None, *, phase: str
+) -> JsonValue | None:
     """Corpo JSON da leitura seguinte (um GET provado pelo `probe`) ou da própria resposta."""
     if task.read is None:
         return parse_json(fallback.body) if fallback is not None else None
-    return read_body(ctx, task.read)
+    tag = f"effect_recipe_{phase}:" if task.candidate_readers else ""
+    return read_body(ctx, task.read, tag=tag)
 
 
 def _previous_value(before: JsonValue | None, name: str) -> JsonValue:

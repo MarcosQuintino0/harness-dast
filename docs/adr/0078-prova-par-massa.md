@@ -41,8 +41,10 @@ Quando uma releitura pela conta escritora comprova o efeito, `authz.json.effects
 `write_operation`, `read_operation`, `account`, `fields` e `proof=readback_verified`; resposta de
 escrita isolada não produz recibo, e campos classificados como segredo ou dado pessoal não são
 exportados como receita. Receitas de efeito validadas podem associar um GET já provado
-na conta ao candidato existente sem criar candidato nem escrita, preservando a detecção que viria
-do corpo da resposta original. O perfil, método, conta, esquema, escopo e limites atuais continuam
+na conta ao candidato existente sem criar candidato nem escrita. Uma receita nunca substitui a
+leitura atual antes de PUT/PATCH. Quando há GET planejado, sua recusa ou ausência de efeito não
+é suprida pelo eco da escrita; o eco legado só pode ser usado quando não há GET. Essa correção
+pode reduzir achados antes baseados em eco. O perfil, método, conta, esquema, escopo e limites atuais continuam
 determinando o que pode ser enviado. GET de atualização precisa do mesmo alvo concreto; GET de
 criação exige marcador de identificador no caminho. Receita desatualizada não é usada.
 
@@ -52,3 +54,8 @@ criação exige marcador de identificador no caminho. Receita desatualizada não
 com 201 deixam de ser testados por falta de prova prévia. Isso é uma perda de cobertura explícita
 que requer avaliação em laboratório; não afirma equivalência com V1.8. APIs sem identificador
 antecipado nem coleção compatível continuam não testadas.
+
+A auditoria identifica GETs efetivos escolhidos por receita com `effect_recipe_before` e
+`effect_recipe_after`. Antes do PUT/PATCH, o snapshot seguro usa apenas valor da leitura atual;
+resposta 5xx ou ausente deixa pendência, aviso de possível alteração e interrompe a execução,
+sem restauração ou repetição automática. Sem GET, o eco legado não gera recibo de releitura.
