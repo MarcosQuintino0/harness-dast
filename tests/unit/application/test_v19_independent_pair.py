@@ -10,7 +10,7 @@ from tests.fakes.rig import INT, STR, operation
 from tests.unit.application.test_authz_created_pair import execute, make_rig
 
 
-def test_v19_independent_preserves_server_generated_201() -> None:
+def test_v19_independent_server_generated_id_is_not_tested_without_proof() -> None:
     rig = make_rig("api/widgets", exposed=True)
     create = operation(
         "createSynthetic",
@@ -28,6 +28,15 @@ def test_v19_independent_preserves_server_generated_201() -> None:
             )
         }
     )
+
+    result = execute(rig, "api/widgets")
+
+    assert not any(f.operation_id == "readSynthetic" for f in result.findings)
+    assert any(n.reason == "new_identifier_unavailable" for n in result.not_tested)
+
+
+def test_v19_independent_201_with_proven_new_id_and_owner_read() -> None:
+    rig = make_rig("api/widgets", exposed=True)
 
     result = execute(rig, "api/widgets")
 
