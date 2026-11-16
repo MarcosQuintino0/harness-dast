@@ -14,6 +14,7 @@ Nome dos arquivos: `AAAA-MM-DD-assunto.md` para o relatório e `AAAA-MM-DD-assun
 
 | Relatório | Resposta | Escopo | Parecer |
 | --- | --- | --- | --- |
+| [relatorio-v1.7.md](relatorio-v1.7.md) | [Validação independente](validacao-v1.7.md), [QA inicial](qa-v1.7.md) e [matriz final](../../evals/measurements/v1.7/quality-evidence.md) | Ritmo serial opcional, métricas, tecnologias consultivas e T1–T4 | Gates verdes; corrigir para aceite integral, com `legacy` padrão e qualidade/previsão inconclusivas |
 | [relatorio-v1.5.5.md](relatorio-v1.5.5.md) | [QA inicial](qa-v1.5.5.md), [encadeamento](qa-v1.5.5-encadeamento.md) e [suíte](qa-v1.5.5-suite.md) | Espera, massa, CORS, par novo, triagem e avaliação | Gates verdes e oito provas nas duas APIs; aceites B/D/F parciais no VAmPI; sem crAPI ou rodada cega |
 | [2026-11-13-qa-m1-m2.md](2026-11-13-qa-m1-m2.md) | [2026-11-13-qa-m1-m2-resposta.md](2026-11-13-qa-m1-m2-resposta.md) | M1 (fundação) e primeira metade do M2 (domínio) | Reprovado para fechar o M2 como estava; aprovado com ressalvas para o M1. 19 constatações (A-01 a A-19) |
 | [2026-11-13-qa-m2-m5.md](2026-11-13-qa-m2-m5.md) | [2026-11-13-qa-m2-m5-resposta.md](2026-11-13-qa-m2-m5-resposta.md) | M2 a M5: perfil, OpenAPI, probe, scan, report, limpeza e run | Reprovado para fechar o M5 como estava; aprovado com ressalvas para escopo, proxy, `scan`/`report` e leitores de entrada. 19 achados (Q-01 a Q-19) |

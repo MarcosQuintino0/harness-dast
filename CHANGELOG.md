@@ -26,6 +26,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - `metrics.json` recebe tempos de fila, identidade, concessão, resposta e recursos da CLI. Valores ausentes ficam nulos; tempos sobrepostos não são tempo de parede. O atraso efetivo do ZAP continua indisponível.
 - A carta pode gerar uma declaração consultiva de tecnologias com origem e frase, protegida pela aprovação. Todas as regras continuam ativas, pois uma declaração errada pode não produzir sinal observável.
 - `scan.json` e relatório expõem lacunas por regra; cobertura histórica desconhecida e recusas `rate_backoff` levam a cobertura parcial. Durante recuo 429, o proxy recusa imediatamente com o tempo remanescente em `Retry-After`, sem reter a conexão pelo recuo.
+- As orientações distinguem cobertura desconhecida de execução interrompida e descrevem recusas do proxy sem atribuir o recuo temporário ao escopo. Gates locais finais: 9.604 testes aprovados; o [parecer independente](docs/reviews/validacao-v1.7.md) pede correção para o aceite integral. [Relatório da versão](docs/reviews/relatorio-v1.7.md).
 - Os 12 controles T2 direcionados passaram. Em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. DOM XSS 40026 `skipped` impede aceite e previsão completa; na T4 a B da Clínica ocorreu antes do congelamento, sem previsão prospectiva válida. [Protocolo e limites](docs/reference/scan-performance.md); sem rodada cega nem prova em produto real.
 
 ## [1.5.5] - 2026-11-15

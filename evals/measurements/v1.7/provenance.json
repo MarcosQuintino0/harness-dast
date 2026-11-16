@@ -125,5 +125,34 @@
         "1 passed in 102.87s (0:01:42)"
       ]
     }
-  ]
+  ],
+  "validator_independent": {
+    "passed": 2,
+    "seconds": 281.64,
+    "records": [
+      {
+        "file": "validator-t2/v17-t2-clinica-piloto-secure-1-B.json",
+        "sha256": "6a7d5bff40c6ab43923910059765cc42329765987f1b9216770b61b8b12b56fe",
+        "mode": "secure",
+        "variant": "B",
+        "scan_status": "completed",
+        "rule_gaps": 1,
+        "sql_observed": false,
+        "readback": "unavailable"
+      },
+      {
+        "file": "validator-t2/v17-t2-clinica-piloto-vulnerable-1-B.json",
+        "sha256": "866d3468a2952c25562bf9a9175d75fdecd86f12a54c17b70bd49ef29a5f5bef",
+        "mode": "vulnerable",
+        "variant": "B",
+        "scan_status": "completed",
+        "rule_gaps": 1,
+        "sql_observed": true,
+        "readback": "unavailable"
+      }
+    ],
+    "compose_empty_after_finally_down": true,
+    "own_lock_removed": true,
+    "verified_by": "independent validator"
+  }
 }

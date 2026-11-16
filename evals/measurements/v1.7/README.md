@@ -10,6 +10,7 @@ Esta rodada é assistida e usa dados sintéticos. Não é avaliação cega nem p
 - [Proveniência e tentativas](provenance.json): hashes dos logs originais, falhas, repetições e encerramento da reserva do coordenador.
 - [Congelamento](forecast-freeze.json) e [previsão vazia](prediction-frozen.json): nenhuma previsão numérica qualificada; o B da Clínica foi executado antes do congelamento por erro de filtro, explicitamente preservado.
 - [Gates anteriores ao laboratório](gates-prelab.json) e [primeiro par](checkpoint-first-pair.json) são checkpoints datados, não gates finais.
+- [Gates finais](gates-final.json), [relatório da versão](../../../docs/reviews/relatorio-v1.7.md) e [validação independente](../../../docs/reviews/validacao-v1.7.md) fecham esta entrega parcial. Gates verdes não significam aceite da aceleração.
 
 Os originais sanitizados e logs estão em `C:\harness-dast-artefatos\v1.7-velocidade`. Cada `v17-*.json` fica em `lab/`; a pasta `lab/lifecycle/` contém a verificação independente de contêineres apenas a partir de T4. Estado privado do suporte e arquivos de segredo não fazem parte da evidência pública. Os hashes vinculam os resumos aos originais; não comprovam, isoladamente, a hora de produção.
 
