@@ -1,6 +1,6 @@
 # ADR 0068: declaração consultiva de tecnologias
 
-Data: 2026-11-16. Estado: aceita.
+Data: 2026-11-16. Estado: proposta.
 
 ## Contexto
 
