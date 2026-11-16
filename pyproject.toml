@@ -311,6 +311,9 @@ ignore_names = [
     "translated_commands",
     "catalog_entries",
     "WHO_VALUES",
+    # Prévia V1.8: campos públicos do envelope JSON lidos pela serialização pydantic.
+    "probe_decision",
+    "body_entries_complete",
 ]
 
 # ------------------------------------------------------------ commitizen
