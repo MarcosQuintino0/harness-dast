@@ -6,7 +6,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 
 ## O que este relatório não testou
 
-- **RELATÓRIO PARCIAL:** há operações elegíveis sem varredura ou etapas incompletas; o que não foi varrido não deve ser lido como seguro.
+- **RELATÓRIO PARCIAL:** há lacunas ou cobertura desconhecida em operações ou regras; o que não foi varrido não deve ser lido como seguro.
 - Falhas de autorização \(BOLA/IDOR, BFLA, troca de dados de outro usuário\) exigem comparar respostas de contas diferentes; uma varredura ativa do ZAP não as detecta.
 - Atribuição em massa \(mass assignment\), exposição excessiva de dados em respostas legítimas e falhas de lógica de negócio estão fora do que o ZAP detecta.
 - Só foram varridas as operações que o probe alcançou com sucesso e que o plano permitiu \(sem DELETE, sem o login, sem caminhos negados\); as demais constam como não testadas.
@@ -18,6 +18,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 - Estado do probe: completed; do scan: completed. Varreduras executadas: 4.
 - Limites aplicados: 5 req/s, 2 thread(s) por host, atraso de 200 ms, até 60 min no total, 10 min por varredura.
 - Política: força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regra(s) desligadas.
+- Cobertura por regra indisponível: não há prova de execução completa das regras.
 - Tráfego no proxy de escopo: não medido (sem auditoria do proxy).
 
 ### Varreduras truncadas ou paradas

@@ -234,7 +234,14 @@ def _left_out_rows(view: PanelView) -> list[tuple[MarkerKind, str]]:
 
 
 def _left_out(view: PanelView) -> str:
-    found = _left_out_rows(view) or [("ok", f"<b>{h.plain(_NOTHING_LEFT)}</b>")]
+    found = _left_out_rows(view)
+    if not found:
+        message = (
+            "Há lacunas ou cobertura desconhecida; veja os detalhes abaixo."
+            if view.coverage_partial
+            else _NOTHING_LEFT
+        )
+        found = [("am" if view.coverage_partial else "ok", f"<b>{h.plain(message)}</b>")]
     blind: list[tuple[MarkerKind, str]] = [
         ("no", h.tagged(item.text)) for item in view.left_out if item.kind == "blind"
     ]

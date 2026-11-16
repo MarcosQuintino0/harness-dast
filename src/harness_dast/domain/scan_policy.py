@@ -162,7 +162,7 @@ def build_limits(limits: RunLimits, config: ScanConfig) -> ScanLimits:
     """Traduz os limites do perfil em opções do ZAP."""
     return ScanLimits(
         threads_per_host=limits.zap_threads_per_host,
-        delay_ms=delay_ms_for(limits.requests_per_second),
+        delay_ms=delay_ms_for(limits.requests_per_second) if config.pacing == "legacy" else 0,
         max_scan_minutes=min(config.max_scan_minutes, limits.max_duration_minutes),
         max_rule_minutes=min(
             config.max_rule_minutes, config.max_scan_minutes, limits.max_duration_minutes

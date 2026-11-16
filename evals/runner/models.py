@@ -105,6 +105,8 @@ class ExpectedProfile(Frozen):
     path_mode: Literal["strict", "wide"] = "strict"
     allow_authz_writes: bool = False
     authz_shared_roles: tuple[str, ...] = ()
+    technologies: tuple[str, ...] = ()
+    technologies_quote: str | None = None
     allow_invalid_input_writes: bool = False
     allow_upload_scan: bool = False
     include_outcomes: tuple[str, ...] = ()

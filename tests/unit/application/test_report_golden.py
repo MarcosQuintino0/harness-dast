@@ -85,6 +85,8 @@ def test_golden_report_shows_the_honest_framing_and_escapes_hostile_content(tmp_
     prose = re.sub(r"(`+)[^`]*\1", "", outside_code_blocks(text))
 
     assert text.index("## O que este relatório não testou") < text.index("## Achados")
+    assert "Cobertura por regra indisponível" in text
+    assert "RELATÓRIO PARCIAL" in text
     assert "Varreduras truncadas ou paradas" in text
     assert "Operações sem varredura" in text
     assert "<script>" not in prose

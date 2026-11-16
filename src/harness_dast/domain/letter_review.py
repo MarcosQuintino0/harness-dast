@@ -39,6 +39,7 @@ from harness_dast.domain.letter_sections import (
     read_strength,
 )
 from harness_dast.domain.letter_shared_roles import read_shared_roles
+from harness_dast.domain.letter_technology import read_technologies
 from harness_dast.domain.letter_upload import read_allow_upload_scan
 from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
 from harness_dast.domain.letter_writes import read_allow_writes
@@ -47,6 +48,7 @@ from harness_dast.domain.profile import ProductProfile
 
 GENERATED_BLOCKS: Final = (
     "environment",
+    "technologies",
     "openapi",
     "scope",
     "limits",
@@ -143,6 +145,7 @@ def _profile_data(
             c.issues.append(expired)
     limits = read_limits(c, letter.limits)
     auth = read_auth(c, letter.auth)
+    technologies = read_technologies(c, letter.attack.technologies)
     strength = read_strength(c, letter.attack.strength)
     allow_writes = read_allow_writes(c, letter.attack.allow_authz_writes)
     shared_roles = read_shared_roles(c, letter.attack.authz_shared_roles)
@@ -175,6 +178,9 @@ def _profile_data(
         "limits": limits,
         "auth": auth,
     }
+    data.update(
+        {} if technologies is None else {"technologies": technologies.model_dump(mode="json")}
+    )
     scan: Block = {}
     if strength is not None:
         scan["strength"] = strength

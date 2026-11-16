@@ -110,6 +110,7 @@ def test_total_cap_is_never_above_the_total_duration() -> None:
 
 def test_scan_config_rejects_values_outside_closed_sets() -> None:
     for bad in (
+        {"pacing": "fast"},
         {"strength": "INSANE"},
         {"threshold": "OFF"},
         {"mutating_methods": ["DELETE"]},
@@ -527,3 +528,14 @@ def test_interleaving_is_deterministic_and_keeps_accounts_grouped() -> None:
 
     assert _candidates(spec) == _candidates(list(spec))
     assert _candidates(spec) == ["r1", "w2", "r2", "w1"]
+
+
+def test_proxy_pacing_changes_only_zap_delay() -> None:
+    profile_limits = limits(zap_threads_per_host=3)
+    legacy = ScanConfig(pacing="legacy", strength="HIGH", disable_rules=(90001,))
+    proxy = legacy.model_copy(update={"pacing": "proxy"})
+
+    assert build_policy(legacy) == build_policy(proxy)
+    assert build_limits(profile_limits, proxy) == build_limits(profile_limits, legacy).model_copy(
+        update={"delay_ms": 0}
+    )

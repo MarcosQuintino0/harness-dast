@@ -1,0 +1,68 @@
+{
+    "phase":  "pre_lab",
+    "source_commit":  "fadf3eb9768655e4753620a610b85f3183ef9be4",
+    "recorded_utc":  "2026-11-16T04:44:22.6909356+00:00",
+    "final_gate_set":  false,
+    "checks":  [
+                   {
+                       "exit_code":  0,
+                       "command":  "uv run ruff check ."
+                   },
+                   {
+                       "command":  "uv run ruff format --check .",
+                       "files":  1073,
+                       "exit_code":  0
+                   },
+                   {
+                       "command":  "uv run mypy",
+                       "files":  868,
+                       "exit_code":  0
+                   },
+                   {
+                       "command":  "uv run mypy --platform linux",
+                       "files":  868,
+                       "exit_code":  0
+                   },
+                   {
+                       "contracts":  6,
+                       "command":  "uv run lint-imports",
+                       "exit_code":  0
+                   },
+                   {
+                       "exit_code":  0,
+                       "command":  "uv run vulture"
+                   },
+                   {
+                       "passed":  9499,
+                       "exit_code":  0,
+                       "deselected":  199,
+                       "command":  "uv run pytest -q --cov --cov-report=xml --cov-report=json",
+                       "skipped":  4,
+                       "seconds":  399.71
+                   },
+                   {
+                       "domain_percent":  98.4,
+                       "command":  "check_coverage_floors.py coverage.json domain=95 application=85",
+                       "application_percent":  96.8,
+                       "exit_code":  0
+                   },
+                   {
+                       "lines":  205,
+                       "command":  "uv run diff-cover coverage.xml --compare-branch=origin/develop --fail-under=90",
+                       "missing":  9,
+                       "exit_code":  0
+                   },
+                   {
+                       "command":  "gitleaks git --no-banner --redact --log-opts=origin/develop..HEAD",
+                       "leaks":  0,
+                       "exit_code":  0
+                   },
+                   {
+                       "command":  "uv run pip-audit --requirement requirements-audit.txt --no-deps --disable-pip",
+                       "known_vulnerabilities":  0,
+                       "exit_code":  0
+                   }
+               ],
+    "evidence_location":  "C:\\harness-dast-artefatos\\v1.7-velocidade",
+    "note":  "Código de produção revisto neste snapshot; testes e documentação complementares entraram depois. Gates finais serão registrados separadamente. Nenhuma prova de laboratório V1.7 nesta fase."
+}

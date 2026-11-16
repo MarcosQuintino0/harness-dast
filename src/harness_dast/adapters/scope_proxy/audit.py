@@ -70,6 +70,8 @@ class AuditRecord(BaseModel):
     bytes: int | None = None
     duration_ms: int | None = None
     waited_ms: int = 0
+    network_ms: int | None = None
+    grant_wait_ms: int | None = None
     signals: tuple[SignalCategory, ...] = ()
     signal_skip: SignalSkip | None = None
 
@@ -122,6 +124,10 @@ class AuditLog:
             del data["detail"]  # linhas sem detalhe ficam idênticas às de antes do campo existir
         if not data["signals"]:
             del data["signals"]
+        if data["grant_wait_ms"] is None:
+            del data["grant_wait_ms"]
+        if data["network_ms"] is None:
+            del data["network_ms"]
         if data["signal_skip"] is None:
             del data["signal_skip"]
         line = json.dumps(data, ensure_ascii=True, separators=(",", ":")) + "\n"

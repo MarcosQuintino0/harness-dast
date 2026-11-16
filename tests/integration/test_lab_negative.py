@@ -27,6 +27,7 @@ import time
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +104,91 @@ class NegativeLab:
     leaked_proxy: list[str] = field(default_factory=list)
     secret_hits: list[str] = field(default_factory=list)
     seconds: dict[str, float] = field(default_factory=dict)
+
+
+def _same_audit_request(
+    proxy_row: dict[str, Any], decision: dict[str, Any], result: dict[str, Any]
+) -> bool:
+    fields = ("method", "scheme", "host", "port", "path")
+    same_destination = all(
+        key in proxy_row
+        and proxy_row[key] not in (None, "")
+        and proxy_row[key] == decision.get(key) == result.get(key)
+        for key in fields
+    )
+    query_names = proxy_row.get("query_params")
+    return (
+        same_destination
+        and isinstance(query_names, list)
+        and query_names == decision.get("query_names") == result.get("query_names")
+    )
+
+
+def _inside_audit_interval(
+    row: dict[str, Any], decision: dict[str, Any], result: dict[str, Any]
+) -> bool:
+    try:
+        instant = datetime.fromisoformat(row["ts"])
+        start = datetime.fromisoformat(decision["timestamp"])
+        end = datetime.fromisoformat(result["timestamp"])
+        if any(value.utcoffset() is None for value in (instant, start, end)):
+            return False
+        # O proxy grava milissegundos; a CLI grava microssegundos.
+        margin = timedelta(milliseconds=1)
+        return start - margin <= instant <= end + margin
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
+def _correlated_backoff(
+    row: dict[str, Any],
+    decisions: dict[int, dict[str, Any]],
+    results: list[dict[str, Any]],
+    used: set[int],
+) -> int | None:
+    """Associa uma única recusa operacional à tentativa auditada pela CLI."""
+    if (
+        row.get("decision") != "deny"
+        or row.get("reason") != "rate_backoff"
+        or row.get("status") != 429
+    ):
+        return None
+    for result in results:
+        seq = result.get("seq")
+        if not isinstance(seq, int) or isinstance(seq, bool) or seq in used:
+            continue
+        decision = decisions.get(seq)
+        if decision is None or result.get("status") != 429 or result.get("error") is not None:
+            continue
+        if _same_audit_request(row, decision, result) and _inside_audit_interval(
+            row, decision, result
+        ):
+            return seq
+    return None
+
+
+def unexpected_proxy_denials(item: Round) -> list[dict[str, Any]]:
+    """Não confunde um 429 operacional correlacionado com recusa de escopo."""
+    decisions = {
+        r["seq"]: r
+        for r in item.cli_rows
+        if r.get("phase") == "decision"
+        and r.get("decision") == "allowed"
+        and isinstance(r.get("seq"), int)
+        and not isinstance(r.get("seq"), bool)
+    }
+    results = [r for r in item.cli_rows if r.get("phase") == "result"]
+    used: set[int] = set()
+    unexpected = []
+    for row in item.proxy_rows:
+        if row.get("decision") == "allow":
+            continue
+        seq = _correlated_backoff(row, decisions, results, used)
+        if seq is None:
+            unexpected.append(row)
+        else:
+            used.add(seq)
+    return unexpected
 
 
 def _enable_writes(profile_file: Path) -> None:
@@ -220,6 +306,13 @@ def _round_observations(item: Round) -> dict[str, Any]:
             )
         ),
         "requests_by_method": dict(Counter(r["method"] for r in item.decisions())),
+        "proxy_denials_by_reason": dict(
+            Counter(str(r.get("reason")) for r in item.proxy_rows if r.get("decision") != "allow")
+        ),
+        "unexpected_proxy_denials": len(unexpected_proxy_denials(item)),
+        "cli_429_results": sum(
+            r.get("phase") == "result" and r.get("status") == 429 for r in item.cli_rows
+        ),
         "restore_requests": len(item.restores()),
         "findings": [
             {
@@ -321,7 +414,7 @@ def test_every_request_of_the_stage_went_through_the_fence_and_none_was_out_of_s
         allowed = [r for r in item.decisions() if r["decision"] == "allowed"]
         assert [r for r in item.decisions() if r["decision"] != "allowed"] == []
         assert len(allowed) == item.result["requests_sent"] > 0
-        assert not [row for row in item.proxy_rows if row["decision"] != "allow"]
+        assert unexpected_proxy_denials(item) == []
         answered = [r for r in item.sent() if r["status"] is not None]
         assert len(item.proxy_rows) >= len(answered)
 

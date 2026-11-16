@@ -226,6 +226,18 @@ def _cleanup_lines(profile: ProductProfile) -> list[str]:
     ]
 
 
+def _technology_lines(profile: ProductProfile) -> list[str]:
+    declaration = profile.technologies
+    if declaration is None:
+        return []
+    return [
+        "Tecnologias declaradas na carta: " + ", ".join(declaration.value),
+        "  - frase da carta: " + strip_control(declaration.quote, keep_newlines=False),
+        "  - informação consultiva: não confirma tecnologia nem reduz cobertura; "
+        "todas as regras continuam ativas.",
+    ]
+
+
 def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
     """Linhas legíveis dos blocos que a aprovação trava (sem segredo, sem valor de variável)."""
     scope = profile.scope
@@ -251,6 +263,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_account_lines(profile),
         _strength_line(profile),
         _scan_policy_line(profile),
+        *_technology_lines(profile),
         *_outcomes_lines(profile),
         *_upload_lines(profile),
         *_authz_lines(profile),

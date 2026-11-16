@@ -240,7 +240,7 @@ def test_every_protected_block_has_a_digest_in_display_order() -> None:
     profile = ProductProfile.from_data(valid_profile_data())
 
     # O bloco `negative` só entra quando difere do padrão (ADR 0051); veja o teste dele.
-    present = tuple(name for name in BLOCK_IDS if name != "negative")
+    present = tuple(name for name in BLOCK_IDS if name not in {"negative", "technologies"})
     assert tuple(block_digests(profile)) == present
     assert tuple(protected_blocks(profile)) == present
 
@@ -401,7 +401,18 @@ AUTH_FREE: frozenset[str] = frozenset(
 )
 # Blocos que entram inteiros (os campos de cada um estão no `model_dump` do bloco).
 TOP_LEVEL_PROTECTED: frozenset[str] = frozenset(
-    {"product", "environment", "scope", "limits", "auth", "scan", "authz", "negative", "cleanup"}
+    {
+        "product",
+        "environment",
+        "scope",
+        "limits",
+        "auth",
+        "scan",
+        "authz",
+        "negative",
+        "cleanup",
+        "technologies",
+    }
 )
 TOP_LEVEL_FREE: frozenset[str] = frozenset({"schema_version", "openapi", "probe"})
 
@@ -435,7 +446,11 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
             lambda d: d.update(
                 cleanup=_cleanup(),
                 authz=changed,
-                scan={"include_outcomes": ["not_found"], "allow_upload_scan": True},
+                scan={
+                    "include_outcomes": ["not_found"],
+                    "allow_upload_scan": True,
+                    "pacing": "proxy",
+                },
             )
         )
     )

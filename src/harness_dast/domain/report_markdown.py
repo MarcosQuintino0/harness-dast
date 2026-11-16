@@ -23,6 +23,7 @@ from harness_dast.domain.report_signals import (
     signal_summary_lines,
 )
 from harness_dast.domain.report_traffic import (
+    backoff_warning,
     denied_rows,
     mode_line,
     outside_allow_note,
@@ -47,7 +48,7 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
     )
     if coverage.partial:
         lines += [
-            "- **RELATÓRIO PARCIAL:** há operações elegíveis sem varredura ou etapas incompletas; "
+            "- **RELATÓRIO PARCIAL:** há lacunas ou cobertura desconhecida em operações ou regras; "
             "o que não foi varrido não deve ser lido como seguro.",
         ]
     lines += [f"- {escape_inline(item, 600)}" for item in statements]
@@ -71,6 +72,18 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"{'ligada' if policy.url_path_injection else 'desligada'}, "
         f"{len(policy.disabled_rules)} regra(s) desligadas.",
     ]
+    if coverage.rule_coverage_gaps is None and coverage.scans_run:
+        lines.append(
+            "- Cobertura por regra indisponível: não há prova de execução completa das regras."
+        )
+    elif coverage.rule_coverage_gaps:
+        lines.append("- Lacunas de regras (operação, regra, estado, motivo):")
+        for gap in coverage.rule_coverage_gaps:
+            lines.append(
+                f"  - {escape_inline(gap.operation_id)}; "
+                f"{gap.plugin_id if gap.plugin_id is not None else 'n/d'}; "
+                f"{gap.state}; {gap.reason}."
+            )
     lines += _traffic_lines(coverage)
     return (
         lines + _truncated_lines(coverage) + _seeded_lines(coverage) + _not_tested_lines(coverage)
@@ -90,12 +103,13 @@ def _traffic_lines(coverage: Coverage) -> list[str]:
         methods = ", ".join(f"{m}: {n}" for m, n in sorted(traffic.allowed_by_method.items()))
         lines.append(f"- Liberados por método: {escape_inline(methods)}.")
     if traffic.denied:
+        fence = "proxy" if traffic.denied_by_reason.get("rate_backoff", 0) else "escopo"
         reasons = ", ".join(
             f"{label} [{code}: {count}]" for label, code, count in denied_rows(traffic)
         )
         lines.append(
             f"- {traffic.denied} requisição(ões) que o varredor tentou foram bloqueadas pelo "
-            f"escopo ({escape_inline(reasons)})."
+            f"{fence} ({escape_inline(reasons)})."
         )
     return lines + _path_coverage_lines(coverage)
 
@@ -103,7 +117,11 @@ def _traffic_lines(coverage: Coverage) -> list[str]:
 def _path_coverage_lines(coverage: Coverage) -> list[str]:
     traffic = coverage.traffic
     lines = [f"- {escape_inline(mode_line(traffic))}"]
-    for note in (path_shape_warning(traffic), outside_allow_note(traffic)):
+    for note in (
+        backoff_warning(traffic),
+        path_shape_warning(traffic),
+        outside_allow_note(traffic),
+    ):
         if note:
             lines.append(f"- {escape_inline(note, 900)}")
     return lines

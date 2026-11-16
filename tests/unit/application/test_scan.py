@@ -363,3 +363,40 @@ def test_only_with_an_operation_the_run_does_not_have_is_a_configuration_error()
         rig.run_scan(only=("inexistente",))
 
     assert rig.zap.started == []
+
+
+def test_pacing_variants_preserve_work_and_only_change_zap_delay() -> None:
+    a = ready(profile=with_scan(pacing="legacy"))
+    b = ready(profile=with_scan(pacing="proxy"))
+
+    result_a, result_b = a.run_scan(), b.run_scan()
+
+    assert result_a.planned == result_b.planned
+    assert result_a.skipped == result_b.skipped
+    assert a.zap.started == b.zap.started
+    assert a.zap.rules_at_start == b.zap.rules_at_start
+    assert a.zap.applied[0][0] == b.zap.applied[0][0]
+    assert a.zap.applied[0][1].model_copy(update={"delay_ms": 0}) == b.zap.applied[0][1]
+    assert result_a.limits.requests_per_second == result_b.limits.requests_per_second
+    assert result_a.zap_delay_seconds is None
+    assert result_b.zap_delay_seconds is None
+    assert result_a.local_queue_seconds is not None
+    assert result_a.authentication_seconds is not None
+
+
+def test_process_samples_report_cli_cpu_and_lifetime_peak() -> None:
+    class Samples:
+        def __init__(self) -> None:
+            self.values = iter(((2.0, 100), (4.5, 200)))
+
+        def sample(self) -> tuple[float, int | None]:
+            return next(self.values)
+
+    rig = ready()
+    result = rig.scan(process_sampler=Samples()).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+
+    assert result.process_cpu_seconds == 2.5
+    assert result.process_peak_memory_bytes == 200
+    assert rig.artifacts.read_scan(result.run_id) == result

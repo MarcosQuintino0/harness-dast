@@ -15,7 +15,7 @@ from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.internal_error_signals import InternalErrorSignals
 from harness_dast.domain.negative_result import NegativeResult
-from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy
+from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy, RuleCoverageGap
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import TrafficSummary
 
@@ -123,6 +123,7 @@ class Coverage(ApiModel):
         scan_status: Estado final do scan.
         scan_stop_message: Explicação da parada do scan.
         scans_run: Varreduras executadas.
+        rule_coverage_gaps: Lacunas por regra, ou `None` quando indisponíveis.
         truncated_scans: Varreduras truncadas ou paradas.
         not_tested: Operações sem varredura, com o motivo.
         include_outcomes: Classes além de `success` que o `scan` aplicou (`scan.include_outcomes`,
@@ -146,6 +147,7 @@ class Coverage(ApiModel):
     scan_status: str
     scan_stop_message: str | None = None
     scans_run: int
+    rule_coverage_gaps: tuple[RuleCoverageGap, ...] | None = None
     truncated_scans: tuple[TruncatedScan, ...] = ()
     not_tested: tuple[NotTested, ...] = ()
     include_outcomes: tuple[str, ...] = ()

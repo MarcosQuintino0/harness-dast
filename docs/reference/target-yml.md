@@ -430,6 +430,10 @@ scan:
   fail_on: high
 ```
 
+### `scan.pacing` (V1.7)
+
+`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
+
 ## `authz` (opcional)
 
 Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`, que vem ligado por padrão; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
@@ -564,3 +568,17 @@ O YAML é carregado em modo seguro, com limite de tamanho (256 KiB) e de profund
 ## `data-rules.yml` e `flows.yml`
 
 Veja [data-rules-yml.md](data-rules-yml.md) e [flows-yml.md](flows-yml.md). O encadeamento aceita vários níveis, sem ciclos (ADR 0021).
+
+
+## Tecnologias declaradas (ADR 0068)
+
+`technologies` é opcional e gerado de `attack.technologies` da carta, com lista `value` de identificadores minúsculos, `source: carta` e a frase não vazia em `quote`. Exemplo:
+
+```yaml
+technologies:
+  value: [h2]
+  source: carta
+  quote: "O banco de dados utilizado é H2."
+```
+
+A declaração é consultiva: não confirma a tecnologia nem reduz a cobertura; todas as regras continuam ativas. Não infira valores. Quando ausente ou desconhecida, não aparece no perfil gerado e preserva a aprovação anterior. Uma declaração ou mudança nela altera a impressão digital e exige nova aprovação.

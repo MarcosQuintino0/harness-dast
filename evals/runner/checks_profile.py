@@ -139,6 +139,15 @@ def _attack_check(profile: dict[str, Any], case: Case) -> Check:
         for role in shared_roles
     ):
         problems.append("authz.shared_roles: lista invalida ou nao autorizada")
+    technology = profile.get("technologies")
+    if technology is not None:
+        expected = {
+            "value": list(case.expected.technologies),
+            "source": "carta",
+            "quote": case.expected.technologies_quote,
+        }
+        if technology != expected or not case.expected.technologies:
+            problems.append("technologies: declaracao invalida ou nao autorizada pela carta")
     outcomes = blocks["scan"].get("include_outcomes", [])
     if not isinstance(outcomes, list) or any(
         not isinstance(item, str) or item not in case.expected.include_outcomes for item in outcomes

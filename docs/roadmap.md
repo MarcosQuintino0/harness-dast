@@ -259,6 +259,10 @@ Implementados: espera bloqueante, leitura pela conta escritora, CORS, par horizo
 
 Entrega dos itens A a F do [plano](plans/2026-11-15-plano-v1-5-4-alcance-confiavel.md): recusa sintética do login separada de `auth_error`, conflitos explicados pelo contrato e pelas dependências, falhas localizadas sem interromper o restante e continuação com cobertura parcial explícita. A avaliação elimina pontos de triagem por vacuidade e preserva os resultados históricos. O [relatório da versão](reviews/relatorio-v1.5.4.md) registra decisões, gates, integração e limites. O login permanece fora da varredura e do `negative`. Não há rodada cega nova nesta versão nem prova contra produto real.
 
+### V1.7: ritmo serial e medição
+
+Implementados os ritmos `legacy` (padrão) e `proxy` (comparação protegida pela aprovação), concessão real, recuo temporário sem repetição e recusa imediata `rate_backoff` com `Retry-After` restante. A declaração de tecnologias é consultiva e não exclui regras; lacunas por regra e dados antigos desconhecidos são refletidos no relatório. Os 12 controles T2 direcionados passaram; em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. A regra DOM 40026 `skipped` impede aceite de cobertura e estimativa completa. A B da Clínica ocorreu antes do congelamento da previsão; não há previsão prospectiva válida para ela. Os limites condicionais da parcela paralelizável não comprovam 40% e V1.10 permanece fechada. [Protocolo e limites](reference/scan-performance.md), [pré-registro](../evals/measurements/v1.7/preregistro.md) e [QA estático](reviews/qa-v1.7.md). Nenhuma prova contra produto real.
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |

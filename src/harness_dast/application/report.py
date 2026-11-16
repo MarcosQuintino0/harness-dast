@@ -41,6 +41,7 @@ from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_config import FailOn, effective_fail_on
 from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.signal_findings import build_proxy_signals, signal_window
 from harness_dast.domain.signal_operations import signal_resolver
 from harness_dast.domain.signal_result import ProxySignals, disabled_signals
@@ -135,6 +136,14 @@ class Report:
         run_id = require_run_id(request.run_id)
         probe = self._artifacts.read_probe(run_id)
         scan = self._artifacts.read_scan(run_id)
+        if scan.rule_coverage_gaps is None:
+            stats = self._artifacts.read_rule_stats(run_id)
+            if stats is not None and stats.run_id == scan.run_id:
+                scan = scan.model_copy(
+                    update={
+                        "rule_coverage_gaps": rule_coverage_gaps(scan.entries, stats.operations)
+                    }
+                )
         if probe.product != profile.product or scan.product != profile.product:
             raise ConfigError(
                 "A execução informada é de outro produto.",

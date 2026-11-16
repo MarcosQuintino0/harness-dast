@@ -50,6 +50,8 @@ def test_a_failure_reading_the_rules_does_not_fail_the_scan_and_is_logged_not_sw
 
     assert result.status == "completed"
     assert [e.outcome for e in result.entries] == ["completed"] * 4
+    assert result.rule_coverage_gaps is not None
+    assert all(gap.state == "unavailable" for gap in result.rule_coverage_gaps)
     stats = rig.artifacts.rule_stats[run_id(rig)]
     assert all(op.rules == () for op in stats.operations)
     assert all(op.unavailable_reason == "resposta inesperada do ZAP" for op in stats.operations)
@@ -102,6 +104,20 @@ def scanned_with_rules(rules: tuple[RuleStat, ...] | None = None) -> ScanRig:
         rig.zap.rule_stats = rules
     rig.run_scan()
     return rig
+
+
+def test_relatorio_recupera_lacunas_de_estatisticas_antigas() -> None:
+    rig = scanned_with_rules((RuleStat(plugin_id=40026, name="DOM", state="skipped"),))
+    key = run_id(rig)
+    rig.artifacts.scans[key] = rig.artifacts.scans[key].model_copy(
+        update={"rule_coverage_gaps": None}
+    )
+
+    report = rig.report().execute(ReportRequest(product="agenda", run_id=key)).report
+
+    assert report.coverage.partial
+    assert report.coverage.rule_coverage_gaps is not None
+    assert all(gap.plugin_id == 40026 for gap in report.coverage.rule_coverage_gaps)
 
 
 def test_report_writes_metrics_json_with_the_report_time_and_returns_the_file_name() -> None:

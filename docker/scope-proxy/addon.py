@@ -23,14 +23,18 @@ from mitmproxy.proxy.server_hooks import ServerConnectionHookData
 
 from harness_dast.adapters.scope_proxy.decision import ALLOW, Reason, Verdict, deny
 from harness_dast.adapters.scope_proxy.engine import ScopeProxyEngine
+from harness_dast.adapters.scope_proxy.grant_queue import GrantQueue
 from harness_dast.adapters.scope_proxy.policy import load_policy
 from harness_dast.adapters.scope_proxy.signals import SignalReading, read_response_signals
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.retry_after import retry_after_seconds
 
 _REASON_HEADER = "X-Hdast-Reason"
 _ERROR_MARKER = "scope-proxy:"
 _STARTED = "hdast_started"
 _RELEASED = "hdast_released"
+_RELEASED_MONO = "hdast_released_monotonic"
+_RESPONSE_MONO = "hdast_response_monotonic"
 _WAITED = "hdast_waited_ms"
 _AUDITED = "hdast_audited"
 
@@ -52,6 +56,7 @@ class ScopeProxyAddon:
     def __init__(self, engine: ScopeProxyEngine) -> None:
         """Guarda o motor, já construído com política válida."""
         self._engine = engine
+        self._grant_queue = GrantQueue(engine, sleep=asyncio.sleep)
 
     def load(self, loader: Loader) -> None:
         """Aplica a política de TLS: só a política decide se o certificado é verificado."""
@@ -90,22 +95,20 @@ class ScopeProxyAddon:
         if verdict.allowed:
             verdict = await self._wait_for_slot(flow)
         if not verdict.allowed:
-            status = 429 if verdict.reason is Reason.RATE_QUEUE_FULL else 403
+            status = 429 if verdict.reason in (Reason.RATE_QUEUE_FULL, Reason.RATE_BACKOFF) else 403
             self._log(flow, verdict, status=status)
             flow.metadata[_AUDITED] = True
-            flow.response = _refusal(status, verdict.reason)
+            flow.response = _refusal(status, verdict.reason, retry_after=verdict.retry_after)
             return
         flow.metadata[_RELEASED] = self._engine.now()
+        flow.metadata[_RELEASED_MONO] = time.monotonic()
 
     async def _wait_for_slot(self, flow: http.HTTPFlow) -> Verdict:
-        delay = self._engine.reserve_slot()
-        if delay is None:
-            return deny(Reason.RATE_QUEUE_FULL)
-        if delay > 0:
-            await asyncio.sleep(delay)
-            flow.metadata[_WAITED] = int(delay * 1000)
-            return self._engine.recheck_after_wait()
-        return ALLOW
+        started = time.monotonic()
+        try:
+            return await self._grant_queue.acquire()
+        finally:
+            flow.metadata[_WAITED] = max(0, int((time.monotonic() - started) * 1000))
 
     # ------------------------------------------------------------- conexão
     async def server_connect(self, data: ServerConnectionHookData) -> None:
@@ -138,11 +141,17 @@ class ScopeProxyAddon:
         """Registra a requisição liberada com status, bytes, duração e os sinais de erro interno."""
         if flow.metadata.get(_AUDITED) or flow.response is None:
             return
+        flow.metadata[_RESPONSE_MONO] = time.monotonic()
         # Uma conexão por requisição entre o ZAP e este proxy. Como o endereço da conexão de saída
         # é o IP conferido (não dá para devolver o nome numa conexão aberta), nenhuma conexão de
         # saída é reaproveitada, e o ZAP, ao reaproveitar a de entrada, travava na sexta
         # requisição (medido no laboratório: 20 s e `Failed to read` no log do ZAP).
         flow.response.headers["Connection"] = "close"
+        if flow.response.status_code == 429:
+            delay = retry_after_seconds(
+                flow.response.headers.get("Retry-After"), self._engine.now()
+            )
+            self._grant_queue.defer(delay if delay is not None else 1.0)
         body = flow.response.raw_content
         size = len(body) if body is not None else None
         # ADR 0049: a leitura só OBSERVA (conta categorias, nunca nega nem grava corpo) e falha
@@ -183,7 +192,12 @@ class ScopeProxyAddon:
         request = flow.request
         started = flow.metadata.get(_STARTED)
         waited = int(flow.metadata.get(_WAITED, 0))
-        duration = None if started is None else int((time.monotonic() - started) * 1000) - waited
+        duration = (
+            None if started is None else max(0, int((time.monotonic() - started) * 1000) - waited)
+        )
+        released = flow.metadata.get(_RELEASED_MONO)
+        ended = flow.metadata.get(_RESPONSE_MONO, time.monotonic())
+        network = None if released is None else max(0, int((ended - released) * 1000))
         raw_path, _, raw_query = request.path.partition("?")
         self._engine.log(
             method=request.method,
@@ -199,6 +213,8 @@ class ScopeProxyAddon:
             size=size,
             duration_ms=duration,
             waited_ms=waited,
+            network_ms=network,
+            grant_wait_ms=flow.metadata.get(_WAITED),
             signals=reading.categories if reading else (),
             signal_skip=reading.skipped if reading else None,
         )
@@ -226,14 +242,14 @@ def _wants_upgrade(request: http.Request) -> bool:
     )
 
 
-def _refusal(status: int, reason: Reason) -> http.Response:
+def _refusal(status: int, reason: Reason, *, retry_after: int | None = None) -> http.Response:
     headers = {
         "Content-Type": "text/plain; charset=utf-8",
         _REASON_HEADER: reason.value,
         "Connection": "close",
     }
     if status == 429:
-        headers["Retry-After"] = "1"
+        headers["Retry-After"] = str(retry_after if retry_after is not None else 1)
     return http.Response.make(status, b"hdast scope-proxy: request refused\n", headers)
 
 

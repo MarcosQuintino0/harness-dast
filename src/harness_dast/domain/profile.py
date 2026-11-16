@@ -25,6 +25,7 @@ from harness_dast.domain.run import SLUG_PATTERN, RunLimits
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scope import OutboundRequest, PathMode, Scope, ScopeGuard
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
+from harness_dast.domain.technology import TechnologyDeclaration
 from harness_dast.domain.urlnorm import normalize_request
 from harness_dast.domain.window import (
     Authorization,
@@ -238,6 +239,7 @@ class ProductProfile(ProfileModel):
         probe: Critério de sucesso e caminho de saúde, opcional (aditivo na schema v1).
         scan: Política da varredura ativa e gate de severidade, opcional (aditivo na schema v1).
         authz: Teste de autorização entre contas (ADR 0027), opcional (aditivo na schema v1).
+        technologies: Declaração consultiva da carta, sem efeito na cobertura.
         negative: Teste de valores que o esquema proíbe (ADR 0051), opcional (aditivo na schema v1).
     """
 
@@ -253,6 +255,7 @@ class ProductProfile(ProfileModel):
     scan: ScanConfig = ScanConfig()
     authz: AuthzConfig = AuthzConfig()
     negative: NegativeConfig = NegativeConfig()
+    technologies: TechnologyDeclaration | None = None
 
     @field_validator("product")
     @classmethod

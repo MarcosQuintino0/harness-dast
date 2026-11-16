@@ -108,6 +108,27 @@ class ScopeProxyEngine:
         """Reserva horário de saída; `None` significa fila cheia (recusar com 429)."""
         return self._limiter.reserve()
 
+    @property
+    def max_queued_requests(self) -> int:
+        """Limite de pedidos em espera pela concessão."""
+        return self._policy.max_queued_requests
+
+    def grant_delay(self) -> float:
+        """Tempo restante até a concessão."""
+        return self._limiter.delay_until_grant()
+
+    def grant_slot(self) -> None:
+        """Registra uma concessão efetiva após a última verificação da trava."""
+        self._limiter.grant()
+
+    def defer_slots(self, seconds: float) -> None:
+        """Aplica recuo temporário a todas as concessões da execução."""
+        self._limiter.defer(seconds)
+
+    def backoff_remaining(self) -> float:
+        """Tempo restante do recuo solicitado pelo destino."""
+        return self._limiter.backoff_remaining()
+
     def check_destination(self, host: str, port: int, addresses: list[str]) -> Verdict:
         """Confere os endereços que o DNS devolveu para `host`, antes de conectar."""
         return check_addresses(addresses, allow_local=self._local_allowed(host, port))
@@ -128,6 +149,8 @@ class ScopeProxyEngine:
         size: int | None = None,
         duration_ms: int | None = None,
         waited_ms: int = 0,
+        network_ms: int | None = None,
+        grant_wait_ms: int | None = None,
         signals: tuple[SignalCategory, ...] = (),
         signal_skip: SignalSkip | None = None,
     ) -> None:
@@ -154,6 +177,8 @@ class ScopeProxyEngine:
                 bytes=size,
                 duration_ms=duration_ms,
                 waited_ms=waited_ms,
+                network_ms=network_ms,
+                grant_wait_ms=grant_wait_ms,
                 signals=signals if verdict.allowed else (),
                 signal_skip=signal_skip if verdict.allowed else None,
             )

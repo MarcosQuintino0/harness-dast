@@ -250,10 +250,11 @@ def test_next_steps_follow_the_report_and_never_widen_scope() -> None:
     steps = next_steps(base.model_copy(update={"coverage": partial}))
     joined = " ".join(steps)
 
-    assert "parou antes do fim" in steps[0]
+    assert "cobertura tem lacunas ou não pôde ser comprovada" in steps[0]
+    assert "parou antes do fim" not in steps[0]
     assert "ALTA" in joined
     assert "40%" in joined
-    assert "sem ampliar escopo" in joined
+    assert "sem ampliar escopo, limites nem janela sem nova autorização" in joined
     assert steps[-1].startswith("Registre a triagem")
 
 

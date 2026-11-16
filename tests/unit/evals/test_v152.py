@@ -255,3 +255,34 @@ def test_carta_autoriza_somente_papel_medico_compartilhado() -> None:
     profile["authz"] = {"shared_roles": ["medico"]}
     check = next(c for c in profile_checks(profile, case) if c.id == "attack_permissions")
     assert check.passed is True
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, True),
+        ({"value": ["h2"], "source": "carta", "quote": "O banco de dados utilizado é H2."}, True),
+        (
+            {"value": ["mysql"], "source": "carta", "quote": "O banco de dados utilizado é H2."},
+            False,
+        ),
+        ({"value": ["h2"], "source": "pessoa", "quote": "O banco de dados utilizado é H2."}, False),
+        ({"value": ["h2"], "source": "carta"}, False),
+        ("h2", False),
+    ],
+)
+def test_tecnologia_consultiva_deve_ser_fiel_a_carta(value: object, expected: bool) -> None:
+    profile = copy.deepcopy(GOOD_PROFILE)
+    if value is not None:
+        profile["technologies"] = value
+    case = load_case("clinica-piloto")
+    check = next(c for c in profile_checks(profile, case) if c.id == "attack_permissions")
+    assert check.passed is expected
+
+
+def test_caso_antigo_recusa_tecnologia_inventada() -> None:
+    profile = copy.deepcopy(GOOD_PROFILE)
+    profile["technologies"] = {"value": ["h2"], "source": "carta", "quote": "Banco H2."}
+    case = load_case("mini", CASES)
+    check = next(c for c in profile_checks(profile, case) if c.id == "attack_permissions")
+    assert check.passed is False

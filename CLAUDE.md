@@ -16,6 +16,8 @@ A V1.5.4 distingue a recusa esperada de credenciais sintéticas na operação de
 
 A V1.5.5 traz `hdast wait` bloqueante, leitura da atribuição em massa pela conta escritora, CORS no `authz`, tentativa de par horizontal com recurso novo e conferência final de triagem de todas as origens. Gates completos e oito cenários na Clínica Piloto e no VAmPI passaram. Os aceites B, D e F são parciais: V4 do VAmPI não foi comprovada e seu POST 200 não confirma o novo par; V3 foi comprovada pela leitura já provada pelo probe. O caso `vampi-estrito` preserva o histórico. Sem rodada cega, varredura completa, crAPI ou produto real nesta entrega. Provas e limites no [relatório](docs/reviews/relatorio-v1.5.5.md).
 
+A V1.7 implementa `scan.pacing` (`legacy` por padrão, `proxy` opcional e protegido pela aprovação), concessão real, recuo temporário de 429 sem repetição e recusa imediata `rate_backoff` com `Retry-After` restante. Métricas são aditivas; a declaração de tecnologias da carta é consultiva e não exclui regras. `rule_coverage_gaps` e o relatório explicitam lacunas; dados históricos desconhecidos com scans e recusas de recuo indicam cobertura parcial. Os 12 controles T2 direcionados passaram e a T3 mostrou reduções descritivas no subconjunto; DOM 40026 `skipped` impede aceite de cobertura e previsão completa. A B da Clínica ocorreu antes do congelamento da previsão, sem previsão prospectiva válida. A condição para V1.10 não foi demonstrada. Detalhes e limites em [scan-performance](docs/reference/scan-performance.md). Nenhuma prova contra produto real.
+
 ## Parte A. Ao DESENVOLVER o projeto
 
 ### Princípio e camadas

@@ -86,3 +86,15 @@ def test_the_field_must_be_a_real_boolean(value: object) -> None:
 
 def test_the_default_is_off() -> None:
     assert ScanConfig().allow_upload_scan is False
+
+
+def test_pacing_default_preserves_approval_and_proxy_requires_new_approval() -> None:
+    original = valid_profile()
+    legacy = _profile(pacing="legacy")
+    proxy = _profile(pacing="proxy")
+
+    assert block_digests(original) == block_digests(legacy)
+    assert block_digests(original)["scan"] != block_digests(proxy)["scan"]
+    check_approval(legacy, approval_for(original)).ensure_approved()
+    with pytest.raises(ScopeNotApproved):
+        check_approval(proxy, approval_for(original)).ensure_approved()

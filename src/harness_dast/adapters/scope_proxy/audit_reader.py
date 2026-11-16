@@ -52,5 +52,9 @@ def _row(line: str) -> ProxyRow:
             "query_params": raw.get("query_params", ()),
             "signals": raw.get("signals", ()),
             "signal_skip": raw.get("signal_skip"),
+            "waited_ms": raw.get("waited_ms"),
+            "duration_ms": raw.get("duration_ms"),
+            "network_ms": raw.get("network_ms"),
+            "grant_wait_ms": raw.get("grant_wait_ms"),
         }
     )

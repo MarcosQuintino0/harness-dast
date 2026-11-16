@@ -274,3 +274,16 @@ def test_the_file_has_only_numbers_and_identifiers_no_path_url_or_message() -> N
     assert "/users/v1" not in text
     assert "http" not in text
     assert "message" not in text
+
+
+def test_tempos_do_proxy_excluem_negados_e_preservam_dado_ausente() -> None:
+    first = row(1).model_copy(update={"grant_wait_ms": 125, "network_ms": 250})
+    denied = row(2, "deny").model_copy(update={"grant_wait_ms": 900, "network_ms": None})
+    metrics = build(proxy_rows=[first, denied])
+    assert metrics.timing.proxy_grant_wait_seconds == 0.125
+    assert metrics.timing.proxy_network_seconds == 0.25
+    assert metrics.timing.cpu_seconds is None
+    old = row(3)
+    mixed = build(proxy_rows=[first, old])
+    assert mixed.timing.proxy_grant_wait_seconds is None
+    assert mixed.timing.proxy_network_seconds is None

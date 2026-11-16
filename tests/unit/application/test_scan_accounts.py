@@ -126,3 +126,22 @@ def test_an_unknown_pinned_account_is_a_config_error() -> None:
 
     with pytest.raises(ConfigError, match="conta"):
         rig.run_scan(account="nao_existe")
+
+
+def test_authentication_time_includes_initial_logins_for_each_account() -> None:
+    baseline = ready(account_map=[{"account": "user_b", "operations": ["gravar"]}])
+    baseline_seconds = baseline.run_scan().authentication_seconds
+    rig = ready(account_map=[{"account": "user_b", "operations": ["gravar"]}])
+    original = rig.target._handler
+
+    def slow_login(request: HttpRequest, jar: dict[str, str]) -> Any:
+        if request.operation_id == "auth.login":
+            rig.clock.advance(3)
+        return original(request, jar)
+
+    rig.target._handler = slow_login
+
+    result = rig.run_scan()
+
+    assert baseline_seconds is not None
+    assert result.authentication_seconds == pytest.approx(baseline_seconds + 6)

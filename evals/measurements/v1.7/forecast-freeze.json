@@ -1,0 +1,14 @@
+{
+  "frozen_at_utc": "2026-11-16T07:19:58.842409+00:00",
+  "source_commit": "c95a916",
+  "prediction": {},
+  "prediction_sha256": "e3566b3a06430868d71e9287dfd6c6c520a3da027aabea01951d407ee131dc2f",
+  "status": "inconclusivo",
+  "reason": "Regra DOM XSS 40026 skipped impede inventario completo e estimador pre-registrado. Nenhum numero previsto.",
+  "protocol_deviation": "Filtro pytest A- incluiu acidentalmente B-clinica-piloto. Clinica nao tem previsao prospectiva valida. VAmPI B ainda nao executado. Resultado preservado; nao repetir para apagar o desvio.",
+  "raw_sha256": {
+    "v17-t4-clinica-piloto-vulnerable-1-A.json": "37725b480abcfd1cc230bf930ae6290a90db38b83022544ebad24fc4f2cd8dec",
+    "v17-t4-clinica-piloto-vulnerable-1-B.json": "ebecc644382e6d93e4ca6ff847cab37f20b591568cad6acad79282d37322189a",
+    "v17-t4-vampi-vulnerable-1-A.json": "cd30d701a1be5abf839cff2e78c9e63364057c2946aa3770bdfa57edeb8a856b"
+  }
+}

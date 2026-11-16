@@ -179,6 +179,9 @@ def coverage_is_partial(probe: ProbeResult, scan: ScanResult) -> bool:
         or unreached
         or bool(coverage_gaps(probe, scan))
         or any(entry.outcome != "completed" for entry in scan.entries)
+        or bool(scan.rule_coverage_gaps)
+        or (scan.rule_coverage_gaps is None and any(e.outcome != "refused" for e in scan.entries))
+        or scan.traffic.denied_by_reason.get("rate_backoff", 0) > 0
     )
 
 
@@ -192,6 +195,7 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
         reachability=summary.reachability,
         reachability_all=summary.reachability_all,
         partial=coverage_is_partial(probe, scan),
+        rule_coverage_gaps=scan.rule_coverage_gaps,
         probe_status=probe.status,
         scan_status=scan.status,
         scan_stop_message=scan.stop_message,

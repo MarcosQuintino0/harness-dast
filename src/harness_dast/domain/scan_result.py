@@ -206,6 +206,22 @@ class HealthSummary(ApiModel):
     failures: int = 0
 
 
+class RuleCoverageGap(ApiModel):
+    """Uma regra incompleta ou estatística indisponível para uma operação.
+
+    Attributes:
+        operation_id: Operação do plano, sem URL concreta.
+        plugin_id: ID da regra, ou `None` quando a estatística inteira está ausente.
+        state: Estado controlado da regra ou indisponibilidade da medição.
+        reason: Motivo controlado, sem texto externo.
+    """
+
+    operation_id: str
+    plugin_id: int | None = None
+    state: Literal["skipped", "interrupted", "pending", "unknown", "unavailable"]
+    reason: Literal["max_rule_time", "other", "incomplete", "stats_unavailable"]
+
+
 class ScanResult(ApiModel):
     """Resultado completo do `scan` (`scan.json` e `data` do envelope).
 
@@ -223,6 +239,7 @@ class ScanResult(ApiModel):
         include_outcomes: Classes além de `success` efetivamente aplicadas (ADR 0050).
         planned: Varreduras que o plano pediria, na ordem.
         entries: Varreduras executadas, na ordem.
+        rule_coverage_gaps: Lacunas das regras observadas; `None` em resultado antigo.
         skipped: Operações que não foram varridas, com o motivo.
         learned: Mensagem aprendida de cada operação enviada pelo `probe`.
         alerts_total: Alertas brutos coletados.
@@ -231,6 +248,11 @@ class ScanResult(ApiModel):
         health: Guarda de saúde do alvo.
         traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
             escopo).
+        local_queue_seconds: Soma da espera de cada trabalho na fila serial; sobrepõe o scan.
+        authentication_seconds: Ativação, troca e renovação de identidade e Replacer.
+        zap_delay_seconds: Tempo real de atraso do ZAP, indisponível pela API.
+        process_cpu_seconds: CPU da CLI entre amostras; não inclui ZAP nem proxy.
+        process_peak_memory_bytes: Pico residente da CLI desde seu início, não apenas do scan.
         rules_removed: Se as regras do Replacer do harness foram removidas ao fim.
         notice: Aviso fixo.
     """
@@ -248,6 +270,7 @@ class ScanResult(ApiModel):
     include_outcomes: tuple[str, ...] = ()
     planned: tuple[PlannedScan, ...] = ()
     entries: tuple[ScanEntry, ...] = ()
+    rule_coverage_gaps: tuple[RuleCoverageGap, ...] | None = None
     skipped: tuple[ScanSkip, ...] = ()
     learned: tuple[LearnedRef, ...] = ()
     alerts_total: int = 0
@@ -255,6 +278,11 @@ class ScanResult(ApiModel):
     evidence_messages: int = 0
     health: HealthSummary
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)
+    local_queue_seconds: float | None = None
+    authentication_seconds: float | None = None
+    zap_delay_seconds: float | None = None
+    process_cpu_seconds: float | None = None
+    process_peak_memory_bytes: int | None = None
     rules_removed: bool = True
     notice: str = SCAN_NOTICE
 

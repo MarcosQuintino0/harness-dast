@@ -131,6 +131,11 @@ Uma linha JSON por decisão em `audit/audit.jsonl` (pasta do host, sobrevive ao 
 ```
 
 - `ts`: instante em que o pedido foi liberado (depois da fila) ou recusado. `waited_ms`: tempo na fila da taxa.
+- `grant_wait_ms`: espera efetiva pela concessão, incluindo fila e atraso do escalonador; ausente
+  nas trilhas antigas. `network_ms`: tempo da concessão até resposta ou erro, incluindo DNS,
+  conexão e processamento remoto; não é uma medição isolada de rede. Tempos de pedidos distintos
+  podem se sobrepor. A resposta 429 remota atrasa concessões globais sem repetir o pedido; o recuo
+  é limitado e não estende o prazo da execução (ADR 0066).
 - `path`: caminho **normalizado** (decodificado). Se a URL for malformada, o caminho cru escapado e truncado.
 - `query_params`: **só os nomes**. Valores de consulta nunca são gravados. Cabeçalhos e corpos também não (o registro
   não tem campo para eles). O próprio mitmproxy roda com `flow_detail=0` para não imprimir URLs no log.

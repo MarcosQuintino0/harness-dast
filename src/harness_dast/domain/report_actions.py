@@ -95,9 +95,10 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
     coverage = report.coverage
     if coverage.partial:
         steps.append(
-            "A execução parou antes do fim. O que não foi varrido NÃO deve ser lido como "
-            "seguro: refaça a execução depois de tratar a causa da parada, sem ampliar escopo, "
-            "limites nem janela sem nova autorização do dono do produto."
+            "A cobertura tem lacunas ou não pôde ser comprovada. O que não foi coberto NÃO "
+            "deve ser lido como seguro: consulte os motivos e, após tratar a causa, refaça a "
+            "execução sem ampliar escopo, limites nem janela sem nova autorização do dono do "
+            "produto."
         )
     high_groups, high_findings = _count_groups(report, "high")
     if high_groups:
@@ -124,10 +125,17 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
             "o time se é o caso aqui. O achado continua na lista."
         )
     if coverage.traffic.enabled and coverage.traffic.denied:
+        backoff = coverage.traffic.denied_by_reason.get("rate_backoff", 0)
+        backoff_note = (
+            f" Desses, {backoff} foram recusados durante o recuo temporário."
+            if 0 < backoff <= coverage.traffic.denied
+            else ""
+        )
         steps.append(
-            f"A cerca de escopo recusou {coverage.traffic.denied} pedido(s) do varredor. Veja "
-            "a seção de tráfego recusado e confirme com o dono do produto se o escopo da carta "
-            "está certo; a ferramenta não o amplia sozinha."
+            f"O proxy recusou {coverage.traffic.denied} pedido(s) do varredor.{backoff_note} "
+            "Veja a seção de tráfego recusado para conferir os motivos e, se necessário, confirme "
+            "com o dono do produto se o escopo da carta está certo; a ferramenta não o amplia "
+            "sozinha."
         )
     reach = coverage.reachability_all
     if reach is not None and reach < _LOW_REACHABILITY:
