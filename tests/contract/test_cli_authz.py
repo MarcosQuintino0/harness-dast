@@ -175,6 +175,7 @@ AUTHZ_KEYS = {
     "created_resources",
     "accounts",
     "access_matrix",
+    "effects",
     "checks",
     "findings",
     "not_tested",
