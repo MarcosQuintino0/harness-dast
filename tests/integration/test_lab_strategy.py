@@ -48,6 +48,11 @@ def _cli(root: Path, product: str) -> LabCli:
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, mode: str) -> None:
+    """Agrupa a prova em uma pilha por modo para respeitar o orçamento de laboratório.
+
+    A sequência ultrapassa 40 linhas para manter preparação, controles, coleta e encerramento
+    no mesmo ciclo de vida, sem reiniciar a pilha entre asserções sobre os mesmos artefatos.
+    """
     require_docker()
     cli = _cli(tmp_path, product)
     # Mesma preparação já usada na prova V1.5.5, sem conhecimento no algoritmo/skill.
@@ -121,6 +126,11 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
 @pytest.mark.lab_full
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
+    """Reúne execução e conferências antes de encerrar a única pilha do cenário.
+
+    Ultrapassa 40 linhas porque todas as evidências devem ser coletadas antes do reset;
+    nenhuma asserção provoca outra varredura completa.
+    """
     require_docker()
     cli = _cli(tmp_path, product)
     install_strategy(cli, product)
