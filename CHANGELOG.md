@@ -24,7 +24,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - `hdast wait` acompanha uma execução em uma chamada bloqueante; sua saída 0 indica consulta bem-sucedida, inclusive no prazo, e o código da execução terminada fica em `data.exit_code`.
 - `authz` amplia a conferência de atribuição em massa com leitura pela conta que escreveu, verifica CORS em uma amostra limitada de GETs e tenta formar pares horizontais com recursos criados durante a execução, somente com escrita autorizada pela carta.
 - As skills pedem uma conferência final de anotações dos achados altos. A avaliação preserva o caso histórico `vampi-estrito`; a régua e os casos atuais devem refletir somente o que for comprovado.
-- Provas na Clínica Piloto e no VAmPI, QA e gates de fechamento estão **pendentes**. Não houve rodada cega nesta versão. Veja o [rascunho do relatório](docs/reviews/relatorio-v1.5.5.md).
+- Gates e QA concluídos: 9.424 testes passaram e oito cenários de laboratório foram aprovados na Clínica Piloto e no VAmPI. Aceites B/D/F parciais: V3 comprovada; V4 do VAmPI não comprovada e POST 200 inconclusivo para o par novo. Sem rodada cega, varredura completa ou crAPI. Veja [provas e limites](docs/reviews/relatorio-v1.5.5.md).
 
 ## [1.5.4] - 2026-11-15
 

@@ -253,7 +253,7 @@ Implementada nos itens A a D do [plano](plans/2026-11-15-plano-v1-5-3-papeis-com
 
 ### V1.5.5: achar mais e reduzir espera
 
-Em desenvolvimento: espera bloqueante, leitura pela conta que escreveu, verificação CORS, par horizontal automático e conferência final da triagem. Casos e régua da avaliação acompanham a versão; a prova de B, C e D na Clínica Piloto e no VAmPI, o QA e os gates finais estão pendentes. Não há rodada cega nesta versão; o dono poderá pedi-la depois em pelo menos duas APIs. [Rascunho do relatório](reviews/relatorio-v1.5.5.md).
+Implementados: espera bloqueante, leitura pela conta escritora, CORS, par horizontal automático autorizado e conferência final de triagem. Gates completos e oito cenários na Clínica Piloto e no VAmPI aprovados. **Aceites B/D/F parciais:** V4 do VAmPI não comprovada; seu POST 200 é inconclusivo para o par novo; V3 comprovada pela leitura do probe. crAPI e rodadas cegas não executados. Casos atuais e `vampi-estrito` prontos para futuras rodadas nas duas APIs. [Relatório e limites](reviews/relatorio-v1.5.5.md).
 
 ### V1.5.4: alcance confiável e varredura parcial
 
