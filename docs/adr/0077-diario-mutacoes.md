@@ -1,11 +1,11 @@
-﻿# 0077. Diário de intenções de mutação
+# 0077. Diário de intenções de mutação
 
 - **Status:** Proposto
 - **Data:** 2026-11-16
 
 ## Decisão
 
-Antes do envio de mutação, reservar chave estável derivada de produto, operação, conta e tipo, sem ID ou valor, e gravar intenção e classe do estado anterior (`absent`, `present`, `unknown`) em arquivo exclusivo. Sincronizar o arquivo antes de enviar; falha de criação ou sincronização impede envio. Registro existente, inclusive incompleto, bloqueia repetição. Depois de resultado conhecido, gravar e sincronizar resultado (`succeeded` ou `failed`) e arquivar com identificador aleatório; só então outra tentativa pode ser reservada. Timeout, falha de comunicação ou queda após envio não são resultado conhecido e deixam pendência. Não guardar resposta, token, cookie, credencial ou ID. O diário é local e não exportável.
+Antes do envio de mutação, reservar chave estável derivada de produto, operação, conta e tipo, sem ID ou valor, e gravar intenção e classe do estado anterior (`absent`, `present`, `unknown`) em arquivo exclusivo. Sincronizar o arquivo antes de enviar; falha de criação ou sincronização impede envio. Registro existente, inclusive incompleto, bloqueia repetição. Depois de resultado conhecido, gravar e sincronizar resultado (`observed`, `succeeded` ou `failed`) e arquivar com identificador aleatório; só então outra tentativa pode ser reservada. Timeout, falha de comunicação ou queda após envio não são resultado conhecido e deixam pendência. Não guardar resposta, token, cookie, credencial ou ID. O diário é local e não exportável.
 
 ## Limites
 

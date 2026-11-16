@@ -19,6 +19,7 @@ from harness_dast.application.ports import (
     Clock,
     EntropySource,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -121,6 +122,7 @@ class Probe:
         token_cache: TokenCache | None = None,
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
+        mutation_journal: MutationJournal | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -142,6 +144,7 @@ class Probe:
         self._token_cache = token_cache
         self._login_budget = login_budget
         self._kill_switch = kill_switch
+        self._mutation_journal = mutation_journal
 
     def execute(self, request: ProbeRequest) -> ProbeResult:
         """Executa o `probe`.
@@ -248,6 +251,8 @@ class Probe:
             limiter=RateLimiter(profile.limits.requests_per_second, self._clock, self._sleeper),
             trail=trail,
             clock=self._clock,
+            journal=self._mutation_journal,
+            journal_product=profile.product,
         )
         budget = self._login_budget or LoginBudget(profile.login_limit, self._clock, self._sleeper)
         dispatcher = OperationDispatcher(

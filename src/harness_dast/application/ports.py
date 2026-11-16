@@ -8,7 +8,7 @@ Nenhuma porta decide regra de negócio: elas só buscam e gravam.
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 
@@ -44,6 +44,30 @@ from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
 from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.wait import WaitResult
+
+
+class MutationJournal(Protocol):
+    """Reserva inten??es antes do envio e registra apenas resultado conhecido."""
+
+    def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
+        """Reserva chave est?vel; pend?ncia impede repeti??o."""
+        ...
+
+    def finish(self, key: str, outcome: Literal["succeeded", "failed", "observed"]) -> None:
+        """Conclui uma inten??o com resultado conhecido."""
+        ...
+
+
+class KnowledgeStore(Protocol):
+    """Armazena documento de conhecimento sem conceder autoridade."""
+
+    def read(self, product: str) -> dict[str, object] | None:
+        """L? conhecimento ativo, quando presente."""
+        ...
+
+    def write_capture(self, product: str, knowledge: object) -> str:
+        """Grava c?pia separada sem substituir arquivo existente."""
+        ...
 
 
 class StrategyStore(Protocol):

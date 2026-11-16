@@ -18,6 +18,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.letter_reader import FileLetterReader
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
@@ -27,6 +28,7 @@ from harness_dast.adapters.storage.product_scaffolder import (
 )
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
@@ -238,6 +240,7 @@ def build_probe(
         entropy=SystemEntropy(),
         value_sources=GeneratorCatalogue,
         harness_version=harness_version(),
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,

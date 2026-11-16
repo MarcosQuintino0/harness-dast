@@ -11,7 +11,7 @@ from harness_dast.domain.errors import ConfigError
 
 _KEY = re.compile(r"[0-9a-f]{64}\Z")
 PreviousState = Literal["absent", "present", "unknown"]
-Outcome = Literal["succeeded", "failed"]
+Outcome = Literal["succeeded", "failed", "observed"]
 
 
 class FileMutationJournal:
@@ -48,7 +48,7 @@ class FileMutationJournal:
     def finish(self, key: str, outcome: Outcome) -> None:
         """Registra resultado conhecido; falha de gravação deixa a intenção bloqueada."""
         path = self._path(key)
-        if outcome not in ("succeeded", "failed"):
+        if outcome not in ("succeeded", "failed", "observed"):
             raise ConfigError("Resultado de mutação inválido.")
         try:
             with path.open("r+", encoding="utf-8", newline="\n") as stream:
