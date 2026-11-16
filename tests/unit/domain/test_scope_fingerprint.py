@@ -446,7 +446,11 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
             lambda d: d.update(
                 cleanup=_cleanup(),
                 authz=changed,
-                scan={"include_outcomes": ["not_found"], "allow_upload_scan": True},
+                scan={
+                    "include_outcomes": ["not_found"],
+                    "allow_upload_scan": True,
+                    "pacing": "proxy",
+                },
             )
         )
     )

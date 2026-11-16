@@ -105,3 +105,19 @@ def test_approval_changes_when_declaration_is_added_or_edited() -> None:
     assert check_approval(ProductProfile.from_data(data), approval).changed_blocks == (
         "technologies",
     )
+
+
+def test_pacing_and_technology_change_only_their_approval_blocks() -> None:
+    data = valid_profile_data()
+    old = ProductProfile.from_data(data)
+    approval = approval_for(old)
+    data["scan"] = {"pacing": "legacy"}
+    legacy = ProductProfile.from_data(data)
+    assert check_approval(legacy, approval).state == "approved"
+    data["scan"] = {"pacing": "proxy"}
+    proxy = ProductProfile.from_data(data)
+    assert check_approval(proxy, approval).changed_blocks == ("scan",)
+    data["technologies"] = {"value": ["h2"], "source": "carta", "quote": "Banco H2."}
+    combined = ProductProfile.from_data(data)
+    assert check_approval(combined, approval).changed_blocks == ("technologies", "scan")
+    assert combined.scan == proxy.scan
