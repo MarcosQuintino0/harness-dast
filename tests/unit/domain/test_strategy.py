@@ -1,6 +1,6 @@
 """Validação conservadora da estratégia, sem eco de entradas externas."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -40,6 +40,12 @@ def test_escolha_preservar_com_validade_no_dia_e_aceita() -> None:
     strategy = Strategy.from_data({**data(), "choices": [choice()]})
 
     strategy.ensure_compilable(datetime(2026, 11, 16, tzinfo=UTC))
+
+
+def test_validade_usa_data_utc_na_borda_do_fuso() -> None:
+    strategy = Strategy.from_data({**data(), "choices": [choice()]})
+    with pytest.raises(ConfigError):
+        strategy.ensure_compilable(datetime(2026, 11, 16, 22, tzinfo=timezone(-timedelta(hours=3))))
 
 
 @pytest.mark.parametrize(

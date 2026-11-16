@@ -1,6 +1,6 @@
 """Estratégia versionada: referências e declaração fechada de preservação da cobertura."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Literal, Self
 
 from pydantic import Field, ValidationError, field_validator
@@ -74,7 +74,7 @@ class Strategy(ProfileModel):
         """Recusa escolhas pendentes ou vencidas; não confere aprovação ou cobertura."""
         ensure_aware(now)
         if any(
-            choice.state != "validated" or choice.valid_until < now.date()
+            choice.state != "validated" or choice.valid_until < now.astimezone(UTC).date()
             for choice in self.choices
         ):
             raise ConfigError("Estratégia pendente ou vencida.", hint=_HINT)

@@ -16,6 +16,10 @@ def test_envelope_reflete_perfil_e_aprovacao() -> None:
 
     assert envelope.approval_digest == approval.digest
     assert envelope.requests_per_second == profile.limits.requests_per_second
+    assert envelope.scope == profile.scope.to_scope()
+    assert envelope.path_mode == profile.scope.path_mode
+    assert envelope.windows == profile.scope.windows
+    assert envelope.authorization_valid_until == profile.scope.authorization.valid_until
 
 
 def test_previa_nao_concede_aprovacao() -> None:
