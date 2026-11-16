@@ -8,7 +8,11 @@ from typing import Any
 
 from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.knowledge_mutation import mutation_key
-from tests.integration.v19_reuse_evidence import count_bound_evidence, find_recipe_triples
+from tests.integration.v19_reuse_evidence import (
+    count_bound_evidence,
+    find_recipe_triples,
+    recipe_absence,
+)
 
 _BASE = datetime(2026, 11, 16, 12, 0, 0, tzinfo=UTC)
 _SNAPSHOT = {"field": "balance", "value": 3, "source": "observed"}
@@ -113,3 +117,35 @@ def test_snapshot_de_rodada_anterior_nao_conta(tmp_path: Path) -> None:
     counts = count_bound_evidence(_good(), (_effect(),), {"upd": "PUT"}, "prod", tmp_path / "c")
 
     assert counts == {"recipe_triples": 1, "observed_snapshots": 0}
+
+
+def test_snapshot_da_restauracao_depois_da_leitura_posterior_nao_conta(tmp_path: Path) -> None:
+    # A restauração grava o seu próprio snapshot depois da leitura posterior (seq 3).
+    _journal(tmp_path / "c", "pac_a", 5)
+
+    counts = count_bound_evidence(_good(), (_effect(),), {"upd": "PUT"}, "prod", tmp_path / "c")
+
+    assert counts == {"recipe_triples": 1, "observed_snapshots": 0}
+
+
+def test_snapshot_gravado_antes_da_escrita_nao_conta(tmp_path: Path) -> None:
+    _journal(tmp_path / "c", "pac_a", 1)
+
+    counts = count_bound_evidence(_good(), (_effect(),), {"upd": "PUT"}, "prod", tmp_path / "c")
+
+    assert counts == {"recipe_triples": 1, "observed_snapshots": 0}
+
+
+def test_lacuna_so_vale_quando_a_receita_nunca_foi_tentada() -> None:
+    rows = [_row(1, "authz:upd", "PUT"), _row(2, "authz:pair:x", "GET")]
+
+    assert recipe_absence(rows) == "never_attempted"
+
+
+def test_leitura_de_receita_sem_trio_reprova_a_prova() -> None:
+    import pytest
+
+    rows = [_row(1, "authz:effect_recipe_before:rd", "GET"), _row(2, "authz:upd", "PUT")]
+
+    with pytest.raises(AssertionError, match="sem trio"):
+        recipe_absence(rows)

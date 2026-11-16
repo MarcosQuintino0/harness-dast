@@ -20,8 +20,6 @@ from tests.integration.lab_support import LabCli, run_audit
 from tests.integration.run_support import record_metrics
 from tests.integration.strategy_support import load_artifact
 
-_SLACK_SECONDS = 5.0
-
 
 @dataclass(frozen=True)
 class RecipeTriple:
@@ -119,11 +117,26 @@ def count_bound_evidence(
         key = mutation_key(product, effect.write_operation, effect.account, method)
         for triple in find_recipe_triples(rows, effect, method):
             triples += 1
-            start = _epoch(triple.before) - 1.0
-            end = _epoch(triple.after) + _SLACK_SECONDS
+            start = _epoch(triple.write)
+            end = _epoch(triple.after)
             if _observed_snapshot_files(completed, key, start, end):
                 snapshots += 1
     return {"recipe_triples": triples, "observed_snapshots": snapshots}
+
+
+def recipe_absence(rows: Sequence[Mapping[str, Any]]) -> str:
+    """Aceita a lacuna só se a receita nunca foi tentada; leitura de receita sem trio reprova."""
+    attempted = [
+        row
+        for row in rows
+        if row.get("phase") == "result"
+        and str(row.get("operation_id", "")).startswith("authz:effect_recipe_")
+    ]
+    if attempted:
+        raise AssertionError(
+            f"{len(attempted)} leituras de receita sem trio completo; a prova não pode ser lacuna"
+        )
+    return "never_attempted"
 
 
 def verify_reuse(cli: LabCli, product: str, mode: str, run_id: str) -> None:
@@ -157,11 +170,11 @@ def verify_reuse(cli: LabCli, product: str, mode: str, run_id: str) -> None:
         assert knowledge.effects, "Controle de efeito não foi observado no primeiro contexto"
         # Lacuna de prova conhecida: a receita capturada vem do par criado (conta que só cria) e
         # só se aplica a tarefa de atribuição em massa da mesma operação e conta sem leitor. No
-        # laboratório não há tal tarefa; sem trio, a ausência é registrada, não aprovada.
+        # laboratório não há tal tarefa. A lacuna só vale se a receita nunca foi tentada.
         if counts["recipe_triples"] == 0:
             record_metrics(
                 f"v19-t2-{product}-{mode}-recipe-gap",
-                {"recipe_applied": False, "reason": "no_eligible_mass_task_for_recipe_account"},
+                {"recipe_applied": False, "reason": recipe_absence(rows)},
             )
         else:
             assert counts["observed_snapshots"] > 0, (
