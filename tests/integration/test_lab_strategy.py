@@ -83,6 +83,8 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         }
         record_control(product, mode, artifacts)
         assert all(data["status"] == "completed" for data in artifacts.values())
+        assert len(artifacts["scan"]["entries"]) == len(operations)
+        assert all(item["outcome"] == "completed" for item in artifacts["scan"]["entries"])
         assert not any(row["method"] == "DELETE" for row in proxy_audit(cli))
         assert all(row["host"] == product for row in proxy_audit(cli))
         if mode == "secure":
@@ -119,6 +121,7 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
         assert scan["status"] == "completed"
         assert scan["rules_removed"] is True
         assert scan["entries"]
+        assert all(item["outcome"] == "completed" for item in scan["entries"])
         assert all(row["host"] == product for row in scenario.audit)
         assert not any(row["method"] == "DELETE" for row in scenario.audit)
         base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
