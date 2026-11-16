@@ -2,13 +2,15 @@
 
 Esta referência descreve o mecanismo e o protocolo da V1.7, sem afirmar resultados. A variante A usa `scan.pacing: legacy`, padrão; B usa `proxy`, opcional e sujeita a nova aprovação humana. Em B o atraso configurado no ZAP é zero e a cerca continua limitando a saída. A comparação mantém força, regras, operações, contas, pontos de entrada, escopo, janela e demais limites. Veja [target.yml](target-yml.md), [ADR 0066](../adr/0066-concessao-real-e-medicao-do-proxy.md) e [ADR 0067](../adr/0067-ritmo-unico-e-medicao-do-executor.md).
 
-O proxy limita a fila, espaça concessões pelo instante real, confere trava e prazo após esperas e libera a fila em cancelamento. Um 429 remoto causa recuo temporário compartilhado pela instância; aceita `Retry-After` em segundos ou data HTTP entre zero exclusivo e 60 segundos inclusivo, ou espera um segundo para valor ausente, inválido ou fora da faixa. O proxy não repete pedidos, inclusive mutações; outro 429 pode renovar o recuo, sem prorrogar prazo nem aumentar taxa. Pedidos negados são contados à parte. A repetição de outros componentes é independente deste recuo.
+O proxy limita a fila, espaça concessões pelo instante real, confere trava e prazo após esperas e libera a fila em cancelamento. Um 429 remoto causa recuo temporário compartilhado pela instância; aceita `Retry-After` em segundos ou data HTTP entre zero exclusivo e 60 segundos inclusivo, ou espera um segundo para valor ausente, inválido ou fora da faixa. Durante o recuo, recusa imediatamente com 429, motivo `rate_backoff` e `Retry-After` com o tempo remanescente arredondado para cima, sem segurar a conexão por todo o recuo. O proxy não repete pedidos, inclusive mutações; outro 429 pode renovar o recuo, sem prorrogar prazo nem aumentar taxa. Pedidos negados são contados à parte; recusa por recuo é lacuna de cobertura. A repetição de outros componentes é independente deste recuo.
 
 A declaração `technologies.value` vem da carta e é **consultiva**: nenhuma regra é excluída por tecnologia. A ausência de contradição observada não confirma a declaração. Exclusão efetiva está adiada ([ADR 0068](../adr/0068-tecnologias-consultivas.md)).
 
 ## Métricas
 
 `metrics.json` reúne duração por etapa, operações e regras, tráfego e `timing`; `scan.json` registra limites e resultados; `rule-stats.json` conserva estados por regra.
+
+`scan.json` registra `rule_coverage_gaps` por operação e regra. Lista preenchida indica lacunas; em registros antigos, `null` significa desconhecido. Quando há scans e não é possível recuperar as estatísticas, o relatório marca cobertura parcial. Uma recusa `rate_backoff` também marca cobertura parcial. Saída bem-sucedida ou progresso de 100% não substitui essa verificação.
 
 | Campo de `timing` | Interpretação |
 | --- | --- |
@@ -46,3 +48,11 @@ Antes dos pares, registre fórmula, dados necessários, exclusões e tratamento 
 Na T3, registre redução mediana por API e critérios de qualidade da seção 3 do plano; a meta prévia é ao menos 15%. Na T4, calcule redução medida entre A e B completas comparáveis. Se a diferença em relação à previsão superar 10 pontos percentuais, a alegação para a completa é inconclusiva. Trabalho não executado, detecção perdida, falso positivo reproduzível, falha de autorização ou troca de identidade impedem alegar equivalência. Sem prova ou meta, mantenha `legacy` como padrão e registre o motivo. Uma previsão válida não demonstra ganho em produto real.
 
 A decisão sobre V1.10 exige medir a fração do tempo que poderia ser paralelizada sem regras de tempo, mutação compartilhada ou dependências. A API do ZAP não fornece intervalos por regra: sem linha do tempo verificável e sem separar sobreposições, não se pode somar durações de regras nem calcular essa fração com confiança. Registre a medida como indisponível e a decisão como bloqueada por falta de evidência; não invente intervalos. Abaixo de 40% medidos, o plano não inicia V1.10.
+
+## Resultados disponíveis da V1.7
+
+Os 12 controles T2 direcionados passaram: oito de SQL nas duas APIs, variantes e modos; quatro de travessia de caminho na Clínica Piloto, nas duas variantes e modos. Na T3 foram três pares por API, 12 scans; as reduções observadas nas medianas foram 45,0995% na Clínica e 60,9604% no VAmPI. São descrições do subconjunto, não aceite de qualidade ou ganho da varredura completa. Em cada operação das T4 consideradas, 43 regras ficaram `completed` e DOM XSS 40026 ficou `skipped`: isso impede comprovar cobertura completa e produzir o estimador completo pré-registrado.
+
+Na T4, A e B terminaram nas duas APIs. A Clínica executou 28 de 28 entradas planejadas (1.204 regras concluídas e 28 puladas); o VAmPI A, 10 de 10 (430 concluídas e 10 puladas). Isso não inclui operações excluídas antes do plano, por exemplo login, mutação ou resultado sem sucesso. O tempo de parede do scan A foi 619,491791 s na Clínica e 133,769327 s no VAmPI; B levou 312,545142 s e 51,584607 s, respectivamente. No VAmPI B, o `run` levou 60,078 s e o teste passou em 102,87 s. As diferenças de duração são descritivas: nenhuma previsão numérica foi confirmada pela T4. O filtro `A-` também selecionou a B da Clínica, executada antes do congelamento da previsão: não existe previsão prospectiva válida para ela. O desvio e a ausência de previsão estão preservados em [forecast-freeze.json](../../evals/measurements/v1.7/forecast-freeze.json). A previsão completa e a equivalência ficam inconclusivas; não se declara a meta atingida.
+
+Para a condição da seção 6.1 do plano, os limites **condicionais**, relativos apenas ao trabalho executado, são [0%, 87,06%] na Clínica e [0%, 91,02%] no VAmPI. Eles não comprovam parcela paralelizável de pelo menos 40%; V1.10 permanece fechada. Não houve prova contra produto real.
