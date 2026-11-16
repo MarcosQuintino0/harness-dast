@@ -20,7 +20,7 @@ class MutationSnapshot(ApiModel):
     """Somente um campo reconhecido e escalar limitado; não contém recurso nem resposta inteira."""
 
     field: str = Field(min_length=1, max_length=64)
-    value: StrictBool | StrictInt | StrictFloat
+    value: StrictBool | StrictInt | StrictFloat = Field(repr=False)
     source: Literal["observed", "request_baseline"]
 
     @field_validator("field")

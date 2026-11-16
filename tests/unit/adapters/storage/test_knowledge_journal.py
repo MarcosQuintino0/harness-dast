@@ -1,11 +1,13 @@
 """Testes do diário de intenções e resultados desconhecidos."""
 
+import json
 from pathlib import Path
 
 import pytest
 
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
 
 
 def test_intencao_pendente_bloqueia_nova_tentativa(tmp_path: Path) -> None:
@@ -40,3 +42,36 @@ def test_pendente_corrompido_bloqueia_repeticao(tmp_path: Path) -> None:
 def test_chave_invalida_recusada(tmp_path: Path, key: str) -> None:
     with pytest.raises(ConfigError):
         FileMutationJournal(tmp_path).begin(key, "unknown")
+
+
+def test_snapshot_e_gravado_antes_do_resultado_e_sobrevive_a_interrupcao(tmp_path: Path) -> None:
+    key = "e" * 64
+    journal = FileMutationJournal(tmp_path)
+    journal.begin(key, "present", MutationSnapshot(field="price", value=12.5, source="observed"))
+    record = json.loads((tmp_path / (key + ".jsonl")).read_text())
+    assert record == {
+        "intent": "mutation",
+        "previous_state": "present",
+        "snapshot": {"field": "price", "value": 12.5, "source": "observed"},
+    }
+    with pytest.raises(ConfigError):
+        FileMutationJournal(tmp_path).begin(key, "unknown")
+    journal.finish(key, "observed")
+    assert len(list((tmp_path / "completed").iterdir())) == 1
+
+
+def test_snapshot_adulterado_nao_e_persistido_ou_exposto_em_erro(tmp_path: Path) -> None:
+    key = "f" * 64
+    unsafe = MutationSnapshot.model_construct(field="password", value=123, source="observed")
+    with pytest.raises(ConfigError) as error:
+        FileMutationJournal(tmp_path).begin(key, "present", unsafe)
+    assert "123" not in str(error.value)
+    assert not (tmp_path / (key + ".jsonl")).exists()
+
+
+def test_linha_de_base_nao_e_tratada_como_estado_observado(tmp_path: Path) -> None:
+    key = "a" * 64
+    snapshot = MutationSnapshot(field="price", value=1, source="request_baseline")
+    with pytest.raises(ConfigError):
+        FileMutationJournal(tmp_path).begin(key, "present", snapshot)
+    FileMutationJournal(tmp_path).begin(key, "unknown", snapshot)
