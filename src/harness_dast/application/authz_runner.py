@@ -25,6 +25,7 @@ from harness_dast.application.authz_sender import (
     ReplaySender,
     StopRun,
 )
+from harness_dast.application.cors_check import run_cors
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_matrix_plan import MatrixPlan
@@ -77,6 +78,7 @@ class AuthzOutcome:
 class AuthzPlans:
     """Planos de cada verificação (calculados no domínio antes de enviar)."""
 
+    cors: Planned[ExchangeRecord]
     horizontal: Planned[ReplayTask]
     excessive: Planned[ExchangeRecord]
     anonymous: Planned[ExchangeRecord]
@@ -90,6 +92,7 @@ class AuthzPlans:
 CheckRunner = Callable[[CheckContext, AuthzPlans], CheckResult]
 
 CHECK_RUNNERS: dict[AuthzCheck, CheckRunner] = {
+    "cors": lambda ctx, plans: run_cors(ctx, plans.cors),
     "horizontal": lambda ctx, plans: run_horizontal(ctx, plans.horizontal),
     "excessive_data": lambda ctx, plans: run_excessive(ctx, plans.excessive),
     "anonymous_access": lambda ctx, plans: run_anonymous(ctx, plans.anonymous),

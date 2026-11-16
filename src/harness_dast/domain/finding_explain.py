@@ -692,6 +692,20 @@ _AUTHZ_MASS = FindingExplanation(
     technical_name="Atribuição em massa (Mass Assignment, CWE-915)",
 )
 
+_AUTHZ_CORS = FindingExplanation(
+    key="authz_cors",
+    title="A política CORS permite acesso de outras origens",
+    what_happened="Uma origem de teste recebeu permissão de acesso à resposta.",
+    why_it_matters="Um site externo pode ler dados expostos conforme a política observada.",
+    what_to_do=_steps(
+        _open_ticket(),
+        (_DEV, "Limitar origens confiáveis e o uso de credenciais."),
+        _retest(),
+    ),
+    who=_DEV,
+    technical_name="Configuração CORS permissiva (CWE-942)",
+)
+
 _AUTHZ_ANONYMOUS = FindingExplanation(
     key="authz_anonymous_access",
     title="O sistema responde a quem não fez login",
@@ -858,6 +872,7 @@ _BY_TECHNIQUE: Final[dict[AuthzTechnique, FindingExplanation]] = {
     "authz_access_matrix": _AUTHZ_ACCESS_MATRIX,
     "authz_excessive_data": _AUTHZ_EXCESSIVE,
     "authz_mass_assignment": _AUTHZ_MASS,
+    "authz_cors": _AUTHZ_CORS,
     "authz_anonymous_access": _AUTHZ_ANONYMOUS,
     "authz_tampered_token": _AUTHZ_TAMPERED,
 }

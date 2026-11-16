@@ -42,6 +42,7 @@ from harness_dast.application.run_support import AuditTrail, GuardedSender, Rate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_anonymous import plan_access
+from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
 from harness_dast.domain.authz_plan import (
@@ -268,6 +269,7 @@ class Authz:
                 dispatcher=dispatcher,
                 sessions=pool,
                 vault=self._vault,
+                run_id=run_id,
             )
         )
         return runner.run(checks, plans)
@@ -352,6 +354,12 @@ def _plan(
             else Planned((), (horizontal_write_blocked_note(),))
         )
     plans = AuthzPlans(
+        cors=Planned(
+            tuple(e for e in exchanges if e.method == "GET" and is_success_status(e.status))[
+                : config.cors_max_requests
+            ],
+            (),
+        ),
         anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
         tampered=_access("tampered_token", profile, exchanges, operations, checks),
         horizontal=plan_horizontal(
@@ -407,6 +415,7 @@ def _nothing_to_replay(
         why = f"Os pedidos do probe não puderam ser lidos ({unavailable}): nada foi repetido."
     notes = nothing_to_replay_notes(checks, reason=reason, why=why)
     return AuthzPlans(
+        cors=_noted(plans.cors, *_note(notes, "cors")),
         horizontal=_noted(plans.horizontal, *_note(notes, "horizontal")),
         excessive=_noted(plans.excessive, *_note(notes, "excessive_data")),
         anonymous=_noted(plans.anonymous, *_note(notes, "anonymous_access")),
@@ -424,6 +433,7 @@ def _note(notes: dict[AuthzCheck, AuthzNotTested], check: AuthzCheck) -> tuple[A
 
 def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutcome:
     sizes = {
+        "cors": plans.cors,
         "horizontal": plans.horizontal,
         "excessive_data": plans.excessive,
         "anonymous_access": plans.anonymous,

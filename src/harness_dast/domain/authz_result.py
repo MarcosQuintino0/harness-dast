@@ -20,6 +20,7 @@ AUTHZ_SCHEMA_VERSION: Final = 1
 AUTHZ_FINGERPRINT_VERSION: Final = 1
 
 AuthzTechnique = Literal[
+    "authz_cors",
     "authz_horizontal",
     "authz_vertical",
     "authz_excessive_data",

@@ -67,6 +67,8 @@ class Reply:
     body: bytes = b""
     problem: str | None = None
     location: str | None = None
+    cors_allow_origin: str | None = None
+    cors_allow_credentials: str | None = None
 
 
 @dataclass
@@ -110,6 +112,7 @@ class AuthzSettings:
     dispatcher: OperationDispatcher
     sessions: SessionPool
     vault: SecretVault
+    run_id: str = ""
 
 
 class ReplaySender:
@@ -152,6 +155,7 @@ class ReplaySender:
         with_body: bool = False,
         method: str | None = None,
         tag: str = "",
+        origin: str | None = None,
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
 
@@ -172,6 +176,8 @@ class ReplaySender:
         headers = (
             (("Content-Type", exchange.content_type),) if payload and exchange.content_type else ()
         )
+        if origin is not None:
+            headers = (*headers, ("Origin", origin))
         request = HttpRequest(
             method=method or exchange.method,
             url=join_url(self._s.base_url, exchange.target),
@@ -251,7 +257,13 @@ class ReplaySender:
             )
         if response is None:
             return Reply(None)
-        return Reply(response.status, response.body, location=response.location)
+        return Reply(
+            response.status,
+            response.body,
+            location=response.location,
+            cors_allow_origin=response.cors_allow_origin,
+            cors_allow_credentials=response.cors_allow_credentials,
+        )
 
     def baseline(self, exchange: ExchangeRecord) -> Reply:
         """Resposta da conta dona ao pedido gravado (uma vez por conta e caminho)."""
