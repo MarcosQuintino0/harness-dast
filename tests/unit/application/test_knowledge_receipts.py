@@ -65,3 +65,30 @@ def test_recibo_de_campo_em_array_confere_contra_schema() -> None:
         location="body",
     )
     ensure_rule_use(receipt, rules, spec)
+
+
+def test_fluxo_nao_emite_recibo_quando_destino_readonly_foi_ignorado() -> None:
+    from harness_dast.domain.api_schema import Schema
+    from harness_dast.domain.flow import FlowSpec
+    from tests.fakes.rig import agenda_spec, operation
+
+    original = agenda_spec()
+    consumer = operation(
+        "consumer", "post", "/api/other", body={"field": Schema(type="integer", read_only=True)}
+    )
+    spec = original.model_copy(update={"operations": (*original.operations, consumer)})
+    flows = FlowSpec.from_data(
+        {
+            "schema_version": 1,
+            "bindings": [
+                {
+                    "produces": {"operation": "criar", "field": "id"},
+                    "consumed_by": [{"operation": "consumer", "field": "field"}],
+                }
+            ],
+        }
+    )
+    rig = Rig(spec=spec, flows=flows)
+    result = rig.probe().execute(ProbeRequest(product="agenda", only=("consumer",)))
+    assert result.operations[-1].outcome == "success"
+    assert result.operations[-1].flow_uses == ()

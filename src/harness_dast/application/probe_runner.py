@@ -242,7 +242,7 @@ class ProbeRunner:
             outcome,
             status=response.status,
             rule_uses=prepared.built.rule_uses if outcome == "success" else (),
-            flow_uses=self._flow_uses(planned) if outcome == "success" else (),
+            flow_uses=self._flow_uses(planned, prepared.built) if outcome == "success" else (),
             conflict_fields=tuple(
                 name
                 for name in conflict_fields(
@@ -262,7 +262,9 @@ class ProbeRunner:
             **common,
         )
 
-    def _flow_uses(self, planned: PlannedOperation) -> tuple[KnowledgeFlowUse, ...]:
+    def _flow_uses(
+        self, planned: PlannedOperation, built: BuiltRequest
+    ) -> tuple[KnowledgeFlowUse, ...]:
         if self._s.flows is None:
             return ()
         receipts: list[KnowledgeFlowUse] = []
@@ -270,7 +272,10 @@ class ProbeRunner:
             if binding.produces.operation not in planned.depends_on:
                 continue
             for consumer in binding.consumed_by:
-                if consumer.operation != planned.operation_id:
+                if (
+                    consumer.operation != planned.operation_id
+                    or consumer.target not in built.bound_uses
+                ):
                     continue
                 kind, name = consumer.target
                 try:

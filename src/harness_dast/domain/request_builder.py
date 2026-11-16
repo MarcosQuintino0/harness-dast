@@ -116,6 +116,7 @@ class BuiltRequest(ApiModel):
     files: tuple[FileSpec, ...] = ()
     skipped_fields: tuple[str, ...] = ()
     rule_uses: tuple[KnowledgeRuleUse, ...] = ()
+    bound_uses: tuple[tuple[str, str], ...] = ()
 
 
 class _Omitted:
@@ -232,6 +233,7 @@ class RequestBuilder:
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
         self._rule_uses: list[KnowledgeRuleUse] = []
+        self._bound_uses: set[tuple[str, str]] = set()
         self._expected_rules = expected_rules
 
     @property
@@ -313,6 +315,7 @@ class RequestBuilder:
                 valor de regra que viola o esquema, valor único repetido ou esgotado.
         """
         self._rule_uses = []
+        self._bound_uses = set()
         bound = bindings or ResolvedBindings()
         skipped: list[str] = []
         values = {
@@ -332,6 +335,7 @@ class RequestBuilder:
             files=files,
             skipped_fields=tuple(skipped),
             rule_uses=tuple(self._rule_uses),
+            bound_uses=tuple(sorted(self._bound_uses)),
         )
 
     def _parameters(
@@ -379,6 +383,7 @@ class RequestBuilder:
 
     def _parameter_value(self, parameter: Parameter, ctx: _Ctx) -> JsonValue | _Omitted:
         if parameter.name in ctx.bound.params:
+            self._bound_uses.add(("param", parameter.name))
             return self._bound(ctx.bound.params[parameter.name], parameter.value_schema)
         if parameter.required:
             return self._make(parameter.value_schema, ctx)
@@ -487,6 +492,7 @@ class RequestBuilder:
         flat = flatten_schema(schema)
         key = ".".join(ctx.segments)
         if ctx.location == "body" and key in ctx.bound.fields:
+            self._bound_uses.add(("field", key))
             return self._bound(ctx.bound.fields[key], flat)
         if ctx.depth > MAX_BUILD_DEPTH:
             raise FieldNotGeneratable(
