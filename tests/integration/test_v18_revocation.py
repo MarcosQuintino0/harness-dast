@@ -82,6 +82,9 @@ def test_revogacao_durante_probe_trava_concessoes_no_proxy(
         audit_path = Path(audit_name)
         run_id = str(up.data.get("run_id", ""))
         assert run_id
+        # O preflight executa o setup_path do VAmPI e semeia os usuários sintéticos.
+        preflight = cli.run("preflight", "vampi")
+        assert preflight.code == 0, "preflight do laboratório não concluído"
         start = len(_audit(audit_path))
         process = cli.start("probe", "vampi")
         # A revogacao nao pode ser recriada por stack_down ou por outra chamada do helper.
@@ -109,6 +112,7 @@ def test_revogacao_durante_probe_trava_concessoes_no_proxy(
             if process is not None and process.poll() is None:
                 process.kill()
                 process.communicate(timeout=15)
+            if process is not None:
                 exit_code = process.returncode
             _save_evidence(audit_path, start, started, revoked_at, denied_at, run_id, exit_code)
         finally:
