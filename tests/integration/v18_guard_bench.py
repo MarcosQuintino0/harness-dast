@@ -8,9 +8,10 @@ import statistics
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
+from io import StringIO
 from pathlib import Path
 
-from harness_dast.adapters.scope_proxy import approval_watch, gate
+from harness_dast.adapters.scope_proxy import approval_watch, engine, gate
 from harness_dast.adapters.scope_proxy.decision import Reason
 from harness_dast.adapters.scope_proxy.policy import load_policy
 
@@ -28,9 +29,15 @@ def clock() -> datetime:
     return datetime.now(UTC)
 
 
-run_gate = gate.RunGate(
-    kill_flag=kill, deadline=policy.not_after, now=clock, binding=policy.binding
+proxy_engine = engine.ScopeProxyEngine(
+    policy,
+    policy_dir=policy_path.parent,
+    audit_file=StringIO(),
+    stdout=StringIO(),
+    now=clock,
+    monotonic=time.monotonic,
 )
+run_gate = proxy_engine._gate
 
 
 def stat_only() -> None:
@@ -56,6 +63,9 @@ def measure(fn: Callable[[], Reason | None]) -> dict[str, object]:
         assert result is None, "porta recusou: medição inválida"
         if i >= WARMUP:
             samples.append(elapsed)
+        # Espera fora da fatia cronometrada, igual no before e no after, para observar
+        # múltiplos ciclos caso a composição real passe a usar uma vigia.
+        time.sleep(0.002)
     ordered = sorted(samples)
     return {
         "samples_ns": samples,
@@ -89,6 +99,7 @@ print(  # noqa: T201 - JSON pelo stdout para o executor
             "samples": SAMPLES,
             "source_sha256": {
                 "gate": sha(inspect.getfile(gate)),
+                "engine": sha(inspect.getfile(engine)),
                 "approval_watch": sha(inspect.getfile(approval_watch)),
                 "policy": sha(policy_path),
                 "approval": sha(approval),
