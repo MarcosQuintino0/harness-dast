@@ -20,6 +20,7 @@ from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel_format import FunctionStateKind, RunStateKind
+from harness_dast.domain.report_model import NotTested
 from harness_dast.domain.rule_stats import RuleTotal
 from harness_dast.domain.run_metrics import DisabledRuleMetric, OperationMetric
 from harness_dast.domain.traffic import TrafficGaps, TrafficSummary
@@ -445,6 +446,8 @@ class PanelView(ApiModel):
         verdict: Como terminou.
         stages: As cinco etapas, na ordem.
         functions: Todas as funções conhecidas, na ordem do OpenAPI (ou do `probe`).
+        coverage_partial: Se há lacunas elegíveis ou etapas incompletas.
+        coverage_not_tested: Operações sem varredura e o último resultado do probe.
         traffic: Tráfego da cerca durante a varredura, ou `None` sem `scan.json`.
         traffic_measured: Se havia auditoria do proxy (sem ela, "0 pedidos barrados" seria mentira).
         counts: Achados por severidade, ou `None` sem `findings.json`.
@@ -463,6 +466,8 @@ class PanelView(ApiModel):
     verdict: PanelVerdict
     stages: tuple[PanelStage, ...]
     functions: tuple[PanelFunction, ...] = ()
+    coverage_partial: bool = False
+    coverage_not_tested: tuple[NotTested, ...] = ()
     traffic: TrafficSummary | None = None
     traffic_measured: bool = False
     counts: FindingCounts | None = None

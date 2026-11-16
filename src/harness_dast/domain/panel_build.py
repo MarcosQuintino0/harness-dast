@@ -23,6 +23,7 @@ from harness_dast.domain.panel_build_stages import build_stages, build_verdict, 
 from harness_dast.domain.panel_format import product_title
 from harness_dast.domain.panel_model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel_sources import PanelSources, parse_moment
+from harness_dast.domain.report_build import _not_tested, coverage_is_partial
 
 
 def _stamp_moment(run_id: str, zone: tzinfo) -> datetime | None:
@@ -127,6 +128,8 @@ def build_panel_view(src: PanelSources) -> PanelView:
         verdict=verdict,
         stages=stages,
         functions=functions,
+        coverage_partial=bool(src.probe and src.scan and coverage_is_partial(src.probe, src.scan)),
+        coverage_not_tested=_not_tested(src.probe, src.scan) if src.probe and src.scan else (),
         traffic=src.scan.traffic if src.scan else None,
         traffic_measured=bool(src.scan and src.scan.traffic.enabled),
         counts=counts,

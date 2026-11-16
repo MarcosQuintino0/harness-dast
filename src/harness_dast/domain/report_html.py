@@ -91,7 +91,9 @@ def _summary(report: FindingsReport) -> str:
         f"{limits.max_duration_minutes} min no total e {limits.max_scan_minutes} min por "
         "varredura.</li>"
         f"<li>Cobertura: {scanned} varredura(s) sobre {cov.operations_total} operação(ões) do "
-        f"OpenAPI; o probe alcançou {cov.probe_successes} de {cov.operations_sent} tentadas "
+        f"OpenAPI; o probe alcançou "
+        f"{cov.probe_reached if cov.probe_reached is not None else cov.probe_successes} "
+        f"de {cov.operations_sent} tentadas "
         f"({_percent(cov.reachability)}; {_percent(cov.reachability_all)} de todas). "
         f"{len(cov.not_tested)} operação(ões) ficaram sem varredura.</li>"
         f"<li>Estado: probe {h.ident(cov.probe_status)}, varredura {h.ident(cov.scan_status)}."
@@ -256,8 +258,8 @@ def _findings(report: FindingsReport) -> str:
 def _not_covered(report: FindingsReport) -> str:
     cov = report.coverage
     partial = (
-        '<div class="banner"><b>Relatório parcial.</b> A execução parou antes do fim '
-        f"({h.text(cov.scan_stop_message or cov.scan_status)}). O que não foi varrido não deve "
+        '<div class="banner"><b>Relatório parcial.</b> Há operações elegíveis sem varredura '
+        "ou etapas incompletas. O que não foi varrido não deve "
         "ser lido como seguro.</div>"
         if cov.partial
         else ""
@@ -270,16 +272,14 @@ def _not_covered(report: FindingsReport) -> str:
     rows = "".join(
         f"<tr><td>{h.ident(item.operation_id)}</td>"
         f"<td><code>{h.ident(item.method + ' ' + item.path)}</code></td>"
+        f"<td>{h.text(item.probe_outcome or 'não registrado')}</td>"
         f"<td>{h.text(item.message, 200)}</td></tr>"
-        for item in cov.not_tested[:_MAX_ROWS]
+        for item in cov.not_tested
     )
-    extra = len(cov.not_tested) - _MAX_ROWS
     table = (
         "<details><summary>Operações sem varredura "
         f"({len(cov.not_tested)})</summary><table><tr><th>Operação</th><th>Requisição</th>"
-        f"<th>Motivo</th></tr>{rows}</table>"
-        + (f'<p class="muted">... e mais {extra} (veja findings.json).</p>' if extra > 0 else "")
-        + "</details>"
+        f"<th>Resultado do último probe</th><th>Motivo</th></tr>{rows}</table></details>"
         if cov.not_tested
         else ""
     )

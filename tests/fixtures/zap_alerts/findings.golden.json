@@ -18,9 +18,10 @@
     "operations_total": 10,
     "operations_sent": 8,
     "probe_successes": 8,
+    "probe_reached": 8,
     "reachability": 1.0,
     "reachability_all": 0.8,
-    "partial": false,
+    "partial": true,
     "probe_status": "completed",
     "scan_status": "completed",
     "scan_stop_message": null,
@@ -38,42 +39,48 @@
         "method": "POST",
         "path": "/users/v1/register",
         "reason": "not_run",
-        "message": "A varredura parou antes de chegar a esta operação."
+        "message": "A varredura parou antes de chegar a esta operação.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "login",
         "method": "POST",
         "path": "/users/v1/login",
         "reason": "login",
-        "message": "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
+        "message": "O login não é varrido: senhas inválidas em massa bloqueariam a conta.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "debug",
         "method": "GET",
         "path": "/users/v1/_debug",
         "reason": "not_run",
-        "message": "A varredura parou antes de chegar a esta operação."
+        "message": "A varredura parou antes de chegar a esta operação.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "update_email",
         "method": "PUT",
         "path": "/users/v1/{username}/email",
         "reason": "mutating",
-        "message": "PUT só é varrido sobre recurso criado nesta execução (flows.yml) ou com scan.mutating_methods no perfil."
+        "message": "PUT só é varrido sobre recurso criado nesta execução (flows.yml) ou com scan.mutating_methods no perfil.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "delete_user",
         "method": "DELETE",
         "path": "/users/v1/{username}",
         "reason": "probe_skipped_destructive",
-        "message": "O probe terminou com skipped_destructive."
+        "message": "O probe terminou com skipped_destructive.",
+        "probe_outcome": "skipped_destructive"
       },
       {
         "operation_id": "createdb",
         "method": "GET",
         "path": "/createdb",
         "reason": "probe_skipped_denied",
-        "message": "O probe terminou com skipped_denied."
+        "message": "O probe terminou com skipped_denied.",
+        "probe_outcome": "skipped_denied"
       }
     ],
     "include_outcomes": [],

@@ -89,6 +89,10 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
         message = (
             skip.message if skip else (item.message or f"O probe terminou com {item.outcome}.")
         )
+        if str(item.outcome) == "auth_rejected_expected":
+            message = "Recusa esperada das credenciais sintéticas no login. " + message
+        elif item.message and skip and item.message != skip.message:
+            message = f"{message} Resultado do probe: {item.message}"
         if item.status == 404:
             if skip is None:
                 reason = "scan_sem_registro"
@@ -104,6 +108,7 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
                 path=item.path,
                 reason=reason,
                 message=message,
+                probe_outcome=item.outcome,
             )
         )
     return tuple(found)
@@ -125,15 +130,58 @@ def _seeded_scans(probe: ProbeResult, scan: ScanResult) -> tuple[SeededScan, ...
     )
 
 
+_DESIGN_SKIPS = frozenset(
+    {
+        "scope",
+        "denied",
+        "delete",
+        "login",
+        "mutating",
+        "not_selected",
+        "upload_scan_not_authorized",
+        "multipart_not_scannable",
+    }
+)
+_DESIGN_OUTCOMES = frozenset({"skipped_scope", "skipped_denied", "skipped_destructive"})
+
+
+def coverage_gaps(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
+    """Lacunas elegíveis, sem confundir exclusões do plano com falhas de cobertura."""
+    return tuple(
+        item
+        for item in _not_tested(probe, scan)
+        if item.reason not in _DESIGN_SKIPS and item.probe_outcome not in _DESIGN_OUTCOMES
+    )
+
+
+def coverage_is_partial(probe: ProbeResult, scan: ScanResult) -> bool:
+    """Marca lacunas de alcance ou varredura sem contar exclusões deliberadas."""
+    skips = {item.operation_id: item.reason for item in scan.skipped}
+    unreached = any(
+        item.outcome not in {"success", "auth_rejected_expected"}
+        and item.outcome not in _DESIGN_OUTCOMES
+        and skips.get(item.operation_id) not in _DESIGN_SKIPS
+        for item in probe.operations
+    )
+    return (
+        probe.status != "completed"
+        or scan.status != "completed"
+        or unreached
+        or bool(coverage_gaps(probe, scan))
+        or any(entry.outcome != "completed" for entry in scan.entries)
+    )
+
+
 def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
     summary = probe.summary
     return Coverage(
         operations_total=summary.operations_total,
         operations_sent=summary.operations_sent,
         probe_successes=summary.successes,
+        probe_reached=summary.successes + summary.by_outcome.get("auth_rejected_expected", 0),
         reachability=summary.reachability,
         reachability_all=summary.reachability_all,
-        partial=probe.status != "completed" or scan.status != "completed",
+        partial=coverage_is_partial(probe, scan),
         probe_status=probe.status,
         scan_status=scan.status,
         scan_stop_message=scan.stop_message,

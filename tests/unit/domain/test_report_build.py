@@ -95,6 +95,99 @@ def test_coverage_lists_what_was_not_tested_and_why() -> None:
     assert report.coverage.scans_run == 1
 
 
+@pytest.mark.parametrize(("method", "path"), [("GET", "/catalog/{id}"), ("POST", "/orders")])
+def test_completed_run_marks_unscanned_eligible_operation_partial(method: str, path: str) -> None:
+    from harness_dast.domain.panel_build import build_panel_view
+    from harness_dast.domain.panel_coverage import render_coverage
+    from tests.unit.domain.panel_helpers import sources
+
+    probe = probe_result(
+        [operation("pending", method, path, "validation_error", message="Inválido")]
+    )
+    scan = scan_result([])
+    report = assemble_report(
+        probe=probe,
+        scan=scan,
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    panel = render_coverage(build_panel_view(sources(probe=probe, scan=scan)))
+
+    assert report.coverage.partial
+    assert report.coverage.not_tested[0].probe_outcome == "validation_error"
+    for text in (render_markdown(report), render_html(report), panel, report.model_dump_json()):
+        assert "pending" in text
+        assert path in text
+        assert "validation_error" in text.replace("\\_", "_")
+    assert "Cobertura parcial" in panel
+
+
+def test_design_exclusion_alone_does_not_make_coverage_partial() -> None:
+    from harness_dast.domain.report_build import coverage_gaps
+
+    probe = probe_result([operation("remove", "DELETE", "/items/{id}", "skipped_destructive")])
+    assert coverage_gaps(probe, scan_result([])) == ()
+
+
+def test_scanned_unreached_operation_still_marks_coverage_partial() -> None:
+    from harness_dast.domain.report_build import coverage_is_partial
+
+    probe = probe_result([operation("find", "GET", "/items/{id}", "not_found")])
+    scan = scan_result([entry("find", "GET", "/items/{id}", 1, seed_outcome="not_found")])
+    assert coverage_is_partial(probe, scan)
+
+
+@pytest.mark.parametrize("path", ["/sessions", "/access/token"])
+def test_expected_login_rejection_is_reached_and_excluded_from_scanning(path: str) -> None:
+    from harness_dast.domain.panel_build import build_panel_view
+    from harness_dast.domain.panel_coverage import render_coverage
+    from tests.unit.domain.panel_helpers import sources
+
+    # Aceita o contrato novo também enquanto o módulo de probe é integrado em outra branch.
+    item = operation("sign_in", "POST", path).model_copy(
+        update={"outcome": "auth_rejected_expected", "status": 401}
+    )
+    probe = probe_result([item])
+    scan = scan_result(
+        [],
+        skipped=[
+            ScanSkip(
+                operation_id="sign_in",
+                method="POST",
+                path=path,
+                reason="login",
+                message="O login não é varrido.",
+            )
+        ],
+    )
+    report = assemble_report(
+        probe=probe,
+        scan=scan,
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    panel = render_coverage(build_panel_view(sources(probe=probe, scan=scan)))
+
+    assert report.coverage.probe_reached == 1
+    assert report.coverage.probe_successes == 0
+    assert not report.coverage.partial
+    for text in (render_markdown(report), render_html(report), panel):
+        assert "Recusa esperada" in text
+        assert "login não é varrido" in text
+
+
 def test_truncated_scans_are_listed_in_the_coverage() -> None:
     probe = probe_result(OPS[:1])
     scan = scan_result([entry("obter", "GET", "/users/v1/{username}", 4, outcome="truncated")])
