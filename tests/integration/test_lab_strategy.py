@@ -77,6 +77,20 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         assert scan.code == 0, scan.stdout + scan.stderr
         report = cli.run("report", product, "--run", run_id)
         assert report.code in {0, 1}, report.stdout + report.stderr
+        zap_findings = load_artifact(cli, run_id, "findings.json")["findings"]
+        record_metrics(
+            f"v18-t2-{product}-{mode}-detections",
+            {
+                "findings": [
+                    {key: item[key] for key in ("title", "operation_id", "proposed_severity")}
+                    for item in zap_findings
+                ]
+            },
+        )
+        if mode == "vulnerable":
+            assert any(item["title"] == "SQL Injection" for item in zap_findings)
+        else:
+            assert all(item["proposed_severity"] != "high" for item in zap_findings)
         artifacts = {
             name: load_artifact(cli, run_id, name + ".json")
             for name in ("authz", "negative", "scan")
