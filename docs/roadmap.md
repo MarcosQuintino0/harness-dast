@@ -285,7 +285,7 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Observação de efeito | Proposta, sem execução automática ou comprovação de efeito remoto |
 | Invalidação seletiva | Comparação por dependência; consumo recusa partes obrigatórias pendentes. Dupla verificação detecta mudança persistente, sem garantia contra ABA |
 | Diário de mutações | Implementado em probe/authz/negative e por lote mutante do scan; pendência compartilhada impede repetição. Sem recuperação automática ou garantia de metadados do diretório após perda de energia |
-| Par criado com 2xx | Implementado com provas conservadoras; ID gerado somente pelo servidor fica sem teste sem prova prévia. Novidade global em APIs com ocultação/upsert continua limitada |
+| Par criado com 2xx | Implementado com leituras ou inventários anteriores e marcador novo derivado do contrato; suporta ID gerado pelo servidor quando há inventário compatível. Novidade global em APIs com ocultação/upsert continua limitada |
 | Atribuição em massa no cadastro VAmPI | Lacuna de vínculo e observação no contrato; não há regra específica de produto ou ampliação da carta |
 | Canal do estudo de reutilização | Implementado com propostas declaradas, validação de receitas e manifesto; não transfere aprovação nem estado efêmero. Estudo real e rodadas cegas posteriores ao merge |
 | Promoção do ritmo proxy | Recusada no passo zero: quatro controles dirigidos passaram, mas não reconstruíram a causa histórica integral |
