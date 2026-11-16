@@ -32,7 +32,7 @@ A conferência usou `model_fields` dos modelos Pydantic e a fonte de `scope_fing
 | `auth.request_encoding`, `auth.username_field`, `auth.password_field`, `auth.token_response_field`, `auth.token_header`, `auth.token_scheme` | fatos | P | não | Campos de codificação da variante `login_password`; base `accounts` da estratégia inclui auth completo. |
 | `auth.csrf.fetch_path`, `auth.csrf.cookie_name`, `auth.csrf.header_name`, `auth.csrf.methods` | fatos | P | não | CSRF opcional; entra na base `accounts` da estratégia. |
 | `auth.default_account`, `auth.account_map[].account`, `auth.account_map[].operations`, `auth.account_map[].path`, `auth.account_map[].methods` | fatos | P | não | Roteamento; entra na base `accounts` da estratégia. |
-| `auth.token_expired.field`, `auth.token_expired.value` | fatos | P | não | Sinal opcional de login; entra na base `accounts` da estratégia. |
+| `auth.token_expired.field`, `auth.token_expired.value` | fatos | P | não | Sinal opcional exclusivo de `login_password`; entra na base `accounts` da estratégia. |
 | `probe.success.json_field_absent_or_not_equal.field`, `probe.success.json_field_absent_or_not_equal.value`, `probe.health_path`, `probe.setup_path`, `probe.error_codes.field`, `probe.error_codes.outcomes` | fatos | P | não | Probe entra na base `planning` da estratégia. |
 | `scan.strength`, `scan.threshold`, `scan.url_path_injection`, `scan.mutating_methods`, `scan.disable_rules` | envelope | H | sim | Força, pontos e regras. |
 | `scan.max_scan_minutes`, `scan.max_rule_minutes`, `scan.token_refresh_seconds`, `scan.fail_on` | envelope | H | sim | Prazo, sessão e gate. |
