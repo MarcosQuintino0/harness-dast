@@ -62,3 +62,31 @@ def record_control(product: str, mode: str, artifacts: dict[str, dict[str, Any]]
             ),
         }
     record_metrics(f"v18-t2-{product}-{mode}", payload)
+
+
+def legacy_anonymous_findings(cli: LabCli, product: str, run_id: str) -> list[dict[str, Any]]:
+    """Compara apenas leituras anônimas, preservando separados os dois artefatos reais."""
+    product_dir = cli.products / product
+    strategy = product_dir / "strategy.yml"
+    paused = product_dir / "strategy.paused.yml"
+    run_dir = cli.runs / run_id
+    current = run_dir / "authz.json"
+    saved = run_dir / "authz-strategy.json"
+    current.rename(saved)
+    strategy.rename(paused)
+    try:
+        result = cli.run("authz", product, "--run", run_id, "--check", "anonymous_access")
+        assert result.code == 0, result.stdout + result.stderr
+        return list(load_artifact(cli, run_id, "authz.json")["findings"])
+    finally:
+        if current.exists():
+            current.rename(run_dir / "authz-legacy-anonymous.json")
+        saved.rename(current)
+        paused.rename(strategy)
+
+
+def finding_keys(findings: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
+    """Retorna técnica, operação e severidade sem resposta, conta ou identificador efêmero."""
+    return sorted(
+        (item["technique"], item["operation_id"], item["proposed_severity"]) for item in findings
+    )

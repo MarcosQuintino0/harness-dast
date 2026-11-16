@@ -1,5 +1,6 @@
 """T2/T4 da estratégia neutra nas duas APIs; exige laboratório exclusivo e local."""
 
+import os
 import secrets
 from pathlib import Path
 
@@ -14,7 +15,9 @@ from tests.integration.run_support import (
 )
 from tests.integration.strategy_support import (
     activate_strategy,
+    finding_keys,
     install_strategy,
+    legacy_anonymous_findings,
     load_artifact,
     record_control,
 )
@@ -22,6 +25,14 @@ from tests.integration.test_lab_v155 import _install
 from tests.integration.test_lab_vampi import SEEDED
 
 pytestmark = pytest.mark.integration
+_METRICS_DIR = os.environ.get("HDAST_IT_METRICS_DIR")
+
+
+@pytest.fixture(autouse=True)
+def _metrics_destination(monkeypatch: pytest.MonkeyPatch) -> None:
+    # O isolamento global limpa HDAST_*; só restaura o destino explícito e não sensível.
+    if _METRICS_DIR is not None:
+        monkeypatch.setenv("HDAST_IT_METRICS_DIR", _METRICS_DIR)
 
 
 def _cli(root: Path, product: str) -> LabCli:
@@ -75,7 +86,15 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         assert not any(row["method"] == "DELETE" for row in proxy_audit(cli))
         assert all(row["host"] == product for row in proxy_audit(cli))
         if mode == "secure":
-            assert not artifacts["authz"]["findings"]
+            findings = artifacts["authz"]["findings"]
+            assert all(item["technique"] == "authz_anonymous_access" for item in findings)
+            if findings:
+                baseline = legacy_anonymous_findings(cli, product, run_id)
+                assert finding_keys(findings) == finding_keys(baseline)
+                record_metrics(
+                    f"v18-t2-{product}-{mode}-anonymous-baseline",
+                    {"with_strategy": finding_keys(findings), "legacy": finding_keys(baseline)},
+                )
         if product == "clinica-piloto" and mode == "vulnerable":
             techniques = {item["technique"] for item in artifacts["authz"]["findings"]}
             assert {"authz_horizontal", "authz_mass_assignment", "authz_cors"} <= techniques
