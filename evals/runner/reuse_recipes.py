@@ -1,18 +1,19 @@
 """Receitas de reuso restritas aos modelos do produto e ao contrato OpenAPI."""
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
 import yaml
 
-from evals.runner.cases import EvalError
+from evals.runner.cases import REPO_ROOT, EvalError
 from evals.runner.models import Case
 from harness_dast.adapters.openapi.loader import load_spec
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.api_schema import Schema, flatten_schema
 from harness_dast.domain.datagen import DataRule, DataRules
-from harness_dast.domain.datagen_catalog import get_generator
+from harness_dast.domain.datagen_catalog import ArgSpec, get_generator
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.profile import ProductProfile
@@ -55,6 +56,44 @@ def _in_enum(value: object, schemas: list[Schema]) -> bool:
     )
 
 
+# `.local` é do mDNS (RFC 6762): nunca resolve em DNS público, como os de teste.
+_RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost", ".local")
+_RESERVED_DOMAINS = ("example.com", "example.net", "example.org")
+_LABEL = re.compile(r"[a-z0-9-]+")
+
+
+def _reserved_host(value: str) -> bool:
+    """Aceita só nome de host em domínio reservado (RFC 2606/6761) ou de mDNS (RFC 6762)."""
+    if len(value) > 253 or not all(_LABEL.fullmatch(label) for label in value.split(".")):
+        return False
+    return value.endswith(_RESERVED_SUFFIXES) or any(
+        value == domain or value.endswith(f".{domain}") for domain in _RESERVED_DOMAINS
+    )
+
+
+def _template_args(generator: str, name: str) -> list[object]:
+    """Valores do mesmo gerador e argumento no modelo oficial; falha fechado se ele faltar."""
+    path = REPO_ROOT / "products/_template/data-rules.yml"
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        rules = DataRules.from_data(data)
+    except (OSError, UnicodeError, yaml.YAMLError, HarnessError):
+        raise EvalError(
+            "Modelo products/_template/data-rules.yml ausente ou malformado; nada foi exportado."
+        ) from None
+    return [
+        rule.args[name] for rule in rules.rules if rule.generator == generator and name in rule.args
+    ]
+
+
+def _textual_allowed(rule: DataRule, name: str, value: str, arg: ArgSpec) -> bool:
+    if (arg.choices is not None and value in arg.choices) or value == arg.default:
+        return True
+    if rule.generator == "email" and name == "domain" and _reserved_host(value):
+        return True
+    return value in _template_args(rule.generator, name)
+
+
 def _safe_rule(rule: DataRule, spec: ApiSpec) -> None:
     schemas = _matching(rule, spec)
     if not schemas:
@@ -67,9 +106,7 @@ def _safe_rule(rule: DataRule, spec: ApiSpec) -> None:
         if rule.generator in {"constant", "choice"}:
             if not all(_in_enum(item, schemas) for item in values):
                 raise EvalError("Constante de dados sem enum correspondente no OpenAPI.")
-        elif isinstance(value, str) and not (
-            (arg.choices is not None and value in arg.choices) or value == arg.default
-        ):
+        elif isinstance(value, str) and not _textual_allowed(rule, name, value, arg):
             raise EvalError("Argumento textual livre de gerador não é exportável.")
         elif rule.generator == "sequence" and name == "start":
             raise EvalError("Início fixo de sequência não é exportável.")
