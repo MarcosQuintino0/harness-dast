@@ -10,8 +10,7 @@ from harness_dast.application.scope_approval import ApprovedProfileRepository
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scan_plan import ScanPlan, ScanTarget
-from harness_dast.domain.scan_policy import build_limits, build_policy
-from harness_dast.domain.scope_approval import ScopeApproval
+from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy, build_limits, build_policy
 from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.strategy_basis import (
     StrategyBasis,
@@ -22,6 +21,7 @@ from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from tests.fakes.approvals import InMemoryApprovalStore, approval_for
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.rig import agenda_flows
+from tests.fakes.scan_ports import FakeScanZap
 from tests.fakes.scan_rig import ScanRig
 
 
@@ -188,19 +188,17 @@ def test_revogacao_durante_scan_interrompe_job_e_grava_resultado() -> None:
 
 
 def test_revogacao_apos_compilar_impede_inicio_do_job() -> None:
-    class RevokedAfterCompilation(InMemoryApprovalStore):
-        reads = 0
+    approvals = InMemoryApprovalStore()
 
-        def read(self, product: str) -> ScopeApproval | None:
-            approval = super().read(product)
-            self.reads += 1
-            if self.reads == 2:
-                self.items.clear()
-            return approval
+    class RevokingScanner(FakeScanZap):
+        def apply_policy(self, policy: ScanPolicy, limits: ScanLimits) -> None:
+            super().apply_policy(policy, limits)
+            approvals.items.clear()
 
     rig = ScanRig(flows=agenda_flows())
+    rig.zap = RevokingScanner()
+    rig.scanner = rig.zap
     probe = rig.run_probe()
-    approvals = RevokedAfterCompilation()
     approvals.write(approval_for(rig.profiles.load("agenda")))
     scan = Scan(
         profiles=ApprovedProfileRepository(rig.profiles, approvals),
@@ -222,6 +220,9 @@ def test_revogacao_apos_compilar_impede_inicio_do_job() -> None:
     result = scan.execute(ScanRequest(product="agenda", run_id=probe.run_id))
 
     assert result.status == "stopped_window"
+    assert result.planned
+    assert rig.zap.applied
+    assert not approvals.items
     assert rig.zap.started == []
     assert rig.artifacts.scans[probe.run_id] == result
 
