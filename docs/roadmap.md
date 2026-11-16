@@ -277,6 +277,20 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Promoção de `proxy` em perfis novos (ADR 0075) | Não promovido: nova previsão passou, mas contagens divergiram sem explicação suficiente (SSTI Clínica e Parameter Tampering VAmPI); init, modelo e perfis antigos preservados |
 | Reutilização de conhecimento e estado entre execuções | Planejado para V1.9; não entregue pela V1.8 |
 
+### V1.9: conhecimento executável do produto
+
+| Componente | Status |
+| --- | --- |
+| Conhecimento de contas, dados, fluxos e autenticação | Implementado com referências aos documentos existentes, proveniência, prazo e vínculos; ADR 0076 proposto |
+| Observação de efeito | Proposta, sem execução automática ou comprovação de efeito remoto |
+| Invalidação seletiva | Comparação por dependência; consumo recusa partes obrigatórias pendentes. Dupla verificação detecta mudança persistente, sem garantia contra ABA |
+| Diário de mutações | Implementado em probe/authz/negative e por lote mutante do scan; pendência compartilhada impede repetição. Sem recuperação automática ou garantia de metadados do diretório após perda de energia |
+| Par criado com 2xx | Implementado com provas conservadoras; ID gerado somente pelo servidor fica sem teste sem prova prévia. Novidade global em APIs com ocultação/upsert continua limitada |
+| Atribuição em massa no cadastro VAmPI | Lacuna de vínculo e observação no contrato; não há regra específica de produto ou ampliação da carta |
+| Canal do estudo de reutilização | Implementado com propostas declaradas, validação de receitas e manifesto; não transfere aprovação nem estado efêmero. Estudo real e rodadas cegas posteriores ao merge |
+| Promoção do ritmo proxy | Recusada no passo zero: quatro controles dirigidos passaram, mas não reconstruíram a causa histórica integral |
+| Provas e aceite | Em fechamento; T2, T4 e parecer final serão registrados em relatório próprio |
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |
