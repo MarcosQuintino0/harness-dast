@@ -290,7 +290,7 @@ executor, do rastro e dos parâmetros. Veja [ADR 0053](../docs/adr/0053-avaliaca
 
 ### Alcance e cobertura parcial na V1.5.4
 
-A recusa esperada de credenciais sint?ticas na opera??o de login conta como alcan?ada, mas n?o como sucesso HTTP. O login permanece exclu?do de `scan` e `negative` pelas travas existentes. Conflitos e depend?ncias n?o resolvidas permanecem lacunas; ap?s as tentativas permitidas, a varredura segue parcialmente e o relat?rio e di?rio registram opera??es exclu?das e motivos. A r?gua n?o reclassifica resultados hist?ricos.
+A recusa esperada de credenciais sintéticas na operação de login conta como alcançada, mas não como sucesso HTTP. O login permanece excluído de `scan` e `negative` pelas travas existentes. Conflitos e dependências não resolvidas permanecem lacunas; após as tentativas permitidas, a varredura segue parcialmente e o relatório e diário registram operações excluídas e motivos. A régua não reclassifica resultados históricos.
 
 ### Casos e régua da V1.5.5
 

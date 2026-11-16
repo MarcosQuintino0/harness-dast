@@ -385,9 +385,9 @@ Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura
 - Rodar duas rodadas ao mesmo tempo.
 - Copiar transcripts ou `sealed/` para o repositório.
 
-### R?gua da V1.5.4
+### Régua da V1.5.4
 
-Uma recusa esperada de autentica??o no login conta para alcance, separada dos sucessos HTTP. A varredura prossegue parcialmente ap?s as tentativas previstas, respeitando as travas; relat?rio e di?rio registram as lacunas. Sem `findings.json` em qualquer execu??o, as quatro verifica??es do crit?rio (f) dependentes de achados s?o `n/a`, fora da m?dia; as demais continuam exigidas. Um arquivo de achados vazio permanece evid?ncia v?lida. Rodadas antigas mant?m seus resultados de probe originais.
+Uma recusa esperada de autenticação no login conta para alcance, separada dos sucessos HTTP. A varredura prossegue parcialmente após as tentativas previstas, respeitando as travas; relatório e diário registram as lacunas. Sem `findings.json` em qualquer execução, as quatro verificações do critério (f) dependentes de achados são `n/a`, fora da média; as demais continuam exigidas. Um arquivo de achados vazio permanece evidência válida. Rodadas antigas mantêm seus resultados de probe originais.
 
 ### V1.5.5 e comparação histórica
 
