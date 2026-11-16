@@ -2,6 +2,9 @@
   {
     "product": "clinica-piloto",
     "mode": "vulnerable",
+    "run_id": "2026-11-16T04-24-44Z-clinica-piloto-b30e",
+    "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control0\\runs\\2026-11-16T04-24-44Z-clinica-piloto-b30e\\findings.json",
+    "phase": "coordinator selected targeted runs; findings with strategy before optional legacy anonymous replay",
     "zap_titles": {
       "Hash Disclosure - BCrypt": 1,
       "SQL Injection": 1,
@@ -19,6 +22,9 @@
   {
     "product": "vampi",
     "mode": "vulnerable",
+    "run_id": "2026-11-16T04-29-18Z-vampi-a1b1",
+    "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control1\\runs\\2026-11-16T04-29-18Z-vampi-a1b1\\findings.json",
+    "phase": "coordinator selected targeted runs; findings with strategy before optional legacy anonymous replay",
     "zap_titles": {
       "Cross Site Scripting (Reflected)": 1,
       "SQL Injection": 1,
@@ -36,6 +42,9 @@
   {
     "product": "clinica-piloto",
     "mode": "secure",
+    "run_id": "2026-11-16T04-31-11Z-clinica-piloto-e94e",
+    "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control2\\runs\\2026-11-16T04-31-11Z-clinica-piloto-e94e\\findings.json",
+    "phase": "coordinator selected targeted runs; findings with strategy before optional legacy anonymous replay",
     "zap_titles": {
       "Cookie No HttpOnly Flag": 31,
       "Authentication Request Identified": 1,
@@ -49,6 +58,9 @@
   {
     "product": "vampi",
     "mode": "secure",
+    "run_id": "2026-11-16T04-40-28Z-vampi-7d00",
+    "source": "C:\\harness-dast-artefatos\\v1-8\\t2-secure-vampi-state\\test_strategy_preserva_control0\\runs\\2026-11-16T04-40-28Z-vampi-7d00\\findings.json",
+    "phase": "coordinator selected targeted runs; findings with strategy before optional legacy anonymous replay",
     "zap_titles": {
       "Server Leaks Version Information via \"Server\" HTTP Response Header Field": 13,
       "X-Content-Type-Options Header Missing": 11,

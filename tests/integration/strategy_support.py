@@ -47,8 +47,13 @@ def load_artifact(cli: LabCli, run_id: str, name: str) -> dict[str, Any]:
 
 def record_control(product: str, mode: str, artifacts: dict[str, dict[str, Any]]) -> None:
     """Registra cobertura, técnicas e lacunas sem valores enviados ou respostas."""
-    payload: dict[str, Any] = {"product": product, "mode": mode}
+    payload: dict[str, Any] = {
+        "product": product,
+        "mode": mode,
+        "run_id": artifacts["scan"]["run_id"],
+    }
     for stage, data in artifacts.items():
+        assert data["run_id"] == payload["run_id"]
         payload[stage] = {
             "status": data["status"],
             "requests_sent": data.get("requests_sent"),

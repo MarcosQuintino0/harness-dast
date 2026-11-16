@@ -5,7 +5,8 @@
     "run_id": "2026-11-16T04-24-44Z-clinica-piloto-b30e",
     "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control0\\runs\\2026-11-16T04-24-44Z-clinica-piloto-b30e",
     "test_passed": true,
-    "scan_entries_completed": 2
+    "scan_entries_completed": 2,
+    "phase": "selected coordinator runs; independent validator reproduction is separate"
   },
   {
     "product": "vampi",
@@ -13,7 +14,8 @@
     "run_id": "2026-11-16T04-29-18Z-vampi-a1b1",
     "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control1\\runs\\2026-11-16T04-29-18Z-vampi-a1b1",
     "test_passed": true,
-    "scan_entries_completed": 2
+    "scan_entries_completed": 2,
+    "phase": "selected coordinator runs; independent validator reproduction is separate"
   },
   {
     "product": "clinica-piloto",
@@ -21,7 +23,8 @@
     "run_id": "2026-11-16T04-31-11Z-clinica-piloto-e94e",
     "source": "C:\\harness-dast-artefatos\\v1-8\\t2-state\\test_strategy_preserva_control2\\runs\\2026-11-16T04-31-11Z-clinica-piloto-e94e",
     "test_passed": true,
-    "scan_entries_completed": 2
+    "scan_entries_completed": 2,
+    "phase": "selected coordinator runs; independent validator reproduction is separate"
   },
   {
     "product": "vampi",
@@ -29,6 +32,7 @@
     "run_id": "2026-11-16T04-40-28Z-vampi-7d00",
     "source": "C:\\harness-dast-artefatos\\v1-8\\t2-secure-vampi-state\\test_strategy_preserva_control0\\runs\\2026-11-16T04-40-28Z-vampi-7d00",
     "test_passed": true,
-    "scan_entries_completed": 2
+    "scan_entries_completed": 2,
+    "phase": "selected coordinator runs; independent validator reproduction is separate"
   }
 ]

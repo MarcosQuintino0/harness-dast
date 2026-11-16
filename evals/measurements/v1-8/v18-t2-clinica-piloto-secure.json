@@ -1,6 +1,7 @@
 {
   "product": "clinica-piloto",
   "mode": "secure",
+  "run_id": "2026-11-16T04-31-11Z-clinica-piloto-e94e",
   "authz": {
     "status": "completed",
     "requests_sent": 176,

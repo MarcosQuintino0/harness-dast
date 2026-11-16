@@ -1,6 +1,7 @@
 {
   "product": "clinica-piloto",
   "mode": "vulnerable",
+  "run_id": "2026-11-16T04-24-44Z-clinica-piloto-b30e",
   "authz": {
     "status": "completed",
     "requests_sent": 178,

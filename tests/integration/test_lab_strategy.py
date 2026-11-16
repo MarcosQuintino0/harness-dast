@@ -87,10 +87,11 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         record_metrics(
             f"v18-t2-{product}-{mode}-detections",
             {
+                "run_id": run_id,
                 "findings": [
                     {key: item[key] for key in ("title", "operation_id", "proposed_severity")}
                     for item in zap_findings
-                ]
+                ],
             },
         )
         if mode == "vulnerable":
@@ -110,6 +111,7 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
         record_metrics(
             f"v18-t2-{product}-{mode}-identity",
             {
+                "run_id": run_id,
                 "auth_on_scanner": facts.auth_on_scanner,
                 "csrf": facts.csrf,
                 "rules_left": facts.rules_left,
@@ -138,7 +140,11 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
                 assert finding_keys(findings) == finding_keys(baseline)
                 record_metrics(
                     f"v18-t2-{product}-{mode}-anonymous-baseline",
-                    {"with_strategy": finding_keys(findings), "legacy": finding_keys(baseline)},
+                    {
+                        "run_id": run_id,
+                        "with_strategy": finding_keys(findings),
+                        "legacy": finding_keys(baseline),
+                    },
                 )
         if product == "clinica-piloto" and mode == "vulnerable":
             techniques = {item["technique"] for item in artifacts["authz"]["findings"]}
@@ -178,6 +184,7 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
         record_metrics(
             f"v18-t4-{product}-identity",
             {
+                "run_id": scenario.run_id,
                 "auth_on_scanner": facts.auth_on_scanner,
                 "csrf": facts.csrf,
                 "rules_left": facts.rules_left,

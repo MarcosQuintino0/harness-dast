@@ -32,5 +32,7 @@
       "api_views.users.get_all_users",
       "medium"
     ]
-  ]
+  ],
+  "run_id": "2026-11-16T04-40-28Z-vampi-7d00",
+  "source": "authz.json with strategy and authz-legacy-anonymous.json from the selected rerun"
 }

@@ -1,6 +1,7 @@
 {
   "product": "vampi",
   "mode": "vulnerable",
+  "run_id": "2026-11-16T04-29-18Z-vampi-a1b1",
   "authz": {
     "status": "completed",
     "requests_sent": 28,

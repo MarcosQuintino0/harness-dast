@@ -4,27 +4,31 @@
     "mode": "vulnerable",
     "run_id": "2026-11-16T04-24-44Z-clinica-piloto-b30e",
     "test_passed": true,
-    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination"
+    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination",
+    "phase": "initial coordinator run; secure-vampi failure is preserved separately from selected rerun"
   },
   {
     "product": "vampi",
     "mode": "vulnerable",
     "run_id": "2026-11-16T04-29-18Z-vampi-a1b1",
     "test_passed": true,
-    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination"
+    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination",
+    "phase": "initial coordinator run; secure-vampi failure is preserved separately from selected rerun"
   },
   {
     "product": "clinica-piloto",
     "mode": "secure",
     "run_id": "2026-11-16T04-31-11Z-clinica-piloto-e94e",
     "test_passed": true,
-    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination"
+    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination",
+    "phase": "initial coordinator run; secure-vampi failure is preserved separately from selected rerun"
   },
   {
     "product": "vampi",
     "mode": "secure",
     "run_id": "2026-11-16T04-35-50Z-vampi-4d32",
     "test_passed": false,
-    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination"
+    "collection": "recovered from preserved redacted artifacts; pytest environment isolation cleared metrics destination",
+    "phase": "initial coordinator run; secure-vampi failure is preserved separately from selected rerun"
   }
 ]
