@@ -65,7 +65,7 @@ def test_v18_guard_cost(tmp_path: Path) -> None:
                 "image_id": image,
                 "host_platform": platform.platform(),
                 "git_commit": subprocess.run(
-                    ["git", "rev-parse", "HEAD"],
+                    ["git", "rev-parse", "HEAD"],  # noqa: S607 - comando fixo
                     capture_output=True,
                     text=True,
                     check=True,
