@@ -90,7 +90,7 @@ Bloco independente da V1.7; as decisões seguem **Propostas** até a revisão e 
 | [0072](0072-compilacao-sem-trafego.md) | Prévia local e plano concreto imutável |
 | [0073](0073-aprovacao-estrategia.md) | Classes de alteração e limites da revalidação |
 | [0074](0074-migracao-estrategia.md) | Migração explícita, cópia e compatibilidade |
-| [0075](0075-ritmo-proxy-em-perfis-novos.md) | Ritmo proxy em perfis novos, condicionado ? prova | Proposto | 2026-11-16 | Retomada V1.8; complementa 0067 |
+| [0075](0075-ritmo-proxy-em-perfis-novos.md) | Ritmo proxy em perfis novos, condicionado à prova | Proposto | 2026-11-16 | Retomada V1.8; complementa 0067 |
 
 ## Quando escrever um ADR
 
