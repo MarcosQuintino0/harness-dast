@@ -18,6 +18,7 @@ def _row() -> tuple[dict[str, Any], list[dict[str, Any]]]:
     }
     proxy = {
         **common,
+        "query_params": [],
         "decision": "deny",
         "reason": "rate_backoff",
         "status": 429,
@@ -26,6 +27,7 @@ def _row() -> tuple[dict[str, Any], list[dict[str, Any]]]:
     cli = [
         {
             **common,
+            "query_names": [],
             "seq": 77,
             "phase": "decision",
             "decision": "allowed",
@@ -33,6 +35,7 @@ def _row() -> tuple[dict[str, Any], list[dict[str, Any]]]:
         },
         {
             **common,
+            "query_names": [],
             "seq": 77,
             "phase": "result",
             "status": 429,
@@ -85,4 +88,10 @@ def test_sem_decisao_permitida_da_cli_o_429_nao_e_aceito() -> None:
 def test_sem_429_da_cli_a_recusa_nao_e_aceita() -> None:
     proxy, cli = _row()
     cli[1]["status"] = 200
+    assert unexpected_proxy_denials(_round([proxy], cli)) == [proxy]
+
+
+def test_parametros_diferentes_nao_sao_a_mesma_tentativa() -> None:
+    proxy, cli = _row()
+    proxy["query_params"] = ["outro"]
     assert unexpected_proxy_denials(_round([proxy], cli)) == [proxy]

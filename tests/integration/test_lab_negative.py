@@ -110,11 +110,17 @@ def _same_audit_request(
     proxy_row: dict[str, Any], decision: dict[str, Any], result: dict[str, Any]
 ) -> bool:
     fields = ("method", "scheme", "host", "port", "path")
-    return all(
+    same_destination = all(
         key in proxy_row
         and proxy_row[key] not in (None, "")
         and proxy_row[key] == decision.get(key) == result.get(key)
         for key in fields
+    )
+    query_names = proxy_row.get("query_params")
+    return (
+        same_destination
+        and isinstance(query_names, list)
+        and query_names == decision.get("query_names") == result.get("query_names")
     )
 
 
