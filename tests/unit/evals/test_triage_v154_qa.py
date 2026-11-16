@@ -28,3 +28,15 @@ def test_achado_alto_sem_anotacao_ou_diario_nao_recebe_credito(tmp_path: Path) -
 
     assert checks["covers_high"] is False
     assert checks["log_covers_high"] is False
+
+
+def test_triagem_com_bom_utf8_e_lida_quando_o_agente_grava_a_marca(tmp_path: Path) -> None:
+    write_json(
+        tmp_path / "runs/a/findings.json",
+        {"findings": [{"fingerprint": "abcdef012345", "proposed_severity": "high"}]},
+    )
+    triage = '{"schema_version": 1, "annotations": [{"fingerprint": "abcdef012345", "note": "ok"}]}'
+    (tmp_path / "runs/a/triage.json").write_bytes(b"\xef\xbb\xbf" + triage.encode("utf-8"))
+    checks = {item.id: item.passed for item in triage_component(tmp_path).checks}
+
+    assert checks["covers_high"] is True

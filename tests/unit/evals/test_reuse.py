@@ -662,3 +662,160 @@ def test_export_com_captura_malformada_recusa(repo: Path, out: Path, tmp_path: P
 
     with pytest.raises(EvalError, match="Conhecimento ausente ou malformado"):
         export_reuse(out, tmp_path / "package")
+
+
+def _email_rule(out: Path, domain: str) -> None:
+    folder = out / "trace/profile/final/mini"
+    rules = {
+        "schema_version": 1,
+        "rules": [
+            {
+                "match": {"operation": "create", "field": "status", "location": "body"},
+                "generator": "email",
+                "args": {"domain": domain},
+            }
+        ],
+    }
+    write(folder / "data-rules.yml", yaml.safe_dump(rules))
+    path = folder / "knowledge.yml"
+    knowledge = yaml.safe_load(path.read_text(encoding="utf-8"))
+    knowledge["basis"]["data_rules"] = digest_strategy_document(
+        (folder / "data-rules.yml").read_bytes()
+    )
+    write(path, yaml.safe_dump(knowledge))
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "teste.exemplo.com.br",
+        "example.test",
+        "a.b.example",
+        "x.invalid",
+        "app.localhost",
+        "teste.local",
+        "example.com",
+        "mail.example.net",
+        "deep.sub.example.org",
+    ],
+)
+def test_email_domain_from_template_or_reserved_is_exported(
+    repo: Path, out: Path, tmp_path: Path, domain: str
+) -> None:
+    _source(repo, out)
+    _email_rule(out, domain)
+    package = export_reuse(out, tmp_path / "package")
+    _, files = verify_reuse(out, package, "mini")
+    assert domain in files["data-rules.yml"]
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "empresa-real.com.br",
+        "notexample.com",
+        "example.com.br",
+        "notlocal",
+        "Example.TEST",
+        "a..example.test",
+        ".example.test",
+        "café.example.test",
+        "a_b.example.test",
+        "a b.example.test",
+        ("a" * 60 + ".") * 4 + "example.test",
+    ],
+)
+def test_email_domain_outside_template_and_reserved_is_rejected(
+    repo: Path, out: Path, tmp_path: Path, domain: str
+) -> None:
+    _source(repo, out)
+    _email_rule(out, domain)
+    with pytest.raises(EvalError, match="textual"):
+        export_reuse(out, tmp_path / "package")
+    assert not (tmp_path / "package").exists()
+
+
+@pytest.mark.parametrize("content", [None, "rules: [", "schema_version: 9\n"])
+def test_missing_or_malformed_template_fails_closed(
+    repo: Path,
+    out: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    content: str | None,
+) -> None:
+    _source(repo, out)
+    _email_rule(out, "empresa-real.com.br")
+    fake_root = tmp_path / "root"
+    if content is not None:
+        write(fake_root / "products/_template/data-rules.yml", content)
+    monkeypatch.setattr("evals.runner.reuse_recipes.REPO_ROOT", fake_root)
+    with pytest.raises(EvalError, match="Modelo products/_template"):
+        export_reuse(out, tmp_path / "package")
+    assert not (tmp_path / "package").exists()
+
+
+def _seal_case(
+    out: Path, fixed: dict[str, str], generate: list[str], values: dict[str, str]
+) -> None:
+    case_path = out / "sealed/case.json"
+    case = json.loads(case_path.read_text(encoding="utf-8"))
+    case["secrets"] = {"generate": generate, "fixed": fixed}
+    write_json(case_path, case)
+    write_json(out / "sealed/secrets.json", values)
+
+
+def test_fixed_secret_equal_to_declared_role_is_public(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    _seal_case(
+        out,
+        {"MINI_ADMIN_USER": "Admin"},
+        ["MINI_ADMIN_PASS"],
+        {"MINI_ADMIN_USER": "Admin", "MINI_ADMIN_PASS": "senha-sorteada-9z"},
+    )
+    package = export_reuse(out, tmp_path / "package")
+    assert (package / "target.reuse.yml").is_file()
+
+
+def test_same_value_as_generated_secret_is_still_rejected(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    _seal_case(
+        out,
+        {},
+        ["MINI_ADMIN_USER", "MINI_ADMIN_PASS"],
+        {"MINI_ADMIN_USER": "admin", "MINI_ADMIN_PASS": "senha-sorteada-9z"},
+    )
+    with pytest.raises(EvalError, match="Segredo"):
+        export_reuse(out, tmp_path / "package")
+
+
+def test_fixed_secret_not_equal_to_a_role_is_still_rejected(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    _source(repo, out)
+    _seal_case(
+        out,
+        {"MINI_ADMIN_USER": "contract"},
+        ["MINI_ADMIN_PASS"],
+        {"MINI_ADMIN_USER": "contract", "MINI_ADMIN_PASS": "senha-sorteada-9z"},
+    )
+    with pytest.raises(EvalError, match="Segredo"):
+        export_reuse(out, tmp_path / "package")
+
+
+def test_other_secret_of_the_same_case_is_still_scanned_when_user_is_public(
+    repo: Path, out: Path, tmp_path: Path
+) -> None:
+    file = _source(repo, out)
+    _seal_case(
+        out,
+        {"MINI_ADMIN_USER": "admin"},
+        ["MINI_ADMIN_PASS"],
+        {"MINI_ADMIN_USER": "admin", "MINI_ADMIN_PASS": "senha-sorteada-9z"},
+    )
+    file.write_text(_knowledge() + "\n# senha-sorteada-9z\n", encoding="utf-8")
+    with pytest.raises(EvalError, match="Segredo"):
+        export_reuse(out, tmp_path / "package")

@@ -135,10 +135,18 @@ def _check_basis(out: Path, product: str, expected: dict[str, object]) -> None:
         raise EvalError("Fontes do conhecimento mudaram; nada foi exportado.")
 
 
+def _public_names(case: Case) -> set[str]:
+    """Chaves de `secrets.fixed` cujo valor é um nome de papel que a própria carta publica."""
+    roles = {account.role.lower() for account in case.expected.accounts}
+    return {key for key, value in case.secrets.fixed.items() if value.lower() in roles}
+
+
 def _scan_text(text: str, secrets: dict[str, str], case: Case) -> None:
+    public = _public_names(case)
     forms = {
         form
-        for value in secrets.values()
+        for key, value in secrets.items()
+        if key not in public
         for form in (value, quote(value, safe=""), quote_plus(value))
     }
     if any(form in text for form in forms):
