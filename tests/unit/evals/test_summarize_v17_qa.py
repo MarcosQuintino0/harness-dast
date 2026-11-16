@@ -150,6 +150,18 @@ def test_rejeita_hash_alterado_na_confirmacao(tmp_path: Path) -> None:
     assert "hash" in summary["groups"]["vampi/vulnerable"]["t4_confirmation"]["reason"]
 
 
+def test_t4_b_sem_readback_nao_confirma_ritmo(tmp_path: Path) -> None:
+    _complete(tmp_path)
+    frozen = MODULE.summarize(tmp_path)[1]
+    record = _record("t4", "B")
+    record["zap_config_sampling"] = None
+    _write(tmp_path, "t4", 1, "B", record)
+    summary, _ = MODULE.summarize(tmp_path, frozen)
+    result = summary["groups"]["vampi/vulnerable"]["t4_confirmation"]
+    assert result["pacing_readback_consistent"] is False
+    assert result["status"].startswith("inconclusivo")
+
+
 def test_uma_previsao_nova_nao_substitui_mapa_congelado_da_outra_api(tmp_path: Path) -> None:
     _complete(tmp_path)
     prior = MODULE.summarize(tmp_path)[1]

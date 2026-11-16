@@ -192,6 +192,7 @@ def _confirmation(records: dict[tuple[str, int, str], Record], frozen: Any) -> d
         "predicted_gain_pct": predicted,
         "difference_pp": abs(observed - predicted),
         "within_10pp_descriptive": abs(observed - predicted) <= 10,
+        "pacing_readback_consistent": pacing_valid(baseline) and pacing_valid(changed),
     }
 
 
