@@ -99,7 +99,7 @@ def test_panel_writes_the_six_pages_and_answers_with_the_envelope(
     assert data["product"] == "vampi"
     assert data["directory"] == "panel"
     assert data["entry"] == "panel/summary.html"
-    assert len(data["files"]) == 6
+    assert len(data["files"]) == 7
     assert data["verdict"] == "finished"
     assert data["severe_findings"] == 1
     assert data["sources"] == ["run.json", "probe.json", "scan.json", "findings.json"]
@@ -158,6 +158,7 @@ def test_panel_is_regenerated_in_place_without_leftovers(
             "stages.html",
             "findings.html",
             "coverage.html",
+            "authorization.html",
             "terminal.html",
             "time-and-tokens.html",
         ]

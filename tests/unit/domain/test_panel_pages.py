@@ -29,6 +29,7 @@ EXPECTED_FILES = (
     "stages.html",
     "findings.html",
     "coverage.html",
+    "authorization.html",
     "terminal.html",
     "time-and-tokens.html",
 )
@@ -140,7 +141,7 @@ def pages(request: pytest.FixtureRequest) -> dict[str, str]:
 def test_the_registry_has_the_six_design_pages_in_the_menu_order() -> None:
     assert tuple(page.file for page in PAGES) == EXPECTED_FILES
     assert [page.label for page in PAGES] == [
-        "Resumo", "Etapas", "Falhas", "Cobertura", "Terminal", "Tempo e tokens",
+        "Resumo", "Etapas", "Falhas", "Cobertura", "Autorização", "Terminal", "Tempo e tokens",
     ]  # fmt: skip
     assert all(isinstance(page, PanelPage) for page in PAGES)
 

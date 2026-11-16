@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Final
 
+from harness_dast.domain.panel_authz import render_authz
 from harness_dast.domain.panel_coverage import render_coverage
 from harness_dast.domain.panel_findings import render_findings
 from harness_dast.domain.panel_layout import TabItem, render_page
@@ -52,6 +53,7 @@ PAGES: Final[tuple[PanelPage, ...]] = (
     PanelPage("stages.html", "Etapas", "Etapas", render_stages),
     PanelPage("findings.html", "Falhas", "Falhas", render_findings, severe_count),
     PanelPage("coverage.html", "Cobertura", "Cobertura", render_coverage),
+    PanelPage("authorization.html", "Autorização", "Autorização entre contas", render_authz),
     PanelPage("terminal.html", "Terminal", "Terminal", render_terminal),
     PanelPage("time-and-tokens.html", "Tempo e tokens", "Tempo e tokens", render_time),
 )

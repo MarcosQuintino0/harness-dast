@@ -6,6 +6,7 @@ campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módu
 """
 
 from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
+from harness_dast.domain.authz_owner_plan import visible_authz_notes
 from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline
 from harness_dast.domain.report_authz_matrix import matrix_lines
@@ -89,6 +90,14 @@ def authz_lines(authz: AuthzResult | None) -> list[str]:
         for row in authz.checks
     ]
     lines += matrix_lines(authz.access_matrix)
+    lines += [
+        "",
+        *(
+            escape_inline(row.message, 400)
+            for row in authz.checks
+            if row.check == "horizontal" and row.message
+        ),
+    ]
     if authz.findings:
         lines += ["", "### Achados de autorização", ""]
         for item in authz.findings:
@@ -106,13 +115,14 @@ def _not_tested_lines(authz: AuthzResult) -> list[str]:
         return []
     lines = ["", "### O que o teste de autorização não pôde testar", ""]
     lines += ["| Verificação | Operação | Motivo | O que fazer |", "|---|---|---|---|"]
-    for item in authz.not_tested[:_MAX_NOT_TESTED]:
+    visible = visible_authz_notes(authz.not_tested, _MAX_NOT_TESTED)
+    for item in visible:
         where = cell_code(f"{item.method} {item.path}") if item.method and item.path else "(geral)"
         lines.append(
             f"| {CHECK_LABEL[item.check]} | {where} | {cell_code(item.reason)} | "
             f"{escape_inline(item.message, 200)} |"
         )
-    hidden = len(authz.not_tested) - _MAX_NOT_TESTED
+    hidden = len(authz.not_tested) - len(visible)
     if hidden > 0:
         lines.append(f"\n... e mais {hidden} item(ns); veja `not_tested` em authz.json.")
     return lines

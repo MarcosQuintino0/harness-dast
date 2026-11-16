@@ -1,4 +1,4 @@
-"""Modelo de visão do painel da execução: tudo que as seis abas precisam de UM teste. Módulo puro.
+"""Modelo de visão do painel da execução: tudo que as sete abas precisam de UM teste. Módulo puro.
 
 O painel (`docs/design/execution-panel/`) é um conjunto de páginas estáticas que a CLI gera para
 quem não domina segurança. Este módulo só descreve os dados; `panel_build` os monta a partir dos
@@ -17,6 +17,7 @@ from datetime import date, datetime
 from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel_format import FunctionStateKind, RunStateKind
@@ -439,7 +440,7 @@ class PanelJournal(ApiModel):
 
 
 class PanelView(ApiModel):
-    """Visão completa de UM teste: o que as seis abas leem.
+    """Visão completa de UM teste: o que as sete abas leem.
 
     Attributes:
         identity: Quem é o teste.
@@ -468,6 +469,7 @@ class PanelView(ApiModel):
     functions: tuple[PanelFunction, ...] = ()
     coverage_partial: bool = False
     coverage_not_tested: tuple[NotTested, ...] = ()
+    authz: AuthzResult | None = None
     traffic: TrafficSummary | None = None
     traffic_measured: bool = False
     counts: FindingCounts | None = None
