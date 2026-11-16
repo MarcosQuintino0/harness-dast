@@ -5,18 +5,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-from harness_dast.adapters.storage.profile_repository import FileProfileRepository
-from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
-from harness_dast.domain.strategy import CoverageChoice, Strategy, StrategyReferences
-from harness_dast.domain.strategy_basis import digest_strategy_document, make_strategy_basis
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     VAMPI_OPENAPI,
     VAMPI_PROFILE,
     LabCli,
-    ZapView,
 )
 from tests.integration.run_support import record_metrics
 
@@ -53,46 +46,20 @@ def load_artifact(cli: LabCli, run_id: str, name: str) -> dict[str, Any]:
 
 
 def bind_live_strategy(cli: LabCli, product: str) -> None:
-    """Vincula a escolha de teste ao ZAP atual, sem enviar qualquer pedido ao alvo.
-
-    A consulta usa apenas o suporte de leitura da API de controle do ZAP local. Nenhum
-    token, credencial, resposta de alvo ou dado de execução antiga entra na estratégia.
-    """
-    version = ZapView(cli.state_file())._get("/JSON/core/view/version/").get("version")
-    if not isinstance(version, str):
-        raise TypeError("O ZAP local não informou uma versão válida.")
-    profile = FileProfileRepository(cli.products).load(product)
-    contract, data_rules, flows = FileStrategyRepository(cli.products).read_dependencies(
-        product, profile
-    )
-    basis = make_strategy_basis(
-        profile,
-        openapi_sha256=digest_strategy_document(contract),
-        data_rules_sha256=digest_strategy_document(data_rules),
-        flows_sha256=digest_strategy_document(flows),
-        engine_version=version,
-    )
-    assert basis is not None
-    strategy = Strategy(
-        schema_version=1,
-        references=StrategyReferences(
-            target="target.yml", data_rules="data-rules.yml", flows="flows.yml"
-        ),
-        choices=(
-            CoverageChoice(
-                name="coverage",
-                value="preserve",
-                source="contract",
-                reason="preserve_baseline",
-                valid_until=profile.scope.authorization.valid_until,
-                state="validated",
-                basis=basis,
-            ),
-        ),
-    )
-    (cli.products / product / "strategy.yml").write_text(
-        yaml.safe_dump(strategy.model_dump(mode="json"), sort_keys=False), encoding="utf-8"
-    )
+    """Cria o vínculo pelo comando público e ativa explicitamente a cópia no laboratório."""
+    folder = cli.products / product
+    before = (folder / "target.yml").read_bytes()
+    active = folder / "strategy.yml"
+    strategy_before = active.read_bytes()
+    captured = cli.run("strategy", "capture", product)
+    assert captured.code == 0, captured.stdout + captured.stderr
+    assert captured.data["copy"] == "strategy.captured.yml"
+    assert captured.data["activated"] is False
+    assert captured.data["approval_changed"] is False
+    assert (folder / "target.yml").read_bytes() == before
+    assert active.read_bytes() == strategy_before
+    active.rename(folder / "strategy.unbound.yml")
+    (folder / "strategy.captured.yml").rename(active)
 
 
 def record_control(product: str, mode: str, artifacts: dict[str, dict[str, Any]]) -> None:
