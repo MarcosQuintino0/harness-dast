@@ -1,0 +1,11 @@
+{
+  "product": "vampi",
+  "mode": "vulnerable",
+  "run_id": "2026-11-16T14-38-15Z-vampi-1ab9",
+  "observed_rules": 12,
+  "observed_flows": 1,
+  "effects_available": 0,
+  "recipe_triples": 0,
+  "observed_snapshots": 0,
+  "snapshot_values_exported": false
+}

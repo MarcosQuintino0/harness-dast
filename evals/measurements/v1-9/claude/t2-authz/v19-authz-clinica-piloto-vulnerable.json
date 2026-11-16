@@ -1,0 +1,622 @@
+{
+  "product": "clinica-piloto",
+  "mode": "vulnerable",
+  "exit_code": 0,
+  "run_id": "2026-11-16T15-00-43Z-clinica-piloto-bc58",
+  "status": "completed",
+  "requests_sent": 84,
+  "created_resources": 11,
+  "checks": [
+    {
+      "check": "cors",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "horizontal",
+      "status": "completed",
+      "candidates": 5,
+      "tested": 1,
+      "findings": 1,
+      "message": null
+    },
+    {
+      "check": "excessive_data",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "anonymous_access",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "tampered_token",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "vertical",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "access_matrix",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    },
+    {
+      "check": "mass_assignment",
+      "status": "completed",
+      "candidates": 46,
+      "tested": 29,
+      "findings": 1,
+      "message": null
+    },
+    {
+      "check": "horizontal_write",
+      "status": "disabled",
+      "candidates": 0,
+      "tested": 0,
+      "findings": 0,
+      "message": "Não rodou: não pedida (--check)."
+    }
+  ],
+  "findings": [
+    {
+      "technique": "authz_horizontal",
+      "operation_id": "buscarConsulta",
+      "method": "GET",
+      "path_template": "/api/consultas/{}",
+      "actor_account": "paciente_a",
+      "actor_role": "paciente",
+      "owner_account": "paciente_b",
+      "owner_role": "paciente",
+      "proposed_severity": "high",
+      "fields": [],
+      "candidate_source": null
+    },
+    {
+      "technique": "authz_mass_assignment",
+      "operation_id": "atualizarPerfil",
+      "method": "PUT",
+      "path_template": "/api/me",
+      "actor_account": "paciente_a",
+      "actor_role": "paciente",
+      "owner_account": null,
+      "owner_role": null,
+      "proposed_severity": "high",
+      "fields": [
+        "role",
+        "papel"
+      ],
+      "candidate_source": "declared"
+    }
+  ],
+  "not_tested_reasons": {
+    "no_peer_account": 7,
+    "no_object_identifier": 11,
+    "shared_role": 7,
+    "create_failed": 2,
+    "new_identifier_unavailable": 2,
+    "no_json_body": 1,
+    "create_conflict": 3,
+    "already_in_target_state": 1,
+    "no_safe_test_value": 5
+  },
+  "not_tested": [
+    {
+      "check": "horizontal",
+      "operation_id": "baixarArquivo",
+      "method": "GET",
+      "path": "/api/arquivos/{nome}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarConsultas",
+      "method": "GET",
+      "path": "/api/consultas",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarConvenios",
+      "method": "GET",
+      "path": "/api/convenios",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarConvenioPorCodigo",
+      "method": "GET",
+      "path": "/api/convenios/codigo/{codigo}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarConvenio",
+      "method": "GET",
+      "path": "/api/convenios/{id}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "obterCsrf",
+      "method": "GET",
+      "path": "/api/csrf",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarDocumentos",
+      "method": "GET",
+      "path": "/api/documentos",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "baixarDocumento",
+      "method": "GET",
+      "path": "/api/documentos/download",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "obterPerfil",
+      "method": "GET",
+      "path": "/api/me",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarMedicos",
+      "method": "GET",
+      "path": "/api/medicos",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarConsulta",
+      "method": "GET",
+      "path": "/api/consultas/{id}",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarReceitasDaConsulta",
+      "method": "GET",
+      "path": "/api/consultas/{id}/receitas",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarMedicoPorCrm",
+      "method": "GET",
+      "path": "/api/medicos/crm/{crm}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarMedico",
+      "method": "GET",
+      "path": "/api/medicos/{id}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "listarPacientes",
+      "method": "GET",
+      "path": "/api/pacientes",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarPacientesPorNome",
+      "method": "GET",
+      "path": "/api/pacientes/busca",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarPaciente",
+      "method": "GET",
+      "path": "/api/pacientes/{id}",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "buscarReceita",
+      "method": "GET",
+      "path": "/api/receitas/{id}",
+      "reason": "no_peer_account"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "relatorioLento",
+      "method": "GET",
+      "path": "/api/relatorios/lento",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "verificarSaude",
+      "method": "GET",
+      "path": "/api/saude",
+      "reason": "no_object_identifier"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarConvenio",
+      "method": "POST",
+      "path": "/api/convenios",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarMedico",
+      "method": "POST",
+      "path": "/api/medicos",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarConsulta",
+      "method": "POST",
+      "path": "/api/consultas",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarPaciente",
+      "method": "POST",
+      "path": "/api/pacientes",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarReceita",
+      "method": "POST",
+      "path": "/api/receitas",
+      "reason": "shared_role"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarConvenio",
+      "method": "POST",
+      "path": "/api/convenios",
+      "reason": "create_failed"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarMedico",
+      "method": "POST",
+      "path": "/api/medicos",
+      "reason": "create_failed"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarPaciente",
+      "method": "POST",
+      "path": "/api/pacientes",
+      "reason": "new_identifier_unavailable"
+    },
+    {
+      "check": "horizontal",
+      "operation_id": "criarReceita",
+      "method": "POST",
+      "path": "/api/receitas",
+      "reason": "new_identifier_unavailable"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "enviarDocumento",
+      "method": "POST",
+      "path": "/api/documentos/enviar",
+      "reason": "no_json_body"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "criarConvenio",
+      "method": "POST",
+      "path": "/api/convenios",
+      "reason": "create_conflict"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarConvenio",
+      "method": "PUT",
+      "path": "/api/convenios/{id}",
+      "reason": "already_in_target_state"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarPerfil",
+      "method": "PUT",
+      "path": "/api/me",
+      "reason": "no_safe_test_value"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarPerfil",
+      "method": "PUT",
+      "path": "/api/me",
+      "reason": "no_safe_test_value"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "criarMedico",
+      "method": "POST",
+      "path": "/api/medicos",
+      "reason": "create_conflict"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarStatusConsulta",
+      "method": "PATCH",
+      "path": "/api/consultas/{id}/status",
+      "reason": "no_safe_test_value"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarStatusConsulta",
+      "method": "PATCH",
+      "path": "/api/consultas/{id}/status",
+      "reason": "no_safe_test_value"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "atualizarStatusConsulta",
+      "method": "PATCH",
+      "path": "/api/consultas/{id}/status",
+      "reason": "no_safe_test_value"
+    },
+    {
+      "check": "mass_assignment",
+      "operation_id": "criarPaciente",
+      "method": "POST",
+      "path": "/api/pacientes",
+      "reason": "create_conflict"
+    }
+  ],
+  "pair_audit": [
+    {
+      "seq": 50,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarConvenios",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 50,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarConvenios",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 54,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarConvenios",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 54,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarConvenios",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 55,
+      "phase": "decision",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarConvenio",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 55,
+      "phase": "result",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarConvenio",
+      "decision": null,
+      "status": 403,
+      "error": null
+    },
+    {
+      "seq": 56,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarMedicos",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 56,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarMedicos",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 57,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarMedicos",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 57,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarMedicos",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 58,
+      "phase": "decision",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarMedico",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 58,
+      "phase": "result",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarMedico",
+      "decision": null,
+      "status": 403,
+      "error": null
+    },
+    {
+      "seq": 59,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarConsultas",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 59,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:listarConsultas",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 60,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarConsultas",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 60,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:listarConsultas",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 61,
+      "phase": "decision",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarConsulta",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 61,
+      "phase": "result",
+      "method": "POST",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:criarConsulta",
+      "decision": null,
+      "status": 201,
+      "error": null
+    },
+    {
+      "seq": 62,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:buscarConsulta",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 62,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_b",
+      "operation_id": "authz:pair:buscarConsulta",
+      "decision": null,
+      "status": 200,
+      "error": null
+    },
+    {
+      "seq": 63,
+      "phase": "decision",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:buscarConsulta",
+      "decision": "allowed",
+      "status": null,
+      "error": null
+    },
+    {
+      "seq": 63,
+      "phase": "result",
+      "method": "GET",
+      "account": "paciente_a",
+      "operation_id": "authz:pair:buscarConsulta",
+      "decision": null,
+      "status": 200,
+      "error": null
+    }
+  ]
+}

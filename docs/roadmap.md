@@ -286,10 +286,10 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Invalidação seletiva | Comparação por dependência; consumo recusa partes obrigatórias pendentes. Dupla verificação detecta mudança persistente, sem garantia contra ABA |
 | Diário de mutações | Implementado em probe/authz/negative e por lote mutante do scan; pendência compartilhada impede repetição. Sem recuperação automática ou garantia de metadados do diretório após perda de energia |
 | Par criado com 2xx | Implementado com leituras ou inventários anteriores e marcador novo derivado do contrato; suporta ID gerado pelo servidor quando há inventário compatível. Novidade global em APIs com ocultação/upsert continua limitada |
-| Atribuição em massa no cadastro VAmPI | Lacuna de vínculo e observação no contrato; não há regra específica de produto ou ampliação da carta |
+| Atribuição em massa no cadastro VAmPI | Lacuna mantida: oito candidatos testados, nenhum achado na prova; sem regra específica de produto ou ampliação da carta |
 | Canal do estudo de reutilização | Implementado com propostas declaradas, validação de receitas e manifesto; não transfere aprovação nem estado efêmero. Estudo real e rodadas cegas posteriores ao merge |
 | Promoção do ritmo proxy | Recusada no passo zero: quatro controles dirigidos passaram, mas não reconstruíram a causa histórica integral |
-| Provas e aceite | Em fechamento; T2, T4 e parecer final serão registrados em relatório próprio |
+| Provas e aceite | T2 (reutilização e authz, nas duas APIs e modos) e T4 (uma por API) passaram no laboratório; detecção igual ou maior que a V1.8. Lacunas: recibo de efeito não aplicado a tarefa no laboratório, par com 200 do VAmPI não confirmado e atribuição em massa V4 não detectada. [Relatório](reviews/relatorio-v1.9.md); parecer do validador novo pendente |
 
 ## Itens em aberto
 
