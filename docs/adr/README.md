@@ -79,6 +79,18 @@ Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.
 
 A numeração dos ADRs não coincide com a dos cartões AD-xx do documento de fundação. Duas decisões desse documento não viraram ADR próprio e estão documentadas em outro lugar: AD-10 (cobertura como alarme, em [../testing.md](../testing.md)) e AD-14 (revisão em equipe de uma pessoa, em [../../CONTRIBUTING.md](../../CONTRIBUTING.md)). AD-09 (composição e `Protocol`) está dentro do ADR 0004.
 
+## Contratos da V1.8
+
+Bloco independente da V1.7; as decisões seguem **Propostas** até a revisão e a integração humanas.
+
+| ADR | Contrato |
+| --- | --- |
+| [0070](0070-envelope-autorizado.md) | Envelope derivado do perfil e vinculado à aprovação |
+| [0071](0071-estrategia-versionada.md) | Estratégia versionada e escolha neutra de cobertura |
+| [0072](0072-compilacao-sem-trafego.md) | Prévia local e plano concreto imutável |
+| [0073](0073-aprovacao-estrategia.md) | Classes de alteração e limites da revalidação |
+| [0074](0074-migracao-estrategia.md) | Migração explícita, cópia e compatibilidade |
+
 ## Quando escrever um ADR
 
 - Dependência nova.
