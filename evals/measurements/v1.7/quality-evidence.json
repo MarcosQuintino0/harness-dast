@@ -8156,5 +8156,507 @@
       },
       "provenance_note": "aliases and resource ownership as reported by CLI; not independent verification"
     }
-  ]
+  ],
+  "legacy_controls_partial": [
+    {
+      "file": "v155-clinica-piloto-secure.json",
+      "sha256": "256def8f619a20c20389b27409a86093d589e9412c70bf22e91dec6494094c6b",
+      "product": "clinica-piloto",
+      "mode": "secure",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": "2026-11-16T07-27-35Z-clinica-piloto-2ff1",
+      "requests_sent": 78,
+      "created_resources_reported": 11,
+      "checks": [
+        {
+          "check": "cors",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "horizontal",
+          "status": "completed",
+          "candidates": 5,
+          "tested": 1,
+          "findings": 0
+        },
+        {
+          "check": "excessive_data",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "anonymous_access",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "tampered_token",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "vertical",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "access_matrix",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "mass_assignment",
+          "status": "completed",
+          "candidates": 46,
+          "tested": 29,
+          "findings": 0
+        },
+        {
+          "check": "horizontal_write",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        }
+      ],
+      "findings": [],
+      "not_tested_by_reason": {
+        "no_peer_account": 7,
+        "no_object_identifier": 11,
+        "shared_role": 7,
+        "create_failed": 4,
+        "no_json_body": 1,
+        "create_conflict": 3,
+        "already_in_target_state": 1,
+        "no_safe_test_value": 5
+      },
+      "pair_posts": 5,
+      "pair_post_accounts": [
+        "paciente_b"
+      ],
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "v155-clinica-piloto-vulnerable.json",
+      "sha256": "728af77e6d69280d6fc488f8bbe76a643b15311a94215bd35abd876e18cecc20",
+      "product": "clinica-piloto",
+      "mode": "vulnerable",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": "2026-11-16T07-23-05Z-clinica-piloto-ff16",
+      "requests_sent": 80,
+      "created_resources_reported": 11,
+      "checks": [
+        {
+          "check": "cors",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "horizontal",
+          "status": "completed",
+          "candidates": 5,
+          "tested": 1,
+          "findings": 1
+        },
+        {
+          "check": "excessive_data",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "anonymous_access",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "tampered_token",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "vertical",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "access_matrix",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "mass_assignment",
+          "status": "completed",
+          "candidates": 46,
+          "tested": 29,
+          "findings": 1
+        },
+        {
+          "check": "horizontal_write",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        }
+      ],
+      "findings": [
+        {
+          "technique": "authz_horizontal",
+          "operation_id": "buscarConsulta",
+          "actor_account": "paciente_a",
+          "owner_account": "paciente_b",
+          "actor_role": "paciente",
+          "owner_role": "paciente",
+          "path_template": "/api/consultas/{}",
+          "proposed_severity": "high",
+          "fields": []
+        },
+        {
+          "technique": "authz_mass_assignment",
+          "operation_id": "atualizarPerfil",
+          "actor_account": "paciente_a",
+          "owner_account": null,
+          "actor_role": "paciente",
+          "owner_role": null,
+          "path_template": "/api/me",
+          "proposed_severity": "high",
+          "fields": [
+            "role",
+            "papel"
+          ]
+        }
+      ],
+      "not_tested_by_reason": {
+        "no_peer_account": 7,
+        "no_object_identifier": 11,
+        "shared_role": 7,
+        "create_failed": 4,
+        "no_json_body": 1,
+        "create_conflict": 3,
+        "already_in_target_state": 1,
+        "no_safe_test_value": 5
+      },
+      "pair_posts": 5,
+      "pair_post_accounts": [
+        "paciente_b"
+      ],
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "v155-vampi-secure.json",
+      "sha256": "d26cf46e55b17f0fcac52e26e9484bb5265fb17fb0c820ab5384e8430a56ef53",
+      "product": "vampi",
+      "mode": "secure",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": "2026-11-16T07-31-02Z-vampi-4fe0",
+      "requests_sent": 11,
+      "created_resources_reported": 4,
+      "checks": [
+        {
+          "check": "cors",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "horizontal",
+          "status": "completed",
+          "candidates": 2,
+          "tested": 1,
+          "findings": 0
+        },
+        {
+          "check": "excessive_data",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "anonymous_access",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "tampered_token",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "vertical",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "access_matrix",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "mass_assignment",
+          "status": "completed",
+          "candidates": 8,
+          "tested": 8,
+          "findings": 0
+        },
+        {
+          "check": "horizontal_write",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        }
+      ],
+      "findings": [],
+      "not_tested_by_reason": {
+        "no_object_identifier": 6,
+        "create_not_readable": 1,
+        "create_unconfirmed": 1
+      },
+      "pair_posts": 1,
+      "pair_post_accounts": [
+        "user_a"
+      ],
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "v155-vampi-vulnerable.json",
+      "sha256": "a88e6ade7e95a20a6ab16c0a6920775a870235874b9f2eeadeadb70ca4e37647",
+      "product": "vampi",
+      "mode": "vulnerable",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": "2026-11-16T07-26-34Z-vampi-eccf",
+      "requests_sent": 11,
+      "created_resources_reported": 4,
+      "checks": [
+        {
+          "check": "cors",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "horizontal",
+          "status": "completed",
+          "candidates": 2,
+          "tested": 1,
+          "findings": 1
+        },
+        {
+          "check": "excessive_data",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "anonymous_access",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "tampered_token",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "vertical",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "access_matrix",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        },
+        {
+          "check": "mass_assignment",
+          "status": "completed",
+          "candidates": 8,
+          "tested": 8,
+          "findings": 0
+        },
+        {
+          "check": "horizontal_write",
+          "status": "disabled",
+          "candidates": 0,
+          "tested": 0,
+          "findings": 0
+        }
+      ],
+      "findings": [
+        {
+          "technique": "authz_horizontal",
+          "operation_id": "api_views.books.get_by_title",
+          "actor_account": "user_b",
+          "owner_account": "user_a",
+          "actor_role": "user",
+          "owner_role": "user",
+          "path_template": "/books/v1/{}",
+          "proposed_severity": "high",
+          "fields": []
+        }
+      ],
+      "not_tested_by_reason": {
+        "no_object_identifier": 6,
+        "create_not_readable": 1,
+        "create_unconfirmed": 1
+      },
+      "pair_posts": 1,
+      "pair_post_accounts": [
+        "user_a"
+      ],
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "lab-cors-clinica-piloto-secure.json",
+      "sha256": "b657ee4c74d9ae55b8f4a9d4b912702a32d1e986b173385b1146a0f28277ec19",
+      "product": "clinica-piloto",
+      "mode": "secure",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": null,
+      "requests_sent": null,
+      "created_resources_reported": null,
+      "checks": {
+        "status": "completed",
+        "candidates": 1,
+        "tested": 1,
+        "findings": 0
+      },
+      "findings": [],
+      "not_tested_by_reason": null,
+      "pair_posts": null,
+      "pair_post_accounts": null,
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "lab-cors-clinica-piloto-vulnerable.json",
+      "sha256": "f28e2d832055e1f3a9ac4a7aa07da96cf158adbb4bef07c9580d99c4307f403c",
+      "product": "clinica-piloto",
+      "mode": "vulnerable",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": null,
+      "requests_sent": null,
+      "created_resources_reported": null,
+      "checks": {
+        "status": "completed",
+        "candidates": 1,
+        "tested": 1,
+        "findings": 1
+      },
+      "findings": [
+        {
+          "technique": "authz_cors",
+          "operation_id": "obterPerfil",
+          "actor_account": "paciente_a",
+          "owner_account": null,
+          "actor_role": "paciente",
+          "owner_role": null,
+          "path_template": "/api/me",
+          "proposed_severity": "high",
+          "fields": [
+            "reflected_credentials"
+          ]
+        }
+      ],
+      "not_tested_by_reason": null,
+      "pair_posts": null,
+      "pair_post_accounts": null,
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "lab-cors-vampi-secure.json",
+      "sha256": "12228b28b87b478b59ecccd2dc7a2e81e5a13d720eb4636811e864300de95cc1",
+      "product": "vampi",
+      "mode": "secure",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": null,
+      "requests_sent": null,
+      "created_resources_reported": null,
+      "checks": {
+        "status": "completed",
+        "candidates": 1,
+        "tested": 1,
+        "findings": 0
+      },
+      "findings": [],
+      "not_tested_by_reason": null,
+      "pair_posts": null,
+      "pair_post_accounts": null,
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    },
+    {
+      "file": "lab-cors-vampi-vulnerable.json",
+      "sha256": "293b383f7b5f2c595aeb2d9e3462cde5d889a2509470b18ef4813aa066770d0b",
+      "product": "vampi",
+      "mode": "vulnerable",
+      "variant": "legacy/A",
+      "status": "completed",
+      "run_id": null,
+      "requests_sent": null,
+      "created_resources_reported": null,
+      "checks": {
+        "status": "completed",
+        "candidates": 1,
+        "tested": 1,
+        "findings": 0
+      },
+      "findings": [],
+      "not_tested_by_reason": null,
+      "pair_posts": null,
+      "pair_post_accounts": null,
+      "provenance_note": "artifact written during test; does not alone prove assertions or stack teardown completed; only legacy/A"
+    }
+  ],
+  "legacy_controls_snapshot_utc": "2026-11-16T07:38:37.368988+00:00",
+  "legacy_block_pytest_result": "not observed in this snapshot"
 }
