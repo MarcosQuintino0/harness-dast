@@ -16,7 +16,11 @@
   "refinement": {
     "registered_at_utc": "2026-11-16T05:01:00Z",
     "reason": "Acrescentar uma escrita para conferir o par XSRF na reproducao independente T2, preservando as leituras iniciais; nao repetir completas por erro de assercao do suporte",
+    "binding_registered_at_utc": "2026-11-16T06:20:30Z",
     "live_engine_binding": "A reproducao independente T2 usa escolha coverage/preserve vinculada aos documentos e a versao atual do ZAP, lida apenas pela API de controle local antes do preflight; consultas secas continuam sem rede",
+    "public_capture_registered_at_utc": "2026-11-16T07:23:00Z",
+    "public_creation_command": "hdast strategy capture",
+    "public_capture_reason": "Substituir a fabrica privada do teste pelo fluxo publico antes da reproducao independente; capturar em copia e ativar explicitamente, sem alterar perfil ou aprovacao",
     "t4_test_correction": "Facts.notifications nao e preenchido por collect_facts; conferir o contador de endpoints efetivamente fornecido, sem tratar None como zero"
   },
   "acceptance": [
