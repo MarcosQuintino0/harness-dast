@@ -16,7 +16,7 @@ Alcançabilidade inclui operações com `success` e a recusa esperada `auth_reje
 
 ## Conhecimento em nova execução
 
-Antes de refazer ajustes de alcance, confira se as regras e fluxos anteriores têm origem, validade e vínculo com o contexto atual. Mudança de ambiente, contrato, conta, autorização ou motor exige reavaliar as partes dependentes; preserve apenas as partes cuja validade foi comprovada. Não confunda reaproveitar ajustes com comprovar alcance atual: siga o probe e as travas enquanto não houver validação executável e prova para dispensar retrabalho. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Observação não concede permissão. Resultado desconhecido de mutação não é sucesso: não repita às cegas; interrompa a ação afetada e peça à pessoa que verifique o estado.
+Antes de refazer ajustes de alcance, confira se as regras e fluxos anteriores têm origem, validade e vínculo com o contexto atual. Mudança de ambiente, contrato, conta, autorização ou motor exige reavaliar as partes dependentes; preserve apenas as partes cuja validade foi comprovada, sem refazer reparos válidos. Não confunda reaproveitar ajustes com comprovar alcance atual: siga o probe para renovar o estado e obter novos identificadores, com as travas vigentes. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Observação não concede permissão. Resultado desconhecido de mutação não é sucesso: não repita às cegas; o diário bloqueia a mesma classe de trabalho entre estágios. Interrompa a ação afetada e peça à pessoa que verifique o estado. Veja [conhecimento](../../../docs/reference/knowledge.md).
 
 ## Passos
 

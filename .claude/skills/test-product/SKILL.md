@@ -15,7 +15,7 @@ Reúna **tudo de uma vez**, para não interromper depois: nome do produto, pasta
 
 ## Conhecimento em nova execução
 
-Confira o conhecimento anterior e suas dependências antes do cadastro e dos ajustes de alcance. Não reentreviste respostas ainda válidas; pergunte o que mudou ou está desconhecido. Reaproveite ajustes somente quando sua validade no contexto atual for comprovada; até existir validação executável e prova de reutilização, siga as etapas de alcance e varredura. Mudanças invalidam seletivamente as partes dependentes. Observação não concede permissão: aprovação, escopo, janela e limites continuam obrigatórios. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Resultado desconhecido de mutação não é sucesso e não deve ser repetido às cegas; interrompa a ação afetada e peça à pessoa que verifique o estado.
+Confira o conhecimento anterior e suas dependências antes do cadastro e dos ajustes de alcance. Não reentreviste respostas ainda válidas; pergunte o que mudou ou está desconhecido. Reaproveite ajustes cuja validade no contexto atual seja comprovada, sem refazer reparos válidos; faça novo probe para renovar estado e obter novos identificadores. Mudanças invalidam seletivamente as partes dependentes. Observação não concede permissão: aprovação, escopo, janela e limites continuam obrigatórios. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Resultado desconhecido de mutação não é sucesso e não deve ser repetido às cegas; o diário bloqueia a mesma classe de trabalho entre estágios. Interrompa a ação afetada e peça à pessoa que verifique o estado. O estudo de reutilização permanece pendente.
 
 ## Passos
 

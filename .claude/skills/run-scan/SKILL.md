@@ -15,7 +15,7 @@ Confirme com a pessoa que a autorização e a janela valem **agora** e que o amb
 
 ## Conhecimento em nova execução
 
-Use conhecimento anterior apenas após conferir origem, validade e dependências do contexto atual; uma mudança invalida seletivamente as partes dependentes. Não presuma alcance atual nem pule verificações com base em observação antiga. Observação não concede permissão, e a aprovação, janela e limites continuam obrigatórios. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Resultado desconhecido de mutação não é sucesso: não repita às cegas; interrompa a ação afetada e peça à pessoa que verifique o estado. O diário de mutações ainda não protege todos os estágios; não presuma bloqueio automático universal.
+Use conhecimento anterior apenas após conferir origem, validade e dependências do contexto atual; uma mudança invalida seletivamente as partes dependentes. Não presuma alcance atual nem pule verificações com base em observação antiga; um novo probe renova estado e identificadores. Observação não concede permissão, e a aprovação, janela e limites continuam obrigatórios. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Resultado desconhecido de mutação não é sucesso: não repita às cegas; o diário bloqueia a mesma classe de trabalho entre estágios. Interrompa a ação afetada e peça à pessoa que verifique o estado. GET fica fora do diário; veja [limites](../../../docs/reference/knowledge.md).
 
 ## Passos
 

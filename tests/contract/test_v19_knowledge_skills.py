@@ -43,7 +43,25 @@ def test_reuso_exige_prova_e_reavaliacao_de_dependencias() -> None:
     assert "não repita perguntas" in onboarding
     assert "partes dependentes" in reachability
     assert "siga o probe" in reachability
-    assert "validação executável e prova" in orchestration
+    assert "novo probe" in orchestration
+    assert "reparos válidos" in orchestration
+    assert "estudo de reutilização permanece pendente" in orchestration
+
+
+def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
+    onboarding = _section("onboard-product")
+    reference = (ROOT / "docs/reference/knowledge.md").read_text(encoding="utf-8")
+
+    for command in ("knowledge capture", "knowledge validate", "knowledge diff"):
+        assert command in onboarding
+    for phrase in (
+        "sem sobrescrever ou ativar",
+        "não existe comando de promoção",
+        "mudança a→b→a",
+        "inclusive em outro estágio",
+        "mesmo 201 pode ficar não testado",
+    ):
+        assert phrase in reference.lower()
 
 
 def test_novos_textos_nao_vazam_termos_dos_casos() -> None:
