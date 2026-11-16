@@ -20,7 +20,7 @@ from tests.fakes.profile_data import valid_profile_data
 # Resumo geral do perfil de teste ANTES do bloco `negative` existir (calculado com o código da
 # versão anterior): o perfil que não usa o bloco precisa manter exatamente este valor.
 DIGEST_BEFORE_THE_BLOCK = "c279ffb213a1eeaeca1c2ee3231a4a2e1d50da4df12b020b79edb8e79f4f3965"
-OLD_BLOCKS = [name for name in BLOCK_IDS if name != "negative"]
+OLD_BLOCKS = [name for name in BLOCK_IDS if name not in {"negative", "technologies"}]
 
 
 def profile(**negative: Any) -> ProductProfile:
