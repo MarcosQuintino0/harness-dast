@@ -37,7 +37,13 @@ from harness_dast.application.ports import (
     TargetClient,
     ZapControl,
 )
-from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
+from harness_dast.application.run_support import (
+    AuditTrail,
+    GuardedSender,
+    RateLimiter,
+    RunGate,
+    WindowClosed,
+)
 from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
 from harness_dast.application.scan_ports import (
@@ -54,7 +60,6 @@ from harness_dast.domain.errors import (
     ExternalToolError,
     HarnessError,
     PreflightError,
-    ScopeNotApproved,
 )
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
@@ -427,12 +432,17 @@ class Scan:
         limited = profile.model_copy(update={"limits": prep.limits})
 
         def revalidate() -> None:
-            current = self._profiles.load(request.product)
+            try:
+                current = self._profiles.load(request.product)
+            except HarnessError:
+                raise WindowClosed(
+                    "A aprovação ou o perfil não está mais válido durante a varredura.",
+                    hint="Confira o perfil e a aprovação antes de executar novamente.",
+                ) from None
             if block_digests(current) != block_digests(profile):
-                raise ScopeNotApproved(
+                raise WindowClosed(
                     "O perfil aprovado mudou durante a execução.",
                     hint="Interrompa e confira a aprovação antes de executar novamente.",
-                    state="changed",
                 )
 
         gate = RunGate(
