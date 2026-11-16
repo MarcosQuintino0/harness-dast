@@ -18,7 +18,6 @@ from tests.integration.lab_support import (
     run_audit,
 )
 from tests.integration.run_support import (
-    MemorySampler,
     Scenario,
     collect_facts,
     record_metrics,
@@ -26,6 +25,7 @@ from tests.integration.run_support import (
 )
 from tests.integration.test_lab_fast import VAMPI_ENV
 from tests.integration.v17_matrix import PILOT, VAMPI
+from tests.integration.v17_resources import ResourceSampler
 
 pytestmark = pytest.mark.integration
 
@@ -39,7 +39,14 @@ def _install(cli: LabCli, product: str, variant: str) -> None:
     path.write_text(yaml.safe_dump(profile, allow_unicode=True), encoding="utf-8")
 
 
-def _record(scenario: Scenario, product: str, variant: str, layer: str, mode: str) -> None:
+def _record(
+    scenario: Scenario,
+    product: str,
+    variant: str,
+    layer: str,
+    mode: str,
+    resources: ResourceSampler,
+) -> None:
     base = "http://clinica-piloto:8080" if product == "clinica-piloto" else "http://vampi:5000"
     facts = collect_facts(scenario, base, pilot=product == "clinica-piloto")
     assert not facts.secret_hits, "Segredo detectado: artefatos não publicados"
@@ -130,6 +137,14 @@ def _record(scenario: Scenario, product: str, variant: str, layer: str, mode: st
             "csrf": facts.csrf,
             "rules_left": facts.rules_left,
             "peak_memory_mib": scenario.peaks,
+            "resource_sampling": {
+                "interval_seconds": resources.interval,
+                "observed_seconds": resources.seconds,
+                "attempts": resources.attempts,
+                "peak_cpu_percent": resources.cpu_peaks,
+                "cpu_samples": resources.cpu_samples,
+                "memory_samples": resources.memory_samples,
+            },
         },
     )
 
@@ -160,7 +175,7 @@ def _exercise(
         )
         if layer == "t4":
             started = time.monotonic()
-            with MemorySampler() as sampler:
+            with ResourceSampler() as sampler:
                 result = cli.run("run", product, timeout=_remaining(3600))
             run_id = str(result.data.get("run_id") or result.envelope.get("run_id") or "")
             scenario = Scenario(
@@ -184,34 +199,45 @@ def _exercise(
                     if product == "clinica-piloto"
                     else ("api_views.users.get_by_username",)
                 )
+            elif layer == "t2-path":
+                operations = ("baixarDocumento",)
             flags = [part for operation in operations for part in ("--only", operation)]
             started = time.monotonic()
-            with MemorySampler() as sampler:
+            with ResourceSampler() as sampler:
                 result = cli.run("scan", product, "--run", run_id, *flags, timeout=_remaining(3600))
             seconds = time.monotonic() - started
             cli.run("report", product, "--run", run_id, timeout=_remaining(900))
             scenario = Scenario(
                 name, cli, result, cli.runs / run_id, proxy_audit(cli), dict(sampler.peaks), seconds
             )
-        _record(scenario, product, variant, layer, mode)
-        if layer == "t2":
+        _record(scenario, product, variant, layer, mode, sampler)
+        if layer in {"t2", "t2-path"}:
             scan = json.loads((scenario.run_dir / "scan.json").read_text(encoding="utf-8"))
             assert scan["status"] == "completed", "Scan não concluído: controle inconclusivo"
             assert any(
-                entry["operation_id"] == operations[0] and entry["outcome"] == "completed"
+                entry["operation_id"] == operations[0]
+                and entry["outcome"] == "completed"
+                and not entry.get("truncated", False)
                 for entry in scan["entries"]
             ), "Operação não concluída: controle inconclusivo"
             stats = json.loads((scenario.run_dir / "rule-stats.json").read_text(encoding="utf-8"))
+            rule_id = 6 if layer == "t2-path" else 40018
             assert any(
-                rule["plugin_id"] == 40018 and rule["state"] == "completed"
+                rule["plugin_id"] == rule_id and rule["state"] == "completed"
                 for operation in stats["operations"]
                 if operation["operation_id"] == operations[0]
                 for rule in operation["rules"]
-            ), "Regra SQL genérica ausente ou interrompida: controle inconclusivo"
+            ), f"Regra {rule_id} ausente ou não concluída: controle inconclusivo"
             findings = json.loads((scenario.run_dir / "findings.json").read_text(encoding="utf-8"))
-            sql = any(item.get("title") == "SQL Injection" for item in findings.get("findings", []))
-            assert sql == (mode == "vulnerable"), (
-                "Controle SQL ausente ou falso positivo; registrar lacuna"
+            title = "Path Traversal" if layer == "t2-path" else "SQL Injection"
+            matches = [
+                item
+                for item in findings.get("findings", [])
+                if item.get("title") == title
+                and (layer != "t2-path" or item.get("path_template") == "/api/documentos/download")
+            ]
+            assert bool(matches) == (mode == "vulnerable"), (
+                f"Controle {title} ausente ou falso positivo; registrar lacuna"
             )
     finally:
         cli.stack_down()
@@ -237,3 +263,10 @@ def test_v17_t4(tmp_path: Path, product: str, variant: str) -> None:
 @pytest.mark.parametrize("variant", ["A", "B"])
 def test_v17_t2_sql(tmp_path: Path, product: str, mode: str, variant: str) -> None:
     _exercise(tmp_path, product, variant, "t2", 1, mode)
+
+
+@pytest.mark.lab_fast
+@pytest.mark.parametrize("mode", ["vulnerable", "secure"])
+@pytest.mark.parametrize("variant", ["A", "B"])
+def test_v17_t2_path(tmp_path: Path, mode: str, variant: str) -> None:
+    _exercise(tmp_path, "clinica-piloto", variant, "t2-path", 1, mode)

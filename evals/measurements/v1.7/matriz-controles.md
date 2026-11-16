@@ -5,7 +5,7 @@ Nenhuma célula abaixo comprova resultado V1.7. Os exemplos de operação são m
 | Classe | Clínica vulnerável | Clínica segura | VAmPI vulnerável | VAmPI seguro | Instrumento / lacuna |
 | --- | --- | --- | --- | --- | --- |
 | Injeção SQL | Pendente A/B | Pendente A/B | Pendente A/B | Pendente A/B | `test_v17_t2_sql`; regra 40018 e operação precisam estar concluídas. `pending` ou regra ausente é lacuna, não defeito de segurança. |
-| Caminho/travessia | Pendente | Pendente | Sem controle conhecido | Sem controle conhecido | `baixarDocumento` é estrato T3, não controle de detecção; falta prova direcionada A/B no scanner. |
+| Caminho/travessia | Pendente A/B | Pendente A/B | Sem controle conhecido | Sem controle conhecido | `test_v17_t2_path`: `baixarDocumento`, regra 6 e detecção H4; ainda não executado. |
 | Autorização horizontal | Pendente | Pendente | Pendente | Pendente | `test_lab_v155.py`; confirmar qual operação/conta realmente foi comparada. Par novo VAmPI foi `create_unconfirmed` na V1.5.5. |
 | Atribuição em massa | Pendente | Pendente | Lacuna histórica V4 | Lacuna histórica V4 | `test_lab_v155.py`; relatório V1.5.5 não comprovou V4 no VAmPI. Não transformar ausência de achado em equivalência. |
 | CORS | Pendente | Pendente | Sem controle vulnerável conhecido | Pendente | `test_lab_cors.py`; VAmPI sem achado nos dois modos na V1.5.5. |
