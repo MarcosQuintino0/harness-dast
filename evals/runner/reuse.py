@@ -125,7 +125,35 @@ def _check_basis(out: Path, product: str, expected: dict[str, object]) -> None:
         raise EvalError("Fontes do conhecimento mudaram; nada foi exportado.")
 
 
-def _source(out: Path, expected_case: str | None = None) -> tuple[str, str]:
+def _scan_text(text: str, secrets: dict[str, str], case: Case) -> None:
+    forms = {
+        form
+        for value in secrets.values()
+        for form in (value, quote(value, safe=""), quote_plus(value))
+    }
+    if any(form in text for form in forms):
+        raise EvalError("Segredo detectado; nada foi exportado.")
+    if re.search(
+        r"(?i)\bbearer[ \t]+\S+|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+        r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.",
+        text,
+    ):
+        raise EvalError("Possível credencial detectada; nada foi exportado.")
+    for term in case.leak_terms:
+        if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.IGNORECASE):
+            raise EvalError("Termo do gabarito detectado; nada foi exportado.")
+
+
+def _scan_originals(folder: Path, secrets: dict[str, str], case: Case) -> None:
+    for name in ("knowledge.yml", "target.yml", "strategy.yml", "data-rules.yml", "flows.yml"):
+        if (folder / name).exists() or _link(folder / name):
+            try:
+                _scan_text(_regular(folder, name).read_text(encoding="utf-8"), secrets, case)
+            except (OSError, UnicodeError):
+                raise EvalError("Receita ilegível; nada foi exportado.") from None
+
+
+def _source(out: Path, expected_case: str | None = None) -> tuple[str, dict[str, str]]:
     """Revalida a coleta e retorna produto e conteúdo, sem expor os dados lacrados."""
     case, secrets = _identity(out, expected_case)
     product = case.product
@@ -144,34 +172,43 @@ def _source(out: Path, expected_case: str | None = None) -> tuple[str, str]:
     except HarnessError:
         raise EvalError("Conhecimento inválido; nada foi exportado.") from None
     _check_basis(out, product, knowledge.basis.model_dump(exclude={"engine"}))
-    normalized = yaml.safe_dump(data, sort_keys=True)
-    forms = {
-        form
-        for value in secrets.values()
-        for form in (value, quote(value, safe=""), quote_plus(value))
-    }
-    if any(form in text for form in forms for text in (content, normalized)):
-        raise EvalError("Segredo detectado; nada foi exportado.")
-    for term in case.leak_terms:
-        if any(
-            re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.IGNORECASE)
-            for text in (content, normalized)
-        ):
-            raise EvalError("Termo do gabarito detectado; nada foi exportado.")
-    return product, content
+    root = out / "trace" / "profile" / "final"
+    _scan_originals(root / product, secrets, case)
+    from evals.runner.reuse_recipes import recipes
+
+    files = recipes(root, product, knowledge.basis.model_dump(), case)
+    payload = knowledge.model_dump(mode="json")
+    for name, key in (("data-rules.yml", "data_rules"), ("flows.yml", "flows")):
+        if name in files:
+            payload["basis"][key] = digest_strategy_document(files[name].encode("utf-8"))
+    for entry in payload["entries"]:
+        entry["state"] = "review_required"
+    if "strategy.yml" in files:
+        strategy = yaml.safe_load(files["strategy.yml"])
+        for choice in strategy["choices"]:
+            choice["basis"] = payload["basis"].copy()
+        files["strategy.yml"] = yaml.safe_dump(strategy, sort_keys=True)
+    files["knowledge.yml"] = yaml.safe_dump(payload, sort_keys=True)
+    for text in files.values():
+        _scan_text(text, secrets, case)
+    return product, files
 
 
 def export_reuse(out: Path, destination: Path) -> Path:
     """Exporta somente conhecimento validado; a validade contextual continua pendente."""
-    product, content = _source(out)
+    product, files = _source(out)
     if destination.exists() or any(_link(parent) for parent in (destination, *destination.parents)):
         raise EvalError("Destino de exportação já existe.")
     destination.mkdir(parents=True)
-    (destination / "knowledge.yml").write_text(content, encoding="utf-8", newline="")
+    for name, content in files.items():
+        (destination / name).write_text(content, encoding="utf-8", newline="")
     manifest = {
         "schema_version": 1,
         "product": product,
-        "sha256": hashlib.sha256(content.encode()).hexdigest(),
+        "files": {
+            name: hashlib.sha256(content.encode()).hexdigest()
+            for name, content in sorted(files.items())
+        },
     }
     (destination / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
@@ -179,23 +216,29 @@ def export_reuse(out: Path, destination: Path) -> Path:
     return destination
 
 
-def verify_reuse(out: Path, package: Path, expected_case: str) -> tuple[str, str]:
+def verify_reuse(out: Path, package: Path, expected_case: str) -> tuple[str, dict[str, str]]:
     """Confere novamente origem, segredos e conteúdo exato, sem confiar no manifesto isolado."""
-    product, content = _source(out, expected_case)
+    product, files = _source(out, expected_case)
     if _link(package) or not package.is_dir():
         raise EvalError("Pacote de reuso inválido.")
-    if {item.name for item in package.iterdir()} != {"knowledge.yml", "manifest.json"}:
+    if {item.name for item in package.iterdir()} != set(files) | {"manifest.json"}:
         raise EvalError("Pacote contém arquivos extras ou ausentes.")
     manifest = _json(package, "manifest.json")
     expected = {
         "schema_version": 1,
         "product": product,
-        "sha256": hashlib.sha256(content.encode()).hexdigest(),
+        "files": {
+            name: hashlib.sha256(content.encode()).hexdigest()
+            for name, content in sorted(files.items())
+        },
     }
     try:
-        package_content = _regular(package, "knowledge.yml").read_text(encoding="utf-8")
+        equal = all(
+            _regular(package, name).read_bytes() == content.encode("utf-8")
+            for name, content in files.items()
+        )
     except (OSError, UnicodeError):
         raise EvalError("Pacote inválido.") from None
-    if manifest != expected or package_content != content:
+    if manifest != expected or not equal:
         raise EvalError("Pacote foi alterado ou pertence a outro produto.")
-    return product, content
+    return product, files

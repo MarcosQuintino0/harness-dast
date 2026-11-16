@@ -7,8 +7,6 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
-
 from evals.runner import exclusions, gitutil
 from evals.runner.briefing import build_briefing
 from evals.runner.cases import (
@@ -195,22 +193,22 @@ def prepare(
     harden_settings(dirs.workspace)
     briefing = build_briefing(case, read_authorization(case_name, case, cases_dir))
     if reuse is not None:
-        product, content = reuse
+        product, files = reuse
         if product != case.product:
             raise EvalError("Produto de origem difere do destino.")
         knowledge = dirs.workspace / "inputs" / "reuse" / "knowledge.yml"
         if knowledge.parent.exists():
             raise EvalError("A pasta inputs/reuse já existe na cópia.")
-        data = yaml.safe_load(content)
-        for entry in data["entries"]:
-            entry["state"] = "review_required"
         knowledge.parent.mkdir(parents=True)
-        knowledge.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+        for name, content in files.items():
+            (knowledge.parent / name).write_text(content, encoding="utf-8", newline="")
+        delivered = "\n".join(f"- `inputs/reuse/{name}`" for name in sorted(files))
         briefing += (
             "\n## Complemento da carta: conhecimento anterior\n\n"
-            "O dono entrega `inputs/reuse/knowledge.yml` para este produto. "
-            "Os itens estão pendentes de revisão; valide suas fontes e o motor atual "
-            "antes de qualquer uso. Este arquivo não concede autorização nem aprovação.\n"
+            f"O dono entrega as propostas a seguir para este produto:\n\n{delivered}\n\n"
+            "As propostas estão pendentes de revisão; valide suas fontes e o motor atual "
+            "antes de qualquer uso. Nenhuma concede autorização nem aprovação. "
+            "Use a carta vigente para gerar o perfil com `hdast init --from-letter`.\n"
         )
     (dirs.workspace / BRIEFING_NAME).write_text(briefing, encoding="utf-8")
     leaks = tuple(scan_leaks(dirs.workspace, case.leak_terms))

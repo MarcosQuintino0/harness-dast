@@ -5,14 +5,26 @@ Status: **Proposto**. Data: 2026-11-16.
 O estudo exige duas rodadas com contextos independentes. A segunda só pode receber
 informação explicitamente entregue na carta, sem levar execução, aprovação ou gabarito.
 
-O coordenador exporta exclusivamente `knowledge.yml` do perfil coletado, junto a um
-manifesto com versão, produto e SHA-256. O runner exige caso e segredos lacrados e
-coleta, valida o modelo fechado e recusa segredo conhecido, termos do gabarito, links,
-arquivos adicionais e alterações do pacote. Recalcula os vínculos da origem a partir
-do perfil e dos documentos coletados, exceto motor, que não está disponível offline.
-Ele compara novamente com a coleta ao
-preparar a segunda rodada. A cópia recebe apenas o conhecimento, com todos os itens
-marcados `review_required`, entregue como complemento da carta em `inputs/reuse/`.
+O coordenador exporta `knowledge.yml`, a projeção `target.reuse.yml` e, se presentes
+e válidos, `data-rules.yml`, `flows.yml` e `strategy.yml`, com manifesto de hashes.
+As receitas são serializadas dos modelos validados, sem comentários. A projeção
+do perfil contém só produto, tipo de autenticação, contas e referências declaradas
+no caso e o caminho de login quando consta do OpenAPI; não é um `target.yml` válido.
+Ela omite escopo, limites, autorização e demais campos do perfil. Contas fora da
+carta e tipos de autenticação não previstos pelo caso são recusados.
+
+O runner exige caso e segredos lacrados e coleta; recusa segredo conhecido, formas
+reconhecíveis de credencial, termos do gabarito, links, arquivos extras e alterações.
+Constantes de dados, inclusive listas, precisam constar do enum de cada campo do
+OpenAPI a que a regra se aplica; argumentos textuais livres e início de sequência
+são recusados. Limites numéricos de geradores `integer` e `number` também precisam
+corresponder aos limites de todos os campos cobertos. Fluxos precisam corresponder às operações e aos esquemas declarados;
+estratégia deve ter vínculo atual às fontes. Recalcula os vínculos da origem a partir
+do perfil e dos documentos coletados, exceto motor. Revalida tudo ao preparar a
+segunda rodada. A cópia recebe as propostas em `inputs/reuse/`, declaradas na carta;
+conhecimento e escolhas de estratégia ficam `review_required`. Como a serialização
+canônica muda os bytes das receitas, seus hashes são recalculados nessas propostas,
+depois da validação das fontes originais; isso não valida o segundo contexto.
 A preparação não transfere aprovação nem valida o contexto atual. O motor, contrato,
 ambiente, contas e autorização precisam ser verificados de forma independente antes
 de qualquer consumo. Um manifesto não autentica a origem nem é prova de atualidade.
@@ -20,8 +32,9 @@ de qualquer consumo. Um manifesto não autentica a origem nem é prova de atuali
 O subcomando `export-reuse` devolve texto e saída 0 em sucesso, 2 em erro de uso;
 `prepare` aceita `--reuse-from` e `--reuse-package` juntos. Os comandos existentes
 sem essas opções preservam o comportamento anterior. Nenhuma opção concede permissão.
-O detector cobre segredos conhecidos e termos do caso; não garante detecção universal
-de todos os segredos. As entradas permanecem sujeitas ao modelo fechado.
+O detector cobre segredos conhecidos, formatos reconhecíveis e termos do caso; não
+garante detecção universal de todos os segredos. As entradas também passam pelos
+modelos fechados e limites acima. O perfil ativo deve ser gerado da carta vigente.
 
 Alternativa: copiar o diretório de perfil inteiro. Rejeitada porque levaria estado,
 possíveis credenciais e pistas, sem controle confiável do canal.

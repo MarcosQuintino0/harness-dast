@@ -2,8 +2,8 @@
 
 ## Canal de estudo de reutilização V1.9 (preparação offline)
 
-Após a coleta da primeira rodada, o coordenador pode exportar o único arquivo
-permitido, `knowledge.yml`, e seu manifesto, para um destino novo fora do workspace:
+Após a coleta da primeira rodada, o coordenador pode exportar o conhecimento e as
+receitas permitidas, com manifesto, para um destino novo fora do workspace:
 
 ```powershell
 uv run python -m evals.runner export-reuse --out <rodada1> --destination <pacote>
@@ -13,10 +13,16 @@ uv run python -m evals.runner prepare --case <caso> --mode random --seed <sement
 O runner confere caso lacrado, coleta, modelo, segredos conhecidos, termos do
 gabarito, tipo dos arquivos e integridade do pacote; recalcula as fontes da origem
 exceto motor; recusa conteúdo extra e não
-aceita `--allow-leaks` com reuso. No novo workspace, só
-`inputs/reuse/knowledge.yml` é entregue no complemento da carta, com todos os itens
-`review_required`. A cópia da rodada segue isolada e o manifesto não vai ao agente.
-Não se copiam perfis, aprovações, estado, IDs de execução, respostas nem resultados.
+aceita `--allow-leaks` com reuso. No novo workspace, o complemento da carta lista
+`inputs/reuse/knowledge.yml`, `target.reuse.yml` e as receitas validadas presentes:
+`data-rules.yml`, `flows.yml` e `strategy.yml`. Todos são propostas; conhecimento e
+escolhas de estratégia chegam com `review_required`. O manifesto não vai ao agente.
+Constantes e escolhas de dados só passam se todos os campos correspondentes têm esses
+valores no enum do OpenAPI. Outros argumentos textuais livres são recusados, salvo
+valores fechados ou padrões do catálogo de geradores. A projeção do perfil contém
+apenas contas e referências da carta, tipo de autenticação e, quando declarado no
+OpenAPI, o caminho de login; não substitui o `target.yml` gerado da carta vigente.
+Não se copiam aprovações, estado, IDs de execução, respostas nem resultados.
 
 **Limite:** a exportação não comprova validade no segundo contexto. O consumo depende
 de validar as fontes e o motor atuais na CLI. Até essa validação e a promoção segura
