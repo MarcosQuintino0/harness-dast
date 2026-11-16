@@ -27,6 +27,19 @@ STAGE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findi
 EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product"}
 EXPECTED_AGENTS = {"spec-analyst", "findings-triager"}
 
+
+def test_wait_and_final_triage_are_required_by_skills() -> None:
+    for name in ("run-scan", "test-product"):
+        content = (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "hdast" in content
+        assert "wait --product" in content
+        assert "não leia `scan-progress.json` em laço" in content.lower()
+    for name in ("triage-findings", "test-product"):
+        content = (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "qualquer origem" in content
+        assert "fingerprint" in content
+
+
 _FENCE = re.compile(r"^```.*?\n(.*?)^```", re.DOTALL | re.MULTILINE)
 _INLINE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 _HDAST = re.compile(r"(?<![\w/.\-])hdast(?= |$)")
