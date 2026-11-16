@@ -110,19 +110,19 @@ class ScopeProxyEngine:
 
     @property
     def max_queued_requests(self) -> int:
-        """Limite de pedidos em espera pela concess?o."""
+        """Limite de pedidos em espera pela concessão."""
         return self._policy.max_queued_requests
 
     def grant_delay(self) -> float:
-        """Tempo restante at? a concess?o."""
+        """Tempo restante até a concessão."""
         return self._limiter.delay_until_grant()
 
     def grant_slot(self) -> None:
-        """Registra uma concess?o efetiva ap?s a ?ltima verifica??o da trava."""
+        """Registra uma concessão efetiva após a última verificação da trava."""
         self._limiter.grant()
 
     def defer_slots(self, seconds: float) -> None:
-        """Aplica recuo tempor?rio a todas as concess?es da execu??o."""
+        """Aplica recuo temporário a todas as concessões da execução."""
         self._limiter.defer(seconds)
 
     def check_destination(self, host: str, port: int, addresses: list[str]) -> Verdict:

@@ -115,7 +115,7 @@ class DisabledRuleMetric(ApiModel):
 
 
 class TimingMetrics(ApiModel):
-    """Tempos somados, que podem se sobrepor; aus?ncia significa n?o medido."""
+    """Tempos somados, que podem se sobrepor; ausência significa não medido."""
 
     local_queue_seconds: float | None = None
     authentication_seconds: float | None = None
@@ -135,11 +135,11 @@ def _timing(scan: ScanResult | None, rows: Sequence[ProxyRow] | None) -> TimingM
     waits = [r.grant_wait_ms for r in selected]
     network = [r.network_ms for r in selected]
     return TimingMetrics(
-        local_queue_seconds=getattr(scan, "local_queue_seconds", None),
-        authentication_seconds=getattr(scan, "authentication_seconds", None),
-        zap_delay_seconds=getattr(scan, "zap_delay_seconds", None),
-        cpu_seconds=getattr(scan, "process_cpu_seconds", None),
-        memory_peak_bytes=getattr(scan, "process_peak_memory_bytes", None),
+        local_queue_seconds=scan.local_queue_seconds if scan else None,
+        authentication_seconds=scan.authentication_seconds if scan else None,
+        zap_delay_seconds=scan.zap_delay_seconds if scan else None,
+        cpu_seconds=scan.process_cpu_seconds if scan else None,
+        memory_peak_bytes=scan.process_peak_memory_bytes if scan else None,
         proxy_grant_wait_seconds=round(sum(x for x in waits if x is not None) / 1000, 3)
         if waits and all(x is not None for x in waits)
         else None,

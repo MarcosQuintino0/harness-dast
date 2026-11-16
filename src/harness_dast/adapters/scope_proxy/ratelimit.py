@@ -47,13 +47,13 @@ class RateLimiter:
         return delay
 
     def delay_until_grant(self) -> float:
-        """Tempo restante at? a pr?xima concess?o efetiva."""
+        """Tempo restante até a próxima concessão efetiva."""
         return max(0.0, self._next_free - self._monotonic())
 
     def grant(self) -> None:
-        """Marca a concess?o no instante real, sem acumular cr?dito por atraso."""
+        """Marca a concessão no instante real, sem acumular crédito por atraso."""
         self._next_free = self._monotonic() + self._interval
 
     def defer(self, seconds: float) -> None:
-        """Adia concess?es sem aumentar a taxa nem diminuir um recuo existente."""
+        """Adia concessões sem aumentar a taxa nem diminuir um recuo existente."""
         self._next_free = max(self._next_free, self._monotonic() + seconds)
