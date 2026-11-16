@@ -58,8 +58,8 @@ def test_creation_reuses_only_proven_reference_and_generates_new_data(path: str)
         "createSynthetic",
         "post",
         api,
-        body={"label": STR, "reference": INT},
-        required=("label", "reference"),
+        body={"label": STR, "reference": INT, "id": STR},
+        required=("label", "reference", "id"),
         produces={"id": INT},
     )
     rig.spec = rig.spec.model_copy(
@@ -84,7 +84,8 @@ def test_creation_reuses_only_proven_reference_and_generates_new_data(path: str)
                     "generator": "alphanumeric",
                     "args": {"length": 16},
                     "unique": True,
-                }
+                },
+                {"match": {"field": "id"}, "generator": "alphanumeric", "unique": True},
             ],
         }
     )

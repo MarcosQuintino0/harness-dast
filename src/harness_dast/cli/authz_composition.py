@@ -4,14 +4,17 @@ Sem contêiner de injeção: liga as portas do caso de uso aos adaptadores reais
 rede (cliente do alvo, cache de tokens) que `probe` e `scan` usam.
 """
 
+import os
 from pathlib import Path
 
 from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.storage.authz_draft_writer import FileAuthzDraftWriter
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.application.authz import Authz
@@ -57,6 +60,7 @@ def build_authz(
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "authz-mutations"),
     )
 
 

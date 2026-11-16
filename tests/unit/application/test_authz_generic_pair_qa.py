@@ -49,8 +49,8 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
             operation(
                 "read",
                 "get",
-                "/api/widgets/{id}",
-                parameters=(parameter("id"),),
+                "/api/widgets/{serial}",
+                parameters=(parameter("serial"),),
                 produces={"id": INT, "group_id": INT, "serial": serial},
             ),
         ),
@@ -62,9 +62,9 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
             return reply(200, {"access_token": "generic-token"})
         if request.method == "POST" and request.url.endswith("/api/widgets"):
             body = json.loads(request.body or b"{}")
-            key = str(len(objects) + 1)
+            key = str(body["serial"])
             objects[key] = {"id": key, **body}
-            return reply(201, {"id": key})
+            return reply(201, {"serial": key})
         if request.method == "GET" and "/api/widgets/" in request.url:
             found = objects.get(request.url.rsplit("/", 1)[-1])
             return reply(200, found) if found is not None else reply(404, {})
@@ -88,7 +88,7 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
         ExchangeRecord(
             operation_id="read",
             method="GET",
-            path="/api/widgets/{id}",
+            path="/api/widgets/{serial}",
             target="/api/widgets/999",
             account="owner_a",
             status=200,
@@ -147,6 +147,6 @@ def test_vinculo_e_unico_com_papel_e_contas_genericas(small_integer: bool) -> No
     if small_integer:
         assert 1 <= body["serial"] <= 100
     readers = [r.account for r in rig.target.requests if r.operation_id == "authz:pair:read"]
-    assert readers == ["owner_a", "peer_b"]
+    assert readers == ["owner_a", "owner_a", "peer_b"]
     assert result.created_resources == 1
     assert any(f.technique == "authz_horizontal" for f in result.findings)

@@ -1,20 +1,23 @@
 """Contrato da criação e leitura de pares sintéticos no authz."""
 
 import json
+from typing import Literal
 
 import pytest
 
 from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.application import authz_checks_mass, authz_created_pair
 from harness_dast.application.authz import Authz, AuthzRequest
+from harness_dast.application.authz_ports import AuthzMutationJournal
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.datagen import DataRules
+from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.authz_rig import AuthzRig, Clinic, clinic_spec
 from tests.fakes.authz_write_rig import exchange, seed
-from tests.fakes.probe_ports import InMemoryDocuments, reply
+from tests.fakes.probe_ports import FakeTarget, InMemoryDocuments, reply
 from tests.fakes.rig import INT, STR, operation, parameter
 
 
@@ -29,7 +32,7 @@ class Owned(Clinic):
     def _route(self, request: HttpRequest, path: str, alias: str) -> HttpResponse:
         if path == self.path and request.method == "POST":
             body = json.loads(request.body or b"{}")
-            key = str(len(self.resources) + 1)
+            key = str(body.get("id", len(self.resources) + 1))
             self.resources[key] = (alias, body)
             return reply(201, {"id": key})
         if path.startswith(self.path + "/") and request.method == "GET":
@@ -59,8 +62,8 @@ def make_rig(path: str, *, exposed: bool, **kwargs: object) -> AuthzRig:
                 "createSynthetic",
                 "post",
                 api_path,
-                body={"label": STR},
-                required=("label",),
+                body={"label": STR, "id": STR},
+                required=("label", "id"),
                 produces={"id": INT},
             ),
             operation(
@@ -83,13 +86,21 @@ def make_rig(path: str, *, exposed: bool, **kwargs: object) -> AuthzRig:
 
 
 def execute(
-    rig: AuthzRig, path: str, checks: tuple[AuthzCheck, ...] = ("horizontal",)
+    rig: AuthzRig,
+    path: str,
+    checks: tuple[AuthzCheck, ...] = ("horizontal",),
+    journal: AuthzMutationJournal | None = None,
 ) -> AuthzResult:
     api_path = "/" + path
     probe = seed(
         rig,
         exchange(
-            "createSynthetic", "POST", api_path, api_path, account="adm", body={"label": "old"}
+            "createSynthetic",
+            "POST",
+            api_path,
+            api_path,
+            account="adm",
+            body={"label": "old", "id": "old"},
         ),
         exchange("readSynthetic", "GET", api_path + "/{id}", api_path + "/999", account="adm"),
     )
@@ -102,7 +113,13 @@ def execute(
                     "generator": "alphanumeric",
                     "args": {"length": 16},
                     "unique": True,
-                }
+                },
+                {
+                    "match": {"field": "id"},
+                    "generator": "alphanumeric",
+                    "args": {"length": 16},
+                    "unique": True,
+                },
             ],
         }
     )
@@ -120,8 +137,142 @@ def execute(
         artifacts=rig.artifacts,
         clock=rig.clock,
         sleeper=rig.clock,
+        mutation_journal=journal,
     )
     return usecase.execute(AuthzRequest(product="agenda", run_id=probe.run_id, checks=checks))
+
+
+@pytest.mark.parametrize("status", [200, 201])
+def test_created_pair_accepts_new_identifier_confirmed_before_and_after(status: int) -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        if request.operation_id == "authz:pair:createSynthetic":
+            return response.model_copy(update={"status": status})
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert result.created_resources == 1
+    assert result.findings
+
+
+def test_created_pair_200_without_identifier_is_not_tested() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        if request.operation_id == "authz:pair:createSynthetic":
+            return reply(200, {"message": "ok"})
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(n.reason == "created_identifier_unavailable" for n in result.not_tested)
+
+
+def test_created_pair_200_existing_identifier_is_not_tested() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        if request.operation_id == "authz:pair:createSynthetic":
+            return reply(200, {"id": "999"})
+        return response
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(n.reason == "created_target_preexisting" for n in result.not_tested)
+
+
+def test_server_generated_identifier_without_prior_proof_is_not_created() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    create = operation(
+        "createSynthetic",
+        "post",
+        "/api/widgets",
+        body={"label": STR},
+        required=("label",),
+        produces={"id": INT},
+    )
+    rig.spec = rig.spec.model_copy(
+        update={
+            "operations": tuple(
+                create if item.operation_id == "createSynthetic" else item
+                for item in rig.spec.operations
+            )
+        }
+    )
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(n.reason == "new_identifier_unavailable" for n in result.not_tested)
+    assert not [r for r in rig.target.requests if r.operation_id == "authz:pair:createSynthetic"]
+
+
+class MemoryJournal:
+    def __init__(self) -> None:
+        self.pending: set[str] = set()
+        self.completed: list[str] = []
+
+    def begin(self, key: str, previous_state: Literal["absent", "present", "unknown"]) -> None:
+        assert previous_state == "unknown"
+        if key in self.pending:
+            raise ConfigError("Mutação pendente")
+        self.pending.add(key)
+
+    def finish(self, key: str, outcome: Literal["succeeded", "failed"]) -> None:
+        self.pending.remove(key)
+        self.completed.append(outcome)
+
+
+def test_journal_records_before_send_and_completes_known_response() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    journal = MemoryJournal()
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id == "authz:pair:createSynthetic":
+            assert len(journal.pending) == 1
+            assert all(len(key) == 64 for key in journal.pending)
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        return response
+
+    rig.target = FakeTarget(handler)
+    execute(rig, "api/widgets", journal=journal)
+    assert journal.completed == ["succeeded"]
+    assert not journal.pending
+
+
+def test_journal_keeps_uncertain_result_and_blocks_repeat() -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    journal = MemoryJournal()
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id == "authz:pair:createSynthetic":
+            return reply(503, {})
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        return response
+
+    rig.target = FakeTarget(handler)
+    execute(rig, "api/widgets", journal=journal)
+    assert len(journal.pending) == 1
+    with pytest.raises(ConfigError, match="pendente"):
+        execute(rig, "api/widgets", journal=journal)
+    assert (
+        len([r for r in rig.target.requests if r.operation_id == "authz:pair:createSynthetic"]) == 1
+    )
 
 
 @pytest.mark.parametrize("path", ["api/widgets", "api/records"])
@@ -153,7 +304,7 @@ def test_shared_role_does_not_create() -> None:
 def test_failed_owner_confirmation_is_not_a_finding() -> None:
     rig = make_rig("api/widgets", exposed=True, owner_read=False)
     result = execute(rig, "api/widgets")
-    assert result.created_resources == 1
+    assert result.created_resources == 0
     assert not result.findings
     assert any(n.reason == "created_owner_read_failed" for n in result.not_tested)
 

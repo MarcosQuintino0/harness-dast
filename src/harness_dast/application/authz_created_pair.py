@@ -1,5 +1,7 @@
 """Cria recurso sintético e compara leitura das duas contas pela cerca."""
 
+import json
+
 from harness_dast.application.authz_sender import (
     CheckContext,
     CheckResult,
@@ -38,6 +40,9 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     body = _new_body(ctx, post, out)
     if body is None:
         return
+    target = _confirm_absent(ctx, task, body, out)
+    if target is None:
+        return
     if ctx.settings.counter_checkpoint is not None and ctx.settings.builder is not None:
         ctx.settings.counter_checkpoint(ctx.settings.builder.next_unique_counter)
     ctx.shared_writes += 1
@@ -45,7 +50,46 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     reply = ctx.sender.send(
         post, task.owner[0], body=body, with_body=True, tag="pair:", max_attempts=1
     )
-    _check_created(ctx, task, out, reply)
+    _check_created(ctx, task, out, reply, target)
+
+
+def _confirm_absent(
+    ctx: CheckContext, task: CreatedPairTask, body: dict[str, JsonValue], out: CheckResult
+) -> ExchangeRecord | None:
+    identifier = created_identifier(
+        location=None,
+        body=json.dumps(body).encode(),
+        reader=task.read,
+        base_url=ctx.settings.base_url,
+    )
+    target = created_read_exchange(task.read, identifier) if identifier else None
+    if target is None:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                task.post,
+                "new_identifier_unavailable",
+                "O corpo novo não fornece identificador para conferir ausência antes da criação.",
+            )
+        )
+        return None
+    before = ctx.sender.send(target, task.owner[0], tag="pair:", max_attempts=1)
+    if before.problem is not None:
+        out.not_tested.append(problem_note("horizontal", target, before))
+        return None
+    if before.status != 404:
+        out.not_tested.append(
+            note(
+                "horizontal",
+                target,
+                "created_target_preexisting"
+                if _successful(ctx, before)
+                else "created_absence_unconfirmed",
+                "A leitura anterior não confirmou ausência do identificador (HTTP 404).",
+            )
+        )
+        return None
+    return target
 
 
 def _new_body(
@@ -114,7 +158,11 @@ def _new_body(
 
 
 def _check_created(
-    ctx: CheckContext, task: CreatedPairTask, out: CheckResult, reply: Reply
+    ctx: CheckContext,
+    task: CreatedPairTask,
+    out: CheckResult,
+    reply: Reply,
+    expected: ExchangeRecord,
 ) -> None:
     post = task.post
     if reply.problem:
@@ -130,23 +178,11 @@ def _check_created(
             )
         )
         return
-    if reply.status != 201:
-        out.not_tested.append(
-            note(
-                "horizontal",
-                post,
-                "create_unconfirmed",
-                "A resposta não confirmou criação com HTTP 201; pode ter deixado "
-                "um recurso no ambiente.",
-            )
-        )
-        return
     identifier = created_identifier(
         location=reply.location, body=reply.body, reader=task.read, base_url=ctx.settings.base_url
     )
     target = created_read_exchange(task.read, identifier) if identifier else None
     if target is None:
-        out.created += 1
         out.not_tested.append(
             note(
                 "horizontal",
@@ -156,7 +192,7 @@ def _check_created(
             )
         )
         return
-    if target.target.split("?", 1)[0] in task.existing_targets:
+    if target.target != expected.target or target.target.split("?", 1)[0] in task.existing_targets:
         out.not_tested.append(
             note(
                 "horizontal",
@@ -167,7 +203,6 @@ def _check_created(
             )
         )
         return
-    out.created += 1
     _compare(ctx, task, target, out)
 
 
@@ -195,6 +230,7 @@ def _compare(
             )
         )
         return
+    out.created += 1
     peer = ctx.sender.send(target, task.actor[0], tag="pair:")
     if peer.problem:
         out.not_tested.append(problem_note("horizontal", target, peer))

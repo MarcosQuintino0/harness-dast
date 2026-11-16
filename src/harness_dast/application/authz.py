@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import Literal
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.authz_ports import AuthzArtifacts
+from harness_dast.application.authz_ports import AuthzArtifacts, AuthzMutationJournal
 from harness_dast.application.authz_runner import (
     AuthzOutcome,
     AuthzPlans,
@@ -136,6 +136,7 @@ class Authz:
         documents: ProductDocuments | None = None,
         value_sources: ValueSourceFactory | None = None,
         entropy: EntropySource | None = None,
+        mutation_journal: AuthzMutationJournal | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -157,6 +158,7 @@ class Authz:
         self._documents = documents
         self._value_sources = value_sources
         self._entropy = entropy
+        self._mutation_journal = mutation_journal
 
     def execute(self, request: AuthzRequest) -> AuthzResult:
         """Executa o `authz`.
@@ -324,6 +326,7 @@ class Authz:
                 flows=flows,
                 counter_checkpoint=checkpoint,
                 builder=builder,
+                mutation_journal=self._mutation_journal,
             )
         )
         return runner.run(checks, plans)

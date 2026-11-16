@@ -24,8 +24,8 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
         "createSynthetic",
         "post",
         "/api/widgets",
-        body={"group_id": INT, "serial": serial_schema},
-        required=("group_id", "serial"),
+        body={"group_id": INT, "id": serial_schema},
+        required=("group_id", "id"),
         produces={"id": INT},
     )
     producer = operation("makeGroup", "post", "/api/groups", produces={"id": INT})
@@ -40,7 +40,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
             )
         }
     )
-    old = {"group_id": 89, "serial": 17 if small_integer else "old"}
+    old = {"group_id": 89, "id": 17 if small_integer else "old"}
     probe = seed(
         rig,
         exchange("createSynthetic", "POST", "/api/widgets", "/api/widgets", body=old),
@@ -49,9 +49,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
     if small_integer:
         log = rig.store.exchanges[probe.run_id]
         assert log.next_unique_counter is not None
-        old["serial"] = (
-            1 + (int(probe.run_id.rsplit("-", 1)[-1], 16) + log.next_unique_counter) % 100
-        )
+        old["id"] = 1 + (int(probe.run_id.rsplit("-", 1)[-1], 16) + log.next_unique_counter) % 100
         first = log.exchanges[0].model_copy(update={"body": json.dumps(old)})
         rig.store.exchanges[probe.run_id] = log.model_copy(
             update={"exchanges": (first, *log.exchanges[1:])}
@@ -61,7 +59,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
             "schema_version": 1,
             "rules": [
                 {
-                    "match": {"field": "serial", "operation": "createSynthetic"},
+                    "match": {"field": "id", "operation": "createSynthetic"},
                     "generator": "integer" if small_integer else "alphanumeric",
                     "unique": True,
                 }
@@ -116,8 +114,8 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
     body = json.loads(posts[0].body or b"{}")
     assert body["group_id"] == 89
     if small_integer:
-        assert 1 <= body["serial"] <= 100
-    assert body["serial"] != old["serial"]
+        assert 1 <= body["id"] <= 100
+    assert body["id"] != old["id"]
     assert result.created_resources == 1
     assert prior_counter is not None
     assert recorded[0] is not None
@@ -129,7 +127,7 @@ def test_criacao_reutiliza_vinculo_e_gera_dados_novos(small_integer: bool) -> No
     )
     all_posts = [r for r in rig.target.requests if r.operation_id == "authz:pair:createSynthetic"]
     assert len(all_posts) == 2
-    assert json.loads(all_posts[1].body or b"{}")["serial"] != body["serial"]
+    assert json.loads(all_posts[1].body or b"{}")["id"] != body["id"]
     assert first_counter is not None
     next_counter = rig.store.exchanges[probe.run_id].next_unique_counter
     assert next_counter is not None
