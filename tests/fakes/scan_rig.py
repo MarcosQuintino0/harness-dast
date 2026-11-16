@@ -5,6 +5,7 @@ from typing import Any
 
 from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.panel_index_ports import ScanLive
+from harness_dast.application.ports import KillSwitch
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
@@ -56,7 +57,10 @@ class ScanRig(Rig):
         return self._probe_result
 
     def scan(
-        self, live: ScanLive | None = None, process_sampler: ProcessSampler | None = None
+        self,
+        live: ScanLive | None = None,
+        process_sampler: ProcessSampler | None = None,
+        kill_switch: KillSwitch | None = None,
     ) -> Scan:
         return Scan(
             profiles=self.profiles,
@@ -73,6 +77,7 @@ class ScanRig(Rig):
             sleeper=self.clock,
             live=live,
             process_sampler=process_sampler,
+            kill_switch=kill_switch,
         )
 
     def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:
