@@ -31,9 +31,9 @@ def _counts(record: dict[str, Any]) -> dict[str, Counter[str]]:
         )
         for e in scan.get("skipped", [])
     )
-    rules = Counter()
-    requests = Counter()
-    alerts = Counter()
+    rules: Counter[str] = Counter()
+    requests: Counter[str] = Counter()
+    alerts: Counter[str] = Counter()
     for operation in stats.get("operations", []):
         for rule in operation.get("rules", []):
             if rule.get("plugin_id") == 40026:
@@ -109,7 +109,7 @@ def compare(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
 
 
 def compare_origins(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
-    """Compara achados extra?dos das tr?s fontes sem usar atribui??o como origem."""
+    """Compara achados extraídos das três fontes sem usar atribuição como origem."""
     output: dict[str, Any] = {}
     for origin in ("zap", "authz", "negative"):
         source_a = a.get("sources", {}).get(origin, {})
@@ -159,7 +159,7 @@ def main() -> None:
         if origins_a.get("run_id") != (record_a.get("manifest") or {}).get(
             "run_id"
         ) or origins_b.get("run_id") != (record_b.get("manifest") or {}).get("run_id"):
-            parser.error("Matriz de origem n?o corresponde ? execu??o")
+            parser.error("Matriz de origem não corresponde à execução")
         result["origin_comparison"] = compare_origins(origins_a, origins_b)
     result["source_sha256"] = {
         "a": hashlib.sha256(raw_a).hexdigest(),

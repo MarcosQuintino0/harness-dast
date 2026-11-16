@@ -80,7 +80,7 @@ def test_strategy_preserva_controles_direcionados(
         negative = cli.run("negative", product, "--run", run_id, timeout=900)
         assert negative.code == 0, negative.stdout + negative.stderr
         # Entradas de leitura e uma escrita para conferir identidade e o par XSRF.
-        operations = (
+        operations: tuple[str, ...] = (
             ("buscarPacientesPorNome", "buscarPaciente", "criarConvenio")
             if product == "clinica-piloto"
             else ("api_views.users.get_by_username", "api_views.books.get_by_title")
