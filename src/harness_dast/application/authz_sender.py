@@ -30,6 +30,7 @@ from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.probe_result import ProbeStatus
+from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.request_encoding import join_url
 
 
@@ -113,6 +114,7 @@ class AuthzSettings:
     sessions: SessionPool
     vault: SecretVault
     run_id: str = ""
+    builder: RequestBuilder | None = None
 
 
 class ReplaySender:
@@ -290,6 +292,7 @@ class CheckContext:
         self.settings = settings
         self.sender = sender
         self.volatile = settings.config.volatile_names()
+        self.shared_writes = 0
         self.live: dict[AuthzCheck, CheckResult] = {}
 
     def begin(self, check: AuthzCheck, result: CheckResult) -> CheckResult:

@@ -6,12 +6,14 @@ rede (cliente do alvo, cache de tokens) que `probe` e `scan` usam.
 
 from pathlib import Path
 
+from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.storage.authz_draft_writer import FileAuthzDraftWriter
+from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
 from harness_dast.adapters.system_clock import SystemClock
-from harness_dast.adapters.system_runtime import SystemSleeper
+from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.application.authz import Authz
 from harness_dast.application.authz_draft import AuthzDraft
 from harness_dast.cli.approval_composition import checked_profiles
@@ -47,6 +49,9 @@ def build_authz(
         artifacts=FileRunArtifacts(runs_dir),
         clock=SystemClock(),
         sleeper=SystemSleeper(),
+        documents=FileProductDocuments(root),
+        value_sources=GeneratorCatalogue,
+        entropy=SystemEntropy(),
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,

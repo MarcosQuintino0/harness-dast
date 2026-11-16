@@ -29,7 +29,9 @@ from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
+    EntropySource,
     KillSwitch,
+    ProductDocuments,
     ProfileRepository,
     RunStore,
     SecretProvider,
@@ -37,6 +39,7 @@ from harness_dast.application.ports import (
     Sleeper,
     SpecLoader,
     TargetClient,
+    ValueSourceFactory,
 )
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
@@ -52,6 +55,7 @@ from harness_dast.domain.authz_plan import (
     plan_horizontal,
     plan_vertical,
 )
+from harness_dast.domain.authz_plan_created_pair import plan_created_pairs
 from harness_dast.domain.authz_plan_mass import (
     MassTask,
     count_candidates,
@@ -68,10 +72,13 @@ from harness_dast.domain.authz_writes import (
     nothing_to_replay_notes,
     vertical_dropped_note,
 )
+from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.unique_values import run_tag_from_run_id
 
 
 @dataclass(frozen=True)
@@ -125,6 +132,9 @@ class Authz:
         token_cache: TokenCache | None = None,
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
+        documents: ProductDocuments | None = None,
+        value_sources: ValueSourceFactory | None = None,
+        entropy: EntropySource | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -143,6 +153,9 @@ class Authz:
         self._token_cache = token_cache
         self._login_budget = login_budget
         self._kill_switch = kill_switch
+        self._documents = documents
+        self._value_sources = value_sources
+        self._entropy = entropy
 
     def execute(self, request: AuthzRequest) -> AuthzResult:
         """Executa o `authz`.
@@ -270,9 +283,29 @@ class Authz:
                 sessions=pool,
                 vault=self._vault,
                 run_id=run_id,
+                builder=self._builder(profile, run_id, started)
+                if plans.created_pairs.tasks
+                else None,
             )
         )
         return runner.run(checks, plans)
+
+    def _builder(
+        self,
+        profile: ProductProfile,
+        run_id: str,
+        started: datetime,
+    ) -> RequestBuilder | None:
+        if self._documents is None or self._value_sources is None or self._entropy is None:
+            return None
+        rules = self._documents.load_data_rules(profile.product) or DataRules(schema_version=1)
+        seed = self._entropy.seed()
+        return RequestBuilder(
+            rules,
+            self._value_sources(seed, started),
+            run_tag_from_run_id(run_id),
+            initial_counter=32768 + seed % 16384,
+        )
 
     def _session(
         self, profile: ProductProfile, alias: str, dispatcher: OperationDispatcher
@@ -372,6 +405,16 @@ def _plan(
         matrix=matrix,
         mass=mass,
         horizontal_write=write,
+        created_pairs=plan_created_pairs(
+            exchanges,
+            roles,
+            public,
+            config.shared_roles,
+            profile.infrastructure_paths,
+            allow_writes=config.allow_writes,
+        )
+        if "horizontal" in checks
+        else Planned((), ()),
     )
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
 
@@ -424,6 +467,7 @@ def _nothing_to_replay(
         matrix=replace(plans.matrix, notes=(*plans.matrix.notes, *_note(notes, "access_matrix"))),
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
         horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
+        created_pairs=plans.created_pairs,
     )
 
 
@@ -446,12 +490,16 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
     summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
     summaries = tuple(_dry_matrix(item, plans) for item in summaries)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
+    if "horizontal" in checks:
+        skipped += plans.created_pairs.not_tested
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
 
 
 def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) -> CheckSummary:
     message = "Simulação (--dry-run): nada foi enviado."
     count = len(tasks)
+    if check == "horizontal":
+        count += len(plans.created_pairs.tasks)
     if check == "mass_assignment":
         count = count_candidates(plans.mass.tasks)
         if plans.mass.tasks:

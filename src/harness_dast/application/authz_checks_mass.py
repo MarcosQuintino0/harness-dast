@@ -66,7 +66,7 @@ def _mass_task(ctx: CheckContext, task: MassTask, out: CheckResult) -> None:
         out.not_tested.append(no_body_note(task.exchange))
         return
     for candidate in task.candidates:
-        if out.writes >= MAX_MASS_REQUESTS:
+        if ctx.shared_writes >= MAX_MASS_REQUESTS - (0 if task.created else 1):
             out.not_tested.append(_budget_note(task))
             return
         if task.created:
@@ -135,6 +135,7 @@ def _mass_apply(
     exchange = task.exchange
     pending.attempted = True
     out.writes += 1
+    ctx.shared_writes += 1
     put = ctx.sender.send(
         exchange, exchange.account, body={**original, extra.name: extra.value}, with_body=True
     )
@@ -156,6 +157,7 @@ def _mass_apply(
         return
     pending.previous, pending.known = previous, True
     out.writes += 1
+    ctx.shared_writes += 1
     restored = restore(
         ctx, exchange, task.read, original, (extra.name, extra.value), changed, previous
     )

@@ -200,13 +200,16 @@ class RequestBuilder:
     valores `unique` da mesma instância nunca coincidem.
     """
 
-    def __init__(self, rules: DataRules, source: ValueSource, run_tag: str) -> None:
+    def __init__(
+        self, rules: DataRules, source: ValueSource, run_tag: str, *, initial_counter: int = 0
+    ) -> None:
         """Cria o montador.
 
         Args:
             rules: Regras de dados já validadas.
             source: Fonte de valores (catálogo de geradores com semente e relógio injetados).
             run_tag: Etiqueta da execução, de `run_tag_from_run_id`.
+            initial_counter: Posição inicial do contador de valores únicos.
 
         Raises:
             ConfigError: Etiqueta inválida.
@@ -214,7 +217,7 @@ class RequestBuilder:
         self._rules = rules
         self._source = source
         self._run_tag = validate_run_tag(run_tag)
-        self._unique_counter = 0
+        self._unique_counter = initial_counter
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
 

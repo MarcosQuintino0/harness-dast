@@ -68,12 +68,12 @@ def update_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> Exch
     same = [r for r in same_path if r.account == item.account]
     exact = [r for r in same if r.target == item.target]
     other_exact = [r for r in same_path if r.target == item.target]
-    chosen = exact or same or other_exact
+    chosen = exact or other_exact
     return chosen[0].model_copy(update={"account": item.account}) if chosen else None
 
 
-def _created_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
-    """GET irm?o provado, repetido com a conta que criou o recurso."""
+def created_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
+    """GET irmão provado, repetido com a conta que criou o recurso."""
     base = _segments(item.path)
     siblings = [
         read
@@ -193,7 +193,7 @@ def _task(
     notes = [_limited_note(item, candidates.cut)] if candidates.cut else []
     if not created:
         return MassTask(item, update_reader(item, reads), candidates.candidates), notes
-    reader = _created_reader(item, reads)
+    reader = created_reader(item, reads)
     if reader is None and not _echoes(operation):
         notes.append(
             skip_note(

@@ -44,6 +44,7 @@ def run_post_candidate(
         out.not_tested.append(chosen)
         return True
     out.writes += 1
+    ctx.shared_writes += 1
     reply = ctx.sender.send(
         exchange,
         exchange.account,

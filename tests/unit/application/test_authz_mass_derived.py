@@ -165,7 +165,8 @@ def test_the_run_ceiling_stops_new_writes_and_says_so(monkeypatch: pytest.Monkey
 
     result = run_mass(rig)
 
-    assert len(authz_puts(rig)) == 2
+    # Reserva uma escrita para eventual restauração da última alteração.
+    assert len(authz_puts(rig)) == 1
     assert notes(result, "budget_exhausted")
 
 
