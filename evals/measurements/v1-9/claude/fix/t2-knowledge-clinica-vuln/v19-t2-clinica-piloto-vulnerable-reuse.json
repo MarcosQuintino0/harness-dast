@@ -1,0 +1,11 @@
+{
+  "product": "clinica-piloto",
+  "mode": "vulnerable",
+  "run_id": "2026-11-16T16-14-54Z-clinica-piloto-4da3",
+  "observed_rules": 16,
+  "observed_flows": 14,
+  "effects_available": 1,
+  "recipe_triples": 0,
+  "observed_snapshots": 0,
+  "snapshot_values_exported": false
+}

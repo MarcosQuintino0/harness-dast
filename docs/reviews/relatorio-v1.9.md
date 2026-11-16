@@ -60,3 +60,26 @@ Protocolo em `evals/protocolo-da-rodada-cega.md`, runner `evals.runner`, canal d
 ## Gates
 
 Registrados em `C:\harness-dast-artefatos\v1-9\gates-claude1` (primeira passagem, antes das correções) e na passagem final descrita no PR. Na primeira passagem falhou um teste de contrato (`effects` ausente do conjunto de chaves do `authz.json`), corrigido; ver o PR para o resultado final.
+
+## Correções da validação
+
+O validador independente decidiu `corrigir`. Para cada defeito escrevi antes o teste que o reproduz e confirmei a falha; medições em [evals/measurements/v1-9/claude/fix](../../evals/measurements/v1-9/claude/fix).
+
+| # | Achado | Correção e teste |
+| --- | --- | --- |
+| 1 | Pendência sem envio: a recusa do portão (`WindowClosed`/`DeadlineReached`) depois do `begin` do diário deixava a reserva para sempre no `authz` e no `negative` | Com uma única tentativa, a recusa vem antes de qualquer byte da mutação; a reserva é fechada como `failed` e o erro segue. Erro durante ou depois do envio continua desconhecido e bloqueia. Mensagens separadas no diário: "Já existe mutação com resultado desconhecido para esta operação e conta" (com o caminho e a ação humana) e erro de E/S. Testes: `test_v19_journal_refusal.py` (falharam antes) e `test_knowledge_journal.py`. Reconciliação em [knowledge.md](../reference/knowledge.md) e [problemas-comuns.md](../guides/problemas-comuns.md) |
+| 2 | `KnowledgeProfiles.load` exigia o motor sem necessidade | `cleanup` ignora o conhecimento (`checked_profiles(..., with_knowledge=False)`); nos `--dry-run`, só entrada `validated` consumível exige o motor, e a só proposta é ignorada. `reusable` passou a exigir ao menos uma entrada validada. Testes em `test_knowledge.py` |
+| 3 | `recipe-gap.json` aceitava qualquer ausência de trio | A lacuna só vale com zero linhas de auditoria `authz:effect_recipe_*`; qualquer leitura de receita sem trio reprova (`recipe_absence`). Testes offline dos dois casos |
+| 4 | Snapshot com folga de 5 s casava com a restauração | Exige `escrita <= instante do snapshot <= leitura posterior`, sem folga. O instante é o `mtime` do arquivo arquivado, gravado depois da resposta da escrita e antes da leitura posterior; não foi preciso gravar o `begin` no diário. Testes com snapshot da restauração depois da leitura posterior e snapshot anterior à escrita |
+| 5 | Recibo codificava vulnerabilidade | A atribuição em massa com efeito comprovado (`PUT` e `POST`) deixa de gerar recibo; só o marcador do par criado gera. ADR 0078 e testes ajustados (`result.effects == ()`). **Consequência para a receita:** os recibos reais passam a vir só do par criado, e a receita só se aplica a tarefa de atribuição em massa da mesma operação e conta sem leitor, o que quase nunca ocorre. O mecanismo segue provado só offline (receita fornecida por carregador); no laboratório a lacuna `never_attempted` continua. Mantive a regra conservadora |
+| 6 | Proveniência no pacote exportado contradizia o protocolo | O modelo exige `provenance`; protocolo e ADR 0079 agora dizem que o pacote leva `run_id` e hashes do manifesto, do probe e do authz, que não são segredo, e nenhum outro arquivo leva o identificador. Teste em `tests/unit/evals/test_reuse.py` fixa o conteúdo |
+| 7 | Captura sem `--run` emitia `source: owner` e `validated` | Sem origem real, todas as entradas saem `proposed` com origem `contract`. Teste em `test_knowledge.py` |
+| 8 | Documentação | `knowledge.md` atualizado (a repetição da T2 passou); `authz_created_pair.py` (479 linhas) ganhou justificativa no docstring do módulo em vez de divisão |
+| 9 | Acentuação corrompida em documentos da develop | Corrigida só a codificação em `evals/protocolo-da-rodada-cega.md`, `evals/README.md`, ADR 0062 e `relatorio-v1.7.md` (commit `docs: corrige acentuação corrompida`). `qa-v1.5.5.md` intocado. Os demais `?` encontrados nos `.md` são URLs e consultas. Dados históricos em `evals/results` (JSON e transcrições) não foram tocados |
+
+### Prova depois das correções
+
+- **Gates** (`run-gates.ps1`, `gates-claude3`): ruff, format, mypy Windows e Linux, lint-imports, vulture, pytest com pisos de cobertura, diff-cover e gitleaks verdes.
+- **T2 de authz**, quatro células, 533 s: passou, com os mesmos achados (Clínica vulnerável: horizontal e atribuição em massa; VAmPI vulnerável: horizontal; modos seguros: zero).
+- **T2 de reutilização, Clínica vulnerável**, com o verificador novo, 546 s: passou, com `recipe-gap.json` = `never_attempted`. O trio e o snapshot só estão provados offline.
+- A T4 não foi repetida. O Compose ficou vazio e a trava foi removida.
