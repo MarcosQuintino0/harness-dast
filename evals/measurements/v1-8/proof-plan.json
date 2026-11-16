@@ -16,6 +16,7 @@
   "refinement": {
     "registered_at_utc": "2026-11-16T05:01:00Z",
     "reason": "Acrescentar uma escrita para conferir o par XSRF na reproducao independente T2, preservando as leituras iniciais; nao repetir completas por erro de assercao do suporte",
+    "live_engine_binding": "A reproducao independente T2 usa escolha coverage/preserve vinculada aos documentos e a versao atual do ZAP, lida apenas pela API de controle local antes do preflight; consultas secas continuam sem rede",
     "t4_test_correction": "Facts.notifications nao e preenchido por collect_facts; conferir o contador de endpoints efetivamente fornecido, sem tratar None como zero"
   },
   "acceptance": [

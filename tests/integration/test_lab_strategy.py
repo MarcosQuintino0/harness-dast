@@ -16,6 +16,7 @@ from tests.integration.run_support import (
 )
 from tests.integration.strategy_support import (
     activate_strategy,
+    bind_live_strategy,
     finding_keys,
     install_strategy,
     legacy_anonymous_findings,
@@ -63,6 +64,7 @@ def test_strategy_preserva_controles_direcionados(tmp_path: Path, product: str, 
     try:
         up = cli.run("stack", "up", product, *flags, timeout=900)
         assert up.code == 0, up.stdout + up.stderr
+        bind_live_strategy(cli, product)
         preflight = cli.run("preflight", product)
         assert preflight.code == 0, preflight.stdout + preflight.stderr
         probe = cli.run("probe", product, timeout=900)
