@@ -268,7 +268,7 @@ def test_test_product_points_to_the_four_stage_skills_in_order() -> None:
     assert stage_order == sorted(stage_order)
 
 
-def test_test_product_stops_in_each_case_the_owner_asked_for() -> None:
+def test_test_product_distinguishes_partial_reachability_from_safety_stops() -> None:
     text = _skill_text("test-product").split("## Se der X")[1].split("## Diário")[0]
 
     for case in (
@@ -278,6 +278,24 @@ def test_test_product_stops_in_each_case_the_owner_asked_for() -> None:
         "dúvida de autorização, escopo ou janela",
     ):
         assert case in text
+    reachability = next(line for line in text.splitlines() if "Alcançabilidade abaixo" in line)
+    assert "varredura parcial" in reachability
+    assert "motivos do último `probe`" in reachability
+    assert "Pare;" not in reachability
+
+
+def test_reachability_local_failures_do_not_stop_the_whole_flow() -> None:
+    text = _skill_text("fix-reachability")
+    lines = text.splitlines()
+    auth = next(line for line in lines if line.startswith("| `auth_error`"))
+    server = next(line for line in lines if line.startswith("| `server_error`"))
+    for line in (auth, server):
+        assert "só essa operação" in line
+        assert "diário" in line
+        assert "lacunas" in line
+    assert "contas da carta" in auth
+    assert "auth_rejected_expected" in text
+    assert "bloqueia mais operações" in text
 
 
 def test_test_product_cites_every_part_b_lock_and_does_not_restate_stage_rules() -> None:

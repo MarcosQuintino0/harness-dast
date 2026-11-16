@@ -69,17 +69,18 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | `outcome` | O que significa e o que fazer |
 | --- | --- |
 | `validation_error` (400/422) | Falta regra de dados: veja `errors[].field` e escreva em `data-rules.yml` |
-| `conflict` (409) | Valor repetido: `unique: true` |
+| `conflict` (409) | Veja candidatos no `hint` (campo informado na resposta ou derivado do esquema); priorize o produtor que bloqueia mais operações e use `unique: true` na regra adequada |
 | `not_found` (404) | Falta encadeamento: `flows.yml` |
-| `auth_error` (401/403) | Conta ou papel errado: `auth.account_map` |
+| `auth_rejected_expected` (401/403) | Login do perfil recusou credenciais sintéticas: conta como alcançado, separado de sucesso 2xx; não prova autenticação real. Login fica fora do `scan` e `negative`; injeção nele não foi testada |
+| `auth_error` (401/403) | Tente `auth.account_map` com contas da carta; se persistir, interrompa só essa operação, registre pendência no diário e nas lacunas e siga |
 | `csrf_error` | CSRF não declarado ou errado |
 | `rate_limited` (429) | O alvo limita; reduza, não insista |
-| `server_error`, `timeout` | Pode ser o alvo; relate |
+| `server_error`, `timeout` | Interrompa só a operação; registre pendência no diário e nas lacunas e siga com as demais |
 | `skipped_scope`, `skipped_denied`, `skipped_destructive` | Por desenho: fora do escopo, proibido ou `DELETE` |
 | `build_error` em operação de envio de arquivo (`multipart/form-data`) | O esquema do corpo não é modelável (campo de arquivo que não é `string` com `format: binary`, mais de 20 partes) ou falta regra: leia o `hint`; para o tipo ou o nome do arquivo, regra `synthetic_file` em `data-rules.yml` |
 | Envio de arquivo alcançado (`success`), mas sem varredura: `upload_scan_not_authorized`, `binary_body` ou `multipart_not_scannable` no `scan.json` | Por desenho: a carta não autoriza o ZAP a varrer upload (`attack.allow_upload_scan`), o arquivo sintético é binário (`png`) e o ZAP recebe o corpo como texto, ou o ZAP não consegue varrer esse corpo. Não é falha de alcance; só o dono do produto autoriza a varredura (a pessoa muda a carta e aprova de novo) |
 
-O passo a passo desse laço é a skill `fix-reachability`.
+Após esgotar as tentativas ou duas rodadas sem melhora, siga com varredura parcial e registre as operações e motivos do último `probe` no diário, relatório e resposta final. Paradas por autorização, janela, escopo, indisponibilidade da pilha/ZAP ou alvo, `STACK_BUSY` e 429 sem limite informado continuam valendo. O passo a passo desse laço é a skill `fix-reachability`.
 
 ## Varredura, relatório e limpeza
 

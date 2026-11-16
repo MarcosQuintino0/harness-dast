@@ -98,7 +98,7 @@ uv run hdast --json preflight vampi   # "ready": true
 uv run hdast --json probe vampi       # "reachability": 1.0
 ```
 
-O `preflight` confere autorização, janela, segredos, ZAP, saúde do alvo e login de cada conta. O `probe` envia uma requisição válida por operação; alcançabilidade `1.0` significa que todas as operações tentadas tiveram sucesso. O `DELETE` não é tentado sem `--include-delete`.
+O `preflight` confere autorização, janela, segredos, ZAP, saúde do alvo e login de cada conta. O `probe` envia uma requisição válida por operação; alcançabilidade `1.0` significa que todas as operações tentadas foram alcançadas, incluindo eventual `auth_rejected_expected`, separado dos sucessos 2xx. O `DELETE` não é tentado sem `--include-delete`.
 
 ## 7. Rodar a varredura
 
@@ -146,7 +146,7 @@ O OpenAPI está em <caminho>. A carta de autorização está em <caminho>.
 É ambiente de teste com dados sintéticos e a autorização vale agora.
 ```
 
-A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta (o agente faz uma entrevista de uma rodada só e monta um `carta.yml`), falta a sua aprovação do escopo (você roda um comando num terminal seu),  a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
+A skill `test-product` conduz o cadastro (`onboard-product`), a alcançabilidade (`fix-reachability`), a varredura (`run-scan`) e a triagem (`triage-findings`), e **só para quando precisa de você**: falta dado na carta (o agente faz uma entrevista de uma rodada só e monta um `carta.yml`), falta a sua aprovação do escopo (você roda um comando num terminal seu), há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. Se a meta de alcance não for atingida após as tentativas ou duas rodadas sem melhora, segue com cobertura parcial e registra operações e motivos do último `probe` no diário, relatório e resposta final. As travas não mudam: o agente só age por `hdast`, não lê segredo, não roda limpeza e não amplia escopo, limite nem janela. Detalhes e prompts por etapa: [cadastrar-um-produto.md](cadastrar-um-produto.md).
 
 ## Próximos passos
 
