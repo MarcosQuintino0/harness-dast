@@ -11,11 +11,24 @@ O plano deve mostrar o trabalho antes de qualquer pedido ao alvo.
 
 Vamos oferecer `hdast strategy validate <produto>`, `hdast strategy diff <produto>` e `hdast plan <produto> --dry-run`. Eles validam e compilam sem rede, sem exigir aprovação para prévia. A intenção é revalidar autorização, aprovação, janela, prazo e stop em cada concessão; isso permanece requisito de aceite. A revalidação nos pontos de polling e envio do scan foi testada; revalidação por concessão do proxy não foi comprovada e é limite desta entrega. A prévia usa fontes locais e identifica a matriz prevista e entradas simbólicas; não afirma cobertura executada. O plano concreto depende do planejamento do scan. A equivalência da matriz de operações, contas, regras, força, pontos e pré-condições é critério de prova item por item; hash não substitui essa prova. As opções novas não alteram ritmo ou cobertura.
 
-## Alternativas consideradas
+## Fronteiras e integração
 
 As portas `StrategyStore` e `StrategyDependencyStore` ficam em `application/ports.py`, pois o armazenamento de arquivos é uma fronteira externa e os testes usam implementações em memória. `FileStrategyRepository` traduz essa fronteira; validação, hashes e comparação permanecem no domínio. Não há dependência nova.
 
 A integração preserva o orquestrador existente em `application/scan.py`, já maior que 300 linhas, por um hook localizado. Mantém no mesmo ciclo as etapas de configuração, execução e limpeza do Replacer; evita refatorar simultaneamente o executor reservado à V1.7. Os modelos e a compilação ficam em módulos novos.
+
+## Complemento proposto: identidade efetiva na execução
+
+Conferido em 2026-11-16, antes desta implementação complementar:
+
+- As consultas secas permanecem sem rede e não inventam a identidade do motor. Uma escolha preenchida pode continuar recusada na compilação seca por esse motivo.
+- A abertura de transporte e a subida da pilha usam o perfil formal aprovado; construir os clientes não envia pedido ao alvo. Nenhuma dessas etapas aplica a escolha de estratégia.
+- Antes do primeiro pedido ao alvo, os casos de uso ativos de preflight, probe, scan, authz, negative e run recebem `StrategyProfiles` com a porta do ZAP efetivamente configurado. Somente uma escolha preenchida provoca consulta da versão, limitada a texto imprimível não vazio de até 100 caracteres. Versão ausente, inválida, indisponível ou divergente recusa a execução, sem ecoar a resposta.
+- A base vem do perfil e dos documentos atuais e da versão observada, nunca da versão declarada pela estratégia ou de execução antiga. O snapshot concreto do scan recebe a base verificada. A estratégia ausente ou vazia mantém o comportamento e não provoca consulta adicional.
+- A composição mantém o controle e o scanner ligados ao mesmo endpoint configurado; a verificação existente do contexto continua necessária. A versão não prova identidade de instância nem impede reinício ou alteração depois da conferência. Não declarar essa corrida resolvida nem substituir a trava por concessão do proxy.
+- Os modos `--dry-run` não recebem provedor de rede. Cleanup sem identidade efetiva continua recusando uma escolha preenchida; não ganha atalho de aprovação ou permissão.
+
+## Alternativas consideradas
 
 Compilar a cada envio permitiria alteração concorrente em disco; usar somente hash não prova equivalência.
 
