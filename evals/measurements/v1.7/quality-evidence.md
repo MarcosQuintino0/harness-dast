@@ -46,7 +46,7 @@ Os quatro ledgers T4 registram antes vazio, serviços esperados após subida, `d
 
 Os dois cenários T2 SQL vulneráveis que passaram após a correção levaram 236,22 s no bloco, e os dez controles T2 restantes levaram 1.151,79 s, incluindo subida e descida. Esses tempos pertencem aos testes V1.7 SQL/travessia, não aos quatro arquivos de controles antigos abaixo; excluem a tentativa anterior que falhou antes do scan.
 
-CPU percentual e memória no JSON são **picos amostrados**, com intervalo/quantidade de amostras; CPU percentual não é CPU acumulada e não representa uso contínuo. O readback do atraso comprova somente os instantes amostrados. A primeira versão do parser leu uma chave incorreta, de modo que amostras ausentes dos T2 não podem ser recuperadas por inferência.
+CPU percentual e memória no JSON são **picos amostrados**, com intervalo/quantidade de amostras; CPU percentual não é CPU acumulada e não representa uso contínuo. Os readbacks presentes foram conferidos pelo validador de amostras: valor, instante durante o scan e ID pertencente às entradas são consistentes; isso comprova somente os instantes amostrados. A primeira versão do parser leu uma chave incorreta, de modo que amostras ausentes dos T2 não podem ser recuperadas por inferência.
 
 ## Controles existentes e seleção exata
 

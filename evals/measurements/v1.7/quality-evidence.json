@@ -189,7 +189,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t2-clinica-piloto-secure-1-B.json",
@@ -374,7 +375,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-clinica-piloto-vulnerable-1-A.json",
@@ -565,7 +567,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-clinica-piloto-vulnerable-1-B.json",
@@ -756,7 +759,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-path-clinica-piloto-secure-1-A.json",
@@ -943,7 +947,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t2-path-clinica-piloto-secure-1-B.json",
@@ -1128,7 +1133,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-path-clinica-piloto-vulnerable-1-A.json",
@@ -1321,7 +1327,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t2-path-clinica-piloto-vulnerable-1-B.json",
@@ -1512,7 +1519,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-vampi-secure-1-A.json",
@@ -1696,7 +1704,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-vampi-secure-1-B.json",
@@ -1880,7 +1889,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-vampi-vulnerable-1-A.json",
@@ -2075,7 +2085,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t2-vampi-vulnerable-1-B.json",
@@ -2270,7 +2281,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": false
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-1-A.json",
@@ -2567,7 +2579,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-1-B.json",
@@ -2864,7 +2877,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-2-A.json",
@@ -3161,7 +3175,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-2-B.json",
@@ -3458,7 +3473,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-3-A.json",
@@ -3755,7 +3771,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-clinica-piloto-vulnerable-3-B.json",
@@ -4052,7 +4069,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-1-A.json",
@@ -4320,7 +4338,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-1-B.json",
@@ -4588,7 +4607,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-2-A.json",
@@ -4856,7 +4876,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-2-B.json",
@@ -5124,7 +5145,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-3-A.json",
@@ -5392,7 +5414,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t3-vampi-vulnerable-3-B.json",
@@ -5660,7 +5683,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t4-clinica-piloto-vulnerable-1-A.json",
@@ -6222,7 +6246,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t4-clinica-piloto-vulnerable-1-B.json",
@@ -6784,7 +6809,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t4-vampi-vulnerable-1-A.json",
@@ -7114,7 +7140,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     },
     {
       "file": "v17-t4-vampi-vulnerable-1-B.json",
@@ -7444,7 +7471,8 @@
         },
         "method": "ProfileScope + ScopeDecider on recorded normalized path; scheme reconstructed from unique matching host/port; per-row timestamp for window and authorization",
         "limitations": "not raw request, query values or proof of unrecorded grants; mismatches require review and are not proof of a real violation"
-      }
+      },
+      "readback_consistent_in_recorded_active_scan": true
     }
   ],
   "t3_pairs": [
