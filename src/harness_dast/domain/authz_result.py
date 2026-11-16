@@ -61,7 +61,9 @@ AUTHZ_LIMITS: Final[tuple[str, ...]] = (
     "de primeiro nível, e dono do recurso (ownerId, tenantId) só se declarado. Num POST, cada "
     "campo testado deixa um recurso criado no alvo (limpe com `hdast cleanup` ou o reset do "
     "ambiente); valores únicos não são gerados de novo (409 vira create_conflict).",
-    "Operações que o probe não alcançou com sucesso não são repetidas.",
+    "Leitura de dono pode montar GET de item não alcançado pelo probe a partir de coleção "
+    "da conta ou identificador já enviado por ela, até dois objetos por operação/par; "
+    "sem identidade inequívoca e linha de base 2xx não há achado (ADR 0082).",
     "Pedido sem login e token adulterado só em GET; autenticação só por cookie de sessão não é "
     "modelada, então 'sem achado' no pedido sem login não prova segurança.",
     "Tabela quem pode o quê (authz.access_matrix): só proibições são testadas, um pedido por "

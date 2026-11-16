@@ -51,6 +51,7 @@ from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_effect_plan import apply_effect_recipes
 from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
+from harness_dast.domain.authz_owner_plan import MAX_OWNER_OBJECTS, plan_owner_reads
 from harness_dast.domain.authz_plan import (
     Planned,
     ReplayTask,
@@ -463,6 +464,9 @@ def _plan(
             else Planned((), (horizontal_write_blocked_note(),))
         )
     plans = AuthzPlans(
+        owner_reads=plan_owner_reads(operations, exchanges, roles, public, config.shared_roles)
+        if "horizontal" in checks
+        else Planned((), ()),
         cors=Planned(
             tuple(e for e in exchanges if e.method == "GET" and is_success_status(e.status))[
                 : config.cors_max_requests
@@ -544,6 +548,7 @@ def _nothing_to_replay(
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
         horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
         created_pairs=plans.created_pairs,
+        owner_reads=plans.owner_reads,
     )
 
 
@@ -568,6 +573,7 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
     if "horizontal" in checks:
         skipped += plans.created_pairs.not_tested
+        skipped += plans.owner_reads.not_tested
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
 
 
@@ -576,6 +582,12 @@ def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) 
     count = len(tasks)
     if check == "horizontal":
         count += len(plans.created_pairs.tasks)
+        count += len(plans.owner_reads.tasks) * MAX_OWNER_OBJECTS
+        if plans.owner_reads.tasks:
+            message += (
+                f" Leitura de dono: {len(plans.owner_reads.tasks)} operação/par, "
+                f"até {MAX_OWNER_OBJECTS} objetos por operação/par, somente GET."
+            )
     if check == "mass_assignment":
         count = count_candidates(plans.mass.tasks)
         if plans.mass.tasks:

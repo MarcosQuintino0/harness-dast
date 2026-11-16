@@ -96,6 +96,7 @@ class CheckResult:
     created: int = 0
     matrix: AccessMatrixReport | None = None
     effects: list[KnowledgeEffect] = field(default_factory=list)
+    message: str | None = None
 
     def remember_effect(self, write: str, read: str, account: str, fields: tuple[str, ...]) -> None:
         """Acrescenta apenas recibo estrutural válido de efeito já comprovado."""
