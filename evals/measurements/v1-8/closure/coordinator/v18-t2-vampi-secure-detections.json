@@ -1,0 +1,135 @@
+{
+  "run_id": "2026-11-16T09-43-39Z-vampi-2a24",
+  "findings": [
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.get_all_users",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.me",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.register_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.debug",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.update_email",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.main.basic",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.books.get_all_books",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.main.populate_db",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.update_password",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.books.add_new_book",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "operation_id": "api_views.books.get_by_title",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.main.populate_db",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.main.basic",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.books.get_all_books",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.register_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.get_by_username",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.me",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.get_all_users",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.users.debug",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.books.get_by_title",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "X-Content-Type-Options Header Missing",
+      "operation_id": "api_views.books.add_new_book",
+      "proposed_severity": "low"
+    },
+    {
+      "title": "Authentication Request Identified",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "informational"
+    },
+    {
+      "title": "Session Management Response Identified",
+      "operation_id": "api_views.users.login_user",
+      "proposed_severity": "informational"
+    }
+  ]
+}
