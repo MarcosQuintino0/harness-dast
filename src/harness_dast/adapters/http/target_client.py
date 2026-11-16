@@ -196,6 +196,8 @@ class HttpxTargetClient:
             content_type=response.headers.get("content-type"),
             retry_after=response.headers.get("retry-after"),
             location=response.headers.get("location"),
+            cors_allow_origin=response.headers.get("access-control-allow-origin"),
+            cors_allow_credentials=response.headers.get("access-control-allow-credentials"),
             body=body,
             body_truncated=truncated,
             elapsed_ms=elapsed_ms,

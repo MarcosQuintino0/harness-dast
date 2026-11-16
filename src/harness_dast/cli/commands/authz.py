@@ -100,7 +100,7 @@ def authz_command(
         list[str] | None,
         typer.Option(
             "--check",
-            help="Roda só esta verificação (repetível): horizontal, excessive_data, "
+            help="Roda só esta verificação (repetível): cors, horizontal, excessive_data, "
             "anonymous_access, tampered_token, vertical, access_matrix, mass_assignment, "
             "horizontal_write. Só "
             "reduz: não liga o que o perfil desligou.",

@@ -20,6 +20,7 @@ from harness_dast.application.authz_sender import (
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import holds_value, is_success_status, parse_json
 from harness_dast.domain.authz_config import AuthzCheck
+from harness_dast.domain.authz_plan_mass import MAX_MASS_REQUESTS
 from harness_dast.domain.authz_result import AuthzNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
@@ -60,6 +61,8 @@ def restore(
     field: tuple[str, JsonValue],
     changed: tuple[str, ...],
     previous: JsonValue,
+    *,
+    max_attempts: int | None = None,
 ) -> bool | None:
     """Devolve o valor anterior e confere pela leitura; `None` se não havia valor a devolver.
 
@@ -71,11 +74,16 @@ def restore(
         field: Nome do campo e valor de teste que foi escrito.
         changed: Caminhos em que o valor de teste apareceu.
         previous: Valor anterior do campo.
+        max_attempts: Limite de tentativas da escrita de restauração, se houver.
     """
     if not is_restorable(previous):
         return None
     ctx.sender.send(
-        exchange, exchange.account, body={**original, field[0]: previous}, with_body=True
+        exchange,
+        exchange.account,
+        body={**original, field[0]: previous},
+        with_body=True,
+        max_attempts=max_attempts,
     )
     again = read_body(ctx, read)
     return again is not None and not holds_value(again, changed, field[1])
@@ -87,13 +95,19 @@ def try_restore(
     original: dict[str, JsonValue],
     field_name: str,
     previous: JsonValue,
+    *,
+    max_attempts: int | None = None,
 ) -> bool:
     """Tenta devolver o valor anterior depois de uma parada; `False` se não deu para confirmar."""
     if not is_restorable(previous):
         return False
     try:
         reply = ctx.sender.send(
-            exchange, exchange.account, body={**original, field_name: previous}, with_body=True
+            exchange,
+            exchange.account,
+            body={**original, field_name: previous},
+            with_body=True,
+            max_attempts=max_attempts,
         )
     except INTERRUPTIONS:
         return False
@@ -154,7 +168,18 @@ def after_interruption(
         return
     check, exchange, original = attempt
     previous = pending.previous if pending.known else fallback
-    if not try_restore(ctx, exchange, original, field_name, previous):
+    permitted = check != "mass_assignment" or ctx.shared_writes < MAX_MASS_REQUESTS
+    if permitted and check == "mass_assignment":
+        ctx.shared_writes += 1
+    restored = permitted and try_restore(
+        ctx,
+        exchange,
+        original,
+        field_name,
+        previous,
+        max_attempts=1 if check == "mass_assignment" else None,
+    )
+    if not restored:
         out.not_tested.append(
             unrestored_note(check, exchange, wording[0], wording[1], "interrupted")
         )

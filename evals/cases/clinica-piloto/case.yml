@@ -106,6 +106,8 @@ flaws:
     detectable: true
     weight: 1
     match: { titles: ["Cross-Domain Misconfiguration"] }
+    match_any:
+      - { technique: authz_cors }
     partial:
       titles:
         - X-Content-Type-Options Header Missing

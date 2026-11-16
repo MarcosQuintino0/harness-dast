@@ -42,6 +42,15 @@ from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
+from harness_dast.domain.wait import WaitResult
+
+
+class WaitReader(Protocol):
+    """Fornece uma observação validada da execução."""
+
+    def read(self, run_id: str) -> WaitResult:
+        """Lê uma observação ou informa erro de configuração."""
+        ...
 
 
 class ReferencedFile(BaseModel):

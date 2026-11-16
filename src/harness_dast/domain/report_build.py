@@ -284,6 +284,13 @@ def assemble_report(
     orphans: tuple[str, ...] = ()
     if triage is not None:
         findings, orphans = merge_triage(findings, triage)
+        supplemental = frozenset(
+            finding.fingerprint
+            for source in (authz, proxy_signals, negative)
+            if source is not None
+            for finding in source.findings
+        )
+        orphans = tuple(fingerprint for fingerprint in orphans if fingerprint not in supplemental)
     gone: tuple[GoneFinding, ...] = ()
     comparison: ComparisonInfo | None = None
     if baseline is not None:

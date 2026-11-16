@@ -14,6 +14,8 @@ A V1.5.3 (ADR 0057) permite à carta declarar papéis que compartilham recursos 
 
 A V1.5.4 distingue a recusa esperada de credenciais sintéticas na operação de login do perfil (`auth_rejected_expected`), separa alcance de sucesso 2xx e explica conflitos com candidatos do contrato e dependências bloqueadas. As skills seguem para a varredura parcial após as tentativas de alcance, mantendo as paradas de segurança; relatório e painel listam as lacunas. A régua deixa de conceder pontos de triagem por condições vazias quando não há `findings.json`. O login continua fora do `scan` e do `negative`; alcance não significa autenticação válida nem cobertura de injeção no login. Evidências e limites estão no [relatório da V1.5.4](docs/reviews/relatorio-v1.5.4.md); nenhuma prova contra produto real.
 
+A V1.5.5 traz `hdast wait` bloqueante, leitura da atribuição em massa pela conta escritora, CORS no `authz`, tentativa de par horizontal com recurso novo e conferência final de triagem de todas as origens. Gates completos e oito cenários na Clínica Piloto e no VAmPI passaram. Os aceites B, D e F são parciais: V4 do VAmPI não foi comprovada e seu POST 200 não confirma o novo par; V3 foi comprovada pela leitura já provada pelo probe. O caso `vampi-estrito` preserva o histórico. Sem rodada cega, varredura completa, crAPI ou produto real nesta entrega. Provas e limites no [relatório](docs/reviews/relatorio-v1.5.5.md).
+
 ## Parte A. Ao DESENVOLVER o projeto
 
 ### Princípio e camadas

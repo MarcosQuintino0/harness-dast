@@ -65,6 +65,11 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0058](0058-recusa-esperada-login.md) | Recusa esperada do login e alcance separado do sucesso | Proposto | 2026-11-15 | V1.5.4 |
 | [0059](0059-diagnostico-conflitos.md) | Diagnóstico de conflitos e dependências bloqueadas | Proposto | 2026-11-15 | V1.5.4 |
 | [0060](0060-regua-sem-vacuidade.md) | Régua de triagem sem pontos por vacuidade | Proposto | 2026-11-15 | V1.5.4 |
+| [0061](0061-espera-de-execucao.md) | Espera de execução | Proposto | 2026-11-15 | V1.5.5 |
+| [0062](0062-leitura-atribuicao-massa-conta-escritora.md) | Leitura de atribuição em massa pela conta escritora | Proposto | 2026-11-15 | V1.5.5 |
+| [0063](0063-verificacao-cors.md) | Verificação CORS | Proposto | 2026-11-15 | V1.5.5 |
+| [0064](0064-par-automatico-entre-contas.md) | Par automático entre contas | Proposto | 2026-11-15 | V1.5.5 |
+| [0065](0065-triagem-de-todas-as-origens.md) | Triagem de todas as origens | Proposto | 2026-11-15 | V1.5.5 |
 
 Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 

@@ -165,7 +165,8 @@ def test_the_run_ceiling_stops_new_writes_and_says_so(monkeypatch: pytest.Monkey
 
     result = run_mass(rig)
 
-    assert len(authz_puts(rig)) == 2
+    # Reserva uma escrita para eventual restauração da última alteração.
+    assert len(authz_puts(rig)) == 1
     assert notes(result, "budget_exhausted")
 
 
@@ -205,3 +206,33 @@ def test_the_dry_run_lists_the_candidates_with_their_source_and_sends_nothing() 
     assert "saldo (response_only)" in summary.message
     assert len(rig.target.requests) == before
     assert result.requests_sent == 0
+
+
+def test_reader_proven_by_other_account_confirms_and_restores_writer() -> None:
+    rig = derived_rig(Clinic(stores=("saldo",)))
+    probe = rig.run_probe()
+    log = rig.store.exchanges[probe.run_id]
+    rig.store.exchanges[probe.run_id] = log.model_copy(
+        update={
+            "exchanges": tuple(
+                item.model_copy(update={"account": "pac_b"})
+                if item.method == "GET" and item.path == "/api/me"
+                else item
+                for item in log.exchanges
+            )
+        }
+    )
+
+    result = rig.authz().execute(
+        AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
+    )
+
+    assert any(f.fields == ("saldo",) for f in result.findings)
+    assert rig.clinic.extra["pac_a"]["saldo"] == 10
+    reads = [
+        r
+        for r in rig.target.requests
+        if r.method == "GET" and r.operation_id.startswith("authz:") and r.url.endswith("/api/me")
+    ]
+    assert reads
+    assert all(r.account == "pac_a" for r in reads)

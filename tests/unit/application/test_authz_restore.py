@@ -2,6 +2,9 @@
 
 from typing import Any
 
+import pytest
+
+from harness_dast.application import authz_checks_mass, authz_restore
 from harness_dast.application.authz import Authz, AuthzRequest
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ExternalToolError
@@ -78,3 +81,34 @@ def test_an_interrupted_read_after_the_put_still_reports_the_unrestored_change()
 
     assert result.status == "stopped_zap"
     assert len(unrestored(result)) == 1
+
+
+def test_interrupted_restoration_does_not_exceed_write_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(authz_checks_mass, "MAX_MASS_REQUESTS", 2)
+    monkeypatch.setattr(authz_restore, "MAX_MASS_REQUESTS", 2)
+    rig = AuthzRig(Clinic(mass=True))
+    original = rig.target._handler
+
+    def broken(request: Any, jar: Any) -> Any:
+        puts = [
+            r
+            for r in rig.target.requests
+            if r.operation_id.startswith("authz:") and r.method == "PUT"
+        ]
+        if request.operation_id.startswith("authz:") and request.method == "PUT" and len(puts) >= 2:
+            return ExternalToolError("O proxy do ZAP não respondeu.")
+        return original(request, jar)
+
+    rig.target._handler = broken
+    probe = rig.run_probe()
+    result = rig.authz().execute(
+        AuthzRequest(product="agenda", run_id=probe.run_id, checks=("mass_assignment",))
+    )
+
+    puts = [
+        r for r in rig.target.requests if r.operation_id.startswith("authz:") and r.method == "PUT"
+    ]
+    assert len(puts) == 2
+    assert unrestored(result)

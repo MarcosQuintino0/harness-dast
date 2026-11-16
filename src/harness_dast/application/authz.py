@@ -12,7 +12,7 @@ escrita de `vertical_methods` ficam fora do plano e aparecem em `not_tested` com
 `--check mass_assignment` não liga a escrita (flags só reduzem).
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Literal
@@ -29,7 +29,9 @@ from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.ports import (
     Clock,
+    EntropySource,
     KillSwitch,
+    ProductDocuments,
     ProfileRepository,
     RunStore,
     SecretProvider,
@@ -37,11 +39,13 @@ from harness_dast.application.ports import (
     Sleeper,
     SpecLoader,
     TargetClient,
+    ValueSourceFactory,
 )
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz_anonymous import plan_access
+from harness_dast.domain.authz_compare import is_success_status
 from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
 from harness_dast.domain.authz_matrix_plan import MatrixPlan, plan_access_matrix
 from harness_dast.domain.authz_plan import (
@@ -51,6 +55,7 @@ from harness_dast.domain.authz_plan import (
     plan_horizontal,
     plan_vertical,
 )
+from harness_dast.domain.authz_plan_created_pair import plan_created_pairs
 from harness_dast.domain.authz_plan_mass import (
     MassTask,
     count_candidates,
@@ -67,10 +72,14 @@ from harness_dast.domain.authz_writes import (
     nothing_to_replay_notes,
     vertical_dropped_note,
 )
+from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.probe_exchange import ExchangeRecord
+from harness_dast.domain.flow import FlowSpec
+from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.unique_values import run_tag_from_run_id
 
 
 @dataclass(frozen=True)
@@ -124,6 +133,9 @@ class Authz:
         token_cache: TokenCache | None = None,
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
+        documents: ProductDocuments | None = None,
+        value_sources: ValueSourceFactory | None = None,
+        entropy: EntropySource | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -142,6 +154,9 @@ class Authz:
         self._token_cache = token_cache
         self._login_budget = login_budget
         self._kill_switch = kill_switch
+        self._documents = documents
+        self._value_sources = value_sources
+        self._entropy = entropy
 
     def execute(self, request: AuthzRequest) -> AuthzResult:
         """Executa o `authz`.
@@ -173,7 +188,8 @@ class Authz:
                 "O probe desta execução foi uma simulação (--dry-run): não há pedidos a repetir.",
                 hint="Rode o probe sem --dry-run e use o run_id dele.",
             )
-        exchanges, unavailable = self._read_exchanges(request, run_id, profile)
+        log, unavailable = self._read_exchanges(request, run_id, profile)
+        exchanges = log.exchanges if log is not None else ()
         spec = self._specs.load(request.product, profile)
         operation_ids = [op.operation_id for op in spec.operations]
         profile.authz.ensure_operations_exist(operation_ids)
@@ -183,7 +199,39 @@ class Authz:
         if request.dry_run:
             outcome = _dry_outcome(checks, plans)
         else:
-            outcome = self._run(profile, request, spec.operations, plans, checks, started, run_id)
+            flows = (
+                self._documents.load_flows(profile.product)
+                if self._documents and plans.created_pairs.tasks
+                else None
+            )
+            if flows is not None:
+                flows.validate_against(spec)
+            builder = (
+                self._builder(profile, run_id, started, log.next_unique_counter)
+                if plans.created_pairs.tasks
+                and log is not None
+                and log.next_unique_counter is not None
+                else None
+            )
+
+            def checkpoint(counter: int) -> None:
+                if log is not None:
+                    self._store.write_exchanges(
+                        run_id, log.model_copy(update={"next_unique_counter": counter})
+                    )
+
+            outcome = self._run(
+                profile,
+                request,
+                spec.operations,
+                plans,
+                checks,
+                started,
+                run_id,
+                flows,
+                builder,
+                checkpoint,
+            )
         result = AuthzResult(
             run_id=run_id,
             product=profile.product,
@@ -206,7 +254,7 @@ class Authz:
 
     def _read_exchanges(
         self, request: AuthzRequest, run_id: str, profile: ProductProfile
-    ) -> tuple[tuple[ExchangeRecord, ...], str | None]:
+    ) -> tuple[ExchangeLog | None, str | None]:
         """Pedidos do `probe` e, se indisponíveis no modo tolerante, o porquê.
 
         Raises:
@@ -218,13 +266,13 @@ class Authz:
         except ConfigError as error:
             if not request.tolerate_missing_exchanges:
                 raise
-            return (), error.message
+            return None, error.message
         if log.product != profile.product:
             raise ConfigError(
                 "A execução informada é de outro produto.",
                 hint="Use o run_id do probe deste produto.",
             )
-        return log.exchanges, None
+        return log, None
 
     def _run(
         self,
@@ -235,6 +283,9 @@ class Authz:
         checks: tuple[AuthzCheck, ...],
         started: datetime,
         run_id: str,
+        flows: FlowSpec | None,
+        builder: RequestBuilder | None,
+        checkpoint: Callable[[int], None],
     ) -> AuthzOutcome:
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         sender = GuardedSender(
@@ -268,9 +319,32 @@ class Authz:
                 dispatcher=dispatcher,
                 sessions=pool,
                 vault=self._vault,
+                run_id=run_id,
+                success=profile.probe.success,
+                flows=flows,
+                counter_checkpoint=checkpoint,
+                builder=builder,
             )
         )
         return runner.run(checks, plans)
+
+    def _builder(
+        self,
+        profile: ProductProfile,
+        run_id: str,
+        started: datetime,
+        initial_counter: int,
+    ) -> RequestBuilder | None:
+        if self._documents is None or self._value_sources is None or self._entropy is None:
+            return None
+        rules = self._documents.load_data_rules(profile.product) or DataRules(schema_version=1)
+        seed = self._entropy.seed()
+        return RequestBuilder(
+            rules,
+            self._value_sources(seed, started),
+            run_tag_from_run_id(run_id),
+            initial_counter=initial_counter,
+        )
 
     def _session(
         self, profile: ProductProfile, alias: str, dispatcher: OperationDispatcher
@@ -352,6 +426,12 @@ def _plan(
             else Planned((), (horizontal_write_blocked_note(),))
         )
     plans = AuthzPlans(
+        cors=Planned(
+            tuple(e for e in exchanges if e.method == "GET" and is_success_status(e.status))[
+                : config.cors_max_requests
+            ],
+            (),
+        ),
         anonymous=_access("anonymous_access", profile, exchanges, operations, checks),
         tampered=_access("tampered_token", profile, exchanges, operations, checks),
         horizontal=plan_horizontal(
@@ -364,6 +444,16 @@ def _plan(
         matrix=matrix,
         mass=mass,
         horizontal_write=write,
+        created_pairs=plan_created_pairs(
+            exchanges,
+            roles,
+            public,
+            config.shared_roles,
+            profile.infrastructure_paths,
+            allow_writes=config.allow_writes,
+        )
+        if "horizontal" in checks
+        else Planned((), ()),
     )
     return plans if exchanges else _nothing_to_replay(plans, checks, unavailable)
 
@@ -407,6 +497,7 @@ def _nothing_to_replay(
         why = f"Os pedidos do probe não puderam ser lidos ({unavailable}): nada foi repetido."
     notes = nothing_to_replay_notes(checks, reason=reason, why=why)
     return AuthzPlans(
+        cors=_noted(plans.cors, *_note(notes, "cors")),
         horizontal=_noted(plans.horizontal, *_note(notes, "horizontal")),
         excessive=_noted(plans.excessive, *_note(notes, "excessive_data")),
         anonymous=_noted(plans.anonymous, *_note(notes, "anonymous_access")),
@@ -415,6 +506,7 @@ def _nothing_to_replay(
         matrix=replace(plans.matrix, notes=(*plans.matrix.notes, *_note(notes, "access_matrix"))),
         mass=_noted(plans.mass, *_note(notes, "mass_assignment")),
         horizontal_write=_noted(plans.horizontal_write, *_note(notes, "horizontal_write")),
+        created_pairs=plans.created_pairs,
     )
 
 
@@ -424,6 +516,7 @@ def _note(notes: dict[AuthzCheck, AuthzNotTested], check: AuthzCheck) -> tuple[A
 
 def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutcome:
     sizes = {
+        "cors": plans.cors,
         "horizontal": plans.horizontal,
         "excessive_data": plans.excessive,
         "anonymous_access": plans.anonymous,
@@ -436,12 +529,16 @@ def _dry_outcome(checks: tuple[AuthzCheck, ...], plans: AuthzPlans) -> AuthzOutc
     summaries = tuple(_dry_summary(check, plans, sizes[check].tasks) for check in checks)
     summaries = tuple(_dry_matrix(item, plans) for item in summaries)
     skipped = tuple(item for check in checks for item in sizes[check].not_tested)
+    if "horizontal" in checks:
+        skipped += plans.created_pairs.not_tested
     return AuthzOutcome("completed", None, summaries, (), skipped, 0, ())
 
 
 def _dry_summary(check: AuthzCheck, plans: AuthzPlans, tasks: Sequence[object]) -> CheckSummary:
     message = "Simulação (--dry-run): nada foi enviado."
     count = len(tasks)
+    if check == "horizontal":
+        count += len(plans.created_pairs.tasks)
     if check == "mass_assignment":
         count = count_candidates(plans.mass.tasks)
         if plans.mass.tasks:

@@ -32,6 +32,7 @@ from harness_dast.cli.commands.secret import build_secret_app
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.version import version_command
+from harness_dast.cli.commands.wait import wait_command
 from harness_dast.cli.journal_recording import record_invocation
 from harness_dast.cli.output import CliState, build_failure, capture_envelopes, emit, get_state
 from harness_dast.config.settings import load_settings
@@ -83,6 +84,7 @@ def build_app() -> typer.Typer:
     app.command("report")(report_command)
     app.command("panel")(panel_command)
     app.command("run")(run_command)
+    app.command("wait")(wait_command)
     app.command("cleanup")(cleanup_command)
     app.add_typer(build_stack_app(), name="stack")
     app.add_typer(build_secret_app(), name="secret")

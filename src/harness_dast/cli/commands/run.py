@@ -5,10 +5,12 @@ from typing import Annotated
 
 import typer
 
+from harness_dast.adapters.reporting.wait_marker import FileWaitMarker
 from harness_dast.application.run import RunRequest, RunResult
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_run_pipeline, open_scan_network
 from harness_dast.cli.stack_lock_composition import hold_stack
+from harness_dast.config.settings import load_settings
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_config import FailOn
 
@@ -128,10 +130,14 @@ def run_command(
     state = get_state(ctx)
     # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
     # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).
-    with hold_stack("run", product):
+    with hold_stack("run", product) as holder:
+        if holder is None:
+            raise RuntimeError("Trava da execução ausente.")
+        marker = FileWaitMarker(load_settings().runs_dir, holder.lock_id)
+        marker.write("starting", None)
         net = open_scan_network(product, products_dir, state.secrets)
         try:
-            pipeline = build_run_pipeline(product, products_dir, state.secrets, net)
+            pipeline = build_run_pipeline(product, products_dir, state.secrets, net, marker.write)
             result = pipeline.execute(
                 RunRequest(
                     product=product,
@@ -145,6 +151,7 @@ def run_command(
                     include_outcomes=include_outcomes,
                 )
             )
+            marker.write("finished", result.summary.run_id)
         finally:
             net.close()
     state.result_emitted = True

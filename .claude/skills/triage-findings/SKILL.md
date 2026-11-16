@@ -20,7 +20,8 @@ Triagem é **anotação consultiva**, feita por você e revisada por uma pessoa.
    ```
    Só esses quatro campos existem; qualquer outro (`severity`, `status`, `delete`) dá erro. Uma anotação por fingerprint.
 5. **Reemita o relatório** com a triagem: `uv run hdast --json report <produto> --run <run_id>` (opcional `--compare <outro_run_id>` para marcar novo ou persistente). O `report` não usa rede.
-6. **Entregue à pessoa:** resumo por severidade, achados que exigem ação humana primeiro, suspeitas de falso positivo **com o motivo**, e o que a varredura não cobre.
+6. **Confira a triagem final.** Percorra todos os achados de severidade alta em `findings.json`, de qualquer origem, inclusive listas próprias dos estágios, e compare os fingerprints com `annotations` em `triage.json`. Anote os faltantes, reemita o relatório e confira novamente. Sem `findings.json` ou com triagem ilegível, não declare a conferência concluída.
+7. **Entregue à pessoa:** resumo por severidade, achados que exigem ação humana primeiro, suspeitas de falso positivo **com o motivo**, e o que a varredura não cobre.
 
 ## Regras de leitura
 

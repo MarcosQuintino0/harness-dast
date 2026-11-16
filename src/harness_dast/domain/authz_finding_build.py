@@ -21,6 +21,7 @@ from harness_dast.domain.finding import normalize_path_template
 from harness_dast.domain.zap_alert import Severity
 
 TECHNIQUE_CLASS: Final[dict[AuthzTechnique, tuple[int, str]]] = {
+    "authz_cors": (942, "API8:2023 Security Misconfiguration"),
     "authz_horizontal": (639, "API1:2023 Broken Object Level Authorization"),
     "authz_vertical": (285, "API5:2023 Broken Function Level Authorization"),
     "authz_excessive_data": (213, "API3:2023 Broken Object Property Level Authorization"),

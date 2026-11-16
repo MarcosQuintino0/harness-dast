@@ -12,7 +12,7 @@ testado" se referem uns aos outros, e separá-los criaria importação circular 
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
@@ -26,10 +26,13 @@ from harness_dast.domain.authz_config import AuthzCheck, AuthzConfig
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
+from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.probe_result import ProbeStatus
+from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.request_encoding import join_url
 
 
@@ -67,6 +70,8 @@ class Reply:
     body: bytes = b""
     problem: str | None = None
     location: str | None = None
+    cors_allow_origin: str | None = None
+    cors_allow_credentials: str | None = None
 
 
 @dataclass
@@ -110,6 +115,11 @@ class AuthzSettings:
     dispatcher: OperationDispatcher
     sessions: SessionPool
     vault: SecretVault
+    run_id: str = ""
+    builder: RequestBuilder | None = None
+    success: SuccessCriteria = field(default_factory=SuccessCriteria)
+    flows: FlowSpec | None = None
+    counter_checkpoint: Callable[[int], None] | None = None
 
 
 class ReplaySender:
@@ -152,6 +162,8 @@ class ReplaySender:
         with_body: bool = False,
         method: str | None = None,
         tag: str = "",
+        origin: str | None = None,
+        max_attempts: int | None = None,
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
 
@@ -172,6 +184,8 @@ class ReplaySender:
         headers = (
             (("Content-Type", exchange.content_type),) if payload and exchange.content_type else ()
         )
+        if origin is not None:
+            headers = (*headers, ("Origin", origin))
         request = HttpRequest(
             method=method or exchange.method,
             url=join_url(self._s.base_url, exchange.target),
@@ -180,7 +194,7 @@ class ReplaySender:
             operation_id=f"authz:{tag}{exchange.operation_id}",
             account=account,
         )
-        return self._dispatch(request, account)
+        return self._dispatch(request, account, max_attempts=max_attempts)
 
     def anonymous(self, exchange: ExchangeRecord) -> Reply:
         """Repete o `GET` gravado SEM credencial, uma vez por alvo (depois, do cache).
@@ -227,11 +241,14 @@ class ReplaySender:
         session: SessionHooks | None = None,
         *,
         allow_reauth: bool = True,
+        max_attempts: int | None = None,
     ) -> Reply:
         try:
             if account is not None:
                 session = self._s.sessions.get(account)
-            sent = self._s.dispatcher.send(request, session, allow_reauth=allow_reauth)
+            sent = self._s.dispatcher.send(
+                request, session, allow_reauth=allow_reauth, max_attempts=max_attempts
+            )
         except (WindowClosed, DeadlineReached):
             raise
         except ScopeViolation:
@@ -251,7 +268,13 @@ class ReplaySender:
             )
         if response is None:
             return Reply(None)
-        return Reply(response.status, response.body, location=response.location)
+        return Reply(
+            response.status,
+            response.body,
+            location=response.location,
+            cors_allow_origin=response.cors_allow_origin,
+            cors_allow_credentials=response.cors_allow_credentials,
+        )
 
     def baseline(self, exchange: ExchangeRecord) -> Reply:
         """Resposta da conta dona ao pedido gravado (uma vez por conta e caminho)."""
@@ -278,6 +301,7 @@ class CheckContext:
         self.settings = settings
         self.sender = sender
         self.volatile = settings.config.volatile_names()
+        self.shared_writes = 0
         self.live: dict[AuthzCheck, CheckResult] = {}
 
     def begin(self, check: AuthzCheck, result: CheckResult) -> CheckResult:

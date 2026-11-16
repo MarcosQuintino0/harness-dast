@@ -203,6 +203,7 @@ def test_authz_finds_bola_and_excessive_data_and_writes_authz_json(
     assert techniques == {"authz_horizontal", "authz_excessive_data"}
     assert {f["origin"] for f in data["findings"]} == {"authz"}
     assert [c["check"] for c in data["checks"]] == [
+        "cors",
         "horizontal",
         "excessive_data",
         "anonymous_access",

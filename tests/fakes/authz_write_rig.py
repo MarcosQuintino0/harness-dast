@@ -213,7 +213,10 @@ def seed(rig: AuthzRig, *exchanges: ExchangeRecord) -> ProbeResult:
     if isinstance(rig.clinic, Notes):
         rig.clinic.reset()
     rig.store.exchanges[probe.run_id] = ExchangeLog(
-        run_id=probe.run_id, product="agenda", exchanges=exchanges
+        run_id=probe.run_id,
+        product="agenda",
+        exchanges=exchanges,
+        next_unique_counter=rig.store.exchanges[probe.run_id].next_unique_counter,
     )
     return probe
 

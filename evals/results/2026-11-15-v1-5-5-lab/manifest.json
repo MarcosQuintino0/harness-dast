@@ -1,0 +1,98 @@
+[
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato0/runs/2026-11-16T02-39-16Z-clinica-piloto-0dc8/authz.json",
+    "sha256": "2d5cad3e5808b92bd818436120e7014f54c2117dd81f032401e89781bc530588"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato0/runs/2026-11-16T02-39-16Z-clinica-piloto-0dc8/audit.jsonl",
+    "sha256": "5e997edde780640cdf8724884a74998c0395acec76b0ef9d18a6631b72390d3f"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato0/state/stacks/2026-11-16T02-37-30Z-clinica-piloto-a203/audit/audit.jsonl",
+    "sha256": "94ccd907d5ca8941aae1a2388298302bfa2c91257cd033da36b659165b37773d"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato1/runs/2026-11-16T02-41-40Z-vampi-2088/authz.json",
+    "sha256": "d399ca1d422e97926d9109e4efc4dee45cfe369d7ed07295ea22d7820c6f7d10"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato1/runs/2026-11-16T02-41-40Z-vampi-2088/audit.jsonl",
+    "sha256": "0afbf5d022c6412e670101412f89ad87330f8d4c6fe6b608856be2b3d9d58329"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato1/state/stacks/2026-11-16T02-40-37Z-vampi-eac7/audit/audit.jsonl",
+    "sha256": "ac11f322d878592745fa13924fdec0fd23b7b77feb5e6626a5a3657a42f9a7b4"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato2/runs/2026-11-16T02-42-53Z-clinica-piloto-b4d1/authz.json",
+    "sha256": "d38bcb4219d231a4b410dc88b165b81470b3eec680284bc88089d7bbdc72ada8"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato2/runs/2026-11-16T02-42-53Z-clinica-piloto-b4d1/audit.jsonl",
+    "sha256": "dd7be718bbdc8e367c778215f3b267c34c7641d94d84ce0f6e13a04bd83c9140"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato2/state/stacks/2026-11-16T02-41-59Z-clinica-piloto-21cc/audit/audit.jsonl",
+    "sha256": "ebcf9b9d52dfb696c234667884fb7b184f1ba5a0f28fcc273379cf1150562a54"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato3/runs/2026-11-16T02-44-40Z-vampi-7651/authz.json",
+    "sha256": "2046c42fd66aa8decfee280d2d8493dbca969438a62610447659f9797caa448d"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato3/runs/2026-11-16T02-44-40Z-vampi-7651/audit.jsonl",
+    "sha256": "86a3d115b39b2a633563e2809dedf2ffdeae8fc0d327e9593a015354ff8a7d6a"
+  },
+  {
+    "source": "lab-r2/test_cors_em_alvos_do_laborato3/state/stacks/2026-11-16T02-44-04Z-vampi-3db0/audit/audit.jsonl",
+    "sha256": "5d44e2e31854c4f95f9f4416f02c6e856307314eee7d968be690f0644d9a929d"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas0/runs/2026-11-16T03-06-25Z-clinica-piloto-ddc3/authz.json",
+    "sha256": "fd18fbf01ecc0df82ecfbf5a3c95868ec6dcc728bb498cb267a4ea1a7fbd4dd0"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas0/runs/2026-11-16T03-06-25Z-clinica-piloto-ddc3/audit.jsonl",
+    "sha256": "d15dcfeb91c630ee98d5373cd72018dd013c679e630bf5826ec72395e6c2a188"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas0/state/stacks/2026-11-16T03-05-33Z-clinica-piloto-22bc/audit/audit.jsonl",
+    "sha256": "e076e9b1f109e3f50304bbd0320d83375dffd34c98d0425cd0c80222d79ec0ca"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas1/runs/2026-11-16T03-10-33Z-vampi-66dc/authz.json",
+    "sha256": "abc3d4b6a55b6b20d3cdb424df6432ddca906b76217200d9c749a14137689f77"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas1/runs/2026-11-16T03-10-33Z-vampi-66dc/audit.jsonl",
+    "sha256": "8fc07f43543fccedf8cf267efa554240e4c2e5f5fbf35c3f8681ac9918c407e3"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas1/state/stacks/2026-11-16T03-09-45Z-vampi-7260/audit/audit.jsonl",
+    "sha256": "1e4e8d6a8091d5a85681cfac60695f998271d2ccc2bb533ed39bd3433f71cd44"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas2/runs/2026-11-16T03-12-02Z-clinica-piloto-ee5d/authz.json",
+    "sha256": "05a6f6cee6cde7ba348727fd097dd0c6f6727d88d2da4ba007dc5f3137c31177"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas2/runs/2026-11-16T03-12-02Z-clinica-piloto-ee5d/audit.jsonl",
+    "sha256": "397bbe8a212e17197d18355006d44e81f42ca4c19b02ff0615a709ce7996c0d2"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas2/state/stacks/2026-11-16T03-10-52Z-clinica-piloto-1c61/audit/audit.jsonl",
+    "sha256": "babeeb6d6965418f27e0f149b157f3e52754a3a04ae3dc2272e1b4171cb89ed3"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas3/runs/2026-11-16T03-15-04Z-vampi-c951/authz.json",
+    "sha256": "a51e65797f91172f6f43e48e0c7300c57696c50e14c0f95cf3e59d9c485e8258"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas3/runs/2026-11-16T03-15-04Z-vampi-c951/audit.jsonl",
+    "sha256": "a3fae5249d1f2180b52ce74568879058fbf4b0e4d8624363665d764f7dd4c91e"
+  },
+  {
+    "source": "lab-r4/test_mass_e_par_automatico_nas3/state/stacks/2026-11-16T03-14-29Z-vampi-533d/audit/audit.jsonl",
+    "sha256": "5f527bcdc850daa8c8156004602bdff90aa1b4cc7f42835f3a399c7d7d29a5b3"
+  }
+]

@@ -38,6 +38,7 @@ def seed_tag(seed_outcome: str | None) -> str:
 
 
 CHECK_LABEL: Final = {
+    "cors": "Política CORS",
     "horizontal": "Acesso horizontal (BOLA)",
     "excessive_data": "Dado a mais (exposição excessiva)",
     "anonymous_access": "Acesso sem login",

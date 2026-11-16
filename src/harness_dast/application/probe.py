@@ -278,6 +278,7 @@ class Probe:
                 run_id=run.run_id.value,
                 product=run.profile.product,
                 exchanges=outcome.exchanges,
+                next_unique_counter=run.builder.next_unique_counter,
             ),
         )
         self._finish_manifest(run, manifest, result.status)

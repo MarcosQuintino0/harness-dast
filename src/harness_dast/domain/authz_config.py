@@ -23,6 +23,7 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import ProfileModel
 
 AuthzCheck = Literal[
+    "cors",
     "horizontal",
     "excessive_data",
     "anonymous_access",
@@ -33,6 +34,7 @@ AuthzCheck = Literal[
     "horizontal_write",
 ]
 CHECK_ORDER: Final[tuple[AuthzCheck, ...]] = (
+    "cors",
     "horizontal",
     "excessive_data",
     "anonymous_access",
@@ -139,6 +141,7 @@ class AuthzConfig(ProfileModel):
             verificação `vertical` pula a operação que a tabela cobre.
     """
 
+    cors_max_requests: StrictInt = Field(default=5, ge=0, le=10)
     public_operations: tuple[str, ...] = Field(default=(), max_length=200)
     role_order: tuple[str, ...] = Field(default=(), max_length=20)
     shared_roles: tuple[str, ...] = Field(default=(), max_length=20)

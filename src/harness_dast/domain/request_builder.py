@@ -200,13 +200,16 @@ class RequestBuilder:
     valores `unique` da mesma instância nunca coincidem.
     """
 
-    def __init__(self, rules: DataRules, source: ValueSource, run_tag: str) -> None:
+    def __init__(
+        self, rules: DataRules, source: ValueSource, run_tag: str, *, initial_counter: int = 0
+    ) -> None:
         """Cria o montador.
 
         Args:
             rules: Regras de dados já validadas.
             source: Fonte de valores (catálogo de geradores com semente e relógio injetados).
             run_tag: Etiqueta da execução, de `run_tag_from_run_id`.
+            initial_counter: Posição inicial do contador de valores únicos.
 
         Raises:
             ConfigError: Etiqueta inválida.
@@ -214,9 +217,55 @@ class RequestBuilder:
         self._rules = rules
         self._source = source
         self._run_tag = validate_run_tag(run_tag)
-        self._unique_counter = 0
+        self._unique_counter = initial_counter
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
+
+    @property
+    def next_unique_counter(self) -> int:
+        """Próxima posição do contador, para continuar a mesma execução."""
+        return self._unique_counter
+
+    def reuses_unique_body_value(
+        self,
+        operation_id: str,
+        before: JsonValue,
+        after: JsonValue,
+        *,
+        bound_fields: frozenset[str] = frozenset(),
+    ) -> bool:
+        """Diz se algum campo de corpo com regra única repetiu o valor provado."""
+        return self._same_unique(operation_id, before, after, (), bound_fields)
+
+    def _same_unique(
+        self,
+        operation_id: str,
+        before: JsonValue,
+        after: JsonValue,
+        path: tuple[str, ...],
+        bound_fields: frozenset[str],
+    ) -> bool:
+        if isinstance(before, dict) and isinstance(after, dict):
+            return any(
+                self._same_unique(operation_id, before[name], value, (*path, name), bound_fields)
+                for name, value in after.items()
+                if name in before
+            )
+        if isinstance(before, list) and isinstance(after, list):
+            return any(
+                self._same_unique(operation_id, left, right, path, bound_fields)
+                for left in before
+                for right in after
+            )
+        if not path or ".".join(path) in bound_fields:
+            return False
+        resolved = self._rules.resolve(operation_id, "body", path)
+        return (
+            resolved is not None
+            and resolved.rule.unique
+            and type(before) is type(after)
+            and before == after
+        )
 
     def build(self, operation: Operation, bindings: ResolvedBindings | None = None) -> BuiltRequest:
         """Monta a requisição da operação.

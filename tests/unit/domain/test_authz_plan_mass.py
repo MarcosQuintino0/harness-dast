@@ -153,14 +153,15 @@ def test_a_post_with_a_sibling_get_gets_it_as_reader() -> None:
     assert task.read.target == "/api/medicos/9"
 
 
-def test_a_post_reader_must_be_of_the_same_account_and_have_one_final_marker() -> None:
-    post = ex("criar", method="POST", path="/api/medicos", target="/api/medicos", body=BODY)
-    other_account = ex("ler_b", path="/api/medicos/{id}", account="a2")
-    deeper = ex("fundo", path="/api/medicos/{id}/agenda")
+def test_a_post_reader_uses_the_creator_account_and_one_final_marker() -> None:
+    post = ex("criar", method="POST", path="/api/items", target="/api/items", body=BODY)
+    other_account = ex("ler_b", path="/api/items/{id}", account="a2")
+    deeper = ex("fundo", path="/api/items/{id}/details")
     result = plan([post, other_account, deeper])
 
-    assert result.tasks == ()
-    assert [n.reason for n in result.not_tested] == ["create_not_readable"]
+    assert result.tasks[0].read is not None
+    assert result.tasks[0].read.operation_id == "ler_b"
+    assert result.tasks[0].read.account == "a1"
 
 
 def test_a_post_without_reader_is_planned_when_the_response_has_a_body_to_look_at() -> None:
@@ -210,3 +211,35 @@ def test_describe_plan_lists_names_and_sources_without_values_and_is_bounded() -
 
     assert text.startswith("PUT /api/me: role, papel, admin, isAdmin, saldo (response_only)")
     assert len(describe_plan(result.tasks * 200)) <= 1500
+
+
+def test_update_replays_other_account_reader_as_writer() -> None:
+    read = ex("read", path="/records/self", target="/records/self", account="other")
+    write = ex("update", method="PATCH", path="/records/self", target="/records/self", body="{}")
+
+    task = plan([read, write]).tasks[0]
+
+    assert task.read is not None
+    assert (task.read.operation_id, task.read.account, task.read.target) == (
+        "read",
+        "a1",
+        "/records/self",
+    )
+
+
+def test_update_prefers_exact_target_from_other_account_over_different_object() -> None:
+    first = ex("first", path="/items/{id}", target="/items/1")
+    second = ex("second", path="/items/{id}", target="/items/2", account="a2")
+    write = ex("update", method="PATCH", path="/items/{id}", target="/items/2", body="{}")
+
+    task = plan([first, second, write]).tasks[0]
+
+    assert task.read is not None
+    assert (task.read.target, task.read.account) == ("/items/2", "a1")
+
+
+def test_update_does_not_read_a_different_object_when_exact_target_missing() -> None:
+    read = ex("first", path="/items/{id}", target="/items/1")
+    write = ex("update", method="PATCH", path="/items/{id}", target="/items/2", body="{}")
+
+    assert plan([read, write]).tasks[0].read is None

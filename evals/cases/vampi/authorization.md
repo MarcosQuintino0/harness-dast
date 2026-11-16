@@ -17,6 +17,9 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Métodos autorizados: GET, POST e PUT (DELETE NÃO é autorizado)
    Caminhos PROIBIDOS: nenhum além dos não listados acima
    Modo de leitura de caminhos pela cerca: ESTRITO (o modo amplo NÃO é autorizado)
+   Autoriza-se a escrita do teste de autorização entre contas, com dados sintéticos,
+   inclusive a criação de recursos para comparar duas contas do mesmo papel.
+   Usuários não compartilham recursos privados entre si.
    OpenAPI: inputs/openapi3.yml
 
 4. Janela de execução: seg-dom 00:00-24:00 America/Sao_Paulo

@@ -354,7 +354,7 @@ def test_a_safe_target_yields_no_finding_and_still_says_what_it_did_not_test() -
     assert result.findings == ()
     assert result.status == "completed"
     # A tabela vazia (access_matrix) e a escrita em outra conta (sem leitor) não têm o que testar.
-    assert [c.status for c in result.checks] == ["completed"] * 5 + [
+    assert [c.status for c in result.checks] == ["completed"] * 6 + [
         "skipped",
         "completed",
         "skipped",
@@ -466,6 +466,7 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
 
     assert rig.artifacts.authz[result.run_id] == result
     assert [c.check for c in result.checks] == [
+        "cors",
         "horizontal",
         "excessive_data",
         "anonymous_access",
@@ -475,7 +476,7 @@ def test_the_result_is_written_and_lists_every_check_in_a_fixed_order() -> None:
         "mass_assignment",
         "horizontal_write",
     ]
-    assert [c.status for c in result.checks][1:] == ["disabled"] * 7
+    assert [c.status for c in result.checks if c.check != "horizontal"] == ["disabled"] * 8
 
 
 def test_checks_disabled_in_the_profile_never_run_even_when_asked() -> None:

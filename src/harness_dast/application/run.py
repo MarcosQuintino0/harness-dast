@@ -213,6 +213,7 @@ class RunPipeline:
         metrics: RunMetricsRecorder | None = None,
         panel: PanelRefresher | None = None,
         live: RunLive | None = None,
+        observer: Callable[[str, str | None], None] | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -235,6 +236,7 @@ class RunPipeline:
                 de gravar `run.json`. `None` desliga o painel.
             live: Página ao vivo do painel (ADR 0034): avisada a cada etapa e, no fim, regrava a
                 página uma última vez. `None` desliga a página.
+            observer: Observador local opcional de fase e identificador de execução.
         """
         self._profiles = profiles
         self._authz_stage = authz
@@ -247,6 +249,7 @@ class RunPipeline:
         self._metrics = metrics
         self._panel = panel
         self._live = live
+        self._observer = observer
 
     def execute(self, request: RunRequest) -> RunResult:
         """Roda os estágios em ordem e grava `run.json`, aconteça o que acontecer.
@@ -429,6 +432,8 @@ class RunPipeline:
         )
 
     def _stage(self, name: StageName, progress: _Progress, action: _Action) -> None:
+        if self._observer is not None:
+            self._observer(name, progress.run_id if name not in ("preflight", "probe") else None)
         self._announce(name, progress)
         began = self._clock.now()
         completed = False

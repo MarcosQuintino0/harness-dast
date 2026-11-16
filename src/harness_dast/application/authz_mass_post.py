@@ -44,11 +44,13 @@ def run_post_candidate(
         out.not_tested.append(chosen)
         return True
     out.writes += 1
+    ctx.shared_writes += 1
     reply = ctx.sender.send(
         exchange,
         exchange.account,
         body={**original, chosen.name: chosen.value},
         with_body=True,
+        max_attempts=1,
     )
     if reply.problem is not None:
         out.not_tested.append(problem_note("mass_assignment", exchange, reply))
@@ -58,6 +60,9 @@ def run_post_candidate(
         return True
     if reply.status == CONFLICT_STATUS:
         out.not_tested.append(_conflict_note(task))
+        return False
+    if reply.status in (401, 429):
+        out.not_tested.append(inconclusive("mass_assignment", exchange, reply))
         return False
     out.tested += 1
     if not is_success_status(reply.status):

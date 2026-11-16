@@ -135,6 +135,16 @@ def test_the_reader_must_be_of_the_owner_account() -> None:
     assert reasons(plan.not_tested) == {"put": "no_read_to_confirm"}
 
 
+def test_other_account_exact_reader_does_not_replace_owner_reader_for_another_object() -> None:
+    owner_other_object = ex("ler_a", "GET", target="/api/x/2", body=None)
+    other_account = ex("ler_b", "GET", account="a2", body=None)
+
+    plan = plan_horizontal_write([owner_other_object, other_account, ex("put")], ROLES, frozenset())
+
+    assert not plan.tasks
+    assert reasons(plan.not_tested) == {"put": "no_read_to_confirm"}
+
+
 def test_a_failed_read_in_the_probe_is_not_a_reader() -> None:
     failed = READ.model_copy(update={"status": 500})
 
@@ -146,6 +156,8 @@ def test_a_failed_read_in_the_probe_is_not_a_reader() -> None:
 def test_the_budget_caps_the_candidates_and_the_rest_is_reported() -> None:
     items = [
         READ,
+        ex("ler_2", "GET", target="/api/x/2", body=None),
+        ex("ler_3", "GET", target="/api/x/3", body=None),
         ex("p0", target="/api/x/1"),
         ex("p1", target="/api/x/2"),
         ex("p2", target="/api/x/3"),

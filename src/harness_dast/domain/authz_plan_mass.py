@@ -63,26 +63,28 @@ def _is_marker(segment: str) -> bool:
 
 
 def update_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
-    """`GET` provado do mesmo modelo de caminho e conta (o de `target` igual primeiro)."""
-    same = [r for r in reads if r.path == item.path and r.account == item.account]
+    """Escolhe GET provado, preferindo a conta escritora e o mesmo alvo concreto."""
+    same_path = [r for r in reads if r.path == item.path]
+    same = [r for r in same_path if r.account == item.account]
     exact = [r for r in same if r.target == item.target]
-    chosen = exact or same
-    return chosen[0] if chosen else None
+    other_exact = [r for r in same_path if r.target == item.target]
+    chosen = exact or other_exact
+    return chosen[0].model_copy(update={"account": item.account}) if chosen else None
 
 
-def _created_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
-    """`GET` provado do mesmo recurso com um marcador final (`/medicos/{id}` para `/medicos`)."""
+def created_reader(item: ExchangeRecord, reads: Sequence[ExchangeRecord]) -> ExchangeRecord | None:
+    """GET irmão provado, repetido com a conta que criou o recurso."""
     base = _segments(item.path)
-    for read in reads:
-        parts = _segments(read.path)
-        if (
-            read.account == item.account
-            and len(parts) == len(base) + 1
-            and parts[:-1] == base
-            and _is_marker(parts[-1])
-        ):
-            return read
-    return None
+    siblings = [
+        read
+        for read in reads
+        if len(_segments(read.path)) == len(base) + 1
+        and _segments(read.path)[:-1] == base
+        and _is_marker(_segments(read.path)[-1])
+    ]
+    same = [read for read in siblings if read.account == item.account]
+    chosen = same or siblings
+    return chosen[0].model_copy(update={"account": item.account}) if chosen else None
 
 
 def _echoes(operation: Operation | None) -> bool:
@@ -191,7 +193,7 @@ def _task(
     notes = [_limited_note(item, candidates.cut)] if candidates.cut else []
     if not created:
         return MassTask(item, update_reader(item, reads), candidates.candidates), notes
-    reader = _created_reader(item, reads)
+    reader = created_reader(item, reads)
     if reader is None and not _echoes(operation):
         notes.append(
             skip_note(

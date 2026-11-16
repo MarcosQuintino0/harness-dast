@@ -4,6 +4,7 @@ Sem contêiner de injeção. `open_scan_network` abre o cliente do ZAP com a API
 além do cliente do alvo; `build_scan` e `build_report` ligam as portas aos adaptadores reais.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 import structlog
@@ -118,7 +119,11 @@ def build_scan(
 
 
 def build_run_pipeline(
-    product: str, products_dir: Path | None, secrets: SecretRegistry, net: ScanNetwork
+    product: str,
+    products_dir: Path | None,
+    secrets: SecretRegistry,
+    net: ScanNetwork,
+    observer: Callable[[str, str | None], None] | None = None,
 ) -> RunPipeline:
     """Monta o `run`: as etapas sobre a MESMA rede, cache de tokens e orçamento de login.
 
@@ -144,6 +149,7 @@ def build_run_pipeline(
         metrics=build_metrics(products_dir),
         panel=build_indexed_panel(products_dir),
         live=board,
+        observer=observer,
         authz=build_authz(products_dir, secrets, net.network, shared),
         negative=build_negative(products_dir, secrets, net.network, shared),
         sink=FileRunArtifacts(runs_dir),
