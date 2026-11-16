@@ -20,6 +20,9 @@ explícitas de constante e outras receitas não elegíveis são preservadas.
 Ausência de ID,
 divergência, recusa de escopo ou ausência não observada ficam não testadas. IDs só vivem em
 memória, não no diário. Os pedidos continuam sujeitos à carta, ao escopo e ao teto de escritas.
+Na extração do ID, chaves JSON repetidas, colisões de nomes de identidade após normalização e
+divergência entre `Location` válido e identificador do corpo recusam a prova. Se o marcador do
+caminho tiver nome distinto de `id`, ele tem prioridade sobre o campo genérico `id`.
 
 O 404 comprova ausência *visível às contas consultadas*, não ausência global: APIs podem ocultar
 objetos existentes com 404. Sem uma garantia do produto sobre o significado desse status, a

@@ -14,7 +14,11 @@ from harness_dast.application.authz_sender import (
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.authz_compare import bodies_equivalent, is_success_status, parse_json
 from harness_dast.domain.authz_config import normalize_field_name
-from harness_dast.domain.authz_created import created_identifier, created_read_exchange
+from harness_dast.domain.authz_created import (
+    created_identifier,
+    created_read_exchange,
+    parse_unique_json,
+)
 from harness_dast.domain.authz_findings import horizontal_finding
 from harness_dast.domain.authz_flow_bindings import bindings_from_proven_body
 from harness_dast.domain.authz_pair_inventory import inventory_ids, supports_inventory
@@ -419,7 +423,15 @@ def _compare(
 def _owner_object(
     ctx: CheckContext, task: CreatedPairTask, target: ExchangeRecord, out: CheckResult, body: bytes
 ) -> dict[str, JsonValue] | None:
-    observed = parse_json(body)
+    observed = parse_unique_json(body)
+    if observed is None:
+        out.not_tested.append(
+            note(
+                "horizontal", target, "created_read_ambiguous", "Leitura JSON inválida ou ambígua."
+            )
+        )
+        return None
+    array = isinstance(observed, list)
     if isinstance(observed, list):
         if len(observed) != 1 or not isinstance(observed[0], dict):
             out.not_tested.append(
@@ -432,13 +444,16 @@ def _owner_object(
             )
             return None
         observed = observed[0]
+    if isinstance(observed, dict):
+        marker = normalize_field_name(task.read.path.rsplit("/", 1)[-1].strip("{}"))
+        has_identity = any(normalize_field_name(name) in {marker, "id"} for name in observed)
         found = created_identifier(
             location=None,
             body=json.dumps(observed).encode(),
             reader=task.read,
             base_url=ctx.settings.base_url,
         )
-        if found is None or target.target.rsplit("/", 1)[-1] != found:
+        if (array or has_identity) and (found is None or target.target.rsplit("/", 1)[-1] != found):
             out.not_tested.append(
                 note(
                     "horizontal",

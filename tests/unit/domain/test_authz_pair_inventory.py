@@ -21,6 +21,12 @@ def test_inventario_recusa_colisao_ou_item_sem_marcador() -> None:
         )
 
 
+def test_inventario_recusa_identificador_duplicado_no_json_original() -> None:
+    reader = exchange("read", "GET", "/items/{id}", "/items/1")
+    body = b'[{"id":1,"id":2,"label":"old"}]'
+    assert inventory_ids(body, reader, "https://x", {"label": "new"}) is None
+
+
 @pytest.mark.parametrize("maximum", [1, 20])
 def test_inventario_com_limite_de_itens_declarado_e_recusado(maximum: int) -> None:
     schema = Schema(

@@ -3,8 +3,9 @@
 A atribuição em massa num `POST` precisa ler o recurso que acabou de ser criado. O identificador
 vem só do que o servidor devolveu a ESTA requisição: primeiro o cabeçalho `Location` (caminho
 relativo ou URL da própria `base_url`, do mesmo recurso que o `GET` provado pelo `probe`), depois
-o campo de primeiro nível do corpo da resposta com o nome do marcador do `GET` ou `id`. Nada é
-adivinhado, e identificador com `/`, `..`, espaço ou mais de 64 caracteres é recusado. O alvo
+o campo de primeiro nível do corpo da resposta com o nome do marcador do `GET` ou `id`. Se as
+duas fontes forem válidas devem concordar; chaves duplicadas ou identidade ambígua são recusadas.
+Nada é adivinhado, e identificador com `/`, `..`, espaço ou mais de 64 caracteres é recusado. O alvo
 montado ainda passa pelo `ScopeGuard` como qualquer pedido. Este módulo é puro.
 """
 
@@ -58,20 +59,58 @@ def _marker_name(reader: ExchangeRecord) -> str:
     return normalize_field_name(last.strip("{}"))
 
 
-def _from_body(body: bytes, reader: ExchangeRecord) -> str | None:
+class _DuplicateKey(ValueError):
+    """JSON com chave repetida não preserva identidade de forma inequívoca."""
+
+
+def _unique_pairs(pairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
+    result: dict[str, JsonValue] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _DuplicateKey
+        result[key] = value
+    return result
+
+
+def _decode(body: bytes) -> tuple[JsonValue | None, bool]:
     try:
-        parsed: JsonValue = json.loads(body.decode("utf-8"))
+        parsed: JsonValue = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_pairs)
+    except _DuplicateKey:
+        return None, True
     except (UnicodeDecodeError, ValueError, RecursionError):
-        return None
+        return None, False
+    return parsed, False
+
+
+def parse_unique_json(body: bytes) -> JsonValue | None:
+    """JSON sem chaves duplicadas, ou `None` para entrada inválida ou ambígua."""
+    value, ambiguous = _decode(body)
+    return None if ambiguous else value
+
+
+def _from_body(body: bytes, reader: ExchangeRecord) -> tuple[str | None, bool]:
+    parsed, ambiguous = _decode(body)
+    if ambiguous:
+        return None, True
     if not isinstance(parsed, dict):
-        return None
-    names = {_marker_name(reader), "id"}
+        return None, False
+    marker = _marker_name(reader)
+    names = {marker, "id"}
+    identities: dict[str, JsonValue] = {}
     for key, value in parsed.items():
-        if normalize_field_name(key) not in names or isinstance(value, bool):
-            continue
-        if isinstance(value, str | int) and _IDENTIFIER.fullmatch(str(value)):
-            return str(value)
-    return None
+        normalized = normalize_field_name(key)
+        if normalized in names:
+            if normalized in identities:
+                return None, True
+            identities[normalized] = value
+    selected = marker if marker in identities else "id"
+    if selected not in identities:
+        return None, False
+    value = identities[selected]
+    if isinstance(value, bool) or not isinstance(value, str | int):
+        return None, True
+    identifier = str(value)
+    return (identifier, False) if _IDENTIFIER.fullmatch(identifier) else (None, True)
 
 
 def created_identifier(
@@ -85,7 +124,11 @@ def created_identifier(
         reader: `GET` provado do mesmo recurso (com um marcador final no caminho).
         base_url: URL base do ambiente.
     """
-    return _from_location(location, reader, base_url) or _from_body(body, reader)
+    header = _from_location(location, reader, base_url)
+    identifier, ambiguous = _from_body(body, reader)
+    if ambiguous or (header is not None and identifier is not None and header != identifier):
+        return None
+    return header or identifier
 
 
 def created_read_exchange(reader: ExchangeRecord, identifier: str) -> ExchangeRecord | None:

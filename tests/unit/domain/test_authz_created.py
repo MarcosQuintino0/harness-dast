@@ -90,8 +90,28 @@ def test_a_missing_or_unsafe_id_in_the_body_is_refused(body: bytes) -> None:
     assert ident(None, body) is None
 
 
-def test_the_location_wins_over_the_body() -> None:
-    assert ident("/api/medicos/8", json.dumps({"id": 99}).encode()) == "8"
+def test_conflicting_location_and_body_are_refused() -> None:
+    assert ident("/api/medicos/8", json.dumps({"id": 99}).encode()) is None
+
+
+def test_location_and_body_must_agree() -> None:
+    assert ident("/api/medicos/8", json.dumps({"id": 8}).encode()) == "8"
+
+
+@pytest.mark.parametrize("body", [b'{"id": 1, "ID": 2}', b'{"id": 1, "id": 1}'])
+def test_duplicate_or_normalized_identity_collision_is_refused(body: bytes) -> None:
+    assert ident(None, body) is None
+    assert ident("/api/medicos/1", body) is None
+
+
+def test_path_marker_takes_precedence_over_distinct_id_field() -> None:
+    reader = READER.model_copy(update={"path": "/api/medicos/{code}"})
+    assert ident(None, b'{"id": 99, "code": "ref"}', reader) == "ref"
+
+
+def test_colliding_path_marker_names_are_refused_even_with_valid_location() -> None:
+    reader = READER.model_copy(update={"path": "/api/medicos/{code}"})
+    assert ident("/api/medicos/a", b'{"code":"a", "CODE":"b"}', reader) is None
 
 
 def test_a_bad_location_falls_back_to_the_body() -> None:

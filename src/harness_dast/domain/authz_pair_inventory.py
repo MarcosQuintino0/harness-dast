@@ -5,7 +5,7 @@ import json
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import effective_type, flatten_schema
 from harness_dast.domain.authz_config import normalize_field_name
-from harness_dast.domain.authz_created import created_identifier
+from harness_dast.domain.authz_created import created_identifier, parse_unique_json
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 MAX_INVENTORY_ITEMS = 10000
@@ -49,10 +49,7 @@ def inventory_ids(
     body: bytes, reader: ExchangeRecord, base_url: str, markers: dict[str, str]
 ) -> frozenset[str] | None:
     """Extrai IDs ou recusa coleção malformada ou com marcador pré-existente."""
-    try:
-        items = json.loads(body)
-    except (ValueError, UnicodeDecodeError, RecursionError):
-        return None
+    items = parse_unique_json(body)
     if not isinstance(items, list) or len(items) > MAX_INVENTORY_ITEMS:
         return None
     found: set[str] = set()

@@ -201,3 +201,25 @@ def test_singleton_array_requires_matching_resource_id() -> None:
     result = execute(rig, "api/widgets")
     assert not result.findings
     assert any(note.reason == "created_read_ambiguous" for note in result.not_tested)
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_singleton_array_rejects_ambiguous_identity(duplicate: bool) -> None:
+    rig = make_rig("api/widgets", exposed=True)
+    delegate = rig.clinic
+
+    def handler(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = delegate(request, jar)
+        assert isinstance(response, HttpResponse)
+        if request.operation_id != "authz:pair:readSynthetic" or response.status != 200:
+            return response
+        item = json.loads(response.body)
+        if duplicate:
+            raw = json.dumps([item]).replace("{", '{"id":"other",', 1).encode()
+            return response.model_copy(update={"body": raw})
+        return reply(200, [{**item, "ID": "other"}])
+
+    rig.target = FakeTarget(handler)
+    result = execute(rig, "api/widgets")
+    assert not result.findings
+    assert any(note.reason == "created_read_ambiguous" for note in result.not_tested)
