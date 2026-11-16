@@ -1,0 +1,489 @@
+{
+  "schema_version": 1,
+  "label": "Sonnet 5.5 medium, V1.9.1, VAmPI vulneravel",
+  "model": "claude-sonnet-5-5",
+  "totals": {
+    "duration_seconds": 595.16,
+    "thinking_seconds": 179.415,
+    "waiting_seconds": 415.749,
+    "tokens": {
+      "input": 68,
+      "output": 14867,
+      "cache_creation": 115343,
+      "cache_read": 3514376
+    },
+    "turns": 33,
+    "tool_calls": 32,
+    "tool_calls_by_tool": {
+      "Bash": 29,
+      "Read": 2,
+      "Skill": 1
+    },
+    "hdast_commands": {
+      "doctor": 1,
+      "init": 2,
+      "preflight": 2,
+      "probe": 1,
+      "profile": 2,
+      "profile validate": 2,
+      "report": 2,
+      "run": 1,
+      "spec inspect": 3,
+      "stack down": 1,
+      "stack status": 1,
+      "stack up": 2,
+      "wait": 1
+    }
+  },
+  "stages": {
+    "leitura": {
+      "seconds": 5.052,
+      "thinking_seconds": 4.916,
+      "waiting_seconds": 0.136,
+      "tokens": {
+        "input": 4,
+        "output": 323,
+        "cache_creation": 35544,
+        "cache_read": 85023
+      },
+      "tool_calls": 3,
+      "hdast_commands": {}
+    },
+    "cadastro": {
+      "seconds": 72.646,
+      "thinking_seconds": 35.507,
+      "waiting_seconds": 37.139,
+      "tokens": {
+        "input": 22,
+        "output": 3996,
+        "cache_creation": 36435,
+        "cache_read": 849976
+      },
+      "tool_calls": 10,
+      "hdast_commands": {
+        "doctor": 1,
+        "init": 2,
+        "profile": 2,
+        "profile validate": 2,
+        "spec inspect": 3
+      }
+    },
+    "alcance": {
+      "seconds": 70.462,
+      "thinking_seconds": 62.764,
+      "waiting_seconds": 7.698,
+      "tokens": {
+        "input": 10,
+        "output": 2070,
+        "cache_creation": 3590,
+        "cache_read": 535388
+      },
+      "tool_calls": 4,
+      "hdast_commands": {
+        "probe": 1
+      }
+    },
+    "varredura": {
+      "seconds": 365.807,
+      "thinking_seconds": 11.031,
+      "waiting_seconds": 354.776,
+      "tokens": {
+        "input": 10,
+        "output": 1030,
+        "cache_creation": 14509,
+        "cache_read": 553026
+      },
+      "tool_calls": 5,
+      "hdast_commands": {
+        "preflight": 2,
+        "run": 1,
+        "stack up": 2,
+        "wait": 1
+      }
+    },
+    "triagem": {
+      "seconds": 81.197,
+      "thinking_seconds": 65.197,
+      "waiting_seconds": 16.0,
+      "tokens": {
+        "input": 22,
+        "output": 7448,
+        "cache_creation": 25265,
+        "cache_read": 1490963
+      },
+      "tool_calls": 10,
+      "hdast_commands": {
+        "report": 2
+      }
+    },
+    "outro": {
+      "seconds": 0.0,
+      "thinking_seconds": 0.0,
+      "waiting_seconds": 0.0,
+      "tokens": null,
+      "tool_calls": 0,
+      "hdast_commands": {
+        "stack down": 1,
+        "stack status": 1
+      }
+    }
+  },
+  "loops": {
+    "repeated_hdast_commands": [
+      {
+        "name": "preflight",
+        "count": 1
+      },
+      {
+        "name": "profile",
+        "count": 1
+      },
+      {
+        "name": "profile validate",
+        "count": 1
+      },
+      {
+        "name": "report --run",
+        "count": 1
+      },
+      {
+        "name": "spec inspect",
+        "count": 1
+      }
+    ],
+    "failed_then_retried": [],
+    "files_read_more_than_once": [],
+    "failed_calls": 0
+  },
+  "quality": {
+    "events": 91,
+    "events_malformed": 0,
+    "events_without_timestamp": 0,
+    "messages_without_usage": 0
+  },
+  "run_metrics": [
+    {
+      "run_id": "2026-11-16T19-17-12Z-vampi-bfd0",
+      "stages_seconds": {
+        "preflight": null,
+        "probe": 1.314,
+        "scan": 257.579,
+        "authz": 1.842,
+        "report": 0.171
+      },
+      "gaps_count": 0.0,
+      "gaps_total_seconds": 0.0,
+      "gaps_longest_seconds": 0.0,
+      "rules": [
+        {
+          "plugin_id": "90036",
+          "name": "Server Side Template Injection (Blind)",
+          "time_ms": 24523.0,
+          "requests": 420.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "6",
+          "name": "Path Traversal",
+          "time_ms": 19158.0,
+          "requests": 335.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90020",
+          "name": "Remote OS Command Injection",
+          "time_ms": 17952.0,
+          "requests": 315.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90019",
+          "name": "Server Side Code Injection",
+          "time_ms": 16323.0,
+          "requests": 280.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40003",
+          "name": "CRLF Injection",
+          "time_ms": 13968.0,
+          "requests": 245.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40018",
+          "name": "SQL Injection",
+          "time_ms": 13847.0,
+          "requests": 230.0,
+          "alerts": 3.0
+        },
+        {
+          "plugin_id": "40020",
+          "name": "SQL Injection - Hypersonic SQL (Time Based)",
+          "time_ms": 12025.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90037",
+          "name": "Remote OS Command Injection (Time Based)",
+          "time_ms": 11986.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40019",
+          "name": "SQL Injection - MySQL (Time Based)",
+          "time_ms": 11902.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40027",
+          "name": "SQL Injection - MsSQL (Time Based)",
+          "time_ms": 11891.0,
+          "requests": 210.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40008",
+          "name": "Parameter Tampering",
+          "time_ms": 11212.0,
+          "requests": 191.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40012",
+          "name": "Cross Site Scripting (Reflected)",
+          "time_ms": 10446.0,
+          "requests": 178.0,
+          "alerts": 2.0
+        },
+        {
+          "plugin_id": "7",
+          "name": "Remote File Inclusion",
+          "time_ms": 9941.0,
+          "requests": 175.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40009",
+          "name": "Server Side Include",
+          "time_ms": 7971.0,
+          "requests": 140.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90021",
+          "name": "XPath Injection",
+          "time_ms": 6204.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90035",
+          "name": "Server Side Template Injection",
+          "time_ms": 6123.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40021",
+          "name": "SQL Injection - Oracle (Time Based)",
+          "time_ms": 6040.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20019",
+          "name": "External Redirect",
+          "time_ms": 6039.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40022",
+          "name": "SQL Injection - PostgreSQL (Time Based)",
+          "time_ms": 6038.0,
+          "requests": 105.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "100043",
+          "name": "Swagger UI Secret & Vulnerability Detector",
+          "time_ms": 4418.0,
+          "requests": 60.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10048",
+          "name": "Remote Code Execution - Shell Shock",
+          "time_ms": 4024.0,
+          "requests": 70.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90017",
+          "name": "XSLT Injection",
+          "time_ms": 3668.0,
+          "requests": 60.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40016",
+          "name": "Cross Site Scripting (Persistent) - Prime",
+          "time_ms": 2077.0,
+          "requests": 35.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40042",
+          "name": "Spring Actuator Information Leak",
+          "time_ms": 1298.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40045",
+          "name": "Spring4Shell",
+          "time_ms": 1223.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20018",
+          "name": "Remote Code Execution - CVE-2012-1823",
+          "time_ms": 1206.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10045",
+          "name": "Source Code Disclosure - /WEB-INF Folder",
+          "time_ms": 1173.0,
+          "requests": 20.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "50000",
+          "name": "Script Active Scan Rules",
+          "time_ms": 788.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40048",
+          "name": "Remote Code Execution (React2Shell)",
+          "time_ms": 630.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20017",
+          "name": "Source Code Disclosure - CVE-2012-1823",
+          "time_ms": 629.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40029",
+          "name": "Trace.axd Information Leak",
+          "time_ms": 622.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40017",
+          "name": "Cross Site Scripting (Persistent) - Spider",
+          "time_ms": 619.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "0",
+          "name": "Directory Browsing",
+          "time_ms": 603.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40028",
+          "name": "ELMAH Information Leak",
+          "time_ms": 585.0,
+          "requests": 10.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10106",
+          "name": "HTTP Only Site",
+          "time_ms": 571.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40026",
+          "name": "Cross Site Scripting (DOM Based)",
+          "time_ms": 41.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "20015",
+          "name": "Heartbleed OpenSSL Vulnerability",
+          "time_ms": 19.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "40014",
+          "name": "Cross Site Scripting (Persistent)",
+          "time_ms": 15.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90024",
+          "name": "Generic Padding Oracle",
+          "time_ms": 12.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10058",
+          "name": "GET for POST",
+          "time_ms": 10.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90026",
+          "name": "SOAP Action Spoofing",
+          "time_ms": 10.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90029",
+          "name": "SOAP XML Injection",
+          "time_ms": 10.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "10047",
+          "name": "HTTPS Content Available via HTTP",
+          "time_ms": 9.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        },
+        {
+          "plugin_id": "90023",
+          "name": "XML External Entity Attack",
+          "time_ms": 7.0,
+          "requests": 0.0,
+          "alerts": 0.0
+        }
+      ]
+    }
+  ]
+}
