@@ -10,6 +10,7 @@ from harness_dast.domain.scan_plan import ScanPlan
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.strategy import Strategy
+from harness_dast.domain.strategy_basis import StrategyBasis
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ def compile_scan_snapshot(
     proposed_policy: ScanPolicy,
     baseline_limits: ScanLimits,
     proposed_limits: ScanLimits,
+    basis: StrategyBasis | None = None,
 ) -> CompiledScanPlan:
     """Compara o plano concreto e a política com a referência gerada pelo fluxo atual.
 
@@ -43,7 +45,7 @@ def compile_scan_snapshot(
     """
     envelope = require_approved_envelope(profile, approval)
     if strategy is not None:
-        strategy.ensure_compilable(now)
+        strategy.ensure_compilable(now, basis)
     if (
         baseline != proposed
         or baseline_policy != proposed_policy

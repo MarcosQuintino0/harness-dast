@@ -6,6 +6,22 @@ import pytest
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.strategy import Strategy
+from harness_dast.domain.strategy_basis import StrategyBasis
+
+_BASIS = StrategyBasis(
+    **{
+        key: "a" * 64
+        for key in (
+            "environment",
+            "authorization",
+            "accounts",
+            "openapi",
+            "data_rules",
+            "flows",
+            "engine",
+        )
+    }
+)
 
 
 def data() -> dict[str, object]:
@@ -37,9 +53,9 @@ def test_estrategia_vazia_e_valida_para_compilacao() -> None:
 
 
 def test_escolha_preservar_com_validade_no_dia_e_aceita() -> None:
-    strategy = Strategy.from_data({**data(), "choices": [choice()]})
+    strategy = Strategy.from_data({**data(), "choices": [choice(basis=_BASIS.model_dump())]})
 
-    strategy.ensure_compilable(datetime(2026, 11, 16, tzinfo=UTC))
+    strategy.ensure_compilable(datetime(2026, 11, 16, tzinfo=UTC), _BASIS)
 
 
 def test_validade_usa_data_utc_na_borda_do_fuso() -> None:

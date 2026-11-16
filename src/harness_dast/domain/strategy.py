@@ -7,6 +7,7 @@ from pydantic import Field, ValidationError, field_validator
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import ProfileModel
+from harness_dast.domain.strategy_basis import StrategyBasis
 from harness_dast.domain.window import ensure_aware
 
 _HINT = "Corrija strategy.yml conforme o contrato da estratégia."
@@ -29,6 +30,7 @@ class CoverageChoice(ProfileModel):
     reason: Literal["preserve_baseline"]
     valid_until: date
     state: Literal["proposed", "validated", "review_required"]
+    basis: StrategyBasis | None = None
 
     @field_validator("valid_until", mode="before")
     @classmethod
@@ -70,11 +72,15 @@ class Strategy(ProfileModel):
         except ValidationError:
             raise ConfigError("Estratégia inválida.", hint=_HINT) from None
 
-    def ensure_compilable(self, now: datetime) -> None:
-        """Recusa escolhas pendentes ou vencidas; não confere aprovação ou cobertura."""
+    def ensure_compilable(self, now: datetime, basis: StrategyBasis | None = None) -> None:
+        """Recusa escolha pendente, vencida ou sem vínculo atual; não concede aprovação."""
         ensure_aware(now)
         if any(
-            choice.state != "validated" or choice.valid_until < now.astimezone(UTC).date()
+            choice.state != "validated"
+            or choice.valid_until < now.astimezone(UTC).date()
+            or basis is None
+            or choice.basis is None
+            or choice.basis != basis
             for choice in self.choices
         ):
             raise ConfigError("Estratégia pendente ou vencida.", hint=_HINT)
