@@ -8,12 +8,13 @@
 hdast [--json] strategy validate <produto> [--products-dir <pasta>]
 hdast [--json] strategy diff <produto> [--products-dir <pasta>]
 hdast [--json] strategy migrate <produto> [--output <nome>] [--products-dir <pasta>]
+hdast [--json] strategy capture <produto> [--output <nome>] [--products-dir <pasta>]
 hdast [--json] plan <produto> --dry-run [--products-dir <pasta>]
 ```
 
 - `--json` é opção global, antes do comando; seleciona o envelope JSON versionado da CLI.
 - `--products-dir <pasta>` escolhe a pasta de produtos para o comando; pode ser omitida quando configurada no ambiente.
-- `--output <nome>` escolhe o nome da cópia de migração; o padrão é `strategy.migrated.yml`. O nome segue `strategy.<nome>.yml`, com minúsculas, dígitos e hífen no trecho intermediário. Arquivo existente não é sobrescrito.
+- `--output <nome>` escolhe o nome da cópia: o padrão é `strategy.migrated.yml` na migração e `strategy.captured.yml` na captura. O nome segue `strategy.<nome>.yml`, com minúsculas, dígitos e hífen no trecho intermediário. Arquivo existente não é sobrescrito.
 - `--dry-run` é obrigatório no comando `plan`; sem ele, a CLI retorna erro de configuração.
 - `--help` mostra a ajuda da CLI ou do comando indicado.
 
@@ -23,8 +24,12 @@ hdast [--json] plan <produto> --dry-run [--products-dir <pasta>]
 
 `strategy migrate` cria a cópia neutra sem alterar o perfil ou a aprovação e sem ativar a estratégia. Uma estratégia já existente impede a migração. Revise a cópia antes de ativá-la explicitamente como `strategy.yml`. O comando devolve `copy`, `changes`, `classification` e `approval_changed` no resultado.
 
+`strategy capture` cria uma cópia vinculada ao contexto atual: exige perfil formal aprovado e vigente, pilha gerenciada ativa do mesmo produto e estado, execução e endpoint coerentes, sem `KILL`. Sob `stack.lock`, usa somente o endpoint local e a chave publicados pela pilha, ignorando override de URL; recusa controle fora do loopback ou na mesma porta do alvo local. Consulta somente a versão do controle ZAP, sem enviar pedido ao alvo, e revalida perfil, aprovação e documentos depois. Pilha ocupada retorna `STACK_BUSY`, saída 8. Não usa execução antiga.
+
+Aceita estratégia ausente ou com `choices: []`; escolha existente preenchida é recusada. Produz `strategy.captured.yml` com escolha `coverage/preserve`, origem `observation`, validade limitada à autorização e `basis` atual. A cópia é exclusiva e não é ativada nem sobrescreve estratégia; reveja-a e ative-a explicitamente se desejar. Em JSON de sucesso, `data` contém `product`, `copy`, `changes: ["strategy_bound"]`, `classification: "automatic"`, `approval_changed: false` e `activated: false`. Capturar não altera o perfil ou a aprovação; não é preciso repetir uma aprovação cujo fingerprint continua igual. A captura não concede permissão.
+
 Uma estratégia mínima usa `schema_version: 1`, referências a `target.yml`, `data-rules.yml` e `flows.yml`, e `choices: []`. A escolha opcional de preservação de cobertura tem campos tipados e não autoriza novo escopo, mudança de ritmo ou redução de cobertura. A escolha aceita `basis` com resumos SHA-256 de `environment`, `authorization`, `accounts`, `planning`, `openapi`, `data_rules`, `flows` e `engine`. Para escolha preenchida, `validate` e `diff` retornam `strategy_state: review_required`, `basis_status: engine_unavailable` e `basis_context` com `engine: null`. O vínculo completo é necessário para compilação; não há reutilização V1.9 demonstrada. Veja o formato no [guia](../guides/personalizacao.md).
 
 Com `--json`, sucesso usa `schema_version: 1`, `ok: true` e `data`, com saída 0. Entrada inválida, escolha não compilável ou destino recusado usam `CONFIG_ERROR`, saída 2. Consultar ou compilar não aprova o produto: os comandos com tráfego continuam sujeitos à aprovação humana e às verificações de escopo. Para os demais erros, consulte [códigos de saída](exit-codes.md).
 
-O controle e o scanner usam o mesmo endpoint configurado, sem prova de identidade da instância ou proteção contra alteração após a consulta. Preparar transporte usa perfil formal aprovado, sem aplicar a escolha nem enviar ao alvo. Revalidação por concessão do proxy e prova LIVE em laboratório permanecem pendentes; testes com dublês não são prova de operação real.
+O controle e o scanner usam o mesmo endpoint configurado, sem prova de identidade criptográfica, do processo ou proteção contra reinício, proxy reverso ou alteração após a consulta. Preparar transporte usa perfil formal aprovado, sem aplicar a escolha nem enviar ao alvo. Revalidação por concessão do proxy e prova LIVE em laboratório permanecem pendentes; testes com dublês não são prova de operação real.

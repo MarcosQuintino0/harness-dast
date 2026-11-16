@@ -44,7 +44,7 @@ A conferência usou `model_fields` dos modelos Pydantic e a fonte de `scope_fing
 | `data-rules.schema_version`, `data-rules.rules[].match.field`, `data-rules.rules[].match.operation`, `data-rules.rules[].match.location`, `data-rules.rules[].generator`, `data-rules.rules[].args`, `data-rules.rules[].unique` | fatos | P | não | Modelo `DataRules`; bytes entram na base `data_rules`, distinguindo ausente de vazio. |
 | `flows.schema_version`, `flows.bindings[].produces.operation`, `flows.bindings[].produces.field`, `flows.bindings[].consumed_by[].operation`, `flows.bindings[].consumed_by[].param`, `flows.bindings[].consumed_by[].field` | fatos | P | não | Modelo `FlowSpec`; bytes entram na base `flows`. |
 | `strategy.schema_version`, `strategy.references.target`, `strategy.references.data_rules`, `strategy.references.flows` | estratégia | A/P | não | Versão e referências fixas; não transportam autorização. |
-| `strategy.choices[].name`, `strategy.choices[].value`, `strategy.choices[].source`, `strategy.choices[].reason`, `strategy.choices[].valid_until`, `strategy.choices[].state` | estratégia | A/P | não | Escolha tipada opcional; hoje escolha preenchida falha fechada por motor indisponível. |
+| `strategy.choices[].name`, `strategy.choices[].value`, `strategy.choices[].source`, `strategy.choices[].reason`, `strategy.choices[].valid_until`, `strategy.choices[].state` | estratégia | A/P | não | Escolha tipada opcional; consulta seca não tem motor, mas execução ativa confere vínculo com ZAP atual; divergência ou indisponibilidade falha fechada. |
 | `strategy.choices[].basis.environment`, `strategy.choices[].basis.authorization`, `strategy.choices[].basis.accounts`, `strategy.choices[].basis.planning`, `strategy.choices[].basis.openapi`, `strategy.choices[].basis.data_rules`, `strategy.choices[].basis.flows`, `strategy.choices[].basis.engine` | estratégia | P | não | Vínculo opcional tipado de digests; completo exige motor. Não é aprovação. |
 
 ### Carta estruturada
@@ -76,6 +76,8 @@ Estes caminhos são conteúdos de `Answer.value`, não campos adicionais do mode
 | `carta.example_data.value[]` | fatos | P | não | Lista de mapas com valores JSON; `operation`, `field`, `value` e `note` são exemplos sugeridos na mensagem, não um conjunto fechado de chaves imposto pelo modelo. |
 
 `carta.attack.include_outcomes` aceita origem `carta` ou `pessoa` segundo a revisão específica, diferentemente das permissões de escrita e upload que exigem frase da carta. Classes A/P/H neste inventário não alteram essas regras existentes.
+
+A captura pública `strategy capture` consulta somente a versão do controle ZAP da pilha gerenciada e ativa, exige perfil aprovado e vigente, segura a trava e produz cópia não ativada; não altera o fingerprint nem cria autorização. `choices: []` ou ausência são aceitos; escolha já preenchida é recusada. A prova real da captura está pendente no fechamento; consulta seca e migração seguem sem rede.
 
 O estado de execução contém plano, concessões, evidências e recursos temporários: é a quarta camada, não campo do perfil nem fonte de permissão. A revalidação por concessão do proxy permanece requisito não comprovado; a revalidação nos pontos de polling e envio do scan foi testada. A base `authorization` da estratégia deriva de blocos protegidos **exceto** `environment`, `auth` e `cleanup`; ambiente e auth têm bases próprias e limpeza não integra essa base. A base de estratégia não é a impressão digital de aprovação.
 

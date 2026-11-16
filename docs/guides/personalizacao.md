@@ -24,6 +24,7 @@ hdast --json strategy validate <produto>
 hdast --json strategy diff <produto>
 hdast --json plan <produto> --dry-run
 hdast --json strategy migrate <produto>
+hdast --json strategy capture <produto>
 ```
 
 Os três primeiros não enviam tráfego e não exigem aprovação para consulta. `validate` informa presença, estado da estratégia, estado da aprovação e resumo do envelope. `diff` compara estruturalmente com o caso legado: `changes` lista `strategy` quando presente e `classification` é `automatic` ou `pending`; isso não é uma comparação item por item da cobertura. O estado `validated` sem estratégia significa que não há escolha pendente; não significa que o perfil esteja aprovado.
@@ -36,7 +37,9 @@ Para perfil sem estratégia, a migração gera `strategy.migrated.yml`, sem ativ
 {"schema_version":1,"ok":true,"data":{"product":"produto","copy":"strategy.migrated.yml","changes":["strategy_added"],"classification":"automatic","approval_changed":false}}
 ```
 
-A configuração inválida, estratégia pendente na compilação ou destino recusado retornam `CONFIG_ERROR`, saída 2, sem exibir valores sensíveis. A aprovação só é verificada para execução: `SCOPE_NOT_APPROVED` e violações de escopo usam saída 3. Não edite o registro de aprovação.
+A captura exige perfil aprovado e vigente, pilha gerenciada ativa do mesmo produto, sem `KILL`, com estado, execução e endpoint coerentes. Com a trava da pilha, consulta somente a versão do ZAP local publicada pelo gerenciador e revalida perfil, aprovação e documentos; não envia pedido ao alvo nem reutiliza execução antiga. Aceita estratégia ausente ou `choices: []`, cria `strategy.captured.yml` sem sobrescrever e devolve `activated: false` e `approval_changed: false`. Revise a cópia e ative-a explicitamente como `strategy.yml` se desejar. Não é necessária nova entrevista nem nova aprovação se o fingerprint aprovado não mudou. Pilha ocupada retorna `STACK_BUSY`, saída 8. Veja os detalhes e limites na [referência](../reference/strategy.md).
+
+A configuração inválida, estratégia pendente na compilação ou destino recusado retornam `CONFIG_ERROR`, saída 2, sem exibir valores sensíveis. A captura e a execução exigem aprovação: `SCOPE_NOT_APPROVED` e violações de escopo usam saída 3. Não edite o registro de aprovação.
 
 Uma estratégia neutra mínima é:
 
