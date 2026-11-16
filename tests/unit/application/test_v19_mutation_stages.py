@@ -257,3 +257,30 @@ def test_scan_concluido_so_libera_apos_gravar_resultado(tmp_path: Path) -> None:
     assert result.status == "completed"
     assert not list(tmp_path.glob("*.jsonl"))
     assert len(list((tmp_path / "completed").glob("*.jsonl"))) == 1
+
+
+@pytest.mark.parametrize(("state", "progress"), [("FINISHED", 99), ("STOPPED", 100)])
+def test_scan_incompleto_nao_libera_intencao(tmp_path: Path, state: str, progress: int) -> None:
+    rig = ready()
+    rig.zap.script = [(progress, state)]
+    journal = FileMutationJournal(tmp_path)
+    result = scan_service(rig, journal).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id, only=("criar",))
+    )
+    assert len(result.entries) == 1
+    assert result.entries[0].progress == progress
+    assert "pendente" in (result.entries[0].note or "")
+    assert len(list(tmp_path.glob("*.jsonl"))) == 1
+    assert not list((tmp_path / "completed").glob("*.jsonl"))
+
+
+def test_scan_recusado_mantem_intencao_sem_prova_independente(tmp_path: Path) -> None:
+    rig = ready()
+    rig.zap.refuse = frozenset({"POST"})
+    result = scan_service(rig, FileMutationJournal(tmp_path)).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id, only=("criar",))
+    )
+    assert result.entries[0].outcome == "refused"
+    assert "pendente" in (result.entries[0].note or "")
+    assert rig.zap.started == []
+    assert len(list(tmp_path.glob("*.jsonl"))) == 1

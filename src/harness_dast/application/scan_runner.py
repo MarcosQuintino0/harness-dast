@@ -14,7 +14,7 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
+from harness_dast.application.mutation_guard import begin_mutation
 from harness_dast.application.ports import Clock, MutationJournal, Sleeper
 from harness_dast.application.run_support import DeadlineReached, RunGate, WindowClosed
 from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
@@ -191,8 +191,6 @@ class ScanRunner:
         try:
             scan_id = d.scanner.start_scan(request)
         except ScanRefused as error:
-            if key is not None and d.mutation_journal is not None:
-                finish_mutation(d.mutation_journal, key, "failed")
             self._record_refused(target, error)
             return
         started = d.clock.now()
@@ -206,8 +204,20 @@ class ScanRunner:
             self._interrupt(target, scan_id, total)
             raise
         self._record(target, scan_id, status, started, stop_requested=False)
-        if key is not None and status.state.upper() == "FINISHED":
+        entry = self._state.entries[-1]
+        if (
+            key is not None
+            and status.state.upper() == "FINISHED"
+            and status.progress == 100
+            and entry.outcome == "completed"
+            and not entry.truncated
+        ):
             self._state.finished_mutations.append(key)
+        elif key is not None:
+            prior = entry.note or "O lote não teve conclusão integral confirmada."
+            self._state.entries[-1] = entry.model_copy(
+                update={"note": prior + " Diário pendente; reconcilie antes de repetir."}
+            )
 
     def _authenticate(self, account: str | None = None) -> None:
         """Mede login, renovação e troca das regras de identidade, inclusive em falha."""
@@ -236,6 +246,13 @@ class ScanRunner:
 
     def _record_refused(self, target: ScanTarget, error: ScanRefused) -> None:
         _log.warning("scan_refused", operation_id=target.operation_id, reason=error.message)
+        note = f"O ZAP recusou iniciar a varredura: {error.message}"
+        if self._d.mutation_journal is not None and target.method.upper() in {
+            "POST",
+            "PUT",
+            "PATCH",
+        }:
+            note += " O diário mantém a intenção pendente; reconcilie antes de repetir."
         self._state.entries.append(
             ScanEntry(
                 operation_id=target.operation_id,
@@ -244,7 +261,7 @@ class ScanRunner:
                 message_id=target.message_id,
                 seed_outcome=target.seed_outcome,
                 outcome="refused",
-                note=f"O ZAP recusou iniciar a varredura: {error.message}",
+                note=note,
             )
         )
 
