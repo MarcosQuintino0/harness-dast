@@ -50,6 +50,7 @@ def run_post_candidate(
         exchange.account,
         body={**original, chosen.name: chosen.value},
         with_body=True,
+        max_attempts=1,
     )
     if reply.problem is not None:
         out.not_tested.append(problem_note("mass_assignment", exchange, reply))

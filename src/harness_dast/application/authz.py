@@ -283,6 +283,7 @@ class Authz:
                 sessions=pool,
                 vault=self._vault,
                 run_id=run_id,
+                success=profile.probe.success,
                 builder=self._builder(profile, run_id, started)
                 if plans.created_pairs.tasks
                 else None,

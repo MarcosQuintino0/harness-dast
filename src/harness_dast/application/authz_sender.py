@@ -27,6 +27,7 @@ from harness_dast.domain.authz_matrix_report import AccessMatrixReport
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested
 from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
 from harness_dast.domain.probe_result import ProbeStatus
@@ -115,6 +116,7 @@ class AuthzSettings:
     vault: SecretVault
     run_id: str = ""
     builder: RequestBuilder | None = None
+    success: SuccessCriteria = field(default_factory=SuccessCriteria)
 
 
 class ReplaySender:
@@ -158,6 +160,7 @@ class ReplaySender:
         method: str | None = None,
         tag: str = "",
         origin: str | None = None,
+        max_attempts: int | None = None,
     ) -> Reply:
         """Repete o pedido gravado com a sessão da conta.
 
@@ -188,7 +191,7 @@ class ReplaySender:
             operation_id=f"authz:{tag}{exchange.operation_id}",
             account=account,
         )
-        return self._dispatch(request, account)
+        return self._dispatch(request, account, max_attempts=max_attempts)
 
     def anonymous(self, exchange: ExchangeRecord) -> Reply:
         """Repete o `GET` gravado SEM credencial, uma vez por alvo (depois, do cache).
@@ -235,11 +238,14 @@ class ReplaySender:
         session: SessionHooks | None = None,
         *,
         allow_reauth: bool = True,
+        max_attempts: int | None = None,
     ) -> Reply:
         try:
             if account is not None:
                 session = self._s.sessions.get(account)
-            sent = self._s.dispatcher.send(request, session, allow_reauth=allow_reauth)
+            sent = self._s.dispatcher.send(
+                request, session, allow_reauth=allow_reauth, max_attempts=max_attempts
+            )
         except (WindowClosed, DeadlineReached):
             raise
         except ScopeViolation:

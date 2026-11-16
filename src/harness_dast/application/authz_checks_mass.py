@@ -137,7 +137,11 @@ def _mass_apply(
     out.writes += 1
     ctx.shared_writes += 1
     put = ctx.sender.send(
-        exchange, exchange.account, body={**original, extra.name: extra.value}, with_body=True
+        exchange,
+        exchange.account,
+        body={**original, extra.name: extra.value},
+        with_body=True,
+        max_attempts=1,
     )
     if put.problem is not None:
         pending.attempted = False
@@ -159,7 +163,14 @@ def _mass_apply(
     out.writes += 1
     ctx.shared_writes += 1
     restored = restore(
-        ctx, exchange, task.read, original, (extra.name, extra.value), changed, previous
+        ctx,
+        exchange,
+        task.read,
+        original,
+        (extra.name, extra.value),
+        changed,
+        previous,
+        max_attempts=1,
     )
     pending.attempted = False
     if restored is not True:
