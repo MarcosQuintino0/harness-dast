@@ -57,6 +57,11 @@ def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
     for phrase in (
         "sem sobrescrever ou ativar",
         "não existe comando de promoção",
+        "não são assinatura",
+        "sem `--run`, a captura é estrutural",
+        "`request_baseline`",
+        "não prova estado do alvo",
+        "não cria permissão",
         "mudança a→b→a",
         "inclusive em outro estágio",
         "id gerado pelo servidor",
