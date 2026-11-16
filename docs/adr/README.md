@@ -103,6 +103,7 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | [0078](0078-prova-par-massa.md) | Prova conservadora de par criado e limites da observação de atribuição em massa |
 | [0079](0079-exportacao-conhecimento-estudo.md) | Canal declarado e auditado de exportação para o estudo |
 | [0080](0080-diario-estagios.md) | Diário compartilhado entre probe, authz, negative e lotes mutantes do scan |
+| [0081](0081-pilha-desatualizada.md) | Pilha desatualizada: `STACK_STALE` (saída 4) antes do primeiro pedido, tradução do 403 `approval_changed` e `stack status` |
 
 ## Quando escrever um ADR
 

@@ -291,6 +291,14 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Promoção do ritmo proxy | Recusada no passo zero: quatro controles dirigidos passaram, mas não reconstruíram a causa histórica integral |
 | Provas e aceite | T2 (reutilização e authz, nas duas APIs e modos) e T4 (uma por API) passaram no laboratório; detecção igual ou maior que a V1.8. Lacunas: recibo de efeito não aplicado a tarefa no laboratório, par com 200 do VAmPI não confirmado e atribuição em massa V4 não detectada. [Relatório](reviews/relatorio-v1.9.md); parecer do validador novo pendente |
 
+### V1.9.1: correções das rodadas cegas da V1.9
+
+| Componente | Status |
+| --- | --- |
+| Pilha desatualizada (`STACK_STALE`, saída 4, antes do primeiro pedido; 403 `approval_changed` traduzido; `stack status` com `binding`) | Implementado; ADR 0081 proposto. Provado no laboratório (`tests/integration/test_v191_stack_stale.py`); nada contra produto real |
+| Estudo de reutilização: `export-reuse` aceita `knowledge.captured.yml`; skills mandam capturar depois do `run` | Implementado; ADR 0079 atualizado (ainda proposto). O estudo e as rodadas cegas continuam pendentes |
+| Documentação da avaliação (imagens por `docker compose build`, `claude -p` e confiança do workspace) | Atualizada; relatório em [relatorio-v1.9.1](reviews/relatorio-v1.9.1.md) |
+
 ## Itens em aberto
 
 | Id | Tema | Situação | Decidir até |

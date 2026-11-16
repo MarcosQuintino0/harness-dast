@@ -16,8 +16,8 @@ class ExitCode(IntEnum):
 
     5 é reservado a falha de ferramenta externa (ZAP, Docker); 6 é o alvo respondendo de
     forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 8 é a pilha ocupada por
-    outra execução (ADR 0035); 130 é interrupção
-    pelo usuário (Ctrl+C), convenção de shell para SIGINT.
+    outra execução (ADR 0035); `STACK_STALE` (pilha desatualizada, ADR 0081) reaproveita o 4;
+    130 é interrupção pelo usuário (Ctrl+C), convenção de shell para SIGINT.
     """
 
     OK = 0
@@ -142,6 +142,35 @@ class PreflightError(HarnessError):
 
     code = "PREFLIGHT_FAILED"
     exit_code = ExitCode.PREFLIGHT
+
+
+class StackStale(HarnessError):
+    """A pilha ativa foi criada com um perfil ou uma aprovação que já não são os atuais (ADR 0081).
+
+    Falha fechada e antes de qualquer pedido ao alvo: o proxy de escopo prende o hash dos
+    arquivos no `stack up` e negaria tudo (`approval_changed`). Usa a saída 4 (verificação
+    anterior à execução), com código próprio no envelope; não é recusa de escopo nem achado.
+
+    Attributes:
+        stale_parts: O que divergiu: `profile`, `approval` ou `binding` (vínculo ausente ou
+            ilegível). Vazio quando o aviso veio da recusa do proxy no meio da execução.
+    """
+
+    code = "STACK_STALE"
+    exit_code = ExitCode.PREFLIGHT
+
+    def __init__(
+        self, message: str, hint: str | None = None, *, stale_parts: tuple[str, ...] = ()
+    ) -> None:
+        """Cria o erro.
+
+        Args:
+            message: O que aconteceu.
+            hint: O que fazer a respeito (opcional).
+            stale_parts: O que divergiu (veja a classe).
+        """
+        super().__init__(message, hint)
+        self.stale_parts = stale_parts
 
 
 class SecretBackendError(HarnessError):

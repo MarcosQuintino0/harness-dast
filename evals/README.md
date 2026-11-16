@@ -25,18 +25,24 @@ Pré-requisitos: Docker Desktop, `uv`, `git`. Uma rodada por vez (as portas `280
 
 ### 1. Construir as imagens a partir do repositório ORIGINAL
 
-O workspace cego não tem `lab/pilot/src` nem o Dockerfile real: ele **não consegue construir** o alvo. As imagens são construídas antes, uma vez e de novo sempre que o alvo ou `docker/` mudar. Faça isto no repositório original, com pasta de produtos e estado próprios (nada vai ao workspace):
+O workspace cego não tem `lab/pilot/src` nem o Dockerfile real: ele **não consegue construir** o alvo. As imagens são construídas antes, uma vez e de novo sempre que o alvo ou `docker/` mudar. Faça isto no repositório original (nada vai ao workspace).
+
+**Não use `hdast stack up --build` para isso.** Desde a V1.3 o `stack up` exige perfil **aprovado por uma pessoa** (`SCOPE_NOT_APPROVED`), e a construção de imagens não deve depender de aprovar um perfil de passagem. O caminho que funciona é o `docker compose build`, com variáveis **descartáveis** que servem só para a interpolação do Compose (o Compose exige as variáveis `:?` do arquivo inteiro, mesmo para construir um serviço só; elas não chegam a nenhum contêiner):
 
 ```powershell
-$tmp = "$env:TEMP\hdast-build"
-mkdir $tmp\produtos | Out-Null
-Copy-Item -Recurse lab\pilot\product-profile $tmp\produtos\clinica-piloto
-$env:HDAST_PRODUCTS_DIR = "$tmp\produtos"; $env:HDAST_STATE_DIR = "$tmp\estado"
-uv run hdast stack up clinica-piloto --build
-uv run hdast stack down
+$env:HDAST_ZAP_API_KEY = "descartavel-so-para-interpolar"
+$env:PILOT_ORACLE_PASSWORD = "descartavel"
+foreach ($n in 'ADMIN','MEDICO','MEDICO_B','PACIENTE_A','PACIENTE_B') {
+  Set-Item "env:PILOT_${n}_USERNAME" "descartavel"; Set-Item "env:PILOT_${n}_PASSWORD" "descartavel"
+}
+docker compose build scope-proxy                        # hdast/scope-proxy:local (compose.yaml da raiz)
+docker compose -f lab/pilot/compose.yaml build pilot    # hdast-clinica-piloto:1.0.0
+Remove-Item env:HDAST_ZAP_API_KEY, env:PILOT_*          # nada disto vale para a rodada
 ```
 
-Para o VAmPI: copie `lab\vampi\product-profile\*.yml` e `lab\vampi\openapi3.yml` para `$tmp\produtos\vampi`, defina `VAMPI_*` como em [lab/README.md](../lab/README.md) e rode `stack up vampi --build` e `stack down`. Isso deixa no Docker as imagens `hdast-clinica-piloto:1.0.0`, `hdast/scope-proxy:local` e as do ZAP e da ponte.
+(`docker compose build` não sobe contêiner nem cria pilha: `docker compose ls -a` continua vazio.) Isso deixa no Docker as imagens `hdast-clinica-piloto:1.0.0` e `hdast/scope-proxy:local`; as do ZAP e da ponte vêm do registro, fixadas por digest, e são baixadas no primeiro `stack up`. Como o `stack up` da rodada (do agente) reconstrói a imagem do proxy (`build=True` no projeto principal), o `scope-proxy` construído aqui só acelera o primeiro uso.
+
+**VAmPI:** a imagem é fixada por digest (`erev0s/vampi:latest@sha256:...` no `compose.yaml`) e **não tem build**: o primeiro `stack up vampi` a baixa. Só o `scope-proxy` precisa do comando acima.
 
 ### 2. Preparar o workspace e lacrar o modo
 

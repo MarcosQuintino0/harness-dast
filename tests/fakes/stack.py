@@ -12,6 +12,7 @@ from harness_dast.application.stack_models import (
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
+from harness_dast.domain.stack_binding import StackDigests
 
 
 class FakeCompose:
@@ -124,3 +125,22 @@ class FakeStopper:
         if not self._reachable:
             raise ExternalToolError("O ZAP não respondeu.", hint="suba o ZAP")
         return self._running
+
+
+class FakeBindingSource:
+    """Vínculo gravado e hashes de agora definidos pelo teste (implementa `StackBindingSource`)."""
+
+    def __init__(
+        self, recorded: StackDigests | None, current: StackDigests, *, unreadable: bool = False
+    ) -> None:
+        self.recorded_value = recorded
+        self.current_value = current
+        self.unreadable = unreadable
+
+    def recorded(self, policy_dir: Path) -> StackDigests | None:
+        if self.unreadable:
+            raise ConfigError("política ilegível", hint="recrie a pilha")
+        return self.recorded_value
+
+    def current(self, product: str) -> StackDigests:
+        return self.current_value

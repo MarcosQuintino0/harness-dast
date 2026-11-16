@@ -40,7 +40,7 @@ def build_negative(
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Negative(
-        profiles=checked_profiles(root, None if dry_run else network.zap),
+        profiles=checked_profiles(root, None if dry_run else network.zap, fresh_stack=not dry_run),
         specs=build_spec_loader(root),
         secrets=build_secret_provider(),
         vault=secrets,

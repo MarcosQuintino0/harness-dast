@@ -16,6 +16,8 @@ from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.strategy_basis import describe_strategy_basis, digest_strategy_document
 
 MAX_BYTES = 100_000
+KNOWLEDGE_NAMES = ("knowledge.yml", "knowledge.captured.yml")
+"""Conhecimento no rastro: o ativo vence; a captura (`knowledge capture`) vale na falta dele."""
 PRODUCT = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
@@ -53,8 +55,16 @@ def _regular(root: Path, relative: str, max_bytes: int = MAX_BYTES) -> Path:
         path = path / part
         if _link(path):
             raise EvalError("Links não são aceitos no canal de reuso.")
-    if not path.is_file() or path.stat().st_size > max_bytes or path.stat().st_nlink != 1:
-        raise EvalError("Arquivo do canal ausente ou grande demais.")
+    if not path.is_file():
+        raise EvalError(f"Arquivo do canal ausente ou não regular: {relative}.")
+    status = path.stat()
+    if status.st_size > max_bytes:
+        raise EvalError(
+            f"Arquivo do canal excede o limite de {max_bytes} bytes: {relative} "
+            f"({status.st_size} bytes)."
+        )
+    if status.st_nlink != 1:
+        raise EvalError(f"Arquivo do canal tem mais de um link físico: {relative}.")
     return path
 
 
@@ -145,7 +155,7 @@ def _scan_text(text: str, secrets: dict[str, str], case: Case) -> None:
 
 
 def _scan_originals(folder: Path, secrets: dict[str, str], case: Case) -> None:
-    for name in ("knowledge.yml", "target.yml", "strategy.yml", "data-rules.yml", "flows.yml"):
+    for name in (*KNOWLEDGE_NAMES, "target.yml", "strategy.yml", "data-rules.yml", "flows.yml"):
         if (folder / name).exists() or _link(folder / name):
             try:
                 _scan_text(_regular(folder, name).read_text(encoding="utf-8"), secrets, case)
@@ -153,14 +163,30 @@ def _scan_originals(folder: Path, secrets: dict[str, str], case: Case) -> None:
                 raise EvalError("Receita ilegível; nada foi exportado.") from None
 
 
+def _knowledge_file(out: Path, product: str) -> str:
+    """Caminho relativo do conhecimento a exportar: `knowledge.yml` e, sem ele, a captura.
+
+    Raises:
+        EvalError: Nenhum dos dois existe no rastro (a mensagem diz quais faltam e o que fazer).
+    """
+    base = f"trace/profile/final/{product}"
+    for name in KNOWLEDGE_NAMES:
+        candidate = out / base / name
+        if candidate.exists() or _link(candidate):
+            return f"{base}/{name}"
+    raise EvalError(
+        f"Nenhum conhecimento no rastro: faltam {base}/knowledge.yml (ativo) e "
+        f"{base}/knowledge.captured.yml (captura de `hdast knowledge capture`). "
+        "O agente precisa capturar o conhecimento depois do run antes de coletar a rodada."
+    )
+
+
 def _source(out: Path, expected_case: str | None = None) -> tuple[str, dict[str, str]]:
     """Revalida a coleta e retorna produto e conteúdo, sem expor os dados lacrados."""
     case, secrets = _identity(out, expected_case)
     product = case.product
     try:
-        content = _regular(out, f"trace/profile/final/{product}/knowledge.yml").read_text(
-            encoding="utf-8"
-        )
+        content = _regular(out, _knowledge_file(out, product)).read_text(encoding="utf-8")
         data = yaml.load(content, Loader=UniqueLoader)  # noqa: S506 - herda SafeLoader
     except (OSError, UnicodeError, yaml.YAMLError):
         raise EvalError("Conhecimento ausente ou malformado.") from None

@@ -230,7 +230,7 @@ def build_probe(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Probe(
-        profiles=checked_profiles(root, None if dry_run else network.zap),
+        profiles=checked_profiles(root, None if dry_run else network.zap, fresh_stack=not dry_run),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -262,7 +262,7 @@ def build_cleanup(
     """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
     root = products_dir_or_default(products_dir)
     return Cleanup(
-        profiles=checked_profiles(root, with_knowledge=False),
+        profiles=checked_profiles(root, with_knowledge=False, fresh_stack=False),
         scripts=FileCleanupScripts(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),

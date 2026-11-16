@@ -159,6 +159,10 @@ class StackReport(BaseModel):
         state_file: Caminho do arquivo de estado da CLI.
         warnings: Avisos (por exemplo, pilha anterior que não pôde ser derrubada).
         lock: Quem ocupa a pilha agora (trava exclusiva, ADR 0035); `None` com a pilha livre.
+        binding: Frescor da pilha frente ao perfil e à aprovação atuais (ADR 0081): `fresh`,
+            `stale`, `unbound` ou `unreadable`; `None` sem pilha ou sem a conferência.
+        stale_parts: O que divergiu (`profile`, `approval`, `binding`); vazio se não está velha.
+        stale_message: O que houve e o que fazer, quando a pilha está desatualizada.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -179,6 +183,9 @@ class StackReport(BaseModel):
     state_file: str
     warnings: tuple[str, ...] = ()
     lock: StackLockInfo | None = None
+    binding: Literal["fresh", "stale", "unbound", "unreadable"] | None = None
+    stale_parts: tuple[str, ...] = ()
+    stale_message: str | None = None
 
 
 class StopReport(BaseModel):

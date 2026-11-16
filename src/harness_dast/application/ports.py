@@ -45,6 +45,7 @@ from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope_approval import ScopeApproval
 from harness_dast.domain.secret_ref import SecretRef
+from harness_dast.domain.stack_binding import StackDigests
 from harness_dast.domain.strategy import Strategy, StrategyReferences
 from harness_dast.domain.wait import WaitResult
 
@@ -559,6 +560,22 @@ class ProxyPolicyStore(Protocol):
 
     def kill_active(self, directory: Path) -> bool:
         """Diz se o arquivo `KILL` existe."""
+        ...
+
+
+class StackBindingSource(Protocol):
+    """Lê o vínculo que o `stack up` gravou e os arquivos de agora (ADR 0081). Só lê."""
+
+    def recorded(self, policy_dir: Path) -> StackDigests | None:
+        """Hashes que a política da pilha em `policy_dir` prende; `None` sem vínculo.
+
+        Raises:
+            ConfigError: Política ausente, grande demais ou inválida (o proxy falharia fechado).
+        """
+        ...
+
+    def current(self, product: str) -> StackDigests:
+        """Hashes dos arquivos de agora (perfil e aprovação); `None` no que não pôde ser lido."""
         ...
 
 

@@ -37,5 +37,16 @@ O detector cobre segredos conhecidos, formatos reconhecíveis e termos do caso; 
 garante detecção universal de todos os segredos. As entradas também passam pelos
 modelos fechados e limites acima. O perfil ativo deve ser gerado da carta vigente.
 
+Origem do conhecimento (V1.9.1): o agente nunca ativava o conhecimento, então
+`knowledge.yml` não existia no fim da rodada e o `export-reuse` recusava. As skills agora mandam
+capturar com `hdast knowledge capture <produto> --run <run_id>`, que gera
+`knowledge.captured.yml` sem ativar. O `export-reuse` lê `knowledge.yml` e, só se ele não existe,
+`knowledge.captured.yml`; havendo os dois vale o ativo, e um ativo grande demais ou inválido
+recusa sem cair na captura. A revalidação pelo modelo fechado, a varredura de segredos e termos
+do gabarito e o rebaixamento a `review_required` são os mesmos nos dois casos, e o arquivo
+exportado continua com o nome `knowledge.yml` (a proposta que o segundo contexto recebe). A
+recusa nomeia o arquivo que falta ou excede o limite. Nada disso ativa conhecimento nem concede
+permissão.
+
 Alternativa: copiar o diretório de perfil inteiro. Rejeitada porque levaria estado,
 possíveis credenciais e pistas, sem controle confiável do canal.
