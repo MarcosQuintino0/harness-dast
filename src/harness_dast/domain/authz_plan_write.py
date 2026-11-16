@@ -142,7 +142,7 @@ def _task(
             f"Não há outra conta do papel '{owner_role}' no perfil; cadastre uma segunda conta "
             "do mesmo papel em auth.accounts.",
         )
-    reader = update_reader(item, reads)
+    reader = update_reader(item, [read for read in reads if read.account == item.account])
     if reader is None:
         return skip_note(
             "horizontal_write",
