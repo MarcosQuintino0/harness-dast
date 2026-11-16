@@ -9,7 +9,7 @@ import yaml
 
 from evals.runner.approve import approve
 from evals.runner.cases import EvalError, RoundDirs, load_case
-from evals.runner.checks_findings import ACHADA, PARCIAL, flaw_status
+from evals.runner.checks_findings import ACHADA, NAO_ACHADA, PARCIAL, flaw_status
 from evals.runner.metrics_stages import parse_hdast
 from evals.runner.prepare import prepare
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
@@ -126,3 +126,28 @@ def test_espera_bloqueante_e_medida_na_fase_de_varredura_sem_valores_de_flags() 
     assert len(invocations) == 1
     assert invocations[0].stage == "varredura"
     assert invocations[0].signature == "wait --product --timeout"
+
+
+def test_regua_atual_mede_bola_provada_sem_alterar_a_falha_de_atribuicao_nao_provada() -> None:
+    flaws = {item.id: item for item in load_case("vampi").flaws}
+
+    assert flaws["V3"].detectable is True
+    assert flaws["V4"].detectable is False
+    assert (
+        flaw_status(
+            flaws["V3"],
+            [
+                {"technique": "authz_horizontal", "path_template": "/books/v1/{}"},
+            ],
+        )
+        == ACHADA
+    )
+    assert (
+        flaw_status(
+            flaws["V3"],
+            [
+                {"technique": "authz_horizontal", "path_template": "/users/v1/{}"},
+            ],
+        )
+        == NAO_ACHADA
+    )
