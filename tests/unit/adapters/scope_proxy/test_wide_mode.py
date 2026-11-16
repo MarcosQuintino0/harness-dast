@@ -292,7 +292,7 @@ def test_only_the_scope_proxy_imports_the_wide_guard_and_the_path_readings() -> 
 
 def test_cli_paths_never_read_the_path_mode() -> None:
     # Quem monta o guarda da CLI (probe, preflight, target_client, plano, redirecionamentos)
-    # usa `ScopeGuard`, que não conhece `path_mode`. Só a geração da política o lê.
+    # usa `ScopeGuard`, que não conhece `path_mode`. As demais leituras são enumeradas abaixo.
     readers = {
         path.relative_to(_SRC).as_posix()
         for path in _SRC.rglob("*.py")
@@ -310,6 +310,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "application/doctor_checks.py",  # só lê o modo para avisar; não monta guarda
         "application/scan.py",
         "application/metrics.py",  # só copia o modo para o metrics.json (ADR 0031)
+        "domain/envelope.py",  # só copia o modo ao resumo; não constrói guarda
         "domain/panel_build.py",  # só copia o modo gravado na execução para o painel
         "domain/letter.py",  # carta estruturada (ADR 0036): só descreve a resposta
         "domain/letter_review.py",  # só repassa o modo ao perfil gerado
