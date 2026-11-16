@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -40,7 +41,7 @@ def test_v19_investiga_regra_dirigida(
         ident for ident in baseline_rules() if ident != rule
     ]
     path.write_text(yaml.safe_dump(profile, allow_unicode=True), encoding="utf-8")
-    record = {
+    record: dict[str, Any] = {
         "product": product,
         "operation": operation,
         "rule": rule,
