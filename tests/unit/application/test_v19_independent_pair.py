@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.probe_ports import FakeTarget, reply
 from tests.fakes.rig import INT, STR, operation
@@ -83,9 +81,10 @@ def test_v19_independent_journal_failure_prevents_mutation() -> None:
             raise AssertionError("não há resultado sem intenção")
 
     rig = make_rig("api/widgets", exposed=True)
-    with pytest.raises(ConfigError):
-        execute(rig, "api/widgets", journal=UnavailableJournal())
+    result = execute(rig, "api/widgets", journal=UnavailableJournal())
 
+    assert result.status == "stopped_zap"
+    assert any(n.reason == "mutation_outcome_unknown" for n in result.not_tested)
     assert not [
         request
         for request in rig.target.requests
