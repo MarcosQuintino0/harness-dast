@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ import pytest
 
 import harness_dast.adapters.scope_proxy.approval_watch as watch_module
 import harness_dast.adapters.scope_proxy.generate as generate_module
+import tests.integration.stale_watch_support as diagnostic_module
 from harness_dast.adapters.scope_proxy.approval_watch import FileWatch, file_signature
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.policy import load_policy
@@ -72,7 +74,13 @@ def test_diagnostico_sanitizado_quando_fontes_sinteticas_estao_validas(tmp_path:
     result = diagnose(policy_path, approvals, products / "demo", 0)
 
     assert result["policy_valid"] is True
-    assert result["approval_metadata"] == {
+    # O auxiliar tipa a saída como object; este campo contém só indicadores booleanos.
+    metadata = cast(dict[str, bool], result["approval_metadata"])
+    ctime_matches = metadata["ctime_matches_descriptor"]
+    assert type(ctime_matches) is bool
+    if sys.platform != "win32":
+        assert ctime_matches is True
+    assert {key: value for key, value in metadata.items() if key != "ctime_matches_descriptor"} == {
         "accessible": True,
         "descriptor_stable": True,
         "path_matches_descriptor": True,
@@ -80,7 +88,6 @@ def test_diagnostico_sanitizado_quando_fontes_sinteticas_estao_validas(tmp_path:
         "inode_matches_descriptor": True,
         "size_matches_descriptor": True,
         "mtime_matches_descriptor": True,
-        "ctime_matches_descriptor": True,
     }
     output = json.dumps(result)
     assert raw.decode() not in output
@@ -129,12 +136,28 @@ def test_releitura_aceita_ctime_divergente_no_windows(
 
     monkeypatch.setattr(watch_module, "file_signature", windows_signature)
     monkeypatch.setattr(generate_module, "file_signature", windows_signature)
+    monkeypatch.setattr(diagnostic_module, "file_signature", windows_signature)
     monkeypatch.setattr(Path, "stat", stat_with_different_ctime)
 
     snapshot, _ = generate_module._read_snapshot(path)
     watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    metadata = diagnostic_module.inspect_metadata(path)
     assert snapshot == raw
     assert watch.failure() is None
+    assert metadata == {
+        "accessible": True,
+        "descriptor_stable": True,
+        "path_matches_descriptor": True,
+        "device_matches_descriptor": True,
+        "inode_matches_descriptor": True,
+        "size_matches_descriptor": True,
+        "mtime_matches_descriptor": True,
+        "ctime_matches_descriptor": False,
+    }
+    output = json.dumps(metadata)
+    assert raw.decode() not in output
+    assert hashlib.sha256(raw).hexdigest() not in output
+    assert str(path) not in output
 
 
 def test_hash_recusa_mutacao_com_tamanho_e_mtime_preservados(
