@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from evals.runner.cases import load_case
+from evals.runner.cases import EvalError, load_case
 from evals.runner.checks_findings import matches
 from evals.runner.models import Case, Flaw, Matcher
 from harness_dast.domain.report.model import FindingsReport
@@ -66,6 +66,14 @@ def _specific(matcher: Matcher) -> bool:
     )
 
 
+def _known_pilot_flaw(case: Case, flaw: Flaw) -> bool:
+    try:
+        original = load_case("clinica-piloto")
+    except (EvalError, OSError, UnicodeError):
+        return False
+    return case.target == original.target and flaw in original.flaws
+
+
 def _truth(case: Case, mode: str, finding: dict[str, Any]) -> tuple[str, str, str]:
     hits: list[Flaw] = []
     partial = False
@@ -90,8 +98,7 @@ def _truth(case: Case, mode: str, finding: dict[str, Any]) -> tuple[str, str, st
         mode == "secure"
         and case.name == "clinica-piloto"
         and flaw.id in PILOT_CORRECTED
-        and case.target == load_case("clinica-piloto").target
-        and flaw in load_case("clinica-piloto").flaws
+        and _known_pilot_flaw(case, flaw)
         and (finding.get("method"), finding.get("path_template"), finding.get("parameter"))
         == PILOT_CORRECTED[flaw.id]
     ):
