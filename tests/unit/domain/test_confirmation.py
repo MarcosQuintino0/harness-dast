@@ -469,6 +469,9 @@ def test_prova_distingue_corpos_sem_expor_segredo() -> None:
     assert result.level == "reproduced"
     assert result.attack is not None
     assert result.control is not None
-    assert "sha256:" in result.attack
+    from hashlib import sha256
+
+    assert sha256(b"token-secreto").hexdigest()[:16] in result.attack
+    assert sha256(b"outro-secreto").hexdigest()[:16] in result.control
     assert "token-secreto" not in result.model_dump_json()
     assert "outro-secreto" not in result.model_dump_json()
