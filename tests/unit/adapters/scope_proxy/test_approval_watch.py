@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,9 +13,11 @@ import harness_dast.adapters.scope_proxy.generate as generate_module
 from harness_dast.adapters.scope_proxy.approval_watch import FileWatch, file_signature
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.policy import load_policy
+from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.domain.run import RunId
 from harness_dast.domain.scope_approval import create_approval
 from tests.fakes.profile_data import valid_profile
+from tests.integration.stale_watch_support import diagnose
 
 NOW = datetime(2026, 11, 16, 12, tzinfo=UTC)
 
@@ -48,6 +51,40 @@ def test_watcher_recusa_conteudo_malformado_mesmo_com_hash_correto(tmp_path: Pat
     path.write_bytes(raw)
     watch = FileWatch(path, hashlib.sha256(raw).hexdigest(), product="demo")
     assert not watch.unchanged()
+
+
+def test_leitura_da_aprovacao_nao_invalida_watcher_em_arquivo_local(tmp_path: Path) -> None:
+    _, approvals, raw = _sources(tmp_path)
+    watch = FileWatch(approvals / "demo.json", hashlib.sha256(raw).hexdigest(), product="demo")
+
+    assert FileApprovalStore(tmp_path).read("demo") is not None
+    assert watch.unchanged()
+
+
+def test_diagnostico_sanitizado_quando_fontes_sinteticas_estao_validas(tmp_path: Path) -> None:
+    products, approvals, raw = _sources(tmp_path)
+    profile = valid_profile()
+    store = FileProxyPolicyStore(products, approvals, lambda _: profile)
+    run_id = RunId.create(started_at=NOW, product="demo", suffix="abcdef")
+    policy_path = store.publish(profile, run_id, NOW, tmp_path / "policy")
+
+    result = diagnose(policy_path, approvals, products / "demo", 0)
+
+    assert result["policy_valid"] is True
+    assert result["approval_metadata"] == {
+        "accessible": True,
+        "descriptor_stable": True,
+        "path_matches_descriptor": True,
+        "device_matches_descriptor": True,
+        "inode_matches_descriptor": True,
+        "size_matches_descriptor": True,
+        "mtime_matches_descriptor": True,
+        "ctime_matches_descriptor": True,
+    }
+    output = json.dumps(result)
+    assert raw.decode() not in output
+    assert hashlib.sha256(raw).hexdigest() not in output
+    assert "profile bytes" not in output
 
 
 def test_publish_vincula_aprovacao_validada_e_perfil_congelado(tmp_path: Path) -> None:
