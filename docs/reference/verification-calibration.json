@@ -1,6 +1,28 @@
 {
   "schema_version": 1,
-  "status": "blocked",
-  "provenance": "Medição bloqueada por falta de aprovação humana; nenhuma execução anterior usada como linha de base.",
-  "measurements": []
+  "status": "measured",
+  "provenance": "Medido só no laboratório (Clínica Piloto e VAmPI), em 2026-11-17, sem produto real; amostras pequenas, por isso contagens e não taxas. Ver docs/reference/verification-calibration.md.",
+  "measurements": [
+    {
+      "finding_type": "Autorização entre contas com recibo (Clínica Piloto)",
+      "criterion": "reproduzido coincide com falha plantada; as outras 2 são médicos que compartilham pacientes sem shared_roles declarado",
+      "correct": 3,
+      "sample": 5,
+      "provenance": "execuções 3454 (vulnerável) e 143c (segura), código e79c5b0"
+    },
+    {
+      "finding_type": "SQL Injection em parâmetro de consulta (receita booleana)",
+      "criterion": "falha plantada recebe reproduzido",
+      "correct": 0,
+      "sample": 1,
+      "provenance": "execução 3454, inconclusivo: semente sem linhas e consulta com LIKE; código e79c5b0"
+    },
+    {
+      "finding_type": "Clínica Piloto segura com shared_roles declarado pela carta",
+      "criterion": "execução completa sem nenhum reproduzido",
+      "correct": 1,
+      "sample": 1,
+      "provenance": "execução 7ee5, 63 achados do ZAP e nenhum de autorização; código 80929bb"
+    }
+  ]
 }

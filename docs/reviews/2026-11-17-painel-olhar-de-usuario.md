@@ -2,15 +2,17 @@
 
 Data: 2026-11-17. Base de código: `develop` `44ef387`, conferida por fetch, em worktree destacada. Este registro distingue preparação e provas executadas.
 
-## Linha de base operacional pendente
+## Linha de base operacional
 
-| Alvo e modo previstos | run_id operacional | Achados | Situação |
-| --- | --- | --- | --- |
-| Clínica Piloto vulnerável | Não iniciado | Não medidos | Perfil local `not_approved` |
-| Clínica Piloto seguro | Não iniciado | Não medidos | Perfil local `not_approved` |
-| VAmPI vulnerável | Não iniciado | Não medidos | Perfil local `not_approved` |
+Executadas na retomada pelo Claude Code, sobre `44ef387`, com aprovações descartáveis do suporte de integração no estado do teste (sem `profile approve`). Resumos em `C:\harness-dast-artefatos\v1-11\lab-followup\baseline\validation-index.json`.
 
-O Docker respondeu e não havia pilhas em `docker compose ls -a`. Os perfis foram copiados do laboratório sem alteração de blocos protegidos; `hdast profile approval` informou falta de aprovação por pessoa para ambos. O coordenador preparou o roteiro de aprovação em `C:\harness-dast-artefatos\v1-11\aprovar-laboratorio.ps1` e solicitou a intervenção humana. Não executou `profile approve`, não gravou aprovações por dublê e não iniciou tráfego contra os alvos. Nenhuma contagem de falso positivo do modo seguro foi obtida. Ausência de execução não é zero achados.
+| Alvo e modo | run_id | ZAP | Autorização | Sinais do proxy | Situação |
+| --- | --- | --- | --- | --- | --- |
+| Clínica Piloto vulnerável | `2026-11-17T05-02-42Z-clinica-piloto-80a9` | 98 (5 altos) | 4 | 29 | scan concluído, 28 entradas; cobertura parcial |
+| Clínica Piloto segura | `2026-11-17T05-24-04Z-clinica-piloto-ab47` | 63 | 1 | 0 | scan concluído, 27 entradas; a tentativa anterior (`2142`) parou em `STACK_STALE` e ficou preservada como rejeitada |
+| VAmPI vulnerável | `2026-11-17T05-35-12Z-vampi-1fd0` | 30 | 3 | 4 | scan concluído, 10 entradas |
+
+A inspeção visual dos painéis por uma pessoa continua pendente. O caminho do painel de uma execução com `verification.json` está no [relatório da V1.11](relatorio-v1.11.md).
 
 ## Preparação da revisão de interface
 

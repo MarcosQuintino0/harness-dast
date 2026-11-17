@@ -51,13 +51,13 @@ As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-s
 
 Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
 
-Estado consolidado inclui o trabalho parcial da V1.11. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
+Estado consolidado inclui a V1.11, provada só no laboratório. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
 
-### V1.11: verificação de achados em andamento
+### V1.11: verificação de achados (provada só no laboratório)
 
 Código das fases A, B, C e E integrado: classificação aditiva, `hdast confirm`, declaração humana separada e apresentação no painel e nos relatórios. As receitas e restrições estão em [verificação](reference/verification.md); os ADRs 0085 a 0091 permanecem propostos. A régua privada `triage_accuracy` é suplementar e preserva a grade histórica. O recibo da semente efetivamente varrida é obrigatório para confirmação ativa; execuções antigas sem recibo recusam tráfego.
 
-**Parcial:** a aprovação humana dos perfis locais não foi obtida; fase 0, calibração D e prova operacional F não foram executadas. Não há `run_id`, contagens nem matriz medidos nesta rodada. A fixture sintética offline não é prova de laboratório e a inspeção visual não foi concluída. QA e validação independente encontraram defeitos corrigidos; o reteste permite continuar no escopo revisado. Gates consolidados anteriores passaram; os comprovantes finais e limites estão no [relatório da V1.11](reviews/relatorio-v1.11.md). Não há release publicada, PR ou merge desta versão. Sem rodada cega nesta fase e sem produto real. A V1.10 permanece fechada.
+**Provado só no laboratório (Clínica Piloto e VAmPI, 2026-11-17):** fase 0 com três linhas de base completas, fase D com a matriz por tipo em [calibração](reference/verification-calibration.md) e fase F nos modos vulnerável e seguro. Resultado honesto: só recibos de autorização chegaram a `reproduced`; o único SQL elegível a receita ativa ficou `inconclusive`; os demais SQL, XSS, travessia, hash e cabeçalho saíram `not_verifiable`; `likely_false_positive` nunca ocorreu, então a capacidade de descartar não foi medida. O achado de autorização do modo seguro (`buscarPaciente` entre médicos) é a ausência de `authz.shared_roles` no perfil do laboratório, não defeito: com a declaração da carta, a execução segura tem zero achados de autorização e zero `reproduced`. Limites, gates e commits no [relatório da V1.11](reviews/relatorio-v1.11.md). Não há release publicada, PR ou merge desta versão, nem rodada cega, nem produto real. A V1.10 permanece fechada.
 
 ### Fundação (M1)
 
