@@ -1,4 +1,5 @@
 import subprocess
+from base64 import b64encode
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -6,7 +7,8 @@ import pytest
 
 from harness_dast.adapters.docker.compose import CommandResult, DockerComposeCli
 from harness_dast.application.stack_models import ComposeProject
-from harness_dast.domain.errors import ExternalToolError
+from harness_dast.cli.output import build_failure
+from harness_dast.domain.errors import ExitCode, ExternalToolError
 
 PROJECT = ComposeProject(
     name="hdast",
@@ -64,6 +66,39 @@ def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:
 
     assert SECRET not in error.value.message
     assert error.value.hint
+
+
+def _call_operation(compose: DockerComposeCli, operation: str) -> None:
+    if operation == "up":
+        compose.up(PROJECT, {}, build=False, timeout_seconds=10)
+    elif operation == "down":
+        compose.down(PROJECT, {}, timeout_seconds=10)
+    else:
+        compose.status(PROJECT, {})
+
+
+@pytest.mark.parametrize("operation", ["up", "down", "status"])
+@pytest.mark.parametrize("secret", ["Q7", "senha-sintetica-43"])
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_falha_omite_saida_com_credencial_herdada_e_codificada(
+    operation: str, secret: str, stream: str
+) -> None:
+    encoded = b64encode(secret.encode()).decode()
+    raw = f"credencial={secret} codificada={encoded} marcador-de-erro"
+    result = CommandResult(42, raw if stream == "stdout" else "", raw if stream == "stderr" else "")
+    runner = Recorder(result)
+    compose = DockerComposeCli({"PATH": "", "CRAPI_DB_PASSWORD": secret}, runner)
+
+    with pytest.raises(ExternalToolError) as error:
+        _call_operation(compose, operation)
+
+    assert runner.calls[0][1]["CRAPI_DB_PASSWORD"] == secret
+    envelope = build_failure(error.value).model_dump_json()
+    assert error.value.exit_code == ExitCode.EXTERNAL_TOOL
+    assert "42" in error.value.message
+    assert secret not in envelope
+    assert encoded not in envelope
+    assert "marcador-de-erro" not in envelope
 
 
 def test_down_remove_volumes_somente_quando_projeto_os_declara_descartaveis() -> None:

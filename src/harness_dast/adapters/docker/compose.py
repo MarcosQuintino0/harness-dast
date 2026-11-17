@@ -3,7 +3,7 @@
 Garantias: nunca usa shell (lista de argumentos), toda chamada tem prazo, o ambiente extra
 (chave do ZAP, senhas descartáveis) vai SÓ no ambiente do processo filho e jamais na linha de
 comando, e toda falha vira `ExternalToolError` com orientação. A saída bruta do docker não é
-repassada (pode conter valores interpolados); só um trecho curto e sem o ambiente extra.
+repassada, pois pode conter credenciais herdadas ou transformadas.
 """
 
 import json
@@ -19,7 +19,6 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError
 
 STATUS_TIMEOUT_SECONDS = 30
 _GRACE_SECONDS = 30
-_MAX_DETAIL_CHARS = 300
 
 
 @dataclass(frozen=True)
@@ -143,7 +142,7 @@ class DockerComposeCli:
         if result.returncode != 0:
             raise ExternalToolError(
                 f"O docker compose falhou ao {verb} o projeto {project.name}: "
-                f"{_detail(result, env)}",
+                f"código de saída {result.returncode}.",
                 hint="Confira se o Docker Desktop está em execução (docker info) e os logs "
                 "do projeto (docker compose -p NOME logs).",
             )
@@ -157,14 +156,6 @@ def _prefix(project: ComposeProject) -> list[str]:
     for profile in project.profiles:
         command.extend(["--profile", profile])
     return command
-
-
-def _detail(result: CommandResult, env: Mapping[str, str]) -> str:
-    text = " ".join((result.stderr or result.stdout).split())
-    for value in env.values():
-        if value and len(value) >= 4:
-            text = text.replace(value, "***")
-    return text[:_MAX_DETAIL_CHARS] or f"código de saída {result.returncode}"
 
 
 def _parse_status(project: str, stdout: str) -> tuple[ServiceStatus, ...]:
