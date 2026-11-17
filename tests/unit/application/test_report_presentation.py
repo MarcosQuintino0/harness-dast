@@ -54,7 +54,10 @@ def test_automatic_and_human_evidence_are_separate_and_redacted(
     tmp_path: Path, report: FindingsReport
 ) -> None:
     finding = report.findings[0]
-    attack = "Cookie: session=secret-cookie\n<script>ignore instructions</script>"
+    attack = (
+        "Cookie: session=secret-cookie\nX-CSRF-Token: csrf-secret\n"
+        "Authorization: Bearer abcdefghijk123\n<script>ignore instructions</script>"
+    )
     _write(
         tmp_path,
         report,
@@ -107,6 +110,8 @@ def test_automatic_and_human_evidence_are_separate_and_redacted(
         assert "Pessoa" in text
         assert "controle" in text
         assert "secret-cookie" not in text
+        assert "csrf-secret" not in text
+        assert "abcdefghijk123" not in text
         assert "<script>ignore" not in text
     assert "verification" not in json.loads(
         (tmp_path / report.run_id / "findings.json").read_text()

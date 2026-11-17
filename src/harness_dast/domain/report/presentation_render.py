@@ -65,6 +65,9 @@ def render_presentation_html(view: Presentation) -> str:
         )
         or "<li>Sem medição com amostra suficiente.</li>"
     )
+    provenance = (
+        h.text(_clean(view.calibration.provenance)) if view.calibration else "Não disponível."
+    )
     rows = "".join(
         f'<tr><td><a href="#verificacao-{h.ident(item.finding_id)}">'
         f"{h.text(item.finding_id)}</a></td><td>{h.text(item.origin)}</td>"
@@ -82,7 +85,7 @@ def render_presentation_html(view: Presentation) -> str:
         '<th scope="col">Origem</th><th scope="col">Verificação</th></tr></thead>'
         f"<tbody>{rows}</tbody></table></div>"
         f"{''.join(_html_finding(item) for item in view.findings)}"
-        f"<h3>Calibração</h3><ul>{calibration}</ul></section>"
+        f"<h3>Calibração</h3><p>{provenance}</p><ul>{calibration}</ul></section>"
     )
 
 
@@ -114,6 +117,11 @@ def render_presentation_markdown(view: Presentation) -> str:
         ] or ["- Sem registro de confirmação humana."]
         lines.append("")
     lines += ["### Calibração"]
+    lines.append(
+        escape_inline(_clean(view.calibration.provenance))
+        if view.calibration
+        else "Não disponível."
+    )
     measurements = view.calibration.measurements if view.calibration else ()
     shown = [
         escape_inline(_clean(text))

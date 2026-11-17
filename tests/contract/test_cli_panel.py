@@ -65,7 +65,8 @@ def write_run(runs: Path, run_id: str = RUN_ID, *, product: str = "vampi") -> Pa
     (folder / "scan.json").write_text(
         scan.model_copy(update={"product": product}).model_dump_json(), encoding="utf-8"
     )
-    (folder / "findings.json").write_text(findings_report().model_dump_json(), encoding="utf-8")
+    findings = findings_report().model_copy(update={"product": product, "run_id": run_id})
+    (folder / "findings.json").write_text(findings.model_dump_json(), encoding="utf-8")
     (folder / "run.json").write_text(
         run_summary(run_id=run_id, product=product).model_dump_json(), encoding="utf-8"
     )
