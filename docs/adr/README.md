@@ -113,6 +113,13 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
 | [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
 
+## Reservas da trilha L da V1.12
+
+Reserva de 2026-11-17 para evitar colisão com os ADRs 0085–0089 da V1.11 concorrente:
+0090 para o contrato do crAPI na pilha, 0091 para o retorno OAST isolado e 0092 para
+a operação de cabeçalho e a versão do caso da Clínica. As decisões serão propostas;
+a reserva não implica aceite nem implementação.
+
 ## Quando escrever um ADR
 
 - Dependência nova.
