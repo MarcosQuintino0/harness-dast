@@ -5,6 +5,7 @@ precisam ser revisadas em conjunto.
 """
 
 from collections.abc import Callable
+from copy import copy
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -27,18 +28,20 @@ from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.confirmation import (
     ConfirmationPlan,
-    classify_authz_confirmation,
     judge_confirmation,
     merge_confirmation_entries,
     plan_confirmation,
     recipe_targets,
     select_confirmation_findings,
 )
+from harness_dast.domain.confirmation_observations import (
+    classify_authz_confirmation,
+    classify_recorded_finding,
+)
 from harness_dast.domain.errors import (
     ConfigError,
-    ExternalToolError,
-    PreflightError,
-    ScopeViolation,
+    HarnessError,
+    TargetError,
 )
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
@@ -120,7 +123,7 @@ class Confirmation:
         candidates = self._candidates(report, request.product, run_id)
         selected = select_confirmation_findings(candidates, request.maximum, request.finding)
         current = self._load(request)
-        dispatcher, sessions = self._network(profile, request, started)
+        dispatcher, sessions, gate = self._network(profile, request, started)
         for finding in selected:
             self._finding_start = sum(self.traffic)
             if isinstance(finding, AuthzFinding):
@@ -137,22 +140,27 @@ class Confirmation:
                     ),
                 )
                 continue
+            recorded = classify_recorded_finding(finding)
+            if recorded is not None:
+                current = self._save(request, current, recorded)
+                continue
             planned = plan_confirmation(
-                finding, exchanges.exchanges, scan.entries, self._d.marker()
+                finding,
+                exchanges.exchanges,
+                scan.entries,
+                self._d.marker(),
+                profile.environment.base_url,
             )
             if isinstance(planned, VerificationEntry):
                 entry = planned
-                stopped = False
+                stopped = None
             else:
                 entry, stopped = self._run(
-                    planned, finding.fingerprint, dispatcher, sessions, profile
+                    planned, finding.fingerprint, dispatcher, sessions, profile, gate
                 )
             current = self._save(request, current, entry)
             if stopped:
-                raise ConfigError(
-                    "Confirmação interrompida; resultado parcial em verification.json.",
-                    hint="Confira autorização, pilha e conectividade antes de tentar novamente.",
-                )
+                raise stopped
         return current
 
     def _candidates(
@@ -203,7 +211,7 @@ class Confirmation:
 
     def _network(
         self, profile: ProductProfile, request: ConfirmationRequest, started: datetime
-    ) -> tuple[OperationDispatcher, SessionPool]:
+    ) -> tuple[OperationDispatcher, SessionPool, RunGate]:
 
         def revalidate() -> None:
             if sum(self.traffic) - self._finding_start >= 12:
@@ -221,12 +229,11 @@ class Confirmation:
             sequence=sequence,
             on_decision=self._count_request,
         )
+        gate = RunGate(profile, self._d.clock, started, self._d.kill_switch, revalidate=revalidate)
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._d.client,
-            gate=RunGate(
-                profile, self._d.clock, started, self._d.kill_switch, revalidate=revalidate
-            ),
+            gate=gate,
             limiter=RateLimiter(profile.limits.requests_per_second, self._d.clock, self._d.sleeper),
             trail=trail,
             clock=self._d.clock,
@@ -252,7 +259,7 @@ class Confirmation:
                 token_cache=self._d.token_cache,
             )
         )
-        return dispatcher, pool
+        return dispatcher, pool, gate
 
     def _run(
         self,
@@ -261,8 +268,17 @@ class Confirmation:
         dispatcher: OperationDispatcher,
         sessions: SessionPool,
         profile: ProductProfile,
-    ) -> tuple[VerificationEntry, bool]:
+        gate: RunGate,
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
         responses: list[HttpResponse | None] = []
+        try:
+            profile.select_account(plan.exchange.account)
+        except ConfigError:
+            return VerificationEntry(
+                fingerprint=fingerprint,
+                level="not_verifiable",
+                reason="A conta comprovada pelo scan não existe no perfil atual.",
+            ), None
         try:
             requests = tuple(
                 HttpRequest(
@@ -275,17 +291,34 @@ class Confirmation:
             )
             for request in requests:
                 approve(profile.guard(), request)
+            gate.check()
             session = sessions.get(plan.exchange.account)
             for request in requests:
                 outcome = dispatcher.send(request, session, max_attempts=1, allow_reauth=False)
                 responses.append(outcome.response)
                 if outcome.response is None:
-                    return judge_confirmation(plan, tuple(responses), fingerprint), True
-        except (ScopeViolation, ExternalToolError, PreflightError, ConfigError):
+                    error = outcome.transport_error or TargetError("Alvo não respondeu.")
+                    return judge_confirmation(plan, tuple(responses), fingerprint), _safe_error(
+                        error
+                    )
+        except (HarnessError, KeyboardInterrupt) as error:
             partial = judge_confirmation(plan, tuple(responses), fingerprint)
+            stopped = _safe_error(error) if isinstance(error, HarnessError) else error
             return partial.model_copy(
                 update={
                     "reason": "Confirmação interrompida por escopo, pilha, prazo, janela ou sessão."
                 }
-            ), True
-        return judge_confirmation(plan, tuple(responses), fingerprint), False
+            ), stopped
+        return judge_confirmation(plan, tuple(responses), fingerprint), None
+
+
+def _safe_error(error: HarnessError) -> HarnessError:
+    """Preserva tipo e código sem expor texto proveniente de sistemas externos."""
+    safe = copy(error)
+    safe.message = (
+        f"Confirmação interrompida ({type(error).__name__}, {error.code}); "
+        "prova parcial em verification.json."
+    )
+    safe.hint = "Confira a causa da interrupção antes de tentar novamente."
+    safe.args = (safe.message,)
+    return safe

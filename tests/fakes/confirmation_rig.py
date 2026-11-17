@@ -17,6 +17,7 @@ from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_result import ScanEntry
 from tests.fakes.rig import default_handler
 from tests.fakes.scan_rig import ScanRig
@@ -84,6 +85,12 @@ class ConfirmationRig:
             scan_id="1",
             outcome="completed",
             requests=1,
+            seed_binding=bind_scan_seed(
+                "listar",
+                "GET",
+                self.rig.profiles.load("agenda").environment.base_url + "/api/pacientes?q=normal",
+                "user_a",
+            ),
         )
         self.rig.artifacts.scans[self.run_id] = scan.model_copy(update={"entries": (entry,)})
         exchange = ExchangeRecord(
@@ -173,3 +180,23 @@ def recipe_target(mode: str) -> Callable[[HttpRequest, dict[str, str]], HttpResp
         return HttpResponse(status=200, body=b"ok")
 
     return handle
+
+
+class RevocableProfiles:
+    """Dublê que permite revogar a aprovação antes ou durante a confirmação."""
+
+    def __init__(self, source: ProfileRepository) -> None:
+        self.source = source
+        self.revoked = False
+
+    def load(self, product: str) -> ProductProfile:
+        """Recusa sem tráfego quando uma pessoa revogou a aprovação."""
+        if self.revoked:
+            from harness_dast.domain.errors import ScopeNotApproved
+
+            raise ScopeNotApproved("Aprovação revogada.")
+        return self.source.load(product)
+
+    def missing_files(self, product: str, profile: ProductProfile) -> tuple[ReferencedFile, ...]:
+        """Delega a inspeção ao falso de perfil."""
+        return self.source.missing_files(product, profile)

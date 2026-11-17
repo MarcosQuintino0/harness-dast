@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.verification import VerificationFile
 from tests.fakes.confirmation_rig import ConfirmationRig
 
@@ -24,7 +24,7 @@ def test_confirma_e_persiste_quando_controle_booleano_diverge(tmp_path: Path) ->
 def test_trava_impede_envio_quando_acionada(tmp_path: Path) -> None:
     rig = ConfirmationRig(tmp_path, stopped=True)
     before = len(rig.rig.target.requests)
-    with pytest.raises(ConfigError, match="interrompida"):
+    with pytest.raises(ScopeViolation, match="KillSwitchEngaged"):
         rig.execute()
     assert rig.store.read().entries[0].level == "inconclusive"
     assert len(rig.rig.target.requests) == before
@@ -61,9 +61,9 @@ def test_escopo_negado_nao_abre_sessao_quando_semente_esta_fora(tmp_path: Path) 
     finding = report.findings[0].model_copy(update={"path_template": "/fora"})
     rig.rig.artifacts.findings[rig.run_id] = report.model_copy(update={"findings": (finding,)})
     before = len(rig.rig.target.requests)
-    with pytest.raises(ConfigError, match="interrompida"):
-        rig.execute()
-    assert rig.store.read().entries[0].level == "inconclusive"
+    result = rig.execute()
+    assert isinstance(result, VerificationFile)
+    assert result.entries[0].level == "not_verifiable"
     assert len(rig.rig.target.requests) == before
 
 
@@ -108,7 +108,7 @@ def test_pilha_desatualizada_para_antes_do_login(tmp_path: Path) -> None:
     rig = ConfirmationRig(tmp_path)
     service = rig.service(profiles=StaleProfiles(rig.rig.profiles))
     before = len(rig.rig.target.requests)
-    with pytest.raises(ConfigError, match="interrompida"):
+    with pytest.raises(ConfigError, match="ConfigError"):
         service.execute(ConfirmationRequest(product="agenda", run_id=rig.run_id))
     assert len(rig.rig.target.requests) == before
     assert rig.store.read().entries[0].level == "inconclusive"
@@ -190,3 +190,137 @@ def test_comparacao_authz_valida_nao_gera_novo_trafego(tmp_path: Path) -> None:
     assert isinstance(result, VerificationFile)
     assert result.entries[0].level == "reproduced"
     assert len(rig.rig.target.requests) == before
+
+
+def test_interrupcao_apos_primeira_resposta_preserva_controle_e_codigo(tmp_path: Path) -> None:
+    from harness_dast.application.run_support import KillSwitchEngaged
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from tests.fakes.confirmation_rig import confirmation_target
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        result = confirmation_target(request, jar)
+        if request.operation_id.startswith("confirm:"):
+            rig.switch.stopped = True
+        return result
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    with pytest.raises(KillSwitchEngaged):
+        rig.execute()
+    entry = rig.store.read().entries[0]
+    assert entry.level == "inconclusive"
+    assert entry.control is not None
+    assert "HTTP 200" in entry.control
+    assert entry.attack is not None
+    assert "não realizado" in entry.attack
+
+
+def test_scan_registra_recibo_do_alvo_entregue_ao_zap() -> None:
+    from harness_dast.domain.scan_binding import bind_scan_seed
+    from tests.fakes.scan_rig import ScanRig
+
+    rig = ScanRig()
+    rig.run_probe()
+    result = rig.run_scan()
+    assert result.entries
+    for entry, started in zip(result.entries, rig.zap.started, strict=True):
+        assert entry.seed_binding is not None
+        expected = bind_scan_seed(
+            entry.operation_id, started.method, started.url, entry.seed_binding.account
+        )
+        assert entry.seed_binding == expected
+
+
+def test_sem_recibo_nao_abre_sessao(tmp_path: Path) -> None:
+    rig = ConfirmationRig(tmp_path)
+    scan = rig.rig.artifacts.scans[rig.run_id]
+    entry = scan.entries[0].model_copy(update={"seed_binding": None})
+    rig.rig.artifacts.scans[rig.run_id] = scan.model_copy(update={"entries": (entry,)})
+    before = len(rig.rig.target.requests)
+    result = rig.execute()
+    assert isinstance(result, VerificationFile)
+    assert result.entries[0].level == "not_verifiable"
+    assert len(rig.rig.target.requests) == before
+
+
+def test_ctrl_c_preserva_prova_parcial(tmp_path: Path) -> None:
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from tests.fakes.confirmation_rig import confirmation_target
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        if request.operation_id.startswith("confirm:"):
+            raise KeyboardInterrupt
+        return confirmation_target(request, jar)
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    with pytest.raises(KeyboardInterrupt):
+        rig.execute()
+    entry = rig.store.read().entries[0]
+    assert entry.level == "inconclusive"
+    assert entry.attack is not None
+    assert entry.control is not None
+
+
+def test_escopo_recusado_preserva_erro_e_prova_antes_de_sessao(tmp_path: Path) -> None:
+    from harness_dast.domain.scan_binding import bind_scan_seed
+
+    rig = ConfirmationRig(tmp_path)
+    log = rig.rig.store.exchanges[rig.run_id]
+    exchange = log.exchanges[0].model_copy(update={"path": "/fora", "target": "/fora?q=ok"})
+    rig.rig.store.exchanges[rig.run_id] = log.model_copy(update={"exchanges": (exchange,)})
+    scan = rig.rig.artifacts.scans[rig.run_id]
+    base = rig.rig.profiles.load("agenda").environment.base_url
+    entry = scan.entries[0].model_copy(
+        update={
+            "path": "/fora",
+            "seed_binding": bind_scan_seed("listar", "GET", base + "/fora?q=ok", "user_a"),
+        }
+    )
+    rig.rig.artifacts.scans[rig.run_id] = scan.model_copy(update={"entries": (entry,)})
+    report = rig.rig.artifacts.findings[rig.run_id]
+    finding = report.findings[0].model_copy(update={"path_template": "/fora"})
+    rig.rig.artifacts.findings[rig.run_id] = report.model_copy(update={"findings": (finding,)})
+    before = len(rig.rig.target.requests)
+    with pytest.raises(ScopeViolation) as error:
+        rig.execute()
+    assert error.value.exit_code == 3
+    assert rig.store.read().entries[0].level == "inconclusive"
+    assert len(rig.rig.target.requests) == before
+
+
+def test_orcamento_inclui_login_e_receita(tmp_path: Path) -> None:
+    from harness_dast.application.confirmation import ConfirmationRequest
+
+    rig = ConfirmationRig(tmp_path)
+    service = rig.service()
+    before = len(rig.rig.target.requests)
+    service.execute(ConfirmationRequest(product="agenda", run_id=rig.run_id))
+    recipes, sessions = service.traffic
+    assert sessions > 0
+    assert recipes == 5
+    assert recipes + sessions <= 12
+    assert len(rig.rig.target.requests) - before == recipes + sessions
+
+
+def test_revogacao_no_meio_preserva_codigo_e_resposta_parcial(tmp_path: Path) -> None:
+    from harness_dast.application.confirmation import ConfirmationRequest
+    from harness_dast.domain.errors import ScopeNotApproved
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from tests.fakes.confirmation_rig import RevocableProfiles, confirmation_target
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = confirmation_target(request, jar)
+        if request.operation_id.startswith("confirm:"):
+            profiles.revoked = True
+        return response
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    profiles = RevocableProfiles(rig.rig.profiles)
+    service = rig.service(profiles=profiles)
+    with pytest.raises(ScopeNotApproved) as error:
+        service.execute(ConfirmationRequest(product="agenda", run_id=rig.run_id))
+    assert error.value.exit_code == 3
+    entry = rig.store.read().entries[0]
+    assert entry.level == "inconclusive"
+    assert entry.control is not None
+    assert "HTTP 200" in entry.control
+    assert len([r for r in rig.rig.target.requests if r.operation_id.startswith("confirm:")]) == 1

@@ -11,6 +11,7 @@ from harness_dast.domain.confirmation import (
 from harness_dast.domain.finding import Classification, Finding, FindingEvidence
 from harness_dast.domain.http_messages import HttpResponse
 from harness_dast.domain.probe_exchange import ExchangeRecord
+from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_result import ScanEntry
 from harness_dast.domain.verification import VerificationEntry
 
@@ -59,11 +60,16 @@ def scan() -> ScanEntry:
         scan_id="1",
         outcome="completed",
         requests=1,
+        seed_binding=bind_scan_seed(
+            "search", "GET", "https://example.test/items?q=normal", "user_a"
+        ),
     )
 
 
 def plan(plugin: str = "40018") -> ConfirmationPlan:
-    result = plan_confirmation(finding(plugin), (exchange(),), (scan(),), MARKER)
+    result = plan_confirmation(
+        finding(plugin), (exchange(),), (scan(),), MARKER, "https://example.test"
+    )
     assert isinstance(result, ConfirmationPlan)
     return result
 
@@ -75,19 +81,23 @@ def response(
 
 
 def test_refusa_escrita_quando_metodo_nao_e_get() -> None:
-    result = plan_confirmation(finding(method="POST"), (exchange("POST"),), (scan(),), MARKER)
+    result = plan_confirmation(
+        finding(method="POST"), (exchange("POST"),), (scan(),), MARKER, "https://example.test"
+    )
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
 
 def test_refusa_semente_quando_nao_foi_varrida() -> None:
-    result = plan_confirmation(finding(), (exchange(),), (), MARKER)
+    result = plan_confirmation(finding(), (exchange(),), (), MARKER, "https://example.test")
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
 
 def test_recusa_travessia_quando_nao_existe_oraculo() -> None:
-    result = plan_confirmation(finding("6"), (exchange(),), (scan(),), MARKER)
+    result = plan_confirmation(
+        finding("6"), (exchange(),), (scan(),), MARKER, "https://example.test"
+    )
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
@@ -216,14 +226,14 @@ def test_erro_interno_nao_confirma_quando_controle_tambem_tem_detalhe() -> None:
 
 def test_recusa_outcome_nao_sucesso_ainda_que_exista_seed() -> None:
     item = finding().model_copy(update={"seed_outcome": "not_found"})
-    result = plan_confirmation(item, (exchange(),), (scan(),), MARKER)
+    result = plan_confirmation(item, (exchange(),), (scan(),), MARKER, "https://example.test")
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
 
 def test_recusa_semente_com_parametro_repetido() -> None:
     seed = exchange().model_copy(update={"target": "/items?q=a&q=b"})
-    result = plan_confirmation(finding(), (seed,), (scan(),), MARKER)
+    result = plan_confirmation(finding(), (seed,), (scan(),), MARKER, "https://example.test")
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
@@ -233,12 +243,12 @@ def test_marcador_invalido_recusado_quando_entrada_malformada(bad: str) -> None:
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
-        plan_confirmation(finding(), (exchange(),), (scan(),), bad)
+        plan_confirmation(finding(), (exchange(),), (scan(),), bad, "https://example.test")
 
 
 def test_authz_usa_comparacao_guardada_quando_contas_e_status_sao_validos() -> None:
     from harness_dast.domain.authz.result import AuthzFinding
-    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.confirmation_observations import classify_authz_confirmation
 
     item = AuthzFinding(
         finding_id="A-aaaaaaaa",
@@ -253,6 +263,8 @@ def test_authz_usa_comparacao_guardada_quando_contas_e_status_sao_validos() -> N
         path_template="/items",
         actor_account="user_a",
         owner_account="user_b",
+        actor_role="comum",
+        owner_role="comum",
         baseline_status=200,
         observed_status=200,
         evidence="com corpo equivalente para o mesmo pedido.",
@@ -274,9 +286,11 @@ def test_cabecalho_usa_somente_evidencia_guardada() -> None:
     item = finding("10020").model_copy(
         update={"method": "POST", "evidence": FindingEvidence(zap_evidence="cabeçalho ausente")}
     )
-    result = plan_confirmation(item, (), (), MARKER)
+    from harness_dast.domain.confirmation_observations import classify_recorded_finding
+
+    result = classify_recorded_finding(item)
     assert isinstance(result, VerificationEntry)
-    assert result.level == "likely"
+    assert result.level == "not_verifiable"
 
 
 def test_teto_de_cada_receita_nunca_passa_de_doze() -> None:
@@ -286,14 +300,16 @@ def test_teto_de_cada_receita_nunca_passa_de_doze() -> None:
 
 def test_recusa_semente_com_corpo_quando_nao_pode_repetir_fielmente() -> None:
     seed = exchange().model_copy(update={"body": "{}"})
-    result = plan_confirmation(finding(), (seed,), (scan(),), MARKER)
+    result = plan_confirmation(finding(), (seed,), (scan(),), MARKER, "https://example.test")
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
 
 def test_recusa_scan_sem_pedidos_quando_nao_prova_varredura() -> None:
     unfinished = scan().model_copy(update={"requests": 0})
-    result = plan_confirmation(finding(), (exchange(),), (unfinished,), MARKER)
+    result = plan_confirmation(
+        finding(), (exchange(),), (unfinished,), MARKER, "https://example.test"
+    )
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
@@ -318,13 +334,16 @@ def test_selecao_recusa_fingerprint_duplicado() -> None:
 def test_resultado_parcial_resume_sem_guardar_corpo_quando_transporte_falha() -> None:
     result = judge_confirmation(plan(), (response(b"segredo-na-resposta"), None), FINGERPRINT)
     assert result.level == "inconclusive"
-    assert result.attack == "HTTP 200, 20 ms, 19 bytes"
+    assert result.control is not None
+    assert "HTTP 200, 20 ms, 19 bytes" in result.control
+    assert result.attack is not None
+    assert "sem resposta" in result.attack
     assert "segredo-na-resposta" not in result.model_dump_json()
 
 
 def test_recusa_alvo_concreto_de_outra_operacao() -> None:
     altered = exchange().model_copy(update={"target": "/outro?q=normal"})
-    result = plan_confirmation(finding(), (altered,), (scan(),), MARKER)
+    result = plan_confirmation(finding(), (altered,), (scan(),), MARKER, "https://example.test")
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
 
@@ -349,18 +368,19 @@ def test_erro_detalhado_nao_reproduz_controle_truncado() -> None:
 
 
 def test_cors_guardado_e_reconhecido_sem_comparacao_de_contas() -> None:
-    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.confirmation_observations import classify_authz_confirmation
     from harness_dast.domain.cors import cors_finding
 
     item = cors_finding("agenda", exchange(), "comum", 200, "reflected_credentials")
     result = classify_authz_confirmation(item)
     assert result.level == "reproduced"
-    assert "CORS" in result.reason
+    assert result.attack is not None
+    assert "CORS" in result.attack
     assert "contas" not in result.reason
 
 
 def test_cors_sem_politica_guardada_e_recusado() -> None:
-    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.confirmation_observations import classify_authz_confirmation
     from harness_dast.domain.cors import cors_finding
 
     item = cors_finding("agenda", exchange(), "comum", 200, "wildcard")
@@ -370,7 +390,7 @@ def test_cors_sem_politica_guardada_e_recusado() -> None:
 
 def test_acesso_anonimo_usa_comparacao_guardada() -> None:
     from harness_dast.domain.authz.findings_access import anonymous_finding
-    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.confirmation_observations import classify_authz_confirmation
 
     item = anonymous_finding(
         product="agenda",
@@ -384,3 +404,71 @@ def test_acesso_anonimo_usa_comparacao_guardada() -> None:
     assert classify_authz_confirmation(item).level == "reproduced"
     failed = item.model_copy(update={"baseline_status": 401})
     assert classify_authz_confirmation(failed).level == "not_verifiable"
+
+
+@pytest.mark.parametrize(
+    "change", ["missing", "target", "method", "operation", "account", "environment", "requests"]
+)
+def test_recusa_semente_quando_recibo_diverge(change: str) -> None:
+    entry = scan()
+    seed = exchange()
+    base = "https://example.test"
+    if change == "missing":
+        entry = entry.model_copy(update={"seed_binding": None})
+    elif change == "target":
+        seed = seed.model_copy(update={"target": "/items?q=outro"})
+    elif change == "method":
+        entry = entry.model_copy(
+            update={"seed_binding": bind_scan_seed("search", "POST", base + seed.target, "user_a")}
+        )
+    elif change == "operation":
+        entry = entry.model_copy(
+            update={"seed_binding": bind_scan_seed("other", "GET", base + seed.target, "user_a")}
+        )
+    elif change == "account":
+        assert entry.seed_binding is not None
+        entry = entry.model_copy(
+            update={"seed_binding": entry.seed_binding.model_copy(update={"account": "user_b"})}
+        )
+    elif change == "environment":
+        base = "https://other.test"
+    else:
+        entry = entry.model_copy(update={"requests": 0})
+    result = plan_confirmation(finding(), (seed,), (entry,), MARKER, base)
+    assert isinstance(result, VerificationEntry)
+    assert result.level == "not_verifiable"
+
+
+def test_usa_conta_fixada_pelo_scan_sem_mutar_troca() -> None:
+    seed = exchange()
+    entry = scan().model_copy(
+        update={
+            "seed_binding": bind_scan_seed(
+                "search", "GET", "https://example.test/items?q=normal", "user_b"
+            )
+        }
+    )
+    result = plan_confirmation(finding(), (seed,), (entry,), MARKER, "https://example.test")
+    assert isinstance(result, ConfirmationPlan)
+    assert result.exchange.account == "user_b"
+    assert seed.account == "user_a"
+
+
+def test_prova_distingue_corpos_sem_expor_segredo() -> None:
+    result = judge_confirmation(
+        plan(),
+        (
+            response(b"token-secreto"),
+            response(b"token-secreto"),
+            response(b"outro-secreto"),
+            response(b"token-secreto"),
+            response(b"outro-secreto"),
+        ),
+        FINGERPRINT,
+    )
+    assert result.level == "reproduced"
+    assert result.attack is not None
+    assert result.control is not None
+    assert "sha256:" in result.attack
+    assert "token-secreto" not in result.model_dump_json()
+    assert "outro-secreto" not in result.model_dump_json()

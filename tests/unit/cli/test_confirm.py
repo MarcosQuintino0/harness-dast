@@ -8,6 +8,7 @@ import pytest
 
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.cli.commands import confirm
+from harness_dast.domain.scan_binding import bind_scan_seed
 from tests.fakes.confirmation_rig import ConfirmationRig
 
 
@@ -47,8 +48,14 @@ def test_confirm_recusa_sem_terminal_e_sem_pedido_indevido(
         seed = log.exchanges[0].model_copy(update={"path": "/fora", "target": "/fora?q=x"})
         rig.rig.store.exchanges[rig.run_id] = log.model_copy(update={"exchanges": (seed,)})
         scan = rig.rig.artifacts.scans[rig.run_id]
+        base = rig.rig.profiles.load("agenda").environment.base_url
+        binding = bind_scan_seed("listar", "GET", base + "/fora?q=x", "user_a")
         rig.rig.artifacts.scans[rig.run_id] = scan.model_copy(
-            update={"entries": (scan.entries[0].model_copy(update={"path": "/fora"}),)}
+            update={
+                "entries": (
+                    scan.entries[0].model_copy(update={"path": "/fora", "seed_binding": binding}),
+                )
+            }
         )
         report = rig.rig.artifacts.findings[rig.run_id]
         rig.rig.artifacts.findings[rig.run_id] = report.model_copy(

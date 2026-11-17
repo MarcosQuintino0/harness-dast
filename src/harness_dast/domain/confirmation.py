@@ -14,14 +14,15 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz.result import AuthzFinding
-from harness_dast.domain.cors import classify_cors
 from harness_dast.domain.finding import Finding, normalize_path_template
 from harness_dast.domain.http_messages import HttpResponse
 from harness_dast.domain.negative_result import NegativeFinding
 from harness_dast.domain.probe_exchange import ExchangeRecord
+from harness_dast.domain.request_encoding import join_url
+from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_result import ScanEntry
 from harness_dast.domain.signal_result import SignalFinding
-from harness_dast.domain.verification import VerificationEntry, classify_finding
+from harness_dast.domain.verification import VerificationEntry
 
 Recipe = Literal["sql_boolean", "sql_time", "xss_reflected", "internal_error"]
 _RECIPES: MappingProxyType[str, Recipe] = MappingProxyType(
@@ -48,10 +49,9 @@ def plan_confirmation(
     exchanges: tuple[ExchangeRecord, ...],
     scans: tuple[ScanEntry, ...],
     marker: str,
+    base_url: str = "",
 ) -> ConfirmationPlan | VerificationEntry:
     """Seleciona somente GET varrido com semente de sucesso e parâmetro inequívoco."""
-    if finding.plugin_id in {"10020", "10021", "10036", "10038"}:
-        return classify_finding(finding)
     if finding.plugin_id == "6":
         return _refuse(
             finding,
@@ -68,21 +68,38 @@ def plan_confirmation(
         return _refuse(finding, "Semente com resultado diferente de sucesso não é repetida.")
     if finding.input_vector.lower() not in {"query", "querystring"}:
         return _refuse(finding, "A receita só suporta parâmetro de consulta comprovado.")
-    for exchange in exchanges:
-        if not _matches(finding, exchange, scans):
-            continue
+    matches = _matching_seeds(finding, exchanges, scans, base_url)
+    if len(matches) == 1:
+        exchange = next(iter(matches.values()))
         pairs = parse_qsl(urlsplit(exchange.target).query, keep_blank_values=True)
-        if sum(name == finding.parameter for name, _ in pairs) != 1:
-            continue
-        return ConfirmationPlan(
-            recipe=recipe, exchange=exchange, parameter=finding.parameter, marker=marker
-        )
+        if sum(name == finding.parameter for name, _ in pairs) == 1:
+            return ConfirmationPlan(
+                recipe=recipe, exchange=exchange, parameter=finding.parameter, marker=marker
+            )
     return _refuse(
         finding, "Não há semente GET de sucesso, varrida e com parâmetro de consulta inequívoco."
     )
 
 
-def _matches(finding: Finding, exchange: ExchangeRecord, scans: tuple[ScanEntry, ...]) -> bool:
+def _matching_seeds(
+    finding: Finding,
+    exchanges: tuple[ExchangeRecord, ...],
+    scans: tuple[ScanEntry, ...],
+    base_url: str,
+) -> dict[tuple[str, str], ExchangeRecord]:
+    matches: dict[tuple[str, str], ExchangeRecord] = {}
+    for exchange in exchanges:
+        for scan in scans:
+            binding = scan.seed_binding
+            if binding is None or not _matches(finding, exchange, scan, base_url):
+                continue
+            matches[(exchange.target, binding.account)] = exchange.model_copy(
+                update={"account": binding.account}
+            )
+    return matches
+
+
+def _matches(finding: Finding, exchange: ExchangeRecord, scan: ScanEntry, base_url: str) -> bool:
     if finding.operation_id is None or exchange.operation_id != finding.operation_id:
         return False
     if exchange.method.upper() != "GET" or not 200 <= exchange.status < 300:
@@ -93,15 +110,24 @@ def _matches(finding: Finding, exchange: ExchangeRecord, scans: tuple[ScanEntry,
         return False
     if not _target_matches_template(exchange.path, urlsplit(exchange.target).path):
         return False
-    return any(
-        scan.operation_id == exchange.operation_id
+    binding = scan.seed_binding
+    return bool(
+        base_url
+        and binding is not None
+        and binding
+        == bind_scan_seed(
+            exchange.operation_id,
+            exchange.method,
+            join_url(base_url, exchange.target),
+            binding.account,
+        )
+        and scan.operation_id == exchange.operation_id
         and scan.method.upper() == "GET"
         and normalize_path_template(scan.path) == normalize_path_template(exchange.path)
         and bool(scan.scan_id)
         and scan.requests > 0
         and scan.outcome != "refused"
         and scan.seed_outcome is None
-        for scan in scans
     )
 
 
@@ -153,15 +179,15 @@ def judge_confirmation(
 ) -> VerificationEntry:
     """Compara medições repetidas; nunca inclui corpos nem mensagens externas no resultado."""
     expected = len(recipe_targets(plan))
+    evidence = _proof(plan, responses)
     if len(responses) != expected or any(response is None for response in responses):
-        partial = tuple(response for response in responses if response is not None)
         result = _result(
             fingerprint,
             plan.recipe,
             "inconclusive",
             "Falha de transporte ou orçamento insuficiente.",
         )
-        return result.model_copy(update={"attack": _summarize(partial) if partial else None})
+        return result.model_copy(update=evidence)
     measured = tuple(response for response in responses if response is not None)
     if any(response.body_truncated for response in measured) or (
         plan.recipe != "internal_error" and any(response.status >= 500 for response in measured)
@@ -172,37 +198,48 @@ def judge_confirmation(
             "inconclusive",
             "Resposta truncada ou erro do servidor impede comparação segura.",
         )
-        return result.model_copy(update={"attack": _summarize(measured)})
+        return result.model_copy(update=evidence)
     if any(response.status in {401, 403, 404, 429} for response in measured):
         result = _result(
             fingerprint, plan.recipe, "inconclusive", "Autenticação ou limite impediu a comparação."
         )
-        return result.model_copy(update={"attack": _summarize(measured)})
-    controls: tuple[HttpResponse, ...]
-    attacks: tuple[HttpResponse, ...]
+        return result.model_copy(update=evidence)
     if plan.recipe == "sql_boolean":
         result = _boolean(fingerprint, measured)
-        controls, attacks = (measured[0], measured[2], measured[4]), (measured[1], measured[3])
     elif plan.recipe == "sql_time":
         result = _timing(fingerprint, measured)
-        controls, attacks = tuple(measured[i] for i in (0, 1, 3, 5)), (measured[2], measured[4])
     elif plan.recipe == "xss_reflected":
         result = _xss(fingerprint, plan, measured)
-        controls, attacks = (measured[0], measured[2]), (measured[1], measured[3])
     else:
         result = _internal_error(fingerprint, measured)
-        controls, attacks = (measured[0], measured[2]), (measured[1], measured[3])
-    return result.model_copy(
-        update={
-            "attack": f"GET; receita {plan.recipe}. {_summarize(attacks)}. {result.reason}",
-            "control": f"GET; controle da mesma operação. {_summarize(controls)}.",
-        }
-    )
+    return result.model_copy(update=evidence)
+
+
+def _proof(plan: ConfirmationPlan, responses: tuple[HttpResponse | None, ...]) -> dict[str, str]:
+    attack_indices = {
+        "sql_boolean": (1, 3),
+        "sql_time": (2, 4),
+        "xss_reflected": (1, 3),
+        "internal_error": (1, 3),
+    }[plan.recipe]
+    target = sha256(plan.exchange.target.encode()).hexdigest()[:16]
+    prefix = f"GET; alvo redigido sha256:{target}; parâmetro de consulta; receita {plan.recipe}"
+    groups: dict[str, list[str]] = {"attack": [], "control": []}
+    for index, response in enumerate(responses):
+        group = "attack" if index in attack_indices else "control"
+        groups[group].append("sem resposta" if response is None else _summarize((response,)))
+    return {
+        key: f"{prefix}; {key}: "
+        + ("; ".join(items) if items else "não realizado")
+        + "; corpos iguais têm o mesmo resumo SHA-256."
+        for key, items in groups.items()
+    }
 
 
 def _summarize(responses: tuple[HttpResponse, ...]) -> str:
     return "; ".join(
         f"HTTP {item.status}, {item.elapsed_ms} ms, {len(item.body)} bytes"
+        + f", corpo sha256:{sha256(item.body).hexdigest()[:16]}"
         + (", corpo truncado" if item.body_truncated else "")
         for item in responses
     )
@@ -352,101 +389,6 @@ def select_confirmation_findings(
         return matching
     priority = {"high": 0, "medium": 1, "low": 2, "informational": 3}
     return tuple(sorted(findings, key=lambda item: priority.get(item.proposed_severity, 4))[:limit])
-
-
-def classify_authz_confirmation(finding: AuthzFinding) -> VerificationEntry:
-    """Reconhece comparação guardada entre contas somente com estados e identidades válidos."""
-    if finding.technique == "authz_cors":
-        policy = finding.fields[0] if len(finding.fields) == 1 else ""
-        observation = {
-            "reflected_credentials": ("https://origin.invalid", "true"),
-            "wildcard": ("*", None),
-        }.get(policy)
-        if (
-            observation is not None
-            and classify_cors("https://origin.invalid", *observation) == policy
-            and finding.observed_status is not None
-            and 200 <= finding.observed_status < 300
-        ):
-            return VerificationEntry(
-                fingerprint=finding.fingerprint,
-                level="reproduced",
-                recipe="authz_recorded",
-                reason="Observação CORS guardada mostra a política identificada; sem novo pedido.",
-                attack=f"HTTP {finding.observed_status}; política observada: {policy}.",
-                control="Classificação aplicada aos cabeçalhos observados na execução anterior.",
-            )
-        return VerificationEntry(
-            fingerprint=finding.fingerprint,
-            level="not_verifiable",
-            reason="Observação CORS guardada não contém política e status suficientes.",
-        )
-    if finding.technique in {"authz_anonymous_access", "authz_tampered_token"}:
-        return _classify_access_confirmation(finding)
-    horizontal = (
-        finding.technique == "authz_horizontal"
-        and "com corpo equivalente para o mesmo pedido." in finding.evidence
-    )
-    vertical = (
-        finding.technique == "authz_vertical"
-        and finding.actor_role is not None
-        and finding.owner_role is not None
-        and finding.actor_role != finding.owner_role
-        and "menor) recebeu" in finding.evidence
-    )
-    if (
-        (horizontal or vertical)
-        and finding.owner_account is not None
-        and finding.owner_account != finding.actor_account
-        and finding.baseline_status is not None
-        and 200 <= finding.baseline_status < 300
-        and finding.observed_status is not None
-        and 200 <= finding.observed_status < 300
-    ):
-        return VerificationEntry(
-            fingerprint=finding.fingerprint,
-            level="reproduced",
-            recipe="authz_recorded",
-            reason="Comparação guardada entre contas distintas mostra respostas de sucesso.",
-            attack=f"HTTP {finding.observed_status}",
-            control=f"HTTP {finding.baseline_status}",
-        )
-    return VerificationEntry(
-        fingerprint=finding.fingerprint,
-        level="not_verifiable",
-        reason="A comparação guardada não contém estados e identidades suficientes.",
-    )
-
-
-def _classify_access_confirmation(finding: AuthzFinding) -> VerificationEntry:
-    valid_statuses = (
-        finding.baseline_status is not None
-        and 200 <= finding.baseline_status < 300
-        and finding.observed_status is not None
-        and 200 <= finding.observed_status < 300
-    )
-    comparable = (
-        finding.technique == "authz_anonymous_access"
-        and "corpo equivalente ao enviar o mesmo pedido sem credencial" in finding.evidence
-    ) or (
-        finding.technique == "authz_tampered_token"
-        and bool(finding.variants)
-        and "equivalente ao do pedido autenticado" in finding.evidence
-    )
-    if valid_statuses and comparable:
-        return VerificationEntry(
-            fingerprint=finding.fingerprint,
-            level="reproduced",
-            recipe="authz_recorded",
-            reason="Comparação guardada mostra corpo equivalente ao pedido autenticado.",
-            attack=f"HTTP {finding.observed_status}; acesso sem credencial válida.",
-            control=f"HTTP {finding.baseline_status}; pedido autenticado, corpo equivalente.",
-        )
-    return VerificationEntry(
-        fingerprint=finding.fingerprint,
-        level="not_verifiable",
-        reason="A comparação de autenticação guardada não é suficiente.",
-    )
 
 
 def merge_confirmation_entries(
