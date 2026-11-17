@@ -119,6 +119,8 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | --- | --- |
 | [0085](0085-verificacao-de-achados.md) | Envelope aditivo de verificação v1 e classificação sem tráfego (Proposto) |
 | [0086](0086-confirmacao-humana-de-achados.md) | Declaração humana aditiva, terminal interativo e limites de identidade (Proposto) |
+| [0087](0087-reproducao-controlada-de-achados.md) | Receitas fixas, controle, orçamento e recusa conservadora de repetição (Proposto) |
+| [0088](0088-apresentacao-e-calibracao-de-verificacao.md) | Apresentação aditiva e calibração medida com tamanho da amostra (Proposto) |
 | [0089](0089-criterio-privado-triagem.md) | Critério privado de acerto da triagem separado da nota histórica (Proposto) |
 
 ## Quando escrever um ADR
