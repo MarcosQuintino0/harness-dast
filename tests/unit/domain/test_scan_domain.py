@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.auth import CsrfConfig
+from harness_dast.domain.experimental_rules import EXPERIMENTAL_RULES
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scan_plan import (
@@ -51,7 +52,10 @@ def test_default_policy_is_low_strength_medium_threshold_with_path_injection() -
 
     assert (policy.strength, policy.threshold) == ("LOW", "MEDIUM")
     assert policy.injectable_mask == 35 + 16
-    assert set(policy.disabled_rules) == {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    # As regras alpha/beta da imagem do harness ficam sempre desligadas (ADR 0103).
+    expected = {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    expected |= {rule.plugin_id for rule in EXPERIMENTAL_RULES}
+    assert set(policy.disabled_rules) == expected
 
 
 def test_default_disabled_rules_each_have_a_reason_and_no_duplicates() -> None:
@@ -66,7 +70,7 @@ def test_profile_rules_only_add_to_the_disabled_set() -> None:
     policy = build_policy(ScanConfig(disable_rules=(90001, 40044)))
 
     assert 90001 in policy.disabled_rules
-    assert len(policy.disabled_rules) == len(DEFAULT_DISABLED_RULES) + 1
+    assert len(policy.disabled_rules) == len(DEFAULT_DISABLED_RULES) + len(EXPERIMENTAL_RULES) + 1
     assert list(policy.disabled_rules) == sorted(policy.disabled_rules)
 
 

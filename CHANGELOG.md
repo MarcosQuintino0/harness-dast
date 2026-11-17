@@ -16,6 +16,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - F2 (ADR 0099, proposto): `scan.oast` configura o Callback do OAST do ZAP para a ponte do laboratório (ADR 0095) e liga as regras da imagem que dependem do retorno (Log4Shell 40043, XXE 90023, SSTI cega 90036; a imagem não tem regra de SSRF nem de comando cego). Desligado, nenhuma chamada `oast/*` e política idêntica à de antes.
 - F3 (ADR 0100, proposto): com `scan.oast`, o `scan` manda a URL de retorno nos campos de URL do contrato (`format: uri`, nomes como `*_url`, `*_api`, `callback`, `webhook`), pela cerca, com teto rígido de 10 pedidos; o retorno correlacionado por token vira achado de SSRF (CWE 918) com a prova do evento. Prova do desafio de SSRF do crAPI no laboratório em `tests/integration/test_lab_oast_scan.py`.
 
+- F7 (ADR 0103, proposto): a imagem do ZAP passa a ser `hdast/zap` (`docker/zap/Dockerfile`), derivada da `zap-stable` 2.17.0 já fixada por digest, com `ascanrulesBeta` 64 e `ascanrulesAlpha` 54 baixados no build e conferidos por SHA-256 (nada é baixado em execução). As 26 regras novas ficam sempre desligadas na política; `extra_checks.experimental_rules` (só a carta) liga NoSQL MongoDB (40033 e 90039) e, junto com `scan.oast`, o SSRF 40046. Achados dessas regras saem com `experimental: true` no `findings.json` (campo aditivo, padrão `false`) e a marca `[experimental]` no relatório, no painel e na verificação. Desligado, a política efetiva é a de antes.
+
 ### Laboratório da V1.12 — trilha L parcial
 
 - crAPI na pilha gerenciada, com cadastro sintético via API/MailHog, projeto próprio, recusa de modo seguro e descida com volumes descartáveis (ADR 0094, proposto). O chatbot de 1,5 GB deixou de ser necessário; o nginx usa um upstream já presente.

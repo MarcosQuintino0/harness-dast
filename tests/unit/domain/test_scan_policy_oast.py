@@ -1,5 +1,6 @@
 """Política com e sem `scan.oast`: desligada é idêntica à de antes (ADR 0099)."""
 
+from harness_dast.domain.experimental_rules import EXPERIMENTAL_RULES
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scan_policy import (
     DEFAULT_DISABLED_RULES,
@@ -15,7 +16,8 @@ def test_without_oast_the_policy_is_the_same_as_before() -> None:
 
     assert policy.oast is False
     assert policy.oast_rules == ()
-    assert set(policy.disabled_rules) == {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    expected = {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    assert set(policy.disabled_rules) == expected | {r.plugin_id for r in EXPERIMENTAL_RULES}
     assert LOG4SHELL in policy.disabled_rules
     assert policy.injectable_mask == 51
 

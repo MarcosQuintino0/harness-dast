@@ -13,7 +13,6 @@ Medidas (não asserções sobre o achado) vão para `HDAST_IT_METRICS_DIR/lab-ex
 """
 
 import json
-import shutil
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -69,7 +68,13 @@ def _prepare_crapi(products: Path, enabled: bool) -> None:
     full = json.loads((REPO / "lab/crapi/openapi.json").read_text(encoding="utf-8"))
     spec["paths"][COUPON_PATH] = {"post": full["paths"][COUPON_PATH]["post"]}
     spec_path.write_text(json.dumps(spec), encoding="utf-8")
-    shutil.copy2(REPO / "lab/crapi/product-profile/data-rules.yml", product / "data-rules.yml")
+    rules = yaml.safe_load(
+        (REPO / "lab/crapi/product-profile/data-rules.yml").read_text(encoding="utf-8")
+    )
+    rules["rules"] = [rule for rule in rules["rules"] if rule["match"]["operation"] == OPERATION]
+    (product / "data-rules.yml").write_text(
+        yaml.safe_dump(rules, sort_keys=False), encoding="utf-8"
+    )
     target = product / "target.yml"
     data = yaml.safe_load(target.read_text(encoding="utf-8"))
     data["scope"]["allow"].append(
