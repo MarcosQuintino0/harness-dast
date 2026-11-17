@@ -59,6 +59,7 @@ def test_caso_de_uso_gera_envelope_sem_reproducao() -> None:
     "change",
     [
         {"schema_version": 2},
+        {"schema_version": True},
         {"product": "outro"},
         {"run_id": "../segredo"},
         {"entries": [{"fingerprint": FP, "level": "likely"}]},

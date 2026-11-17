@@ -42,6 +42,14 @@ class VerificationFile(ApiModel):
     run_id: str
     entries: tuple[VerificationEntry, ...] = Field(max_length=5000)
 
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def validate_version(cls, value: object) -> object:
+        """Recusa booleano e coerção de tipos para a versão do envelope."""
+        if type(value) is not int:
+            raise ValueError("versão inválida")
+        return value
+
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
         """Recusa execução inválida, produto divergente ou fingerprints repetidos."""
