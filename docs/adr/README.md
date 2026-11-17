@@ -132,6 +132,7 @@ a reserva não implica aceite nem implementação.
 | --- | --- |
 | [0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) | Bloco `attack` da carta liga as capacidades da V1.12: ritmo, OAST, cabeçalhos, limites, regras experimentais e inventário (Proposto) |
 | [0097](0097-injecao-em-cabecalhos-e-cookies.md) | Injeção em cabeçalhos e cookies: bits 4 e 8 da máscara e `ScanHeadersAllRequests` com `scan.inject_headers` (Proposto) |
+| [0098](0098-chave-hmac-fraca-de-jwt-no-authz.md) | Chave HMAC fraca de JWT no `authz`: quebra offline com lista fixa e prova re-assinada, teto de 20 pedidos (Proposto) |
 | [0099](0099-oast-na-varredura.md) | OAST na varredura: Callback do ZAP e regras que dependem do retorno ligadas por `scan.oast` (Proposto) |
 | [0100](0100-ssrf-guiado-pelo-contrato.md) | SSRF guiado pelo contrato: campos de URL do OpenAPI recebem a URL de retorno, com teto de 10 pedidos e correlação por token (Proposto) |
 

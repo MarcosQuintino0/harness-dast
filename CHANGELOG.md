@@ -9,6 +9,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ### V1.12 — trilha F
 
 - F1 (ADR 0096, proposto): a seção `attack` da carta ganha `pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules` e `inventory`, todas desligadas quando ausentes. O `init --from-letter` gera `scan.pacing`, `scan.inject_headers`, `scan.oast` e o bloco `extra_checks`; só a carta liga (booleanos com `source: carta` e frase). A impressão digital da aprovação só muda quando uma chave é ligada; perfis existentes mantêm a aprovação. As capacidades que consomem as chaves vêm nos passos F2 a F8.
+- F4 (ADR 0098, proposto): o `tampered_token` do `authz` passa a quebrar OFFLINE a chave HMAC de um JWT com uma lista fixa e versionada de chaves fracas e, achada, envia até 2 pedidos de prova com o token re-assinado (reivindicação inofensiva e `exp` vencido), com teto de 10 operações por execução. Sem chave nova na carta; severidade alta, CWE-347; chave e tokens nunca são gravados. Prova no lab: o crAPI aceitou `alg_none` e `altered_claims` no `authz` (C15 parcial: `kid`/`jku` não avaliados) e a Clínica segura ficou sem achado.
 
 - F6 (ADR 0097, proposto): `scan.inject_headers` liga os bits de cabeçalho e cookie da máscara (63) e `ScanHeadersAllRequests` no ZAP; desligado, nada muda. Prova no laboratório: H11 achada só com a chave; 519 pedidos sem e 1089 com a chave na operação; modo seguro com a chave sem achado (ver `tests/integration/test_lab_header_injection.py`).
 
