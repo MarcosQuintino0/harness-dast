@@ -45,7 +45,7 @@ Vamos criar uma imagem derivada e escolher, no `domain`, quais regras novas fica
 
 ## Prova no laboratório
 
-Pilhas com o sufixo `-sonnetalpha`, aprovações descartáveis do suporte de integração (`tests/integration/test_lab_experimental_rules.py`), nível rápido; medidas em `C:\harness-dast-artefatos1-12-f7-metrics`. Imagem construída duas vezes (a manual e a do `stack up`): `docker image inspect` dá 1,21 GB de conteúdo (3,77 GB no `docker images`), camada própria de 12 MB.
+Pilhas com o sufixo `-sonnetalpha`, aprovações descartáveis do suporte de integração (`tests/integration/test_lab_experimental_rules.py`), nível rápido; medidas em `C:/harness-dast-artefatos/v1-12-f/f7-metrics`. Imagem construída duas vezes (a manual e a do `stack up`): `docker image inspect` dá 1,21 GB de conteúdo (3,77 GB no `docker images`), camada própria de 12 MB.
 
 | Cenário | `run_id` | Duração (scan) | Resultado |
 | --- | --- | --- | --- |
