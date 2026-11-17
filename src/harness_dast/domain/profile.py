@@ -18,6 +18,7 @@ from pydantic import Field, StrictBool, StrictInt, ValidationError, field_valida
 from harness_dast.domain.auth import Account, AuthConfig, LoginLimit, PasswordLoginAuth
 from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.errors import ConfigError, ScopeViolation
+from harness_dast.domain.extra_checks_config import ExtraChecksConfig
 from harness_dast.domain.negative_config import NegativeConfig
 from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
@@ -241,6 +242,7 @@ class ProductProfile(ProfileModel):
         authz: Teste de autorização entre contas (ADR 0027), opcional (aditivo na schema v1).
         technologies: Declaração consultiva da carta, sem efeito na cobertura.
         negative: Teste de valores que o esquema proíbe (ADR 0051), opcional (aditivo na schema v1).
+        extra_checks: Capacidades extras da V1.12 que só a carta liga (ADR 0096), opcional.
     """
 
     schema_version: Literal[1]
@@ -255,6 +257,7 @@ class ProductProfile(ProfileModel):
     scan: ScanConfig = ScanConfig()
     authz: AuthzConfig = AuthzConfig()
     negative: NegativeConfig = NegativeConfig()
+    extra_checks: ExtraChecksConfig = ExtraChecksConfig()
     technologies: TechnologyDeclaration | None = None
 
     @field_validator("product")

@@ -24,6 +24,7 @@ AUTHZ_WRITES_AUTHORIZED: Final = "AUTHZ_WRITES_AUTHORIZED"
 NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
 OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
 UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
+ATTACK_FLAG_AUTHORIZED: Final = "ATTACK_FLAG_AUTHORIZED"
 
 _ROOT_WILDCARD: Final = "/**"
 _ONE_YEAR: Final = timedelta(days=365)
@@ -149,6 +150,7 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
                 ),
             )
         )
+    warnings.extend(_attack_flag_warnings(profile))
     if profile.scan.include_outcomes:
         warnings.append(
             LetterIssue(
@@ -164,6 +166,38 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
         )
     warnings.extend(_technology_warning(profile))
     return tuple(warnings)
+
+
+_ATTACK_FLAG_TEXT: Final = {
+    "inject_headers": "injetar também em cabeçalhos e cookies",
+    "oast": "usar o servidor de retorno do laboratório (retorno fora de banda)",
+    "allow_rate_tests": "fazer testes de limite de consumo (poucos pedidos, com teto)",
+    "experimental_rules": "usar as regras experimentais (alpha) do ZAP",
+    "inventory": "inventariar versões irmãs e documentação exposta",
+}
+
+
+def _attack_flag_warnings(profile: ProductProfile) -> list[LetterIssue]:
+    """Um aviso por capacidade da V1.12 que a carta ligou (ADR 0096)."""
+    enabled = {
+        "inject_headers": profile.scan.inject_headers,
+        "oast": profile.scan.oast,
+        "allow_rate_tests": profile.extra_checks.allow_rate_tests,
+        "experimental_rules": profile.extra_checks.experimental_rules,
+        "inventory": profile.extra_checks.inventory,
+    }
+    return [
+        LetterIssue(
+            field=f"attack.{name}",
+            code=ATTACK_FLAG_AUTHORIZED,
+            message=(
+                f"A carta autoriza {text}: isso muda o tráfego ao alvo. Confirme com o dono do "
+                "produto que a carta diz isso e que o ambiente é de teste com dados sintéticos."
+            ),
+        )
+        for name, text in _ATTACK_FLAG_TEXT.items()
+        if enabled[name]
+    ]
 
 
 def _technology_warning(profile: ProductProfile) -> tuple[LetterIssue, ...]:

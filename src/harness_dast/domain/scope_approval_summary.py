@@ -103,6 +103,40 @@ def _upload_lines(profile: ProductProfile) -> list[str]:
     ]
 
 
+def _v112_lines(profile: ProductProfile) -> list[str]:
+    """Linhas das chaves da V1.12 (ADR 0096); vazio quando tudo vale o padrão."""
+    scan = profile.scan
+    checks = profile.extra_checks
+    lines: list[str] = []
+    if scan.pacing != "legacy":
+        lines.append(f"RITMO DA VARREDURA: {scan.pacing} (scan.pacing)")
+    if scan.inject_headers:
+        lines.append(
+            "INJETA TAMBÉM EM CABEÇALHOS E COOKIES (scan.inject_headers): mais pedidos ao alvo"
+        )
+    if scan.oast:
+        lines.append(
+            "RETORNO FORA DE BANDA (scan.oast): o alvo é induzido a chamar o servidor de retorno "
+            "do laboratório"
+        )
+    if checks.allow_rate_tests:
+        lines.append(
+            "TESTES DE LIMITE DE CONSUMO (extra_checks.allow_rate_tests): poucos pedidos "
+            "repetidos, com teto"
+        )
+    if checks.experimental_rules:
+        lines.append(
+            "REGRAS EXPERIMENTAIS DO ZAP (extra_checks.experimental_rules): achados marcados "
+            "como experimentais"
+        )
+    if checks.inventory:
+        lines.append(
+            "INVENTÁRIO DE VERSÕES IRMÃS E DOCUMENTAÇÃO (extra_checks.inventory): só caminhos "
+            "que a cerca permite"
+        )
+    return lines
+
+
 def _scan_policy_line(profile: ProductProfile) -> str:
     scan = profile.scan
     rules = ", ".join(str(rule) for rule in sorted(scan.disable_rules)) or "nenhuma"
@@ -266,6 +300,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_technology_lines(profile),
         *_outcomes_lines(profile),
         *_upload_lines(profile),
+        *_v112_lines(profile),
         *_authz_lines(profile),
         *_negative_lines(profile),
         *_cleanup_lines(profile),

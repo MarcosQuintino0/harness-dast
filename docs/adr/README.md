@@ -126,6 +126,12 @@ a reserva não implica aceite nem implementação.
 | [0094](0094-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
 | [0095](0095-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
 
+## Trilha F da V1.12
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) | Bloco `attack` da carta liga as capacidades da V1.12: ritmo, OAST, cabeçalhos, limites, regras experimentais e inventário (Proposto) |
+
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
 

@@ -11,7 +11,7 @@ Você conduz a entrevista e transcreve; a CLI gera e valida. Escopo, limite e ja
 
 ## Regra central
 
-`technologies`, `environment`, `scope` (allow, deny_paths, **path_mode**), `scope.authorization`, `scope.windows`, `limits`, `auth.accounts`, `scan.strength`, `scan.include_outcomes`, `scan.allow_upload_scan`, `authz.allow_writes`, `authz.shared_roles` e `negative.allow_writes` **não são escritos por você**: nascem do `carta.yml`. Cada resposta do `carta.yml` é `{value, source, quote?}`: `carta` (a carta assinada diz, com a frase em `quote`), `pessoa` (ela respondeu a você) ou `desconhecido` ("não sei", sem `value`). Você só transcreve. Nunca preencha com palpite, valor do modelo (`SEC-0000`, `exemplo.com.br`), do Swagger (`servers`) nem "razoável". `path_mode: wide` só com `source: carta` e a frase da carta; você nunca o sugere.
+`technologies`, `environment`, `scope` (allow, deny_paths, **path_mode**), `scope.authorization`, `scope.windows`, `limits`, `auth.accounts`, `scan.strength`, `scan.include_outcomes`, `scan.allow_upload_scan`, `scan.pacing`, `scan.inject_headers`, `scan.oast`, `extra_checks`, `authz.allow_writes`, `authz.shared_roles` e `negative.allow_writes` **não são escritos por você**: nascem do `carta.yml`. Cada resposta do `carta.yml` é `{value, source, quote?}`: `carta` (a carta assinada diz, com a frase em `quote`), `pessoa` (ela respondeu a você) ou `desconhecido` ("não sei", sem `value`). Você só transcreve. Nunca preencha com palpite, valor do modelo (`SEC-0000`, `exemplo.com.br`), do Swagger (`servers`) nem "razoável". `path_mode: wide` só com `source: carta` e a frase da carta; você nunca o sugere.
 
 ## Conhecimento em nova execução
 
@@ -89,7 +89,7 @@ Mantenha `decision-log.md` na pasta do produto. Uma entrada por decisão: o que 
 
 ## Nunca
 
-- Escrever à mão `environment`, `scope`, `limits`, `auth.accounts`, `scan.strength`, `scan.include_outcomes`, `scan.allow_upload_scan`, `authz.allow_writes`, `authz.shared_roles` ou `negative.allow_writes`; ligar a escrita do teste entre contas, a do teste de valores inválidos ou a varredura de envio de arquivo sem a frase da carta; inventar ou alargar `scope` (inclui `scope.path_mode: wide` sem a carta; nenhuma flag o liga), `limits`, `authorization`, janela ou `cleanup`.
+- Escrever à mão `environment`, `scope`, `limits`, `auth.accounts`, `scan.strength`, `scan.include_outcomes`, `scan.allow_upload_scan`, `scan.pacing`, `scan.inject_headers`, `scan.oast`, `extra_checks`, `authz.allow_writes`, `authz.shared_roles` ou `negative.allow_writes`; ligar a escrita do teste entre contas, a do teste de valores inválidos ou a varredura de envio de arquivo sem a frase da carta; inventar ou alargar `scope` (inclui `scope.path_mode: wide` sem a carta; nenhuma flag o liga), `limits`, `authorization`, janela ou `cleanup`.
 - Marcar opção como recomendada ou pré-preencher resposta de escopo, limite, janela ou autorização.
 - Rodar o comando de aprovação do escopo: é da pessoa. Preencher `deny` da tabela quem pode o quê sem a decisão dela (o rascunho da CLI nunca o preenche; ele não vale nada até a pessoa levá-lo ao perfil e aprovar).
 - Ler `.env` ou qualquer arquivo ou variável com segredo; use só apelidos e `secret_ref`. Rodar `hdast secret set` ou `hdast secret delete`.
