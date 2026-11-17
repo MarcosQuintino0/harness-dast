@@ -1,4 +1,7 @@
-"""Ensaio crapi-foco sem agente: só o coordenador executa esta integração."""
+"""Ensaio crapi-foco sem agente, executado pelo coordenador.
+
+O arquivo reúne ciclo e evidências para preservar uma única preparação e um único down.
+"""
 
 import json
 import time
@@ -13,8 +16,13 @@ from evals.runner.cases import EvalError
 from evals.runner.metrics import measure_agent
 from evals.runner.prepare import prepare
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.domain.authz.result import AuthzResult
+from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.probe_result import ProbeResult
+from harness_dast.domain.run import is_run_id
+from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope import OutboundRequest
-from tests.integration.lab_support import LabCli, require_docker
+from tests.integration.lab_support import REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics
 from tests.integration.v112_proof_support import (
     execute,
@@ -32,6 +40,7 @@ EXPECTED = {
     "get_vehicles",
     "get_location",
     "get_profile_video",
+    "convert_profile_video",
     "update_profile_video",
     "get_products",
 }
@@ -48,6 +57,100 @@ def _configure_health_path(products: Path) -> None:
     data = yaml.safe_load(target.read_text(encoding="utf-8"))
     data.setdefault("probe", {})["health_path"] = HEALTH_PATH
     target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+def _remove_template_examples(products: Path) -> None:
+    """Remove somente exemplos idênticos aos copiados pelo init no produto descartável."""
+    product = products / "crapi"
+    template = REPO / "products" / "_template"
+    examples = [product / name for name in ("data-rules.yml", "flows.yml")]
+    for example in examples:
+        if example.is_symlink() or example.read_bytes() != (template / example.name).read_bytes():
+            raise ValueError(f"Exemplo {example.name} foi alterado; revise antes do ensaio.")
+    for example in examples:
+        example.unlink()
+
+
+def _run_evidence(runs: Path, run_id: str) -> dict[str, Any]:
+    """Resume os artefatos validados sem copiar respostas, achados ou segredos."""
+    if not is_run_id(run_id):
+        raise ValueError("Identificador de execução inválido.")
+    folder = runs / run_id
+    run_probe = ProbeResult.model_validate_json((folder / "probe.json").read_text(encoding="utf-8"))
+    probe_status, probe_attempt_counts = probe_attempts(run_probe.model_dump(mode="json"), EXPECTED)
+    scan = ScanResult.model_validate_json((folder / "scan.json").read_text(encoding="utf-8"))
+    authz = AuthzResult.model_validate_json((folder / "authz.json").read_text(encoding="utf-8"))
+    negative = NegativeResult.model_validate_json(
+        (folder / "negative.json").read_text(encoding="utf-8")
+    )
+    if any(
+        item.run_id != run_id or item.product != "crapi" or item.dry_run
+        for item in (run_probe, scan, authz, negative)
+    ):
+        raise ValueError("Artefato não pertence à execução real do ensaio.")
+    return {
+        "probe_status": probe_status,
+        "probe_attempts": probe_attempt_counts,
+        "scan_status": scan.status,
+        "scan_entries": [
+            {
+                "operation_id": entry.operation_id,
+                "outcome": entry.outcome,
+                "truncated": entry.truncated,
+            }
+            for entry in scan.entries
+        ],
+        "scan_skipped": [
+            {"operation_id": item.operation_id, "reason": item.reason} for item in scan.skipped
+        ],
+        "scan_rule_gaps": [
+            {"operation_id": item.operation_id, "state": item.state, "reason": item.reason}
+            for item in scan.rule_coverage_gaps
+        ]
+        if scan.rule_coverage_gaps is not None
+        else None,
+        "authz_status": authz.status,
+        "authz_checks": [
+            {"check": item.check, "status": item.status, "tested": item.tested}
+            for item in authz.checks
+        ],
+        "authz_not_tested": len(authz.not_tested),
+        "authz_exclusions": [
+            {"operation_id": item.operation_id, "check": item.check, "reason": item.reason}
+            for item in authz.not_tested
+            if item.operation_id in EXPECTED
+        ],
+        "negative_status": negative.status,
+        "negative_operations_tested": negative.operations_tested,
+        "negative_not_tested": len(negative.not_tested),
+        "negative_exclusions": [
+            {"operation_id": item.operation_id, "reason": item.reason}
+            for item in negative.not_tested
+            if item.operation_id in EXPECTED
+        ],
+    }
+
+
+def _coverage_complete(evidence: dict[str, Any]) -> bool:
+    """Recusa artefatos interrompidos ou varreduras individuais truncadas."""
+    return (
+        evidence["probe_status"] == "completed"
+        and set(evidence["probe_attempts"]) == EXPECTED
+        and all(value > 0 for value in evidence["probe_attempts"].values())
+        and evidence["scan_status"] == "completed"
+        and bool(evidence["scan_entries"])
+        and all(
+            entry["outcome"] == "completed" and not entry["truncated"]
+            for entry in evidence["scan_entries"]
+        )
+        and all(
+            gap["state"] not in {"interrupted", "pending"}
+            for gap in evidence["scan_rule_gaps"] or []
+        )
+        and evidence["authz_status"] == "completed"
+        and all(check["status"] != "partial" for check in evidence["authz_checks"])
+        and evidence["negative_status"] == "completed"
+    )
 
 
 def _transcript(out: Path, records: dict[str, Any]) -> None:
@@ -147,6 +250,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         )
         assert init.code == 0
         install_focus_spec(prepared.workspace, cli.products)
+        _remove_template_examples(cli.products)
         _configure_health_path(cli.products)
         approve(out)
         records["approval"] = "runner de ensaio"
@@ -160,7 +264,13 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         assert {"login:user_a", "login:user_b"} <= checks
         probe = execute(cli, records, "probe", "probe", "crapi", timeout=900)
         probe_status, attempts = probe_attempts(probe.data, EXPECTED)
+        probe_result = ProbeResult.model_validate(probe.data)
         records["operacoes"] = attempts
+        records["operacoes_outcomes"] = {
+            operation.operation_id: operation.outcome
+            for operation in probe_result.operations
+            if operation.operation_id in EXPECTED
+        }
         records["operacoes_ausentes"] = sorted(EXPECTED - attempts.keys())
         records["operacoes_nao_tentadas"] = sorted(
             operation for operation in EXPECTED if attempts.get(operation, 0) == 0
@@ -170,11 +280,32 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         assert probe_status == "completed"
         run = execute(cli, records, "run", "run", "crapi", "--max-minutes", "8", timeout=900)
         records["run_summary"] = summary(run)
+        run_id = records["run_summary"]["run_id"]
+        artifact_names = ("probe.json", "scan.json", "authz.json", "negative.json")
+        missing = [
+            name
+            for name in artifact_names
+            if not run_id or not (cli.runs / run_id / name).is_file()
+        ]
+        records["artefatos_ausentes"] = missing
+        if not missing:
+            records["cobertura_run"] = _run_evidence(cli.runs, run_id)
         assert set(attempts) == EXPECTED
         assert all(value > 0 for value in attempts.values())
         assert run.code in (0, 1)
-        assert records["run_summary"]["run_id"]
+        assert run_id
         assert records["run_summary"]["status"] in ("completed", "findings")
+        assert not missing
+        evidence = records["cobertura_run"]
+        assert evidence["probe_status"] == "completed"
+        assert set(evidence["probe_attempts"]) == EXPECTED
+        assert all(value > 0 for value in evidence["probe_attempts"].values())
+        assert evidence["scan_status"] == "completed"
+        assert all(entry["outcome"] == "completed" for entry in evidence["scan_entries"])
+        assert evidence["authz_status"] == "completed"
+        assert all(check["status"] != "partial" for check in evidence["authz_checks"])
+        assert evidence["negative_status"] == "completed"
+        assert _coverage_complete(evidence)
         stages = records["run_summary"]["stages"]
         assert [stage["name"] for stage in stages] == [
             "preflight",
