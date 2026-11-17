@@ -116,7 +116,9 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 
 ## Portas por consumidor
 
-47 declarações preservadas (Protocol e modelos de assinatura), distribuídas em 12 módulos; sem mudar assinaturas ou docstrings.
+Na V1.11 em andamento, `verification.py` coordena a classificação sem tráfego; `confirmation.py` coordena leitura dos artefatos, seleção, controles de envio e persistência aditiva; `human_confirmation.py` e `human_confirmation_ports.py` tratam a declaração interativa separada. A apresentação reúne os registros sem alterar o achado. Veja [verificação](../reference/verification.md).
+
+Na organização V1.9.4 foram preservadas 47 declarações (Protocol e modelos de assinatura), distribuídas em 12 módulos; a V1.11 acrescenta portas específicas de confirmação.
 As portas existentes de scan, authz, negative e panel_index continuam especializadas.
 
 | Módulo | Declarações |

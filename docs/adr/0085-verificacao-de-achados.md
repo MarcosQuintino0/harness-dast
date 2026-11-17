@@ -10,7 +10,7 @@ A evidência guardada pode sugerir uma falha sem demonstrar reprodução. A aus�
 
 ## Decisão
 
-Vamos usar `verification.json` com envelope v1, produto, execução e entradas por fingerprint único. O domínio define os níveis `reproduced`, `likely`, `inconclusive`, `likely_false_positive` e `not_verifiable`, com motivo, receita e evidências opcionais de ataque e controle. A fase offline só atribui `likely` a evidência disponível com trecho apontado pelo ZAP; indicação de falso positivo ou falta de trecho resulta em `not_verifiable`. Ela não inventa reprodução nem conclui falso positivo sem prova contrária. A fase C deverá definir suas comparações e validações antes de atribuir níveis com base em tráfego novo.
+Vamos usar `verification.json` com envelope v1, produto, execução e entradas por fingerprint único. O domínio define os níveis `reproduced`, `likely`, `inconclusive`, `likely_false_positive` e `not_verifiable`, com motivo, receita e evidências opcionais de ataque e controle. A fase offline só atribui `likely` a evidência disponível com trecho apontado pelo ZAP; indicação de falso positivo ou falta de trecho resulta em `not_verifiable`. Ela não inventa reprodução nem conclui falso positivo sem prova contrária. A reprodução controlada acrescenta comparações conforme o ADR 0087.
 
 A escrita redige textos com as rotinas existentes e a máscara dos segredos da execução; padrões isolados não garantem ocultar segredos desconhecidos. O envelope é separado de `findings.json`, `triage.json` e `finding_confidence`: não modifica esses contratos nem representa confirmação humana. Falhas de validação não incluem valores recebidos.
 
@@ -20,4 +20,4 @@ Modificar o achado ou sua severidade apagaria a distinção entre alerta e revis
 
 ## Consequências e aceites
 
-O envelope é consultivo e ainda não está ligado à CLI ou ao painel. Testes devem cobrir versões e entradas inválidas, ausentes e malformadas, unicidade, redação, leitura e escrita e regras offline, sem rede. A validação no laboratório e a calibração pertencem às fases posteriores; não há porcentagem ou afirmação de eficácia nesta fase.
+O envelope é consultivo e está ligado a `confirm`, painel e relatórios. Testes devem cobrir versões e entradas inválidas, ausentes e malformadas, unicidade, redação, leitura e escrita e regras offline, sem rede. A validação no laboratório e a calibração permanecem pendentes; não há porcentagem ou afirmação de eficácia nesta fase.

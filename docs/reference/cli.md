@@ -42,6 +42,8 @@ O comando exige perfil aprovado e pilha atual, autorização, janela e prazo vig
 
 Níveis: `reproduced`, `likely`, `inconclusive`, `likely_false_positive` e `not_verifiable`, sempre com motivo. São categorias, não probabilidades. Provas de ataque e controle são resumidas e redigidas; resultados não selecionados são preservados. A apresentação consulta esse arquivo e a declaração humana separadamente. Contratos: [ADR 0085](../adr/0085-verificacao-de-achados.md), [ADR 0087](../adr/0087-reproducao-controlada-de-achados.md) e [ADR 0088](../adr/0088-apresentacao-e-calibracao-de-verificacao.md), propostos. A [calibração](verification-calibration.md) declara quando faltam medições; testes offline não substituem prova no laboratório.
 
+Veja as [receitas e limites](verification.md), inclusive a restrição de autorização à comparação guardada elegível e o significado de reflexão HTML.
+
 ## `hdast finding acknowledge`
 
 `hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.

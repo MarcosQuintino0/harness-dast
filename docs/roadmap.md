@@ -51,7 +51,13 @@ As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-s
 
 Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
 
-Estado consolidado após a V1.9.3. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
+Estado consolidado inclui o trabalho parcial da V1.11. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
+
+### V1.11: verificação de achados em andamento
+
+Código das fases A, B, C e E integrado: classificação aditiva, `hdast confirm`, declaração humana separada e apresentação no painel e nos relatórios. As receitas e restrições estão em [verificação](reference/verification.md); os ADRs 0085 a 0089 permanecem propostos. A régua privada `triage_accuracy` é suplementar e preserva a grade histórica.
+
+**Parcial:** a aprovação humana dos perfis locais não foi obtida; fase 0, calibração D e prova operacional F não foram executadas. Não há `run_id`, contagens nem matriz medidos nesta rodada. A fixture sintética offline não é prova de laboratório e a inspeção visual não foi concluída. QA independente, parecer do validador e gates finais estão em andamento; não há release publicada, PR ou merge desta versão. Sem rodada cega nesta fase e sem produto real. A V1.10 permanece fechada.
 
 ### Fundação (M1)
 
@@ -136,7 +142,7 @@ Desenho aprovado em `docs/design/execution-panel/`. Peças de dados, cada uma co
 | Diário de comandos por produto ([ADR 0033](adr/0033-diario-de-comandos.md), Proposto) | Código e testes: `domain/command_journal.py`, `application/command_journal.py`, `adapters/storage/command_journal.py`, registro em `run_app`; referência em [reference/command-journal.md](reference/command-journal.md) |
 | Tradução de cada comando para português simples | Código e testes (`domain/command_translation.py`); teste falha se a CLI ganhar comando sem tradução |
 | Catálogo de explicação de falha, degrau de confiança e dados de "reproduzir à mão" | Código e testes (`domain/finding_explain.py`, `finding_confidence.py`, `manual_repro.py`); usados pelas abas Falhas e Terminal |
-| Lacuna: "confirmada por pessoa" | O `triage.json` não tem campo escrito por uma pessoa; o terceiro degrau não é alcançável. Pede campo aditivo e ADR |
+| Lacuna histórica: "confirmada por pessoa" | Na V1.2 o terceiro degrau não era alcançável; a V1.11 acrescenta declaração separada no ADR 0086, proposto. |
 | Painel (HTML), comando `panel`, índices de produtos e histórico | O comando `panel` e as abas existem (veja a tabela abaixo); os índices e a página ao vivo estão feitos como código e testes ([ADR 0034](adr/0034-indices-do-painel-e-pagina-ao-vivo.md), proposto) |
 
 ### V1.2: painel da execução, estado por parte (1.2.0)
@@ -162,7 +168,7 @@ O painel da 1.2.0 segue o desenho de `docs/design/execution-panel/`. O que o des
 - **Chaves em inglês na resposta dos comandos do Terminal.** A resposta resumida mostra `chave: valor` com a chave do envelope da CLI (`run_id`, `operations_sent`...); falta traduzir as chaves como as frases dos comandos.
 - **Blocos do desenho do Ao vivo que não existem por falta de dado:** o terminal ao vivo, os tipos de teste de cada função, os sinais de falha até agora e os tokens até agora.
 - **Estado "sistema testado fora do ar".** O desenho prevê o estado transitório da página ao vivo; o código não o produz.
-- **Degrau "confirmada" sem registro de confirmação humana.** O `triage.json` não tem campo escrito por uma pessoa, então o terceiro degrau não é alcançável (já listado acima).
+- **Lacuna histórica do degrau "confirmada".** A V1.11 acrescenta registro humano separado; não modifica `triage.json`.
 - **Celular e tema claro conferidos só em parte.** Foram vistos o Resumo e a página ao vivo; as demais abas não foram abertas em celular de verdade nem no tema claro.
 - **Sem link "pular para o conteúdo"** no topo das páginas (acessibilidade por teclado).
 - **A página ao vivo só começa na varredura**, porque o preflight do `run` abre uma pasta própria (nota no ADR 0034).

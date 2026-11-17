@@ -8,3 +8,4 @@ Este complemento específico do Claude não as substitui; instruções de maior 
 - O Claude Code descobre skills em `.claude/skills/<nome>/SKILL.md` e subagentes em `.claude/agents/*.md`.
 - Use `AskUserQuestion` com as opções da skill, incluindo “Não sei / não está na carta”; na avaliação cega siga `EVAL-BRIEFING.md`.
 - `.claude/settings.json` é a camada 0 de permissões, por conveniência. A trava efetiva é o código da CLI e a Parte B de `AGENTS.md`.
+- V1.11 em andamento: `confirm` registra verificação automática aditiva; declaração humana é separada. Calibração e prova operacional no laboratório aguardam aprovação; estado no [roadmap](docs/roadmap.md).

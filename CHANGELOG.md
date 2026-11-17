@@ -10,6 +10,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
 - `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
+- `hdast confirm`: receitas fixas de leitura com controle, resultado aditivo e contagem separada de pedidos de receita e sessão; painel e relatórios apresentam verificação e confirmação humana (ADRs 0087 e 0088, propostos). Calibração e prova operacional no laboratório estão pendentes de aprovação humana.
 - Skills de triagem orientam a reprodução pela CLI e a leitura da verificação. Régua privada de acerto da triagem preserva a nota histórica (ADR 0089, proposto).
 
 ### Organização

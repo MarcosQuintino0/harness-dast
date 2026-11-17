@@ -4,9 +4,11 @@ Caminho: `src/harness_dast/domain/`. Decisão: [ADR 0004](../adr/0004-portas-e-a
 
 ## Mapa por assunto
 
-Inventário após a organização V1.9.4: **215 módulos de produção**, sem contar 4 arquivos `__init__.py`.
+Inventário histórico após a organização V1.9.4: **215 módulos de produção**, sem contar 4 arquivos `__init__.py`; a V1.11 acrescenta módulos e esses totais não são inventário atual.
 Grupos disjuntos somam o total: 135 módulos na raiz e 80 nos três subpacotes abaixo.
 Testes espelham `tests/unit/domain/`; adaptadores concretos continuam em `adapters/`.
+
+Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas e comparações guardadas; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../reference/verification.md).
 
 | Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
 | --- | --- | --- | --- |

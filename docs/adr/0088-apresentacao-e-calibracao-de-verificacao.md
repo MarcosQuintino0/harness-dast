@@ -18,4 +18,4 @@ Inserir resultados no contrato de achados misturaria dados originais e pareceres
 
 ## Consequências e aceites
 
-O painel e ambos os relatórios devem manter o resultado automático separado da confirmação humana, validar identidade e fingerprints atuais e exibir as provas de forma redigida. O JSON inicial declara bloqueio e não contém medições. Testes de contrato cobrem dados ausentes, inválidos e amostras abaixo e no limiar. A medição no laboratório depende de aprovação humana e não é demonstrada por este ADR proposto.
+O painel e ambos os relatórios apresentam o resultado automático separado da confirmação humana e as provas de forma redigida. A validação de identidade aqui é do produto e da execução, não da pessoa declarante. O JSON inicial declara bloqueio e não contém medições. Testes de contrato cobrem dados ausentes, inválidos e amostras abaixo e no limiar. A medição no laboratório depende de aprovação humana e não é demonstrada por este ADR proposto.

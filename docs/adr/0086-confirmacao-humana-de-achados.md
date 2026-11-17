@@ -6,7 +6,7 @@
 
 ## Contexto
 
-A triagem é consultiva e não registra que uma pessoa viu a falha. Confirmar não pode alterar achados, severidade ou status. O painel será integrado em outra fase.
+A triagem é consultiva e não registra que uma pessoa viu a falha. Confirmar não pode alterar achados, severidade ou status. O painel apresenta separadamente a declaração humana.
 
 ## Decisão
 
@@ -22,4 +22,4 @@ Vamos registrar declarações aditivas em `human-confirmations.json`, ao lado de
 
 ## Consequências e aceites
 
-O registro não prova identidade nem a veracidade da declaração. Registros múltiplos para o mesmo achado são preservados. Uma trava órfã exige intervenção humana após verificar que não há escritor ativo. O teste deve cobrir recusa de TTY e JSON, cancelamento, entradas inválidas, referência inexistente, mistura de contexto, persistência aditiva e redação. Integração do painel e relatório pertence à fase E.
+O registro não prova identidade nem a veracidade da declaração. Registros múltiplos para o mesmo achado são preservados. Uma trava órfã exige intervenção humana após verificar que não há escritor ativo. O teste deve cobrir recusa de TTY e JSON, cancelamento, entradas inválidas, referência inexistente, mistura de contexto, persistência aditiva e redação.
