@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
+from harness_dast.application.stack_models import LabAccountPaths
 from harness_dast.domain.errors import ExternalToolError
 
 CREDENTIALS = {
@@ -12,6 +13,9 @@ CREDENTIALS = {
     "CRAPI_USER_B_EMAIL": "b@example.com",
     "CRAPI_USER_B_PASSWORD": "Aa1#secret-b",
 }
+PATHS = LabAccountPaths(
+    signup="/test/register", login="/test/login", resend="/test/resend", vehicle="/test/vehicle"
+)
 
 
 def test_cadastra_duas_contas_e_veiculos_por_loopback() -> None:
@@ -38,11 +42,19 @@ def test_cadastra_duas_contas_e_veiculos_por_loopback() -> None:
             return httpx.Response(200, json={"token": "abc"})
         return httpx.Response(200, json={})
 
-    CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(CREDENTIALS)
+    CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(
+        CREDENTIALS, PATHS
+    )
 
     assert len(requests) == 10
     assert all(request.url.host == "127.0.0.1" for request in requests)
-    assert sum(request.url.path.endswith("/add_vehicle") for request in requests) == 2
+    assert sum(request.url.path == PATHS.vehicle for request in requests) == 2
+    assert {request.url.path for request in requests if request.method == "POST"} == {
+        PATHS.signup,
+        PATHS.login,
+        PATHS.resend,
+        PATHS.vehicle,
+    }
 
 
 def test_erro_do_alvo_nao_divulga_corpo_nem_credenciais() -> None:
@@ -50,7 +62,9 @@ def test_erro_do_alvo_nao_divulga_corpo_nem_credenciais() -> None:
         return httpx.Response(400, text=CREDENTIALS["CRAPI_USER_A_PASSWORD"])
 
     with pytest.raises(ExternalToolError) as error:
-        CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(CREDENTIALS)
+        CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(
+            CREDENTIALS, PATHS
+        )
 
     assert CREDENTIALS["CRAPI_USER_A_PASSWORD"] not in str(error.value)
 
@@ -63,4 +77,6 @@ def test_login_invalido_ou_ausente_vira_erro_sem_expor_resposta(body: object) ->
         return httpx.Response(200, json={})
 
     with pytest.raises(ExternalToolError, match="cadastrar"):
-        CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(CREDENTIALS)
+        CrapiAccountProvisioner(httpx.MockTransport(handle), lambda _: None).provision(
+            CREDENTIALS, PATHS
+        )

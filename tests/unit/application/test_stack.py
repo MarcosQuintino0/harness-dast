@@ -6,11 +6,14 @@ import pytest
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
 from harness_dast.application.stack_freshness import StackFreshnessCheck
+from harness_dast.application.stack_models import LabAccountPaths
+from harness_dast.domain.api_model import ApiSpec, Operation
 from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.scan_result import ScanProgress
 from harness_dast.domain.stack_binding import StackDigests
+from tests.fakes.probe_ports import InMemorySpecs
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.runtime import FixedEntropy, ManualClock
@@ -72,6 +75,18 @@ class Rig:
             running_scans=running_scans,
             freshness=None if bindings is None else StackFreshnessCheck(self.states, bindings),
             crapi_accounts=self.accounts,
+            specs=InMemorySpecs(
+                ApiSpec(
+                    title="lab",
+                    version="1",
+                    operations=tuple(
+                        Operation(operation_id=name, method="post", path=f"/sample/{index}")
+                        for index, name in enumerate(
+                            ("signup", "login", "vehicle_resend_email", "add_vehicle")
+                        )
+                    ),
+                )
+            ),
         )
 
 
@@ -79,8 +94,9 @@ class FakeCrapiAccounts:
     def __init__(self) -> None:
         self.credentials: dict[str, str] = {}
 
-    def provision(self, credentials: dict[str, str]) -> None:
+    def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
         self.credentials = dict(credentials)
+        self.paths = paths
 
 
 def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path: Path) -> None:
@@ -93,6 +109,7 @@ def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path
     assert [p.name for p in state.projects] == ["hdast-codex", "hdast-crapi-codex"]
     assert state.projects[1].remove_volumes is True
     assert rig.accounts.credentials == state.target_env
+    assert rig.accounts.paths.signup == "/sample/0"
     assert rig.accounts.credentials["CRAPI_USER_A_PASSWORD"].startswith("Aa1#")
     assert all(value not in report.model_dump_json() for value in state.target_env.values())
     rig.manager.down()
@@ -112,11 +129,27 @@ def test_crapi_seguro_recusa_antes_de_derrubar_pilha_anterior(tmp_path: Path) ->
     assert rig.states.state.product == "demo"
 
 
+def test_openapi_incompleto_preserva_pilha_anterior(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="demo"))
+    state = rig.states.state
+    calls = list(rig.compose.calls)
+    policies = list(rig.policies.published)
+    rig.manager._specs = InMemorySpecs(ApiSpec(title="incompleto", version="1"))
+
+    with pytest.raises(ConfigError, match="não existe"):
+        rig.manager.up(StackUpRequest(product="crapi"))
+
+    assert rig.states.state == state
+    assert rig.compose.calls == calls
+    assert rig.policies.published == policies
+
+
 def test_falha_no_cadastro_mantem_estado_para_derrubar_projetos(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
 
     class BrokenAccounts:
-        def provision(self, credentials: dict[str, str]) -> None:
+        def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
             raise ExternalToolError("cadastro falhou", hint="Derrube a pilha.")
 
     rig.manager._crapi_accounts = BrokenAccounts()

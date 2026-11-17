@@ -9,6 +9,7 @@ from collections.abc import Callable
 import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from harness_dast.application.stack_models import LabAccountPaths
 from harness_dast.domain.errors import ExternalToolError
 
 _VEHICLE = re.compile(r"VIN:\s*([A-Z0-9]{17}).*?Pincode:\s*(\d{4})", re.DOTALL)
@@ -48,19 +49,21 @@ class CrapiAccountProvisioner:
         self._transport = transport
         self._sleep = sleep
 
-    def provision(self, credentials: dict[str, str]) -> None:
+    def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
         """Cadastra contas e veículos; falhas são traduzidas sem o conteúdo externo."""
         try:
             with httpx.Client(transport=self._transport, timeout=30, trust_env=False) as client:
                 for label in ("A", "B"):
-                    self._account(client, label, credentials)
+                    self._account(client, label, credentials, paths)
         except (httpx.HTTPError, ValidationError, ValueError, KeyError):
             raise ExternalToolError(
                 "Não foi possível cadastrar as contas sintéticas do crAPI.",
                 hint="Confira a saúde do crAPI e MailHog e recrie a pilha.",
             ) from None
 
-    def _account(self, client: httpx.Client, label: str, credentials: dict[str, str]) -> None:
+    def _account(
+        self, client: httpx.Client, label: str, credentials: dict[str, str], paths: LabAccountPaths
+    ) -> None:
         email = credentials[f"CRAPI_USER_{label}_EMAIL"]
         password = credentials[f"CRAPI_USER_{label}_PASSWORD"]
         web = "http://127.0.0.1:28888"
@@ -69,7 +72,7 @@ class CrapiAccountProvisioner:
         ).zfill(8)
         _post(
             client,
-            f"{web}/identity/api/auth/signup",
+            f"{web}{paths.signup}",
             {
                 "name": f"Lab {label}",
                 "email": email,
@@ -80,18 +83,18 @@ class CrapiAccountProvisioner:
         token = _Token.model_validate(
             _post(
                 client,
-                f"{web}/identity/api/auth/login",
+                f"{web}{paths.login}",
                 {
                     "email": email,
                     "password": password,
                 },
             )
         ).token
-        _post(client, f"{web}/identity/api/v2/vehicle/resend_email", {}, token)
+        _post(client, f"{web}{paths.resend}", {}, token)
         vin, pin = self._vehicle(client, email)
         _post(
             client,
-            f"{web}/identity/api/v2/vehicle/add_vehicle",
+            f"{web}{paths.vehicle}",
             {"vin": vin, "pincode": pin},
             token,
         )

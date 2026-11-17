@@ -13,10 +13,12 @@ from pydantic import SecretStr
 
 from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
 from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
+from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.kill_switch import FileKillSwitch
+from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.stack_state import FileStackStateStore, default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_random import SystemRandom
@@ -103,6 +105,9 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
         freshness=open_stack_freshness(root),
         crapi_accounts=CrapiAccountProvisioner(),
+        specs=FileSpecLoader(
+            lambda product, relative: resolve_product_file(root, product, relative)
+        ),
     )
 
 

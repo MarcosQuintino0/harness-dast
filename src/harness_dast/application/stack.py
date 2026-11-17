@@ -21,8 +21,10 @@ from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     ProfileRepository,
+    SpecLoader,
     StackStateStore,
 )
+from harness_dast.application.lab_accounts import account_paths
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
     CRAPI,
@@ -119,6 +121,7 @@ class StackManager:
         proxy_env: Callable[[str], Mapping[str, str]] | None = None,
         freshness: StackFreshnessCheck | None = None,
         crapi_accounts: LabAccountProvisioner | None = None,
+        specs: SpecLoader | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -137,6 +140,7 @@ class StackManager:
             proxy_env: Montagens e identidade do proxy gerenciado para o produto.
             freshness: Conferência do frescor da pilha, para o `status` (ADR 0081).
             crapi_accounts: Cadastro das contas sintéticas do crAPI.
+            specs: Leitor do OpenAPI do perfil, para preparar contas de laboratório.
         """
         self._profiles = profiles
         self._clock = clock
@@ -152,6 +156,7 @@ class StackManager:
         self._proxy_env = proxy_env
         self._freshness = freshness
         self._crapi_accounts = crapi_accounts
+        self._specs = specs
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -178,6 +183,13 @@ class StackManager:
             raise ConfigError(
                 "Cadastro de contas do crAPI indisponível.", hint="Confira a montagem da CLI."
             )
+        paths = None
+        if target is CRAPI:
+            if self._specs is None:
+                raise ConfigError(
+                    "Leitor do OpenAPI indisponível.", hint="Confira a montagem da CLI."
+                )
+            paths = account_paths(self._specs.load(profile.product, profile))
         suffix = _project_suffix(self._environ)
         oracle = self._oracle_requested(request, target)
         projects = self._projects(target, oracle=oracle, suffix=suffix)
@@ -221,7 +233,7 @@ class StackManager:
                 build=request.build or project == projects[0],
                 timeout_seconds=request.timeout_seconds,
             )
-        if target is CRAPI and self._crapi_accounts is not None:
+        if target is CRAPI and self._crapi_accounts is not None and paths is not None:
             self._crapi_accounts.provision(
                 {
                     **state.target_env,
@@ -230,7 +242,8 @@ class StackManager:
                         for name in CRAPI.credential_env
                         if self._environ.get(name)
                     },
-                }
+                },
+                paths,
             )
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})

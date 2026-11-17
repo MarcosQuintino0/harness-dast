@@ -8,7 +8,7 @@ protegê-lo (ver `adapters/storage/stack_state.py`). Estes modelos são puros.
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from harness_dast.domain.scan_result import ScanProgress
 
@@ -21,6 +21,27 @@ class StackProjectSuffix(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     value: str = Field(default="", pattern=r"^(?:-[a-z0-9]{1,20})?$")
+
+
+class LabAccountPaths(BaseModel):
+    """Caminhos literais locais para cadastrar contas e veículos de laboratório."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    signup: str = Field(pattern=r"^/[a-zA-Z0-9_~.-]+(?:/[a-zA-Z0-9_~.-]+)*$", max_length=500)
+    login: str = Field(pattern=r"^/[a-zA-Z0-9_~.-]+(?:/[a-zA-Z0-9_~.-]+)*$", max_length=500)
+    resend: str = Field(pattern=r"^/[a-zA-Z0-9_~.-]+(?:/[a-zA-Z0-9_~.-]+)*$", max_length=500)
+    vehicle: str = Field(pattern=r"^/[a-zA-Z0-9_~.-]+(?:/[a-zA-Z0-9_~.-]+)*$", max_length=500)
+
+    @model_validator(mode="after")
+    def validate_paths(self) -> "LabAccountPaths":
+        """Recusa segmentos relativos e operações que compartilhem o mesmo caminho."""
+        paths = (self.signup, self.login, self.resend, self.vehicle)
+        if len(set(paths)) != len(paths) or any(
+            segment in {".", ".."} for path in paths for segment in path.split("/")
+        ):
+            raise ValueError("caminhos repetidos ou relativos")
+        return self
 
 
 class ComposeProject(BaseModel):
