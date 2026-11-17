@@ -132,7 +132,7 @@ def test_cli_recusa_sem_terminal_ou_json(
     )
     result = CliRunner().invoke(
         build_app(),
-        ["finding", "acknowledge", "vampi", "--run", RUN_ID, "--finding", "f" * 64],
+        ["finding", "acknowledge", "vampi", "--run", RUN_ID, "f" * 64],
         obj=CliState(json_mode=json_mode),
     )
     assert isinstance(result.exception, ConfigError)
@@ -150,7 +150,7 @@ def test_comando_interativo_registra_declaracao(
     )
     result = CliRunner().invoke(
         build_app(),
-        ["finding", "acknowledge", "vampi", "--run", RUN_ID, "--finding", fingerprint],
+        ["finding", "acknowledge", "vampi", "--run", RUN_ID, fingerprint],
         input=f"Ana\nvi a resposta\n{fingerprint}\n",
         obj=CliState(),
     )

@@ -33,7 +33,7 @@ def acknowledge_command(
     ctx: typer.Context,
     product: Annotated[str, typer.Argument()],
     run: Annotated[str, typer.Option("--run")],
-    fingerprint: Annotated[str, typer.Option("--finding")],
+    fingerprint: Annotated[str, typer.Argument(help="Fingerprint completo do achado.")],
 ) -> None:
     """Registra confirmação declarada por pessoa, em terminal interativo."""
     state = get_state(ctx)
