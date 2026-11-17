@@ -3,6 +3,9 @@
 from datetime import timedelta
 from typing import Any
 
+import pytest
+
+from harness_dast.application.authz import checks_access
 from harness_dast.application.authz.service import Authz, AuthzRequest
 from harness_dast.domain.api_model import ApiSpec, SecurityRequirement
 from harness_dast.domain.authz.config import AuthzCheck
@@ -495,3 +498,77 @@ def test_every_tampered_value_is_registered_for_masking_before_it_is_sent() -> N
     for request in sent(rig, "authz:tampered:"):
         value = header(request, "Authorization") or ""
         assert value.removeprefix("Bearer ") not in rig.vault.mask(value)
+
+
+# --- chave HMAC fraca (ADR 0098) ----------------------------------------------------------------
+
+STRONG_KEY = "k9#Qz-8vLm2$Xr7@pW4^tB6&"
+
+
+def tampered_by_operation(rig: AuthzRig) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for request in sent(rig, "authz:tampered:"):
+        counts[request.operation_id] = counts.get(request.operation_id, 0) + 1
+    return counts
+
+
+def test_a_server_that_accepts_a_token_signed_with_a_weak_key_gets_a_high_finding() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac", check_exp=False))
+
+    result = run_authz(rig, checks=(TAMPER,))
+
+    findings = found(result, "authz_tampered_token")
+    assert findings
+    for finding in findings:
+        assert finding.variants == ("weak_key", "weak_key_expired")
+        assert finding.proposed_severity == "high"
+        assert finding.cwe == 347
+        assert "'secret'" not in finding.model_dump_json()
+
+
+def test_a_server_that_checks_exp_accepts_only_the_weak_key_proof() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac"))
+
+    result = run_authz(rig, checks=(TAMPER,))
+
+    findings = found(result, "authz_tampered_token")
+    assert findings
+    assert all(f.variants == ("weak_key",) for f in findings)
+
+
+def test_weak_key_proof_requests_never_pass_five_per_operation() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac", check_exp=False))
+
+    run_authz(rig, checks=(TAMPER,))
+
+    # 3 variantes comuns recusadas + no máximo 2 de prova por operação.
+    assert max(tampered_by_operation(rig).values()) <= 5
+
+
+def test_a_jwt_signed_with_a_strong_key_costs_only_the_common_variants() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key=STRONG_KEY, lax="verify_hmac"))
+
+    result = run_authz(rig, checks=(TAMPER,))
+
+    assert found(result, "authz_tampered_token") == []
+    assert len(sent(rig, "authz:tampered:")) == 3 * summary(result, TAMPER).tested
+
+
+def test_a_server_that_refuses_the_weak_key_proof_is_tested_without_finding() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret"))
+
+    result = run_authz(rig, checks=(TAMPER,))
+
+    assert found(result, "authz_tampered_token") == []
+    assert summary(result, TAMPER).tested >= 1
+
+
+def test_the_per_run_cap_stops_weak_key_proofs_after_the_allowed_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(checks_access, "MAX_WEAK_KEY_OPERATIONS", 1)
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac", check_exp=False))
+
+    result = run_authz(rig, checks=(TAMPER,))
+
+    assert len(found(result, "authz_tampered_token")) == 1
