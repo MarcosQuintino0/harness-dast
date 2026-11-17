@@ -1,6 +1,6 @@
 """F4 (ADR 0098): JWT no `authz` provado no laboratório local, só leitura e escopo mínimo.
 
-- crAPI: escopo reduzido a `login` e `GET /workshop/api/shop/products`; o `authz` roda só o
+- crAPI: escopo reduzido a `login` e `GET /identity/api/v2/user/dashboard`; o `authz` roda só o
   `tampered_token`. Registra quais variantes o alvo aceitou (inclusive a chave HMAC fraca).
 - Clínica Piloto no modo seguro: zero achado de token adulterado.
 
@@ -13,12 +13,36 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
-from tests.integration.lab_support import PILOT_PROFILE, LabCli, require_docker
+from tests.integration.lab_support import PILOT_PROFILE, REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
 from tests.integration.v112_proof_support import prepare_control_product
 
 pytestmark = pytest.mark.integration
+
+
+DASHBOARD = "/identity/api/v2/user/dashboard"
+
+
+def _prepare_crapi_product(products: Path) -> None:
+    """Produto descartável do controle, mais a leitura autenticada do painel (`get_dashboard`).
+
+    `get_products` é o caminho de saúde do perfil e o `authz` não o repete; o painel é um `GET`
+    autenticado, sem parâmetro e sem efeito, que o escopo reduzido passa a permitir.
+    """
+    prepare_control_product(products)
+    spec_path = products / "crapi" / "openapi.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    full = json.loads((REPO / "lab/crapi/openapi.json").read_text(encoding="utf-8"))
+    spec["paths"][DASHBOARD] = {"get": full["paths"][DASHBOARD]["get"]}
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    target = products / "crapi" / "target.yml"
+    data = yaml.safe_load(target.read_text(encoding="utf-8"))
+    data["scope"]["allow"].append(
+        dict(data["scope"]["allow"][0], paths=[DASHBOARD], methods=["GET"])
+    )
+    target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
 def _authz(cli: LabCli, product: str, run_id: str) -> dict[str, Any]:
@@ -49,12 +73,12 @@ def test_crapi_jwt_e_achado_pelo_authz(tmp_path: Path) -> None:
     for key in tuple(cli.env):
         if key.startswith("CRAPI_"):
             del cli.env[key]
-    prepare_control_product(cli.products)
+    _prepare_crapi_product(cli.products)
     records: dict[str, Any] = {}
     try:
         assert cli.run("stack", "up", "crapi", timeout=600).code == 0
         assert cli.run("preflight", "crapi").code == 0
-        probe = cli.run("probe", "crapi", "--only", "get_products")
+        probe = cli.run("probe", "crapi", "--only", "get_dashboard")
         assert probe.code == 0, probe.stdout[-500:]
         run_id = str(probe.envelope["run_id"])
         records.update(_authz(cli, "crapi", run_id))

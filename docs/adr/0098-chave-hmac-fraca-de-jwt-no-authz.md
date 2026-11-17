@@ -33,3 +33,8 @@ Esta decisão revoga apenas a frase do ADR 0039 que proíbe "tentar chave conhec
 - No pior caso o teste acrescenta 20 pedidos por execução; num JWT forte ou fora de HMAC, zero.
 - A lista é fixa: chave fraca fora dela não é achada, e o relatório não afirma que a chave é forte.
 - Palavras do contexto vêm do perfil, nunca de resposta do alvo.
+
+## Prova no laboratório
+
+- crAPI (escopo reduzido a `login` e `GET /identity/api/v2/user/dashboard`, run `2026-11-17T14-55-25Z-crapi-a379`, `authz` em 2,9 s, 5 pedidos): achado alto, CWE-347, variantes aceitas `alg_none` e `altered_claims`; a assinatura retirada foi recusada. Como o servidor já aceitou variantes comuns, a prova de chave fraca não foi enviada (por desenho): a chave HMAC fraca só foi exercida em unidade. `kid` e `jku` do C15 não foram avaliados no alvo.
+- Clínica Piloto no modo seguro (run `2026-11-17T14-57-46Z-clinica-piloto-cb37`, 10 pedidos, 2 operações): zero achado; a chave do alvo não está na lista, então nenhum pedido de prova saiu.
