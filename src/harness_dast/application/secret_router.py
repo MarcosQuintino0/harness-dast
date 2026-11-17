@@ -1,6 +1,7 @@
 """Resolve `secret_ref` pela origem certa: variável de ambiente ou cofre do sistema."""
 
-from harness_dast.application.ports import CredentialStore, SecretProvider
+from harness_dast.application.common_ports import SecretProvider
+from harness_dast.application.secret_ports import CredentialStore
 from harness_dast.domain.secret_ref import SecretRef
 
 

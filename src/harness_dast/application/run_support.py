@@ -8,7 +8,7 @@ só então chega ao `TargetClient`, que por sua vez só aceita `ApprovedRequest`
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     KillSwitch,
     MutationJournal,

@@ -16,14 +16,9 @@ from datetime import datetime, tzinfo
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, KillSwitch, ProfileRepository, SpecLoader
 from harness_dast.application.panel_index import PanelIndexer
-from harness_dast.application.ports import (
-    Clock,
-    KillSwitch,
-    PanelFiles,
-    ProfileRepository,
-    SpecLoader,
-)
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.panel.build_content import function_names
 from harness_dast.domain.panel.build_stages import STAGE_LABELS

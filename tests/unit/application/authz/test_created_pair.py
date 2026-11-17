@@ -9,7 +9,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.application.authz import checks_mass as authz_checks_mass
 from harness_dast.application.authz import created_pair as authz_created_pair
 from harness_dast.application.authz.service import Authz, AuthzRequest
-from harness_dast.application.ports import MutationJournal, ProfileRepository
+from harness_dast.application.common_ports import MutationJournal, ProfileRepository
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.authz.config import AuthzCheck
 from harness_dast.domain.authz.result import AuthzResult

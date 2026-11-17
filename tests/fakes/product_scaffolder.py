@@ -1,6 +1,6 @@
 """Criador de produtos em memória, com o comportamento da porta `ProductScaffolder`."""
 
-from harness_dast.application.ports import ScaffoldedProduct
+from harness_dast.application.init_ports import ScaffoldedProduct
 from harness_dast.domain.errors import ConfigError
 
 

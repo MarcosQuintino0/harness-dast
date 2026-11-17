@@ -41,9 +41,9 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from harness_dast.application.authz.service import AuthzRequest
+from harness_dast.application.common_ports import Clock, KillSwitch, ProfileRepository
 from harness_dast.application.negative import NegativeRequest
 from harness_dast.application.panel_index_ports import RunLive
-from harness_dast.application.ports import Clock, KillSwitch, ProfileRepository
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest

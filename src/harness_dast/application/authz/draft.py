@@ -9,7 +9,7 @@ hipótese e nunca preenche `deny` (veja `domain.authz_matrix_draft`).
 from dataclasses import dataclass
 
 from harness_dast.application.authz.ports import AuthzArtifacts, AuthzDraftWriter
-from harness_dast.application.ports import ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import ProfileRepository, SpecLoader
 from harness_dast.domain.authz.matrix_draft import draft_items, render_draft
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.probe_exchange import ExchangeRecord

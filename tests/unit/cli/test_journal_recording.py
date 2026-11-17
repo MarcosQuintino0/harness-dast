@@ -8,7 +8,7 @@ from typer.core import TyperGroup
 
 from harness_dast.adapters.storage.command_journal import FileCommandJournalStore
 from harness_dast.application.command_journal import load_journal_for_run
-from harness_dast.application.ports import CommandJournalStore
+from harness_dast.application.common_ports import CommandJournalStore
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.cli.journal_recording import describe_invocation, record_invocation
 from harness_dast.cli.output import CliState, build_failure, build_success

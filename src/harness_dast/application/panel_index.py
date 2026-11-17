@@ -13,9 +13,10 @@ from typing import Protocol
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, ProfileRepository
 from harness_dast.application.panel import PanelOutcome, PanelRequest
 from harness_dast.application.panel_index_ports import PanelIndexFiles, RunFolder
-from harness_dast.application.ports import Clock, PanelFiles, ProfileRepository
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.panel.index_build import empty_row, make_entry, row_from_sources
 from harness_dast.domain.panel.index_model import ProductEntry, ProductInfo, RunRow

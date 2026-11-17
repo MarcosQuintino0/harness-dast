@@ -12,6 +12,13 @@ Perfil e OpenAPI inválidos são erro (`ConfigError`). Problemas em `data-rules.
 
 from collections.abc import Callable
 
+from harness_dast.application.common_ports import (
+    Clock,
+    ProductDocuments,
+    ProfileRepository,
+    SpecLoader,
+    ValueSourceFactory,
+)
 from harness_dast.application.inspect_report import (
     DocumentInfo,
     InspectIssue,
@@ -20,13 +27,6 @@ from harness_dast.application.inspect_report import (
     OperationAccount,
     SpecInspection,
     UnusedRule,
-)
-from harness_dast.application.ports import (
-    Clock,
-    ProductDocuments,
-    ProfileRepository,
-    SpecLoader,
-    ValueSourceFactory,
 )
 from harness_dast.domain.api_model import ApiSpec, safe_identifier
 from harness_dast.domain.api_summary import DEFAULT_BUDGET_CHARS, summarize

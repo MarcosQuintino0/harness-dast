@@ -26,7 +26,7 @@ from typer.core import TyperCommand, TyperGroup, TyperOption
 
 from harness_dast.adapters.storage.command_journal import FileCommandJournalStore
 from harness_dast.adapters.storage.stack_state import default_state_dir
-from harness_dast.application.ports import CommandJournalStore
+from harness_dast.application.common_ports import CommandJournalStore
 from harness_dast.application.scan_ports import PanelRefresher
 from harness_dast.cli.output import CliState, Envelope
 from harness_dast.cli.panel_index_composition import build_indexed_panel

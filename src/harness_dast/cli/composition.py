@@ -36,16 +36,18 @@ from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.account_session import TokenCache
 from harness_dast.application.cleanup import Cleanup
+from harness_dast.application.cleanup_ports import OperatorPrompt
+from harness_dast.application.common_ports import KillSwitch
 from harness_dast.application.doctor import Doctor
 from harness_dast.application.init_from_letter import InitFromLetter
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
 from harness_dast.application.knowledge import ExecutableKnowledge
 from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import KillSwitch, OperatorPrompt, SecretPrompt
 from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
+from harness_dast.application.secret_ports import SecretPrompt
 from harness_dast.application.validate_profile import ValidateProfile
 from harness_dast.cli.approval_composition import (
     checked_profiles,

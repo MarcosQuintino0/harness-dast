@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from harness_dast.application.ports import MutationJournal
+from harness_dast.application.common_ports import MutationJournal
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 

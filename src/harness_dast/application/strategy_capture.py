@@ -1,15 +1,15 @@
 """Captura explícita de uma estratégia neutra sem pedidos ao alvo."""
 
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
     ProductDocuments,
     ProfileRepository,
     SpecLoader,
-    StrategyCaptureStore,
     ZapControl,
 )
 from harness_dast.application.scope_approval import current_check
+from harness_dast.application.strategy_ports import StrategyCaptureStore
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.strategy import Strategy

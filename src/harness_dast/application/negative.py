@@ -19,12 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.negative_ports import NegativeArtifacts
-from harness_dast.application.negative_runner import NegativeOutcome, NegativeRunner
-from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     KillSwitch,
     MutationJournal,
@@ -36,6 +31,11 @@ from harness_dast.application.ports import (
     SpecLoader,
     TargetClient,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.negative_ports import NegativeArtifacts
+from harness_dast.application.negative_runner import NegativeOutcome, NegativeRunner
+from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import ApiSpec

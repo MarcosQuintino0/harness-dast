@@ -10,8 +10,8 @@ gravado. Os passos `resolve_secrets`, `login` e `fetch_csrf` são públicos para
 from dataclasses import dataclass, field
 from typing import Literal
 
+from harness_dast.application.common_ports import SecretProvider, SecretVault, TargetClient
 from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.ports import SecretProvider, SecretVault, TargetClient
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import (
     Account,

@@ -1,6 +1,6 @@
 """Repositório de perfis em memória, com o comportamento da porta `ProfileRepository`."""
 
-from harness_dast.application.ports import ReferencedFile
+from harness_dast.application.common_ports import ReferencedFile
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 

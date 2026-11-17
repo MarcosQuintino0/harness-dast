@@ -12,7 +12,7 @@ import pytest
 from pydantic import SecretStr
 
 from harness_dast.adapters.cleanup.oracle_executor import OracleCleanupExecutor
-from harness_dast.application.ports import CleanupConnection
+from harness_dast.application.cleanup_ports import CleanupConnection
 from harness_dast.domain.cleanup_gate import CleanupStatement
 from harness_dast.domain.errors import CleanupError
 

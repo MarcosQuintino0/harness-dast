@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 
-from harness_dast.application.ports import WaitReader
+from harness_dast.application.wait_ports import WaitReader
 from harness_dast.domain.wait import WaitResult
 
 

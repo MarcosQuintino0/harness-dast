@@ -18,7 +18,8 @@ from typing import Protocol
 
 import structlog
 
-from harness_dast.application.ports import PanelFiles, ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import ProfileRepository, SpecLoader
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, HarnessError

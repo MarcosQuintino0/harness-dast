@@ -7,7 +7,7 @@ mascarado em mensagem, log e trecho de resposta. Nunca sai deste objeto para art
 """
 
 from harness_dast.application.account_session import AuthCredential
-from harness_dast.application.ports import SecretVault
+from harness_dast.application.common_ports import SecretVault
 
 
 class TamperedSession:

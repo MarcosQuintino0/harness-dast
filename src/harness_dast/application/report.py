@@ -21,7 +21,7 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import Clock, ProfileRepository, SpecLoader
 from harness_dast.application.scan_ports import (
     PanelRefresher,
     ProxyAudit,

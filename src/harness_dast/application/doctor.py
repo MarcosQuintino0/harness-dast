@@ -19,7 +19,15 @@ from pathlib import Path
 from typing import Protocol
 
 from harness_dast.application.account_session import account_secret_fields
+from harness_dast.application.common_ports import (
+    Clock,
+    ProfileRepository,
+    SecretProvider,
+    SecretVault,
+    StackStateStore,
+)
 from harness_dast.application.doctor_checks import authz_peer_checks, wide_mode_checks
+from harness_dast.application.doctor_ports import HostInspector
 from harness_dast.application.doctor_report import (
     DoctorCheck,
     DoctorKind,
@@ -32,14 +40,6 @@ from harness_dast.application.lab_targets import (
     PILOT_API_PORT,
     PILOT_MANAGEMENT_PORT,
     lab_target_for,
-)
-from harness_dast.application.ports import (
-    Clock,
-    HostInspector,
-    ProfileRepository,
-    SecretProvider,
-    SecretVault,
-    StackStateStore,
 )
 from harness_dast.application.preflight_checks import (
     authorization_window_checks,

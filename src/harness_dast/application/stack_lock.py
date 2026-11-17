@@ -11,8 +11,9 @@ from contextlib import contextmanager
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProcessProbe, RandomSource, StackLockFile
+from harness_dast.application.common_ports import Clock
 from harness_dast.application.stack_models import StackLockInfo
+from harness_dast.application.stack_ports import ProcessProbe, RandomSource, StackLockFile
 from harness_dast.domain.errors import ConfigError, StackBusy
 from harness_dast.domain.stack_lock import (
     LockHolder,

@@ -9,7 +9,7 @@ o alvo.
 from collections.abc import Mapping
 
 from harness_dast.application.command_journal import load_journal_for_run
-from harness_dast.application.ports import CommandJournalStore
+from harness_dast.application.common_ports import CommandJournalStore
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.panel.catalog import build_explanations
 from harness_dast.domain.panel.journal import build_journal

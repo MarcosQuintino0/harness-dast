@@ -8,6 +8,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Organização
 
+- Portas da aplicação divididas por consumidor em 12 módulos, com módulo comum para contratos compartilhados; 47 declarações, assinaturas e docstrings preservadas.
+
 - Grupo authz: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
 
 - ADR 0084 proposto compara apresentação no domínio e em adapters/reporting; recomenda migração futura, sem troca de camada nesta entrega.

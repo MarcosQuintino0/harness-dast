@@ -13,13 +13,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     KillSwitch,
-    KnowledgeRecipeReader,
     MutationJournal,
     ProductDocuments,
     ProfileRepository,
@@ -32,7 +29,10 @@ from harness_dast.application.ports import (
     ValueSourceFactory,
     ZapControl,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.preview import RecordingSource
+from harness_dast.application.probe_ports import KnowledgeRecipeReader
 from harness_dast.application.probe_runner import ProbeRunner
 from harness_dast.application.run_support import (
     AuditTrail,

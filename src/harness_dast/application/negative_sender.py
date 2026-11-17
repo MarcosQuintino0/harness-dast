@@ -12,9 +12,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 from harness_dast.application.authz.sender import Reply, StopRun
+from harness_dast.application.common_ports import MutationJournal
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
-from harness_dast.application.ports import MutationJournal
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.errors import PreflightError, ScopeViolation

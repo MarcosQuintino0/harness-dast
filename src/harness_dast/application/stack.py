@@ -15,6 +15,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from harness_dast.application.common_ports import (
+    Clock,
+    EntropySource,
+    ProfileRepository,
+    StackStateStore,
+)
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
     PILOT_API_PORT,
@@ -26,16 +32,6 @@ from harness_dast.application.lab_targets import (
     LabTarget,
     lab_target_for,
 )
-from harness_dast.application.ports import (
-    Clock,
-    ComposeRunner,
-    EntropySource,
-    ProfileRepository,
-    ProxyPolicyStore,
-    RandomSource,
-    StackStateStore,
-    ZapScanStopper,
-)
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack_freshness import StackFreshnessCheck
 from harness_dast.application.stack_lock import StackLockService
@@ -45,6 +41,12 @@ from harness_dast.application.stack_models import (
     StackReport,
     StackState,
     StopReport,
+)
+from harness_dast.application.stack_ports import (
+    ComposeRunner,
+    ProxyPolicyStore,
+    RandomSource,
+    ZapScanStopper,
 )
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.proxy_deadline import compute_policy_deadline

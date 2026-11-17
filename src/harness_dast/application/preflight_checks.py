@@ -7,7 +7,7 @@ e `doctor` apliquem a MESMA regra, com os mesmos textos.
 from collections.abc import Callable, Iterable
 from datetime import datetime
 
-from harness_dast.application.ports import SecretProvider, SecretVault
+from harness_dast.application.common_ports import SecretProvider, SecretVault
 from harness_dast.application.preflight_report import CheckKind, PreflightCheck
 from harness_dast.domain.errors import (
     HarnessError,

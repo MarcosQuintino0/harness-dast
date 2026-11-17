@@ -17,9 +17,10 @@ from harness_dast.adapters.storage.profile_repository import FileProfileReposito
 from harness_dast.adapters.storage.stack_state import FileStackStateStore, default_state_dir
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
+from harness_dast.application.common_ports import ProfileRepository, ZapControl
 from harness_dast.application.knowledge import KnowledgeProfiles
-from harness_dast.application.ports import ApprovalPrompt, ProfileRepository, ZapControl
 from harness_dast.application.scope_approval import ApprovedProfileRepository, ScopeApprovals
+from harness_dast.application.scope_approval_ports import ApprovalPrompt
 from harness_dast.application.stack_freshness import FreshStackProfiles, StackFreshnessCheck
 from harness_dast.application.strategy import StrategyProfiles
 

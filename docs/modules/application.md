@@ -4,7 +4,7 @@ Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-porta
 
 ## Responsabilidade
 
-Orquestrar um caso de uso por arquivo e declarar em `ports.py` as portas de que precisa. O caso de uso recebe as portas no construtor e usa o `domain` para decidir.
+Orquestrar um caso de uso por arquivo e declarar nos módulos `*_ports.py` as portas de que precisa. O caso de uso recebe as portas no construtor e usa o `domain` para decidir.
 
 Portas previstas no desenho aprovado:
 
@@ -47,7 +47,7 @@ Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml
 
 | Módulo | Conteúdo |
 | --- | --- |
-| `ports.py` | `Clock`, `ProfileRepository` (`load`, `missing_files`) e `ProductScaffolder` (`scaffold`), mais os modelos `ReferencedFile` e `ScaffoldedProduct` usados nas assinaturas |
+| `common_ports.py` e `init_ports.py` | `Clock`, `ProfileRepository` (`load`, `missing_files`) e `ProductScaffolder` (`scaffold`), mais os modelos `ReferencedFile` e `ScaffoldedProduct` usados nas assinaturas |
 | `validate_profile.py` | `ValidateProfile`: carrega o perfil e devolve `ProfileReport` (resumo sem segredos, `runnable` e `issues`). Validade estrutural é erro (`ConfigError`); prontidão para executar é dado. Detecta os valores de exemplo do modelo (hosts `exemplo.com.br`, referência `SEC-0000`, segredos `MEU_PRODUTO_*`), arquivos referenciados ausentes, autorização vencida e janela fechada |
 | `init_product.py` | `InitProduct`: cria a pasta do produto pela porta `ProductScaffolder` |
 
@@ -55,7 +55,7 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 
 | Módulo | Conteúdo |
 | --- | --- |
-| `ports.py` (ampliado) | `Sleeper`, `EntropySource`, `ValueSourceFactory`, `SpecLoader`, `ProductDocuments`, `SecretProvider`, `SecretVault`, `TargetClient` (só aceita `ApprovedRequest`), `ZapControl`, `RunStore` |
+| `common_ports.py` (portas compartilhadas) | `Sleeper`, `EntropySource`, `ValueSourceFactory`, `SpecLoader`, `ProductDocuments`, `SecretProvider`, `SecretVault`, `TargetClient` (só aceita `ApprovedRequest`), `ZapControl`, `RunStore` |
 | `inspect_spec.py`, `inspect_report.py` | `InspectSpec`: resumo e verificações cruzadas; modelos do resultado |
 | `preflight.py`, `preflight_report.py`, `preflight_checks.py` | `Preflight`: verificações como dado (`scope` x `environment`); modelos e auxiliares |
 | `probe.py` | `Probe`: orquestra leitura, plano, ZAP, sessão da conta, manifesto e resultado |
@@ -100,3 +100,25 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 
 17 módulos de produção agrupados na mesma camada, sem alterar contratos.
 Novas regras deste assunto entram em `application/authz/`, com testes espelhados em `tests/unit/application/authz/`.
+
+## Portas por consumidor
+
+47 declarações preservadas (Protocol e modelos de assinatura), distribuídas em 12 módulos; sem mudar assinaturas ou docstrings.
+As portas existentes de scan, authz, negative e panel_index continuam especializadas.
+
+| Módulo | Declarações |
+| --- | --- |
+| `probe_ports.py` | `KnowledgeRecipeReader` |
+| `knowledge_ports.py` | `KnowledgeRunStore`, `KnowledgeStore` |
+| `strategy_ports.py` | `StrategyCaptureStore` |
+| `wait_ports.py` | `WaitReader` |
+| `init_ports.py` | `ScaffoldedProduct`, `ProductScaffolder`, `LetterReader` |
+| `secret_ports.py` | `CredentialStore`, `SecretPrompt` |
+| `scope_approval_ports.py` | `ApprovalPrompt` |
+| `stack_ports.py` | `ProxyPolicyStore`, `StackBindingSource`, `ComposeRunner`, `StackLockFile`, `ProcessProbe`, `RandomSource`, `ZapScanStopper` |
+| `cleanup_ports.py` | `CleanupConnection`, `CleanupSession`, `CleanupExecutor`, `CleanupScripts`, `CleanupRuns`, `TokenSource`, `OperatorPrompt` |
+| `doctor_ports.py` | `HostInspector` |
+| `panel_ports.py` | `PanelFiles` |
+| `common_ports.py` | `MutationJournal`, `StrategyStore`, `StrategyDependencyStore`, `ReferencedFile`, `Clock`, `ProfileRepository`, `Sleeper`, `KillSwitch`, `EntropySource`, `ValueSourceFactory`, `SpecLoader`, `ProductDocuments`, `SecretProvider`, `ApprovalStore`, `SecretVault`, `TargetClient`, `ZapControl`, `RunStore`, `StackStateStore`, `CommandJournalStore` |
+
+Uma porta nova exclusiva entra na capacidade consumidora; uma usada por capacidades diferentes entra em `common_ports.py`. Porta nova exige ADR.

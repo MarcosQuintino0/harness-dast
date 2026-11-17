@@ -11,9 +11,9 @@ from harness_dast.adapters.reporting.panel_files import FilePanelFiles
 from harness_dast.adapters.reporting.panel_index_files import FilePanelIndexFiles
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.system_clock import SystemClock
+from harness_dast.application.common_ports import CommandJournalStore, KillSwitch
 from harness_dast.application.panel_index import IndexedPanel, PanelIndexer
 from harness_dast.application.panel_live import LiveBoard
-from harness_dast.application.ports import CommandJournalStore, KillSwitch
 from harness_dast.cli.composition import build_spec_loader, products_dir_or_default
 from harness_dast.cli.panel_composition import build_panel
 from harness_dast.config.settings import load_settings

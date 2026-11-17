@@ -6,8 +6,8 @@ from typing import Annotated
 import typer
 
 from harness_dast.adapters.reporting.wait_files import FileWaitReader, ProductWaitReader
-from harness_dast.application.ports import WaitReader
 from harness_dast.application.wait import WaitRun
+from harness_dast.application.wait_ports import WaitReader
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import load_settings

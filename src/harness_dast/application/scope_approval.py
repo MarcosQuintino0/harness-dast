@@ -10,13 +10,13 @@
 
 from pydantic import BaseModel, ConfigDict
 
-from harness_dast.application.ports import (
-    ApprovalPrompt,
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
     ProfileRepository,
     ReferencedFile,
 )
+from harness_dast.application.scope_approval_ports import ApprovalPrompt
 from harness_dast.domain.errors import ConfigError, ScopeNotApproved
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope_approval import (

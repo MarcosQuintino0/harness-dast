@@ -25,9 +25,7 @@ from harness_dast.application.authz.runner import (
     AuthzRunner,
     AuthzSettings,
 )
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     KillSwitch,
@@ -42,6 +40,8 @@ from harness_dast.application.ports import (
     TargetClient,
     ValueSourceFactory,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation

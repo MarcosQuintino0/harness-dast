@@ -15,9 +15,9 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
+from harness_dast.application.common_ports import MutationJournal, SecretVault
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
 from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
-from harness_dast.application.ports import MutationJournal, SecretVault
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation

@@ -7,7 +7,7 @@ import typer
 from pydantic import JsonValue
 
 from harness_dast.application.init_from_letter import LetterOutcome, rejection
-from harness_dast.application.ports import ScaffoldedProduct
+from harness_dast.application.init_ports import ScaffoldedProduct
 from harness_dast.cli.composition import build_init_from_letter, build_init_product
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.domain.errors import ConfigError, ExitCode

@@ -1,13 +1,13 @@
 """Revalidação do conhecimento ativo antes de carregar documentos reutilizados."""
 
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
-    KnowledgeStore,
     ProfileRepository,
     ReferencedFile,
     StrategyDependencyStore,
     ZapControl,
 )
+from harness_dast.application.knowledge_ports import KnowledgeStore
 from harness_dast.application.strategy import basis_for_engine, describe_current_basis
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.api_schema import JsonValue

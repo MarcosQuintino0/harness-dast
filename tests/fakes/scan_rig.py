@@ -3,9 +3,9 @@ alvo, e o ZAP falso "aprende" as requisições dele."""
 
 from typing import Any
 
+from harness_dast.application.common_ports import KillSwitch
 from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.panel_index_ports import ScanLive
-from harness_dast.application.ports import KillSwitch
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
