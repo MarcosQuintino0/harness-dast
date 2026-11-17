@@ -5,7 +5,7 @@ from pathlib import Path
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.domain.knowledge_mutation import mutation_key
 from tests.fakes.negative_rig import CREATE, NegativeRig
-from tests.unit.application.test_authz_created_pair import execute, make_rig
+from tests.unit.application.authz.test_created_pair import execute, make_rig
 
 
 class WindowClosesAfterReservation:

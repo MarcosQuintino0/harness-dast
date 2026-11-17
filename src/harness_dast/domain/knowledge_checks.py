@@ -6,7 +6,7 @@ from harness_dast.domain.api_schema import (
     flatten_schema,
     split_field_path,
 )
-from harness_dast.domain.authz_sensitive import classify_field_name
+from harness_dast.domain.authz.sensitive import classify_field_name
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import FlowSpec

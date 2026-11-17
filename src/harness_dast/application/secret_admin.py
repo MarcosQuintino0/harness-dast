@@ -7,12 +7,8 @@ terminal, como um agente de IA, é recusado. Ver ADR 0030.
 
 from pydantic import BaseModel, ConfigDict
 
-from harness_dast.application.ports import (
-    CredentialStore,
-    ProfileRepository,
-    SecretPrompt,
-    SecretVault,
-)
+from harness_dast.application.common_ports import ProfileRepository, SecretVault
+from harness_dast.application.secret_ports import CredentialStore, SecretPrompt
 from harness_dast.application.secret_refs import profile_secret_refs
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.secret_ref import is_valid_secret_name

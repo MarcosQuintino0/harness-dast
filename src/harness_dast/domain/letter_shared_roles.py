@@ -1,6 +1,6 @@
 """Papéis compartilhados declarados pela carta (ADR 0057)."""
 
-from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.letter import Answer
 from harness_dast.domain.letter_collect import INVALID_VALUE, SHARED_ROLES_NEEDS_LETTER, Collector
 

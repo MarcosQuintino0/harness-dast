@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from datetime import datetime
 
-from harness_dast.application.ports import CleanupConnection, CleanupSession
+from harness_dast.application.cleanup_ports import CleanupConnection, CleanupSession
 from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
 from harness_dast.domain.cleanup_gate import CleanupStatement

@@ -16,21 +16,16 @@ from datetime import datetime, tzinfo
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, KillSwitch, ProfileRepository, SpecLoader
 from harness_dast.application.panel_index import PanelIndexer
-from harness_dast.application.ports import (
-    Clock,
-    KillSwitch,
-    PanelFiles,
-    ProfileRepository,
-    SpecLoader,
-)
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.errors import HarnessError
-from harness_dast.domain.panel_build_content import function_names
-from harness_dast.domain.panel_build_stages import STAGE_LABELS
-from harness_dast.domain.panel_format import RunStateKind, product_title
-from harness_dast.domain.panel_live import LIVE_FILE, render_live
-from harness_dast.domain.panel_live_model import LivePhase, LiveStage, LiveStageState, LiveView
-from harness_dast.domain.panel_model import PanelLinks, panel_links
+from harness_dast.domain.panel.build_content import function_names
+from harness_dast.domain.panel.build_stages import STAGE_LABELS
+from harness_dast.domain.panel.format import RunStateKind, product_title
+from harness_dast.domain.panel.live import LIVE_FILE, render_live
+from harness_dast.domain.panel.live_model import LivePhase, LiveStage, LiveStageState, LiveView
+from harness_dast.domain.panel.model import PanelLinks, panel_links
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run_summary import STAGES, RunSummary, StageName, StageRecord
 from harness_dast.domain.traffic import TrafficSummary

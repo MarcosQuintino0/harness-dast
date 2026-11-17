@@ -13,13 +13,13 @@ from typing import Any
 
 from harness_dast.application.scan_ports import ScanStart
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy

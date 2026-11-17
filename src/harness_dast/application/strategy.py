@@ -1,6 +1,6 @@
 """Validação e prévia local de estratégia sem abrir transporte ou conceder autorização."""
 
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
     ProductDocuments,

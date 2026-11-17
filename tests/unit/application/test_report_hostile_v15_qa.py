@@ -6,8 +6,8 @@ import pytest
 
 from harness_dast.application.report import ReportRequest
 from harness_dast.domain.negative_result import NegativeNotTested
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.signal_result import ProxySignals, SignalFinding, SignalWindow
 from tests.fakes.rig import agenda_flows
 from tests.fakes.scan_rig import ScanRig
@@ -145,7 +145,7 @@ MARKDOWN_HOSTILE = [
 def test_a_hostile_text_in_negative_json_never_becomes_a_live_link_or_heading_in_markdown(
     text: str,
 ) -> None:
-    from harness_dast.domain.report_markdown import render_markdown
+    from harness_dast.domain.report.markdown import render_markdown
 
     rig = scanned()
     _hostile_negative(rig, text)

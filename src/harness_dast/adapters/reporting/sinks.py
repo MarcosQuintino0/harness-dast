@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Final
 
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 FINDINGS_FILE: Final = "findings.json"

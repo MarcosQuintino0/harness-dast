@@ -9,7 +9,7 @@ from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_report
 from harness_dast.domain.errors import ExitCode
-from harness_dast.domain.report_model import ReportDigest, build_digest
+from harness_dast.domain.report.model import ReportDigest, build_digest
 from harness_dast.domain.scan_config import FailOn
 
 

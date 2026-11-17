@@ -17,7 +17,7 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-from harness_dast.application.ports import Clock
+from harness_dast.application.common_ports import Clock
 from harness_dast.domain.errors import ConfigError
 
 LOCK_FILE_NAME = "stack.lock"

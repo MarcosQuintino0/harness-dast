@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import ValidationError
 
-from harness_dast.domain.authz_created import parse_unique_json
+from harness_dast.domain.authz.created import parse_unique_json
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 

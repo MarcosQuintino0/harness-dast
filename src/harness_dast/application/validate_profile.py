@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict
 
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
     ProfileRepository,

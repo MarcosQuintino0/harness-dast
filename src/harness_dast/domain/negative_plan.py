@@ -22,7 +22,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import JsonValue, Schema, flatten_schema
-from harness_dast.domain.authz_sensitive import classify_field_name
+from harness_dast.domain.authz.sensitive import classify_field_name
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_config import NegativeConfig
 from harness_dast.domain.negative_result import Location, NegativeNotTested

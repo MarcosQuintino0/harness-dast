@@ -10,8 +10,8 @@ envio passa pelo `GuardedSender` (escopo, ritmo, janela, auditoria).
 from dataclasses import dataclass
 from typing import Protocol
 
+from harness_dast.application.common_ports import Sleeper
 from harness_dast.application.login_budget import LoginBudget, is_login_request
-from harness_dast.application.ports import Sleeper
 from harness_dast.application.run_support import GuardedSender
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.errors import TargetTimeout, TargetUnreachable

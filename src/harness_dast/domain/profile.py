@@ -16,7 +16,7 @@ from typing import Literal, Self
 from pydantic import Field, StrictBool, StrictInt, ValidationError, field_validator, model_validator
 
 from harness_dast.domain.auth import Account, AuthConfig, LoginLimit, PasswordLoginAuth
-from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.negative_config import NegativeConfig
 from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig

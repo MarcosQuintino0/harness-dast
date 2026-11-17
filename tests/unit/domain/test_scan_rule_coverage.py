@@ -2,18 +2,18 @@
 
 import pytest
 
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
 from harness_dast.domain.rule_stats import OperationRules, RuleStat
 from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 
 def test_regra_pulada_com_progresso_100_torna_relatorio_parcial() -> None:
-    from harness_dast.domain.panel_build import build_panel_view
-    from harness_dast.domain.panel_coverage import render_coverage
-    from tests.unit.domain.panel_helpers import sources
+    from harness_dast.domain.panel.build import build_panel_view
+    from harness_dast.domain.panel.coverage import render_coverage
+    from tests.unit.domain.panel.helpers import sources
 
     item = entry("obter", "GET", "/items", 1).model_copy(update={"scan_id": "1"})
     rules = OperationRules(

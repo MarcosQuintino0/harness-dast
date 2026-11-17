@@ -21,18 +21,20 @@ from typing import Literal
 
 from pydantic import Field, SecretStr, ValidationError
 
-from harness_dast.application.ports import (
+from harness_dast.application.cleanup_ports import (
     CleanupConnection,
     CleanupExecutor,
     CleanupRuns,
     CleanupScripts,
     CleanupSession,
-    Clock,
     OperatorPrompt,
+    TokenSource,
+)
+from harness_dast.application.common_ports import (
+    Clock,
     ProfileRepository,
     SecretProvider,
     SecretVault,
-    TokenSource,
 )
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.cleanup_binds import (

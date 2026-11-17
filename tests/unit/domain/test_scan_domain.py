@@ -33,7 +33,7 @@ from harness_dast.domain.scan_tokens import (
 from harness_dast.domain.scope import Scope, ScopeGuard
 from harness_dast.domain.zap_messages import LearnedRequest, ZapMessage, parse_learned_request
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
-from tests.unit.domain.report_helpers import operation
+from tests.unit.domain.report.helpers import operation
 
 NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 

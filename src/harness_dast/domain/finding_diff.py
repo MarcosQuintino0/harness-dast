@@ -11,7 +11,7 @@ from typing import Final
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
-from harness_dast.domain.report_model import ComparisonInfo, FindingsReport, GoneFinding
+from harness_dast.domain.report.model import ComparisonInfo, FindingsReport, GoneFinding
 
 COMPARISON_NOTICE: Final = (
     "'Não observado nesta execução' não significa 'corrigido': a operação pode não ter sido "

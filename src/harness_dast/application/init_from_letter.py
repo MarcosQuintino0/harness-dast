@@ -10,7 +10,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-from harness_dast.application.ports import Clock, LetterReader, ProductScaffolder, ScaffoldedProduct
+from harness_dast.application.common_ports import Clock
+from harness_dast.application.init_ports import LetterReader, ProductScaffolder, ScaffoldedProduct
 from harness_dast.domain.errors import LetterRejected
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_collect import LetterIssue

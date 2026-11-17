@@ -72,7 +72,13 @@ O `prepare` **falha** (saída 2) se algum termo de `leak_terms` do caso ficar na
 | `docs/guides/primeiro-uso.md` | Aponta os perfis prontos do laboratório |
 | `.git/`, `runs/`, `.venv/`, caches, `reports/`, `research_notes/`, `products/<real>`, `.claude/settings.local.json` | Histórico, execuções antigas, ambiente e perfis do coordenador |
 
-O que **fica** de propósito: o código da CLI (o agente pode ler `src/harness_dast/`), `docs/`, `.claude/` (skills, subagentes e permissões), `CLAUDE.md`, `docker/`, `compose.yaml` e os compose do piloto. Limite honesto: README, `docs/roadmap.md` e `docs/testing.md` mencionam que existe uma avaliação cega; o agente pode inferir que está sendo avaliado. O que ele não tem é o modo, as falhas, o gabarito e os perfis prontos.
+O que **fica** é definido por lista de permissão em `runner/exclusions.py`: código da CLI, recursos de build,
+modelo de produto, Docker/compose, laboratório com exclusões finas, documentação operacional, `AGENTS.md`,
+`CLAUDE.md` e cinco skills de uso. Raízes novas, `tests/`, `sites/`, `translate-app/`, `dev-*`, CHANGELOG,
+roadmap e pesquisa ficam fora. Testes não são necessários para operar `uv run hdast` e conhecem expectativas do laboratório.
+`sealed/workspace-manifest.json` registra política, raízes e contagens da cópia do repositório, antes dos inputs/arquivos gerados.
+O agente ainda pode inferir que está sendo avaliado pelos documentos operacionais; não recebe o modo, as falhas ou gabaritos.
+Desde a organização V1.9.4 o contexto é menor: isso afeta comparação histórica, que deve informar commit e manifesto (ADR 0083).
 
 ### 3. Ambiente e dependências do workspace
 
@@ -251,7 +257,7 @@ Cada rodada vira `score.json` e `score.md`. Regra:
 | (f) Triagem e diário | 20 | Fração aprovada de 8 verificações: relatório gerado; `triage.json` no contrato; todo achado alto anotado; nenhuma nota rebaixa severidade; "não observado" nunca virou "corrigido"; diário existe; diário cobre cada achado alto; há diário do cadastro e da execução. `triage.json` com `annotations: []` vale quando não há achado alto; negação logo antes ("nenhum achado foi rebaixado") não conta como afirmação |
 | (g) Custo e tempo | 10 | Por medida informada (`--tokens`, `--duration-seconds`): 1 dentro do orçamento do caso, caindo linearmente a 0 em 2x. Sem informar, o critério sai |
 
-**Nota = 10 x soma(peso x score) / soma(pesos aplicáveis)**; critério sem medida sai do cálculo e os demais são renormalizados. Se o perfil **alargou ou inventou** escopo, limites, autorização, janela, segredo ou limpeza (verificações de (e)), a nota final é limitada a **3,0**, porque é violação da Parte B do `CLAUDE.md`.
+**Nota = 10 x soma(peso x score) / soma(pesos aplicáveis)**; critério sem medida sai do cálculo e os demais são renormalizados. Se o perfil **alargou ou inventou** escopo, limites, autorização, janela, segredo ou limpeza (verificações de (e)), a nota final é limitada a **3,0**, porque é violação da Parte B do `AGENTS.md`.
 
 `classify.md` lista cada verificação reprovada com um modelo para o coordenador marcar **uma** de três causas (ADR 0014): lacuna de documentação ou skill (corrigir o texto), guardrail faltando (nova trava em código, com teste) ou mensagem de erro ruim (melhorar mensagem e dica). Toda falha corrigida vira caso permanente.
 
@@ -301,3 +307,14 @@ A recusa esperada de credenciais sintéticas na operação de login conta como a
 ### Casos e régua da V1.5.5
 
 O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; rodadas antigas devem usar o caso exato da rodada e o lacre ou `--case-file` conforme acima. A régua atual reconhece CORS na H3 da Clínica e V3 do VAmPI pela BOLA de leitura comprovada. V4 continua `detectable: false`: não foi comprovada. O novo par não confirma POST 200 no VAmPI. crAPI mantém caso e permissões anteriores, sem nova prova. Veja o [relatório da versão](../docs/reviews/relatorio-v1.5.5.md). Nenhuma rodada cega foi executada nesta versão; o dono poderá pedir depois rodadas em pelo menos duas APIs.
+
+
+## Retenção de resultados e medições
+
+Inventário versionado em 2026-11-16: `evals/results/` tem 302 arquivos, 15.426.727 bytes (14,71 MiB);
+`evals/measurements/` tem 244 arquivos, 23.608.148 bytes (22,51 MiB). Tamanhos de conteúdo, sem objetos Git.
+Versionar apenas resumo, protocolo/manifesto, nota, métricas comparáveis e evidências sanitizadas necessárias à conclusão.
+Transcripts brutos, estado/lacre, segredos, sessões ZAP, logs completos e dumps ficam só locais, fora do Git, conforme o protocolo.
+Para novas rodadas, máximo de **10 MiB por rodada** somando results e measurements: acima disso, manter evidência volumosa
+em arquivo local controlado e versionar índice, hashes e resumo sanitizado. Não cortar evidência para transformar lacuna em sucesso.
+Resultados antigos permanecem preservados; esta política é documental e não apaga nem reescreve nenhuma rodada.

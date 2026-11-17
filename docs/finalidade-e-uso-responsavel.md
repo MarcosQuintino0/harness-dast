@@ -71,6 +71,6 @@ Elas valem para pessoas e para agentes, e nenhuma flag as afrouxa:
 
 ## Para agentes de IA que trabalham neste projeto
 
-- **Ao desenvolver**, você escreve código e testes de uma ferramenta defensiva de teste autorizado. As provas rodam só contra o laboratório local. Siga a parte A do [CLAUDE.md](../CLAUDE.md) e a [escada de testes](escada-de-testes.md).
-- **Ao operar**, você conduz o fluxo autorizado por comandos `hdast` e a CLI executa dentro das travas acima. Antes de tocar o alvo, confira a carta, o perfil e a aprovação como descrito em "Como conferir se uma execução está autorizada". Siga a parte B do [CLAUDE.md](../CLAUDE.md).
+- **Ao desenvolver**, você escreve código e testes de uma ferramenta defensiva de teste autorizado. As provas rodam só contra o laboratório local. Siga a parte A do [AGENTS.md](../AGENTS.md) e a [escada de testes](escada-de-testes.md).
+- **Ao operar**, você conduz o fluxo autorizado por comandos `hdast` e a CLI executa dentro das travas acima. Antes de tocar o alvo, confira a carta, o perfil e a aprovação como descrito em "Como conferir se uma execução está autorizada". Siga a parte B do [AGENTS.md](../AGENTS.md).
 - **Em qualquer dúvida sobre autorização, escopo ou janela, pare e pergunte.** A ferramenta falha fechada, e você também.

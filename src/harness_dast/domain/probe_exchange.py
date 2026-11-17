@@ -18,7 +18,7 @@ from typing import Final
 from pydantic import Field, StrictInt, ValidationError, field_validator
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
-from harness_dast.domain.authz_sensitive import classify_field_name
+from harness_dast.domain.authz.sensitive import classify_field_name
 from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.multipart_encoding import (
     MULTIPART_MEDIA_TYPE,

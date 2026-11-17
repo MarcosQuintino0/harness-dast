@@ -13,15 +13,16 @@ from typing import Protocol
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, ProfileRepository
 from harness_dast.application.panel import PanelOutcome, PanelRequest
 from harness_dast.application.panel_index_ports import PanelIndexFiles, RunFolder
-from harness_dast.application.ports import Clock, PanelFiles, ProfileRepository
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.errors import HarnessError
-from harness_dast.domain.panel_index_build import empty_row, make_entry, row_from_sources
-from harness_dast.domain.panel_index_model import ProductEntry, ProductInfo, RunRow
-from harness_dast.domain.panel_index_pages import render_history, render_products
-from harness_dast.domain.panel_model import INDEX_FILE, history_file
-from harness_dast.domain.panel_sources import PanelSources
+from harness_dast.domain.panel.index_build import empty_row, make_entry, row_from_sources
+from harness_dast.domain.panel.index_model import ProductEntry, ProductInfo, RunRow
+from harness_dast.domain.panel.index_pages import render_history, render_products
+from harness_dast.domain.panel.model import INDEX_FILE, history_file
+from harness_dast.domain.panel.sources import PanelSources
 
 _log = structlog.get_logger()
 

@@ -1,6 +1,6 @@
 """Caso de uso: criar a pasta de um produto novo a partir do modelo."""
 
-from harness_dast.application.ports import ProductScaffolder, ScaffoldedProduct
+from harness_dast.application.init_ports import ProductScaffolder, ScaffoldedProduct
 
 
 class InitProduct:

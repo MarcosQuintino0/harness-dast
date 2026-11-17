@@ -6,6 +6,26 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Organização
+
+- Navegação por intenção (`docs/README.md`, com "Onde colocar cada coisa"), índice de planos e estado centralizado no roadmap; histórico retirado das instruções.
+- Pacote e lock alinhados à publicação 1.9.3; contrato impede versões divergentes e estado versionado no README/arquitetura.
+- Limpeza: procedimento no guia, contrato na referência e política em operations; seis gates obrigatórios e projetos locais ignorados.
+- Regras A/B canônicas em AGENTS, importação curta no Claude e cinco skills de desenvolvimento, separadas das cinco de uso.
+- Cópia cega por lista de permissão, manifesto de arquivos e proteção de AGENTS (ADR 0083); contexto menor explicitado no protocolo.
+- Sete arquivos de pesquisa consolidados em docs/research e política documental de retenção de evals, sem apagar resultados.
+- Grupo panel: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
+- Grupo authz: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
+- Portas da aplicação divididas por consumidor em 12 módulos, com módulo comum para contratos compartilhados; 47 declarações, assinaturas e docstrings preservadas.
+- Grupo report: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
+- ADR 0084 proposto compara apresentação no domínio e em adapters/reporting; recomenda migração futura, sem troca de camada nesta entrega.
+- Mapas domain/application por assunto com inventário e destinos de código novo; plano V1.9.4 com aceites e limites.
+- CI: job Windows de unitários/contratos, timeout em todos os jobs e integração manual com imagens explícitas, sem aceitar saída 5. Configuração ainda sem execução real no CI.
+
+### Corrigido
+
+- Cópia cega: `lab/pilot/target/` (saída de build da Clínica Piloto, ignorada pelo git) entrava no workspace com as classes compiladas, `application.yml` e o esquema SQL, que revelam o código do alvo. A lista antiga de exclusões e a nova lista de permissão deixavam a pasta passar quando ela existia na origem; agora ela é excluída, com teste. Rodadas antigas preparadas a partir de um checkout com o alvo compilado podem ter recebido esses arquivos.
+
 ## [1.9.3] - 2026-11-16
 
 ### Adicionado
@@ -219,7 +239,7 @@ Versão do "achar mais: autorização". O teste de autorização entre contas pa
 
 ### Refatoração
 
-- `application/authz_runner.py` (693 linhas) dividido em envio, verificações de leitura, atribuição em massa e um mapa de verificações (`CHECK_RUNNERS`), sem mudar comportamento.
+- `application/authz/runner.py` (693 linhas) dividido em envio, verificações de leitura, atribuição em massa e um mapa de verificações (`CHECK_RUNNERS`), sem mudar comportamento.
 
 ### Correções
 

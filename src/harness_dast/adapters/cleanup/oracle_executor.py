@@ -13,7 +13,7 @@ from contextlib import suppress
 
 import oracledb
 
-from harness_dast.application.ports import CleanupConnection, CleanupSession
+from harness_dast.application.cleanup_ports import CleanupConnection, CleanupSession
 from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_gate import CleanupStatement
 from harness_dast.domain.errors import CleanupError

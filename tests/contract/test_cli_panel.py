@@ -12,8 +12,8 @@ import yaml
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.domain.errors import ExitCode
 from tests.fakes.profile_data import valid_profile_data
-from tests.unit.domain.panel_helpers import findings_report, run_summary
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.panel.helpers import findings_report, run_summary
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 pytestmark = pytest.mark.contract
 

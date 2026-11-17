@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from harness_dast.adapters.storage.authz_draft_writer import FileAuthzDraftWriter
-from harness_dast.domain.authz_matrix_draft import DRAFT_FILE
+from harness_dast.domain.authz.matrix_draft import DRAFT_FILE
 from harness_dast.domain.errors import ConfigError
 
 

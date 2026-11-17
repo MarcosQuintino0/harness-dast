@@ -106,6 +106,13 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | [0081](0081-pilha-desatualizada.md) | Pilha desatualizada: `STACK_STALE` (saída 4) antes do primeiro pedido, tradução do 403 `approval_changed` e `stack status` |
 | [0082](0082-leitura-de-dono-no-teste-horizontal.md) | Leitura de dono sem depender do roteamento, fontes observadas, veredito conservador e lacunas visíveis |
 
+## Organização V1.9.4
+
+| ADR | Contrato |
+| --- | --- |
+| [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
+| [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
+
 ## Quando escrever um ADR
 
 - Dependência nova.

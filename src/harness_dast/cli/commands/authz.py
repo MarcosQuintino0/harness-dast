@@ -6,15 +6,15 @@ from typing import Annotated, cast
 
 import typer
 
-from harness_dast.application.authz import AuthzRequest
-from harness_dast.application.authz_draft import DraftRequest, DraftResult
+from harness_dast.application.authz.draft import DraftRequest, DraftResult
+from harness_dast.application.authz.service import AuthzRequest
 from harness_dast.application.stage_errors import authz_stop_error
 from harness_dast.cli.authz_composition import build_authz, build_authz_draft
 from harness_dast.cli.composition import open_network
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.stack_lock_composition import hold_stack
-from harness_dast.domain.authz_config import CHECK_ORDER, AuthzCheck
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.config import CHECK_ORDER, AuthzCheck
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExitCode
 
 

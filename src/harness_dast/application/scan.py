@@ -19,11 +19,7 @@ import structlog
 from pydantic import ValidationError
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.mutation_guard import finish_mutation
-from harness_dast.application.panel_index_ports import ScanLive
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
     KillSwitch,
@@ -39,6 +35,10 @@ from harness_dast.application.ports import (
     TargetClient,
     ZapControl,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.mutation_guard import finish_mutation
+from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.run_support import (
     AuditTrail,
     GuardedSender,

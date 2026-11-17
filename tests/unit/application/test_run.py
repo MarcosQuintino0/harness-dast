@@ -18,7 +18,7 @@ from harness_dast.application.scan import ScanRequest
 from harness_dast.application.scan_ports import PanelRefresher, RunMetricsRecorder
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.probe_result import ProbeResult
-from harness_dast.domain.report_model import FindingsReport, FindingsSummary
+from harness_dast.domain.report.model import FindingsReport, FindingsSummary
 from harness_dast.domain.run_summary import RunSummary, StageRecord
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.clock import FixedClock, utc

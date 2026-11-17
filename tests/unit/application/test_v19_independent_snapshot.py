@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
-from harness_dast.application.authz import Authz, AuthzRequest
+from harness_dast.application.authz.service import Authz, AuthzRequest
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.knowledge import KnowledgeEffect
-from tests.fakes.authz_rig import Clinic
-from tests.fakes.authz_write_rig import exchange, seed
+from tests.fakes.authz.rig import Clinic
+from tests.fakes.authz.write_rig import exchange, seed
 from tests.fakes.probe_ports import FakeTarget, reply
 from tests.fakes.rig import INT, operation, parameter
-from tests.unit.application.test_authz_journal_snapshot import _service
-from tests.unit.application.test_authz_mass_derived import derived_rig
+from tests.unit.application.authz.test_journal_snapshot import _service
+from tests.unit.application.authz.test_mass_derived import derived_rig
 
 
 def test_v19_independent_snapshot_is_persisted_before_send_and_retained_after_500(

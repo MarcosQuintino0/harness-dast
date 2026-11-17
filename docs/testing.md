@@ -1,6 +1,6 @@
 # Estratégia de testes
 
-Este documento define como o projeto é testado. Regras resumidas para agentes estão em [CLAUDE.md](../CLAUDE.md). O que já existe e o que é planejado está em [roadmap.md](roadmap.md#tabela-de-status).
+Este documento define como o projeto é testado. Regras resumidas para agentes estão em [AGENTS.md](../AGENTS.md). O que já existe e o que é planejado está em [roadmap.md](roadmap.md#tabela-de-status).
 
 ## Níveis
 

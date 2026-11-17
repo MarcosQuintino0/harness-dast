@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
+from harness_dast.application.common_ports import ProfileRepository, ReferencedFile
 from harness_dast.application.negative import Negative, NegativeRequest
-from harness_dast.application.ports import ProfileRepository, ReferencedFile
 from harness_dast.application.scan import Scan, ScanRequest
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
@@ -17,7 +17,7 @@ from tests.fakes.negative_rig import CREATE, PRICE, PRODUCTS, UPDATE, Catalog, N
 from tests.fakes.probe_ports import FakeTarget
 from tests.fakes.rig import operation
 from tests.fakes.scan_ports import InMemoryRunArtifacts
-from tests.unit.application.test_authz_created_pair import execute, make_rig
+from tests.unit.application.authz.test_created_pair import execute, make_rig
 from tests.unit.application.test_scan import ready
 
 

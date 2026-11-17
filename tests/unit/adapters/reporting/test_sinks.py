@@ -12,10 +12,10 @@ from harness_dast.adapters.reporting.sinks import (
     MarkdownReportSink,
 )
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.model import FindingsReport
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 
 def make_report() -> FindingsReport:

@@ -12,7 +12,7 @@ from typing import Final
 
 import structlog
 
-from harness_dast.application.ports import SecretVault
+from harness_dast.application.common_ports import SecretVault
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl
 from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.redaction import EvidenceMessage, redact_alert, redact_message

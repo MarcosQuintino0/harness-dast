@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from harness_dast.application.ports import CommandJournalStore
+from harness_dast.application.common_ports import CommandJournalStore
 from harness_dast.domain.command_journal import JournalEntry, slice_for_run
 
 _log = structlog.get_logger()

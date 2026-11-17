@@ -15,7 +15,7 @@ from harness_dast.domain.scan_plan import (
 )
 from harness_dast.domain.scope import Scope, ScopeGuard
 from harness_dast.domain.zap_messages import LearnedRequest
-from tests.unit.domain.report_helpers import operation
+from tests.unit.domain.report.helpers import operation
 from tests.unit.domain.test_scan_domain import audit_result
 
 GUARD = ScopeGuard(

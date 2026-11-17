@@ -11,12 +11,8 @@ pedido, não recria a pilha e não mexe no perfil nem na aprovação.
 
 from pathlib import Path
 
-from harness_dast.application.ports import (
-    ProfileRepository,
-    ReferencedFile,
-    StackBindingSource,
-    StackStateStore,
-)
+from harness_dast.application.common_ports import ProfileRepository, ReferencedFile, StackStateStore
+from harness_dast.application.stack_ports import StackBindingSource
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.stack_binding import (

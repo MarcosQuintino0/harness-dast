@@ -14,8 +14,8 @@ from datetime import datetime
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, MutationJournal, Sleeper
 from harness_dast.application.mutation_guard import begin_mutation
-from harness_dast.application.ports import Clock, MutationJournal, Sleeper
 from harness_dast.application.run_support import DeadlineReached, RunGate, WindowClosed
 from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl, ScanStart

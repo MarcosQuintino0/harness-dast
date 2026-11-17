@@ -17,12 +17,12 @@ from pydantic import ValidationError
 
 from harness_dast.adapters.reporting.run_files import MAX_FILE_BYTES, FileRunArtifacts
 from harness_dast.domain.agent_metrics import AGENT_METRICS_SCHEMA_VERSION, AgentMetrics
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_result import NegativeResult
-from harness_dast.domain.panel_model import PANEL_DIR
+from harness_dast.domain.panel.model import PANEL_DIR
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run import SLUG_PATTERN
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_ref import require_run_id

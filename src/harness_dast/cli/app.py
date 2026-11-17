@@ -15,7 +15,7 @@ import typer
 from typer.exceptions import TyperException
 
 from harness_dast.adapters.system_clock import SystemClock
-from harness_dast.application.ports import Clock, CommandJournalStore
+from harness_dast.application.common_ports import Clock, CommandJournalStore
 from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.doctor import doctor_command

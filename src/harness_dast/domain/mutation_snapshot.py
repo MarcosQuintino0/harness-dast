@@ -7,9 +7,9 @@ from typing import Literal
 from pydantic import Field, StrictBool, StrictFloat, StrictInt, ValidationError, field_validator
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
-from harness_dast.domain.authz_config import normalize_field_name
-from harness_dast.domain.authz_fields import AUDIT_NAMES, classify_candidate
-from harness_dast.domain.authz_sensitive import classify_field_name
+from harness_dast.domain.authz.config import normalize_field_name
+from harness_dast.domain.authz.fields import AUDIT_NAMES, classify_candidate
+from harness_dast.domain.authz.sensitive import classify_field_name
 
 _FIELD = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
 _SAFE_KINDS = frozenset({"privilege", "balance", "price", "state"})

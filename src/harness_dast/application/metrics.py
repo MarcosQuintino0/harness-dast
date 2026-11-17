@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProfileRepository
+from harness_dast.application.common_ports import Clock, ProfileRepository
 from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.run_metrics import build_run_metrics

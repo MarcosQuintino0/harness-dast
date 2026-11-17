@@ -17,7 +17,7 @@ from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.rig import agenda_flows
 from tests.fakes.scan_rig import ScanRig
 from tests.unit.application.test_run import RUN_ID, Kill, Rig, _outcome, _scan
-from tests.unit.domain.panel_helpers import XSS, sources
+from tests.unit.domain.panel.helpers import XSS, sources
 
 OPERATIONS = (
     Operation(operation_id="cadastrar", method="post", path="/p", summary="Cadastrar paciente"),

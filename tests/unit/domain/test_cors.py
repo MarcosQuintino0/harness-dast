@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.cors import classify_cors, cors_finding
 from harness_dast.domain.probe_exchange import ExchangeRecord
 

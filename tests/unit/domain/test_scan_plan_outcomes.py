@@ -13,7 +13,7 @@ from harness_dast.domain.scan_plan import (
     resolve_include_outcomes,
     select_candidates,
 )
-from tests.unit.domain.report_helpers import operation
+from tests.unit.domain.report.helpers import operation
 from tests.unit.domain.test_scan_domain import audit_result
 
 

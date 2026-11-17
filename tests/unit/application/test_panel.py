@@ -6,17 +6,17 @@ from datetime import UTC
 import pytest
 
 from harness_dast.application.panel import Panel, PanelRequest
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelJournal
+from harness_dast.domain.panel.model import PanelCommand, PanelExplanation, PanelJournal
 from harness_dast.domain.probe_result import RunManifest
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from tests.fakes.panel_ports import FakePanelFiles, FakeSpecLoader
 from tests.fakes.profile_data import valid_profile
 from tests.fakes.profile_repository import InMemoryProfileRepository
-from tests.unit.domain.panel_helpers import PRODUCT, sources, spec_operations
-from tests.unit.domain.panel_measure_helpers import agent_metrics
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.panel.helpers import PRODUCT, sources, spec_operations
+from tests.unit.domain.panel.measure_helpers import agent_metrics
+from tests.unit.domain.report.helpers import RUN_ID
 
 OTHER_RUN = "2026-11-12T05-15-32Z-vampi-cd34"
 

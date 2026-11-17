@@ -50,7 +50,7 @@ Cada skill de etapa mantém o seu `decision-log.md`. Esta acrescenta, em `<pasta
 
 ## Nunca
 
-As travas da Parte B do `CLAUDE.md` valem em todas as etapas, sem exceção; elas não afrouxam por ser "um pedido só":
+As travas da Parte B do `AGENTS.md` valem em todas as etapas, sem exceção; elas não afrouxam por ser "um pedido só":
 
 - Enviar HTTP ao alvo por `curl`, `wget`, `httpx` ou script: só comandos `hdast`.
 - Ler `.env` ou qualquer arquivo ou variável com segredo; use só apelidos de conta e `secret_ref`. Rodar `hdast secret set` ou `hdast secret delete`: só a pessoa grava segredo no cofre; você cita o NOME e pede.

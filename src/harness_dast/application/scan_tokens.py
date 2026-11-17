@@ -13,7 +13,7 @@ from typing import Protocol
 
 import structlog
 
-from harness_dast.application.ports import Clock, ZapControl
+from harness_dast.application.common_ports import Clock, ZapControl
 from harness_dast.application.scan_ports import ScanControl
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.errors import ExternalToolError

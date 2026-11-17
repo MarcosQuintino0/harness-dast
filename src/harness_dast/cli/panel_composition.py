@@ -13,9 +13,9 @@ from harness_dast.adapters.reporting.panel_files import FilePanelFiles
 from harness_dast.adapters.storage.command_journal import FileCommandJournalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.stack_state import default_state_dir
+from harness_dast.application.common_ports import CommandJournalStore
 from harness_dast.application.panel import Panel
 from harness_dast.application.panel_hooks import CatalogPanelHooks
-from harness_dast.application.ports import CommandJournalStore
 from harness_dast.cli.composition import build_spec_loader, products_dir_or_default
 from harness_dast.config.settings import load_settings
 from harness_dast.domain.errors import ConfigError

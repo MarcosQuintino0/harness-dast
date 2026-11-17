@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 from harness_dast.adapters.storage.product_paths import product_dir_path
-from harness_dast.application.ports import ScaffoldedProduct
+from harness_dast.application.init_ports import ScaffoldedProduct
 from harness_dast.domain.errors import ConfigError
 
 PROFILE_FILE = "target.yml"

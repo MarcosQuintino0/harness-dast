@@ -14,6 +14,7 @@ PROTECTED = (
     "compose.yaml",
     "lab/",
     "CLAUDE.md",
+    "AGENTS.md",
     "pyproject.toml",
     "uv.lock",
     "products/_template/",

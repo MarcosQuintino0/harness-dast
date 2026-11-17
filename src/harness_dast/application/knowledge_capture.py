@@ -1,17 +1,16 @@
 """Captura e verificação de referências de conhecimento sem alcançar o alvo."""
 
-from harness_dast.application.knowledge_observations import from_run
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
-    KnowledgeRunStore,
-    KnowledgeStore,
     ProductDocuments,
     ProfileRepository,
     SpecLoader,
     StrategyDependencyStore,
     ZapControl,
 )
+from harness_dast.application.knowledge_observations import from_run
+from harness_dast.application.knowledge_ports import KnowledgeRunStore, KnowledgeStore
 from harness_dast.application.scope_approval import current_check
 from harness_dast.application.strategy import basis_for_engine
 from harness_dast.domain.api_schema import JsonValue

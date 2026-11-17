@@ -18,13 +18,22 @@ import yaml
 from harness_dast.cli.app import build_app
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+ALL_SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+SKILL_FILES = [p for p in ALL_SKILL_FILES if not p.parent.name.startswith("dev-")]
+DEV_SKILL_FILES = [p for p in ALL_SKILL_FILES if p.parent.name.startswith("dev-")]
 AGENT_FILES = sorted((ROOT / ".claude" / "agents").glob("*.md"))
 GUIDE_FILES = sorted((ROOT / "docs" / "guides").glob("*.md"))
 EXTRA_FILES = [ROOT / "evals" / "README.md", ROOT / "README.md"]
-CHECKED_FILES = [*SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
+CHECKED_FILES = [*ALL_SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
 STAGE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findings")
 EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product"}
+EXPECTED_DEV_SKILLS = {
+    "dev-test-change",
+    "dev-close-version",
+    "dev-write-adr",
+    "dev-lab-check",
+    "dev-blind-eval",
+}
 EXPECTED_AGENTS = {"spec-analyst", "findings-triager"}
 
 
@@ -116,6 +125,7 @@ def _check(tokens: list[str], commands: dict[tuple[str, ...], Any]) -> str | Non
 
 def test_checked_files_exist() -> None:
     assert {path.parent.name for path in SKILL_FILES} == EXPECTED_SKILLS
+    assert {path.parent.name for path in DEV_SKILL_FILES} == EXPECTED_DEV_SKILLS
     assert {path.stem for path in AGENT_FILES} == EXPECTED_AGENTS
     assert len(GUIDE_FILES) >= 6
 
@@ -315,7 +325,7 @@ def test_test_product_cites_every_part_b_lock_and_does_not_restate_stage_rules()
     text = _skill_text("test-product")
     never = text.split("## Nunca")[1]
 
-    assert "Parte B" in never
+    assert "Parte B do `AGENTS.md`" in never
     for lock in ("curl", ".env", "hdast cleanup", "escopo", "severidade", "dados sintéticos"):
         assert lock in never
     assert "0,9" not in text
@@ -382,3 +392,29 @@ def test_settings_cover_the_v1_1_commands_with_the_same_hdast_rules_and_no_new_d
     for rule in permissions["deny"]:
         if rule.startswith("Bash(") and rule.endswith(":*)"):
             assert not line.startswith(rule.removeprefix("Bash(").removesuffix(":*)"))
+
+
+@pytest.mark.parametrize("path", DEV_SKILL_FILES, ids=lambda p: p.parent.name)
+def test_development_skills_route_to_canonical_docs_and_exclude_product_operation(
+    path: Path,
+) -> None:
+    meta = _frontmatter(path)
+    text = path.read_text(encoding="utf-8")
+    assert meta["name"] == path.parent.name
+    assert str(meta["description"]).startswith("Use ao desenvolver o harness-dast")
+    assert "Não use para testar um produto" in str(meta["description"])
+    assert len(text.splitlines()) < 60
+    assert max(map(len, text.splitlines())) < 300
+    assert "../../../" in text
+
+
+def test_shared_rules_are_canonical_and_claude_imports_them_without_a_cycle() -> None:
+    rules = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "@AGENTS.md" in claude
+    assert "## Parte A." in rules
+    assert "## Parte B." in rules
+    assert "## Parte A." not in claude
+    assert "prevalece `CLAUDE.md`" not in rules
+    for path in ALL_SKILL_FILES:
+        assert path.relative_to(ROOT).as_posix() in rules

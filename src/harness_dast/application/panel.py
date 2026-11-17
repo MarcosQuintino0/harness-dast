@@ -18,17 +18,18 @@ from typing import Protocol
 
 import structlog
 
-from harness_dast.application.ports import PanelFiles, ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import ProfileRepository, SpecLoader
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.api_model import Operation
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, HarnessError
-from harness_dast.domain.panel_build import build_panel_view
-from harness_dast.domain.panel_format import RunStateKind
-from harness_dast.domain.panel_model import PANEL_DIR, PanelExplanation, PanelJournal
-from harness_dast.domain.panel_pages import PAGES, render_panel
-from harness_dast.domain.panel_sources import PanelSources
+from harness_dast.domain.panel.build import build_panel_view
+from harness_dast.domain.panel.format import RunStateKind
+from harness_dast.domain.panel.model import PANEL_DIR, PanelExplanation, PanelJournal
+from harness_dast.domain.panel.pages import PAGES, render_panel
+from harness_dast.domain.panel.sources import PanelSources
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 ENTRY_PAGE = PAGES[0].file

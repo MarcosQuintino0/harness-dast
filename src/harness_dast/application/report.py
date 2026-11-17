@@ -21,7 +21,7 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import Clock, ProfileRepository, SpecLoader
 from harness_dast.application.scan_ports import (
     PanelRefresher,
     ProxyAudit,
@@ -30,14 +30,14 @@ from harness_dast.application.scan_ports import (
     RunMetricsRecorder,
 )
 from harness_dast.domain.auth import PasswordLoginAuth
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding_build import AlertResolver
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_build import assemble_report, build_resolver
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report, build_resolver
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_config import FailOn, effective_fail_on
 from harness_dast.domain.scan_result import ScanResult

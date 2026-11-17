@@ -9,7 +9,7 @@ from pathlib import Path
 
 from harness_dast.adapters.storage.product_paths import product_dir_path
 from harness_dast.adapters.storage.strict_yaml import MAX_PROFILE_BYTES, parse_profile_yaml
-from harness_dast.application.ports import ReferencedFile
+from harness_dast.application.common_ports import ReferencedFile
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
 
