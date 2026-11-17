@@ -128,6 +128,9 @@ class LabCli:
             }
         )
         env.update(extra_env)
+        # A trilha concorrente usa projetos próprios sem alterar o padrão das outras provas.
+        if suffix := os.environ.get("HDAST_IT_STACK_SUFFIX"):
+            env["HDAST_STACK_PROJECT_SUFFIX"] = suffix
         self.env = env
 
     def approve_installed_products(self) -> None:
