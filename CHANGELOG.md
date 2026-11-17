@@ -16,6 +16,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Inventário de imagens e roteiro de limpeza em simulação: valida IDs, captura inicial, referências protegidas e contêineres em uso antes de gerar comandos para revisão humana; não remove imagens automaticamente.
 - Caso curto `crapi-foco` com carta estruturada, orçamento de 900 segundos e detectabilidade conservadora. O verificador da avaliação confere cada par caminho/método na mesma origem autorizada, com testes de recusa de combinações cruzadas.
 - Prova inicial do crAPI: subida e descida passaram, mas o `preflight` parou com `STACK_STALE`. Nenhuma detecção nova da trilha F ou rodada cega foi executada. A frente L3/L5 foi recusada pelo provedor; alterações parciais foram preservadas fora da branch para retomada conforme o plano.
+- V1.12 (L3, ADR 0092 proposto): operação `buscarMedicoPorCabecalho` (`GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM`) na Clínica Piloto com a falha H11 (injeção de SQL em cabeçalho) só no modo vulnerável; OpenAPI regenerado pelo alvo; H11 no gabarito e no caso `clinica-piloto` como `detectable: false`.
+- V1.12 (L5): marcador `regressao_dirigida` e roteiro de regressão dirigida (H1 a H10, controle seguro, V1 e V3) em `tests/integration/test_regressao_dirigida.py`.
 
 ### Organização
 
