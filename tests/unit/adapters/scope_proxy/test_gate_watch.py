@@ -1,5 +1,6 @@
 """Contratos da vigia de fontes do proxy."""
 
+import os
 from threading import Event, Thread
 
 import pytest
@@ -8,7 +9,12 @@ import harness_dast.adapters.scope_proxy.gate_watch as gate_watch_module
 import harness_dast.adapters.scope_proxy.watch_diagnostic as diagnostic
 from harness_dast.adapters.scope_proxy.decision import Reason
 from harness_dast.adapters.scope_proxy.gate_watch import GateWatch
-from harness_dast.adapters.scope_proxy.watch_diagnostic import Detection, WatchCause
+from harness_dast.adapters.scope_proxy.watch_diagnostic import (
+    Detection,
+    DiagnosticResult,
+    DiagnosticStatus,
+    WatchCause,
+)
 
 
 def test_snapshot_envelhecido_trava_mesmo_apos_nova_leitura() -> None:
@@ -109,22 +115,23 @@ def test_encerramento_emite_somente_um_evento(events: list[WatchCause]) -> None:
     assert events == [WatchCause.CLOSE]
 
 
-def test_log_estruturado_contem_somente_categoria(caplog: pytest.LogCaptureFixture) -> None:
-    diagnostic._emit(WatchCause.ACCESS)
-    assert [record.getMessage() for record in caplog.records] == [
-        '{"event": "gate_watch_latch", "category": "access"}'
-    ]
+def test_log_estruturado_contem_somente_categoria(capfd: pytest.CaptureFixture[str]) -> None:
+    result = DiagnosticResult()
+    diagnostic._emit(WatchCause.ACCESS, result)
+    assert capfd.readouterr().err == '{"event": "gate_watch_latch", "category": "access"}\n'
+    assert result.status is DiagnosticStatus.SENT
 
 
 def test_emissao_bloqueada_nao_bloqueia_encerramento(monkeypatch: pytest.MonkeyPatch) -> None:
     entered = Event()
     release = Event()
 
-    def blocked(cause: WatchCause) -> None:
+    def blocked(fd: int, payload: bytes) -> int:
         entered.set()
         release.wait()
+        return len(payload)
 
-    monkeypatch.setattr(diagnostic, "_emit", blocked)
+    monkeypatch.setattr(os, "write", blocked)
     watch = GateWatch(lambda: None, lambda: 0.0)
     try:
         watch.close()
@@ -132,6 +139,108 @@ def test_emissao_bloqueada_nao_bloqueia_encerramento(monkeypatch: pytest.MonkeyP
         assert watch.check() is Reason.APPROVAL_CHANGED
     finally:
         release.set()
+
+
+@pytest.mark.parametrize("action", ["check", "close"])
+def test_falha_de_iniciar_diagnostico_preserva_trava(
+    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str], action: str
+) -> None:
+    now = [0.0]
+    watch = GateWatch(lambda: None, lambda: now[0])
+
+    class FailedThread:
+        def start(self) -> None:
+            raise RuntimeError("dado sintetico confidencial")
+
+    monkeypatch.setattr(diagnostic, "Thread", lambda **kwargs: FailedThread())
+    if action == "check":
+        now[0] = 0.201
+        assert watch.check() is Reason.APPROVAL_CHANGED
+    else:
+        watch.close()
+    assert watch.diagnostic is not None
+    assert watch.diagnostic.status is DiagnosticStatus.START_FAILED
+    assert watch.check() is Reason.APPROVAL_CHANGED
+    watch.close()
+    assert capfd.readouterr().err == ""
+
+
+def test_falha_de_iniciar_diagnostico_na_partida_preserva_motivo(
+    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    class FailedThread:
+        def start(self) -> None:
+            raise RuntimeError("dado sintetico confidencial")
+
+    monkeypatch.setattr(diagnostic, "Thread", lambda **kwargs: FailedThread())
+    watch = GateWatch(lambda: Reason.KILL_SWITCH, lambda: 0.0)
+    try:
+        assert watch.check() is Reason.KILL_SWITCH
+        assert watch.diagnostic is not None
+        assert watch.diagnostic.status is DiagnosticStatus.START_FAILED
+    finally:
+        watch.close()
+    assert capfd.readouterr().err == ""
+
+
+def test_emissor_bloqueado_nao_bloqueia_recusa(monkeypatch: pytest.MonkeyPatch) -> None:
+    entered = Event()
+    release = Event()
+    now = [0.0]
+
+    def blocked(fd: int, payload: bytes) -> int:
+        entered.set()
+        release.wait()
+        return len(payload)
+
+    watch = GateWatch(lambda: None, lambda: now[0])
+    monkeypatch.setattr(os, "write", blocked)
+    try:
+        now[0] = 0.201
+        assert watch.check() is Reason.APPROVAL_CHANGED
+        assert entered.wait(2)
+        assert watch.diagnostic is not None
+        assert watch.diagnostic.status is DiagnosticStatus.PENDING
+        assert watch.check() is Reason.APPROVAL_CHANGED
+    finally:
+        release.set()
+        watch.close()
+
+
+def test_falha_de_emissor_preserva_recusa_sem_traceback(
+    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    now = [0.0]
+    watch = GateWatch(lambda: None, lambda: now[0])
+    completed = Event()
+    emit = diagnostic._emit
+
+    def fail_write(fd: int, payload: bytes) -> int:
+        raise OSError("dado sintetico confidencial")
+
+    def observed_emit(cause: WatchCause, result: DiagnosticResult) -> None:
+        try:
+            emit(cause, result)
+        finally:
+            completed.set()
+
+    monkeypatch.setattr(os, "write", fail_write)
+    monkeypatch.setattr(diagnostic, "_emit", observed_emit)
+    now[0] = 0.201
+    assert watch.check() is Reason.APPROVAL_CHANGED
+    assert completed.wait(2)
+    assert watch.diagnostic is not None
+    assert watch.diagnostic.status is DiagnosticStatus.WRITE_FAILED
+    watch.close()
+    assert watch.check() is Reason.APPROVAL_CHANGED
+    assert capfd.readouterr().err == ""
+
+
+def test_escrita_parcial_do_diagnostico_indica_falha(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = DiagnosticResult()
+    monkeypatch.setattr(os, "write", lambda fd, payload: 1)
+    diagnostic._emit(WatchCause.ACCESS, result)
+    assert result.status is DiagnosticStatus.WRITE_FAILED
 
 
 def test_excecao_da_verificacao_registra_categoria_sem_mensagem(

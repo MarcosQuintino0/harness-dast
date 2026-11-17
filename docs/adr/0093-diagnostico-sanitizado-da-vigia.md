@@ -12,8 +12,8 @@ motivo no processo que recusou a concessão. A vigia independente não observa s
 
 ## Decisão
 
-Vamos emitir no logger Python `harness_dast.scope_proxy.watch`, nível `WARNING`, uma única
-mensagem JSON por primeira trava de cada vigia, com exatamente as chaves `event` e `category`.
+Vamos emitir em stderr uma única linha JSON por primeira trava de cada vigia, com exatamente as
+chaves `event` e `category`.
 `event` vale `gate_watch_latch`. `category` pertence ao catálogo fechado: `age`, `clock`,
 `no_snapshot`, `close`, `detect_error`, `detect_denied`, `stop_or_inaccessible`, `access`,
 `unstable`, `identity`, `metadata`, `hash`, `size_or_type` ou `approval_invalid`.
@@ -25,7 +25,12 @@ Não há nome ou tipo de fonte, caminho, conteúdo, hash, valor de metadado, exc
 O evento é separado da auditoria de requisições, não muda seus campos, a resposta HTTP ou a CLI.
 É emitido por thread daemon após marcar a trava, sem fazer E/S de log sob o lock ou aguardar
 o log na concessão/encerramento. A emissão é de melhor esforço: interrupção imediata do processo,
-falha do logger ou coleta externa podem perder o evento; ausência não prova ausência de trava.
+falha de início, escrita parcial ou falha de escrita ou coleta externa podem perder o evento;
+ausência não prova ausência de trava. O estado interno consultável distingue `pending`, `sent`,
+`start_failed` e `write_failed`, sem incluir a exceção. A emissão usa `os.write` com bytes fixos,
+sem handlers de logger que possam lançar exceções arbitrárias ou registrar dados externos. Uma
+escrita parcial pode produzir trecho incompleto; coletores devem aceitar apenas JSON completo do
+catálogo. `sent` confirma apenas a escrita local, não a coleta externa.
 
 O limite de 200 ms desde o início, a espera periódica, as leituras e hashes completos, a trava
 permanente, as recusas e a verificação de autorização, janela e prazo permanecem iguais.

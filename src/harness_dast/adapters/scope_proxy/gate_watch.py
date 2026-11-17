@@ -4,7 +4,12 @@ from collections.abc import Callable
 from threading import Event, Lock, Thread
 
 from harness_dast.adapters.scope_proxy.decision import Reason
-from harness_dast.adapters.scope_proxy.watch_diagnostic import Detection, WatchCause, log_latch
+from harness_dast.adapters.scope_proxy.watch_diagnostic import (
+    Detection,
+    DiagnosticResult,
+    WatchCause,
+    log_latch,
+)
 
 _INTERVAL = 0.05
 _MAX_AGE = 0.2
@@ -23,6 +28,7 @@ class GateWatch:
         self._stop = Event()
         self._started_at: float | None = None
         self._failure: Reason | None = None
+        self._diagnostic: DiagnosticResult | None = None
         self.run_once()
         self._thread = Thread(target=self._run, name="hdast-gate-watch", daemon=True)
         self._thread.start()
@@ -51,7 +57,7 @@ class GateWatch:
                     else:
                         self._started_at = started
             if cause is not None:
-                log_latch(cause)
+                self._diagnostic = log_latch(cause)
 
     def check(self) -> Reason | None:
         """Recusa e trava estado ausente, envelhecido, encerrado ou com erro."""
@@ -71,7 +77,7 @@ class GateWatch:
                         cause = WatchCause.AGE
             result = self._failure
         if cause is not None:
-            log_latch(cause)
+            self._diagnostic = log_latch(cause)
         return result
 
     def close(self) -> None:
@@ -81,7 +87,12 @@ class GateWatch:
             self._failure = self._failure or Reason.APPROVAL_CHANGED
             self._stop.set()
         if first:
-            log_latch(WatchCause.CLOSE)
+            self._diagnostic = log_latch(WatchCause.CLOSE)
+
+    @property
+    def diagnostic(self) -> DiagnosticResult | None:
+        """Devolve o resultado sanitizado, se houver tentativa de diagnóstico."""
+        return self._diagnostic
 
     def _run(self) -> None:
         while not self._stop.wait(_INTERVAL):
