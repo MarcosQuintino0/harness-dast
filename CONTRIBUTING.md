@@ -1,6 +1,6 @@
 # Contribuindo
 
-Este documento vale para pessoas e para agentes de IA. Regras resumidas para agentes estão em [CLAUDE.md](CLAUDE.md). A estratégia de testes está em [docs/testing.md](docs/testing.md).
+Este documento vale para pessoas e para agentes de IA. Regras resumidas para agentes estão em [AGENTS.md](AGENTS.md). A estratégia de testes está em [docs/testing.md](docs/testing.md).
 
 Muitos itens abaixo são verificados por ferramenta no CI (`.github/workflows/ci.yml`) e no pre-commit. O estado de cada gate está em [docs/roadmap.md](docs/roadmap.md#gates-de-qualidade).
 
@@ -68,7 +68,7 @@ O autor passa por esta lista antes de pedir revisão; o revisor passa por ela de
 4. Toda entrada externa é validada na fronteira?
 5. Algum segredo ou dado pessoal pode chegar a log, erro ou saída para o agente?
 6. A mudança pode ampliar escopo, limites ou o que a limpeza apaga?
-7. Nomes, tamanho de função e comentários seguem os padrões de [CLAUDE.md](CLAUDE.md)?
+7. Nomes, tamanho de função e comentários seguem os padrões de [AGENTS.md](AGENTS.md)?
 8. Documentação e contrato atualizados?
 
 ## Política de revisão para uma equipe de uma pessoa (AD-14)

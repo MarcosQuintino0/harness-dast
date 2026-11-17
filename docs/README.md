@@ -4,13 +4,13 @@
 
 Leia os [guias](guides/), [primeiro uso](guides/primeiro-uso.md), [cadastro](guides/cadastrar-um-produto.md)
 e [limpeza humana](guides/limpeza-de-dados.md). As [skills de uso](../.claude/skills/) orientam o agente;
-as regras de operação estão em [CLAUDE.md](../CLAUDE.md).
+as regras de operação estão em [AGENTS.md](../AGENTS.md).
 
 ## Quero desenvolver
 
 Leia [CONTRIBUTING](../CONTRIBUTING.md), a [escada de testes](escada-de-testes.md), [testing](testing.md),
 os [ADRs](adr/README.md) e o [mapa dos módulos](modules/).
-As skills `dev-*` serão indexadas nas instruções compartilhadas na fase 2 desta organização.
+As [skills `dev-*`](../AGENTS.md#descoberta-de-instruções-e-skills) orientam testes, ADR, laboratório, avaliação e fechamento.
 
 ## Quero entender
 
@@ -34,7 +34,7 @@ Prova ausente continua lacuna; implementação não equivale a validação de la
 | `reviews/` | Prova e limita entregas com data |
 | `design/` | Especifica telas e referências visuais |
 | `spikes/` | Registra experimentos descartáveis |
-| `research/` | Reúne pesquisa sem força de instrução; consolidação na fase 2 |
+| `research/` | Reúne pesquisa sem força de instrução |
 | `operations/` | Define políticas de autorização, ameaça e limpeza |
 
 ## Onde colocar cada coisa

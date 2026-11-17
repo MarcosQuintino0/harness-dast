@@ -66,10 +66,27 @@ def draw_secrets(case: Case) -> dict[str, str]:
 def copy_workspace(case: Case, source: Path, workspace: Path) -> list[str]:
     """Copia o repositorio sem o que o agente nao pode ver. Devolve as exclusoes que valeram."""
     rules = exclusions.exclusions_for(case)
+    counts: dict[str, int] = {}
     for file, rel in exclusions.walk_kept(source, rules):
         target = workspace / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(file, target)
+        root = "products/_template" if rel.startswith("products/_template/") else rel.split("/")[0]
+        counts[root] = counts.get(root, 0) + 1
+    manifest = workspace.parent / "sealed" / "workspace-manifest.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(
+        json.dumps(
+            {
+                "policy": "allowlist-v1",
+                "roots": dict(sorted(counts.items())),
+                "total_files": sum(counts.values()),
+                "stage": "repository-copy",
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     return [f"{rule.path}: {rule.reason}" for rule in exclusions.applied(source, rules)]
 
 

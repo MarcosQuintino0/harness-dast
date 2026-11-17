@@ -8,6 +8,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Organização
 
+- Regras A/B canônicas em AGENTS, importação curta no Claude e cinco skills de desenvolvimento, separadas das cinco de uso.
+- Cópia cega por lista de permissão, manifesto de arquivos e proteção de AGENTS (ADR 0083); contexto menor explicitado no protocolo.
+- Sete arquivos de pesquisa consolidados em docs/research e política documental de retenção de evals, sem apagar resultados.
+
 - Navegação por intenção, índice de planos e estado centralizado no roadmap; histórico retirado das instruções.
 - Pacote e lock alinhados à publicação 1.9.3; contrato impede versões divergentes e estado versionado no README/arquitetura.
 - Limpeza: procedimento no guia, contrato na referência e política em operations; seis gates obrigatórios e projetos locais ignorados.

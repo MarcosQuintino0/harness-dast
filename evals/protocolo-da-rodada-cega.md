@@ -89,7 +89,7 @@ Dentro de um estudo, todas as rodadas usam a mesma ferramenta, o mesmo modelo e 
 - **A cópia cega** (`<out>/workspace`), com:
   - o `EVAL-BRIEFING.md`, que traz o pedido e a carta inteira;
   - o OpenAPI em `inputs/`;
-  - o código da CLI, os guias, as skills e o `CLAUDE.md`.
+  - o código da CLI, os guias operacionais, as cinco skills de uso e `AGENTS.md`/`CLAUDE.md` sem histórico.
 - **O ambiente do processo**, vindo de `sealed/agent-env.json`:
   - os segredos sorteados, que o agente conhece só pelos nomes que a carta lista;
   - `HDAST_PRODUCTS_DIR` e `HDAST_STATE_DIR` da rodada;
@@ -410,3 +410,13 @@ Uma recusa esperada de autenticação no login conta para alcance, separada dos 
 ### V1.5.5 e comparação histórica
 
 Esta versão prepara os casos e a régua, sem executar rodadas cegas. Quando o dono pedir, planeje rodadas em pelo menos duas APIs e registre versão, caso lacrado, modo, sementes, intervenções e medidas. Preserve `vampi-estrito` para a referência histórica e compare resultados com o mesmo caso e régua; mudança de gabarito ou autorização impede comparação direta de notas sem ressalva. A prova de detecção no VAmPI e a situação do crAPI constam no [relatório da versão](../docs/reviews/relatorio-v1.5.5.md).
+
+
+## Fronteira de contexto desde a organização V1.9.4
+
+O [ADR 0083](../docs/adr/0083-copia-cega-por-lista-de-permissao.md) troca exclusão por lista de permissão de raízes.
+`tests/`, CHANGELOG, roadmap, pesquisa e skills `dev-*` ficam fora, além das exclusões finas anteriores.
+As cinco skills de uso e as regras compartilhadas permanecem. Confira `sealed/workspace-manifest.json`:
+política, raízes e contagem da cópia do repositório, antes de inputs e arquivos gerados.
+Rodadas novas veem menos arquivos que as antigas; isso afeta a comparação histórica. Informe commit e política/manifesto
+no estudo, separe essa mudança de contexto de efeitos do modelo e não altere casos ou resultados históricos para igualá-los.

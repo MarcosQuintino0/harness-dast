@@ -2,7 +2,7 @@
 
 A limpeza é a única ação destrutiva intencional do harness: exige autoria e revisão humanas do SQL,
 autorização registrada e dados sintéticos. Só Oracle e `DELETE`. O agente não escreve, altera ou executa o script,
-nem amplia `allowed_tables` ou `max_rows` (Parte B do `CLAUDE.md`); apenas sugere a limpeza à pessoa.
+nem amplia `allowed_tables` ou `max_rows` (Parte B do `AGENTS.md`); apenas sugere a limpeza à pessoa.
 
 A pessoa confere DSN, privilégios mínimos (`SELECT` e `DELETE` nas tabelas de teste), contagens e teto antes de
 confirmar digitando o nome do produto em terminal interativo. Nenhum atalho, CI ou tarefa agendada substitui o aceite.

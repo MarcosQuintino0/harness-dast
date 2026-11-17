@@ -1,4 +1,4 @@
-"""O que sai da copia entregue ao agente cego, e por que."""
+"""Fronteira da cópia cega: raízes permitidas e exclusões finas internas."""
 
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -45,8 +45,10 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("docs/plans", "planos e briefings do coordenador para a avaliacao"),
     Exclusion("docs/adr/0014-avaliacao-cega-como-eval.md", "desenho da avaliacao cega"),
     Exclusion("docs/guides/primeiro-uso.md", "aponta os perfis prontos do laboratorio"),
-    Exclusion("reports", "pesquisa de projeto, fora da tarefa"),
-    Exclusion("research_notes", "pesquisa de projeto, fora da tarefa"),
+    Exclusion("CHANGELOG.md", "histórico com resultados do laboratório"),
+    Exclusion("docs/roadmap.md", "estado com resultados e lacunas do laboratório"),
+    Exclusion("docs/research", "pesquisa do coordenador, não é instrução operacional"),
+    Exclusion("docs/adr/0083-copia-cega-por-lista-de-permissao.md", "fronteira da avaliação"),
     Exclusion("lab/README.md", "lista as fraquezas documentadas do VAmPI e a ordem esperada"),
     Exclusion("lab/pilot/src", "codigo-fonte do alvo; blocos de falha marcados no codigo"),
     Exclusion("lab/pilot/Dockerfile", "como o alvo e construido (substituido por um stub)"),
@@ -66,6 +68,30 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("lab/crapi/product-profile", "perfil pronto: escrever o perfil e parte da prova"),
     Exclusion("lab/crapi/openapi.json", "entregue em inputs/ pelo dono do produto"),
 )
+
+# Testes não são necessários para operar a CLI e contêm expectativas e fixtures do laboratório.
+# Raiz nova exige decisão explícita; arquivos necessários ao build/template e à pilha permanecem.
+ALLOWED_ROOTS = (
+    "src",
+    "docker",
+    "compose.yaml",
+    "lab",
+    "products/_template",
+    ".claude",
+    "docs",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "SECURITY.md",
+    "pyproject.toml",
+    "uv.lock",
+    ".python-version",
+    ".gitattributes",
+    ".gitignore",
+    ".dockerignore",
+    ".env.example",
+)
+
 
 CACHE_NAMES = frozenset(
     {"__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".hypothesis", "node_modules"}
@@ -97,6 +123,16 @@ def decide(rel: str, rules: tuple[Exclusion, ...]) -> Exclusion | None:
     """Diz se o caminho relativo sai da copia e por que."""
     if rel.split("/")[-1] in CACHE_NAMES:
         return Exclusion(rel, "cache")
+    parts = rel.split("/")
+    if parts[-1] == ".env" or (parts[-1].startswith(".env.") and parts[-1] != ".env.example"):
+        return Exclusion(rel, "arquivo local de segredos")
+    if len(parts) >= 3 and parts[:2] == [".claude", "skills"] and parts[2].startswith("dev-"):
+        return Exclusion(rel, "skill de desenvolvimento, fora da tarefa operacional")
+    if not any(
+        rel == path or rel.startswith(path + "/") or path.startswith(rel + "/")
+        for path in ALLOWED_ROOTS
+    ):
+        return Exclusion(rel, "fora da lista de permissão de raízes")
     return _matches(rel, rules) or _product_exclusion(rel)
 
 
@@ -126,4 +162,14 @@ def applied(root: Path, rules: tuple[Exclusion, ...]) -> list[Exclusion]:
             hit = _product_exclusion(entry.relative_to(root).as_posix())
             if hit is not None:
                 found.append(hit)
+    for entry in sorted(root.iterdir()):
+        hit = decide(entry.name, rules)
+        if hit is not None and hit not in found:
+            found.append(hit)
+    skills = root / ".claude" / "skills"
+    if skills.is_dir():
+        found.extend(
+            Exclusion(p.relative_to(root).as_posix(), "skill de desenvolvimento")
+            for p in sorted(skills.glob("dev-*"))
+        )
     return found

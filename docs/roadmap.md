@@ -17,6 +17,12 @@ Esta seção consolida o vigente. As seções de provas por versão e as notas t
 na data da entrega: uma prova posterior pode completar uma lacuna anterior. [Histórico](../CHANGELOG.md),
 [provas datadas](reviews/README.md) e [estado dos planos](plans/README.md) preservam essa distinção.
 
+## Organização V1.9.4
+
+Fases 1 e 2 implementadas: navegação e versão coerentes, regras canônicas em AGENTS, cinco skills de desenvolvimento,
+cópia cega por permissão com manifesto (ADR 0083 proposto), pesquisa consolidada e retenção documental de evals.
+Validação limitada a unitários e contratos; laboratório e rodadas cegas não executados nesta entrega.
+
 ## Marcos
 
 | Marco | Entrega | Pronto quando | Tamanho |
