@@ -36,7 +36,8 @@ A trilha L (ADRs 0092 a 0095: H11 na Clínica, vigia, crAPI na pilha e ponte de 
 | F7, crAPI (C12) | `2026-11-17T16-46-08Z-crapi-d197` | NÃO achado (força baixa) |
 | F7, Clínica segura | `…16-52-36Z-clinica-piloto-b3de` | 5 alarmes falsos altos da regra 40033, marcados experimentais (1383 pedidos) |
 | F7, chave desligada | `…16-50-06Z-crapi-416b` | 0 pedidos das regras novas |
-| F5, crAPI ligado (C3) | `2026-11-17T17-32-00Z-crapi-338a` | `check_otp_v2` achado (20 tentativas, sempre HTTP 500); `check_otp_v3` também achado |
+| F5, crAPI ligado (C3), inicial | `2026-11-17T17-32-00Z-crapi-338a` | SUPERADA: `check_otp_v2` e `check_otp_v3` achados por 20 respostas HTTP 500 iguais (não é rejeição) |
+| F5, crAPI ligado, depois da correção | `2026-11-17T18-39-20Z-crapi-4c29` | `check_otp_v2` e `check_otp_v3` inconclusivos (`server_error_http_500`, 1 pedido cada), sem achado; C3 deixou de ser detectável |
 | F5 e F8, desligado | `…17-36-50Z-crapi-4689` | zero pedidos |
 | F5 e F8, Clínica segura | `…17-39-33Z-clinica-piloto-b907` | 1 achado baixo (`/v3/api-docs` exposto) |
 
@@ -49,24 +50,33 @@ Os gates de cada passo (`gates-f1`, `gates-f4`, `gates-f6b`, `gates-f2f3b`, `gat
 - Chave HMAC fraca de JWT: exercida só em teste de unidade; o crAPI já aceita `alg_none`, então o envio não foi necessário.
 - C12 (NoSQL do crAPI): as regras rodaram e não acharam em força baixa. O gabarito mantém `detectable: false`.
 - Regra 40033 na Clínica segura: 5 alarmes falsos de gravidade alta. Por isso os achados experimentais saem marcados e passam pela verificação.
-- `check_otp_v3`: achado provável falso positivo (sem OTP emitido); o achado se baseia em `5xx` constante. A v3 está fora do escopo do caso `crapi-foco`.
+- C3 (OTP da v2): a validação independente mostrou que o achado vinha de `5xx` constante (letras num campo numérico). Corrigido: só rejeição 4xx conclui, e o valor errado respeita o formato do contrato. O crAPI segue devolvendo `500` a OTP errado, então o C3 ficou inconclusivo (`crapi-4c29`) e o gabarito voltou a `detectable: false`. Não forçamos um 4xx.
 - Página enorme: só em unidade; no crAPI a lista veio vazia e o resultado foi inconclusivo.
-- Asserção da Clínica do teste de integração das regras experimentais: não executada.
 - `kid`, `jku` e confusão de algoritmo no JWT: fora.
-- O compose passa a construir a imagem do ZAP; a primeira construção depende de rede.
-- O diário da cerca trata `5xx` como rejeição conhecida para a intenção `rejection-attempt:`; a validação independente deve conferir que vale só para ela.
+- O compose passa a construir a imagem do ZAP; a primeira construção depende de rede, e o tempo do build não foi medido (o prazo do `up --build` ganhou 600 s de folga).
+- O diário da cerca trata `5xx` como rejeição conhecida só para a intenção `rejection-attempt:` e nunca para `502`, `503` e `504`; agora com teste (`test_negative_sender_attempts.py`).
 - Produto real, rodada cega e validação independente (F10): pendentes.
 
 ## 4. Correção à tabela do ZAP
 
-O ADR 0099 diz que a imagem não tem regra de SSRF (40046). Isso valia para a `zap-stable` pura. Com a imagem derivada do ADR 0103 a regra existe e liga junto com `scan.oast` e `extra_checks.experimental_rules`. Os ADRs não foram editados; a correção está na tabela de [uso do ZAP](../reference/uso-do-zap.md) e aqui.
+O ADR 0099 dizia que a imagem não tem regra de SSRF (40046). Isso valia para a `zap-stable` pura. Com a imagem derivada do ADR 0103 a regra existe e liga junto com `scan.oast` e `extra_checks.experimental_rules`. O ADR 0099 (proposto) e a docstring de `OAST_RULES` foram corrigidos na revisão da validação independente; a tabela de [uso do ZAP](../reference/uso-do-zap.md) também.
 
 ## 5. Casos de avaliação
 
-- **`crapi-foco`, versão 2:** a carta liga `attack.pacing: proxy` e as cinco capacidades, cada uma com `quote`, e autoriza só o POST da verificação de OTP da v2. Gabarito: C3, C11 e C15 `detectable: true` (pelas provas acima); C1, C6, C10 e C12 `false`. Controles C1 e C10 mantidos. A cópia cega e o teste de vazamento passam; nenhum agente foi rodado.
+- **`crapi-foco`, versão 2:** a carta liga `attack.pacing: proxy` e as cinco capacidades, cada uma com `quote`, e autoriza só o POST da verificação de OTP da v2. Gabarito: C11 e C15 `detectable: true` (pelas provas acima); C1, C3, C6, C10 e C12 `false` (o C3 voltou a `false` na correção). Controles C1 e C10 mantidos. A cópia cega e o teste de vazamento passam; nenhum agente foi rodado.
 - **`clinica-piloto`:** não mudou. A H11 continua `detectable: false`, porque a carta da Clínica não autoriza cabeçalhos.
 - Rodada cega do `crapi-foco` (Sonnet 5.5 medium) e, no fim, a de Haiku 5.5 high: pendentes.
 
-## 6. Pendências
+## 6. Correções da validação independente
+
+Feitas em commits próprios da branch (ver `git log`):
+
+- Tentativas repetidas: só rejeição 4xx estável conclui; `5xx` é inconclusivo; valor errado do formato certo; operações que trocam credencial ficam de fora; 2xx registra `possible_state_change` (ADR 0101).
+- Intenção `rejection-attempt:` testada com o `NegativeSender` real; `502`, `503` e `504` continuam pendentes.
+- SSRF guiado trata falha do proxy; inventário trata `5xx` da irmã como inconclusivo; página sem `maximum` com confiança baixa; chave HMAC fraca curta fora do cofre; prazo do `up --build` com 600 s extras.
+- Prova no crAPI depois da correção (`2026-11-17T18-39-20Z-crapi-4c29`, desligado `…18-43-20Z-crapi-a6aa`): C3 inconclusivo por `server_error_http_500` em v2 e v3, sem achado; gabarito do `crapi-foco` com C3 `detectable: false`.
+- Teste das regras experimentais na Clínica segura executado (`2026-11-17T18-54-25Z-clinica-piloto-0d86`): 70 achados, 5 experimentais, todos da regra 40033 (gravidade alta, severidade intocada), 1383 pedidos das regras experimentais, 90039 rodou sem alerta. A asserção passou a travar só a consistência da marca `experimental` (a contagem fica nas métricas); a nova versão da asserção não foi reexecutada no laboratório, só a anterior passou.
+
+## 7. Pendências
 
 Rodada cega, validação independente (F10), PR e merge. Itens da seção 3.

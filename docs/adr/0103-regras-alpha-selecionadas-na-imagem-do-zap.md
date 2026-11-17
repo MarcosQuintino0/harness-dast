@@ -38,7 +38,7 @@ Vamos criar uma imagem derivada e escolher, no `domain`, quais regras novas fica
 ## Consequências
 
 - Custo em disco: a camada nova tem 12 MB (os dois `.zap` têm 2,2 MB e o resto vem de `chown`/`chmod` no mesmo `RUN`); a imagem aparece com 3,77 GB como a base, com a qual compartilha camadas. A `zap-stable` continua no disco, porque é a base. A atualização exige trocar versão e SHA-256 no Dockerfile e a tag no `compose.yaml`.
-- O primeiro `hdast stack up` precisa de internet para o build (como já precisa para as outras imagens). O `hdast doctor` avisa se a imagem não existe.
+- O primeiro `hdast stack up` precisa de internet para o build (como já precisa para as outras imagens). O `hdast doctor` avisa se a imagem não existe. O prazo do processo do `docker compose up --build` ganhou 600 s de folga (`BUILD_SECONDS` em `adapters/docker/compose.py`) além do prazo de saúde, porque o `--wait-timeout` não cobre o build; sem `--build` o prazo é o de antes. O tempo do build da imagem não foi medido nesta correção (a imagem local não foi removida).
 - Quem rodar a CLI contra a imagem estável com a chave desligada passa a receber erro de "regra desconhecida" ao desligar as 26 regras: a política do harness pressupõe a imagem do harness.
 - O catálogo é de 26 regras medidas nesta versão dos complementos; uma versão nova pode trazer regras novas que ficariam ligadas por padrão no ZAP. A conferência da lista é parte da atualização da imagem (teste de contrato do fake lê as mesmas regras).
 - A regra de SSRF 40046 passa a existir na imagem, o que muda a observação do ADR 0099 ("a imagem não tem regra de SSRF"); o SSRF guiado pelo contrato (ADR 0100) continua sendo o caminho principal e não depende da chave.

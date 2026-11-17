@@ -232,6 +232,18 @@ def test_the_secure_clinic_with_the_key_on_counts_the_experimental_false_alarms(
         pytest.skip("só vale na Clínica segura com a chave ligada")
     assert lab.policy["experimental_rules"] == [40033, 90039]
     assert lab.experimental_requests > 0
-    # No modo seguro não há falha NoSQL: todo achado experimental aqui é alarme falso. A contagem
-    # vai para as métricas e para o ADR; o teste não a trava, para registrar o número como veio.
+    # No modo seguro não há falha NoSQL: todo achado experimental aqui é alarme falso. O número
+    # vai para as métricas (execução `clinica-piloto-0d86`: 5 alarmes da regra 40033, gravidade
+    # alta, 1383 pedidos); o teste trava só o que é verdade por construção: a marca vale
+    # exatamente para os achados das regras experimentais, o SSRF (40046) não liga sem `scan.oast`
+    # e a severidade proposta pela regra não é alterada.
+    marked = {str(item["plugin_id"]) for item in lab.experimental}
+    from_experimental = {
+        str(item["plugin_id"])
+        for item in lab.findings
+        if int(item["plugin_id"]) in EXPERIMENTAL_IDS
+    }
+    assert marked == from_experimental
+    assert marked <= {"40033", "90039"}
     assert all(item["experimental"] is True for item in lab.experimental)
+    assert all(item["proposed_severity"] in {"high", "medium", "low"} for item in lab.experimental)

@@ -151,7 +151,7 @@ def test_listagem_de_veiculos_existe_no_contrato_e_na_carta() -> None:
 def test_caso_declara_so_a_deteccao_provada_e_nenhum_prazo_medido() -> None:
     case = load_case("crapi-foco")
     assert {f.id for f in case.flaws} == {"C1", "C3", "C6", "C10", "C11", "C12", "C15"}
-    assert {f.id for f in case.flaws if f.detectable} == {"C3", "C11", "C15"}
+    assert {f.id for f in case.flaws if f.detectable} == {"C11", "C15"}
     assert case.budget.duration_seconds == 900
 
 

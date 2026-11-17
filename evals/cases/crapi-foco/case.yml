@@ -47,7 +47,7 @@ secrets:
   generate: [CRAPI_USER_A_EMAIL, CRAPI_USER_A_PASSWORD, CRAPI_USER_B_EMAIL, CRAPI_USER_B_PASSWORD]
 flaws:
   - { id: C1, title: Localização de veículo entre contas, detectable: false }
-  - { id: C3, title: Força bruta do OTP na v2, detectable: true }
+  - { id: C3, title: Força bruta do OTP na v2, detectable: false }
   - { id: C10, title: Propriedades internas do vídeo, detectable: false }
   - { id: C11, title: SSRF no contato do mecânico, detectable: true }
   - { id: C12, title: Injeção NoSQL no cupom, detectable: false }

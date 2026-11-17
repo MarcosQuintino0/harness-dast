@@ -137,14 +137,16 @@ def test_crapi_limite_de_consumo_e_inventario_com_e_sem_as_chaves(tmp_path: Path
         assert rate["sent"] <= rate["cap"]
         assert inventory["sent"] <= inventory["cap"]
         attempts = {r["subject"]: r for r in rate["results"] if r["check"] == "attempts"}
-        assert attempts["check_otp_v2"]["requests"] <= 20
-        assert attempts["check_otp_v2"]["outcome"] == "finding", rate
-        assert on["audit_rows"].get("rate:", 0) >= 20
+        # O crAPI responde 500 a OTP errado, mesmo com dígitos do tamanho do contrato: não é
+        # rejeição de credencial. A checagem fica inconclusiva, sem achado (ADR 0101, correção da
+        # validação independente); antes ela achava o C3 por 20 respostas 500 iguais.
+        for subject in ("check_otp_v2", "check_otp_v3"):
+            assert attempts[subject]["outcome"] == "inconclusive", rate
+            assert attempts[subject]["detail"] == "server_error_http_500", rate
+            assert attempts[subject]["requests"] == 1
+        assert on["audit_rows"].get("rate:", 0) >= 4
         found = [f for f in on["findings"] if f.get("plugin_id") == "hdast-rate-attempts"]
-        # A v3 conta tentativas por OTP emitido; sem `forgot-password` não há contador (o teste
-        # nunca dispara o envio do código), então a v3 também fica sem sinal. É o que se mede.
-        assert "check_otp_v2" in {f["operation_id"] for f in found}
-        assert found[0]["proposed_severity"] == "medium"
+        assert found == []
 
         # Mudar o perfil muda a aprovação: o proxy de escopo exige pilha nova.
         cli.stack_down()

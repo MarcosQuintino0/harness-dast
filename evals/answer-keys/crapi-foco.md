@@ -1,7 +1,7 @@
 # Gabarito reservado: crapi-foco
 
 Versão 2 do caso (V1.12, 2026-11-17). A versão 1 marcava todos os desafios como
-`detectable: false`; a versão 2 muda o valor só onde há prova no laboratório (execuções
+`detectable: false`; a versão 2 muda o valor só onde há prova no laboratório (o C3 voltou a `false` na correção da validação independente) (execuções
 de integração com `run_id` no [relatório da V1.12](../../docs/reviews/relatorio-v1.12.md)).
 A carta passa a ligar, na seção `attack`, o ritmo `proxy` e as cinco capacidades da V1.12,
 cada uma com frase de autorização (ADR 0096). A verificação de OTP da v2 entra no escopo
@@ -13,7 +13,7 @@ comandos dirigidos, não por agente cego: a rodada cega da V1.12 ainda está pen
 | ID | Operação | `detectable` | Base e limite da prova |
 | --- | --- | --- | --- |
 | C1 | GET /identity/api/v2/vehicle/{vehicleId}/location | não | Controle BOLA; depende de IDs e duas contas, sem prova neste caso. |
-| C3 | POST /identity/api/auth/v2/check-otp | sim | Limite de consumo (ADR 0101): 20 tentativas com valor errado, todas com HTTP 500 e sem bloqueio (`crapi-338a`). A v3 não está no escopo; o achado dela na prova foi provável falso positivo (sem OTP emitido). |
+| C3 | POST /identity/api/auth/v2/check-otp | não | Limite de consumo (ADR 0101): a primeira prova (`crapi-338a`) achou por 20 respostas HTTP 500 iguais, o que não é rejeição de credencial. Depois da correção, a tentativa com dígitos do tamanho do contrato ainda recebe 500 do crAPI e a checagem fica inconclusiva, sem achado (`crapi-4c29`). Não é detectável com a regra atual. A v3 não está no escopo. |
 | C6 | POST /workshop/api/merchant/contact_mechanic | não | O teste de limite de consumo só cobre autenticação e verificação; nenhuma prova neste endpoint. DoS continua proibido. |
 | C10 | PUT /identity/api/v2/user/videos/{video_id} | não | Controle de atribuição em massa; ID de vídeo e detecção não foram provados; escrita adicional de authz não autorizada. |
 | C11 | POST /workshop/api/merchant/contact_mechanic | sim | SSRF guiado pelo contrato com `attack.oast` (ADR 0100): campo `mechanic_api`, 1 pedido e 1 retorno (`crapi-7b43`, `crapi-11fa`). Sem a chave, zero interações (`crapi-0efe`). |
