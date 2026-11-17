@@ -55,7 +55,7 @@ O arquivo aditivo `human-confirmations.json` v1 preserva declarações anteriore
 
 `hdast mutation list [--json]` lê o diário local da pasta de estado e mostra as pendências com identificador, operação, apelido da conta, método, `run_id` e horário. O envelope contém `data.pending`, uma lista de `{id, metadata}`; `metadata` é `null` nos registros antigos sem contexto. Não exibe snapshot, segredo ou corpo. Registro malformado é erro de configuração, sem expor seu conteúdo.
 
-`hdast mutation release <id>` pede que uma pessoa confira o estado no alvo e digite o identificador completo da pendência. Exige TTY em entrada e saídas, recusa `--json` e não tem confirmação automática. O agente nunca executa esse comando nem modifica o diário diretamente. A liberação arquiva a entrada em `mutations/completed/`, com desfecho `human_release`, horário e auditoria; não toca o alvo nem prova que a mutação deu certo. Consulte [diário e reconciliação](knowledge.md#reconciliar-uma-pendência-do-diário).
+`hdast mutation release <id>` pede que uma pessoa confira o estado no alvo e digite o identificador completo da pendência. Exige TTY em entrada e saídas, recusa `--json` e não tem confirmação automática. Mantém a trava exclusiva de execução durante o prompt e o arquivamento: com outra execução ativa recusa com `STACK_BUSY` (saída 8), antes de perguntar. O agente nunca executa esse comando nem modifica o diário diretamente. A liberação arquiva a entrada em `mutations/completed/`, com desfecho `human_release`, horário e evento `mutation_human_release` na segunda linha do diário; não toca o alvo nem prova que a mutação deu certo. Consulte [diário e reconciliação](knowledge.md#reconciliar-uma-pendência-do-diário).
 
 Uma intenção pendente pula somente a mesma operação e conta com motivo `mutation_pending`, sem reenviá-la ou contar alcance/sucesso. As demais seguem. Erro de E/S ou diário inválido continua interrompendo o estágio.
 
@@ -403,6 +403,7 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | `not_found` | 404 ou 410: falta encadeamento (`flows.yml`) ou o recurso não existe |
 | `rate_limited` | 429 depois das esperas permitidas |
 | `server_error` | 5xx |
+| `mutation_pending` | Mutação anterior com efeito desconhecido para a mesma operação e conta; nenhum pedido reenviado, alcance não comprovado. Consulte `hdast mutation list`; somente uma pessoa pode conferir o alvo e liberar por `hdast mutation release <id>` |
 | `client_error` | Demais 4xx (405, 415...) |
 | `redirect` | 3xx, nunca seguido; `redirect_in_scope` diz se o destino estaria no escopo |
 | `timeout` | Sem resposta no tempo limite (15 s) |

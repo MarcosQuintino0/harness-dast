@@ -65,6 +65,8 @@ Raiz (`FindingsReport`):
 | `policy` | `name`, `strength`, `threshold`, `url_path_injection`, `injectable_mask`, `disabled_rules` |
 | `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason` (recusa por forma agrupada em `malformed_request`), `denied_by_detail` (o código granular: `path_encoded_slash`, `url_forbidden_char`, `deny_path`...), `path_shape_denied` (recusas por forma do caminho, a base do aviso de cobertura parcial de injeção em caminho), `allowed_outside_allow` (modo amplo: liberados com leitura fora de `scope.allow`), `path_mode` (`strict` ou `wide`; ADR 0026), `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
 
+Desde a V1.12.1, `not_tested[].reason` também pode ser `mutation_pending`: a mesma operação e conta tem intenção anterior com efeito desconhecido. O pedido não foi reenviado e a pendência não conta como alcance ou sucesso. O motivo fica literal, inclusive quando vem do `probe` ou de semente histórica recusada no `scan` ([ADR 0104](../adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md)).
+
 ### `Finding`
 
 | Campo | Tipo | Descrição |

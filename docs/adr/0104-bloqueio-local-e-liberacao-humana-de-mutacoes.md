@@ -20,7 +20,7 @@ estágios e a autorização de escopo, janela, métodos e limites.
 
 Vamos distinguir pendência conhecida de falha do diário. Somente a primeira pula
 a operação e conta afetadas e permite continuar as demais. `probe`, `authz`,
-`negative`, `extra_checks` e o consumo de sementes históricas pelo `scan` respeitam
+`negative`, `extra_checks`, o SSRF guiado/OAST já existente e o consumo de sementes históricas pelo `scan` respeitam
 esse limite. O motivo público é `mutation_pending`, visível nos artefatos,
 relatório e painel; ele nunca conta como alcance ou sucesso. Corrupção, dados
 malformados e falhas de E/S continuam falhando de modo fechado.
@@ -29,9 +29,18 @@ Vamos oferecer `hdast mutation list` para leitura local por pessoa ou agente e
 `hdast mutation release <id>` exclusivamente para uma pessoa em terminal
 interativo. A liberação pede confirmação explícita de que a pessoa conferiu o
 alvo, arquiva a entrada em `completed` com desfecho próprio de liberação humana e
-registra o ato na auditoria. Sem TTY ou com modo JSON, a liberação é recusada.
+registra o ato na auditoria. A segunda linha do próprio diário arquivado contém
+`outcome: human_release`, `event: mutation_human_release` e `released_at` em ISO 8601;
+o diário de comandos da CLI registra a invocação separadamente. A auditoria HTTP
+`audit.jsonl` conserva seu contrato de decisões e respostas de requisições.
+Sem TTY ou com modo JSON, a liberação é recusada.
 Não haverá flag automática de confirmação. TTY e declaração não autenticam a
 identidade da pessoa; a Parte B de `AGENTS.md` e a negação do Claude proíbem o agente.
+A liberação mantém a mesma trava exclusiva de execução já usada por `run`,
+`probe`, `scan`, `authz` e `negative`, incluindo o tempo do prompt. Assim não se
+libera uma intenção enquanto a CLI ainda pode estar executando o pedido, nem se
+inicia outro envio durante a liberação. A exclusão depende da mesma pasta de estado
+e de processos que respeitem essa trava; uso direto da aplicação não a substitui.
 
 Vamos acrescentar ao registro os metadados não sensíveis necessários: operação,
 apelido da conta, método, `run_id` e horário. O identificador continua opaco e não
@@ -39,6 +48,26 @@ aceita caminhos. A listagem projeta somente esses dados e o identificador; não
 expõe snapshot, corpo, credenciais ou conteúdo bruto do arquivo. Registros antigos
 sem metadados permanecem bloqueantes, listáveis e liberáveis, com os campos
 ausentes tratados como desconhecidos. Nenhuma migração libera intenção antiga.
+O registro de intenção mantém `intent: mutation`, `previous_state` e o snapshot
+seguro opcional do formato anterior, com `metadata` opcional contendo `operation_id`,
+`account`, `method`, `run_id` e `started_at` com fuso. A listagem usa `{id, metadata}`.
+Contexto que não cabe na projeção segura é omitido sem alterar a aceitação do
+OpenAPI; a chave da trava continua usando a identidade original. Não se armazenam
+corpos ou identificadores de recursos nesses metadados.
+
+O caso de uso depende da nova porta `MutationReleaseStore`, um `Protocol` da
+aplicação para listar e arquivar intenções nessa fronteira externa. O adaptador
+`FileMutationJournal` a implementa e mantém a validação da intenção no domínio;
+a CLI monta o armazenamento, o relógio, o terminal e a trava existentes.
+
+Antes de liberar um registro legado, a CLI cria `completed` se necessário. O
+desfecho é acrescentado e sincronizado antes de arquivar. Se o arquivamento falhar
+depois dessa gravação, o arquivo permanece bloqueante e a leitura recusa o estado
+inconsistente; não há desbloqueio silencioso ou recuperação automática de falha de disco.
+
+Os testes de tentativas de rejeição em `extra_checks` usam a mesma chave de
+operação, conta e método dos demais estágios. Resposta 5xx conserva a pendência;
+não é sinal de limite de consumo nem motivo para repetir o POST.
 
 `options.include_outcomes` do envelope mantém o contrato: `true` usa a lista
 `scan.include_outcomes` do perfil, inclusive quando vazia, e `false` restringe a

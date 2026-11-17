@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-11-17
+
+- Pendência de mutação pula somente a operação e conta afetadas em `probe`, `authz`, `negative`, `extra_checks`, SSRF guiado/OAST existente e `scan` sobre semente histórica. `mutation_pending` aparece na cobertura, relatório e painel, sem contar alcance ou sucesso e sem reenviar o pedido. Corrupção e falhas do diário continuam interrompendo a execução.
+- `hdast mutation list` apresenta contexto não sensível, inclusive registros antigos sem metadados; `hdast mutation release <id>` exige pessoa em terminal interativo, confirmação após conferir o alvo e a trava exclusiva de execução. Arquiva com `human_release` e evento de auditoria `mutation_human_release`. O agente não pode liberar. [ADR 0104](docs/adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto.
+- Caso `crapi-foco` v3 informa o `mechanic_api` local do workshop, código do mecânico e inteiro de repetição, preservando caminhos, métodos, limites e detectabilidade da v2. Referência do envelope e skill `run-scan` esclarecem que `options.include_outcomes: true` usa a lista do perfil, inclusive quando vazia; contrato preservado.
+- Pacote e `uv.lock` em 1.12.1, sem dependência nova. Prova crAPI aprovada (run de 47,703 s, sem reenvio dos POSTs pendentes), regressão dirigida verde em 750,99 s e seis gates locais verdes (11.128 testes aprovados). Provas e limites no [relatório da V1.12.1](docs/reviews/relatorio-v1.12.1.md).
+
 ## [1.12.0] - 2026-11-17
 
 Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínica Piloto, VAmPI e crAPI), sem produto real; rodada cega e validação independente pendentes. Relatório em `docs/reviews/relatorio-v1.12.md`. A tabela do que usamos do ZAP foi revisada para o estado final (`docs/reference/uso-do-zap.md`), com a correção da afirmação do ADR 0099 sobre a regra de SSRF.
