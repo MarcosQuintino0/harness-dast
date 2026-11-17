@@ -19,8 +19,13 @@ from harness_dast.domain.letter_review import review_letter
 from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import OperationResult, ProbeResult, ProbeSummary
 from harness_dast.domain.scan_policy import build_policy
+from harness_dast.domain.scope import OutboundRequest
 from tests.integration.lab_support import REPO, CliResult
-from tests.integration.test_crapi_focus_dryrun import _transcript
+from tests.integration.test_crapi_focus_dryrun import (
+    HEALTH_PATH,
+    _configure_health_path,
+    _transcript,
+)
 from tests.integration.v112_proof_support import (
     control_spec,
     install_focus_spec,
@@ -101,7 +106,7 @@ def test_probe_attempts_recusa_envelope_incompleto() -> None:
         probe_attempts({"operations": []}, {"get_products"})
 
 
-def test_foco_instala_contrato_entregue_sem_alterar_perfil_da_carta(tmp_path: Path) -> None:
+def test_foco_configura_saude_sem_alterar_blocos_da_carta(tmp_path: Path) -> None:
     letter = yaml.safe_load((REPO / "evals/cases/crapi-foco/carta.yml").read_text(encoding="utf-8"))
     review = review_letter(Letter.from_data(letter), "crapi", date(2026, 11, 17))
     assert review.profile_text is not None
@@ -111,16 +116,31 @@ def test_foco_instala_contrato_entregue_sem_alterar_perfil_da_carta(tmp_path: Pa
     product.mkdir(parents=True)
     target = product / "target.yml"
     target.write_text(review.profile_text, encoding="utf-8")
-    original = target.read_bytes()
+    original = yaml.safe_load(target.read_text(encoding="utf-8"))
     inputs = workspace / "inputs"
     inputs.mkdir()
     shutil.copy2(REPO / "lab/crapi/openapi.json", inputs / "openapi.json")
     install_focus_spec(workspace, products)
-    assert target.read_bytes() == original
+    _configure_health_path(products)
+    configured = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert {k: v for k, v in configured.items() if k != "probe"} == {
+        k: v for k, v in original.items() if k != "probe"
+    }
+    assert configured["probe"] == {**original.get("probe", {}), "health_path": HEALTH_PATH}
     profile = FileProfileRepository(products).load("crapi")
+    assert profile.probe.health_path == HEALTH_PATH
+    profile.guard().ensure_allowed(
+        OutboundRequest(method="GET", url=profile.environment.base_url + HEALTH_PATH)
+    )
     loader = FileSpecLoader(lambda name, path: resolve_product_file(products, name, path))
     spec = loader.load("crapi", profile)
-    assert account_paths(spec).login == "/identity/api/auth/login"
+    paths = account_paths(spec)
+    assert (paths.signup, paths.login, paths.resend, paths.vehicle) == (
+        "/identity/api/auth/signup",
+        "/identity/api/auth/login",
+        "/identity/api/v2/vehicle/resend_email",
+        "/identity/api/v2/vehicle/add_vehicle",
+    )
     assert (product / profile.openapi).read_bytes() == (inputs / "openapi.json").read_bytes()
     assert profile.scan.strength == "LOW"
 

@@ -6,11 +6,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from evals.runner.approve import approve
 from evals.runner.cases import EvalError
 from evals.runner.metrics import measure_agent
 from evals.runner.prepare import prepare
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.domain.scope import OutboundRequest
 from tests.integration.lab_support import LabCli, require_docker
 from tests.integration.run_support import record_metrics
 from tests.integration.v112_proof_support import (
@@ -32,6 +35,19 @@ EXPECTED = {
     "update_profile_video",
     "get_products",
 }
+HEALTH_PATH = "/workshop/api/shop/products"
+
+
+def _configure_health_path(products: Path) -> None:
+    """Ajusta somente o caminho de saúde livre do perfil descartável gerado pela carta."""
+    profile = FileProfileRepository(products).load("crapi")
+    profile.guard().ensure_allowed(
+        OutboundRequest(method="GET", url=profile.environment.base_url + HEALTH_PATH)
+    )
+    target = products / "crapi" / "target.yml"
+    data = yaml.safe_load(target.read_text(encoding="utf-8"))
+    data.setdefault("probe", {})["health_path"] = HEALTH_PATH
+    target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
 def _transcript(out: Path, records: dict[str, Any]) -> None:
@@ -87,6 +103,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
     records: dict[str, Any] = {
         "proveniencia": "ensaio automatizado sem agente; transcript de compatibilidade",
         "meta_segundos": 900,
+        "run_max_minutes": 8,
         "detectable": False,
     }
     try:
@@ -130,6 +147,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         )
         assert init.code == 0
         install_focus_spec(prepared.workspace, cli.products)
+        _configure_health_path(cli.products)
         approve(out)
         records["approval"] = "runner de ensaio"
         stack_attempted = True
@@ -143,9 +161,14 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         probe = execute(cli, records, "probe", "probe", "crapi", timeout=900)
         probe_status, attempts = probe_attempts(probe.data, EXPECTED)
         records["operacoes"] = attempts
+        records["operacoes_ausentes"] = sorted(EXPECTED - attempts.keys())
+        records["operacoes_nao_tentadas"] = sorted(
+            operation for operation in EXPECTED if attempts.get(operation, 0) == 0
+        )
+        records["operacoes_tentadas"] = sum(value > 0 for value in attempts.values())
         assert probe.code == 0
         assert probe_status == "completed"
-        run = execute(cli, records, "run", "run", "crapi", "--max-minutes", "14", timeout=900)
+        run = execute(cli, records, "run", "run", "crapi", "--max-minutes", "8", timeout=900)
         records["run_summary"] = summary(run)
         assert set(attempts) == EXPECTED
         assert all(value > 0 for value in attempts.values())
