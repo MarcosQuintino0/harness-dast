@@ -3,6 +3,8 @@
 import hashlib
 import html
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,7 @@ from harness_dast.domain.redaction import redact_body, redact_header_block
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
+from tests.integration.lab_support import REPO
 from tests.integration.v111_confirmation import (
     confirm_individually,
     confirm_legacy,
@@ -180,12 +183,25 @@ def test_verificacao_aditiva_apos_varredura_completa(product: str, mode: str) ->
     assert not (metrics / f"{case}.json").exists(), "Métricas existentes devem ser preservadas."
     root = prepare_root(root_text, case)
     cli, profile_hash = make_cli(root, product)
+    git = shutil.which("git")
+    assert git is not None, "A prova exige Git para registrar a procedência."
+    source = subprocess.run(  # noqa: S603 - Git local e referência fixa da própria worktree
+        [git, "-C", str(REPO), "rev-parse", "HEAD", "HEAD^{tree}"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    ).stdout.splitlines()
+    assert len(source) == 2
     lab = LabRun(
         cli,
         token,
         metrics,
         case,
         {
+            "phase": "candidate",
+            "source_commit": source[0],
+            "source_tree": source[1],
             "product": product,
             "mode": mode,
             "root": str(root),
