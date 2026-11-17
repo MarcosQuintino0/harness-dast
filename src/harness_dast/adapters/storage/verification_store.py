@@ -1,12 +1,12 @@
 """Leitura e escrita atômica do contrato de verificação."""
 
-import json
 import os
 import tempfile
 from pathlib import Path
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.redaction import Masker, redact_body, redact_header_block
+from harness_dast.domain.strict_json import parse_strict_json
 from harness_dast.domain.verification import VerificationFile, parse_verification
 
 
@@ -21,8 +21,8 @@ class VerificationStore:
     def read(self) -> VerificationFile:
         """Lê e valida o arquivo; ausência, JSON malformado e erro de leitura falham fechados."""
         try:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, ValueError):
+            data = parse_strict_json(self._path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ConfigError):
             raise ConfigError(
                 "Não foi possível ler verification.json válido.",
                 hint="Confira a existência e o formato do arquivo.",

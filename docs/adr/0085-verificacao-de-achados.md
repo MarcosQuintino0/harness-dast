@@ -14,6 +14,10 @@ Vamos usar `verification.json` com envelope v1, produto, execução e entradas p
 
 A escrita redige textos com as rotinas existentes e a máscara dos segredos da execução; padrões isolados não garantem ocultar segredos desconhecidos. O envelope é separado de `findings.json`, `triage.json` e `finding_confidence`: não modifica esses contratos nem representa confirmação humana. Falhas de validação não incluem valores recebidos.
 
+A leitura do envelope e dos arquivos consultivos usa o mesmo decodificador puro,
+que recusa chaves duplicadas em qualquer profundidade e constantes não finitas.
+Um JSON ambíguo falha fechado antes da validação do schema; os erros não expõem valores.
+
 ## Alternativas consideradas
 
 Modificar o achado ou sua severidade apagaria a distinção entre alerta e revisão. Tratar a opinião do ZAP como prova de falsidade ou a ausência de evidência como prova contrária geraria conclusões indevidas. Foram descartadas.

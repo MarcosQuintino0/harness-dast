@@ -1,6 +1,5 @@
 """Leitor de arquivos consultivos, sem rede e sem escrita."""
 
-import json
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -9,22 +8,10 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.human_confirmation import HumanConfirmations
 from harness_dast.domain.report.presentation import Calibration, parse_calibration
 from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.strict_json import parse_strict_json
 from harness_dast.domain.verification import VerificationFile, parse_verification
 
 _MAX_BYTES = 8 * 1024 * 1024
-
-
-def _pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("chave duplicada")
-        result[key] = value
-    return result
-
-
-def _constant(value: str) -> None:
-    raise ValueError("constante inválida")
 
 
 def _read(path: Path) -> object | None:
@@ -40,8 +27,8 @@ def _read(path: Path) -> object | None:
     if len(data) > _MAX_BYTES:
         raise ConfigError("Arquivo consultivo grande demais.", hint="Confira o arquivo.")
     try:
-        result: object = json.loads(data, object_pairs_hook=_pairs, parse_constant=_constant)
-    except (UnicodeError, ValueError, RecursionError):
+        result = parse_strict_json(data)
+    except ConfigError:
         raise ConfigError("Arquivo consultivo inválido.", hint="Confira o arquivo.") from None
     if result is None:
         raise ConfigError("Arquivo consultivo nulo.", hint="Confira o arquivo.")

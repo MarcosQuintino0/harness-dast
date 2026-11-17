@@ -42,3 +42,29 @@ def test_grava_e_le_redigindo_segredo_e_cabecalho(tmp_path: Path) -> None:
     assert "abcdefghijklmnop" not in raw
     assert json.loads(raw)["entries"][0]["level"] == "inconclusive"
     assert store.read().entries[0].fingerprint == FP
+
+
+@pytest.mark.parametrize(
+    ("original", "ambiguous"),
+    [
+        ('"schema_version": 1', '"schema_version": 2, "schema_version": 1'),
+        ('"level": "likely"', '"level": "segredo", "level": "likely"'),
+    ],
+)
+def test_recusa_chave_duplicada_quando_envelope_ambiguo(
+    tmp_path: Path, original: str, ambiguous: str
+) -> None:
+    path = tmp_path / "verification.json"
+    data = envelope() | {
+        "entries": [{"fingerprint": FP, "level": "likely", "reason": "trecho observado"}]
+    }
+    raw = json.dumps(data)
+    assert original in raw
+    raw = raw.replace(original, ambiguous)
+    path.write_text(raw, encoding="utf-8")
+
+    with pytest.raises(ConfigError) as error:
+        VerificationStore(path, lambda text: text).read()
+
+    assert "segredo" not in str(error.value)
+    assert path.read_text(encoding="utf-8") == raw

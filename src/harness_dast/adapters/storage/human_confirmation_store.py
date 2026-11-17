@@ -1,6 +1,5 @@
 """Arquivo de confirmações humanas com validação e exclusão mútua entre escritores."""
 
-import json
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -10,6 +9,7 @@ from pydantic import ValidationError
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.human_confirmation import HumanConfirmation, HumanConfirmations
 from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.strict_json import parse_strict_json
 
 
 class FileHumanConfirmationStore:
@@ -36,10 +36,8 @@ class FileHumanConfirmationStore:
         try:
             if len(data) > 8 * 1024 * 1024:
                 raise _invalid_file()
-            result = HumanConfirmations.model_validate(
-                json.loads(data, object_pairs_hook=_unique_pairs, parse_constant=_reject_constant)
-            )
-        except (ValueError, ValidationError):
+            result = HumanConfirmations.model_validate(parse_strict_json(data))
+        except (ConfigError, ValueError, ValidationError):
             raise _invalid_file() from None
         if result.product != product or result.run_id != run_id:
             raise _invalid_file()
@@ -87,16 +85,3 @@ def _invalid_file() -> ConfigError:
         "Arquivo de confirmações inválido ou ilegível.",
         hint="Confira o arquivo e sua correspondência com a execução.",
     )
-
-
-def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("chave duplicada")
-        result[key] = value
-    return result
-
-
-def _reject_constant(value: str) -> None:
-    raise ValueError("constante JSON inválida")
