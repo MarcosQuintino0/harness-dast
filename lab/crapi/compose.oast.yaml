@@ -1,0 +1,8 @@
+services:
+  crapi-workshop:
+    networks: [oast_net]
+
+networks:
+  oast_net:
+    external: true
+    name: ${HDAST_OAST_NETWORK:-hdast_oast_net}
