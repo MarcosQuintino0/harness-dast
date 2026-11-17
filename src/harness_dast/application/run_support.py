@@ -20,7 +20,7 @@ from harness_dast.application.mutation_guard import begin_mutation, finish_mutat
 from harness_dast.domain.audit import decision_entry, result_entry
 from harness_dast.domain.errors import HarnessError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
-from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.knowledge_mutation import mutation_key, safe_mutation_metadata
 from harness_dast.domain.probe_policy import TokenBucket
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope import ScopeGuard
@@ -182,6 +182,7 @@ class GuardedSender:
         clock: Clock,
         journal: MutationJournal | None = None,
         journal_product: str = "",
+        journal_run_id: str | None = None,
     ) -> None:
         """Cria o emissor.
 
@@ -194,6 +195,7 @@ class GuardedSender:
             clock: Relógio injetado (duração).
             journal: Diario opcional de mutacoes.
             journal_product: Produto associado as chaves.
+            journal_run_id: Execução associada à intenção.
         """
         self._guard = guard
         self._client = client
@@ -203,6 +205,7 @@ class GuardedSender:
         self._clock = clock
         self._journal = journal
         self._journal_product = journal_product
+        self._journal_run_id = journal_run_id
 
     def send(self, request: HttpRequest) -> HttpResponse:
         """Envia a requisição.
@@ -230,7 +233,10 @@ class GuardedSender:
         started = self._clock.now()
         key = self._mutation_key(request)
         if key is not None and self._journal is not None:
-            begin_mutation(self._journal, key)
+            metadata = safe_mutation_metadata(
+                request.operation_id, request.account, request.method, self._journal_run_id, started
+            )
+            begin_mutation(self._journal, key, metadata=metadata)
         try:
             response = self._client.send(approved)
         except HarnessError as error:
