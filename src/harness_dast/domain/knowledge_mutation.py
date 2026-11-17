@@ -72,7 +72,7 @@ def build_mutation_intent(
     snapshot: MutationSnapshot | None,
     metadata: MutationMetadata | None,
 ) -> dict[str, object]:
-    """Valida e projeta uma inten??o sem alterar seus argumentos."""
+    """Valida e projeta uma intenção sem alterar seus argumentos."""
     if previous_state not in ("absent", "present", "unknown"):
         raise ConfigError("Estado anterior de mutação inválido.")
     record: dict[str, object] = {"intent": "mutation", "previous_state": previous_state}
