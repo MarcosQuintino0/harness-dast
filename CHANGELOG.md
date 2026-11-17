@@ -6,13 +6,6 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
-### Verificação V1.11
-
-- Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
-- `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
-- `hdast confirm`: receitas fixas de leitura com controle, resultado aditivo e contagem separada de pedidos de receita e sessão; painel e relatórios apresentam verificação e confirmação humana (ADRs 0087 e 0088, propostos). Calibração e prova operacional no laboratório estão pendentes de aprovação humana.
-- Skills de triagem orientam a reprodução pela CLI e a leitura da verificação. Régua privada de acerto da triagem preserva a nota histórica (ADR 0089, proposto).
-
 ### Organização
 
 - Navegação por intenção (`docs/README.md`, com "Onde colocar cada coisa"), índice de planos e estado centralizado no roadmap; histórico retirado das instruções.
@@ -32,6 +25,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ### Corrigido
 
 - Cópia cega: `lab/pilot/target/` (saída de build da Clínica Piloto, ignorada pelo git) entrava no workspace com as classes compiladas, `application.yml` e o esquema SQL, que revelam o código do alvo. A lista antiga de exclusões e a nova lista de permissão deixavam a pasta passar quando ela existia na origem; agora ela é excluída, com teste. Rodadas antigas preparadas a partir de um checkout com o alvo compilado podem ter recebido esses arquivos.
+
+## [1.11.0] - 2026-11-17
+
+Carimbo da candidata na branch, sem publicação e com aceites operacionais pendentes.
+
+### Verificação
+
+- Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
+- `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
+- `hdast confirm`: receitas fixas de leitura com controle, resultado aditivo e contagem separada de pedidos de receita e sessão; painel e relatórios apresentam verificação e confirmação humana (ADRs 0087 e 0088, propostos). Calibração e prova operacional no laboratório estão pendentes de aprovação humana.
+- Skills de triagem orientam a reprodução pela CLI e a leitura da verificação. Régua privada de acerto da triagem preserva a nota histórica (ADR 0089, proposto).
 
 ## [1.9.3] - 2026-11-16
 
