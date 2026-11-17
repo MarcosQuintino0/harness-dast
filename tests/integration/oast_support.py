@@ -4,11 +4,13 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import httpx
 
-from tests.integration.lab_support import REPO, LabCli
+from tests.integration.lab_support import REPO, CliResult, LabCli
+from tests.integration.oast_cleanup import CleanupResult, OastCleanup
 
 PYTHON_IMAGE = (
     "python:3.13-slim-bookworm@sha256:"
@@ -21,19 +23,34 @@ CRAPI_PROJECT = "hdast-crapi-codex"
 class OastLab:
     """Controla somente o overlay e o contêiner efêmero próprios da prova."""
 
-    def __init__(self, cli: LabCli, key: str, nonce: str) -> None:
+    def __init__(
+        self,
+        cli: LabCli,
+        key: str,
+        nonce: str,
+        runner: Callable[[tuple[str, ...]], str] | None = None,
+    ) -> None:
         self.cli = cli
         self.key = key
+        if not re.fullmatch(r"[0-9a-f]{12}", nonce):
+            raise ValueError("identificador da prova inválido")
+        self._runner = runner
         self.network = f"hdast-oast-{nonce}"
         self.client = f"hdast-oast-client-{nonce}"
         self.cli.env["HDAST_OAST_NETWORK"] = self.network
         self.cli.env["HDAST_LAB_NETWORK"] = PROJECT + "_lab_net"
-        self._client_created = False
-        self._overlay_started = False
-        self._workshop_attached = False
+        self.cli.env["HDAST_OAST_OWNER"] = nonce
+        self.cleanup = OastCleanup(
+            lambda args: self.docker(*args), nonce, self.network, self.client
+        )
+        self.stack_intended = False
+        self._project_checked = False
+        self._crapi_checked = False
 
     def docker(self, *args: str) -> str:
         """Executa comando explícito de suporte Docker, com timeout."""
+        if self._runner is not None:
+            return self._runner(args)
         executable = shutil.which("docker")
         if executable is None:
             raise FileNotFoundError("Docker indisponível")
@@ -51,7 +68,16 @@ class OastLab:
     def compose(self, *args: str) -> str:
         """Seleciona o mesmo projeto e os dois arquivos da ponte."""
         return self.docker(
-            "compose", "-p", PROJECT, "-f", "compose.yaml", "-f", "lab/oast/compose.yaml", *args
+            "compose",
+            "-p",
+            PROJECT,
+            "-f",
+            "compose.yaml",
+            "-f",
+            "lab/oast/compose.yaml",
+            "-f",
+            "tests/integration/oast-owner.compose.yaml",
+            *args,
         )
 
     def api(self, endpoint: str, **params: str) -> dict[str, object]:
@@ -71,15 +97,18 @@ class OastLab:
 
     def start(self, *, synthetic: bool = True) -> None:
         """Cria o gateway sem recriar nem adicionar redes ao ZAP."""
-        self._overlay_started = True
+        self.cleanup.gateway_intended = True
         self.compose("up", "-d", "--no-deps", "oast-gateway")
         if synthetic:
+            self.cleanup.client_intended = True
             self.docker(
                 "run",
                 "-d",
                 "--pull=never",
                 "--name",
                 self.client,
+                "--label",
+                "io.hdast.oast.owner=" + self.cleanup.owner,
                 "--network",
                 self.network,
                 "--entrypoint",
@@ -88,7 +117,6 @@ class OastLab:
                 "-c",
                 "import time; time.sleep(300)",
             )
-            self._client_created = True
         self.api(
             "oast/action/setCallbackOptions",
             localAddress="0.0.0.0",  # noqa: S104 - somente rede interna do ZAP
@@ -105,6 +133,7 @@ class OastLab:
         assert not self.docker("ps", "-aq", "--filter", f"name=^/{self.client}$")
         for suffix in ("zap_net", "lab_net", "egress_net", "host_net"):
             assert not self.docker("network", "ls", "-q", "--filter", f"name=^{PROJECT}_{suffix}$")
+        self._project_checked = True
 
     def assert_crapi_unused(self) -> None:
         """Não reutiliza recursos crAPI de outra sessão."""
@@ -116,6 +145,19 @@ class OastLab:
             assert not self.docker(
                 "network", "ls", "-q", "--filter", f"name=^{CRAPI_PROJECT}_{suffix}$"
             )
+        self._crapi_checked = True
+
+    def stack_up(self, product: str) -> CliResult:
+        """Registra intenção antes de subir projeto comprovadamente livre."""
+        if not self._project_checked or (product == "crapi" and not self._crapi_checked):
+            raise ValueError("projetos não verificados")
+        if product not in {"vampi", "crapi"}:
+            raise ValueError("alvo de prova inválido")
+        self.stack_intended = True
+        result = self.cli.run("stack", "up", product, timeout=900)
+        if result.code == 0:
+            self.cleanup.capture_stack()
+        return result
 
     def crapi_compose(self, *args: str) -> str:
         """Usa o overlay do workshop com ambiente sintético de teste."""
@@ -127,11 +169,21 @@ class OastLab:
             "lab/crapi/compose.yaml",
             "-f",
             "lab/crapi/compose.oast.yaml",
+            "-f",
+            "tests/integration/oast-workshop-owner.compose.yaml",
             *args,
         )
 
     def attach_workshop(self) -> None:
         """Recria somente o workshop usando o overlay e captura seu identificador."""
+        before = self.cleanup._containers(
+            f"label=com.docker.compose.project={CRAPI_PROJECT}",
+            "label=com.docker.compose.service=crapi-workshop",
+        )
+        if len(before) != 1:
+            raise ValueError("workshop inicial ausente ou ambíguo")
+        self.cleanup.workshop_before = set(before)
+        self.cleanup.workshop_intended = True
         self.crapi_compose(
             "up", "-d", "--no-deps", "--force-recreate", "--pull", "never", "crapi-workshop"
         )
@@ -139,7 +191,6 @@ class OastLab:
         assert re.fullmatch(r"[0-9a-f]{12,64}", container)
         self.client = self.docker("container", "inspect", "--format", "{{.Id}}", container)
         assert re.fullmatch(r"[0-9a-f]{64}", self.client)
-        self._workshop_attached = True
 
     def inspect_json(self, kind: str, name: str, expression: str) -> object:
         """Lê apenas o campo de rede requerido, nunca o ambiente do contêiner."""
@@ -213,17 +264,28 @@ class OastLab:
         )
         self.docker("exec", self.client, "python3", "-c", code)
 
-    def close(self) -> None:
+    def close(self) -> CleanupResult:
         """Encerra exclusivamente o contêiner e a ponte criados nesta prova."""
-        if self._workshop_attached:
-            self.docker("network", "disconnect", self.network, self.client)
-        if self._client_created:
-            self.docker("stop", "-t", "1", self.client)
-            self.docker("rm", self.client)
-        if self._overlay_started:
-            self.compose("stop", "oast-gateway")
-            self.compose("rm", "-f", "oast-gateway")
-            self.docker("network", "rm", self.network)
+        return self.cleanup.close()
+
+    def finish(self) -> CleanupResult:
+        """Tenta limpeza e stack down, exige código zero e verifica sobras."""
+        result = self.close()
+        if self.stack_intended:
+            self.cleanup._attempt(
+                "projeto_propriedade", self.cleanup.verify_projects_owned, ownership=True
+            )
+            if result.unsafe:
+                result.errors.append("stack_down_recusado_propriedade")
+            else:
+                self.cleanup._attempt("stack_down", self._stack_down)
+            self.cleanup.verify_final()
+        return result
+
+    def _stack_down(self) -> None:
+        result = self.cli.run("stack", "down", timeout=240)
+        if result.code != 0:
+            raise ValueError("stack down retornou código não zero")
 
 
 def install_vampi(cli: LabCli, profile: Path, openapi: Path) -> None:
