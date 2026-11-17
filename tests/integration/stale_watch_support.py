@@ -73,8 +73,8 @@ def diagnose(
                 stopped = True
         except OSError:
             stopped = True
-        approval_ok = watches[0].unchanged()
-        profile_ok = watches[1].unchanged()
+        approval_ok = watches[0].failure() is None
+        profile_ok = watches[1].failure() is None
         with lock:
             events.append(
                 {

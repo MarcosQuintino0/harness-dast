@@ -162,8 +162,8 @@ def test_falha_de_iniciar_diagnostico_preserva_trava(
         assert watch.check() is Reason.APPROVAL_CHANGED
     else:
         watch.close()
-    assert watch.diagnostic is not None
-    assert watch.diagnostic.status is DiagnosticStatus.START_FAILED
+    assert watch.result is not None
+    assert watch.result.status is DiagnosticStatus.START_FAILED
     assert watch.check() is Reason.APPROVAL_CHANGED
     watch.close()
     assert capfd.readouterr().err == ""
@@ -180,8 +180,8 @@ def test_falha_de_iniciar_diagnostico_na_partida_preserva_motivo(
     watch = GateWatch(lambda: Reason.KILL_SWITCH, lambda: 0.0)
     try:
         assert watch.check() is Reason.KILL_SWITCH
-        assert watch.diagnostic is not None
-        assert watch.diagnostic.status is DiagnosticStatus.START_FAILED
+        assert watch.result is not None
+        assert watch.result.status is DiagnosticStatus.START_FAILED
     finally:
         watch.close()
     assert capfd.readouterr().err == ""
@@ -207,8 +207,8 @@ def test_emissor_bloqueado_nao_bloqueia_recusa(monkeypatch: pytest.MonkeyPatch) 
         now[0] = 0.201
         assert watch.check() is Reason.APPROVAL_CHANGED
         assert entered.wait(2)
-        assert watch.diagnostic is not None
-        assert watch.diagnostic.status is DiagnosticStatus.PENDING
+        assert watch.result is not None
+        assert watch.result.status is DiagnosticStatus.PENDING
         assert watch.check() is Reason.APPROVAL_CHANGED
     finally:
         release.set()
@@ -241,8 +241,8 @@ def test_falha_de_emissor_preserva_recusa_sem_traceback(
     now[0] = 0.201
     assert watch.check() is Reason.APPROVAL_CHANGED
     assert completed.wait(2)
-    assert watch.diagnostic is not None
-    assert watch.diagnostic.status is DiagnosticStatus.WRITE_FAILED
+    assert watch.result is not None
+    assert watch.result.status is DiagnosticStatus.WRITE_FAILED
     watch.close()
     assert watch.check() is Reason.APPROVAL_CHANGED
     assert capfd.readouterr().err == ""

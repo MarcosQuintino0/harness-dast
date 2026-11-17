@@ -39,11 +39,11 @@ def test_watcher_recusa_substituicao_atomica_mesmo_com_conteudo_igual(tmp_path: 
     _, approvals, raw = _sources(tmp_path)
     path = approvals / "demo.json"
     watch = FileWatch(path, hashlib.sha256(raw).hexdigest(), product="demo")
-    assert watch.unchanged()
+    assert watch.failure() is None
     replacement = approvals / "new.json"
     replacement.write_bytes(raw)
     replacement.replace(path)
-    assert not watch.unchanged()
+    assert watch.failure() is not None
 
 
 def test_watcher_recusa_conteudo_malformado_mesmo_com_hash_correto(tmp_path: Path) -> None:
@@ -51,7 +51,7 @@ def test_watcher_recusa_conteudo_malformado_mesmo_com_hash_correto(tmp_path: Pat
     raw = b"not-json"
     path.write_bytes(raw)
     watch = FileWatch(path, hashlib.sha256(raw).hexdigest(), product="demo")
-    assert not watch.unchanged()
+    assert watch.failure() is not None
 
 
 def test_leitura_da_aprovacao_nao_invalida_watcher_em_arquivo_local(tmp_path: Path) -> None:
@@ -59,7 +59,7 @@ def test_leitura_da_aprovacao_nao_invalida_watcher_em_arquivo_local(tmp_path: Pa
     watch = FileWatch(approvals / "demo.json", hashlib.sha256(raw).hexdigest(), product="demo")
 
     assert FileApprovalStore(tmp_path).read("demo") is not None
-    assert watch.unchanged()
+    assert watch.failure() is None
 
 
 def test_diagnostico_sanitizado_quando_fontes_sinteticas_estao_validas(tmp_path: Path) -> None:
@@ -134,7 +134,7 @@ def test_releitura_aceita_ctime_divergente_no_windows(
     snapshot, _ = generate_module._read_snapshot(path)
     watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
     assert snapshot == raw
-    assert watch.unchanged()
+    assert watch.failure() is None
 
 
 def test_hash_recusa_mutacao_com_tamanho_e_mtime_preservados(
@@ -154,7 +154,6 @@ def test_hash_recusa_mutacao_com_tamanho_e_mtime_preservados(
     os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
 
     assert file_signature(path.stat(), windows=True) == original_signature
-    assert not watch.unchanged()
     assert watch.failure() is WatchCause.HASH
 
 

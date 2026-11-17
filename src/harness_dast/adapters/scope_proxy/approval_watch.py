@@ -63,10 +63,6 @@ class FileWatch:
         except ValidationError:
             self._initial_failure = WatchCause.APPROVAL_INVALID
 
-    def unchanged(self) -> bool:
-        """Confere metadados, falhando fechado se inacessível ou alterado."""
-        return self.failure() is None
-
     def failure(self) -> WatchCause | None:
         """Classifica a mesma conferência, sem revelar a fonte ou os valores."""
         if self._signature is None:
