@@ -69,6 +69,8 @@ class Reply:
         body: Corpo da resposta (nunca gravado).
         problem: `scope` (pedido recusado pelo escopo) ou `account` (login recusado), ou `None`.
         location: Cabeçalho `Location` da resposta, se houve (identifica o recurso criado).
+        retry_after: Cabeçalho `Retry-After`, se houve (a checagem de limite de consumo o lê).
+        body_truncated: O corpo passou do teto e foi cortado.
     """
 
     status: int | None
@@ -77,6 +79,8 @@ class Reply:
     location: str | None = None
     cors_allow_origin: str | None = None
     cors_allow_credentials: str | None = None
+    retry_after: str | None = None
+    body_truncated: bool = False
 
 
 @dataclass

@@ -166,7 +166,13 @@ class NegativeSender:
             )
         if response is None:
             return Reply(None)
-        return Reply(response.status, location=response.location)
+        return Reply(
+            response.status,
+            response.body,
+            location=response.location,
+            retry_after=response.retry_after,
+            body_truncated=response.body_truncated,
+        )
 
     def _begin_mutation(
         self, exchange: ExchangeRecord, snapshot: MutationSnapshot | None
