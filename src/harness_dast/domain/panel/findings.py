@@ -14,11 +14,13 @@ from collections import Counter
 from typing import Final
 
 from harness_dast.domain import html_safe as h
+from harness_dast.domain.panel.authz_copy import authz_confidence_text
 from harness_dast.domain.panel.format import fmt_count, pick, plural
 from harness_dast.domain.panel.layout import card, chip, meter, row
 from harness_dast.domain.panel.model import PanelFinding, PanelGroup, PanelView
 from harness_dast.domain.panel.repro import render_repro
-from harness_dast.domain.report.presentation_render import render_presentation_html
+from harness_dast.domain.panel.verification import render_verification, render_verifications
+from harness_dast.domain.report.presentation import PresentedFinding
 
 _REPORT: Final = "../report.html"
 _MAX_GROUPS: Final = 10
@@ -225,7 +227,7 @@ def _confidence_rows(item: PanelFinding) -> str:
         return (
             line(
                 "ok",
-                "O programa repetiu o pedido com outra conta e comparou as respostas",
+                authz_confidence_text(item),
                 "sim",
                 first=True,
             )
@@ -277,7 +279,7 @@ def _confidence_rows(item: PanelFinding) -> str:
     )
 
 
-def _confidence_block(item: PanelFinding) -> str:
+def _confidence_block(item: PanelFinding, presented: PresentedFinding | None) -> str:
     notes: list[str] = []
     if item.confidence < 2 and item.origin == "zap":
         notes.append(_REPEAT_SENTENCE)
@@ -287,6 +289,7 @@ def _confidence_block(item: PanelFinding) -> str:
         '<h2 class="h" style="margin-bottom: 4px">Confiança nesta falha '
         f"<span>{meter(item.confidence)}</span></h2>"
         f"{_confidence_rows(item)}"
+        f"{render_verification(presented) if presented else ''}"
         f'<p class="sm mu" style="margin-top: 8px">{h.plain(" ".join(notes))}</p></div>'
     )
 
@@ -324,6 +327,14 @@ def _todo_block(item: PanelFinding) -> str:
 
 
 def _finding_card(view: PanelView, item: PanelFinding) -> str:
+    presented = (
+        next(
+            (entry for entry in view.presentation.findings if entry.finding_id == item.finding_id),
+            None,
+        )
+        if view.presentation
+        else None
+    )
     return (
         f'<section class="card" id="{h.ident(item.finding_id)}" '
         'style="gap: 22px; padding: 26px 28px">'
@@ -331,7 +342,8 @@ def _finding_card(view: PanelView, item: PanelFinding) -> str:
         f'{_chips(view, item)}<h2 class="big" style="max-width: 30ch">'
         f"{h.text(_title(item), 200)}</h2>{_where_line(item)}</div>"
         f"{_story(item)}"
-        f'<div class="g" style="gap: 22px 32px">{_confidence_block(item)}{_todo_block(item)}</div>'
+        '<div class="g" style="gap: 22px 32px">'
+        f"{_confidence_block(item, presented)}{_todo_block(item)}</div>"
         f"{render_repro(item, view)}</section>"
     )
 
@@ -383,5 +395,5 @@ def render_findings(view: PanelView) -> str:
         f'<div style="flex: 3 1 620px; display: flex; flex-direction: column; gap: 16px; '
         f'min-width: 0">{details or _no_severe_card(view)}</div>'
     )
-    presentation = render_presentation_html(view.presentation) if view.presentation else ""
+    presentation = render_verifications(view)
     return f'<h1 class="vh">Falhas</h1><div class="g">{_list_card(view)}{right}</div>{presentation}'
