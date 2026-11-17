@@ -29,6 +29,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "preflight": "Conferiu se as contas de teste conseguem entrar.",
     "probe": "Tentou fazer cada função do sistema responder de verdade.",
     "scan": "Atacou as funções que responderam, com o ZAP, sempre dentro da cerca.",
+    "confirm": "Comparou receitas fixas com controles e registrou a verificação dos achados.",
     "authz": "Comparou o que cada conta enxerga e altera, para achar acesso indevido.",
     "negative": "Enviou valores que o contrato proíbe, um campo por vez, para ver se caem.",
     "report": "Montou o relatório com as falhas encontradas.",

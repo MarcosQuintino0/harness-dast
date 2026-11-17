@@ -34,6 +34,14 @@ Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspe
 
 **Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
 
+## `hdast confirm`
+
+`hdast confirm <produto> --run <run_id> [--finding <fingerprint>] [--max N] [--products-dir DIR] [--json]` executa receitas fixas com controle e acrescenta resultados em `verification.json` v1. `--finding` seleciona um fingerprint completo da execução; `--max` reduz o teto de 30 achados, priorizados por severidade. Cada receita tem teto de 12 pedidos. O envelope de sucesso contém `verification`, `recipe_requests` e `session_requests`; os pedidos de sessão respeitam os controles existentes e são contados separadamente.
+
+O comando exige perfil aprovado e pilha atual, autorização, janela e prazo vigentes. Só repete operações já varridas, pelo mesmo método, pela cerca, com limitação de taxa e parada. A implementação inicial restringe tráfego a GET com parâmetro de consulta inequívoco e semente de sucesso. Escritas e DELETE são recusados, e travessia sem oráculo benigno conhecido fica não verificável. A receita de tempo é específica de PostgreSQL; resultado inconclusivo não refuta o alerta. Não há replay livre de carga ou URL recebida do alvo. A decisão de nível fica no domínio, sem alterar severidade, status ou `findings.json`.
+
+Níveis: `reproduced`, `likely`, `inconclusive`, `likely_false_positive` e `not_verifiable`, sempre com motivo. São categorias, não probabilidades. Provas de ataque e controle são resumidas e redigidas; resultados não selecionados são preservados. A apresentação consulta esse arquivo e a declaração humana separadamente. Contratos: [ADR 0085](../adr/0085-verificacao-de-achados.md), [ADR 0087](../adr/0087-reproducao-controlada-de-achados.md) e [ADR 0088](../adr/0088-apresentacao-e-calibracao-de-verificacao.md), propostos. A [calibração](verification-calibration.md) declara quando faltam medições; testes offline não substituem prova no laboratório.
+
 ## `hdast finding acknowledge`
 
 `hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.
