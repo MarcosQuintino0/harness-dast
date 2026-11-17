@@ -131,6 +131,7 @@ a reserva não implica aceite nem implementação.
 | ADR | Contrato proposto |
 | --- | --- |
 | [0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) | Bloco `attack` da carta liga as capacidades da V1.12: ritmo, OAST, cabeçalhos, limites, regras experimentais e inventário (Proposto) |
+| [0098](0098-chave-hmac-fraca-de-jwt-no-authz.md) | Chave HMAC fraca de JWT no `authz`: quebra offline com lista fixa e prova re-assinada, teto de 20 pedidos (Proposto) |
 
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
