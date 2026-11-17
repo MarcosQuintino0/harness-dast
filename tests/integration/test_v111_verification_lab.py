@@ -1,11 +1,15 @@
 """Prova candidata V1.11 nos três cenários do laboratório, operada pelo coordenador."""
 
 import hashlib
+import html
 import os
 from pathlib import Path
 
 import pytest
 
+from harness_dast.domain import html_safe
+from harness_dast.domain.markdown_safe import escape_inline
+from harness_dast.domain.redaction import redact_body, redact_header_block
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
@@ -17,6 +21,7 @@ from tests.integration.v111_confirmation import (
 from tests.integration.v111_support import (
     ARTIFACTS,
     LabRun,
+    VerificationArticleParser,
     check_ownership,
     findings,
     load_json,
@@ -26,6 +31,62 @@ from tests.integration.v111_support import (
 )
 
 pytestmark = pytest.mark.integration
+
+LEVEL_LABELS = {
+    "reproduced": "Reproduzido",
+    "likely": "Provável",
+    "inconclusive": "Inconclusivo",
+    "likely_false_positive": "Provável falso positivo",
+    "not_verifiable": "Não verificável",
+}
+
+
+def _validate_presentations(
+    lab: LabRun, folder: Path, verification: VerificationFile, report: FindingsReport
+) -> None:
+    """Confere um resultado real na seção de verificação dos três documentos."""
+    if not verification.entries:
+        for path in (folder / "panel" / "findings.html", folder / "report.html"):
+            parser = VerificationArticleParser("")
+            parser.feed(path.read_text(encoding="utf-8"))
+            parser.close()
+            assert parser.main_seen
+            assert not parser.in_main
+            assert "".join(parser.main_text).strip()
+        assert (folder / "report.md").read_text(encoding="utf-8").strip()
+        lab.summary["presentation_check"] = {"status": "not_exercised", "reason": "sem amostra"}
+        lab.save()
+        return
+    lab.summary["presentation_check"] = {"status": "incomplete"}
+    lab.save()
+    assert (folder / "verification.json").is_file()
+    entry = verification.entries[0]
+    item = findings(report)[entry.fingerprint]
+    finding_id = item["finding_id"]
+    assert isinstance(finding_id, str)
+    assert finding_id
+    headers, _ = redact_header_block("Evidência\n" + entry.reason, lambda text: text)
+    reason, _ = redact_body(headers.partition("\n")[2], lambda text: text, cap=400)
+    label = LEVEL_LABELS[entry.level]
+    paragraph = f"Verificação: {label} — {html.unescape(html_safe.text(reason))}"
+    for path in (folder / "panel" / "findings.html", folder / "report.html"):
+        parser = VerificationArticleParser(finding_id)
+        parser.feed(path.read_text(encoding="utf-8"))
+        parser.close()
+        assert paragraph in parser.paragraphs, f"Verificação ausente ou incorreta em {path.name}."
+    markdown = (folder / "report.md").read_text(encoding="utf-8")
+    section = markdown.split("## Verificação dos achados", 1)
+    assert len(section) == 2
+    article = section[1].split(f"### {escape_inline(finding_id)} —", 1)
+    assert len(article) == 2
+    article_text = article[1].split("\n### ", 1)[0]
+    assert f"**Verificação:** {label} — {escape_inline(reason)}" in article_text
+    lab.summary["presentation_check"] = {
+        "status": "validated",
+        "fingerprint": entry.fingerprint,
+        "finding_id": finding_id,
+    }
+    lab.save()
 
 
 def _settings() -> tuple[str, str, Path]:
@@ -104,6 +165,7 @@ def _confirm_and_report(lab: LabRun, product: str, run_id: str, folder: Path) ->
     lab.summary["coverage_partial"] = before.coverage.partial
     assert "summary.html" in pages
     assert (folder / "report.html").is_file()
+    _validate_presentations(lab, folder, verification, after_report)
     lab.save()
 
 
@@ -130,6 +192,9 @@ def test_verificacao_aditiva_apos_varredura_completa(product: str, mode: str) ->
             "profile_sha256": profile_hash,
             "commands": [],
             "outcome": "incomplete",
+            "legacy": {
+                "status": "pending" if os.environ.get("V111_LEGACY_MANIFEST") else "not_requested"
+            },
         },
     )
     attempted_up = False

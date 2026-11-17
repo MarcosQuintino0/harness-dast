@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,51 @@ WRAPPER = ARTIFACTS / "docker-bin"
 TIMEOUT = 3600
 STOP_TIMEOUT = 20
 STOP_GRACE = 30
+
+
+class VerificationArticleParser(HTMLParser):
+    """Extrai parágrafos de um artigo de verificação dentro da seção principal."""
+
+    def __init__(self, finding_id: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.article_id = f"verificacao-{finding_id}"
+        self.in_main = False
+        self.main_seen = False
+        self.main_text: list[str] = []
+        self.section_depth = 0
+        self.in_article = False
+        self.paragraph: list[str] | None = None
+        self.paragraphs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "main":
+            self.in_main = True
+            self.main_seen = True
+        elif self.in_main and tag == "section":
+            if self.section_depth or attributes.get("aria-label") == "Verificação dos achados":
+                self.section_depth += 1
+        elif self.in_main and self.section_depth and tag == "article":
+            self.in_article = attributes.get("id") == self.article_id
+        elif self.in_article and tag == "p":
+            self.paragraph = []
+
+    def handle_data(self, data: str) -> None:
+        if self.in_main:
+            self.main_text.append(data)
+        if self.paragraph is not None:
+            self.paragraph.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "p" and self.paragraph is not None:
+            self.paragraphs.append(" ".join("".join(self.paragraph).split()))
+            self.paragraph = None
+        elif tag == "article":
+            self.in_article = False
+        elif tag == "section" and self.section_depth:
+            self.section_depth -= 1
+        elif tag == "main":
+            self.in_main = False
 
 
 def load_json(path: Path) -> dict[str, Any]:
