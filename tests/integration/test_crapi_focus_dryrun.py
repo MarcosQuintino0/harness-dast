@@ -399,6 +399,8 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         assert not missing
         evidence = records["cobertura_run"]
         assert evidence["probe_status"] == "completed"
+        assert set(evidence["probe_attempts"]) == EXPECTED
+        assert all(value > 0 for value in evidence["probe_attempts"].values())
         assert evidence["scan_status"] == "completed"
         assert all(entry["outcome"] == "completed" for entry in evidence["scan_entries"])
         assert evidence["authz_status"] == "completed"
