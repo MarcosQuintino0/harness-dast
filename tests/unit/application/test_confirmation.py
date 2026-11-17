@@ -378,3 +378,67 @@ def test_recusa_aprovacao_ou_pilha_antes_da_sessao(tmp_path: Path, error_kind: s
     assert "token-secreto" not in error.value.message
     assert rig.store.read().entries[0].level == "inconclusive"
     assert len(rig.rig.target.requests) == before
+
+
+def test_janela_fechada_no_meio_preserva_prova_e_codigo(tmp_path: Path) -> None:
+    from harness_dast.application.run_support import WindowClosed
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from harness_dast.domain.window import ExecutionWindow
+    from tests.fakes.confirmation_rig import confirmation_target
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = confirmation_target(request, jar)
+        if request.operation_id.startswith("confirm:"):
+            rig.rig.clock.advance(60)
+        return response
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    now = rig.rig.clock.now()
+    minute = now.hour * 60 + now.minute
+    window = ExecutionWindow(
+        days=frozenset({now.weekday()}), start_minute=minute, end_minute=minute + 1, timezone="UTC"
+    )
+    profile = rig.rig.profiles.load("agenda")
+    scope = profile.scope.model_copy(update={"windows": (window,)})
+    rig.rig.profiles.add(
+        profile.model_copy(update={"scope": scope}), existing_files={"./openapi.json"}
+    )
+    with pytest.raises(WindowClosed) as error:
+        rig.execute()
+    assert error.value.exit_code == 3
+    assert rig.store.read().entries[0].level == "inconclusive"
+
+
+def test_perfil_alterado_durante_receita_para_antes_do_proximo_pedido(tmp_path: Path) -> None:
+    from harness_dast.application.common_ports import ReferencedFile
+    from harness_dast.application.confirmation import ConfirmationRequest
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from harness_dast.domain.profile import ProductProfile
+    from tests.fakes.confirmation_rig import confirmation_target
+
+    class ChangedProfiles:
+        changed = False
+
+        def load(self, product: str) -> ProductProfile:
+            profile = rig.rig.profiles.load(product)
+            return profile.model_copy(update={"openapi": "outro.yml"}) if self.changed else profile
+
+        def missing_files(
+            self, product: str, profile: ProductProfile
+        ) -> tuple[ReferencedFile, ...]:
+            return rig.rig.profiles.missing_files(product, profile)
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = confirmation_target(request, jar)
+        if request.operation_id.startswith("confirm:"):
+            profiles.changed = True
+        return response
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    profiles = ChangedProfiles()
+    with pytest.raises(ConfigError):
+        rig.service(profiles=profiles).execute(
+            ConfirmationRequest(product="agenda", run_id=rig.run_id)
+        )
+    assert rig.store.read().entries[0].level == "inconclusive"
+    assert len([r for r in rig.rig.target.requests if r.operation_id.startswith("confirm:")]) == 1
