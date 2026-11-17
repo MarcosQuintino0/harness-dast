@@ -27,6 +27,7 @@ O caso `crapi-foco` tem carta estruturada, força baixa e orçamento de 900 segu
 descartável foram ensaiados; os seis desafios permanecem `detectable: false`, sem rodada cega ou tempo total medido.
 Cabeçalho e a regressão completa da frente L3/L5 não foram integrados após recusa do provedor.
 Não há implementação das capacidades da trilha F nesta entrega. Escopo: [plano V1.12](plans/2026-11-17-v1-12-mais-achados.md).
+Prova e limites: [registro inicial](reviews/2026-11-17-v1-12-lab-prova-inicial.md).
 
 ## Organização V1.9.4
 
