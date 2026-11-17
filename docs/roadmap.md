@@ -17,6 +17,17 @@ Esta seção consolida o vigente. As seções de provas por versão e as notas t
 na data da entrega: uma prova posterior pode completar uma lacuna anterior. [Histórico](../CHANGELOG.md),
 [provas datadas](reviews/README.md) e [estado dos planos](plans/README.md) preservam essa distinção.
 
+## Laboratório da V1.12 — trilha L parcial
+
+O crAPI tem contrato próprio na pilha, cadastro de contas por API/MailHog e encerramento dos volumes descartáveis
+(ADR 0090, proposto). O chatbot não é necessário à composição atual. Projetos podem receber sufixo validado;
+as provas concorrentes usam `-codex`. A primeira prova Docker subiu e encerrou a pilha, mas o `preflight`
+foi bloqueado por `STACK_STALE`; login e `probe` não estão comprovados nesta trilha.
+O caso `crapi-foco` tem carta estruturada, força baixa e orçamento de 900 segundos. Preparo e aprovação
+descartável foram ensaiados; os seis desafios permanecem `detectable: false`, sem rodada cega ou tempo total medido.
+Cabeçalho e a regressão completa da frente L3/L5 não foram integrados após recusa do provedor.
+Não há implementação das capacidades da trilha F nesta entrega. Escopo: [plano V1.12](plans/2026-11-17-v1-12-mais-achados.md).
+
 ## Organização V1.9.4
 
 Fases 1, 2 e 3 implementadas: navegação e versão coerentes, regras canônicas em AGENTS, cinco skills de desenvolvimento,
