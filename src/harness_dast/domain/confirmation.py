@@ -57,13 +57,13 @@ def plan_confirmation(
             finding,
             "Travessia exige arquivo e conteúdo benignos comprovados; falta oráculo seguro.",
         )
+    recipe = _RECIPES.get(finding.plugin_id)
+    if recipe is None:
+        return _refuse(finding, "Não há receita segura para este tipo de achado.")
     if finding.method.upper() != "GET":
         return _refuse(
             finding, "Escritas e DELETE não são repetidos sem autorização e diário comprovados."
         )
-    recipe = _RECIPES.get(finding.plugin_id)
-    if recipe is None:
-        return _refuse(finding, "Não há receita segura para este tipo de achado.")
     if finding.seed_outcome is not None:
         return _refuse(finding, "Semente com resultado diferente de sucesso não é repetida.")
     if finding.input_vector.lower() not in {"query", "querystring"}:
