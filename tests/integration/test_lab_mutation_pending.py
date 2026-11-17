@@ -23,6 +23,7 @@ from tests.integration.v112_resource_support import (
     inventory,
     verified_down,
 )
+from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = pytest.mark.integration
 BLOCKED = {"check_otp_v2", "validate_coupon"}
@@ -212,6 +213,9 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
     finally:
         try:
             if stack_attempted:
+                records["watch_diagnostic"] = collect_watch(
+                    guard, docker_runner(cli.env), docker_logs(cli.env)
+                )
                 verified_down(
                     guard,
                     lambda: execute(cli, records, "down", "stack", "down", timeout=240).code,
