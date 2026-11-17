@@ -1,6 +1,6 @@
 """Contratos da vigia de fontes do proxy."""
 
-import os
+import sys
 from threading import Event, Thread
 
 import pytest
@@ -126,12 +126,16 @@ def test_emissao_bloqueada_nao_bloqueia_encerramento(monkeypatch: pytest.MonkeyP
     entered = Event()
     release = Event()
 
-    def blocked(fd: int, payload: bytes) -> int:
-        entered.set()
-        release.wait()
-        return len(payload)
+    class BlockedStream:
+        def write(self, payload: str) -> int:
+            entered.set()
+            release.wait()
+            return len(payload)
 
-    monkeypatch.setattr(os, "write", blocked)
+        def flush(self) -> None:
+            pass
+
+    monkeypatch.setattr(sys, "stderr", BlockedStream())
     watch = GateWatch(lambda: None, lambda: 0.0)
     try:
         watch.close()
@@ -188,13 +192,17 @@ def test_emissor_bloqueado_nao_bloqueia_recusa(monkeypatch: pytest.MonkeyPatch) 
     release = Event()
     now = [0.0]
 
-    def blocked(fd: int, payload: bytes) -> int:
-        entered.set()
-        release.wait()
-        return len(payload)
+    class BlockedStream:
+        def write(self, payload: str) -> int:
+            entered.set()
+            release.wait()
+            return len(payload)
+
+        def flush(self) -> None:
+            pass
 
     watch = GateWatch(lambda: None, lambda: now[0])
-    monkeypatch.setattr(os, "write", blocked)
+    monkeypatch.setattr(sys, "stderr", BlockedStream())
     try:
         now[0] = 0.201
         assert watch.check() is Reason.APPROVAL_CHANGED
@@ -215,8 +223,12 @@ def test_falha_de_emissor_preserva_recusa_sem_traceback(
     completed = Event()
     emit = diagnostic._emit
 
-    def fail_write(fd: int, payload: bytes) -> int:
-        raise OSError("dado sintetico confidencial")
+    class BrokenStream:
+        def write(self, payload: str) -> int:
+            raise OSError("dado sintetico confidencial")
+
+        def flush(self) -> None:
+            pass
 
     def observed_emit(cause: WatchCause, result: DiagnosticResult) -> None:
         try:
@@ -224,7 +236,7 @@ def test_falha_de_emissor_preserva_recusa_sem_traceback(
         finally:
             completed.set()
 
-    monkeypatch.setattr(os, "write", fail_write)
+    monkeypatch.setattr(sys, "stderr", BrokenStream())
     monkeypatch.setattr(diagnostic, "_emit", observed_emit)
     now[0] = 0.201
     assert watch.check() is Reason.APPROVAL_CHANGED
@@ -238,7 +250,30 @@ def test_falha_de_emissor_preserva_recusa_sem_traceback(
 
 def test_escrita_parcial_do_diagnostico_indica_falha(monkeypatch: pytest.MonkeyPatch) -> None:
     result = DiagnosticResult()
-    monkeypatch.setattr(os, "write", lambda fd, payload: 1)
+
+    class ShortStream:
+        def write(self, payload: str) -> int:
+            return 1
+
+        def flush(self) -> None:
+            pass
+
+    monkeypatch.setattr(sys, "stderr", ShortStream())
+    diagnostic._emit(WatchCause.ACCESS, result)
+    assert result.status is DiagnosticStatus.WRITE_FAILED
+
+
+def test_falha_de_flush_do_diagnostico_e_observavel(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = DiagnosticResult()
+
+    class BrokenFlush:
+        def write(self, payload: str) -> int:
+            return len(payload)
+
+        def flush(self) -> None:
+            raise ValueError("dado sintetico confidencial")
+
+    monkeypatch.setattr(sys, "stderr", BrokenFlush())
     diagnostic._emit(WatchCause.ACCESS, result)
     assert result.status is DiagnosticStatus.WRITE_FAILED
 

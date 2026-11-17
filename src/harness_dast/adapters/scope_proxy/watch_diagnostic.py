@@ -1,10 +1,10 @@
 """Categorias fechadas do diagnóstico sanitizado da vigia."""
 
 import json
-import os
+import sys
 from enum import StrEnum
 from threading import Lock, Thread
-from typing import NamedTuple
+from typing import NamedTuple, TextIO
 
 from harness_dast.adapters.scope_proxy.decision import Reason
 
@@ -64,6 +64,22 @@ class DiagnosticResult:
             self._status = status
 
 
+class StructuredWatchLogger:
+    """Registra exclusivamente um evento sanitizado em JSON no fluxo recebido."""
+
+    def __init__(self, stream: TextIO) -> None:
+        """Recebe o destino sem alterar a configuração global de logs."""
+        self._stream = stream
+
+    def warning(self, cause: WatchCause) -> bool:
+        """Retorna se o fluxo aceitou o registro completo e confirmou a descarga."""
+        payload = json.dumps({"event": "gate_watch_latch", "category": cause.value}) + "\n"
+        if self._stream.write(payload) != len(payload):
+            return False
+        self._stream.flush()
+        return True
+
+
 def log_latch(cause: WatchCause) -> DiagnosticResult:
     """Agenda saída sanitizada e registra falhas previsíveis sem afetar a trava."""
     result = DiagnosticResult()
@@ -78,13 +94,8 @@ def log_latch(cause: WatchCause) -> DiagnosticResult:
 
 def _emit(cause: WatchCause, result: DiagnosticResult) -> None:
     try:
-        payload = (
-            json.dumps({"event": "gate_watch_latch", "category": cause.value}) + "\n"
-        ).encode()
-        written = os.write(2, payload)
-    except (OSError, MemoryError):
+        sent = StructuredWatchLogger(sys.stderr).warning(cause)
+    except (OSError, ValueError, RuntimeError, MemoryError):
         result.finish(DiagnosticStatus.WRITE_FAILED)
     else:
-        result.finish(
-            DiagnosticStatus.SENT if written == len(payload) else DiagnosticStatus.WRITE_FAILED
-        )
+        result.finish(DiagnosticStatus.SENT if sent else DiagnosticStatus.WRITE_FAILED)

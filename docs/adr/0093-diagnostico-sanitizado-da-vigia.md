@@ -12,8 +12,8 @@ motivo no processo que recusou a concessão. A vigia independente não observa s
 
 ## Decisão
 
-Vamos emitir em stderr uma única linha JSON por primeira trava de cada vigia, com exatamente as
-chaves `event` e `category`.
+Vamos emitir por logger estruturado local, em stderr, uma única linha JSON por primeira trava de
+cada vigia, com exatamente as chaves `event` e `category`.
 `event` vale `gate_watch_latch`. `category` pertence ao catálogo fechado: `age`, `clock`,
 `no_snapshot`, `close`, `detect_error`, `detect_denied`, `stop_or_inaccessible`, `access`,
 `unstable`, `identity`, `metadata`, `hash`, `size_or_type` ou `approval_invalid`.
@@ -27,10 +27,15 @@ O evento é separado da auditoria de requisições, não muda seus campos, a res
 o log na concessão/encerramento. A emissão é de melhor esforço: interrupção imediata do processo,
 falha de início, escrita parcial ou falha de escrita ou coleta externa podem perder o evento;
 ausência não prova ausência de trava. O estado interno consultável distingue `pending`, `sent`,
-`start_failed` e `write_failed`, sem incluir a exceção. A emissão usa `os.write` com bytes fixos,
-sem handlers de logger que possam lançar exceções arbitrárias ou registrar dados externos. Uma
-escrita parcial pode produzir trecho incompleto; coletores devem aceitar apenas JSON completo do
-catálogo. `sent` confirma apenas a escrita local, não a coleta externa.
+`start_failed` e `write_failed`, sem incluir a exceção. O logger local por composição serializa
+somente os campos fixos em JSON e escreve no fluxo recebido, sem handlers do logging do Python ou
+configuração global. Ele compara o número de caracteres devolvido por `write` com o tamanho do
+registro e chama `flush`; escrita parcial reportada pelo fluxo resulta em `write_failed`. O fluxo
+pode ter aceitado só parte dos dados mesmo ao falhar, então coletores devem aceitar apenas JSON
+completo do catálogo. `sent` indica apenas retorno de escrita completa e `flush` sem exceção;
+não confirma persistência ou coleta externa. A imagem do proxy instala dependências próprias com
+`--no-deps` e não inclui `structlog`, embora seja dependência do projeto; a implementação não muda
+essa imagem nem depende da configuração global do structlog.
 
 O limite de 200 ms desde o início, a espera periódica, as leituras e hashes completos, a trava
 permanente, as recusas e a verificação de autorização, janela e prazo permanecem iguais.
