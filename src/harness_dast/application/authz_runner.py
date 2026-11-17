@@ -19,6 +19,7 @@ from harness_dast.application.authz_checks_matrix import run_access_matrix
 from harness_dast.application.authz_checks_read import run_excessive, run_horizontal, run_vertical
 from harness_dast.application.authz_checks_write import run_horizontal_write
 from harness_dast.application.authz_created_pair import run_created_pairs
+from harness_dast.application.authz_owner_read import run_owner_reads
 from harness_dast.application.authz_sender import (
     AuthzSettings,
     CheckContext,
@@ -32,6 +33,7 @@ from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz_config import AuthzCheck
 from harness_dast.domain.authz_matrix_plan import MatrixPlan
 from harness_dast.domain.authz_matrix_report import AccessMatrixReport
+from harness_dast.domain.authz_owner_plan import OwnerReadTask
 from harness_dast.domain.authz_plan import Planned, ReplayTask
 from harness_dast.domain.authz_plan_created_pair import CreatedPairTask
 from harness_dast.domain.authz_plan_mass import MassTask
@@ -93,10 +95,12 @@ class AuthzPlans:
     mass: Planned[MassTask]
     horizontal_write: Planned[WriteTask]
     created_pairs: Planned[CreatedPairTask] = field(default_factory=lambda: Planned((), ()))
+    owner_reads: Planned[OwnerReadTask] = field(default_factory=lambda: Planned((), ()))
 
 
 def _horizontal(ctx: CheckContext, plans: AuthzPlans) -> CheckResult:
     out = run_horizontal(ctx, plans.horizontal)
+    run_owner_reads(ctx, plans.owner_reads, out)
     run_created_pairs(ctx, plans.created_pairs, out)
     return out
 
@@ -228,5 +232,7 @@ def _summary(check: AuthzCheck, result: CheckResult, *, partial: bool) -> CheckS
         candidates=result.candidates,
         tested=result.tested,
         findings=len(result.findings),
-        message="Nenhuma operação pôde ser testada; veja not_tested." if skipped else None,
+        message=("Nenhuma operação pôde ser testada; veja not_tested. " if skipped else "")
+        + (result.message or "")
+        or None,
     )

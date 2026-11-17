@@ -128,6 +128,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         verdict=verdict,
         stages=stages,
         functions=functions,
+        authz=src.authz,
         coverage_partial=bool(src.probe and src.scan and coverage_is_partial(src.probe, src.scan)),
         coverage_not_tested=_not_tested(src.probe, src.scan) if src.probe and src.scan else (),
         traffic=src.scan.traffic if src.scan else None,

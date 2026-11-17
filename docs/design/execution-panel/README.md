@@ -23,6 +23,7 @@ Abra qualquer arquivo `.html` desta pasta no navegador. São páginas paradas, s
 | [`screens/stages.html`](screens/stages.html) | Aba Etapas: substitui a Ao vivo quando o teste termina. |
 | [`screens/findings.html`](screens/findings.html) | Aba Falhas: confiança, o que fazer e como reproduzir à mão. |
 | [`screens/coverage.html`](screens/coverage.html) | Aba Cobertura: mapa das funções, a cerca, o que ficou de fora. |
+| [`screens/authorization.html`](screens/authorization.html) | Aba Autorização, V1.9.3: resultado entre contas e lacunas por operação; a captura de referência mostra a ausência de medição. |
 | [`screens/terminal.html`](screens/terminal.html) | Aba Terminal: cada comando do agente, com tradução. |
 | [`screens/time-and-tokens.html`](screens/time-and-tokens.html) | Aba Tempo e tokens. |
 | [`screens/summary-light.html`](screens/summary-light.html) | O Resumo no tema claro (único desenhado no claro). |

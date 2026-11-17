@@ -45,7 +45,7 @@ def test_the_page_uses_only_the_design_classes_plus_the_known_additions() -> Non
 def test_the_tab_is_called_tempo_e_tokens_and_the_headings_follow_the_design() -> None:
     generated = analyse(time_html())
 
-    assert generated.tabs[5] == "Tempo e tokens"
+    assert generated.tabs[6] == "Tempo e tokens"
     assert generated.headings[:5] == [
         "Por etapa",
         "Tokens do agente modelo claude-sonnet-5-5",

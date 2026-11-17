@@ -6,6 +6,12 @@ Fundamento: [authorization-and-scope.md](../operations/authorization-and-scope.m
 
 Só ambiente de **teste**, com **dados sintéticos**. Produção e dados de pessoas reais ficam de fora.
 
+Para a leitura de dono do teste horizontal, declare duas contas do mesmo papel que não
+compartilhem recursos, com dados sintéticos distintos disponíveis para cada uma. O
+`authz` monta as leituras a partir do contrato e de IDs observados, independentemente
+do roteamento do probe; ausência de prova aparece como lacuna com ação sugerida no
+relatório e no painel, nunca como proteção comprovada. [Referência](../reference/authz.md#leitura-de-dono-independente-do-roteamento-v193).
+
 ## Modelo (copie e preencha)
 
 ```text

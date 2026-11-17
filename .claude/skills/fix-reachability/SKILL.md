@@ -5,6 +5,8 @@ description: "Use quando o perfil de um produto já valida (profile validate com
 
 # Consertar a alcançabilidade (preflight, probe, ajuste, repetir)
 
+O `authz` monta a leitura de dono sozinho com as contas e fontes disponíveis; quando faltar prova, a lacuna e a ação sugerida aparecem no relatório e na aba Autorização do painel.
+
 Alcançabilidade inclui operações com `success` e a recusa esperada `auth_rejected_expected`, contadas separadamente; esta última não comprova autenticação das contas. Você ajusta **dados** (`data-rules.yml`, `flows.yml`, `auth.account_map`, `probe.error_codes`); nunca escopo, limites, autorização nem janela.
 
 ## Critério de parada (decida antes de começar)

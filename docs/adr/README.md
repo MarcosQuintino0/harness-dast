@@ -104,6 +104,7 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | [0079](0079-exportacao-conhecimento-estudo.md) | Canal declarado e auditado de exportação para o estudo |
 | [0080](0080-diario-estagios.md) | Diário compartilhado entre probe, authz, negative e lotes mutantes do scan |
 | [0081](0081-pilha-desatualizada.md) | Pilha desatualizada: `STACK_STALE` (saída 4) antes do primeiro pedido, tradução do 403 `approval_changed` e `stack status` |
+| [0082](0082-leitura-de-dono-no-teste-horizontal.md) | Leitura de dono sem depender do roteamento, fontes observadas, veredito conservador e lacunas visíveis |
 
 ## Quando escrever um ADR
 

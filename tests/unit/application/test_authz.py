@@ -422,7 +422,9 @@ def test_a_target_outside_the_scope_is_refused_and_nothing_is_sent() -> None:
     )
 
     assert not [r for r in rig.target.requests if "/api/admin/" in r.url]
-    assert {n.reason for n in result.not_tested} == {"scope_denied"}
+    assert {n.reason for n in result.not_tested if n.operation_id == "buscarConsulta"} == {
+        "scope_denied"
+    }
 
 
 def test_never_writes_secrets_tokens_or_passwords() -> None:

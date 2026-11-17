@@ -39,7 +39,42 @@ As contas vêm do perfil (`auth.accounts`), nunca de flag: o agente só cita ape
 
 O dono pode declarar na carta os papéis cujas contas compartilham legitimamente recursos: `attack.authz_shared_roles` é uma resposta com lista, `source: carta` e a frase em `quote`. `hdast init --from-letter` gera `authz.shared_roles`; não infira a lista. Para papel listado, `horizontal` e `horizontal_write` não comparam contas do mesmo papel e registram `shared_role` em `not_tested`. Isso é cobertura não testada, não prova de segurança; as demais verificações não mudam. A lista preenchida aparece no resumo e muda a impressão digital da aprovação; vazia preserva a anterior. Veja [ADR 0057](../adr/0057-papeis-compartilhados.md).
 
-Para obter pares úteis, quando houver operações de leitura distintas por tipo de objeto e autorização, roteie uma leitura para cada uma de duas contas de um mesmo papel não compartilhado. `account_map` escolhe uma conta por operação e execuções separadas não se combinam.
+O roteamento continua escolhendo a conta do probe; o teste horizontal também monta uma leitura de dono independente desse roteamento, conforme a seção abaixo. Execuções separadas não se combinam.
+
+## Leitura de dono independente do roteamento (V1.9.3)
+
+Para GET de item com identificador final único ainda sem leitura provada por conta não
+compartilhada com par, o `authz` escolhe as primeiras duas contas do primeiro papel
+elegível, na ordem do perfil. Operações em `public_operations` e papéis em `shared_roles`
+ficam excluídos. A primeira conta lê sua coleção irmã declarada no contrato, sem filtros
+obrigatórios; a resposta precisa ser array de objetos com `id` ou o nome do parâmetro,
+do tipo declarado. A segunda conta também lê a coleção: IDs comuns ou ambíguos impedem
+a comparação. Coleção vazia/inacessível não é contornada.
+
+Sem coleção compatível, aceita IDs em pedidos de sucesso da própria conta; em seguida,
+aceita o identificador no JSON sanitizado já enviado por ela num POST de sucesso para
+o mesmo recurso. Não persiste respostas, não passa a guardar corpos, não adivinha IDs
+e não cria recurso para essa leitura. JSON ambíguo, segredo omitido, tipo errado e valor
+inseguro como segmento de caminho são recusados.
+
+Até **dois objetos por operação/par**, em ordem determinística: A precisa obter 2xx com
+o mesmo ID no corpo antes de B repetir o GET. 401/403/404 protegem; 2xx com a identidade e
+o corpo equivalentes à base (ignorando campos voláteis) gera `authz_horizontal`, alta.
+Outros resultados são inconclusivos, nunca seguros. O teto e a contagem de objetos
+tentados ficam em `checks[].message`; cada envio é auditado como `authz:owner:collection`,
+`authz:owner:baseline` ou `authz:owner:replay`, seguido da operação.
+
+`not_tested` identifica cada lacuna: `no_peer_account`, `owner_read_unsupported`,
+`owner_collection_missing`, `owner_collection_empty`, `owner_collection_unavailable`,
+`ambiguous_identifier`, `baseline_failed`, `inconclusive` ou `budget_exhausted`, além das
+recusas de escopo e sessão. O motivo e a ação aparecem em `report.md`, `report.html` e
+na aba **Autorização** (`panel/authorization.html`), que pode ser gerada sem scan com
+`hdast panel`. As lacunas horizontais não são ocultadas pelo teto geral de apresentação.
+
+Tudo continua pelo emissor guardado: escopo, métodos, deny_paths, autorização, aprovação,
+pilha atual, limites, janela, prazo e stop. O perfil e `authz.allow_writes` não mudam.
+Esta leitura não prova propriedade global nem cobre coleções em envelopes de paginação,
+vários marcadores de caminho ou outros parâmetros obrigatórios. [ADR 0082](../adr/0082-leitura-de-dono-no-teste-horizontal.md).
 
 ## Escrita só com a carta (`authz.allow_writes`)
 

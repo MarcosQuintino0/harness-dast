@@ -77,12 +77,12 @@ def test_execute_writes_the_six_pages_and_reports_what_it_read_and_what_is_missi
     outcome = panel(files).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
 
     assert tuple(files.written[RUN_ID]) == (
-        "summary.html", "stages.html", "findings.html", "coverage.html", "terminal.html",
-        "time-and-tokens.html",
+        "summary.html", "stages.html", "findings.html", "coverage.html", "authorization.html",
+        "terminal.html", "time-and-tokens.html",
     )  # fmt: skip
     assert outcome.entry == "panel/summary.html"
     assert outcome.directory == "panel"
-    assert len(outcome.files) == 6
+    assert len(outcome.files) == 7
     assert outcome.verdict == "finished"
     assert outcome.severe_findings == 1
     assert outcome.sources == ("run.json", "probe.json", "scan.json", "findings.json")

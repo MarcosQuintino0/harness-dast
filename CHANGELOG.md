@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-11-16
+
+### Adicionado
+
+- Teste de autorização sem depender do roteamento do perfil (ADR 0082, proposto): para cada `GET` de item com um identificador final escalar que nenhuma conta de papel não compartilhado com par alcançou, o `authz` monta sozinho a leitura de dono. Escolhe as duas primeiras contas do primeiro papel com par fora de `authz.shared_roles`, descobre o identificador pela coleção da própria conta, por alvos de `GET` de sucesso ou pelo campo do corpo já redigido de uma criação da conta, confirma a linha de base (2xx e mesmo identificador) e repete a leitura com a outra conta. Só `GET`, no máximo dois objetos por operação e par, pelo mesmo caminho de envio do `authz` (cerca, limites, janela, stop, diário). Nenhum identificador é adivinhado.
+- Lacunas com motivo estável e ação sugerida (`owner_read_unsupported`, `owner_collection_missing`, `owner_collection_empty`, `owner_collection_unavailable`, mais os já existentes) em `authz.json`, `report.md`, `report.html` e na nova aba Autorização do painel (`authorization.html`; `data.files` do `hdast panel` ganha essa página). As lacunas horizontais não são cortadas pelo limite geral de linhas.
+
+### Documentação
+
+- ADR 0082, guia de autorização, referência de `authz`, protocolo da rodada cega, skills (uma frase) e [relatório da V1.9.3](docs/reviews/relatorio-v1.9.3.md). Provada só no laboratório (Clínica Piloto e VAmPI); nada contra produto real.
+
 ## [1.9.2] - 2026-11-16
 
 ### Corrigido

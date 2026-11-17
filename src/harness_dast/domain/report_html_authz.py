@@ -10,6 +10,7 @@ por técnica. Todo texto que pode vir do alvo (nomes de campo, caminhos, mensage
 
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
+from harness_dast.domain.authz_owner_plan import visible_authz_notes
 from harness_dast.domain.authz_result import AuthzFinding, AuthzNotTested, AuthzResult
 from harness_dast.domain.report_authz_matrix import matrix_html
 from harness_dast.domain.report_labels import (
@@ -106,9 +107,14 @@ def _checks(authz: AuthzResult) -> str:
         f"<td>{row.candidates}</td><td>{row.tested}</td><td>{row.findings}</td></tr>"
         for row in authz.checks
     )
+    message = "".join(
+        f"<p>{h.text(row.message, 400)}</p>"
+        for row in authz.checks
+        if row.check == "horizontal" and row.message
+    )
     return (
         "<table><tr><th>Verificação</th><th>Estado</th><th>Candidatos</th><th>Testados</th>"
-        f"<th>Achados</th></tr>{rows}</table>"
+        f"<th>Achados</th></tr>{rows}</table>{message}"
     )
 
 
@@ -124,9 +130,9 @@ def _not_tested(authz: AuthzResult) -> str:
     rows = "".join(
         f"<tr><td>{CHECK_LABEL[item.check]}</td><td>{_where(item)}</td>"
         f"<td>{h.ident(item.reason)}</td><td>{h.text(item.message, 200)}</td></tr>"
-        for item in authz.not_tested[:_MAX_ROWS]
+        for item in visible_authz_notes(authz.not_tested, _MAX_ROWS)
     )
-    extra = len(authz.not_tested) - _MAX_ROWS
+    extra = len(authz.not_tested) - len(visible_authz_notes(authz.not_tested, _MAX_ROWS))
     more = (
         f'<p class="muted">... e mais {extra} (veja not_tested em authz.json).</p>'
         if extra > 0
@@ -144,6 +150,11 @@ def authz_section(report: FindingsReport) -> str:
     authz = report.authz
     if authz is None:
         return ""
+    return authz_result_section(authz)
+
+
+def authz_result_section(authz: AuthzResult) -> str:
+    """Conteúdo comum ao relatório e à aba Autorização, inclusive sem scan ou findings."""
     stop = f" Parada: {h.text(authz.stop_message, 300)}" if authz.stop_message else ""
     accounts = ", ".join(f"<code>{h.ident(name)}</code>" for name in authz.accounts) or "nenhuma"
     body = (
