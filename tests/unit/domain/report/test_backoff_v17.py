@@ -2,11 +2,11 @@
 
 import pytest
 
-from harness_dast.domain.report_build import assemble_report, coverage_is_partial
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
+from harness_dast.domain.report.build import assemble_report, coverage_is_partial
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
 from harness_dast.domain.traffic import TrafficSummary
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 
 @pytest.mark.parametrize(("reason", "partial"), [("rate_backoff", True), ("deny_path", False)])

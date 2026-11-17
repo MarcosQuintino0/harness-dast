@@ -18,8 +18,8 @@ from harness_dast.domain.internal_error_signals import classify_internal_error_s
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
-from harness_dast.domain.report_labels import SEED_ASK_NOTICE
-from harness_dast.domain.report_model import (
+from harness_dast.domain.report.labels import SEED_ASK_NOTICE
+from harness_dast.domain.report.model import (
     NOT_TESTED_NEGATIVE,
     NOT_TESTED_STATEMENTS,
     NOT_TESTED_WITH_AUTHZ,

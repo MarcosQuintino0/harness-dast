@@ -29,7 +29,7 @@ from harness_dast.domain.panel.model import PANEL_DIR, PanelExplanation, PanelJo
 from harness_dast.domain.panel.pages import PAGES, render_panel
 from harness_dast.domain.panel.sources import PanelSources
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 ENTRY_PAGE = PAGES[0].file

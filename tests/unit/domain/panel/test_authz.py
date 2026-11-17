@@ -3,8 +3,8 @@
 from harness_dast.domain.authz.result import AuthzNotTested, CheckSummary
 from harness_dast.domain.panel.authz import render_authz
 from harness_dast.domain.panel.build import build_panel_view
-from harness_dast.domain.report_authz import authz_lines
-from harness_dast.domain.report_html_authz import authz_result_section
+from harness_dast.domain.report.authz import authz_lines
+from harness_dast.domain.report.html_authz import authz_result_section
 from tests.unit.application.test_report_authz import authz_result
 from tests.unit.domain.panel.helpers import sources
 

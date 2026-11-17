@@ -10,8 +10,8 @@ from typing import Final
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.negative_findings import CLASS_LABEL, TECHNIQUE_LABEL
 from harness_dast.domain.negative_result import NegativeFinding, NegativeResult
-from harness_dast.domain.report_labels import SEVERITY_LABEL, SEVERITY_ORDER
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.labels import SEVERITY_LABEL, SEVERITY_ORDER
+from harness_dast.domain.report.model import FindingsReport
 
 _MAX_ROWS: Final = 100
 _HEAD: Final = (

@@ -12,17 +12,17 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
-from harness_dast.domain.report_authz import authz_lines
-from harness_dast.domain.report_labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
-from harness_dast.domain.report_model import Coverage, FindingsReport
-from harness_dast.domain.report_negative import negative_lines, negative_summary_lines
-from harness_dast.domain.report_signals import (
+from harness_dast.domain.report.authz import authz_lines
+from harness_dast.domain.report.labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
+from harness_dast.domain.report.model import Coverage, FindingsReport
+from harness_dast.domain.report.negative import negative_lines, negative_summary_lines
+from harness_dast.domain.report.signals import (
     PASSIVE_SUBSET_NOTE,
     has_signal_reading,
     signal_lines,
     signal_summary_lines,
 )
-from harness_dast.domain.report_traffic import (
+from harness_dast.domain.report.traffic import (
     backoff_warning,
     denied_rows,
     mode_line,

@@ -16,7 +16,7 @@ from harness_dast.domain.finding_explain import (
     explain_finding,
 )
 from harness_dast.domain.panel.model import PanelAction, PanelExplanation
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 
 _WHO_LABELS: Final[dict[Who, str]] = {
     "QA": "Você (QA)",

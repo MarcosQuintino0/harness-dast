@@ -11,7 +11,7 @@ from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_metrics import RunMetrics, build_run_metrics
 from tests.unit.domain.panel.helpers import findings_report, run_summary
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 
 @pytest.fixture

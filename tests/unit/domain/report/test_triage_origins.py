@@ -6,11 +6,11 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.cors import cors_finding
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeRecord
-from harness_dast.domain.report_build import assemble_report
+from harness_dast.domain.report.build import assemble_report
 from harness_dast.domain.signal_result import ProxySignals, SignalFinding
 from harness_dast.domain.triage import parse_triage
 from tests.unit.domain.negative_samples import accepted, negative_result
-from tests.unit.domain.report_helpers import probe_result, scan_result
+from tests.unit.domain.report.helpers import probe_result, scan_result
 
 
 @pytest.mark.parametrize("origin", ["authz", "proxy_signals", "negative"])

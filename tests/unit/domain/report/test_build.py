@@ -6,14 +6,14 @@ import pytest
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import FINGERPRINT_VERSION
-from harness_dast.domain.report_build import assemble_report, build_resolver
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import NOT_TESTED_STATEMENTS, FindingsReport
+from harness_dast.domain.report.build import assemble_report, build_resolver
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import NOT_TESTED_STATEMENTS, FindingsReport
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
 from harness_dast.domain.triage import parse_triage
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import (
+from tests.unit.domain.report.helpers import (
     OTHER_RUN_ID,
     entry,
     operation,
@@ -129,14 +129,14 @@ def test_completed_run_marks_unscanned_eligible_operation_partial(method: str, p
 
 
 def test_design_exclusion_alone_does_not_make_coverage_partial() -> None:
-    from harness_dast.domain.report_build import coverage_gaps
+    from harness_dast.domain.report.build import coverage_gaps
 
     probe = probe_result([operation("remove", "DELETE", "/items/{id}", "skipped_destructive")])
     assert coverage_gaps(probe, scan_result([])) == ()
 
 
 def test_scanned_unreached_operation_still_marks_coverage_partial() -> None:
-    from harness_dast.domain.report_build import coverage_is_partial
+    from harness_dast.domain.report.build import coverage_is_partial
 
     probe = probe_result([operation("find", "GET", "/items/{id}", "not_found")])
     scan = scan_result([entry("find", "GET", "/items/{id}", 1, seed_outcome="not_found")])
@@ -186,7 +186,7 @@ def test_refused_scan_is_listed_as_unscanned(method: str, path: str) -> None:
 
 
 def test_refused_scan_without_note_explains_why_it_did_not_run() -> None:
-    from harness_dast.domain.report_build import coverage_gaps
+    from harness_dast.domain.report.build import coverage_gaps
 
     probe = probe_result([operation("read", "GET", "/inventory")])
     scan = scan_result([entry("read", "GET", "/inventory", 1, outcome="refused")])
@@ -195,7 +195,7 @@ def test_refused_scan_without_note_explains_why_it_did_not_run() -> None:
 
 
 def test_old_not_success_skip_for_expected_login_is_a_design_exclusion() -> None:
-    from harness_dast.domain.report_build import coverage_gaps, coverage_is_partial
+    from harness_dast.domain.report.build import coverage_gaps, coverage_is_partial
 
     item = operation("sign_in", "POST", "/sessions").model_copy(
         update={"outcome": "auth_rejected_expected", "status": 401}

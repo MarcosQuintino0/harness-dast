@@ -1,14 +1,14 @@
 """Relatório: operações varridas a partir de um resultado que não era sucesso (ADR 0050)."""
 
 from harness_dast.domain.finding import Finding
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_labels import seeded_scans_notice
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.labels import seeded_scans_notice
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.scan_plan import ScanSkip, SkipReason
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 PATH = "/pacientes/{id}"
 

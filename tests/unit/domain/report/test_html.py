@@ -7,13 +7,13 @@ import pytest
 
 from harness_dast.domain.finding import Finding, TriageNote
 from harness_dast.domain.html_safe import block, ident, plain, text
-from harness_dast.domain.report_actions import next_steps
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.actions import next_steps
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.traffic import TrafficSummary
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 XSS = "<script>alert(1)</script><img src=x onerror=alert(1)>\"'&"
 JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ.c2lnbmF0dXJlMTIzNDU2"

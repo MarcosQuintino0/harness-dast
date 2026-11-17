@@ -19,8 +19,8 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_authz import authz_lines
-from harness_dast.domain.report_authz_matrix import MAX_MARKDOWN_ROWS, matrix_html, matrix_lines
+from harness_dast.domain.report.authz import authz_lines
+from harness_dast.domain.report.authz_matrix import MAX_MARKDOWN_ROWS, matrix_html, matrix_lines
 from tests.fakes.profile_data import valid_profile_data
 from tests.fakes.rig import operation
 

@@ -20,21 +20,21 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
-from harness_dast.domain.report_actions import next_steps
-from harness_dast.domain.report_html_authz import authz_cards, authz_section
-from harness_dast.domain.report_html_negative import negative_cards, negative_section
-from harness_dast.domain.report_html_signals import signal_section
-from harness_dast.domain.report_html_style import STYLE
-from harness_dast.domain.report_html_traffic import traffic_section
-from harness_dast.domain.report_labels import (
+from harness_dast.domain.report.actions import next_steps
+from harness_dast.domain.report.html_authz import authz_cards, authz_section
+from harness_dast.domain.report.html_negative import negative_cards, negative_section
+from harness_dast.domain.report.html_signals import signal_section
+from harness_dast.domain.report.html_style import STYLE
+from harness_dast.domain.report.html_traffic import traffic_section
+from harness_dast.domain.report.labels import (
     SEVERITY_LABEL,
     SEVERITY_ORDER,
     seed_tag,
     seeded_scans_notice,
 )
-from harness_dast.domain.report_model import Coverage, FindingsReport
-from harness_dast.domain.report_signals import PASSIVE_SUBSET_NOTE, has_signal_reading
-from harness_dast.domain.report_traffic import mode_line
+from harness_dast.domain.report.model import Coverage, FindingsReport
+from harness_dast.domain.report.signals import PASSIVE_SUBSET_NOTE, has_signal_reading
+from harness_dast.domain.report.traffic import mode_line
 
 _CSP: Final = (
     "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; "

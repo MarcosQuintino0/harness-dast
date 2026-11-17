@@ -2,11 +2,11 @@
 
 import pytest
 
-from harness_dast.domain.report_actions import next_steps
+from harness_dast.domain.report.actions import next_steps
 from harness_dast.domain.scan_result import RuleCoverageGap
 from harness_dast.domain.traffic import TrafficSummary
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.test_report_html import report
+from tests.unit.domain.report.test_html import report
 
 
 @pytest.mark.parametrize(

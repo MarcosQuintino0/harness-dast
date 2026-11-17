@@ -104,3 +104,8 @@ Novas regras deste assunto entram em `domain/panel/`, com testes espelhados em `
 
 35 módulos de produção agrupados na mesma camada, sem alterar contratos.
 Novas regras deste assunto entram em `domain/authz/`, com testes espelhados em `tests/unit/domain/authz/`.
+
+## Grupo `report/`
+
+16 módulos de produção agrupados na mesma camada, sem alterar contratos.
+Novas regras deste assunto entram em `domain/report/`, com testes espelhados em `tests/unit/domain/report/`.

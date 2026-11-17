@@ -9,7 +9,7 @@ from harness_dast.domain.panel.build import build_panel_view
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation, PanelView
 from harness_dast.domain.panel.sources import parse_moment
 from harness_dast.domain.probe_result import ArtifactHashes, RunManifest
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_summary import StageRecord
 from tests.fakes.zap_alerts import zap_alert
@@ -22,7 +22,7 @@ from tests.unit.domain.panel.helpers import (
     spec_operations,
     view,
 )
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 
 def _states(panel_view: object) -> dict[str, str]:

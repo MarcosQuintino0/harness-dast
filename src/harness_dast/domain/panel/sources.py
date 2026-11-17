@@ -10,7 +10,7 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult

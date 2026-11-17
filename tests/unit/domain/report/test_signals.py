@@ -2,10 +2,10 @@
 
 import json
 
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport, build_digest
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport, build_digest
 from harness_dast.domain.signal_result import (
     DISABLED_MESSAGE,
     ProxySignals,
@@ -13,7 +13,7 @@ from harness_dast.domain.signal_result import (
     SignalWindow,
     disabled_signals,
 )
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 HOSTILE = "<script>alert(1)</script> `x` | [l](http://evil.example)"
 

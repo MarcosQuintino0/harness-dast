@@ -14,7 +14,7 @@ from harness_dast.domain import html_safe as h
 from harness_dast.domain.panel.format import NO_DATA, fmt_count, pick, plural, x_of_y
 from harness_dast.domain.panel.layout import card, chip, not_measured
 from harness_dast.domain.panel.model import PanelView
-from harness_dast.domain.report_traffic import denied_rows, path_shape_warning
+from harness_dast.domain.report.traffic import denied_rows, path_shape_warning
 from harness_dast.domain.scope_reason import ScopeReason
 from harness_dast.domain.traffic import TrafficSummary
 

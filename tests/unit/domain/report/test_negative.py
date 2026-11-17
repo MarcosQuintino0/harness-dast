@@ -5,11 +5,11 @@ import re
 
 from harness_dast.application.report import exceeds
 from harness_dast.domain.negative_result import NegativeNotTested, NegativeResult
-from harness_dast.domain.report_actions import next_steps
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import (
+from harness_dast.domain.report.actions import next_steps
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import (
     NOT_TESTED_NEGATIVE,
     NOT_TESTED_STATEMENTS,
     NOT_TESTED_WITH_AUTHZ,
@@ -19,8 +19,8 @@ from harness_dast.domain.report_model import (
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.application.test_report_authz import authz_result
 from tests.unit.domain.negative_samples import accepted, negative_result, server_error
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
-from tests.unit.domain.test_report_html import XSS, parse
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.test_html import XSS, parse
 
 TITLE = "Valores que o esquema proíbe (técnica própria, determinística)"
 

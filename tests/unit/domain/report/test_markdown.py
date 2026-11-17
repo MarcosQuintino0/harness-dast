@@ -3,13 +3,13 @@
 import re
 
 from harness_dast.domain.finding import Finding
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.traffic import TrafficSummary
 from harness_dast.domain.triage import parse_triage
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import (
+from tests.unit.domain.report.helpers import (
     OTHER_RUN_ID,
     entry,
     operation,

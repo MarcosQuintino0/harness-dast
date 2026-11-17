@@ -393,7 +393,7 @@ def test_left_out_says_which_functions_were_attacked_from_a_result_that_was_not_
 
 
 def test_the_view_flags_a_scan_whose_entries_came_from_a_seed_that_was_not_success() -> None:
-    from tests.unit.domain.report_helpers import entry, scan_result
+    from tests.unit.domain.report.helpers import entry, scan_result
 
     scan = scan_result([entry("obter", "GET", "/users/v1/{username}", 4, seed_outcome="not_found")])
 

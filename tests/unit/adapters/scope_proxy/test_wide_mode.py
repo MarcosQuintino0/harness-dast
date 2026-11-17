@@ -318,7 +318,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "domain/profile.py",
         "domain/scope_fingerprint.py",  # aprovação humana (ADR 0037): só resume o modo, não decide
         "domain/scope_approval_summary.py",  # só mostra o modo à pessoa que aprova
-        "domain/report_traffic.py",
+        "domain/report/traffic.py",
         "domain/run_metrics.py",  # campo `path_mode` do metrics.json
         "domain/traffic.py",
     }

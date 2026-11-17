@@ -12,7 +12,7 @@ from typing import Final
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline
 from harness_dast.domain.negative_findings import CLASS_LABEL, TECHNIQUE_LABEL
 from harness_dast.domain.negative_result import NegativeFinding, NegativeResult
-from harness_dast.domain.report_labels import SEVERITY_LABEL
+from harness_dast.domain.report.labels import SEVERITY_LABEL
 
 _MAX_NOT_TESTED: Final = 40
 _MAX_FINDINGS: Final = 200

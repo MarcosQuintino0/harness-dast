@@ -8,7 +8,7 @@ import pytest
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.signal_result import ProxySignals, SignalFinding, SignalWindow
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.report.helpers import RUN_ID
 
 
 @pytest.fixture

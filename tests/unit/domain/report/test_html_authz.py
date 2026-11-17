@@ -3,19 +3,19 @@
 import pytest
 
 from harness_dast.domain.authz.findings import TECHNIQUE_LABEL
-from harness_dast.domain.report_actions import next_steps
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport
-from harness_dast.domain.report_traffic import denied_rows, path_shape_warning
+from harness_dast.domain.report.actions import next_steps
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.report.traffic import denied_rows, path_shape_warning
 from harness_dast.domain.scope_labels import SCOPE_CODE_LABELS, label_for
 from harness_dast.domain.scope_reason import ScopeReason
 from harness_dast.domain.traffic import TrafficSummary
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.application.test_report_authz import authz_result
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
-from tests.unit.domain.test_report_html import JWT, XSS, parse, report
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.test_html import JWT, XSS, parse, report
 
 
 def with_authz(*, findings: bool = True, **changes: object) -> FindingsReport:

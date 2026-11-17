@@ -12,14 +12,14 @@ from harness_dast.domain import html_safe as h
 from harness_dast.domain.authz.findings import SOURCE_TEXT, TECHNIQUE_LABEL
 from harness_dast.domain.authz.owner_plan import visible_authz_notes
 from harness_dast.domain.authz.result import AuthzFinding, AuthzNotTested, AuthzResult
-from harness_dast.domain.report_authz_matrix import matrix_html
-from harness_dast.domain.report_labels import (
+from harness_dast.domain.report.authz_matrix import matrix_html
+from harness_dast.domain.report.labels import (
     CHECK_LABEL,
     CHECK_STATUS_LABEL,
     SEVERITY_LABEL,
     SEVERITY_ORDER,
 )
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 
 _MAX_ROWS = 100
 

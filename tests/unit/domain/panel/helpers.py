@@ -7,12 +7,12 @@ from harness_dast.domain.api_model import Operation
 from harness_dast.domain.panel.build import build_panel_view
 from harness_dast.domain.panel.model import PanelView
 from harness_dast.domain.panel.sources import PanelSources
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunOptions, RunSummary, StageRecord
 from harness_dast.domain.scan_plan import ScanSkip
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import (
+from tests.unit.domain.report.helpers import (
     RUN_ID,
     entry,
     operation,

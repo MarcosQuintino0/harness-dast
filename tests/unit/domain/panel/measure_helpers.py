@@ -21,7 +21,7 @@ from harness_dast.domain.run_metrics import (
 )
 from harness_dast.domain.traffic import TrafficGaps, TrafficSummary
 from tests.unit.domain.panel.helpers import PRODUCT, sources, view
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.report.helpers import RUN_ID
 
 
 def traffic(**changes: Any) -> TrafficSummary:

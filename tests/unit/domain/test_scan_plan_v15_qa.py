@@ -5,7 +5,7 @@ import pytest
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scan_plan import last_sent, select_candidates
-from tests.unit.domain.report_helpers import operation
+from tests.unit.domain.report.helpers import operation
 from tests.unit.domain.test_scan_domain import audit_result
 
 ALL_CLASSES = ("not_found", "conflict", "validation_error", "client_error", "logical_failure")

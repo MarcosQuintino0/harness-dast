@@ -1,7 +1,7 @@
 """Revisão independente de cobertura de varredura recusada."""
 
-from harness_dast.domain.report_build import assemble_report
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from harness_dast.domain.report.build import assemble_report
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 
 def test_varredura_recusada_aparece_como_operacao_nao_varrida() -> None:
@@ -50,8 +50,8 @@ def test_recusa_esperada_de_login_nao_torna_cobertura_integral_parcial() -> None
 
 
 def test_relatorios_escapam_texto_hostil_da_lacuna() -> None:
-    from harness_dast.domain.report_html import render_html
-    from harness_dast.domain.report_markdown import render_markdown
+    from harness_dast.domain.report.html import render_html
+    from harness_dast.domain.report.markdown import render_markdown
     from harness_dast.domain.scan_plan import ScanSkip
 
     probe = probe_result([operation("read", "GET", "/widgets", "auth_error")])

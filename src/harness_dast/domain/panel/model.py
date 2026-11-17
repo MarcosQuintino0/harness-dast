@@ -21,7 +21,7 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel.format import FunctionStateKind, RunStateKind
-from harness_dast.domain.report_model import NotTested
+from harness_dast.domain.report.model import NotTested
 from harness_dast.domain.rule_stats import RuleTotal
 from harness_dast.domain.run_metrics import DisabledRuleMetric, OperationMetric
 from harness_dast.domain.traffic import TrafficGaps, TrafficSummary

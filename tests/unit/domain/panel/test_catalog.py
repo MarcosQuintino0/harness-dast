@@ -4,7 +4,7 @@ from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
 from harness_dast.domain.finding_explain import catalog_entries
 from harness_dast.domain.panel.catalog import build_explanations, to_panel_explanation, who_label
 from tests.unit.domain.panel.helpers import findings_report
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.report.helpers import RUN_ID
 
 
 def _authz_result() -> AuthzResult:

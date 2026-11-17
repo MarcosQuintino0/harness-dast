@@ -9,7 +9,7 @@ from harness_dast.domain.run_metrics import RunMetrics, build_run_metrics
 from harness_dast.domain.run_summary import StageRecord
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.traffic import ProxyRow, TrafficSummary
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 SCAN_START = datetime(2026, 11, 13, 5, 16, 10, tzinfo=UTC)  # igual a scan_result()
 

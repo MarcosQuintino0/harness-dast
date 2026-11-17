@@ -14,7 +14,7 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.panel.catalog import build_explanations
 from harness_dast.domain.panel.journal import build_journal
 from harness_dast.domain.panel.model import PanelExplanation, PanelJournal
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 
 
 class CatalogPanelHooks:

@@ -2,7 +2,7 @@
 
 from harness_dast.domain.panel.layout import card, heading, not_measured
 from harness_dast.domain.panel.model import PanelView
-from harness_dast.domain.report_html_authz import authz_result_section
+from harness_dast.domain.report.html_authz import authz_result_section
 
 
 def render_authz(view: PanelView) -> str:

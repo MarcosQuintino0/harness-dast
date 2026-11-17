@@ -136,7 +136,7 @@ def test_sinais_passivos_aparecem_nos_tres_formatos(tmp_path: Path) -> None:
 def test_relatorio_antigo_sem_sinais_continua_legivel(tmp_path: Path) -> None:
     import json
 
-    from harness_dast.domain.report_model import FindingsReport
+    from harness_dast.domain.report.model import FindingsReport
 
     directory = generate(tmp_path)
     data = json.loads((directory / "findings.json").read_text(encoding="utf-8"))

@@ -23,7 +23,7 @@ from harness_dast.domain.panel.build_stages import build_stages, build_verdict, 
 from harness_dast.domain.panel.format import product_title
 from harness_dast.domain.panel.model import PanelCommand, PanelIdentity, PanelView, panel_links
 from harness_dast.domain.panel.sources import PanelSources, parse_moment
-from harness_dast.domain.report_build import _not_tested, coverage_is_partial
+from harness_dast.domain.report.build import _not_tested, coverage_is_partial
 
 
 def _stamp_moment(run_id: str, zone: tzinfo) -> datetime | None:

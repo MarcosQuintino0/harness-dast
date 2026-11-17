@@ -7,8 +7,8 @@ tabela fechada. Todo texto passa por `html_safe`.
 """
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.report_model import FindingsReport
-from harness_dast.domain.report_traffic import (
+from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.report.traffic import (
     backoff_warning,
     denied_rows,
     mode_line,

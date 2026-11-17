@@ -10,7 +10,7 @@ from typing import Final
 
 from harness_dast.domain.error_signal_catalog import RULE_BY_CATEGORY
 from harness_dast.domain.markdown_safe import code_span, escape_inline
-from harness_dast.domain.report_labels import SEVERITY_LABEL
+from harness_dast.domain.report.labels import SEVERITY_LABEL
 from harness_dast.domain.signal_result import ProxySignals, SignalFinding
 
 PASSIVE_SUBSET_NOTE: Final = (

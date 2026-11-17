@@ -7,7 +7,7 @@ segurança. Aceita achados de qualquer origem e contadores de recusa por qualque
 
 from typing import Final
 
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 
 _LOW_REACHABILITY: Final = 0.8
 

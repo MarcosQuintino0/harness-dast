@@ -27,7 +27,7 @@ from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_ref import require_run_id

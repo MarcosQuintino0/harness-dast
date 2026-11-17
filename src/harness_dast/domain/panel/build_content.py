@@ -33,9 +33,9 @@ from harness_dast.domain.panel.model import (
     PanelStep,
 )
 from harness_dast.domain.probe_result import OperationResult, ProbeResult
-from harness_dast.domain.report_labels import seeded_scans_notice
-from harness_dast.domain.report_model import FindingsReport
-from harness_dast.domain.report_traffic import path_shape_warning
+from harness_dast.domain.report.labels import seeded_scans_notice
+from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.report.traffic import path_shape_warning
 from harness_dast.domain.scan_plan import ScanSkip
 from harness_dast.domain.scan_result import ScanEntry, ScanResult
 

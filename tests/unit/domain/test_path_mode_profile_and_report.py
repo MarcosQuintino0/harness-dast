@@ -7,7 +7,7 @@ import pytest
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_markdown import render_markdown
+from harness_dast.domain.report.markdown import render_markdown
 from harness_dast.domain.traffic import (
     ProxyRow,
     TrafficSummary,
@@ -15,7 +15,7 @@ from harness_dast.domain.traffic import (
     summarize_traffic,
 )
 from tests.fakes.profile_data import valid_profile_data
-from tests.unit.domain.test_report_markdown import report
+from tests.unit.domain.report.test_markdown import report
 
 T0 = datetime(2026, 11, 13, 10, 0, 0, tzinfo=UTC)
 

@@ -22,7 +22,7 @@ from tests.unit.domain.panel.helpers import (
     sources,
     spec_operations,
 )
-from tests.unit.domain.report_helpers import entry, scan_result
+from tests.unit.domain.report.helpers import entry, scan_result
 
 EXPECTED_FILES = (
     "summary.html",
