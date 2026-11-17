@@ -162,7 +162,7 @@ class OastLab:
         code = (
             "import errno,socket; s=socket.socket(); s.settimeout(3); "
             "result=s.connect_ex(('192.0.2.1', 443)); "
-            "assert result in (errno.ENETUNREACH, errno.EHOSTUNREACH), result"
+            "assert result == errno.ENETUNREACH, result"
         )
         self.docker("exec", self.client, "python", "-c", code)
 
