@@ -131,3 +131,27 @@ Gerado com `hdast panel` (e `hdast report`, para a calibração aparecer) sobre 
 `C:\harness-dast-artefatos\v1-11\claude\20261117-0300-clinica-piloto-vulnerable\runs\2026-11-17T06-14-55Z-clinica-piloto-3454\panel\findings.html` (comece por `summary.html`; a seção "Verificação dos achados" está em `findings.html`,
 e o `report.html` fica na pasta da execução). Estão lá 131 verificações, a lista "precisa de uma
 pessoa" (5) e a calibração em contagens.
+
+## 15. Polimento do painel
+
+Em 2026-11-17, os cartões de `findings.html` passaram a mostrar nível e motivo de verificação,
+ataque e controle redigidos lado a lado quando disponíveis e declaração humana separada. O
+índice usa nomes legíveis, gravidade em português e links para os cartões; os 131 detalhes de
+verificação ficam recolhidos. CORS e campos fora do esquema descrevem sua própria técnica,
+sem afirmar comparação entre contas. O recibo CORS atual não guarda o valor de `Origin`,
+então a reprodução explica essa lacuna, sem inventar um pedido.
+
+Regra sem receita recebe esse motivo antes da recusa por método. Os ADRs 0085–0091 exigem
+motivo e recusas seguras, mas não fixam essa redação literal ou precedência; nenhum contrato
+persistido mudou. Os motivos já gravados em `verification.json` continuam históricos: não
+houve nova confirmação nem alteração dos níveis (126 não verificáveis, 1 inconclusivo e 4
+reproduzidos), das severidades ou dos achados.
+
+Painel e relatórios da execução `3454` regenerados por `hdast report` e `hdast panel`.
+`summary.html` conserva a apresentação e os resultados (9 graves, 28 de 28 funções atacadas);
+o diário inclui os comandos locais de regeneração. `report.md` e `report.html` conservam seus
+renderizadores. Validação nos degraus 1 e 2, com regressões unitárias/de contrato, isolamento
+da cópia cega e links; hashes e registros em
+`C:\harness-dast-artefatos\v1-11\panel-polish-20261117`. A inspeção visual pelo Computer Use
+foi bloqueada porque a ferramenta não conseguiu determinar a URL atual do Edge; a conferência
+dos arquivos HTML foi estrutural. Sem pilha, tráfego ao alvo ou rodada cega nesta tarefa.

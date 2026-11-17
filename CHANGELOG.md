@@ -35,6 +35,9 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 
 ### Verificação
 
+- Painel: nível e motivo de verificação junto da confiança em cada cartão, com ataque/controle redigidos e confirmação humana separada. Índice com nomes legíveis, gravidade em português e detalhes recolhidos por padrão; os relatórios preservam a apresentação anterior.
+- Textos de confiança e reprodução de CORS e campos fora do esquema correspondem à técnica observada, sem atribuir comparação entre contas. O recibo CORS atual não guarda o valor de `Origin`; o painel explica por que não oferece um comando fiel.
+- Motivo de recusa de regras sem receita tem precedência sobre o método da operação; preservados nível, severidade e bloqueio de escritas. Regressões unitárias e de contrato cobrem o polimento.
 - Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
 - Leitores consultivos compartilham decodificação estrita: chaves duplicadas, constantes não finitas e conteúdo malformado falham com erro seguro.
 - `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
