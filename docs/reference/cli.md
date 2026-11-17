@@ -34,6 +34,12 @@ Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspe
 
 **Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
 
+## `hdast finding acknowledge`
+
+`hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.
+
+O arquivo aditivo `human-confirmations.json` v1 preserva declarações anteriores e contém produto, execução e entradas com `fingerprint`, `person`, `confirmed_at` em UTC e `observation` redigida. Arquivo inválido ou de outro contexto é recusado. Nenhum achado, severidade ou status muda. TTY e nome declarado não autenticam a identidade da pessoa. Contrato: [ADR 0086](../adr/0086-confirmacao-humana-de-achados.md), proposto.
+
 ## `hdast panel`
 
 `hdast panel <produto> [--run ID] [--products-dir DIR] [--json]` lê os arquivos da execução (`run.json`, `manifest.json`, `probe.json`, `scan.json`, `findings.json`, `authz.json`, `negative.json`, `metrics.json`: todos opcionais), o perfil e o OpenAPI do produto e grava sete páginas HTML em `runs/<run_id>/panel/`. Sem rede, sem ZAP, sem JavaScript e sem recurso externo; todo texto do alvo é escapado. A página de entrada é `summary.html`; abra no navegador. A aba Terminal lê o diário de comandos da pasta de estado (`HDAST_STATE_DIR`); sem diário para o teste, ela diz que o diário começou na versão 1.2. Dado que falta aparece como "não medido", nunca como zero. Tema escuro, e o claro segue o aparelho.
