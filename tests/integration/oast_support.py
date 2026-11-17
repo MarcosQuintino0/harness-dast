@@ -1,6 +1,7 @@
 """Apoio exclusivo à prova de Callback com emissor sintético em rede interna."""
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -150,10 +151,11 @@ class OastLab:
 
     def invoke(self, marker: str) -> None:
         """Envia somente ao Callback, a partir do emissor sintético."""
+        if not re.fullmatch(r"lab-[0-9a-f]{12}", marker):
+            raise ValueError("marcador de prova inválido")
         code = (
-            "import urllib.request; r=urllib.request.urlopen('http://oast-gateway:8090/"
-            + marker
-            + "', timeout=5); assert r.status == 200"
+            "import urllib.request as u; o=u.build_opener(u.ProxyHandler({})); "
+            f"r=o.open('http://oast-gateway:8090/{marker}', timeout=5); assert r.status == 200"
         )
         self.docker("exec", self.client, "python", "-c", code)
 
