@@ -102,13 +102,15 @@ def inspect_topology() -> set[str]:
         for name in _inspect(container, "{{json .NetworkSettings.Networks}}")
     }
     for container in main + target:
-        labels = _inspect(container, "{{json .Config.Labels}}")
+        service = _inspect(
+            container, '{{json (index .Config.Labels "com.docker.compose.service")}}'
+        )
         networks = _inspect(container, "{{json .NetworkSettings.Networks}}")
         ports = _inspect(container, "{{json .NetworkSettings.Ports}}") or {}
-        if labels.get("com.docker.compose.service") == "zap":
+        if service == "zap":
             zap_found = True
             assert not set(networks) & target_networks
-        if labels.get("com.docker.compose.service") == "crapi-workshop":
+        if service == "crapi-workshop":
             workshop_found = True
             assert set(networks) == {f"{TARGET}_crapi_net"}
         for bindings in ports.values():

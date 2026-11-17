@@ -18,7 +18,7 @@ def _docker_fixture(*args: str) -> str:
         template, container = args[2], args[3]
         if ".Config.Labels" in template:
             service = {"zap": "zap", "workshop": "crapi-workshop", "web": "crapi-web"}[container]
-            return json.dumps({"com.docker.compose.service": service})
+            return json.dumps(service)
         if ".NetworkSettings.Networks" in template:
             network = "hdast-codex_zap_net" if container == "zap" else "hdast-crapi-codex_crapi_net"
             return json.dumps({network: {}})
