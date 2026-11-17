@@ -2,7 +2,6 @@
 
 import hashlib
 import os
-from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -10,11 +9,12 @@ import pytest
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
-from tests.integration.lab_support import read_jsonl
 from tests.integration.v111_support import (
     ARTIFACTS,
     LabRun,
     check_ownership,
+    confirm_individually,
+    confirm_legacy,
     findings,
     load_json,
     make_cli,
@@ -77,45 +77,13 @@ def _confirm_and_report(lab: LabRun, product: str, run_id: str, folder: Path) ->
     assert before.product == product
     assert before.run_id == run_id
     before_findings = findings(before)
-    audit_path = folder / "audit.jsonl"
-    audit_before = len(read_jsonl(audit_path))
-    code, envelope = lab.command("confirm", product, "--run", run_id)
-    lab.summary["confirm_exit"] = code
-    after_confirm = FindingsReport.model_validate(load_json(folder / "findings.json"))
-    assert findings(after_confirm) == before_findings
-    data = envelope.get("data")
+    verification = confirm_individually(lab, product, run_id, before)
+    lab.summary["verification"] = verification_summary(before, verification)
     verification_path = folder / "verification.json"
-    if verification_path.is_file():
-        verification = VerificationFile.model_validate(load_json(verification_path))
-        lab.summary["verification_partial"] = {
-            "count": len(verification.entries),
-            "levels": dict(Counter(entry.level for entry in verification.entries)),
-        }
-    elif code == 0:
-        assert not before_findings
-        verification = VerificationFile(
-            schema_version=1, product=product, run_id=run_id, entries=()
-        )
-    else:
-        verification = None
-    if code == 0:
-        assert isinstance(data, dict)
-        assert verification is not None
-        lab.summary["verification"] = verification_summary(before, verification, data)
-    added = read_jsonl(audit_path)[audit_before:]
-    allowed = [
-        row for row in added if row.get("phase") == "decision" and row.get("decision") == "allowed"
-    ]
-    lab.summary["confirmation_audit"] = {
-        "decision_allowed": len(allowed),
-        "decision_denied": sum(
-            row.get("phase") == "decision" and row.get("decision") == "denied" for row in added
-        ),
-        "results": sum(row.get("phase") == "result" for row in added),
-    }
-    if code == 0:
-        assert isinstance(data, dict)
-        assert len(allowed) == data["recipe_requests"] + data["session_requests"]
+    assert (
+        findings(FindingsReport.model_validate(load_json(folder / "findings.json")))
+        == before_findings
+    )
     assert _report(lab, product, run_id) in {0, 1}
     after_report = FindingsReport.model_validate(load_json(folder / "findings.json"))
     assert findings(after_report) == before_findings
@@ -135,7 +103,6 @@ def _confirm_and_report(lab: LabRun, product: str, run_id: str, folder: Path) ->
     assert "summary.html" in pages
     assert (folder / "report.html").is_file()
     lab.save()
-    assert code == 0, "Confirmação falhou; veja os códigos no resumo."
 
 
 @pytest.mark.parametrize(
@@ -185,6 +152,9 @@ def test_verificacao_aditiva_apos_varredura_completa(product: str, mode: str) ->
             hashlib.sha256((cli.products / product / "target.yml").read_bytes()).hexdigest()
             == profile_hash
         )
+        legacy_manifest = os.environ.get("V111_LEGACY_MANIFEST")
+        if legacy_manifest:
+            confirm_legacy(lab, product, legacy_manifest)
         lab.summary["outcome"] = "run_completed"
     finally:
         if "run_id" not in lab.summary:
