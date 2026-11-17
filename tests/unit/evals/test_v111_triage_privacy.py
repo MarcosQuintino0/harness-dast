@@ -24,3 +24,14 @@ def test_regua_separa_resultados_e_preserva_nota_historica() -> None:
     assert "nota automática histórica" in rubric
     assert "modo seguro" in rubric
     assert "gabarito" in rubric
+
+
+def test_calibracao_e_adr_de_apresentacao_sao_excluidos_mesmo_antes_de_existirem() -> None:
+    from evals.runner.exclusions import ALWAYS, decide
+
+    for path in (
+        "docs/reference/verification-calibration.md",
+        "docs/reference/verification-calibration.json",
+        "docs/adr/0088-apresentacao-e-calibracao-de-verificacao.md",
+    ):
+        assert decide(path, ALWAYS) is not None
