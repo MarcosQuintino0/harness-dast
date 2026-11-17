@@ -32,11 +32,11 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
 
-**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
+**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `confirm`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
 
 ## `hdast confirm`
 
-`hdast confirm <produto> --run <run_id> [--finding <fingerprint>] [--max N] [--products-dir DIR] [--json]` executa receitas fixas com controle e acrescenta resultados em `verification.json` v1. `--finding` seleciona um fingerprint completo da execução; `--max` reduz o teto de 30 achados, priorizados por severidade. Cada receita tem teto de 12 pedidos. O envelope de sucesso contém `verification`, `recipe_requests` e `session_requests`; os pedidos de sessão respeitam os controles existentes e são contados separadamente.
+`hdast confirm <produto> --run <run_id> [--finding <fingerprint>] [--max N] [--products-dir DIR] [--json]` executa receitas fixas com controle e acrescenta resultados em `verification.json` v1. `--finding` seleciona um fingerprint completo da execução; `--max` reduz o teto de 30 achados, priorizados por severidade. O teto de 12 pedidos por achado inclui receita, login, CSRF e recuos. O envelope de sucesso contém `verification`, `recipe_requests` e `session_requests`; as contagens de sessão e receita são separadas, sob o mesmo teto.
 
 O comando exige perfil aprovado e pilha atual, autorização, janela e prazo vigentes. Só repete operações já varridas, pelo mesmo método, pela cerca, com limitação de taxa e parada. A implementação inicial restringe tráfego a GET com parâmetro de consulta inequívoco e semente de sucesso. Escritas e DELETE são recusados, e travessia sem oráculo benigno conhecido fica não verificável. A receita de tempo é específica de PostgreSQL; resultado inconclusivo não refuta o alerta. Não há replay livre de carga ou URL recebida do alvo. A decisão de nível fica no domínio, sem alterar severidade, status ou `findings.json`.
 

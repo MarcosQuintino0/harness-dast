@@ -4,9 +4,11 @@ Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-porta
 
 ## Mapa por assunto
 
-Inventário após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`.
+Inventário histórico após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`; não inclui as adições da V1.11.
 Contagens por grupo são disjuntas e somam o total. A raiz mantém 71 módulos; subpacotes preservam a camada.
 Testes espelham `tests/unit/application/`; adaptadores concretos continuam em `adapters/`.
+
+Na V1.11, `verification.py` coordena a classificação offline, `confirmation.py` conduz a reprodução protegida, `human_confirmation.py` registra a declaração humana e `report_presentation.py` monta a visão consultiva. Suas fronteiras ficam em `confirmation_ports.py`, `human_confirmation_ports.py` e `report_presentation_ports.py`. As decisões de nível e vínculo de semente pertencem ao domínio.
 
 | Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
 | --- | --- | --- | --- |

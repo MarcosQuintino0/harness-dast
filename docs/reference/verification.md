@@ -11,19 +11,21 @@ Consulte a sintaxe e as condições de [hdast confirm](cli.md#hdast-confirm). O 
 | `reproduced` | A comparação implementada encontrou o efeito previsto; a regra e seus limites dependem da receita. |
 | `likely` | Há indício na evidência guardada, sem reprodução pela receita. |
 | `inconclusive` | A comparação não permite concluir; não refuta o alerta. |
-| `likely_false_positive` | Categoria prevista pelo contrato; não presume que respostas iguais provem falsidade. |
+| `likely_false_positive` | Uma propriedade específica registrada contraria o alerta; não presume que respostas iguais provem falsidade. |
 | `not_verifiable` | Faltam condições ou prova suficientes para a verificação disponível. |
 
 São categorias com motivo, não probabilidades. O painel e os relatórios apresentam verificação e confirmação humana separadamente, com resumos redigidos de ataque e controle quando disponíveis. A lista de casos que precisam de pessoa inclui os inconclusivos e os de severidade alta sem reprodução. A redação por padrões e segredos conhecidos não garante eliminar segredos desconhecidos.
 
 ## O que é repetido
 
-As receitas de tráfego exigem GET já varrido, semente de sucesso 2xx e um parâmetro de consulta com nome inequívoco, além de perfil aprovado, pilha atual e controles de escopo, janela, prazo, taxa e parada. A implementação recusa escrita e `DELETE`. Não reutiliza livremente URL ou carga do alerta. O limite é de 12 pedidos de receita por achado; pedidos de sessão são contados separadamente e sujeitos aos controles existentes.
+As receitas de tráfego exigem GET já varrido, semente de sucesso 2xx e um parâmetro de consulta com nome inequívoco, além de perfil aprovado, pilha atual e controles de escopo, janela, prazo, taxa e parada. O recibo `ScanEntry.seed_binding` vincula operação, método, URL integral e conta efetivamente usados pelo scanner; ambiente e conta atuais precisam corresponder. Execuções antigas sem recibo ficam não verificáveis, sem tráfego nem prova retroativa. A implementação recusa escrita e `DELETE`. Não reutiliza livremente URL ou carga do alerta. O limite é de 12 pedidos totais por achado, incluindo login, CSRF, recuos e receita; sessão e receita são contadas separadamente.
 
-As receitas atuais cobrem SQL booleano, atraso específico de PostgreSQL, reflexão de marcador em HTML e erro interno detalhado, com controles. Reflexão HTML não prova execução de JavaScript. Travessia fica não verificável sem oráculo benigno. Para cabeçalhos e CORS, usa-se a classificação da evidência guardada, sem pedido novo; isso não demonstra reprodução. Para autorização, apenas `authz_horizontal` e `authz_vertical`, com contas distintas e os dois estados registrados 2xx, recebem `reproduced` pela comparação guardada; os demais casos sem esses elementos ficam não verificáveis.
+As receitas atuais cobrem SQL booleano, atraso específico de PostgreSQL, reflexão de marcador em HTML e erro interno detalhado, com controles. Reflexão HTML não prova execução de JavaScript. Travessia fica não verificável sem oráculo benigno. Cabeçalhos e CORS usam observação direta guardada, sem pedido novo: `reproduced` descreve somente a propriedade comprovada, e resposta JSON não prova falha de interface HTML. As técnicas de autorização usam os campos e registros da comparação anterior; escritas sem leitura posterior suficiente não provam alteração. Casos incompletos ficam não verificáveis com motivo.
+
+A prova de ataque e controle guarda método, receita, digest do alvo, status, duração, tamanho e digest curto dos corpos, inclusive na interrupção. Permite comparar igualdade, sem inspecionar o conteúdo integral; respostas de baixa entropia podem ser adivinháveis. A causa e o código de uma parada são preservados após gravar o resultado parcial.
 
 ## Declaração humana e calibração
 
 Uma pessoa pode registrar sua observação pelo procedimento [finding acknowledge](cli.md#hdast-finding-acknowledge). O agente não executa o comando nem escreve `human-confirmations.json`. A interação exige TTY e confirmação digitada, mas não autentica identidade ou veracidade.
 
-A [calibração](verification-calibration.md) está bloqueada, sem medições. Quando houver dados, uma porcentagem só pode aparecer com amostra de pelo menos 10 e com numerador e denominador; nenhuma taxa deve ser inferida de testes offline. Os ADRs [0085](../adr/0085-verificacao-de-achados.md), [0086](../adr/0086-confirmacao-humana-de-achados.md), [0087](../adr/0087-reproducao-controlada-de-achados.md) e [0088](../adr/0088-apresentacao-e-calibracao-de-verificacao.md) permanecem propostos.
+A [calibração](verification-calibration.md) está bloqueada, sem medições. Contagem e tamanho da amostra aparecem quando medidos; porcentagem só com pelo menos 10. Nenhuma taxa deve ser inferida de testes offline. Os ADRs 0085 a 0091 permanecem propostos; o [índice](../adr/README.md#verificação-v111) reúne os contratos.

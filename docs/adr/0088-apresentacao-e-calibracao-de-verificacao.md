@@ -14,6 +14,8 @@ Vamos apresentar a verificação, a confirmação humana e a calibração separa
 
 ## Alternativas consideradas
 
+Os renderizadores recebem `Presentation` opcional de forma estruturada. O HTML inclui a seção dentro de `main`, sem substituir uma sequência de fechamento de tags; sem a visão, os chamados anteriores preservam a saída. Dados consultivos inválidos geram aviso seguro e não promovem reprodução. Contagem e tamanho da amostra aparecem mesmo abaixo de dez; somente a porcentagem é omitida.
+
 Inserir resultados no contrato de achados misturaria dados originais e pareceres posteriores. Fixar números no código ou exibir porcentagens de amostras pequenas esconderia a origem e as limitações das medições.
 
 ## Consequências e aceites

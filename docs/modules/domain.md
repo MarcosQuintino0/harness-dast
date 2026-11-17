@@ -8,7 +8,7 @@ Inventário histórico após a organização V1.9.4: **215 módulos de produçã
 Grupos disjuntos somam o total: 135 módulos na raiz e 80 nos três subpacotes abaixo.
 Testes espelham `tests/unit/domain/`; adaptadores concretos continuam em `adapters/`.
 
-Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas e comparações guardadas; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../reference/verification.md).
+Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas; `confirmation_observations.py` avalia cabeçalhos e comparações guardadas; `scan_binding.py` vincula a semente efetiva; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../reference/verification.md).
 
 | Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
 | --- | --- | --- | --- |
