@@ -450,3 +450,15 @@ uv run pytest -v -m integration tests/integration/test_lab_oast.py::test_callbac
 ```
 
 O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução exige Docker e ainda não foi realizada nesta trilha.
+
+### Inventário de imagens em ensaio
+
+Na raiz do repositório, o coordenador pode gerar um relatório externo sem modificar imagens:
+
+```powershell
+uv run python lab/scripts/inventory_images.py --output C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\images-inventory.json
+```
+
+O comando lê os arquivos versionados cujo nome contém `compose` e termina em `.yaml` ou `.yml`, sem interpolar variáveis ou ler `.env`. Consulta do Docker somente os campos ID, tags, digests, tamanho e data das imagens e o ID da imagem de cada contêiner, inclusive parado. Não remove, baixa, cria ou altera imagens. O relatório distingue imagens do namespace `harness`/`hdast` usadas por Compose ou contêiner, imagens próprias fora de ambos e imagens sem proveniência atribuível. Tamanhos aparecem em bytes e em unidades legíveis. Imagens alheias com identificação não são listadas.
+
+O nome gerado para um serviço com `build` sem `image` usa o nome de projeto do arquivo ou o diretório e a tag `latest`. Nomes de projeto fornecidos em execução, arquivos não versionados, builds externos e referências dinâmicas não podem ser comprovados por este inventário. Referências interpoladas, `include`/`extends`, arquivos inválidos e falhas de consulta causam recusa; revise-os antes de concluir qualquer análise. O relatório é uma fotografia sujeita a mudanças e não é autorização nem plano de remoção.
