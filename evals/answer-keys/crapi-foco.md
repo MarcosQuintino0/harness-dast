@@ -12,7 +12,8 @@ abaixo foi provada neste caso; todas permanecem `detectable: false`.
 | C15 | Login e leitura autenticada | JWT ainda sem prova para este caso. |
 | C6 | POST /workshop/api/merchant/contact_mechanic | Falta de limite; DoS é proibido e teste limitado é apenas intenção futura. |
 
-H11 é uma operação da Clínica Piloto, não do crAPI. Sua prova pertence a L3/L5;
-este caso de alvo único não cobre integralmente o requisito de cabeçalho ou um caso
-multi-alvo. Não se deve inferir que uma operação semelhante existe no crAPI.
+H11 é uma falha de cabeçalho prevista para a Clínica Piloto, não uma operação existente
+na branch entregue nem no crAPI. L3/L5 estão congeladas após recusa; a prova de cabeçalho
+está fora do escopo deste caso. Este caso de alvo único não cobre integralmente o requisito
+de cabeçalho ou um caso multi-alvo.
 Os 900 segundos são orçamento, não duração medida.
