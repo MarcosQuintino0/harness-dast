@@ -10,8 +10,9 @@ from pydantic import JsonValue, TypeAdapter
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
-from harness_dast.application.mutation_release import release_mutation
+from harness_dast.application.mutation_release import release_mutation, require_interactive
 from harness_dast.cli.output import build_success, emit, get_state
+from harness_dast.cli.stack_lock_composition import hold_stack
 from harness_dast.cli.terminal import is_interactive
 
 
@@ -46,13 +47,16 @@ def _confirm(key: str) -> bool:
 def release_command(ctx: typer.Context, mutation_id: Annotated[str, typer.Argument()]) -> None:
     """Registra conferência humana e libera uma intenção pendente."""
     state = get_state(ctx)
-    released = release_mutation(
-        _journal(),
-        mutation_id,
-        interactive=is_interactive() and sys.stdout.isatty() and not state.json_mode,
-        confirm=_confirm,
-        now=SystemClock().now,
-    )
+    interactive = is_interactive() and sys.stdout.isatty() and not state.json_mode
+    require_interactive(interactive)
+    with hold_stack("mutation release", "-"):
+        released = release_mutation(
+            _journal(),
+            mutation_id,
+            interactive=interactive,
+            confirm=_confirm,
+            now=SystemClock().now,
+        )
     emit(
         build_success({"released": released}),
         json_mode=False,

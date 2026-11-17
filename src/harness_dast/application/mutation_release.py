@@ -29,14 +29,19 @@ def release_mutation(
     now: Callable[[], datetime],
 ) -> bool:
     """Exige terminal e confirmação expressa após conferir a intenção; False cancela."""
-    if not interactive:
-        raise ConfigError(
-            "Liberação exige terminal interativo, sem --json.",
-            hint="Peça a uma pessoa para conferir o alvo e executar o comando no terminal.",
-        )
+    require_interactive(interactive)
     if not any(item.id == key for item in store.list_pending()):
         raise ConfigError("Mutação pendente não encontrada ou identificador inválido.")
     if not confirm(key):
         return False
     store.release(key, now())
     return True
+
+
+def require_interactive(interactive: bool) -> None:
+    """Recusa liberação fora de terminal antes de obter qualquer trava ou confirmação."""
+    if not interactive:
+        raise ConfigError(
+            "Liberação exige terminal interativo, sem --json.",
+            hint="Peça a uma pessoa para conferir o alvo e executar o comando no terminal.",
+        )

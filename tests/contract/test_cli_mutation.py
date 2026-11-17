@@ -10,6 +10,8 @@ import typer
 
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.cli.app import build_app, run_app
+from harness_dast.cli.stack_lock_composition import hold_stack
+from harness_dast.domain.errors import StackBusy
 from harness_dast.domain.knowledge_mutation import MutationMetadata
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 
@@ -118,3 +120,59 @@ def test_release_interativo_confirma_por_terminal(
     assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
     assert journal.list_pending() == ()
     assert "liberada" in capsys.readouterr().out
+
+
+def test_release_recusa_execucao_concorrente_antes_do_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    asked: list[str] = []
+
+    def confirm(key: str) -> bool:
+        asked.append(key)
+        return True
+
+    monkeypatch.setattr(command, "_confirm", confirm)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    with hold_stack("probe", "agenda"):
+        assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 8
+    assert asked == []
+    assert len(journal.list_pending()) == 1
+
+
+def test_release_sem_terminal_recusa_antes_da_trava_ocupada(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: False)
+    with hold_stack("probe", "agenda"):
+        assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 2
+    assert "terminal interativo" in capsys.readouterr().err
+
+
+def test_release_mantem_trava_durante_confirmacao(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+
+    def confirm(_: str) -> bool:
+        with pytest.raises(StackBusy), hold_stack("probe", "agenda"):
+            pass
+        return False
+
+    monkeypatch.setattr(command, "_confirm", confirm)
+    assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
+    assert len(journal.list_pending()) == 1
