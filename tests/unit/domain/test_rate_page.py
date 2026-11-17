@@ -205,5 +205,27 @@ def test_the_alert_is_medium_cwe_770_and_carries_no_body_values() -> None:
     assert "240 itens" in alert["evidence"]
 
 
+def test_without_a_declared_maximum_the_finding_is_low_confidence_and_says_it_is_a_heuristic() -> (
+    None
+):
+    plan = plan_page_checks([ex("a")], {"a": op("a")}, permits=allow_all)
+
+    alert = page_alert(1, plan.cases[0], "o pedido enorme devolveu 240 itens", base_url="http://x")
+
+    assert (alert["risk"], alert["confidence"]) == ("Medium", "Low")
+    assert "Heurística" in alert["evidence"]
+    assert "Heurística" in alert["description"]
+
+
+def test_with_a_declared_maximum_the_finding_keeps_medium_confidence() -> None:
+    schema = Schema(type="integer", maximum=100)
+    plan = plan_page_checks([ex("a")], {"a": op("a", schema=schema)}, permits=allow_all)
+
+    alert = page_alert(1, plan.cases[0], "o pedido enorme devolveu 240 itens", base_url="http://x")
+
+    assert (alert["risk"], alert["confidence"]) == ("Medium", "Medium")
+    assert "Heurística" not in alert["evidence"]
+
+
 def test_empty_lists_in_both_requests_are_inconclusive_not_a_limit() -> None:
     assert judge_page(reply(200, 0), reply(200, 0), None).outcome == "inconclusive"

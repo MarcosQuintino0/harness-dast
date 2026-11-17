@@ -309,14 +309,23 @@ def judge_page(base: PageReply, huge: PageReply, maximum: int | None) -> PageVer
 
 
 def page_alert(index: int, case: PageCase, detail: str, *, base_url: str) -> dict[str, str]:
-    """Alerta do achado: severidade média, confiança média (um pedido de cada)."""
+    """Alerta do achado: severidade média; confiança média com `maximum` declarado e baixa sem ele.
+
+    Sem `maximum` o limite é só "mais do que o pedido normal": heurística, dita no texto.
+    """
     path = urlsplit(join_url(base_url, case.exchange.target)).path
     declared = (
         f"declara maximum {case.maximum}" if case.maximum is not None else "não declara maximum"
     )
+    heuristic = case.maximum is None
     evidence = (
         f"Com '{case.param}={case.huge_value}' (o contrato {declared}): {detail}. "
         "Sem erro nem limite."
+        + (
+            " Heurística: sem `maximum` no contrato, o limite comparado é o pedido normal."
+            if heuristic
+            else ""
+        )
     )
     return build_alert(
         ident=f"rate-page-{index}",
@@ -324,7 +333,7 @@ def page_alert(index: int, case: PageCase, detail: str, *, base_url: str) -> dic
         title=PAGE_TITLE,
         cwe=PAGE_CWE,
         risk="Medium",
-        confidence="Medium",
+        confidence="Low" if heuristic else "Medium",
         method="GET",
         url=join_url(base_url, path),
         param=case.param,

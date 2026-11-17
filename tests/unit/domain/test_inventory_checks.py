@@ -124,6 +124,9 @@ def test_only_narrows_the_siblings_but_not_the_docs() -> None:
         (401, 401, "unclear"),
         (None, 404, "unclear"),
         (200, None, "exists"),
+        (500, 404, "unclear"),
+        (503, 404, "unclear"),
+        (500, None, "unclear"),
     ],
 )
 def test_judge_sibling_compares_with_the_control(

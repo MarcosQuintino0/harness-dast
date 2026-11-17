@@ -223,13 +223,16 @@ def judge_sibling(
 ) -> Literal["exists", "absent", "unclear"]:
     """Se a irmã existe: resposta diferente da do controle e que não seja `404` ou `410`.
 
-    `unclear` quando falta resposta, ou quando a irmã responde igual ao controle (o alvo responde
-    a qualquer caminho do mesmo jeito: não dá para saber).
+    `unclear` quando falta resposta, quando é `5xx` (o servidor quebrou: não prova que a versão
+    existe) ou quando a irmã responde igual ao controle (o alvo responde a qualquer caminho do
+    mesmo jeito: não dá para saber).
     """
     if status is None:
         return "unclear"
     if status in _ABSENT:
         return "absent"
+    if status >= 500:
+        return "unclear"
     if control is not None and status == control:
         return "unclear"
     return "exists"
