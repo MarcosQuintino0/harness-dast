@@ -6,6 +6,7 @@ comparação revisáveis juntas; não contém envio nem persistência.
 
 import re
 from hashlib import sha256
+from types import MappingProxyType
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -13,19 +14,24 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz.result import AuthzFinding
+from harness_dast.domain.cors import classify_cors
 from harness_dast.domain.finding import Finding, normalize_path_template
 from harness_dast.domain.http_messages import HttpResponse
+from harness_dast.domain.negative_result import NegativeFinding
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.scan_result import ScanEntry
+from harness_dast.domain.signal_result import SignalFinding
 from harness_dast.domain.verification import VerificationEntry, classify_finding
 
 Recipe = Literal["sql_boolean", "sql_time", "xss_reflected", "internal_error"]
-_RECIPES: dict[str, Recipe] = {
-    "40018": "sql_boolean",
-    "40022": "sql_time",
-    "40012": "xss_reflected",
-    "90022": "internal_error",
-}
+_RECIPES: MappingProxyType[str, Recipe] = MappingProxyType(
+    {
+        "40018": "sql_boolean",
+        "40022": "sql_time",
+        "40012": "xss_reflected",
+        "90022": "internal_error",
+    }
+)
 
 
 class ConfirmationPlan(ApiModel):
@@ -85,6 +91,8 @@ def _matches(finding: Finding, exchange: ExchangeRecord, scans: tuple[ScanEntry,
         return False
     if normalize_path_template(exchange.path) != normalize_path_template(finding.path_template):
         return False
+    if not _target_matches_template(exchange.path, urlsplit(exchange.target).path):
+        return False
     return any(
         scan.operation_id == exchange.operation_id
         and scan.method.upper() == "GET"
@@ -94,6 +102,17 @@ def _matches(finding: Finding, exchange: ExchangeRecord, scans: tuple[ScanEntry,
         and scan.outcome != "refused"
         and scan.seed_outcome is None
         for scan in scans
+    )
+
+
+def _target_matches_template(template: str, target: str) -> bool:
+    template_parts = template.strip("/").split("/")
+    target_parts = target.strip("/").split("/")
+    if len(template_parts) != len(target_parts):
+        return False
+    return all(
+        bool(actual) and (bool(re.fullmatch(r"\{[^{}]+\}", expected)) or expected == actual)
+        for expected, actual in zip(template_parts, target_parts, strict=True)
     )
 
 
@@ -144,20 +163,21 @@ def judge_confirmation(
         )
         return result.model_copy(update={"attack": _summarize(partial) if partial else None})
     measured = tuple(response for response in responses if response is not None)
-    if (
-        any(response.body_truncated or response.status >= 500 for response in measured)
-        and plan.recipe != "internal_error"
+    if any(response.body_truncated for response in measured) or (
+        plan.recipe != "internal_error" and any(response.status >= 500 for response in measured)
     ):
-        return _result(
+        result = _result(
             fingerprint,
             plan.recipe,
             "inconclusive",
             "Resposta truncada ou erro do servidor impede comparação segura.",
         )
-    if any(response.status in {401, 403, 429} for response in measured):
-        return _result(
+        return result.model_copy(update={"attack": _summarize(measured)})
+    if any(response.status in {401, 403, 404, 429} for response in measured):
+        result = _result(
             fingerprint, plan.recipe, "inconclusive", "Autenticação ou limite impediu a comparação."
         )
+        return result.model_copy(update={"attack": _summarize(measured)})
     controls: tuple[HttpResponse, ...]
     attacks: tuple[HttpResponse, ...]
     if plan.recipe == "sql_boolean":
@@ -173,12 +193,19 @@ def judge_confirmation(
         result = _internal_error(fingerprint, measured)
         controls, attacks = (measured[0], measured[2]), (measured[1], measured[3])
     return result.model_copy(
-        update={"attack": _summarize(attacks), "control": _summarize(controls)}
+        update={
+            "attack": f"GET; receita {plan.recipe}. {_summarize(attacks)}. {result.reason}",
+            "control": f"GET; controle da mesma operação. {_summarize(controls)}.",
+        }
     )
 
 
 def _summarize(responses: tuple[HttpResponse, ...]) -> str:
-    return "; ".join(f"HTTP {item.status}, {item.elapsed_ms} ms" for item in responses)
+    return "; ".join(
+        f"HTTP {item.status}, {item.elapsed_ms} ms, {len(item.body)} bytes"
+        + (", corpo truncado" if item.body_truncated else "")
+        for item in responses
+    )
 
 
 def _result(
@@ -193,7 +220,12 @@ def _signature(response: HttpResponse) -> tuple[int, bytes]:
 
 def _boolean(fingerprint: str, r: tuple[HttpResponse, ...]) -> VerificationEntry:
     base, true1, false1, true2, false2 = map(_signature, r)
-    if 200 <= r[0].status < 300 and base == true1 == true2 and false1 == false2 and false1 != base:
+    if (
+        all(200 <= item.status < 300 for item in r)
+        and base == true1 == true2
+        and false1 == false2
+        and false1 != base
+    ):
         return _result(
             fingerprint,
             "sql_boolean",
@@ -277,7 +309,7 @@ def _internal_error(fingerprint: str, r: tuple[HttpResponse, ...]) -> Verificati
     if (
         detailed(r[1])
         and detailed(r[3])
-        and 200 <= r[0].status < 300
+        and all(200 <= r[i].status < 300 for i in (0, 2))
         and _signature(r[0]) == _signature(r[2])
     ):
         return _result(
@@ -295,8 +327,10 @@ def _internal_error(fingerprint: str, r: tuple[HttpResponse, ...]) -> Verificati
 
 
 def select_confirmation_findings(
-    findings: tuple[Finding | AuthzFinding, ...], limit: int, fingerprint: str | None
-) -> tuple[Finding | AuthzFinding, ...]:
+    findings: tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...],
+    limit: int,
+    fingerprint: str | None,
+) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...]:
     """Ordena achados por severidade e aplica seleção que apenas reduz o teto.
 
     Raises:
@@ -322,6 +356,33 @@ def select_confirmation_findings(
 
 def classify_authz_confirmation(finding: AuthzFinding) -> VerificationEntry:
     """Reconhece comparação guardada entre contas somente com estados e identidades válidos."""
+    if finding.technique == "authz_cors":
+        policy = finding.fields[0] if len(finding.fields) == 1 else ""
+        observation = {
+            "reflected_credentials": ("https://origin.invalid", "true"),
+            "wildcard": ("*", None),
+        }.get(policy)
+        if (
+            observation is not None
+            and classify_cors("https://origin.invalid", *observation) == policy
+            and finding.observed_status is not None
+            and 200 <= finding.observed_status < 300
+        ):
+            return VerificationEntry(
+                fingerprint=finding.fingerprint,
+                level="reproduced",
+                recipe="authz_recorded",
+                reason="Observação CORS guardada mostra a política identificada; sem novo pedido.",
+                attack=f"HTTP {finding.observed_status}; política observada: {policy}.",
+                control="Classificação aplicada aos cabeçalhos observados na execução anterior.",
+            )
+        return VerificationEntry(
+            fingerprint=finding.fingerprint,
+            level="not_verifiable",
+            reason="Observação CORS guardada não contém política e status suficientes.",
+        )
+    if finding.technique in {"authz_anonymous_access", "authz_tampered_token"}:
+        return _classify_access_confirmation(finding)
     horizontal = (
         finding.technique == "authz_horizontal"
         and "com corpo equivalente para o mesmo pedido." in finding.evidence
@@ -354,6 +415,37 @@ def classify_authz_confirmation(finding: AuthzFinding) -> VerificationEntry:
         fingerprint=finding.fingerprint,
         level="not_verifiable",
         reason="A comparação guardada não contém estados e identidades suficientes.",
+    )
+
+
+def _classify_access_confirmation(finding: AuthzFinding) -> VerificationEntry:
+    valid_statuses = (
+        finding.baseline_status is not None
+        and 200 <= finding.baseline_status < 300
+        and finding.observed_status is not None
+        and 200 <= finding.observed_status < 300
+    )
+    comparable = (
+        finding.technique == "authz_anonymous_access"
+        and "corpo equivalente ao enviar o mesmo pedido sem credencial" in finding.evidence
+    ) or (
+        finding.technique == "authz_tampered_token"
+        and bool(finding.variants)
+        and "equivalente ao do pedido autenticado" in finding.evidence
+    )
+    if valid_statuses and comparable:
+        return VerificationEntry(
+            fingerprint=finding.fingerprint,
+            level="reproduced",
+            recipe="authz_recorded",
+            reason="Comparação guardada mostra corpo equivalente ao pedido autenticado.",
+            attack=f"HTTP {finding.observed_status}; acesso sem credencial válida.",
+            control=f"HTTP {finding.baseline_status}; pedido autenticado, corpo equivalente.",
+        )
+    return VerificationEntry(
+        fingerprint=finding.fingerprint,
+        level="not_verifiable",
+        reason="A comparação de autenticação guardada não é suficiente.",
     )
 
 

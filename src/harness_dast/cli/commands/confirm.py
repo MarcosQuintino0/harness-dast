@@ -10,7 +10,7 @@ from harness_dast.cli.composition import open_network
 from harness_dast.cli.confirm_composition import build_confirmation
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.stack_lock_composition import hold_stack
-from harness_dast.domain.errors import ExitCode
+from harness_dast.domain.errors import ConfigError, ExitCode
 
 
 def confirm_command(
@@ -24,6 +24,8 @@ def confirm_command(
     ] = None,
 ) -> int:
     """Compara receitas fixas com controles em operações autorizadas e já varridas."""
+    if not 1 <= maximum <= 30:
+        raise ConfigError("--max deve estar entre 1 e 30.")
     state = get_state(ctx)
     with hold_stack("confirm", product):
         network = open_network(product, products_dir, state.secrets)

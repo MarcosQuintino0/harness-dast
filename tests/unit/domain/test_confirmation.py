@@ -318,5 +318,69 @@ def test_selecao_recusa_fingerprint_duplicado() -> None:
 def test_resultado_parcial_resume_sem_guardar_corpo_quando_transporte_falha() -> None:
     result = judge_confirmation(plan(), (response(b"segredo-na-resposta"), None), FINGERPRINT)
     assert result.level == "inconclusive"
-    assert result.attack == "HTTP 200, 20 ms"
+    assert result.attack == "HTTP 200, 20 ms, 19 bytes"
     assert "segredo-na-resposta" not in result.model_dump_json()
+
+
+def test_recusa_alvo_concreto_de_outra_operacao() -> None:
+    altered = exchange().model_copy(update={"target": "/outro?q=normal"})
+    result = plan_confirmation(finding(), (altered,), (scan(),), MARKER)
+    assert isinstance(result, VerificationEntry)
+    assert result.level == "not_verifiable"
+
+
+def test_sql_booleano_nao_reproduz_controle_404() -> None:
+    samples = (response(), response(), response(status=404), response(), response(status=404))
+    assert judge_confirmation(plan(), samples, FINGERPRINT).level == "inconclusive"
+
+
+def test_sql_booleano_nao_reproduz_controle_de_erro() -> None:
+    samples = (response(), response(), response(status=400), response(), response(status=400))
+    assert judge_confirmation(plan(), samples, FINGERPRINT).level == "inconclusive"
+
+
+def test_erro_detalhado_nao_reproduz_controle_truncado() -> None:
+    bad = response(b"Traceback (most recent call last)", status=500)
+    truncated = response().model_copy(update={"body_truncated": True})
+    assert (
+        judge_confirmation(plan("90022"), (truncated, bad, truncated, bad), FINGERPRINT).level
+        == "inconclusive"
+    )
+
+
+def test_cors_guardado_e_reconhecido_sem_comparacao_de_contas() -> None:
+    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.cors import cors_finding
+
+    item = cors_finding("agenda", exchange(), "comum", 200, "reflected_credentials")
+    result = classify_authz_confirmation(item)
+    assert result.level == "reproduced"
+    assert "CORS" in result.reason
+    assert "contas" not in result.reason
+
+
+def test_cors_sem_politica_guardada_e_recusado() -> None:
+    from harness_dast.domain.confirmation import classify_authz_confirmation
+    from harness_dast.domain.cors import cors_finding
+
+    item = cors_finding("agenda", exchange(), "comum", 200, "wildcard")
+    result = classify_authz_confirmation(item.model_copy(update={"fields": ()}))
+    assert result.level == "not_verifiable"
+
+
+def test_acesso_anonimo_usa_comparacao_guardada() -> None:
+    from harness_dast.domain.authz.findings_access import anonymous_finding
+    from harness_dast.domain.confirmation import classify_authz_confirmation
+
+    item = anonymous_finding(
+        product="agenda",
+        operation_id="search",
+        method="GET",
+        path_template="/items",
+        actor=("user_a", "comum"),
+        operation=None,
+        statuses=(200, 200),
+    )
+    assert classify_authz_confirmation(item).level == "reproduced"
+    failed = item.model_copy(update={"baseline_status": 401})
+    assert classify_authz_confirmation(failed).level == "not_verifiable"

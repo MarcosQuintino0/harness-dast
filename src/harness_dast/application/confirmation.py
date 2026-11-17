@@ -7,7 +7,6 @@ precisam ser revisadas em conjunto.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
 
 from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.common_ports import (
@@ -20,11 +19,11 @@ from harness_dast.application.common_ports import (
     Sleeper,
     TargetClient,
 )
+from harness_dast.application.confirmation_ports import ConfirmationArtifacts, ConfirmationStore
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
-from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.confirmation import (
     ConfirmationPlan,
@@ -43,50 +42,13 @@ from harness_dast.domain.errors import (
 )
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
-from harness_dast.domain.probe_exchange import ExchangeLog
-from harness_dast.domain.probe_result import ProbeResult
+from harness_dast.domain.negative_result import NegativeFinding
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.request_encoding import join_url
 from harness_dast.domain.run_ref import require_run_id
-from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.signal_result import SignalFinding
 from harness_dast.domain.verification import VerificationEntry, VerificationFile, parse_verification
-
-
-class ConfirmationArtifacts(Protocol):
-    """Leitura validada dos artefatos da execução existente."""
-
-    def read_probe(self, run_id: str) -> ProbeResult:
-        """Lê resultado do probe."""
-        ...
-
-    def read_scan(self, run_id: str) -> ScanResult:
-        """Lê resultado do scan."""
-        ...
-
-    def read_exchanges(self, run_id: str) -> ExchangeLog:
-        """Lê sementes do probe."""
-        ...
-
-    def read_findings(self, run_id: str) -> FindingsReport:
-        """Lê achados do relatório."""
-        ...
-
-    def read_audit(self, run_id: str) -> tuple[AuditEntry, ...]:
-        """Lê sequência anterior da auditoria."""
-        ...
-
-
-class ConfirmationStore(Protocol):
-    """Persistência redigida e atômica do envelope da verificação."""
-
-    def read(self) -> VerificationFile:
-        """Lê e valida resultado existente."""
-        ...
-
-    def write(self, verification: VerificationFile) -> None:
-        """Redige e grava resultado incremental."""
-        ...
 
 
 @dataclass(frozen=True)
@@ -118,38 +80,27 @@ class ConfirmationDependencies:
     marker: Callable[[], str]
 
 
-class _ContinuingTrail(AuditTrail):
-    def __init__(self, store: RunStore, run_id: str, clock: Clock, sequence: int) -> None:
-        super().__init__(store, run_id, clock)
-        self._seq = sequence
-        self.recipe_requests = 0
-        self.session_requests = 0
-
-    def decide(self, request: HttpRequest, reason: str | None) -> int:
-        """Conta reservas aprovadas, inclusive autenticação, sem valores de requisição."""
-        sequence = super().decide(request, reason)
-        if reason is None:
-            if request.operation_id.startswith("confirm:"):
-                self.recipe_requests += 1
-            else:
-                self.session_requests += 1
-        return sequence
-
-
 class Confirmation:
     """Executa receitas com controles somente após conferir autorização e procedência."""
 
     def __init__(self, dependencies: ConfirmationDependencies) -> None:
         """Recebe portas reais ou falsos em memória."""
         self._d = dependencies
-        self._trail: _ContinuingTrail | None = None
+        self._recipe_requests = 0
+        self._session_requests = 0
+        self._finding_start = 0
 
     @property
     def traffic(self) -> tuple[int, int]:
         """Retorna pedidos da receita e da sessão, contabilizados separadamente."""
-        if self._trail is None:
-            return 0, 0
-        return self._trail.recipe_requests, self._trail.session_requests
+        return self._recipe_requests, self._session_requests
+
+    def _count_request(self, request: HttpRequest, reason: str | None) -> None:
+        if reason is None:
+            if request.operation_id.startswith("confirm:"):
+                self._recipe_requests += 1
+            else:
+                self._session_requests += 1
 
     def execute(self, request: ConfirmationRequest) -> VerificationFile:
         """Confirma achados e persiste cada resultado sem alterar o relatório original."""
@@ -166,18 +117,25 @@ class Confirmation:
                 raise ConfigError("Artefatos pertencem a outra execução ou produto.")
         if probe.dry_run or scan.dry_run:
             raise ConfigError("Probe ou scan foi simulado; não há varredura comprovada.")
-        candidates: tuple[Finding | AuthzFinding, ...] = report.findings
-        if report.authz is not None:
-            authz = report.authz
-            if authz.run_id != run_id or authz.product != request.product or authz.dry_run:
-                raise ConfigError("Resultado de autorização não corresponde à execução.")
-            candidates += authz.findings
+        candidates = self._candidates(report, request.product, run_id)
         selected = select_confirmation_findings(candidates, request.maximum, request.finding)
         current = self._load(request)
         dispatcher, sessions = self._network(profile, request, started)
         for finding in selected:
+            self._finding_start = sum(self.traffic)
             if isinstance(finding, AuthzFinding):
                 current = self._save(request, current, classify_authz_confirmation(finding))
+                continue
+            if not isinstance(finding, Finding):
+                current = self._save(
+                    request,
+                    current,
+                    VerificationEntry(
+                        fingerprint=finding.fingerprint,
+                        level="not_verifiable",
+                        reason="Não há receita segura para esta origem de achado.",
+                    ),
+                )
                 continue
             planned = plan_confirmation(
                 finding, exchanges.exchanges, scan.entries, self._d.marker()
@@ -196,6 +154,23 @@ class Confirmation:
                     hint="Confira autorização, pilha e conectividade antes de tentar novamente.",
                 )
         return current
+
+    def _candidates(
+        self, report: FindingsReport, product: str, run_id: str
+    ) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...]:
+        candidates: tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...] = (
+            report.findings
+        )
+        if report.authz is not None:
+            authz = report.authz
+            if authz.run_id != run_id or authz.product != product or authz.dry_run:
+                raise ConfigError("Resultado de autorização não corresponde à execução.")
+            candidates += authz.findings
+        if report.negative is not None:
+            candidates += report.negative.findings
+        if report.proxy_signals is not None:
+            candidates += report.proxy_signals.findings
+        return candidates
 
     def _save(
         self, request: ConfirmationRequest, current: VerificationFile, entry: VerificationEntry
@@ -231,13 +206,21 @@ class Confirmation:
     ) -> tuple[OperationDispatcher, SessionPool]:
 
         def revalidate() -> None:
+            if sum(self.traffic) - self._finding_start >= 12:
+                raise ConfigError("Teto de 12 pedidos por achado atingido.")
             if self._d.profiles.load(request.product) != profile:
                 raise ConfigError("Perfil mudou durante a confirmação; reinicie a etapa.")
 
         sequence = max(
             (entry.seq for entry in self._d.artifacts.read_audit(request.run_id)), default=0
         )
-        self._trail = _ContinuingTrail(self._d.store, request.run_id, self._d.clock, sequence)
+        trail = AuditTrail(
+            self._d.store,
+            request.run_id,
+            self._d.clock,
+            sequence=sequence,
+            on_decision=self._count_request,
+        )
         sender = GuardedSender(
             guard=profile.guard(),
             client=self._d.client,
@@ -245,7 +228,7 @@ class Confirmation:
                 profile, self._d.clock, started, self._d.kill_switch, revalidate=revalidate
             ),
             limiter=RateLimiter(profile.limits.requests_per_second, self._d.clock, self._d.sleeper),
-            trail=self._trail,
+            trail=trail,
             clock=self._d.clock,
         )
         dispatcher = OperationDispatcher(
