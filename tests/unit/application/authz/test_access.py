@@ -526,6 +526,28 @@ def test_a_server_that_accepts_a_token_signed_with_a_weak_key_gets_a_high_findin
         assert "'secret'" not in finding.model_dump_json()
 
 
+def test_a_short_weak_key_is_not_registered_for_masking_but_its_forged_token_is() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac", check_exp=False))
+
+    run_authz(rig, checks=(TAMPER,))
+
+    assert rig.vault.mask("the secret word") == "the secret word"
+    forged = [
+        (header(r, "Authorization") or "").removeprefix("Bearer ")
+        for r in sent(rig, "authz:tampered:")
+    ]
+    assert forged
+    assert all(value not in rig.vault.mask(value) for value in forged)
+
+
+def test_a_long_weak_key_is_registered_for_masking() -> None:
+    rig = AuthzRig(Clinic(jwt=True, jwt_key="supersecret", lax="verify_hmac", check_exp=False))
+
+    run_authz(rig, checks=(TAMPER,))
+
+    assert "supersecret" not in rig.vault.mask("a supersecret word")
+
+
 def test_a_server_that_checks_exp_accepts_only_the_weak_key_proof() -> None:
     rig = AuthzRig(Clinic(jwt=True, jwt_key="secret", lax="verify_hmac"))
 

@@ -180,6 +180,9 @@ class _WeakKeyBudget:
         return self._keys[account]
 
 
+MIN_MASKED_KEY_LENGTH = 8
+
+
 def _send_weak_key(
     ctx: CheckContext,
     exchange: ExchangeRecord,
@@ -193,7 +196,11 @@ def _send_weak_key(
     forged = forge_with_weak_key(credential.value, weak)
     if forged is None:
         return results, statuses, None
-    ctx.settings.vault.register(weak.key)
+    # Só a chave de 8 ou mais caracteres entra no cofre: palavras curtas da lista (`test`, `dev`,
+    # `key`) mascarariam essas palavras em qualquer saída. Os tokens re-assinados, que são o que
+    # trafega, são registrados pela `TamperedSession`; a chave em si nunca vai a artefato algum.
+    if len(weak.key) >= MIN_MASKED_KEY_LENGTH:
+        ctx.settings.vault.register(weak.key)
     for item in forged[:MAX_PROOF_REQUESTS_PER_OPERATION]:
         reply = ctx.sender.tampered(
             exchange, TamperedSession(credential, item.value, ctx.settings.vault)
