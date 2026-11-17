@@ -49,6 +49,7 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("docs/roadmap.md", "estado com resultados e lacunas do laboratório"),
     Exclusion("docs/research", "pesquisa do coordenador, não é instrução operacional"),
     Exclusion("docs/adr/0083-copia-cega-por-lista-de-permissao.md", "fronteira da avaliação"),
+    Exclusion("docs/adr/0089-criterio-privado-triagem.md", "critério privado da avaliação"),
     Exclusion("lab/README.md", "lista as fraquezas documentadas do VAmPI e a ordem esperada"),
     Exclusion("lab/pilot/src", "codigo-fonte do alvo; blocos de falha marcados no codigo"),
     Exclusion("lab/pilot/Dockerfile", "como o alvo e construido (substituido por um stub)"),
