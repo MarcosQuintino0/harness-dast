@@ -72,6 +72,7 @@ def test_v19_independent_journal_failure_prevents_mutation() -> None:
     from typing import Literal
 
     from harness_dast.domain.errors import ConfigError
+    from harness_dast.domain.knowledge_mutation import MutationMetadata
     from harness_dast.domain.mutation_snapshot import MutationSnapshot
 
     class UnavailableJournal:
@@ -80,6 +81,7 @@ def test_v19_independent_journal_failure_prevents_mutation() -> None:
             key: str,
             previous_state: Literal["absent", "present", "unknown"],
             snapshot: MutationSnapshot | None = None,
+            metadata: MutationMetadata | None = None,
         ) -> None:
             raise ConfigError("diário indisponível")
 

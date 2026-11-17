@@ -4,6 +4,7 @@ import json
 import os
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -11,6 +12,11 @@ from pydantic import ValidationError
 
 from harness_dast.domain.authz.created import parse_unique_json
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.knowledge_mutation import (
+    MutationMetadata,
+    MutationPending,
+    PendingMutation,
+)
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 
 _KEY = re.compile(r"[0-9a-f]{64}\Z")
@@ -31,13 +37,17 @@ class FileMutationJournal:
         return self._directory / (key + ".jsonl")
 
     def begin(
-        self, key: str, previous_state: PreviousState, snapshot: MutationSnapshot | None = None
+        self,
+        key: str,
+        previous_state: PreviousState,
+        snapshot: MutationSnapshot | None = None,
+        metadata: MutationMetadata | None = None,
     ) -> None:
         """Reserva operação antes do envio; qualquer registro existente bloqueia repetição."""
         path = self._path(key)
         if previous_state not in ("absent", "present", "unknown"):
             raise ConfigError("Estado anterior de mutação inválido.")
-        record = _intent(previous_state, snapshot)
+        record = _intent(previous_state, snapshot, metadata)
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
             (self._directory / "completed").mkdir(exist_ok=True)
@@ -49,12 +59,11 @@ class FileMutationJournal:
                 stream.flush()
                 os.fsync(stream.fileno())
         except FileExistsError:
-            raise ConfigError(
+            self._read_pending(path)
+            raise MutationPending(
                 "Já existe mutação com resultado desconhecido para esta operação e conta.",
-                hint=(
-                    "Confira no alvo se a mudança foi aplicada e, só depois, remova o arquivo "
-                    f"pendente {path} (ação humana); o harness não repete a mutação às cegas."
-                ),
+                hint="Peça a uma pessoa para conferir o alvo e executar hdast mutation release "
+                + key,
             ) from None
         except OSError:
             raise self._io_error() from None
@@ -65,18 +74,61 @@ class FileMutationJournal:
             hint=f"Confira a permissão e o espaço da pasta {self._directory}.",
         )
 
+    def list_pending(self) -> tuple[PendingMutation, ...]:
+        """Lista intenções válidas; registros corrompidos interrompem a leitura."""
+        try:
+            paths = sorted(path for path in self._directory.iterdir() if path.suffix == ".jsonl")
+            return tuple(self._read_pending(path) for path in paths)
+        except FileNotFoundError:
+            if not self._directory.exists():
+                return ()
+            raise ConfigError("Não foi possível ler o diário de mutações.") from None
+        except OSError:
+            raise ConfigError("Não foi possível ler o diário de mutações.") from None
+
+    def _read_pending(self, path: Path) -> PendingMutation:
+        self._path(path.stem)
+        try:
+            if path.is_symlink():
+                raise ConfigError("Diário de mutação inválido.")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if len(lines) != 1 or not _valid_intent(lines[0]):
+                raise ConfigError("Diário de mutação inválido ou já concluído.")
+            parsed = parse_unique_json(lines[0].encode("utf-8"))
+            if not isinstance(parsed, dict):
+                raise ConfigError("Diário de mutação inválido.")
+            metadata = (
+                MutationMetadata.model_validate(parsed["metadata"])
+                if "metadata" in parsed
+                else None
+            )
+            return PendingMutation(id=path.stem, metadata=metadata)
+        except (OSError, UnicodeError, ValidationError, ValueError):
+            raise ConfigError("Não foi possível ler diário de mutação válido.") from None
+
+    def release(self, key: str, released_at: datetime) -> None:
+        """Registra liberação humana e arquiva; não inspeciona nem toca o alvo."""
+        self._read_pending(self._path(key))
+        self._finish(key, "human_release", released_at)
+
     def finish(self, key: str, outcome: Outcome) -> None:
         """Registra resultado conhecido; falha de gravação deixa a intenção bloqueada."""
-        path = self._path(key)
         if outcome not in ("succeeded", "failed", "observed"):
             raise ConfigError("Resultado de mutação inválido.")
+        self._finish(key, outcome)
+
+    def _finish(self, key: str, outcome: str, released_at: datetime | None = None) -> None:
+        path = self._path(key)
         try:
             with path.open("r+", encoding="utf-8", newline="\n") as stream:
                 lines = stream.readlines()
                 if len(lines) != 1 or not _valid_intent(lines[0]):
                     raise ConfigError("Diário de mutação inválido ou já concluído.")
                 stream.seek(0, os.SEEK_END)
-                stream.write(json.dumps({"outcome": outcome}) + "\n")
+                result = {"outcome": outcome}
+                if released_at is not None:
+                    result["released_at"] = released_at.isoformat()
+                stream.write(json.dumps(result) + "\n")
                 stream.flush()
                 os.fsync(stream.fileno())
             archive = self._directory / "completed" / (key + "-" + uuid.uuid4().hex + ".jsonl")
@@ -85,7 +137,11 @@ class FileMutationJournal:
             raise ConfigError("Não foi possível concluir o diário de mutação.") from None
 
 
-def _intent(previous_state: PreviousState, snapshot: MutationSnapshot | None) -> dict[str, object]:
+def _intent(
+    previous_state: PreviousState,
+    snapshot: MutationSnapshot | None,
+    metadata: MutationMetadata | None,
+) -> dict[str, object]:
     record: dict[str, object] = {"intent": "mutation", "previous_state": previous_state}
     if snapshot is not None:
         if not isinstance(snapshot, MutationSnapshot):
@@ -97,6 +153,13 @@ def _intent(previous_state: PreviousState, snapshot: MutationSnapshot | None) ->
         if not _matches_source(previous_state, snapshot):
             raise ConfigError("Origem e estado anterior da mutação são incompatíveis.")
         record["snapshot"] = snapshot.model_dump()
+    if metadata is not None:
+        try:
+            record["metadata"] = MutationMetadata.model_validate(metadata.model_dump()).model_dump(
+                mode="json"
+            )
+        except (ValidationError, AttributeError):
+            raise ConfigError("Metadados de mutação inválidos.") from None
     return record
 
 
@@ -107,15 +170,17 @@ def _valid_intent(text: str) -> bool:
     previous = parsed.get("previous_state")
     if previous not in ("absent", "present", "unknown"):
         return False
-    if set(parsed) == {"intent", "previous_state"}:
-        return True
-    if set(parsed) != {"intent", "previous_state", "snapshot"}:
+    if not set(parsed) <= {"intent", "previous_state", "snapshot", "metadata"}:
         return False
     try:
-        snapshot = MutationSnapshot.model_validate(parsed["snapshot"])
+        if "metadata" in parsed:
+            MutationMetadata.model_validate(parsed["metadata"])
+        if "snapshot" in parsed:
+            snapshot = MutationSnapshot.model_validate(parsed["snapshot"])
+            return _matches_source(str(previous), snapshot)
     except ValidationError:
         return False
-    return _matches_source(str(previous), snapshot)
+    return True
 
 
 def _matches_source(previous: str, snapshot: MutationSnapshot) -> bool:

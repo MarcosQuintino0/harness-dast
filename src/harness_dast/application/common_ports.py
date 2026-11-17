@@ -18,6 +18,7 @@ from harness_dast.domain.command_journal import JournalEntry, JournalLoad
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import ApprovedRequest, HttpResponse
+from harness_dast.domain.knowledge_mutation import MutationMetadata
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ArtifactHashes, ProbeResult, RunManifest
@@ -36,6 +37,7 @@ class MutationJournal(Protocol):
         key: str,
         previous_state: Literal["absent", "present", "unknown"],
         snapshot: MutationSnapshot | None = None,
+        metadata: MutationMetadata | None = None,
     ) -> None:
         """Reserva chave estável; pendência impede repetição."""
         ...

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.knowledge_mutation import MutationMetadata, MutationPending
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 
 
@@ -19,9 +19,10 @@ class MemoryMutationJournal:
         key: str,
         previous_state: Literal["absent", "present", "unknown"],
         snapshot: MutationSnapshot | None = None,
+        metadata: MutationMetadata | None = None,
     ) -> None:
         if key in self.pending:
-            raise ConfigError("Mutação pendente")
+            raise MutationPending("Mutação pendente")
         self.pending.add(key)
         self.began.append(key)
 

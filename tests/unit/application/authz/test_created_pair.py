@@ -16,6 +16,7 @@ from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.knowledge_mutation import MutationMetadata
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from tests.fakes.authz.rig import AuthzRig, Clinic, clinic_spec
@@ -285,6 +286,7 @@ class MemoryJournal:
         key: str,
         previous_state: Literal["absent", "present", "unknown"],
         snapshot: MutationSnapshot | None = None,
+        metadata: MutationMetadata | None = None,
     ) -> None:
         assert previous_state == "unknown"
         if key in self.pending:

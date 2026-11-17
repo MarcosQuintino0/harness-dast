@@ -16,6 +16,7 @@ from harness_dast.application.common_ports import (
     Sleeper,
     TargetClient,
 )
+from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
 from harness_dast.domain.audit import decision_entry, result_entry
 from harness_dast.domain.errors import HarnessError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
@@ -229,7 +230,7 @@ class GuardedSender:
         started = self._clock.now()
         key = self._mutation_key(request)
         if key is not None and self._journal is not None:
-            self._journal.begin(key, "unknown")
+            begin_mutation(self._journal, key)
         try:
             response = self._client.send(approved)
         except HarnessError as error:
@@ -237,7 +238,7 @@ class GuardedSender:
             raise
         self._trail.finish(seq, request, status=response.status, error=None, ms=self._ms(started))
         if key is not None and self._journal is not None and response.status < 500:
-            self._journal.finish(key, "observed")
+            finish_mutation(self._journal, key, "observed")
         return response
 
     def _mutation_key(self, request: HttpRequest) -> str | None:
