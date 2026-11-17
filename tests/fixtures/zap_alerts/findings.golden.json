@@ -111,7 +111,9 @@
         40043,
         40044,
         90034
-      ]
+      ],
+      "oast": false,
+      "oast_rules": []
     },
     "traffic": {
       "enabled": false,
