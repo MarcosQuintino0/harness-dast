@@ -17,6 +17,7 @@ from harness_dast.adapters.scope_proxy.approval_watch import FileWatch
 from harness_dast.adapters.scope_proxy.decision import ALLOW, Reason, Verdict, deny
 from harness_dast.adapters.scope_proxy.gate_watch import GateWatch
 from harness_dast.adapters.scope_proxy.policy import ApprovalBinding
+from harness_dast.adapters.scope_proxy.watch_diagnostic import Detection, WatchCause
 from harness_dast.domain.errors import ConfigError, ScopeViolation
 from harness_dast.domain.window import ensure_any_window_open
 
@@ -84,7 +85,11 @@ class RunGate:
         return ALLOW if self._latched is None else deny(self._latched)
 
     def _detect(self) -> Reason | None:
-        file_reason = self._detect_files() if self._watch is None else self._watch.check()
+        if self._watch is None:
+            detection = self._detect_files()
+            file_reason = None if detection is None else detection.reason
+        else:
+            file_reason = self._watch.check()
         if file_reason is not None:
             return file_reason
         now = self._now()
@@ -98,7 +103,7 @@ class RunGate:
                 return Reason.RUN_EXPIRED
         return None
 
-    def _detect_files(self) -> Reason | None:
+    def _detect_files(self) -> Detection | None:
         try:
             self._kill_flag.parent.stat()
             try:
@@ -106,9 +111,11 @@ class RunGate:
             except FileNotFoundError:
                 pass
             else:
-                return Reason.KILL_SWITCH
+                return Detection(Reason.KILL_SWITCH, WatchCause.STOP)
         except OSError:
-            return Reason.KILL_SWITCH
-        if any(not watch.unchanged() for watch in self._watches):
-            return Reason.APPROVAL_CHANGED
+            return Detection(Reason.KILL_SWITCH, WatchCause.STOP)
+        for watch in self._watches:
+            cause = watch.failure()
+            if cause is not None:
+                return Detection(Reason.APPROVAL_CHANGED, cause)
         return None

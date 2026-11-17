@@ -13,6 +13,7 @@ import harness_dast.adapters.scope_proxy.generate as generate_module
 from harness_dast.adapters.scope_proxy.approval_watch import FileWatch, file_signature
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.policy import load_policy
+from harness_dast.adapters.scope_proxy.watch_diagnostic import WatchCause
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.domain.run import RunId
 from harness_dast.domain.scope_approval import create_approval
@@ -154,3 +155,57 @@ def test_hash_recusa_mutacao_com_tamanho_e_mtime_preservados(
 
     assert file_signature(path.stat(), windows=True) == original_signature
     assert not watch.unchanged()
+    assert watch.failure() is WatchCause.HASH
+
+
+def test_diagnostico_classifica_troca_de_identidade(tmp_path: Path) -> None:
+    path = tmp_path / "private-source"
+    raw = b"conteudo sintetico"
+    path.write_bytes(raw)
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(raw)
+    replacement.replace(path)
+    assert watch.failure() is WatchCause.IDENTITY
+
+
+def test_diagnostico_classifica_arquivo_ausente(tmp_path: Path) -> None:
+    path = tmp_path / "private-source"
+    raw = b"conteudo sintetico"
+    path.write_bytes(raw)
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    path.unlink()
+    assert watch.failure() is WatchCause.ACCESS
+
+
+def test_diagnostico_classifica_leitura_instavel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "private-source"
+    raw = b"conteudo sintetico"
+    path.write_bytes(raw)
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    real_fstat = os.fstat
+    calls = [0]
+
+    def unstable(descriptor: int) -> os.stat_result:
+        result = real_fstat(descriptor)
+        calls[0] += 1
+        if calls[0] == 2:
+            data = list(result)
+            data[6] += 1
+            return os.stat_result(data)
+        return result
+
+    monkeypatch.setattr(os, "fstat", unstable)
+    assert watch.failure() is WatchCause.UNSTABLE
+
+
+def test_diagnostico_classifica_metadados_alterados(tmp_path: Path) -> None:
+    path = tmp_path / "private-source"
+    raw = b"conteudo sintetico"
+    path.write_bytes(raw)
+    watch = FileWatch(path, hashlib.sha256(raw).hexdigest())
+    previous = path.stat()
+    os.utime(path, ns=(previous.st_atime_ns, previous.st_mtime_ns + 2_000_000_000))
+    assert watch.failure() is WatchCause.METADATA

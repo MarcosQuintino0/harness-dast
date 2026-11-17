@@ -50,6 +50,27 @@ def test_mutacao_sem_mudar_tamanho_ou_mtime_trava_concessoes(
         engine.close()
 
 
+def test_vigia_real_registra_primeira_recusa_sem_identificar_fonte(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from harness_dast.adapters.scope_proxy import gate_watch
+    from harness_dast.adapters.scope_proxy.watch_diagnostic import WatchCause
+
+    events: list[WatchCause] = []
+    monkeypatch.setattr(gate_watch, "log_latch", events.append)
+    engine, _, approval, _ = rig(tmp_path)
+    approval.unlink()
+    try:
+        watch = engine._gate._watch
+        assert watch is not None
+        watch.run_once()
+        assert engine.recheck_after_wait().reason is Reason.APPROVAL_CHANGED
+        watch.run_once()
+    finally:
+        engine.close()
+    assert events == [WatchCause.ACCESS]
+
+
 def test_leitura_lenta_nao_renova_snapshot_ao_terminar() -> None:
     now = [0.0]
     calls = [0]
