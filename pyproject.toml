@@ -90,8 +90,8 @@ convention = "google"
 "evals/**" = ["D1"]
 # CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
 # a cópia continuar idêntica ao original.
-"src/harness_dast/domain/panel_style.py" = ["E501"]
-"src/harness_dast/domain/panel_tokens.py" = ["E501"]
+"src/harness_dast/domain/panel/style.py" = ["E501"]
+"src/harness_dast/domain/panel/tokens.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]

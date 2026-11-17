@@ -13,7 +13,7 @@ from typing import Final
 
 from harness_dast.application.panel_index_ports import RunFolder
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.panel_model import HISTORY_PREFIX, INDEX_FILE, PANEL_DIR
+from harness_dast.domain.panel.model import HISTORY_PREFIX, INDEX_FILE, PANEL_DIR
 from harness_dast.domain.run import SLUG_PATTERN
 
 _RUN_FOLDER: Final = re.compile(

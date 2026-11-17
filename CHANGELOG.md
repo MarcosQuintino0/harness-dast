@@ -8,6 +8,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Organização
 
+- ADR 0084 proposto compara apresentação no domínio e em adapters/reporting; recomenda migração futura, sem troca de camada nesta entrega.
+
+- Grupo panel: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
+
 - Regras A/B canônicas em AGENTS, importação curta no Claude e cinco skills de desenvolvimento, separadas das cinco de uso.
 - Cópia cega por lista de permissão, manifesto de arquivos e proteção de AGENTS (ADR 0083); contexto menor explicitado no protocolo.
 - Sete arquivos de pesquisa consolidados em docs/research e política documental de retenção de evals, sem apagar resultados.

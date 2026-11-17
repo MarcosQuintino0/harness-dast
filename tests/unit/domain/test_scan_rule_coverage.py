@@ -11,9 +11,9 @@ from tests.unit.domain.report_helpers import entry, operation, probe_result, sca
 
 
 def test_regra_pulada_com_progresso_100_torna_relatorio_parcial() -> None:
-    from harness_dast.domain.panel_build import build_panel_view
-    from harness_dast.domain.panel_coverage import render_coverage
-    from tests.unit.domain.panel_helpers import sources
+    from harness_dast.domain.panel.build import build_panel_view
+    from harness_dast.domain.panel.coverage import render_coverage
+    from tests.unit.domain.panel.helpers import sources
 
     item = entry("obter", "GET", "/items", 1).model_copy(update={"scan_id": "1"})
     rules = OperationRules(

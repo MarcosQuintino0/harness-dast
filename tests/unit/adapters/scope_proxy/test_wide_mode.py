@@ -311,7 +311,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "application/scan.py",
         "application/metrics.py",  # só copia o modo para o metrics.json (ADR 0031)
         "domain/envelope.py",  # só copia o modo ao resumo; não constrói guarda
-        "domain/panel_build.py",  # só copia o modo gravado na execução para o painel
+        "domain/panel/build.py",  # só copia o modo gravado na execução para o painel
         "domain/letter.py",  # carta estruturada (ADR 0036): só descreve a resposta
         "domain/letter_review.py",  # só repassa o modo ao perfil gerado
         "domain/letter_sections.py",  # só recusa `wide` sem origem na carta; não monta guarda

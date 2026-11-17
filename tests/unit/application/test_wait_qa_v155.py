@@ -5,7 +5,7 @@ from pathlib import Path
 from harness_dast.adapters.reporting.wait_files import FileWaitReader, ProductWaitReader
 from harness_dast.adapters.reporting.wait_marker import FileWaitMarker
 from harness_dast.application.stack_models import StackLockInfo
-from tests.unit.domain.panel_helpers import run_summary
+from tests.unit.domain.panel.helpers import run_summary
 
 RUN_ID = "2026-11-13T10-00-00Z-demo-aaaa"
 

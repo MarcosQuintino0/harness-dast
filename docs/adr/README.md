@@ -111,6 +111,7 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | ADR | Contrato |
 | --- | --- |
 | [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
+| [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
 
 ## Quando escrever um ADR
 

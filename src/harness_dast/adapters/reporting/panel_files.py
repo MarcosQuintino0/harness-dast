@@ -20,7 +20,7 @@ from harness_dast.domain.agent_metrics import AGENT_METRICS_SCHEMA_VERSION, Agen
 from harness_dast.domain.authz_result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_result import NegativeResult
-from harness_dast.domain.panel_model import PANEL_DIR
+from harness_dast.domain.panel.model import PANEL_DIR
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.report_model import FindingsReport
 from harness_dast.domain.run import SLUG_PATTERN

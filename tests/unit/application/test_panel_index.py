@@ -11,7 +11,7 @@ from tests.fakes.clock import FixedClock
 from tests.fakes.panel_index_ports import BreakableFiles, FakeIndexFiles
 from tests.fakes.profile_data import valid_profile
 from tests.fakes.profile_repository import InMemoryProfileRepository
-from tests.unit.domain.panel_helpers import findings_report, run_summary, sources
+from tests.unit.domain.panel.helpers import findings_report, run_summary, sources
 
 OLD = "2026-11-12T20-08-00Z-vampi-ab12"
 NEW = "2026-11-13T20-08-00Z-vampi-cd34"

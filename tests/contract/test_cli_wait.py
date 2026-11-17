@@ -11,7 +11,7 @@ from harness_dast.adapters.reporting.wait_marker import FileWaitMarker
 from harness_dast.application.stack_models import StackLockInfo
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.cli.commands import wait as command
-from tests.unit.domain.panel_helpers import run_summary
+from tests.unit.domain.panel.helpers import run_summary
 
 pytestmark = pytest.mark.contract
 RUN_ID = "2026-11-13T10-00-00Z-demo-aaaa"

@@ -94,3 +94,8 @@ Somente a biblioteca padrão e pydantic.
 ## Status
 
 Os módulos listados estão implementados e testados e são usados pelos comandos da CLI. O número de cobertura (100% na revisão de 2026-11-13) envelhece: a fonte é o relatório do CI. Módulo planejado que ainda não existe não aparece nesta página. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
+
+## Grupo `panel/`
+
+29 módulos de produção agrupados na mesma camada, sem alterar contratos.
+Novas regras deste assunto entram em `domain/panel/`, com testes espelhados em `tests/unit/domain/panel/`.

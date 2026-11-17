@@ -97,9 +97,9 @@ def test_coverage_lists_what_was_not_tested_and_why() -> None:
 
 @pytest.mark.parametrize(("method", "path"), [("GET", "/catalog/{id}"), ("POST", "/orders")])
 def test_completed_run_marks_unscanned_eligible_operation_partial(method: str, path: str) -> None:
-    from harness_dast.domain.panel_build import build_panel_view
-    from harness_dast.domain.panel_coverage import render_coverage
-    from tests.unit.domain.panel_helpers import sources
+    from harness_dast.domain.panel.build import build_panel_view
+    from harness_dast.domain.panel.coverage import render_coverage
+    from tests.unit.domain.panel.helpers import sources
 
     probe = probe_result(
         [operation("pending", method, path, "validation_error", message="Inválido")]
@@ -145,9 +145,9 @@ def test_scanned_unreached_operation_still_marks_coverage_partial() -> None:
 
 @pytest.mark.parametrize(("method", "path"), [("GET", "/stock"), ("POST", "/sessions")])
 def test_refused_scan_is_listed_as_unscanned(method: str, path: str) -> None:
-    from harness_dast.domain.panel_build import build_panel_view
-    from harness_dast.domain.panel_coverage import render_coverage
-    from tests.unit.domain.panel_helpers import sources
+    from harness_dast.domain.panel.build import build_panel_view
+    from harness_dast.domain.panel.coverage import render_coverage
+    from tests.unit.domain.panel.helpers import sources
 
     probe = probe_result([operation("pending", method, path)])
     refused = entry("pending", method, path, 1, outcome="refused").model_copy(
@@ -219,9 +219,9 @@ def test_old_not_success_skip_for_expected_login_is_a_design_exclusion() -> None
 
 @pytest.mark.parametrize("path", ["/sessions", "/access/token"])
 def test_expected_login_rejection_is_reached_and_excluded_from_scanning(path: str) -> None:
-    from harness_dast.domain.panel_build import build_panel_view
-    from harness_dast.domain.panel_coverage import render_coverage
-    from tests.unit.domain.panel_helpers import sources
+    from harness_dast.domain.panel.build import build_panel_view
+    from harness_dast.domain.panel.coverage import render_coverage
+    from tests.unit.domain.panel.helpers import sources
 
     # Aceita o contrato novo também enquanto o módulo de probe é integrado em outra branch.
     item = operation("sign_in", "POST", path).model_copy(
