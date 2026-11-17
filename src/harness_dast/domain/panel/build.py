@@ -8,6 +8,7 @@ arquivo, rede ou o relógio. A montagem não altera severidade, não apaga achad
 
 from datetime import UTC, datetime, tzinfo
 
+from harness_dast.domain.finding_confidence import confidence_step
 from harness_dast.domain.panel.build_content import (
     build_counts,
     build_functions,
@@ -113,6 +114,31 @@ def build_panel_view(src: PanelSources) -> PanelView:
     severe = build_severe(
         src.findings, src.authz, src.negative, names, src.explanations, src.probe, paths
     )
+    if src.presentation is not None:
+        confirmed = {
+            item.verification.fingerprint
+            for item in src.presentation.findings
+            if item.confirmations
+        }
+        originals = (
+            {item.fingerprint: item for item in src.findings.findings} if src.findings else {}
+        )
+        severe = tuple(
+            item.model_copy(
+                update={
+                    "confidence": (
+                        {"a confirmar": 1, "prova forte": 2, "confirmada": 3}[
+                            confidence_step(originals[item.fingerprint], confirmed_by_person=True)
+                        ]
+                        if item.fingerprint in originals
+                        else 3
+                    )
+                }
+            )
+            if item.fingerprint in confirmed
+            else item
+            for item in severe
+        )
     functions = build_functions(src.operations, src.probe, src.scan, severe)
     counts = build_counts(src.findings, src.authz, src.negative)
     measurements = build_measurements(src.metrics, src.agent_metrics)
@@ -150,4 +176,5 @@ def build_panel_view(src: PanelSources) -> PanelView:
         commands=_commands_in_zone(src),
         commands_skipped=src.commands_skipped,
         links=panel_links(src.product),
+        presentation=src.presentation,
     )

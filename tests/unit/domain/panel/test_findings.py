@@ -1,10 +1,12 @@
 """Aba Falhas: fiel a `screens/findings.html` e aos estados de `system/states.html`."""
 
 import re
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
 from harness_dast.domain.finding import FindingEvidence
+from harness_dast.domain.human_confirmation import HumanConfirmation
 from harness_dast.domain.manual_repro import ManualRepro, ReproHeader
 from harness_dast.domain.panel.findings import render_findings
 from harness_dast.domain.panel.model import (
@@ -16,6 +18,8 @@ from harness_dast.domain.panel.model import (
     PanelView,
 )
 from harness_dast.domain.panel.pages import render_panel
+from harness_dast.domain.report.presentation import Presentation, PresentedFinding
+from harness_dast.domain.verification import VerificationEntry
 from tests.unit.domain.panel.helpers import XSS, view
 
 DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
@@ -130,6 +134,75 @@ def main_text(page: str) -> str:
 
 def one_page() -> str:
     return page_for(finding())
+
+
+def test_verification_is_shown_in_matching_card_with_comparison_and_person() -> None:
+    entry = VerificationEntry(
+        fingerprint="a" * 64,
+        level="reproduced",
+        reason="Respostas diferentes.",
+        attack="ataque observado",
+        control="controle observado",
+    )
+    person = HumanConfirmation(
+        fingerprint="a" * 64,
+        person="Ana",
+        confirmed_at=datetime(2026, 11, 17, tzinfo=UTC),
+        observation="Vi a resposta.",
+    )
+    item = PresentedFinding(
+        finding_id="F-fbb97e8d",
+        title="Título técnico",
+        severity="high",
+        origin="zap",
+        verification=entry,
+        confirmations=(person,),
+    )
+    page = page_for(finding(), presentation=Presentation(findings=(item,)))
+    card = page.split('id="F-fbb97e8d"', 1)[1].split("</section>", 1)[0]
+
+    assert "Reproduzido" in card
+    assert "Respostas diferentes." in card
+    assert "ataque observado" in card
+    assert "controle observado" in card
+    assert "Ana" in card
+    assert "Vi a resposta." in card
+    assert 'style="display:flex;flex-wrap:wrap;gap:12px"' in card
+
+
+def test_verification_index_links_to_cards_and_closed_minor_details_safely() -> None:
+    def presented(code: str, title: str, severity: str) -> PresentedFinding:
+        return PresentedFinding(
+            finding_id=code,
+            title=title,
+            severity=severity,
+            origin="zap",
+            verification=VerificationEntry(
+                fingerprint="b" * 64,
+                level="inconclusive",
+                reason="<script>alert(1)</script>",
+                attack="Authorization: Bearer segredo",
+            ),
+        )
+
+    presentation = Presentation(
+        findings=(
+            presented("F-fbb97e8d", "Título grave", "high"),
+            presented("F-menor", "Aviso <menor>", "low"),
+        )
+    )
+    page = page_for(finding(), presentation=presentation)
+
+    assert 'href="#F-fbb97e8d">Busca de paciente por nome · F-fbb97e8d' in page
+    assert 'href="#verificacao-F-menor">Aviso &lt;menor&gt; · F-menor' in page
+    assert '<details id="verificacao-F-menor">' in page
+    assert "<article" not in page
+    assert "<details open" not in page
+    assert "<script>alert(1)</script>" not in page
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page
+    assert "Bearer segredo" not in page
+    assert "Aviso de gravidade baixa" in page
+    assert "Grave" in page
 
 
 # ---------------------------------------------------------------- fidelidade ao desenho
@@ -418,6 +491,7 @@ def test_an_authorization_finding_has_no_manual_repro_and_says_why_in_one_senten
     authz = finding(
         finding_id="A-12345678",
         origin="authz",
+        authz_technique="authz_horizontal",
         title="Acesso a recurso de outra conta",
         repro=None,
         evidence=None,

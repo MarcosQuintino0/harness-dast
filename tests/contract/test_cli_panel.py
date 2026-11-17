@@ -10,7 +10,11 @@ import pytest
 import yaml
 
 from harness_dast.cli.app import build_app, run_app
+from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
+from harness_dast.domain.confirmation import plan_confirmation
 from harness_dast.domain.errors import ExitCode
+from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.verification import VerificationEntry
 from tests.fakes.profile_data import valid_profile_data
 from tests.unit.domain.panel.helpers import findings_report, run_summary
 from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
@@ -65,7 +69,8 @@ def write_run(runs: Path, run_id: str = RUN_ID, *, product: str = "vampi") -> Pa
     (folder / "scan.json").write_text(
         scan.model_copy(update={"product": product}).model_dump_json(), encoding="utf-8"
     )
-    (folder / "findings.json").write_text(findings_report().model_dump_json(), encoding="utf-8")
+    findings = findings_report().model_copy(update={"product": product, "run_id": run_id})
+    (folder / "findings.json").write_text(findings.model_dump_json(), encoding="utf-8")
     (folder / "run.json").write_text(
         run_summary(run_id=run_id, product=product).model_dump_json(), encoding="utf-8"
     )
@@ -109,6 +114,123 @@ def test_panel_writes_the_six_pages_and_answers_with_the_envelope(
     page = (folder / "panel" / "summary.html").read_text(encoding="utf-8")
     assert "Ver usuário" in page
     assert "<script" not in page
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_panel_preserves_recorded_verification_and_human_confirmation(
+    world: tuple[Path, Path], capsys: pytest.CaptureFixture[str], method: str
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+    findings_path = folder / "findings.json"
+    report = FindingsReport.model_validate_json(findings_path.read_text(encoding="utf-8"))
+    finding = report.findings[0].model_copy(update={"method": method, "plugin_id": "10010"})
+    report = report.model_copy(update={"findings": (finding,)})
+    findings_path.write_text(report.model_dump_json(), encoding="utf-8")
+    planned = plan_confirmation(finding, (), (), "a" * 16)
+    assert isinstance(planned, VerificationEntry)
+    assert planned.reason == "Não há receita segura para este tipo de achado."
+    verification = planned.model_copy(
+        update={"attack": "ataque sintético", "control": "controle sintético"}
+    )
+    envelope = {"schema_version": 1, "product": "vampi", "run_id": RUN_ID}
+    verification_path = folder / "verification.json"
+    human_path = folder / "human-confirmations.json"
+    verification_path.write_text(
+        json.dumps({**envelope, "entries": [verification.model_dump()]}), encoding="utf-8"
+    )
+    human_path.write_text(
+        json.dumps(
+            {
+                **envelope,
+                "entries": [
+                    {
+                        "fingerprint": finding.fingerprint,
+                        "person": "Pessoa sintética",
+                        "confirmed_at": "2026-11-17T12:00:00Z",
+                        "observation": "efeito observado",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = {path: path.read_bytes() for path in (findings_path, verification_path, human_path)}
+
+    code, _ = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+    page = (folder / "panel" / "findings.html").read_text(encoding="utf-8")
+    card = page.split(f'id="{finding.finding_id}"', 1)[1].split("</section>", 1)[0]
+    index = page.split('aria-label="Verificação dos achados"', 1)[1]
+
+    assert code == ExitCode.OK
+    assert "Não verificável" in card
+    assert planned.reason in card
+    assert "ataque sintético" in card
+    assert "controle sintético" in card
+    assert "Pessoa sintética" in card
+    assert "efeito observado" in card
+    assert f'href="#{finding.finding_id}">Ver usuário · {finding.finding_id}</a>' in index
+    assert "<td>Grave</td>" in index
+    assert f'<details id="verificacao-{finding.finding_id}">' in index
+    assert "<details open" not in index
+    assert "<article" not in index
+    assert all(path.read_bytes() == content for path, content in before.items())
+
+
+@pytest.mark.parametrize(
+    ("technique", "fields", "expected"),
+    [
+        ("authz_cors", ("reflected_credentials",), "origem estranha"),
+        ("authz_excessive_data", (), "campos da resposta com o esquema do OpenAPI"),
+    ],
+)
+def test_panel_describes_recorded_authz_technique_without_inventing_two_accounts(
+    world: tuple[Path, Path],
+    capsys: pytest.CaptureFixture[str],
+    technique: str,
+    fields: tuple[str, ...],
+    expected: str,
+) -> None:
+    runs, _ = world
+    folder = write_run(runs)
+    finding = AuthzFinding.model_validate(
+        {
+            "finding_id": "A-12345678",
+            "fingerprint": "a" * 64,
+            "technique": technique,
+            "title": "Achado de autorização",
+            "proposed_severity": "high",
+            "cwe": 942,
+            "owasp_api_2023": "API8",
+            "operation_id": "obter",
+            "method": "GET",
+            "path_template": "/users/v1/{username}",
+            "actor_account": "user_a",
+            "observed_status": 200,
+            "fields": fields,
+            "evidence": "observação",
+            "description": "",
+            "solution": "",
+        }
+    )
+    result = AuthzResult(
+        run_id=RUN_ID,
+        product="vampi",
+        status="completed",
+        started_at="início",
+        finished_at="fim",
+        findings=(finding,),
+    )
+    (folder / "authz.json").write_text(result.model_dump_json(), encoding="utf-8")
+
+    code, _ = invoke_json(capsys, "panel", "vampi", "--run", RUN_ID)
+    page = (folder / "panel" / "findings.html").read_text(encoding="utf-8")
+    card = page.split('id="A-12345678"', 1)[1].split("</section>", 1)[0]
+
+    assert code == ExitCode.OK
+    assert expected in card
+    assert "comparação entre duas contas" not in card
+    assert "repetiu o pedido com outra conta" not in card
 
 
 def test_panel_without_run_uses_the_latest_execution_of_the_product(

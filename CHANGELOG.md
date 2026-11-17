@@ -25,6 +25,26 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ### Corrigido
 
 - Cópia cega: `lab/pilot/target/` (saída de build da Clínica Piloto, ignorada pelo git) entrava no workspace com as classes compiladas, `application.yml` e o esquema SQL, que revelam o código do alvo. A lista antiga de exclusões e a nova lista de permissão deixavam a pasta passar quando ela existia na origem; agora ela é excluída, com teste. Rodadas antigas preparadas a partir de um checkout com o alvo compilado podem ter recebido esses arquivos.
+- `hdast confirm`: a leitura de cabeçalhos registrados aceita `Vary`, `Set-Cookie` e outros nomes repetíveis; antes, qualquer nome repetido tornava a evidência "indisponível" (30 alertas de `X-Content-Type-Options` da Clínica Piloto). Com teste.
+
+## [1.11.0] - 2026-11-17
+
+- Provas 0, D e F executadas só no laboratório (Clínica Piloto vulnerável e segura, VAmPI vulnerável e seguro), com aprovações descartáveis do suporte de integração em estado de teste, sem `profile approve` e sem estado real. Linha de base `44ef387`: Clínica vulnerável `80a9` (98 ZAP, 4 autorização, 29 sinais), segura `ab47` (63 ZAP, 1 autorização) e VAmPI vulnerável `1fd0` (30 ZAP, 3 autorização, 4 sinais). Calibração com `hdast confirm` em todos os achados de cinco execuções completas: só recibos de autorização chegaram a `reproduced` (3 falhas plantadas, 2 médicos que compartilham pacientes sem `shared_roles`, 6 respostas sem login do VAmPI); o único SQL elegível a receita ativa ficou `inconclusive`; nenhum `likely_false_positive` ocorreu. Matriz e limites em `docs/reference/verification-calibration.md`; relatório em `docs/reviews/relatorio-v1.11.md`.
+
+Carimbo da candidata na branch, sem publicação e com aceites operacionais pendentes.
+
+### Verificação
+
+- Painel: nível e motivo de verificação junto da confiança em cada cartão, com ataque/controle redigidos e confirmação humana separada. Índice com nomes legíveis, gravidade em português e detalhes recolhidos por padrão; os relatórios preservam a apresentação anterior.
+- Textos de confiança e reprodução de CORS e campos fora do esquema correspondem à técnica observada, sem atribuir comparação entre contas. O recibo CORS atual não guarda o valor de `Origin`; o painel explica por que não oferece um comando fiel.
+- Motivo de recusa de regras sem receita tem precedência sobre o método da operação; preservados nível, severidade e bloqueio de escritas. Regressões unitárias e de contrato cobrem o polimento.
+- Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
+- Leitores consultivos compartilham decodificação estrita: chaves duplicadas, constantes não finitas e conteúdo malformado falham com erro seguro.
+- `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
+- `hdast confirm`: receitas fixas de leitura com controle, resultado aditivo e contagem separada de pedidos de receita e sessão; painel e relatórios apresentam verificação e confirmação humana (ADRs 0087 e 0088, propostos). Calibração medida só no laboratório, com amostras pequenas e sem produto real.
+- Recibo aditivo da URL e conta efetivamente varridas; execuções antigas sem recibo não geram confirmação ativa. Prova parcial e causa de parada são preservadas, e sessão, CSRF e recuos consomem o teto por achado (ADR 0090, proposto).
+- Observação guardada de cabeçalhos e técnicas de autorização sem tráfego novo, com limites por tipo e leitura posterior quando necessária; seção consultiva estruturada no HTML e testes por camada (ADR 0091, proposto).
+- Skills de triagem orientam a reprodução pela CLI e a leitura da verificação. Régua privada de acerto da triagem preserva a nota histórica (ADR 0089, proposto).
 
 ## [1.9.3] - 2026-11-16
 

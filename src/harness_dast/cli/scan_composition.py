@@ -10,6 +10,7 @@ from pathlib import Path
 
 import structlog
 
+from harness_dast.adapters.reporting.presentation_files import FilePresentationFiles
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.reporting.sinks import (
     HtmlReportSink,
@@ -30,6 +31,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.report import Report
+from harness_dast.application.report_presentation import PresentationBuilder
 from harness_dast.application.run import RunPipeline
 from harness_dast.application.scan import Scan
 from harness_dast.application.strategy import basis_for_engine
@@ -183,6 +185,10 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
     `with_panel=False` é para o `run`, que gera o painel por último, depois de gravar `run.json`.
     """
     runs_dir = load_settings().runs_dir
+    calibration_path = (
+        Path(__file__).resolve().parents[3] / "docs/reference/verification-calibration.json"
+    )
+    presentation = PresentationBuilder(FilePresentationFiles(runs_dir, calibration_path))
     try:
         audit = open_proxy_audit()
     except ConfigError as error:
@@ -194,8 +200,8 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
         artifacts=FileRunArtifacts(runs_dir),
         sinks=(
             JsonFindingsSink(runs_dir),
-            MarkdownReportSink(runs_dir),
-            HtmlReportSink(runs_dir),
+            MarkdownReportSink(runs_dir, presentation),
+            HtmlReportSink(runs_dir, presentation),
         ),
         clock=SystemClock(),
         harness_version=harness_version(),

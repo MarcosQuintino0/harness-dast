@@ -4,9 +4,11 @@ Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-porta
 
 ## Mapa por assunto
 
-Inventário após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`.
+Inventário histórico após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`; não inclui as adições da V1.11.
 Contagens por grupo são disjuntas e somam o total. A raiz mantém 71 módulos; subpacotes preservam a camada.
 Testes espelham `tests/unit/application/`; adaptadores concretos continuam em `adapters/`.
+
+Na V1.11, `verification.py` coordena a classificação offline, `confirmation.py` conduz a reprodução protegida, `human_confirmation.py` registra a declaração humana e `report_presentation.py` monta a visão consultiva. Suas fronteiras ficam em `confirmation_ports.py`, `human_confirmation_ports.py` e `report_presentation_ports.py`. As decisões de nível e vínculo de semente pertencem ao domínio.
 
 | Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
 | --- | --- | --- | --- |
@@ -116,7 +118,9 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 
 ## Portas por consumidor
 
-47 declarações preservadas (Protocol e modelos de assinatura), distribuídas em 12 módulos; sem mudar assinaturas ou docstrings.
+Na V1.11 em andamento, `verification.py` coordena a classificação sem tráfego; `confirmation.py` coordena leitura dos artefatos, seleção, controles de envio e persistência aditiva; `human_confirmation.py` e `human_confirmation_ports.py` tratam a declaração interativa separada. A apresentação reúne os registros sem alterar o achado. Veja [verificação](../reference/verification.md).
+
+Na organização V1.9.4 foram preservadas 47 declarações (Protocol e modelos de assinatura), distribuídas em 12 módulos; a V1.11 acrescenta portas específicas de confirmação.
 As portas existentes de scan, authz, negative e panel_index continuam especializadas.
 
 | Módulo | Declarações |

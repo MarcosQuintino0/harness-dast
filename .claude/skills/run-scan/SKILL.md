@@ -34,7 +34,7 @@ Papéis em `authz.shared_roles` vêm somente da carta: `horizontal` e `horizonta
    **Cobertura de caminho.** Se o `report.md` avisar "cobertura de injeção em segmento de caminho foi PARCIAL" (campo `traffic.path_shape_denied` em `scan.json`), diga à pessoa quantos pedidos a cerca recusou e por quê (`traffic.denied_by_detail`) e em que modo rodou (`traffic.path_mode`). Só o dono do produto pode autorizar `scope.path_mode: wide` na carta; você **não** muda o modo, não edita o perfil por isso e nenhuma flag o liga.
 6. **Limpeza.** Se `cleanup_command` não for nulo, **apenas informe** o comando à pessoa. Quem roda e confirma é ela, num terminal.
 7. **Conhecimento.** Com o `run` concluído, e antes do `stack down` (a captura consulta a pilha ativa), `uv run hdast --json knowledge capture <produto> --run <run_id>` cria `knowledge.captured.yml` ao lado do perfil, sem ativá-lo. A ativação como `knowledge.yml` é decisão explícita da pessoa e a observação não concede permissão; você não ativa. Recusa da captura não derruba o resultado: registre no diário e siga.
-8. **Encerre.** Passe para `triage-findings`. `uv run hdast --json stack down` ao fim, se a pessoa não precisar mais da pilha.
+8. **Encerre.** Passe para `triage-findings` com a pilha disponível. O agente principal executa `hdast confirm <produto> --run <run_id> [--finding <fingerprint>] [--max N]`, priorizando altos e médios, e lê `verification.json`: são categorias, não probabilidades. Explicação e discordância ficam em `triage.json`; só uma pessoa executa `hdast finding acknowledge`. `uv run hdast --json stack down` ao fim, se a pessoa não precisar mais da pilha.
 
 ## Se der X, faça Y (código de saída do `run`)
 

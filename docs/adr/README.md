@@ -113,6 +113,18 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
 | [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
 
+## Verificação V1.11
+
+| ADR | Contrato |
+| --- | --- |
+| [0085](0085-verificacao-de-achados.md) | Envelope aditivo de verificação v1 e classificação sem tráfego (Proposto) |
+| [0086](0086-confirmacao-humana-de-achados.md) | Declaração humana aditiva, terminal interativo e limites de identidade (Proposto) |
+| [0087](0087-reproducao-controlada-de-achados.md) | Receitas fixas, controle, orçamento e recusa conservadora de repetição (Proposto) |
+| [0088](0088-apresentacao-e-calibracao-de-verificacao.md) | Apresentação aditiva e calibração medida com tamanho da amostra (Proposto) |
+| [0089](0089-criterio-privado-triagem.md) | Critério privado de acerto da triagem separado da nota histórica (Proposto) |
+| [0090](0090-vinculo-semente-confirmacao.md) | Recibo da semente efetiva, prova resumida e preservação da causa de interrupção (Proposto) |
+| [0091](0091-observacoes-passivas-de-confirmacao.md) | Cabeçalhos e comparações de autorização guardadas, sem tráfego novo (Proposto) |
+
 ## Quando escrever um ADR
 
 - Dependência nova.
