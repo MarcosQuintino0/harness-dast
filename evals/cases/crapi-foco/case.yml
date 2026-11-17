@@ -25,7 +25,7 @@ expected:
     - host: crapi
       scheme: http
       port: 80
-      paths: ["/identity/api/v2/vehicle/vehicles", "/identity/api/v2/vehicle/*/location", "/identity/api/v2/user/videos", "/identity/api/v2/user/videos/*", "/workshop/api/shop/products"]
+      paths: ["/identity/api/v2/vehicle/vehicles", "/identity/api/v2/vehicle/*/location", "/identity/api/v2/user/videos/*", "/workshop/api/shop/products"]
       methods: [GET]
     - host: crapi
       scheme: http

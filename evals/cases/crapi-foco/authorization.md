@@ -7,11 +7,13 @@ Base: http://crapi, porta 80. A carta estruturada entregue em `inputs/carta.yml`
 o contrato está em `inputs/openapi.json`. O modo de caminhos é estrito.
 
 Autorizam-se somente POST no login, contato do mecânico e validação de cupom;
-GET na lista e localização de veículos, lista e detalhe de vídeos e produtos; PUT no detalhe
-de vídeos. As listas fornecem identificadores e produtos é a verificação de saúde.
+GET na lista e localização de veículos, detalhe de vídeos e produtos; PUT no detalhe
+de vídeos. A lista de veículos fornece identificadores e produtos é a verificação de saúde.
 O contato com mecânico só pode usar infraestrutura isolada do laboratório, sem saída
 à internet. Não são autorizados força bruta de OTP nem testes de negação de serviço.
 OTP e recuperação de senha estão explicitamente negados. DELETE e PATCH não são autorizados.
+Os caminhos negados são /identity/api/auth/v2/check-otp,
+/identity/api/auth/v3/check-otp e /identity/api/auth/forget-password.
 
 Limites: 20 requisições por segundo, 15 minutos por execução e 4 threads por host;
 força LOW. Não são autorizados testes adicionais de escrita entre contas, valores
