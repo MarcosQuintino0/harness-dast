@@ -135,6 +135,8 @@ a reserva não implica aceite nem implementação.
 | [0098](0098-chave-hmac-fraca-de-jwt-no-authz.md) | Chave HMAC fraca de JWT no `authz`: quebra offline com lista fixa e prova re-assinada, teto de 20 pedidos (Proposto) |
 | [0099](0099-oast-na-varredura.md) | OAST na varredura: Callback do ZAP e regras que dependem do retorno ligadas por `scan.oast` (Proposto) |
 | [0100](0100-ssrf-guiado-pelo-contrato.md) | SSRF guiado pelo contrato: campos de URL do OpenAPI recebem a URL de retorno, com teto de 10 pedidos e correlação por token (Proposto) |
+| [0101](0101-limite-de-consumo.md) | Limite de consumo com `extra_checks.allow_rate_tests`: tamanho de página enorme (2 pedidos por operação) e até 20 tentativas erradas por operação de autenticação, com parada no primeiro sinal de limite e teto de 66 pedidos (Proposto) |
+| [0102](0102-inventario-de-versoes-e-documentacao.md) | Inventário com `extra_checks.inventory`: versões irmãs não documentadas (com controle `v999`) e documentação exposta, só `GET` pela cerca, teto de 40 pedidos (Proposto) |
 
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.

@@ -21,7 +21,7 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 | XSS baseado em DOM (40026) | Não | Exige navegador; exclusão pré-existente, pouco relevante para API |
 | Spider e AJAX spider | Não | Desnecessários: as rotas vêm do OpenAPI e o `probe` alimenta o histórico |
 | Complemento de JWT | Não | O teste de token adulterado do `authz` cobre só parte |
-| Fuzzer do ZAP | Não | Os testes `negative` e `authz` cobrem casos guiados pelo contrato |
+| Fuzzer do ZAP | Não | Os testes `negative` e `authz` cobrem casos guiados pelo contrato; o limite de consumo (página enorme e tentativas repetidas) é a F5 da CLI, com `extra_checks.allow_rate_tests` (ADR 0101), e o inventário de versões e documentação é a F8, com `extra_checks.inventory` (ADR 0102) |
 
 ## Como conferir de novo
 

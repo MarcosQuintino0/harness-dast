@@ -1,0 +1,36 @@
+# 0101. Limite de consumo: tamanho de página enorme e tentativas repetidas
+
+- **Status:** Proposto
+- **Data:** 2026-11-17
+- **Origem:** F5 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`extra_checks.allow_rate_tests`); [ADR 0100](0100-ssrf-guiado-pelo-contrato.md) (padrão de checagem própria da CLI); desafios C3 e C6 do crAPI
+
+## Contexto
+
+Falta de limite de consumo (OWASP API4) e de limite de tentativas em autenticação (API2) não aparecem num scanner de injeção: o ZAP não repete um pedido para ver se o alvo reclama, nem pede uma página de dez mil itens. O crAPI tem os dois casos: o OTP de redefinição de senha da v2 aceita tentativas sem fim (C3; a v3 conta tentativas e responde `503` depois de 10), e a operação de contato com o mecânico não limita a taxa (C6). A chave `extra_checks.allow_rate_tests` já existe (ADR 0096) e só a carta a liga. Testar limite é, por natureza, mandar vários pedidos: o teto precisa ser rígido, no domínio, e nunca virar negação de serviço.
+
+## Decisão
+
+Vamos acrescentar ao `scan`, **só com `extra_checks.allow_rate_tests: true`**, duas checagens da própria CLI que rodam **depois** das varreduras do ZAP (uma conta de teste que o limite bloqueasse não atrapalha a varredura) e só se ela terminou normalmente (`completed`); senão o resumo diz "não executado" e nenhum pedido sai. Cada pedido sai pelo mesmo caminho do `negative` e do SSRF guiado (`NegativeSender` sobre `OperationDispatcher` e `GuardedSender`): `ScopeGuard`, `deny_paths`, métodos do escopo aprovado, taxa, janela, prazo, trava de emergência, auditoria (prefixo `rate:`) e diário de mutações. O método que o escopo aprovado não permite não é enviado (`not_allowed_by_scope`). Nada é específico de produto.
+
+**(a) Tamanho de página enorme (`domain/rate_page.py`).** Vale uma operação `GET` que o `probe` provou (`exchanges.json`) com um parâmetro de **consulta inteiro** cujo nome, sem separadores e em minúsculas, é `limit`, `pagesize`, `perpage`, `size`, `count`, `take`, `rows`, `top`, `maxresults`, `pagelimit`, `itemsperpage`, `pagelen` ou `numresults`. A CLI manda **dois** pedidos: o tamanho normal (10, ou o que o contrato permitir; o valor do `probe` pode ser aleatório e grande, por isso não é reaproveitado) e o enorme (10 000; com `maximum` declarado, `maximum + 1000`; se isso passar de 100 000 a operação é pulada com `contract_allows_huge`). O veredito compara os itens da resposta (a lista do topo ou a maior lista até 3 níveis abaixo, sem presumir o nome do campo): **achado** se o pedido enorme deu sucesso e devolveu mais itens que o `maximum` do contrato ou, sem `maximum`, mais itens que o pedido normal; `limited` se o alvo recusou ou limitou; `inconclusive` se não deu para comparar. Corpo cortado pelo teto da CLI sem contagem cai no tamanho em bytes (pelo menos o dobro). Teto: **3 operações** por execução (6 pedidos).
+
+**(b) Tentativas repetidas (`domain/rate_attempts.py`).** Vale um `POST` sem parâmetro de caminho, com corpo JSON, cujo caminho tem uma palavra de autenticação ou verificação (`login`, `otp`, `verify`, `mfa`, `password`, `token`, `reset`...) e cujo corpo tem um campo de palpite: `otp`, `pin`, `totp`, `mfa`, `password` ou `code` com prefixo de verificação (`verification_code`; `coupon_code` não vale). O caminho de login do perfil (`auth.token_path`) e os de saúde e preparação ficam de fora, para a conta que roda a varredura não ser bloqueada. O corpo usa o identificador da **conta de teste da carta** (`email`, `username`...; sem login resolvido a operação é pulada com `no_test_identity`), um valor **errado por construção** no campo de palpite (letras num campo de código, abaixo do mínimo num inteiro, senha sintética fixa: nunca a senha real, nunca outra conta) e um valor sintético fixo nos demais obrigatórios; corpo com campo obrigatório composto é pulado (`unsupported_body`). No máximo **20 pedidos por operação** e **3 operações** por execução (teto de 66 pedidos de limite de consumo, incluindo os 6 do tamanho de página). A repetição **para no primeiro sinal de limite**: `429` ou `423`, `Retry-After`, mudança do código em relação ao da primeira resposta (bloqueio de conta, `503` de tentativas excedidas), ou texto de bloqueio no corpo (`locked`, `too many`, `attempts exceeded`, `captcha`...). A primeira resposta decide se o teste serve: `2xx` (o valor errado foi aceito: outra classe de falha, parada sem achado), `404`, `405`, `410`, `415`, `422` e `502`-`504` não permitem o teste. Se as 20 tentativas passam sem nenhum sinal, é **achado**.
+
+**Severidade e achado.** Os dois são `Medium` com confiança `Medium` (CWE 770 e CWE 307), propostos pela regra e imutáveis depois. Entram em `alerts.raw.json` como alertas no formato do ZAP (`pluginId` `hdast-rate-pagesize` e `hdast-rate-attempts`), pela mesma redação, e viram achados comuns (operação de origem, agrupamento, fingerprint, triagem, verificação). A evidência traz a contagem (`20 tentativas ... sempre HTTP 500`; `o pedido enorme devolveu N itens contra M`) e nunca o valor enviado nem o corpo da resposta. `scan.json` ganha `rate_checks` (teto, enviados, resultado por operação, pulos, nota) com padrão nulo.
+
+**Paradas.** Janela fechada, prazo esgotado, trava de emergência, alvo sem resposta em vários pedidos seguidos ou falha do diário de mutações interrompem a checagem com uma nota; o que já foi concluído é mantido.
+
+## Alternativas consideradas
+
+- **Um estágio novo (`rate`).** Descartado pelo mesmo motivo do ADR 0100: o alerta anexado reaproveita agrupamento, relatório, painel e verificação.
+- **Rodar antes do ZAP.** Descartado: um bloqueio de conta no meio da varredura a derrubaria. O custo é que a checagem não roda se a varredura parou.
+- **Valores diferentes a cada tentativa (força bruta de verdade).** Descartado: o limitador conta tentativas, não valores, e um valor repetido e errado é mais gentil com o alvo e nunca acerta.
+- **Testar também o login do perfil.** Descartado: a conta que roda a varredura seria bloqueada. Fica documentado como lacuna: um limite só no login principal não é medido.
+- **Mais de 20 tentativas.** Descartado: o objetivo é ver se há algum sinal de limite, não esgotar o alvo.
+
+## Consequências
+
+- O C3 do crAPI (OTP v2 sem limite) é achável com a carta ligando `attack.allow_rate_tests` e o escopo incluindo a operação com `POST`; a v3, que conta tentativas, termina em `limited`. O gabarito do `crapi-foco` continua `detectable: false` até uma nota de versão do caso mudar.
+- Cada execução com a chave manda até 66 pedidos a mais; desligada, nenhum (o diário e a auditoria não têm o prefixo `rate:`).
+- Falso negativo possível: limite por origem acima de 20, sinal que não aparece nos códigos e nos textos listados, corpo que a validação recusa (`400`/`422` sem relação com o valor). Falso positivo possível: limite que só age depois de mais de 20 tentativas. A confiança `Medium` e a contagem na evidência deixam o dono julgar.
+- Uma operação de verificação pode, no alvo real, bloquear a conta de teste usada: é o próprio sinal procurado, e a checagem para nele. Quem liga a chave na carta aceita esse efeito na conta de teste.
