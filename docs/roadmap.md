@@ -305,7 +305,6 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | --- | --- |
 | Leitura de dono em GET de item, par determinístico não compartilhado, fontes observadas e teto de dois objetos por operação/par | Implementado; ADR 0082 proposto. Testes de domínio/aplicação e prova dirigida no laboratório; resultados e limites no [relatório](reviews/relatorio-v1.9.3.md) |
 | Lacunas por operação no JSON, Markdown, HTML e aba Autorização (`authorization.html`) | Implementado; nenhuma lacuna horizontal oculta pelo teto geral de apresentação; sem mudança no perfil |
-| `evals.runner prepare --pacing {legacy,proxy}` e escolha nas medições | Implementado; padrão legacy, alteração só no modelo copiado. Sem promoção do proxy como padrão; próxima rodada cega fica com Claude Code |
 
 ## Itens em aberto
 

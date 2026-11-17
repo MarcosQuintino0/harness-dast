@@ -62,11 +62,6 @@ auditoria e diário continuam vigentes. Usar outra conta já declarada para GET 
 autorizado não amplia permissões; o roteamento não é uma restrição de autorização.
 Nenhuma escrita nova; escritas existentes continuam atrás de `authz.allow_writes`.
 
-Separadamente, `evals.runner prepare --pacing {legacy,proxy}` altera só o modelo
-copiado para a rodada e registra a escolha no meta e nas medições. O padrão é legacy;
-proxy continua exigindo aprovação do perfil e recriação da pilha se ele mudar. Não
-promove o ADR 0075 nem muda `init --from-letter`.
-
 ## Alternativas e limites
 
 Não adivinhar IDs, usar IDs de outra conta como propriedade, guardar resposta ou

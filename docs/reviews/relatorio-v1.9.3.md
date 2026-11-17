@@ -13,7 +13,6 @@ O `plan_horizontal` só repete pedidos que o `probe` já fez com sucesso, com a 
 - **Fontes, em ordem:** coleção `GET` irmã da própria conta (array de objetos, consultada nas duas contas; interseção, repetição ou forma ambígua recusam), identificadores de alvos de `GET` de sucesso da conta, e o campo exato do parâmetro no corpo já redigido de uma criação de sucesso. Nada é adivinhado; nenhum valor novo é gravado (o corpo já constava, redigido, em `exchanges.json`).
 - **Lacunas:** `owner_read_unsupported`, `owner_collection_missing`, `owner_collection_empty`, `owner_collection_unavailable`, além de `ambiguous_identifier`, `no_peer_account`, `public_operation`, `baseline_failed`, `inconclusive` e `budget_exhausted`, cada uma com a ação sugerida, em `authz.json`, `report.md`, `report.html` e na nova aba Autorização do painel (`authorization.html`). As lacunas horizontais não são cortadas pelo limite geral de linhas.
 - **Sem mudança** no perfil, no envelope, nos códigos de saída nem na aprovação. `authz.allow_writes` continua mandando em toda escrita.
-- **`evals.runner prepare --pacing {legacy,proxy}`:** padrão `legacy`; `proxy` grava `scan.pacing: proxy` só no modelo copiado da rodada; a escolha vai para `meta.json` e `agent-metrics.json` (`pacing`, `null` para rodada histórica). Continua exigindo aprovação do perfil e recriação da pilha. Não promove o ADR 0075.
 
 ## Correções na revisão do trabalho do Codex
 
@@ -43,4 +42,4 @@ Provada pela terceira fonte: o título que a própria conta enviou na criação 
 - Só laboratório; nenhum produto real, nenhuma rodada cega e nenhuma varredura completa do ZAP.
 - Um marcador final escalar; caminhos aninhados, identificador no corpo de `GET`, coleção paginada em envelope e `DELETE` ficam fora (viram lacuna).
 - Inventário prova visibilidade, não propriedade global; sucesso HTTP sozinho não prova propriedade, por isso exige identidade no corpo.
-- `--pacing proxy` só foi testado em unidade; nenhuma rodada o usou.
+- A opção de ritmo para rodadas cegas foi retirada desta versão: ela gravava `scan.pacing: proxy` em `products/_template/target.yml`, que o `init --from-letter` ignora (o perfil vem da carta). Ligar o ritmo numa rodada cega pede a carta declarar o ritmo, num trabalho separado.
