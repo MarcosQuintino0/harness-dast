@@ -28,7 +28,7 @@ def begin_mutation(
 
 
 def finish_mutation(
-    journal: MutationJournal, key: str, outcome: Literal["failed", "observed"]
+    journal: MutationJournal, key: str, outcome: Literal["failed", "observed", "succeeded"]
 ) -> None:
     """Registra o desfecho observado ou interrompe sem repetir a mutação."""
     try:
