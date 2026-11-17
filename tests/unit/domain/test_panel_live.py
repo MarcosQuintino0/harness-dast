@@ -132,7 +132,7 @@ def test_while_running_the_menu_has_live_as_the_current_tab_and_the_rest_as_dimm
     page = render_live(view())
 
     assert 'class="on" aria-current="page" href="live.html">Ao vivo' in page
-    assert page.count('class="off"') == 5
+    assert page.count('class="off"') == 6
     parser = Elements()
     parser.feed(page)
     hrefs = {attrs["href"] for tag, attrs in parser.found if tag == "a"}

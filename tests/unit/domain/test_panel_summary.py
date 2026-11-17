@@ -109,6 +109,7 @@ def test_the_tabs_and_headings_are_the_ones_of_the_design() -> None:
         "Etapas",
         "Falhas",
         "Cobertura",
+        "Autorização",
         "Terminal",
         "Tempo e tokens",
     ]

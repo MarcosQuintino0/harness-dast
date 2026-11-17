@@ -87,9 +87,11 @@ def test_a_collection_without_an_identifier_is_not_compared() -> None:
     result = run_horizontal(rig, plain)
 
     assert result.findings == ()
-    assert [n.reason for n in result.not_tested if n.check == "horizontal"] == [
-        "no_object_identifier"
-    ]
+    assert [
+        n.reason
+        for n in result.not_tested
+        if n.check == "horizontal" and not n.reason.startswith(("owner_", "public_"))
+    ] == ["no_object_identifier"]
     assert authz_sent(rig) == []
 
 
@@ -101,9 +103,11 @@ def test_an_odd_value_is_ambiguous_and_nothing_is_sent() -> None:
 
     result = run_horizontal(rig, odd)
 
-    assert [n.reason for n in result.not_tested if n.check == "horizontal"] == [
-        "ambiguous_identifier"
-    ]
+    assert [
+        n.reason
+        for n in result.not_tested
+        if n.check == "horizontal" and not n.reason.startswith(("owner_", "public_"))
+    ] == ["ambiguous_identifier"]
     assert authz_sent(rig) == []
 
 
@@ -118,9 +122,11 @@ def test_a_declared_id_parameter_adds_the_read_candidate() -> None:
     declared = run_horizontal(notes_rig(Notes(), id_parameters=["cpf"]), by_cpf)
 
     assert without.findings == ()
-    assert [n.reason for n in without.not_tested if n.check == "horizontal"] == [
-        "no_object_identifier"
-    ]
+    assert [
+        n.reason
+        for n in without.not_tested
+        if n.check == "horizontal" and not n.reason.startswith(("owner_", "public_"))
+    ] == ["no_object_identifier"]
     (found,) = declared.findings
     assert found.fields == ("query:cpf",)
     assert found.proposed_severity == "medium"
@@ -136,7 +142,11 @@ def test_a_denied_path_is_refused_by_the_guard_and_nothing_is_sent() -> None:
 
     assert [r for r in rig.target.requests if "/api/admin/" in r.url] == []
     assert result.findings == ()
-    assert [n.reason for n in result.not_tested if n.check == "horizontal"] == ["scope_denied"]
+    assert [
+        n.reason
+        for n in result.not_tested
+        if n.check == "horizontal" and not n.reason.startswith(("owner_", "public_"))
+    ] == ["scope_denied"]
 
 
 def test_the_query_value_never_reaches_the_artifacts() -> None:
