@@ -1,5 +1,6 @@
 """Regressao crAPI para pendencias duraveis; execucao exclusiva pelo coordenador."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -110,9 +111,29 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
             )
         run = execute(cli, records, "run", "run", "crapi", "--max-minutes", "8", timeout=900)
         records["run_summary"] = summary(run)
-        run_id = records["run_summary"]["run_id"]
-        assert run_id
-        assert run.code in (0, 1)
+        run_summary = records["run_summary"]
+        raw_error = records["run"].get("error_code")
+        error_code = (
+            raw_error
+            if isinstance(raw_error, str) and re.fullmatch(r"[A-Z0-9_]{1,64}", raw_error)
+            else None
+        )
+        sanitized_summary = {
+            "run_id": run_summary["run_id"],
+            "status": run_summary["status"]
+            if run_summary["status"] in {"completed", "findings", "failed", "interrupted"}
+            else None,
+            "stages": [
+                {"name": row["name"], "status": row["status"]}
+                for row in run_summary["stages"]
+                if row["name"] in {"preflight", "probe", "scan", "authz", "negative", "report"}
+                and row["status"] in {"ok", "skipped", "failed", "interrupted"}
+            ],
+        }
+        diagnostic = f"codigo={run.code}, error_code={error_code}, resumo={sanitized_summary}"
+        assert run.code in (0, 1), diagnostic
+        run_id = run_summary["run_id"]
+        assert run_id, diagnostic
         stages = {row["name"]: row["status"] for row in summary(run)["stages"]}
         assert all(stages[name] == "ok" for name in ("scan", "authz", "negative", "report"))
         after_proxy = proxy_audit(cli)
