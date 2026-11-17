@@ -16,6 +16,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "profile validate": "Conferiu se o que foi copiado da carta está completo e coerente.",
     "profile approve": "Pediu a uma pessoa que revisasse e aprovasse a cerca e os limites.",
     "profile approval": "Conferiu se uma pessoa já aprovou a cerca e os limites do perfil.",
+    "finding acknowledge": "Pediu a uma pessoa que registrasse o que viu em um achado.",
     "strategy validate": "Conferiu a estratégia e seus arquivos locais, sem tocar o alvo.",
     "strategy diff": "Comparou a estratégia com o comportamento anterior, sem tocar o alvo.",
     "strategy migrate": "Criou uma cópia de estratégia para revisão, sem mudar a aprovação.",
