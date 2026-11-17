@@ -1,55 +1,122 @@
-"""O simulador de limpeza só apresenta candidatos explicitamente registrados."""
+"""Planejamento de imagens com inventários e Docker falsos, sem remoção."""
+
+import hashlib
+import json
+from pathlib import Path
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
-from lab.scripts.plan_image_cleanup import ImageRecord, Inventory, plan_cleanup
+from lab.scripts.plan_image_cleanup import (
+    ROOT,
+    BaselineRow,
+    Candidate,
+    Ledger,
+    ProtectedImages,
+    plan_cleanup,
+    read_baseline,
+)
+
+IMAGE = "sha256:" + "a" * 64
+OTHER = "sha256:" + "b" * 64
+REF = "hdast/v1-12-oast-temp:test"
 
 
-def record(**changes: object) -> ImageRecord:
-    data: dict[str, object] = {
-        "image_id": "sha256:" + "a" * 64,
-        "reference": "hdast-test:temporary",
-        "harness_created": True,
-        "in_use": False,
-        "protected": False,
-        "tags": ["hdast-test:temporary"],
-    }
-    data.update(changes)
-    return ImageRecord.model_validate(data)
+class FakeDocker:
+    def __init__(self) -> None:
+        self.image: dict[str, object] = {"Id": IMAGE, "RepoTags": [REF], "RepoDigests": []}
+        self.containers: list[dict[str, str]] = []
+
+    def __call__(self, args: list[str]) -> object:
+        if args[0] == "ps":
+            return ["c" * 64 for _ in self.containers]
+        if args[:3] == ["inspect", "--type", "container"]:
+            return self.containers
+        assert args == ["image", "inspect", REF]
+        return [self.image]
 
 
-def test_seleciona_imagem_temporaria_explicita() -> None:
-    image = record()
-    assert plan_cleanup(Inventory(images=[image])) == [image.image_id]
+def inputs() -> tuple[Ledger, list[BaselineRow], ProtectedImages, FakeDocker]:
+    return (
+        Ledger(images=[Candidate(image_id=IMAGE, reference=REF)]),
+        [BaselineRow(ID=OTHER, Digest=OTHER, Repository="existing", Tag="old")],
+        ProtectedImages(images=["alpine:3@" + OTHER]),
+        FakeDocker(),
+    )
+
+
+def test_gera_comando_restrito_para_imagem_propria() -> None:
+    ledger, baseline, protected, docker = inputs()
+    assert plan_cleanup(ledger, baseline, protected, docker) == [f"docker image rm {REF}"]
 
 
 @pytest.mark.parametrize(
-    "changes",
-    [
-        {"harness_created": False},
-        {"in_use": True},
-        {"protected": True},
-        {"tags": ["hdast-test:temporary", "other:latest"]},
-    ],
+    "reason", ["baseline", "baseline_digest", "remapped", "in_use", "foreign_tag", "protected"]
 )
-def test_ignora_imagem_sem_condicoes_de_seguranca(changes: dict[str, object]) -> None:
-    assert plan_cleanup(Inventory(images=[record(**changes)])) == []
+def test_recusa_imagem_inelegivel(reason: str) -> None:
+    ledger, baseline, protected, docker = inputs()
+    if reason == "baseline":
+        baseline.append(BaselineRow(ID=IMAGE, Digest=IMAGE, Repository="old", Tag="old"))
+    elif reason == "baseline_digest":
+        docker.image["RepoDigests"] = ["old@" + OTHER]
+    elif reason == "remapped":
+        docker.image["Id"] = OTHER
+    elif reason == "in_use":
+        docker.containers = [{"Image": IMAGE}]
+    elif reason == "foreign_tag":
+        docker.image["RepoTags"] = [REF, "other:latest"]
+    else:
+        docker.image["RepoDigests"] = ["alpine@" + OTHER]
+    with pytest.raises(ValueError, match=r"imagem|referência"):
+        plan_cleanup(ledger, baseline, protected, docker)
 
 
-@pytest.mark.parametrize("changes", [{"image_id": "sha256:bad"}, {"reference": "other:latest"}])
-def test_recusa_registro_invalido(changes: dict[str, object]) -> None:
+@pytest.mark.parametrize("reference", ["other:latest", "hdast/test:latest", REF + ";evil"])
+def test_recusa_referencia_de_outro_projeto(reference: str) -> None:
     with pytest.raises(ValidationError):
-        record(**changes)
+        Candidate(image_id=IMAGE, reference=reference)
 
 
-def test_recusa_ids_duplicados() -> None:
-    image = record()
-    with pytest.raises(ValueError, match="duplicados"):
-        plan_cleanup(Inventory(images=[image, image]))
+@pytest.mark.parametrize("content", ["", "{", "{}", '{"ID":"bad"}'])
+def test_recusa_baseline_ausente_ou_malformado(tmp_path: Path, content: str) -> None:
+    path = tmp_path / "baseline.jsonl"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises((ValueError, ValidationError)):
+        read_baseline(path, hashlib.sha256(content.encode()).hexdigest())
 
 
-def test_recusa_inventario_ausente_ou_malformado() -> None:
-    for text in ("{}", "{", '{"images": []}'):
-        with pytest.raises(ValidationError):
-            Inventory.model_validate_json(text)
+def test_recusa_baseline_alterado(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.jsonl"
+    path.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="captura inicial"):
+        read_baseline(path)
+
+
+def test_aceita_captura_jsonl_com_bom(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.jsonl"
+    data = (
+        b'\xef\xbb\xbf{"ID":"'
+        + OTHER.encode()
+        + b'","Digest":"'
+        + OTHER.encode()
+        + b'","Repository":"x","Tag":"v"}\n'
+    )
+    path.write_bytes(data)
+    assert read_baseline(path, hashlib.sha256(data).hexdigest())[0].ID == OTHER
+
+
+def test_manifesto_protege_todas_imagens_dos_composes() -> None:
+    protected = json.loads((ROOT / "lab/scripts/protected-images.json").read_text())
+    for name in (
+        "compose.yaml",
+        "lab/pilot/compose.yaml",
+        "lab/crapi/compose.yaml",
+        "lab/oast/compose.yaml",
+    ):
+        compose = yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
+        assert {s["image"] for s in compose["services"].values() if "image" in s} <= set(
+            protected["images"]
+        )
+    readme = (ROOT / "lab/README.md").read_text(encoding="utf-8")
+    assert all(f"`{ref}`" in readme for ref in protected["images"])
