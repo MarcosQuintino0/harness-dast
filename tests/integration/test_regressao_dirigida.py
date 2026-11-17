@@ -18,6 +18,7 @@ cenário é gravado em `HDAST_IT_METRICS_DIR` (`regressao-dirigida-<cenário>`).
 
 import json
 import secrets
+import sys
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -38,6 +39,8 @@ from tests.integration.lab_support import (
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
 from tests.integration.test_lab_v155 import _install
 from tests.integration.test_lab_vampi import SEEDED
+from tests.integration.v112_resource_support import ResourceGuard, docker_runner, inventory
+from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = [pytest.mark.integration, pytest.mark.regressao_dirigida]
 
@@ -164,8 +167,16 @@ def lab(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
     )
     cli = LabCli(tmp_path_factory.mktemp(f"regressao-{name}"), env)
     state: dict[str, Any] = {"seconds": {}, "exit_codes": {}}
+    guard = None
+    if cli.env.get("HDAST_STACK_PROJECT_SUFFIX") == "-codex":
+        guard = ResourceGuard(lambda: inventory(docker_runner(cli.env)))
     started = time.monotonic()
+    completed = False
+    stack_attempted = False
     try:
+        if guard is not None:
+            guard.before_up()
+        stack_attempted = True
         run_ids = (
             _run_vampi(cli, state)
             if product == "vampi"
@@ -200,9 +211,34 @@ def lab(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
                 "authz_findings": len(authz),
             },
         )
+        completed = True
         yield result
     finally:
-        cli.stack_down()
+        watch: dict[str, Any] = {"status": "not_started", "categories": []}
+        if stack_attempted:
+            watch = (
+                collect_watch(
+                    guard, docker_runner(cli.env), docker_logs(cli.env), capture_created=True
+                )
+                if guard is not None
+                else {"status": "unsupported_project", "categories": []}
+            )
+        try:
+            if stack_attempted:
+                cli.stack_down()
+        finally:
+            try:
+                record_metrics(
+                    f"regressao-dirigida-{name}-watch",
+                    {
+                        "status": "completed" if completed else "failed",
+                        "seconds": round(time.monotonic() - started, 1),
+                        "exit_codes": state["exit_codes"],
+                        "watch": watch,
+                    },
+                )
+            except OSError:
+                sys.stderr.write("Não foi possível gravar o diagnóstico da vigia.\n")
 
 
 # O fixture percorre os três cenários em ordem, uma pilha por vez; cada teste só vale no seu.

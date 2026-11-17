@@ -73,3 +73,23 @@ def test_timeout_de_logs_nao_expoe_saida_parcial() -> None:
     result = collect_watch(_guard(), _run(CONTAINER), fail)
     assert result == {"status": "collection_failed", "categories": []}
     assert "senha-confidencial" not in json.dumps(result)
+
+
+def test_captura_inventario_estavel_quando_solicitado() -> None:
+    state = Inventory(frozenset({CONTAINER}), frozenset(), frozenset())
+    guard = ResourceGuard(lambda: state)
+    result = collect_watch(
+        guard,
+        _run(CONTAINER),
+        lambda _: '{"event":"gate_watch_latch","category":"identity"}',
+        capture_created=True,
+    )
+    assert result == {"status": "ok", "categories": ["identity"]}
+    assert guard.created == state
+
+
+def test_recusa_captura_quando_inventario_incompleto() -> None:
+    guard = ResourceGuard(lambda: Inventory(frozenset(), frozenset(), frozenset()))
+    result = collect_watch(guard, _run(CONTAINER), lambda _: "", capture_created=True)
+    assert result == {"status": "collection_failed", "categories": []}
+    assert guard.created is None
