@@ -12,6 +12,7 @@ from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run import is_run_id
+from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope import OutboundRequest
 from tests.integration.crapi_support import run_cli
 from tests.integration.lab_support import REPO, CliResult, LabCli
@@ -84,6 +85,27 @@ def probe_attempts(data: dict[str, Any], expected: set[str]) -> tuple[str, dict[
     return result.status, {
         op.operation_id: op.attempts for op in result.operations if op.operation_id in expected
     }
+
+
+def read_scan(runs: Path, run_id: str) -> ScanResult:
+    """Carrega resultado de scan somente da execução indicada."""
+    if not is_run_id(run_id):
+        raise ValueError("Identificador de execução inválido.")
+    scan = ScanResult.model_validate_json((runs / run_id / "scan.json").read_text(encoding="utf-8"))
+    if scan.run_id != run_id or scan.product != "crapi" or scan.dry_run:
+        raise ValueError("Scan não pertence à execução real do ensaio.")
+    return scan
+
+
+def scan_finished(scan: ScanResult) -> bool:
+    """Recusa interrupções e qualquer varredura individual incompleta."""
+    return (
+        scan.status == "completed"
+        and all(entry.outcome == "completed" and not entry.truncated for entry in scan.entries)
+        and all(
+            gap.state not in {"interrupted", "pending"} for gap in scan.rule_coverage_gaps or ()
+        )
+    )
 
 
 def install_focus_spec(workspace: Path, products: Path) -> None:

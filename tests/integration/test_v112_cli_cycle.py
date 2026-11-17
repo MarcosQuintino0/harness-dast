@@ -10,7 +10,15 @@ from tests.integration.run_support import record_metrics
 from tests.integration.v112_proof_support import (
     execute,
     prepare_control_product,
+    read_scan,
+    scan_finished,
     summary,
+)
+from tests.integration.v112_resource_support import (
+    ResourceGuard,
+    docker_runner,
+    inventory,
+    verified_down,
 )
 
 pytestmark = pytest.mark.integration
@@ -26,9 +34,19 @@ def test_v112_crapi_cli_cycle(tmp_path: Path) -> None:
     prepare_control_product(cli.products)
     cli.approve_installed_products()
     records: dict[str, Any] = {"scope": "get_products e login", "strength": "LOW explícito"}
+    guard = ResourceGuard(lambda: inventory(docker_runner(cli.env)))
+    stack_attempted = False
     try:
+        guard.before_up()
+        stack_attempted = True
         up = execute(cli, records, "up", "stack", "up", "crapi", timeout=600)
         assert up.code == 0, f"stack up: código {up.code}"
+        created = guard.capture()
+        records["recursos_criados"] = {
+            "containers": sorted(created.containers),
+            "networks": sorted(created.networks),
+            "volumes": sorted(created.volumes),
+        }
         preflight = execute(cli, records, "preflight", "preflight", "crapi")
         assert preflight.code == 0
         assert preflight.data.get("ready") is True
@@ -53,6 +71,29 @@ def test_v112_crapi_cli_cycle(tmp_path: Path) -> None:
         assert run.code in (0, 1)
         assert records["run_summary"]["run_id"]
         assert records["run_summary"]["status"] in ("completed", "findings")
+        scan = read_scan(cli.runs, records["run_summary"]["run_id"])
+        records["scan"] = {
+            "status": scan.status,
+            "entries": [
+                {
+                    "operation_id": item.operation_id,
+                    "outcome": item.outcome,
+                    "truncated": item.truncated,
+                }
+                for item in scan.entries
+            ],
+            "skipped": [
+                {"operation_id": item.operation_id, "reason": item.reason} for item in scan.skipped
+            ],
+            "rule_gaps": [
+                {"operation_id": item.operation_id, "state": item.state, "reason": item.reason}
+                for item in scan.rule_coverage_gaps
+            ]
+            if scan.rule_coverage_gaps is not None
+            else None,
+        }
+        assert scan.entries
+        assert scan_finished(scan)
         stages = records["run_summary"]["stages"]
         assert [stage["name"] for stage in stages] == [
             "preflight",
@@ -72,7 +113,11 @@ def test_v112_crapi_cli_cycle(tmp_path: Path) -> None:
         ]
     finally:
         try:
-            down = execute(cli, records, "down", "stack", "down", timeout=240)
-            assert down.code == 0, f"stack down: código {down.code}"
+            if stack_attempted:
+                verified_down(
+                    guard,
+                    lambda: execute(cli, records, "down", "stack", "down", timeout=240).code,
+                    records,
+                )
         finally:
             record_metrics("v112-cli-cycle", records)

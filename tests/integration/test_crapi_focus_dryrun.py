@@ -5,6 +5,7 @@ O arquivo reúne ciclo e evidências para preservar uma única preparação e um
 
 import json
 import time
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,12 @@ from tests.integration.v112_proof_support import (
     install_focus_spec,
     probe_attempts,
     summary,
+)
+from tests.integration.v112_resource_support import (
+    ResourceGuard,
+    docker_runner,
+    inventory,
+    verified_down,
 )
 
 pytestmark = pytest.mark.integration
@@ -108,6 +115,7 @@ def _run_evidence(runs: Path, run_id: str) -> dict[str, Any]:
         "probe_status": probe_status,
         "probe_attempts": probe_attempt_counts,
         "scan_status": scan.status,
+        "scan_planned": [item.operation_id for item in scan.planned],
         "scan_entries": [
             {
                 "operation_id": entry.operation_id,
@@ -147,14 +155,11 @@ def _run_evidence(runs: Path, run_id: str) -> dict[str, Any]:
     }
 
 
-def _coverage_complete(evidence: dict[str, Any]) -> bool:
-    """Recusa artefatos interrompidos ou varreduras individuais truncadas."""
+def _operational_complete(evidence: dict[str, Any]) -> bool:
+    """Recusa interrupções ou varreduras individuais truncadas, sem prometer cobertura."""
     return (
         evidence["probe_status"] == "completed"
-        and set(evidence["probe_attempts"]) == EXPECTED
-        and all(value > 0 for value in evidence["probe_attempts"].values())
         and evidence["scan_status"] == "completed"
-        and bool(evidence["scan_entries"])
         and all(
             entry["outcome"] == "completed" and not entry["truncated"]
             for entry in evidence["scan_entries"]
@@ -167,6 +172,69 @@ def _coverage_complete(evidence: dict[str, Any]) -> bool:
         and all(check["status"] != "partial" for check in evidence["authz_checks"])
         and evidence["negative_status"] == "completed"
     )
+
+
+def _has_complete_coverage(evidence: dict[str, Any]) -> bool:
+    """Critério conservador: qualquer exclusão ou dado desconhecido impede afirmar cobertura."""
+    scanned = {item["operation_id"] for item in evidence["scan_entries"]}
+    planned_counts = Counter(evidence["scan_planned"])
+    scanned_counts = Counter(item["operation_id"] for item in evidence["scan_entries"])
+    return (
+        _operational_complete(evidence)
+        and set(evidence["probe_attempts"]) == EXPECTED
+        and all(value > 0 for value in evidence["probe_attempts"].values())
+        and bool(evidence["scan_planned"])
+        and planned_counts <= scanned_counts
+        and scanned >= EXPECTED
+        and not evidence["scan_skipped"]
+        and evidence["scan_rule_gaps"] == []
+        and bool(evidence["authz_checks"])
+        and all(
+            check["status"] == "completed" and check["tested"] > 0
+            for check in evidence["authz_checks"]
+        )
+        and evidence["authz_not_tested"] == 0
+        and evidence["negative_operations_tested"] > 0
+        and evidence["negative_not_tested"] == 0
+    )
+
+
+def _scan_limits(evidence: dict[str, Any]) -> list[str]:
+    """Enumera lacunas do plano e das estatísticas do scan."""
+    limits = []
+    scanned = {item["operation_id"] for item in evidence["scan_entries"]}
+    if not evidence["scan_planned"] or not scanned >= EXPECTED:
+        limits.append("scan_nao_cobre_todas_operacoes")
+    if not Counter(evidence["scan_planned"]) <= Counter(
+        item["operation_id"] for item in evidence["scan_entries"]
+    ):
+        limits.append("scan_plano_sem_entradas_correspondentes")
+    if evidence["scan_skipped"]:
+        limits.append("scan_tem_exclusoes")
+    if evidence["scan_rule_gaps"] is None:
+        limits.append("scan_regras_indisponiveis")
+    elif evidence["scan_rule_gaps"]:
+        limits.append("scan_regras_com_lacunas")
+    return limits
+
+
+def _coverage_limits(evidence: dict[str, Any]) -> list[str]:
+    """Enumera dados ausentes ou verificações sem cobertura completa."""
+    limits = _scan_limits(evidence)
+    if not _operational_complete(evidence):
+        limits.append("execucao_operacional_incompleta")
+    attempts = evidence["probe_attempts"]
+    if set(attempts) != EXPECTED or any(attempts.get(name, 0) <= 0 for name in EXPECTED):
+        limits.append("probe_tem_operacoes_nao_tentadas")
+    if not evidence["authz_checks"] or any(
+        item["status"] != "completed" or item["tested"] <= 0 for item in evidence["authz_checks"]
+    ):
+        limits.append("authz_checks_sem_cobertura_completa")
+    if evidence["authz_not_tested"]:
+        limits.append("authz_tem_exclusoes")
+    if not evidence["negative_operations_tested"] or evidence["negative_not_tested"]:
+        limits.append("negative_sem_cobertura_completa")
+    return limits
 
 
 def _transcript(out: Path, records: dict[str, Any]) -> None:
@@ -224,6 +292,8 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         "meta_segundos": 900,
         "run_max_minutes": 8,
         "detectable": False,
+        "cobertura_completa": False,
+        "limites_cobertura": ["artefatos_indisponiveis"],
     }
     try:
         prepared = prepare("crapi-foco", "vulnerable", 0, out)
@@ -252,6 +322,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         if key.startswith("CRAPI_"):
             del cli.env[key]
     stack_attempted = False
+    guard = ResourceGuard(lambda: inventory(docker_runner(cli.env)))
     flow_complete = False
     down_complete = False
     try:
@@ -270,9 +341,16 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         _configure_health_path(cli.products)
         approve(out)
         records["approval"] = "runner de ensaio"
+        guard.before_up()
         stack_attempted = True
         up = execute(cli, records, "up", "stack", "up", "crapi", timeout=600)
         assert up.code == 0
+        created = guard.capture()
+        records["recursos_criados"] = {
+            "containers": sorted(created.containers),
+            "networks": sorted(created.networks),
+            "volumes": sorted(created.volumes),
+        }
         preflight = execute(cli, records, "preflight", "preflight", "crapi")
         assert preflight.code == 0
         assert preflight.data.get("ready") is True
@@ -311,21 +389,22 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         ]
         records["artefatos_ausentes"] = missing
         if not missing:
-            records["cobertura_run"] = _run_evidence(cli.runs, run_id)
+            evidence = _run_evidence(cli.runs, run_id)
+            records["cobertura_run"] = evidence
+            records["cobertura_completa"] = _has_complete_coverage(evidence)
+            records["limites_cobertura"] = _coverage_limits(evidence)
         assert run.code in (0, 1)
         assert run_id
         assert records["run_summary"]["status"] in ("completed", "findings")
         assert not missing
         evidence = records["cobertura_run"]
         assert evidence["probe_status"] == "completed"
-        assert set(evidence["probe_attempts"]) == EXPECTED
-        assert all(value > 0 for value in evidence["probe_attempts"].values())
         assert evidence["scan_status"] == "completed"
         assert all(entry["outcome"] == "completed" for entry in evidence["scan_entries"])
         assert evidence["authz_status"] == "completed"
         assert all(check["status"] != "partial" for check in evidence["authz_checks"])
         assert evidence["negative_status"] == "completed"
-        assert _coverage_complete(evidence)
+        assert _operational_complete(evidence)
         stages = records["run_summary"]["stages"]
         assert [stage["name"] for stage in stages] == [
             "preflight",
@@ -340,12 +419,15 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
     finally:
         try:
             if stack_attempted:
-                down = execute(cli, records, "down", "stack", "down", timeout=240)
-                assert down.code == 0
+                verified_down(
+                    guard,
+                    lambda: execute(cli, records, "down", "stack", "down", timeout=240).code,
+                    records,
+                )
                 down_complete = True
         finally:
             records["duracao_fim_a_fim_segundos"] = round(time.monotonic() - started, 3)
-            records["caso_concluido_na_meta"] = (
+            records["conclusao_operacional_na_meta"] = (
                 flow_complete and down_complete and records["duracao_fim_a_fim_segundos"] <= 900
             )
             if any(isinstance(v, dict) and "started_at" in v for v in records.values()):

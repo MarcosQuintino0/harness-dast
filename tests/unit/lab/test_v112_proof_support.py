@@ -4,6 +4,7 @@ import json
 import shutil
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -32,7 +33,8 @@ from tests.integration.test_crapi_focus_dryrun import (
     HEALTH_PATH,
     _configure_health_path,
     _control_then_run,
-    _coverage_complete,
+    _has_complete_coverage,
+    _operational_complete,
     _remove_template_examples,
     _run_evidence,
     _transcript,
@@ -42,6 +44,8 @@ from tests.integration.v112_proof_support import (
     install_focus_spec,
     prepare_control_product,
     probe_attempts,
+    read_scan,
+    scan_finished,
     summary,
 )
 
@@ -355,16 +359,71 @@ def test_evidencia_preserva_corte_de_scan_e_lacunas_de_authz(tmp_path: Path) -> 
     for name, payload in (("scan", scan), ("probe", probe), ("authz", authz), ("negative", common)):
         (folder / f"{name}.json").write_text(json.dumps(payload), encoding="utf-8")
     evidence = _run_evidence(tmp_path, run_id)
+    assert scan_finished(read_scan(tmp_path, run_id)) is False
     assert evidence["scan_entries"][0]["outcome"] == "truncated"
     assert evidence["authz_checks"][0]["status"] == "partial"
     evidence["probe_attempts"] = dict.fromkeys(EXPECTED, 1)
-    assert _coverage_complete(evidence) is False
+    assert _operational_complete(evidence) is False
     evidence["scan_entries"][0]["outcome"] = "completed"
-    assert _coverage_complete(evidence) is False
+    assert _operational_complete(evidence) is False
     evidence["authz_checks"][0]["status"] = "completed"
-    assert _coverage_complete(evidence) is True
+    assert _operational_complete(evidence) is True
+    assert _has_complete_coverage(evidence) is False
     evidence["scan_rule_gaps"] = [{"state": "interrupted"}]
-    assert _coverage_complete(evidence) is False
+    assert _operational_complete(evidence) is False
+
+
+@pytest.mark.parametrize(
+    "limit",
+    [
+        "uma_entrada",
+        "vazio",
+        "skipped",
+        "unknown",
+        "unavailable",
+        "sem_estatisticas",
+        "plano_repetido",
+        "authz_pulado",
+        "probe_pulado",
+    ],
+)
+def test_limites_impedem_cobertura_completa_sem_negar_conclusao_operacional(limit: str) -> None:
+    evidence: dict[str, Any] = {
+        "probe_status": "completed",
+        "probe_attempts": dict.fromkeys(EXPECTED, 1),
+        "scan_status": "completed",
+        "scan_planned": sorted(EXPECTED),
+        "scan_entries": [
+            {"operation_id": name, "outcome": "completed", "truncated": False} for name in EXPECTED
+        ],
+        "scan_skipped": [],
+        "scan_rule_gaps": [],
+        "authz_status": "completed",
+        "authz_checks": [{"status": "completed", "tested": 1}],
+        "authz_not_tested": 0,
+        "negative_status": "completed",
+        "negative_operations_tested": 1,
+        "negative_not_tested": 0,
+    }
+    assert _has_complete_coverage(evidence)
+    if limit == "uma_entrada":
+        evidence["scan_entries"] = evidence["scan_entries"][:1]
+    elif limit == "vazio":
+        evidence["scan_entries"] = []
+    elif limit == "skipped":
+        evidence["scan_skipped"] = [{"reason": "login"}]
+    elif limit in {"unknown", "unavailable"}:
+        evidence["scan_rule_gaps"] = [{"state": limit}]
+    elif limit == "sem_estatisticas":
+        evidence["scan_rule_gaps"] = None
+    elif limit == "plano_repetido":
+        evidence["scan_planned"].append("get_products")
+    elif limit == "probe_pulado":
+        evidence["probe_attempts"]["get_products"] = 0
+    else:
+        evidence["authz_checks"] = [{"status": "skipped", "tested": 0}]
+    assert _operational_complete(evidence)
+    assert not _has_complete_coverage(evidence)
 
 
 def test_summary_omite_mensagens_e_conteudo_externo() -> None:
