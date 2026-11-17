@@ -108,6 +108,28 @@ def test_cabecalho_invalido_nao_prova_ausencia(header: str) -> None:
     assert result.level == "not_verifiable"
 
 
+_SPRING = (
+    "HTTP/1.1 200\nVary: Origin\nVary: Access-Control-Request-Method\n"
+    "Set-Cookie: a=1\nSet-Cookie: b=2\n"
+)
+
+
+def test_cabecalho_repetivel_do_spring_nao_torna_a_evidencia_indisponivel() -> None:
+    """Defeito medido no laboratório: `Vary` e `Set-Cookie` repetidos viravam 'indisponível'."""
+    result = classify_recorded_finding(
+        finding("10021", _SPRING + "Content-Type: application/json\n")
+    )
+    assert result is not None
+    assert result.level == "not_verifiable"
+    assert "HTML" in result.reason
+
+
+def test_ausencia_em_html_com_cabecalhos_repetiveis_e_observada() -> None:
+    result = classify_recorded_finding(finding("10021", _SPRING + "Content-Type: text/html\n"))
+    assert result is not None
+    assert result.level == "reproduced"
+
+
 def test_cors_sem_origin_e_recusado() -> None:
     result = classify_recorded_finding(
         finding("10098", "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n")

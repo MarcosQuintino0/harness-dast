@@ -14,6 +14,9 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.verification import VerificationEntry, VerificationLevel
 
 _PASSIVE = frozenset({"10020", "10021", "10035", "10036", "10038", "10098"})
+# Cabeçalhos que o protocolo permite repetir sem ambiguidade para as regras avaliadas aqui
+# (o Spring repete `Vary` e `Set-Cookie`). Os demais repetidos continuam recusados.
+_REPEATABLE = frozenset({"vary", "set-cookie", "via", "link", "warning", "www-authenticate"})
 _NAMES = MappingProxyType(
     {
         "10020": "x-frame-options",
@@ -49,9 +52,14 @@ def _headers(raw: str, response: bool) -> dict[str, str] | None:
             break
         name, sep, value = line.partition(":")
         name = name.strip().lower()
-        if not sep or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9a-z-]+", name) or name in result:
+        if not sep or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9a-z-]+", name):
             return None
-        result[name] = value.strip()
+        if name in result:
+            if name not in _REPEATABLE:
+                return None
+            result[name] = f"{result[name]}, {value.strip()}"
+        else:
+            result[name] = value.strip()
     return result
 
 
