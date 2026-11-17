@@ -106,6 +106,7 @@ def setup_run(
     ("mode", "level", "suspect", "cli", "agent"),
     [
         ("vulnerable", "reproduced", False, "acertou", "acertou"),
+        ("vulnerable", "likely", False, "acertou", "acertou"),
         ("vulnerable", "likely_false_positive", True, "errou", "errou"),
         ("secure", "reproduced", False, "errou", "errou"),
         ("secure", "likely_false_positive", True, "acertou", "acertou"),
@@ -187,3 +188,20 @@ def test_dados_suplementares_ausentes_nao_alteram_nota(repo: Path, out: Path) ->
     result = score(out)
     assert result["grade"] == pytest.approx(10 * (25 + 25 * 0.875 + 20 + 20) / 90, abs=0.01)
     assert result["triage_accuracy"]["problemas"]
+
+
+def test_correspondencia_parcial_nao_vira_verdade(tmp_path: Path) -> None:
+    folder = setup_run(tmp_path)
+    data = report()
+    data["findings"][0]["title"] = "X-Content-Type-Options Header Missing"
+    write(folder / "findings.json", data)
+    result = measure(tmp_path, load_case("clinica-piloto"), "secure")
+    assert result["observacoes"][0]["cli"] == "indeterminado"
+
+
+def test_relatorio_de_outra_execucao_nao_e_medido(tmp_path: Path) -> None:
+    folder = setup_run(tmp_path)
+    write(folder / "findings.json", report("2026-11-13T10-00-01Z-clinica-piloto-bbbb"))
+    result = measure(tmp_path, load_case("clinica-piloto"), "vulnerable")
+    assert not result["observacoes"]
+    assert "divergente" in result["problemas"][0]["motivo"]

@@ -4,6 +4,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from pydantic import ValidationError
@@ -16,10 +17,12 @@ from harness_dast.domain.triage import TriageFile
 from harness_dast.domain.verification import VerificationFile
 
 # O gabarito identifica as operacoes e os parametros corrigidos pelo modo seguro.
-PILOT_CORRECTED = {
-    "H1": ("GET", "/api/pacientes/busca", "nome"),
-    "H4": ("GET", "/api/documentos/download", "arquivo"),
-}
+PILOT_CORRECTED = MappingProxyType(
+    {
+        "H1": ("GET", "/api/pacientes/busca", "nome"),
+        "H4": ("GET", "/api/documentos/download", "arquivo"),
+    }
+)
 
 
 def _read(path: Path) -> object:
