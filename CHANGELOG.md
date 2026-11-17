@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Verificação V1.11
+
+- Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
+- `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
+- Skills de triagem orientam a reprodução pela CLI e a leitura da verificação. Régua privada de acerto da triagem preserva a nota histórica (ADR 0089, proposto).
+
 ### Organização
 
 - Navegação por intenção (`docs/README.md`, com "Onde colocar cada coisa"), índice de planos e estado centralizado no roadmap; histórico retirado das instruções.
