@@ -2,6 +2,26 @@
 
 Caminho: `src/harness_dast/domain/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
 
+## Mapa por assunto
+
+Inventário após a organização V1.9.4: **215 módulos de produção**, sem contar 4 arquivos `__init__.py`.
+Grupos disjuntos somam o total: 135 módulos na raiz e 80 nos três subpacotes abaixo.
+Testes espelham `tests/unit/domain/`; adaptadores concretos continuam em `adapters/`.
+
+| Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
+| --- | --- | --- | --- |
+| `authz/` | 35 | Regras/modelos de autorização, leitura de dono e lacunas | Nova regra de autorização neste subpacote |
+| `panel/` | 29 | Modelos de visão, agregação e renderização pura; apresentação preservada (ADR 0084) | Composição e apresentação do painel neste subpacote |
+| `report/` | 16 | Modelos, composição e formatos de relatório | Montagem e formatos do relatório neste subpacote |
+| Contrato da API, entradas e alcance | 35 | `account_routing.py`, `api_model.py`, `api_schema.py`, `api_summary.py`, `auth.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Execução, pilha, métricas e diário | 12 | `agent_metrics.py`, `audit.py`, `command_journal.py`, `command_translation.py`, `errors.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Limpeza | 6 | `cleanup_binds.py`, `cleanup_confirmation.py`, `cleanup_gate.py`, `cleanup_plan.py`, `cleanup_sql.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Achados, sinais, redação e reprodução | 21 | `cors.py`, `curl_repro.py`, `error_signal_catalog.py`, `finding.py`, `finding_build.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Estratégia, conhecimento e mutações | 14 | `envelope.py`, `knowledge.py`, `knowledge_checks.py`, `knowledge_evidence.py`, `knowledge_mutation.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Escopo, autorização da execução e tráfego | 15 | `host.py`, `overrides.py`, `pathpattern.py`, `proxy_deadline.py`, `scope.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Perfil, carta e referências a segredo | 15 | `letter.py`, `letter_collect.py`, `letter_negative.py`, `letter_outcomes.py`, `letter_review.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Varredura e valores proibidos | 17 | `negative_config.py`, `negative_findings.py`, `negative_plan.py`, `negative_request.py`, `negative_result.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+
 ## Responsabilidade
 
 Regras e modelos puros do negócio: o que é escopo, perfil, achado, regra de dados, execução e erro. Toda decisão sobre escopo, unicidade, severidade ou fingerprint mora aqui e em nenhum outro lugar.
@@ -70,9 +90,9 @@ A tabela acima cobre o M1 ao M5. As versões 1.1 e 1.2 acrescentaram famílias d
 | --- | --- | --- |
 | Cerca com motivo granular e modo amplo | `scope_reason.py`, `scope_labels.py`, `widepath.py`, `wide_guard.py`, `traffic.py` | [0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) |
 | Teste de autorização entre contas | `authz/config.py`, `authz/plan.py`, `authz/compare.py`, `authz/result.py`, `authz/findings.py`, `authz/sensitive.py`, `probe_exchange.py` | [0027](../adr/0027-teste-de-autorizacao-entre-contas.md) |
-| Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report_*.py`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
+| Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report/`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
 | Medição da execução | `run_metrics.py`, `rule_stats.py`, `run_summary.py` | [0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) |
-| Painel, diário de comandos e explicação de falha | `panel_*.py`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../adr/0032-painel-da-execucao.md), [0033](../adr/0033-diario-de-comandos.md), [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
+| Painel, diário de comandos e explicação de falha | `panel/`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../adr/0032-painel-da-execucao.md), [0033](../adr/0033-diario-de-comandos.md), [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
 
 ## Pode importar
 
@@ -94,18 +114,3 @@ Somente a biblioteca padrão e pydantic.
 ## Status
 
 Os módulos listados estão implementados e testados e são usados pelos comandos da CLI. O número de cobertura (100% na revisão de 2026-11-13) envelhece: a fonte é o relatório do CI. Módulo planejado que ainda não existe não aparece nesta página. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
-
-## Grupo `panel/`
-
-29 módulos de produção agrupados na mesma camada, sem alterar contratos.
-Novas regras deste assunto entram em `domain/panel/`, com testes espelhados em `tests/unit/domain/panel/`.
-
-## Grupo `authz/`
-
-35 módulos de produção agrupados na mesma camada, sem alterar contratos.
-Novas regras deste assunto entram em `domain/authz/`, com testes espelhados em `tests/unit/domain/authz/`.
-
-## Grupo `report/`
-
-16 módulos de produção agrupados na mesma camada, sem alterar contratos.
-Novas regras deste assunto entram em `domain/report/`, com testes espelhados em `tests/unit/domain/report/`.

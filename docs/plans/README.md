@@ -21,3 +21,4 @@ O [roadmap](../roadmap.md#estado-atual) prevalece como estado vigente.
 | [2026-11-16-v1-8-rodada3.md](2026-11-16-v1-8-rodada3.md) | Concluído | Quatro T4 e revogação; parecer corrigir; não promover. |
 | [2026-11-16-v1-9-3-autorizacao-sem-roteamento.md](2026-11-16-v1-9-3-autorizacao-sem-roteamento.md) | Concluído com limites | Leitura de dono entregue; opção de pacing revertida; relatório V1.9.3, sem rodada cega. |
 | [2026-11-16-v1-9-inventario-contratos.md](2026-11-16-v1-9-inventario-contratos.md) | Concluído | Escopo registrado nos relatórios e no roadmap; conclusão não concede aceite ausente nem aceita ADR. |
+| [2026-11-16-v1-9-4-organizacao.md](2026-11-16-v1-9-4-organizacao.md) | Concluído na branch; revisão pendente | Três fases implementadas; só degraus 1 e 2, sem CI real nem laboratório |

@@ -1,6 +1,7 @@
 """A cópia cega entrega só contexto operacional explicitamente permitido."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -47,7 +48,7 @@ def test_real_operational_skills_and_shared_rules_are_kept_without_version_histo
     assert not any(p.startswith(".claude/skills/dev-") for p in kept)
     for name in ("AGENTS.md", "CLAUDE.md"):
         text = kept[name].read_text(encoding="utf-8")
-        assert "A V1.9.3" not in text
+        assert not re.search(r"(?m)^(?:Estado:|(?:A\s+)?V\d+\.)", text)
         assert "BOLA entre pacientes preservado" not in text
         assert "## Notas de entrega" not in text
 

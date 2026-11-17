@@ -24,4 +24,4 @@ def test_entry_documents_link_to_roadmap_instead_of_announcing_current_version(
 ) -> None:
     text = (ROOT / relative).read_text(encoding="utf-8")
     assert "roadmap.md" in text
-    assert not re.search(r"estado atual[^\n]*\d+\.\d+", text, re.I)
+    assert not re.search(r"(?:estado\s+(?:atual|vigente)|versão\s+atual)[^\n]*\d+\.\d+", text, re.I)

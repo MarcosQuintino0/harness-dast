@@ -17,6 +17,7 @@ jobs:
   static:
     name: Análise estática
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
@@ -30,6 +31,7 @@ jobs:
   security:
     name: Segurança
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # O gitleaks lista os commits do pull request pela API; sem esta leitura ele falha com
     # "Resource not accessible by integration" em evento pull_request.
     permissions:
@@ -51,6 +53,7 @@ jobs:
   tests:
     name: Testes unitários e de contrato
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -70,18 +73,38 @@ jobs:
 
   integration:
     name: Integração
-    # Os testes de integração sobem ZAP, proxy e os alvos do laboratório e exigem as imagens já
-    # construídas; rodam na máquina de quem desenvolve (`-m lab_fast`, `-m lab_full`). No CI ficam
-    # só sob disparo manual, e a subida das imagens aqui ainda não foi provada (docs/roadmap.md).
+    # Integração é manual: requer Docker e imagens ZAP, socat, VAmPI, proxy, piloto e Oracle.
+    # A preparação abaixo falha se build/pull/inspect falhar; não aceitar coleta vazia como sucesso.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
-      # Código 5 do pytest = nenhum teste coletado; tolerado até haver testes de integração.
-      - run: |
-          set +e
-          uv run pytest -m integration
-          status=$?
-          if [ "$status" -ne 0 ] && [ "$status" -ne 5 ]; then exit "$status"; fi
+      - name: Construir imagens locais do proxy e da Clínica Piloto
+        run: |
+          docker build -t hdast/scope-proxy:local -f docker/scope-proxy/Dockerfile .
+          docker build -t hdast-clinica-piloto:1.0.0 lab/pilot
+      - name: Baixar e conferir imagens das integrações
+        # Imagens seguem as referências dos compose; nenhuma pilha é iniciada nesta preparação.
+        run: |
+          docker info
+          docker pull zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
+          docker pull alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055
+          docker pull erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+          docker pull gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093
+          docker tag gvenzl/oracle-free@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 gvenzl/oracle-free:23-slim-faststart
+          docker image inspect hdast/scope-proxy:local hdast-clinica-piloto:1.0.0 gvenzl/oracle-free:23-slim-faststart
+      - name: Rodar integração (nenhum teste coletado é falha)
+        run: uv run pytest -m integration
+
+  windows:
+    name: Unitários e contratos no Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/unit tests/contract

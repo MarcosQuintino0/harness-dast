@@ -1,1 +1,1 @@
-"""Regras e modelos de authz."""
+"""Regras e modelos de autorização."""

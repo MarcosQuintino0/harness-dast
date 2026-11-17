@@ -100,3 +100,17 @@ GRANT SELECT, DELETE ON agenda.paciente TO hdast_limpeza;
 | "A limpeza apagaria N linhas, acima do teto" | Nada foi gravado. Confira o script e o banco; só aumente `max_rows` com a concordância da pessoa dona do produto. |
 | "Erro do banco ao executar o comando (ORA-02292)" | Há linhas filhas: ajuste a ordem do script (filhos antes dos pais). O banco não foi alterado. |
 | "Erro do banco ao conectar (ORA-01017 ...)" | Confira usuário, senha e DSN nas variáveis de ambiente. |
+
+## Exemplo de saída da simulação
+
+```text
+Limpeza de agenda (execução 2026-11-12T21-04-11Z-agenda-7f3a)
+Script SHA-256: c8e0bacddf7211eafcd01dac249c53b2c08734dafaed80534bd590985f592d10
+  comando 1: RECEITA -> 3 linha(s)
+  comando 2: CONSULTA -> 3 linha(s)
+  comando 3: PACIENTE -> 2 linha(s)
+Total: 8 linha(s) (teto do perfil: 500)
+Estado: SIMULAÇÃO: tudo foi desfeito (ROLLBACK), nada foi apagado
+```
+
+A simulação não emite token de confirmação. Confira contagens antes de uma execução real.

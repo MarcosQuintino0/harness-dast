@@ -1,1 +1,1 @@
-"""Regras e modelos de report."""
+"""Regras e modelos de relatório."""

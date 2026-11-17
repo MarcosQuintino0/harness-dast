@@ -99,6 +99,9 @@ Em `runs/<run_id>/`:
 
 ### Confirmação: o que a CLI impede e o que não impede
 
-A confirmação é **digitada** por uma pessoa num terminal interativo. Um agente que roda a CLI pela ferramenta de shell não tem terminal e a limpeza de verdade é recusada; a mensagem de recusa não ensina nenhum atalho, e o `--dry-run` (que o agente pode rodar) não produz nada que sirva para confirmar. Antes do ADR 0025 a confirmação "humana" era um token no stderr do `--dry-run`, que o próprio agente lia e repassava; isso acabou.
+A confirmação é **digitada** por uma pessoa num terminal interativo. Um agente que roda a CLI pela ferramenta de shell não tem terminal e a limpeza de verdade é recusada; a mensagem de recusa não ensina nenhum atalho, e o `--dry-run` não produz nada que sirva para confirmar. Antes do ADR 0025 a confirmação "humana" era um token no stderr do `--dry-run`, que o próprio agente lia e repassava; isso acabou.
 
 Limite honesto: um agente com poder de abrir um pseudoterminal na sua máquina e digitar o nome do produto ainda cumpriria a confirmação. O que fecha isso é o que está fora da CLI: (1) a regra de skill e a permissão do Claude Code que negam `hdast cleanup` (camada 0 de conveniência implementada no M6); (2) o usuário de banco com só `SELECT` e `DELETE` nas tabelas de teste; (3) o ambiente de testes, com dados sintéticos.
+
+A confirmação real exige entrada padrão e saída de erro ligadas a um terminal interativo.
+Não há exceção para CI ou tarefa agendada; se precisar limpar sem pessoa, recrie o ambiente descartável.

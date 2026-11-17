@@ -8,6 +8,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Organização
 
+- Mapas domain/application por assunto com inventário e destinos de código novo; plano V1.9.4 com aceites e limites.
+- CI: job Windows de unitários/contratos, timeout em todos os jobs e integração manual com imagens explícitas, sem aceitar saída 5. Configuração ainda sem execução real no CI.
+
 - Grupo report: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
 
 - Portas da aplicação divididas por consumidor em 12 módulos, com módulo comum para contratos compartilhados; 47 declarações, assinaturas e docstrings preservadas.

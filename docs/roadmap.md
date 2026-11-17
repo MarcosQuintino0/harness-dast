@@ -4,7 +4,7 @@ Fonte: documento de fundação técnica aprovado em 2026-11-13. O tamanho de cad
 
 ## Estado atual
 
-Versão publicada mais recente: **1.9.3**, em 2026-11-16. A organização V1.9.4 está em desenvolvimento, sem carimbo de release.
+Versão publicada mais recente: **1.9.3**, em 2026-11-16. A organização V1.9.4 está implementada nesta branch, sem carimbo de release; aceite e integração dependem da revisão.
 M0 a M6 têm entregas de código e provas locais, com os limites por componente abaixo; M7 não foi realizado.
 Existem CLI, ZAP, limpeza Oracle, painel, carta, aprovação humana, `negative`, estratégia, conhecimento, diário de mutações
 e leitura de dono no `authz` (ADR 0082). Não existem outros motores ou bancos de limpeza nem prova contra produto real.
@@ -19,9 +19,14 @@ na data da entrega: uma prova posterior pode completar uma lacuna anterior. [His
 
 ## Organização V1.9.4
 
-Fases 1 e 2 implementadas: navegação e versão coerentes, regras canônicas em AGENTS, cinco skills de desenvolvimento,
+Fases 1, 2 e 3 implementadas: navegação e versão coerentes, regras canônicas em AGENTS, cinco skills de desenvolvimento,
 cópia cega por permissão com manifesto (ADR 0083 proposto), pesquisa consolidada e retenção documental de evals.
+Subpacotes `domain/panel/`, `domain/authz/`, `application/authz/`, `domain/report/` e portas por consumidor implementados,
+com imports e testes espelhados. ADR 0084 proposto; apresentação preservada na camada atual.
+CI configurado com timeout em todos os jobs, job Windows sem integração e preparação explícita das imagens no job manual;
+coleta vazia não é mais aceita. O CI não foi executado de verdade nesta entrega.
 Validação limitada a unitários e contratos; laboratório e rodadas cegas não executados nesta entrega.
+Plano, aceites e limites: [organização V1.9.4](plans/2026-11-16-v1-9-4-organizacao.md).
 
 ## Marcos
 
@@ -54,7 +59,7 @@ Estado consolidado após a V1.9.3. Provas datadas em [reviews](reviews/README.md
 | --- | --- | --- |
 | Pacote `harness_dast` em layout `src/`, com pacotes `domain`, `application`, `adapters`, `cli`, `config`, `observability` | `src/harness_dast/` | Implementado (M1) |
 | Subpacotes de `adapters` (`openapi`, `zap`, `http`, `datagen`, `secrets`, `reporting`, `cleanup`, `storage`) | `src/harness_dast/adapters/` | `openapi`, `datagen`, `storage`, `http`, `zap` e `secrets` implementados (M3); `cleanup` implementado (M5); `reporting` implementado (M4: armazém de artefatos e destinos JSON e Markdown) |
-| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` (M2); `inspect_spec.py`, `preflight.py` e `probe.py` (M3). `cleanup.py` (M5); `scan.py` e `report.py` (M4); `run.py` (`RunPipeline`, M5). V1.1 e V1.2: `authz*.py`, `doctor*.py`, `secret_*.py`, `metrics.py`, `panel*.py`, `command_journal.py` |
+| `application` (casos de uso e portas) | `src/harness_dast/application/` | `ports.py`, `init_product.py` e `validate_profile.py` (M2); `inspect_spec.py`, `preflight.py` e `probe.py` (M3). `cleanup.py` (M5); `scan.py` e `report.py` (M4); `run.py` (`RunPipeline`, M5). V1.1 e V1.2: `authz/`, `doctor*.py`, `secret_*.py`, `metrics.py`, `panel*.py`, `command_journal.py` |
 | Hierarquia de erros `HarnessError` e mapeamento para códigos de saída | `domain/errors.py` | Implementado (M1) |
 | Envelope JSON com `schema_version` e saída humana | `cli/output.py` | Implementado (M1) |
 | Tratador único de erros | `cli/app.py` | Implementado (M1) |
@@ -63,10 +68,10 @@ Estado consolidado após a V1.9.3. Provas datadas em [reviews](reviews/README.md
 | Logger estruturado com redação (structlog) | `observability/logging.py` | Implementado (M1) |
 | Configuração de ruff, mypy estrito, pytest, import-linter e vulture | `pyproject.toml` | Implementado (M1) |
 | pre-commit (ruff, gitleaks, commitizen, mypy, import-linter) | `.pre-commit-config.yaml` | Implementado (M1); se os hooks estão instalados nas máquinas de quem contribui: a confirmar |
-| CI com gates (estática, segurança, testes, integração) | `.github/workflows/ci.yml` | Implementado (M1); rodou nos pull requests #1 a #5 e passou nos mais recentes (`gh run list`). A integração com Docker não roda no CI |
+| CI com gates (estática, segurança, testes, integração) | `.github/workflows/ci.yml` | Implementado (M1); rodou nos pull requests #1 a #5 e passou nos mais recentes (`gh run list`). A integração com Docker está configurada sob disparo manual; a configuração V1.9.4 ainda não foi executada |
 | `compose.yaml` (ZAP, proxy de escopo, pontes do ZAP e do proxy, alvos do lab) e `lab/` (VAmPI) | raiz, `docker/`, `lab/` | Implementado (M1); subida e isolamento verificados em tempo de execução em 2026-11-13 (veja [lab/README.md](../lab/README.md)) |
 | `products/_template/` (modelo de perfil) | `products/` | Implementado (M1); `target.yml` validado por teste contra o modelo de domínio |
-| Documentação e ADRs 0001 a 0037 (os 0026 e 0032 a 0037 ainda estão "Proposto"; aceitar é decisão do dono) | `docs/`, raiz | Implementado |
+| Documentação e ADRs 0001 a 0084 (estados no índice; 0083 e 0084 propostos, aceitar é decisão do dono) | `docs/`, raiz | Implementado |
 | `LICENSE` | | Não existe de propósito: licença indefinida (P-14) |
 
 ### Domínio do perfil e do escopo (primeira metade do M2)
@@ -91,7 +96,7 @@ Tudo abaixo é código puro em `src/harness_dast/domain/`, com testes unitários
 
 ### Comandos da CLI
 
-Existem `version`, `doctor`, `init`, `profile validate`, `profile approve`, `profile approval`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `report`, `panel`, `run`, `cleanup`, `secret`, `stack` e `stop`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
+Existem `version`, `doctor`, `init`, `profile validate`, `profile approve`, `profile approval`, `spec inspect`, `preflight`, `probe`, `scan`, `authz`, `negative`, `report`, `panel`, `run`, `wait`, `cleanup`, `secret`, `stack`, `stop`, `strategy`, `plan` e `knowledge`. O fluxo completo foi verificado contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](reviews/2026-11-13-e2e-lab.md)).
 
 | Comando | Status |
 | --- | --- |
@@ -102,10 +107,10 @@ Existem `version`, `doctor`, `init`, `profile validate`, `profile approve`, `pro
 | `hdast cleanup` | Implementado (M5): `--dry-run`, confirmação digitada só em terminal interativo ([ADR 0025](adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL, teto de linhas, verificado contra um Oracle Free real ([ADR 0020](adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [guia](operations/cleanup.md)) |
 | `hdast doctor` | Implementado (V1.1, [ADR 0028](adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)); avisa de `scope.path_mode: wide` e da falta de duas contas do mesmo papel; verificado com Docker real e com porta ocupada em 2026-11-13. Veja "V1.1" abaixo |
 | `hdast authz`, `hdast run --authz` | Implementado (V1.1, [ADR 0027](adr/0027-teste-de-autorizacao-entre-contas.md)); verificado só na Clínica Piloto local (H5, H6, H7), não contra produto real. Veja "V1.1" abaixo |
-| `hdast panel` | Implementado como código e testes (V1.2, [ADR 0032](adr/0032-painel-da-execucao.md), proposto): gera as páginas HTML do painel da execução; as seis abas (Resumo, Etapas, Falhas, Cobertura, Terminal, Tempo e tokens) estão feitas. Veja "V1.2" abaixo |
+| `hdast panel` | Implementado como código e testes (V1.2, [ADR 0032](adr/0032-painel-da-execucao.md), proposto): gera as páginas HTML do painel da execução; as abas de execução estão feitas, incluindo Autorização desde a V1.9.3. Veja "V1.2" abaixo |
 | `hdast profile approve`, `hdast profile approval` | Implementado como código e testes (V1.3, [ADR 0037](adr/0037-aprovacao-humana-do-escopo.md), proposto); veja "V1.3" abaixo |
 | `hdast init --from-letter [--check]` | Implementado como código e testes (V1.3, [ADR 0036](adr/0036-carta-estruturada.md), proposto); veja "V1.3" abaixo |
-| `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia as etapas (preflight, probe, scan, authz opcional e report) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
+| `hdast run`, `hdast stop` (trava de emergência) | Implementado (M5): `run` encadeia preflight, probe, scan, authz, negative e report (authz só lê por padrão; escrita só pela carta) em um processo e grava `run.json`; `stop` aciona o `KILL`, para as varreduras e diz o que estava rodando; `stack up --oracle` ([ADR 0024](adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)) |
 
 ### V1.1: o que foi provado em laboratório e o que ainda NÃO foi verificado
 
@@ -203,7 +208,7 @@ Uma correção entrou junto: a redação de segredos não apaga mais a versão d
 | gitleaks (pre-commit e CI), pip-audit (CI, sobre o `uv.lock`), commitizen (pre-commit) | Implementado |
 | Verificador de links da documentação | Implementado: `tests/contract/test_docs_links.py` percorre os `.md` do repositório e falha com link relativo (arquivo ou âncora) que não existe; roda no `pytest` e, portanto, no CI. Sem rede: `http(s)://` é ignorado |
 | Referência da CLI e do schema gerada do código, verificada no CI | Parcial: `tests/contract/test_docs_conformance_qa.py` confere que flags, subcomandos e códigos de saída citados nos documentos existem na CLI real; a referência não é gerada do código |
-| Testes de integração e ponta a ponta | Implementado: `tests/integration/` roda a CLI contra o ZAP, o proxy e os alvos do lab reais (manual, exige Docker; [testing.md](testing.md)). Adaptadores `http` e `zap` também têm testes rápidos contra servidor local e ZAP falso com as formas reais. O CI não roda a integração |
+| Testes de integração e ponta a ponta | Implementado: `tests/integration/` roda a CLI contra o ZAP, o proxy e os alvos do lab reais (manual, exige Docker; [testing.md](testing.md)). Adaptadores `http` e `zap` também têm testes rápidos contra servidor local e ZAP falso com as formas reais. O CI tem job manual de integração com imagens explícitas, ainda sem execução real nesta entrega |
 | Testes unitários e de contrato | Implementado (veja [testing.md](testing.md#o-que-existe-hoje)) |
 | Análise de mutação | Feita uma vez, à mão, na revisão de QA; não é um gate |
 
@@ -337,7 +342,7 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | P-10 | Entrega e renovação do token no ZAP; execução do plano de varredura | **Fechado:** testado no [spike](spikes/2026-11-13-m0-zap.md) e registrado nos ADRs [0018](adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md), [0022](adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0023](adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) | M0 |
 | P-14 | Licença do projeto e reaproveitamento de código do Strix (Apache-2.0) | Indefinida; não há `LICENSE` (o prazo, M1, passou). Inspirar-se na estrutura; copiar código só com atribuição e depois de definir a licença | M1 |
 | A-08 | O proxy de escopo nega faixas privadas para a lista geral (sem `allow_local`); um ambiente de teste de empresa em IP privado provavelmente não passa | Não confirmado contra um alvo real em IP privado. Caminho e riscos em [docker/egress-proxy/README.md](../docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais). Decisão por ADR | M7 |
-| A-16 | Ações do GitHub Actions fixadas por tag, não por SHA de commit; decidir se o CI também roda em `windows-latest` (o uso é local no Windows); `cancel-in-progress` também na `main`; sem `timeout-minutes`; exigência de `GITLEAKS_LICENSE` em repositório de organização não verificada | Aberto, conferido em 2026-11-14: as ações seguem fixadas por tag, sem `timeout-minutes` e só em `ubuntu-latest`; `cancel-in-progress` está ligado. Os pull requests #1 a #5 já passaram pelo CI sem esses ajustes | Antes do primeiro pull request real (prazo vencido) |
+| A-16 | CI: Windows, prazos e referências de actions | Na V1.9.4, Windows unitário/contrato e timeout em todos os jobs foram configurados; integração exige imagens e recusa coleta vazia. CI ainda não executado nesta entrega. Actions continuam por tag conforme escopo; `cancel-in-progress` e licença gitleaks em organização permanecem pendentes | Parte resolvida; demais decisões antes do M7 |
 | A-18 | `docker compose ps` e `down` exigem a chave do ZAP por causa da interpolação obrigatória (conferido em 2026-11-14: segue assim). `compose.yaml` já traz `mem_limit` e `pids_limit` nos serviços; `cpus` não aparece. `forbidden_ranges` do Squid deixou de existir com o ADR 0017; se o proxy de escopo cobre `::ffff:0:0/96` e `64:ff9b::/96`: a confirmar | Parte aberta | M4 |
 | Chave do ZAP | A chave da API do ZAP fica visível em `docker logs` e `docker inspect` do contêiner `zap` (o ZAP registra `api.key` ao iniciar) | Aberto. Passar a chave por outro meio antes de qualquer ambiente da empresa | Antes do M7 |
 | Tráfego real pelo proxy | Varredura ativa real pelo proxy de escopo provada no lab (VAmPI e piloto) | Fechado em 2026-11-13. O Squid do desenho original foi substituído pelo proxy de escopo (ADR 0017); o que falta é o caminho para ambiente de empresa em IP privado (A-08) | M7 |
@@ -363,7 +368,7 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | V1.1-a | Coerção de tipo do parâmetro de caminho (`01`, `+1`, `%2b1`, `0x1`, dígitos Unicode como `%D9%A1`) alcança o mesmo recurso e fica fora do modelo da cerca, nos dois modos | Aberto, **pede ADR** (canonizar segmentos numéricos nos dois guardas muda o contrato do `ScopeGuard`). Mitigação: negar com curinga em `deny_paths`. Detalhe na seção 6 do [relatório da cerca](reviews/2026-11-13-lab-v1-1-cerca.md) |
 | V1.1-b | Repetir estrito x amplo para medir a variância (hoje 1 repetição por célula) | Aberto |
 | V1.1-c | BFLA vertical e interrupção após o `PUT` do H6 sem prova em alvo real (a vertical ficou `skipped` por falta de conta de papel menor) | Aberto |
-| V1.1-d | "Escada de testes" mais rápida e menos sujeita a falso verde: (1) a imagem do proxy tem de bater com o código antes de teste de laboratório (hoje `--build` é opcional e nenhum teste de integração o pede: risco de falso verde); (2) desligar a regra SSRF 40046 no perfil de lab (hipótese, ainda inferida: explicaria ~500 s de espera no modo amplo); (3) pytest-xdist (medido 223 s para 52 s; pede ADR); (4) pular `tests/unit/evals/` no laço local; (5) documentar o ataque direcionado com `probe --only` e `scan --only` (feito em 2026-11-14: [escada-de-testes.md](escada-de-testes.md)); (6) pilhas em paralelo | Aberto (item 5 feito) |
+| V1.1-d | "Escada de testes" mais rápida e menos sujeita a falso verde: (1) a imagem do proxy tem de bater com o código antes de teste de laboratório (a pilha principal já reconstrói a imagem automaticamente; conferência de todas as imagens/alvos segue necessária); (2) desligar a regra SSRF 40046 no perfil de lab (hipótese, ainda inferida: explicaria ~500 s de espera no modo amplo); (3) pytest-xdist (medido 223 s para 52 s; pede ADR); (4) pular `tests/unit/evals/` no laço local; (5) documentar o ataque direcionado com `probe --only` e `scan --only` (feito em 2026-11-14: [escada-de-testes.md](escada-de-testes.md)); (6) pilhas em paralelo | Parcial: item 5 feito; item 1 tem reconstrução obrigatória da imagem principal, sem dispensar conferência das demais imagens |
 | V1.1-e | Funções acima de 40 linhas sem justificativa: módulos de authz, `report_actions.next_steps`, `report_build.assemble_report` e `cli/commands/run.py:run_command` (apontado pelo QA) | Aberto: justificar ou dividir |
 | V1.1-f | `except Exception` em `adapters/secrets/keyring_store.py` é desvio consciente da regra "sem `except` genérico fora do tratador da CLI" (a biblioteca `keyring` levanta tipos variados por backend) | Registrado como nota; não é pendência de código |
 

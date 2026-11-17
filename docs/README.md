@@ -45,7 +45,7 @@ Mapa para pessoas e agentes; caminhos relativos à raiz do repositório.
 | --- | --- |
 | Regra nova de escopo | `src/harness_dast/domain/` + `tests/unit/domain/`; ADR se mudar contrato |
 | Comando novo da CLI | `src/harness_dast/cli/` + `application/` + `docs/reference/cli.md` + `CHANGELOG.md` |
-| Verificação de autorização | `domain/authz/` + `application/authz/` dentro de `src/harness_dast/`, após o agrupamento da fase 3; testes espelhados |
+| Verificação de autorização | `domain/authz/` + `application/authz/` dentro de `src/harness_dast/`, com testes espelhados |
 | Prova de laboratório | `docs/reviews/AAAA-MM-DD-*.md`, com limites e evidências |
 | Plano de versão | `docs/plans/`, com estado no índice |
 | Skill de operar | `.claude/skills/<nome>/SKILL.md` |

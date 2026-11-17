@@ -1,1 +1,1 @@
-"""Regras e modelos de panel."""
+"""Regras e modelos de painel."""

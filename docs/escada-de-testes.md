@@ -102,7 +102,7 @@ Para o modo corrigido do alvo, repita com `stack up clinica-piloto --secure`: um
 
 ### A imagem do proxy
 
-O código da cerca é copiado para dentro da imagem do proxy de escopo. Se você mudou `adapters/scope_proxy/`, `domain/` da cerca ou `docker/` e subiu a pilha sem `--build`, o teste roda a cerca **antiga** e passa sem provar nada. Depois de qualquer mudança nesses lugares, suba com `--build`. Hoje nada obriga isso. Obrigar é um dos itens abertos do V1.1-d.
+O código da cerca é copiado para dentro da imagem do proxy de escopo. Se você mudou `adapters/scope_proxy/`, `domain/` da cerca ou `docker/` e subiu a pilha sem `--build`, o teste roda a cerca **antiga** e passa sem provar nada. Depois de qualquer mudança nesses lugares, suba com `--build`. A pilha principal já impõe reconstrução no caso de uso `StackUp` (`application/stack.py`). Isso não dispensa conferir as demais imagens e reconstruir o alvo quando seu código mudar.
 
 ## Degrau 4. Varredura completa
 
@@ -139,7 +139,7 @@ Quando o trabalho é dividido entre agentes (plano do ciclo em [plans/](plans/20
 
 | Item | Ganho esperado | Estado |
 | --- | --- | --- |
-| Obrigar a imagem do proxy a bater com o código antes de teste de laboratório | Fecha o risco de passar com a cerca antiga | Aberto |
+| Conferir imagens antes da prova | Fecha o risco de passar com código antigo | Parcial: a pilha principal força reconstrução; conferir também as imagens dos alvos |
 | Desligar a regra de SSRF 40046 no perfil de laboratório (ligada no fechamento) | Até 500 s a menos na varredura no modo amplo | Aberto; a causa ainda é dedução (planejado para a V1.7) |
 | Testes em paralelo (`pytest-xdist`, pede ADR) | De 223 s para 52 s, medido | Aberto |
 | Pular `tests/unit/evals/` no laço local | Cerca de 53 s de processador | Descrito acima; sem atalho de comando |

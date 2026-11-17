@@ -2,6 +2,24 @@
 
 Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
 
+## Mapa por assunto
+
+Inventário após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`.
+Contagens por grupo são disjuntas e somam o total. A raiz mantém 71 módulos; subpacotes preservam a camada.
+Testes espelham `tests/unit/application/`; adaptadores concretos continuam em `adapters/`.
+
+| Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
+| --- | --- | --- | --- |
+| `authz/` | 17 | Coordenação, envio, verificações e portas de autorização; entrada em service.py. | Nova regra ou coordenação desse assunto entra neste subpacote |
+| Cadastro técnico e alcance | 11 | `account_session.py`, `dispatcher.py`, `inspect_report.py`, `inspect_spec.py`, `login_budget.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Perfil, aprovação, segredos e limpeza | 8 | `cleanup.py`, `init_from_letter.py`, `init_product.py`, `scope_approval.py`, `secret_admin.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Portas por capacidade e portas comuns | 15 | `cleanup_ports.py`, `common_ports.py`, `doctor_ports.py`, `init_ports.py`, `knowledge_ports.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Relatório, painel e medição | 7 | `command_journal.py`, `metrics.py`, `panel.py`, `panel_hooks.py`, `panel_index.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Execução e coordenação comum | 7 | `cors_check.py`, `lab_targets.py`, `preview.py`, `run.py`, `run_support.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Pilha, diagnóstico e espera | 8 | `doctor.py`, `doctor_checks.py`, `doctor_report.py`, `stack.py`, `stack_freshness.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Estratégia, conhecimento e mutações | 6 | `knowledge.py`, `knowledge_capture.py`, `knowledge_observations.py`, `mutation_guard.py`, `strategy.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Varredura e valores proibidos | 9 | `negative.py`, `negative_restore.py`, `negative_runner.py`, `negative_sender.py`, `scan.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+
 ## Responsabilidade
 
 Orquestrar um caso de uso por arquivo e declarar nos módulos `*_ports.py` as portas de que precisa. O caso de uso recebe as portas no construtor e usa o `domain` para decidir.
@@ -71,7 +89,7 @@ Implementado no M4 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-ac
 
 | Módulo | Conteúdo |
 | --- | --- |
-| `scan_ports.py` | Portas do `scan`/`report`/`run`: `ScanControl` (API de varredura do ZAP), `RunArtifacts` (arquivos da execução), `ReportSink`, `ProxyAudit` (auditoria do proxy), `RunningScans` (andamento, para `hdast stop`) e `RunSummarySink` (`run.json`). Separadas de `ports.py` só por tamanho; a regra é a mesma |
+| `scan_ports.py` | Portas do `scan`/`report`/`run`: `ScanControl` (API de varredura do ZAP), `RunArtifacts` (arquivos da execução), `ReportSink`, `ProxyAudit` (auditoria do proxy), `RunningScans` (andamento, para `hdast stop`) e `RunSummarySink` (`run.json`). Especializadas pelos consumidores scan/report/run; portas compartilhadas ficam em `common_ports.py` |
 | `scan.py`, `scan_runner.py`, `scan_collect.py`, `scan_health.py`, `scan_tokens.py` | `Scan`: plano, política e limites no ZAP, laço de uma varredura por requisição aprendida, coleta de alertas e evidência redigidos, guarda de saúde do alvo, entrega do token ao Replacer |
 | `report.py` | `Report`: achados, `findings.json` e `report.md`, comparação e código `1` |
 
@@ -93,13 +111,8 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 | `doctor.py`, `doctor_checks.py`, `doctor_report.py` | `Doctor`: confere ambiente e perfil sem tocar o alvo ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) |
 | `secret_admin.py`, `secret_refs.py`, `secret_router.py` | `hdast secret` e o roteamento de `env:` e `keyring:` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
 | `metrics.py` | Montagem do `metrics.json` ([ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
-| `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel/live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
+| `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel_live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
 | `command_journal.py` | Diário de comandos por produto ([ADR 0033](../adr/0033-diario-de-comandos.md), Proposto) |
-
-## Grupo `authz/`
-
-17 módulos de produção agrupados na mesma camada, sem alterar contratos.
-Novas regras deste assunto entram em `application/authz/`, com testes espelhados em `tests/unit/application/authz/`.
 
 ## Portas por consumidor
 
