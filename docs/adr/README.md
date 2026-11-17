@@ -126,7 +126,12 @@ a reserva não implica aceite nem implementação.
 | [0090](0090-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
 | [0091](0091-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
 
-0092 continua reservado à frente da Clínica; seu rascunho recusado pelo provedor não foi integrado.
+0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
+somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0093](0093-diagnostico-sanitizado-da-vigia.md) | Categoria fechada no primeiro travamento da vigia, sem fontes, valores ou segredos |
 
 ## Quando escrever um ADR
 

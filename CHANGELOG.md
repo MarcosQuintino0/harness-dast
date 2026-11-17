@@ -18,6 +18,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Prova inicial do crAPI: subida e descida passaram, mas o `preflight` parou com `STACK_STALE`. Nenhuma detecção nova da trilha F ou rodada cega foi executada. A frente L3/L5 foi recusada pelo provedor; alterações parciais foram preservadas fora da branch para retomada conforme o plano.
 - V1.12 (L3, ADR 0092 proposto): operação `buscarMedicoPorCabecalho` (`GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM`) na Clínica Piloto com a falha H11 (injeção de SQL em cabeçalho) só no modo vulnerável; OpenAPI regenerado pelo alvo; H11 no gabarito e no caso `clinica-piloto` como `detectable: false`.
 - V1.12 (L5): marcador `regressao_dirigida` e roteiro de regressão dirigida (H1 a H10, controle seguro, V1 e V3) em `tests/integration/test_regressao_dirigida.py`.
+- Retomada L1: ciclo crAPI descartável com subida, preflight das duas contas, probe de `get_products`, run curto LOW e descida passou em 229,63 s. Os preparadores preservam as operações de cadastro e isolam regras do contrato reduzido.
+- Retomada L2: evento real do workshop chegou ao Callback pela ponte interna; contador de 0 para 1, redes internas e `ENETUNREACH` verificados, com limpeza concluída. O suporte interpreta a resposta plana da API de estatísticas do ZAP; isso não liga OAST na varredura.
+- Diagnóstico sanitizado do primeiro travamento da vigia (ADR 0093, proposto), mantendo as recusas e o limite de 200 ms. Uma repetição verde não demonstra correção da intermitência de `STACK_STALE`.
+- Inventário de imagens por todos os Compose versionados e contêineres, inclusive parados, em modo de ensaio; imagens sem tag ou digest permanecem sem atribuição. Nenhuma imagem é removida pelo roteiro.
 
 ### Organização
 

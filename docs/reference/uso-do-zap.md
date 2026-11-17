@@ -16,7 +16,7 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 | Regras passivas sobre o tráfego | Sim | Alertas lidos de `alert/view/alerts` |
 | Injeção em cabeçalhos e cookies | Não | Bits 4 e 8 da máscara ficam desligados |
 | Regras "alpha" (experimentais) | Não | Só as regras estáveis e beta da imagem oficial |
-| OAST (detecção fora de banda, com servidor de retorno) | Infraestrutura proposta; sem varredura | Trilha L: ponte interna para Callback e suporte de prova local (ADR 0091). Presença do complemento e evento real ainda pendentes nesta trilha; SSRF, injeção cega e Log4Shell continuam sem detecção |
+| OAST (detecção fora de banda, com servidor de retorno) | Infraestrutura provada no laboratório; sem varredura | Trilha L: Callback recebeu um evento real do workshop do crAPI pela ponte interna (ADR 0091), com contador de 0 para 1, topologia interna e recusa de rota externa (`ENETUNREACH`). Prova de 2026-11-17, pilha `2026-11-17T08-00-17Z-crapi-4538`; SSRF, injeção cega e Log4Shell continuam sem detecção |
 | Regras ativas por script próprio | Não | A regra 50000 ("Script Active Scan Rules") roda sem nenhum script carregado |
 | XSS baseado em DOM (40026) | Não | Exige navegador; exclusão pré-existente, pouco relevante para API |
 | Spider e AJAX spider | Não | Desnecessários: as rotas vêm do OpenAPI e o `probe` alimenta o histórico |
