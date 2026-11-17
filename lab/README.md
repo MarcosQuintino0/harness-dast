@@ -397,7 +397,7 @@ Limites de recursos (medidos com `docker stats` no lab ocioso após as provas):
 
 ## Inventário de imagens (V1.12, sem medição local)
 
-Os digests abaixo são os declarados nos arquivos; imagens locais de build têm ID variável. O tamanho instalado depende da plataforma e deve ser medido pelo coordenador com a trava, sem pull. O invent?rio não comprova que uma imagem exista localmente.
+Os digests abaixo são os declarados nos arquivos; imagens locais de build têm ID variável. O tamanho instalado depende da plataforma e deve ser medido pelo coordenador com a trava, sem pull. O inventário não comprova que uma imagem exista localmente.
 
 | Imagem e digest declarado | Uso | Tamanho instalado |
 | --- | --- | --- |
@@ -421,7 +421,7 @@ Os digests abaixo são os declarados nos arquivos; imagens locais de build têm 
 | `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | Pendente de medição |
 | `scratch` | Estágio de exportação da Clínica (imagem vazia) | Pendente de medição |
 
-Medi??o posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
+Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
 
 ## Retorno OAST isolado (proposto)
 
