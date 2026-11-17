@@ -31,6 +31,7 @@ from tests.integration.test_crapi_focus_dryrun import (
     EXPECTED,
     HEALTH_PATH,
     _configure_health_path,
+    _control_then_run,
     _coverage_complete,
     _remove_template_examples,
     _run_evidence,
@@ -138,6 +139,64 @@ def test_probe_attempts_le_formato_serializado_pela_cli() -> None:
 def test_probe_attempts_recusa_envelope_incompleto() -> None:
     with pytest.raises(ValidationError):
         probe_attempts({"operations": []}, {"get_products"})
+
+
+def test_controle_de_leitura_antecede_uma_unica_execucao_completa() -> None:
+    letter = yaml.safe_load((REPO / "evals/cases/crapi-foco/carta.yml").read_text(encoding="utf-8"))
+    review = review_letter(Letter.from_data(letter), "crapi", date(2026, 11, 17))
+    assert review.profile_text is not None
+    from harness_dast.domain.profile import ProductProfile
+
+    profile = ProductProfile.from_data(yaml.safe_load(review.profile_text))
+    spec = FileSpecLoader(lambda _product, _path: REPO / "lab/crapi/openapi.json").load(
+        "crapi", profile
+    )
+    pending: set[str] = set()
+    attempted: set[str] = set()
+
+    def simulate(_name: str, args: tuple[str, ...], _timeout: int) -> CliResult:
+        only = (args[args.index("--only") + 1],) if "--only" in args else ()
+        plan = plan_probe(spec, None, profile.guard(), profile.environment.base_url, only=only)
+        sent = [item for item in plan if item.decision == "send"]
+        for item in sent:
+            if item.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                assert item.operation_id not in pending, "repetiu uma mutação incerta"
+                pending.add(item.operation_id)
+            attempted.add(item.operation_id)
+        if args[0] == "run":
+            return CliResult(0, {"data": {}}, "", "")
+        probe = ProbeResult(
+            run_id="2026-01-01T00-00-00Z-crapi-abcd",
+            product="crapi",
+            dry_run=False,
+            status="completed",
+            seed=1,
+            started_at="2026-01-01T00:00:00Z",
+            finished_at="2026-01-01T00:00:01Z",
+            summary=ProbeSummary(
+                operations_total=1,
+                operations_sent=1,
+                successes=1,
+                reachability=1.0,
+                reachability_all=1.0,
+                by_outcome={"success": 1},
+            ),
+            operations=tuple(
+                OperationResult(
+                    operation_id=item.operation_id,
+                    method=item.method,
+                    path=item.path,
+                    outcome="success",
+                    attempts=1,
+                )
+                for item in sent
+            ),
+        )
+        return CliResult(0, {"data": probe.model_dump(mode="json")}, "", "")
+
+    _control_then_run(simulate)
+    assert attempted == EXPECTED
+    assert pending
 
 
 def test_foco_configura_saude_sem_alterar_blocos_da_carta(tmp_path: Path) -> None:
