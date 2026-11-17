@@ -180,6 +180,9 @@ class Finding(ApiModel):
         seed_outcome: Classe do `probe` da operação quando ela NÃO foi `success` e mesmo assim foi
             atacada (ADR 0050); `None` nas demais. Fica FORA do fingerprint: o mesmo achado vindo
             de uma semente `not_found` e de uma `success` é o mesmo achado.
+        experimental: `True` quando o alerta vem de uma regra alpha ou beta que a imagem do
+            harness acrescenta (`domain/experimental_rules.py`, ADR 0103): precisa de mais cuidado
+            na triagem. Não muda severidade nem fingerprint.
     """
 
     finding_id: str
@@ -207,3 +210,4 @@ class Finding(ApiModel):
     comparison: Comparison | None = None
     triage: TriageNote | None = None
     seed_outcome: str | None = None
+    experimental: bool = False

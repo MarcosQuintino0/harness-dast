@@ -232,3 +232,22 @@ def test_alerts_that_differ_only_by_payload_collapse_into_one_finding() -> None:
     (finding,) = build(alerts)
 
     assert finding.occurrences == 3
+
+
+def test_an_alert_from_an_alpha_or_beta_rule_becomes_an_experimental_finding() -> None:
+    nosql = zap_alert("1", pluginId="40033", alertRef="40033", name="NoSQL Injection - MongoDB")
+    sql = zap_alert("2")
+
+    by_plugin = {item.plugin_id: item for item in build([nosql, sql])}
+
+    assert by_plugin["40033"].experimental is True
+    assert by_plugin["40018"].experimental is False
+
+
+def test_the_experimental_mark_does_not_change_severity_or_fingerprint() -> None:
+    plain = build([zap_alert("1", pluginId="40033", alertRef="40033")])[0]
+    again = build([zap_alert("1", pluginId="40033", alertRef="40033")])[0]
+
+    assert plain.proposed_severity == "high"
+    assert plain.fingerprint == again.fingerprint
+    assert plain.model_dump()["experimental"] is True

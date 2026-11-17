@@ -475,3 +475,11 @@ def test_prova_distingue_corpos_sem_expor_segredo() -> None:
     assert sha256(b"outro-secreto").hexdigest()[:16] in result.control
     assert "token-secreto" not in result.model_dump_json()
     assert "outro-secreto" not in result.model_dump_json()
+
+
+def test_an_experimental_rule_has_no_safe_recipe_and_is_refused_not_repeated() -> None:
+    result = plan_confirmation(finding("40033"), (exchange(),), (scan(),), MARKER)
+
+    assert isinstance(result, VerificationEntry)
+    assert result.level != "reproduced"
+    assert "receita segura" in result.reason

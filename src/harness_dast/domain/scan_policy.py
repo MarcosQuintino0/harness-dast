@@ -14,6 +14,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
+from harness_dast.domain.experimental_rules import EXPERIMENTAL_RULES, enabled_experimental_ids
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_config import Level, ScanConfig
 
@@ -145,6 +146,8 @@ class ScanPolicy(BaseModel):
         header_injection: Se a injeção em cabeçalhos e cookies está ligada (só a carta liga).
         oast: Se o retorno fora de banda está ligado (só a carta liga; ADR 0099).
         oast_rules: Ids das regras que dependem do retorno e ficam ligadas; vazio sem `oast`.
+        experimental_rules: Ids das regras alpha/beta selecionadas que ficam ligadas; vazio sem
+            `extra_checks.experimental_rules` (só a carta liga; ADR 0103).
         disabled_rules: Ids das regras desligadas (padrão do harness mais as do perfil).
     """
 
@@ -158,6 +161,7 @@ class ScanPolicy(BaseModel):
     header_injection: bool = False
     oast: bool = False
     oast_rules: tuple[int, ...] = ()
+    experimental_rules: tuple[int, ...] = ()
 
     @property
     def injectable_mask(self) -> int:
@@ -186,13 +190,28 @@ class ScanLimits(BaseModel):
     max_rule_minutes: int
 
 
-def build_policy(config: ScanConfig) -> ScanPolicy:
-    """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam)."""
+def build_policy(config: ScanConfig, *, experimental_rules: bool = False) -> ScanPolicy:
+    """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam).
+
+    Args:
+        config: Bloco `scan` do perfil.
+        experimental_rules: `extra_checks.experimental_rules` do perfil (só a carta liga). As
+            regras alpha/beta que a imagem traz ficam SEMPRE desligadas, menos as selecionadas
+            quando esta chave está ligada (ADR 0103); desligada, a política ligada é a de antes.
+    """
     declined = set(config.disable_rules)
     oast_ids = tuple(
         rule.plugin_id for rule in OAST_RULES if config.oast and rule.plugin_id not in declined
     )
+    experimental_ids = tuple(
+        plugin_id
+        for plugin_id in enabled_experimental_ids(experimental=experimental_rules, oast=config.oast)
+        if plugin_id not in declined
+    )
     disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES if rule.plugin_id not in oast_ids]
+    disabled.extend(
+        rule.plugin_id for rule in EXPERIMENTAL_RULES if rule.plugin_id not in experimental_ids
+    )
     disabled.extend(config.disable_rules)
     return ScanPolicy(
         name=POLICY_NAME,
@@ -202,6 +221,7 @@ def build_policy(config: ScanConfig) -> ScanPolicy:
         header_injection=config.inject_headers,
         oast=config.oast,
         oast_rules=oast_ids,
+        experimental_rules=experimental_ids,
         disabled_rules=tuple(sorted(dict.fromkeys(disabled))),
     )
 

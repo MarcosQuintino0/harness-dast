@@ -15,6 +15,11 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.authz.result import AuthzResult
+from harness_dast.domain.experimental_rules import (
+    EXPERIMENTAL_RULES,
+    REASON_NEEDS_PERMISSION,
+    REASON_NOT_SELECTED,
+)
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile, RuleTotal, total_rules
@@ -281,11 +286,18 @@ def _rule_metrics(operations: Sequence[OperationMetric]) -> RuleMetrics:
 def _disabled(scan: ScanResult | None) -> tuple[DisabledRuleMetric, ...]:
     if scan is None:
         return ()
-    known = {rule.plugin_id: rule for rule in DEFAULT_DISABLED_RULES}
+    known = {rule.plugin_id: (rule.name, rule.reason) for rule in DEFAULT_DISABLED_RULES}
+    known.update(
+        {
+            rule.plugin_id: (
+                rule.name,
+                REASON_NEEDS_PERMISSION if rule.selected else REASON_NOT_SELECTED,
+            )
+            for rule in EXPERIMENTAL_RULES
+        }
+    )
     return tuple(
-        DisabledRuleMetric(
-            plugin_id=plugin_id, name=rule.name, reason=rule.reason, source="default"
-        )
+        DisabledRuleMetric(plugin_id=plugin_id, name=rule[0], reason=rule[1], source="default")
         if (rule := known.get(plugin_id)) is not None
         else DisabledRuleMetric(
             plugin_id=plugin_id,

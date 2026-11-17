@@ -230,6 +230,8 @@ class ZapScanClient(ZapApiClient):
         self._verify_disabled(policy)
         if policy.oast:
             self._configure_oast(policy)
+        if policy.experimental_rules:
+            self._enable_experimental(policy)
 
     def start_scan(self, request: ScanStart) -> str:
         """Inicia a varredura de uma requisição, SEMPRE com `contextId` e sem recursão."""
@@ -386,6 +388,39 @@ class ZapScanClient(ZapApiClient):
             raise ExternalToolError(
                 "Regras de retorno fora de banda continuam desligadas: " + ", ".join(off) + ".",
                 hint="Confira a versão do ZAP (2.17.x) e o complemento OAST da imagem.",
+            )
+
+    def _enable_experimental(self, policy: ScanPolicy) -> None:
+        """Liga as regras alpha/beta selecionadas e confere que ligaram (ADR 0103).
+
+        Só roda com `extra_checks.experimental_rules`. Falta de regra é erro: a chave liga uma
+        capacidade que a imagem estável do ZAP não tem, e seguir sem ela daria a falsa ideia de
+        que a regra rodou.
+        """
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        known = {
+            _text(item.get("id")) for item in _dict_list(body, "scanners", "ascan/view/scanners")
+        }
+        absent = sorted(str(item) for item in policy.experimental_rules if str(item) not in known)
+        if absent:
+            raise ExternalToolError(
+                "O ZAP não tem as regras experimentais " + ", ".join(absent) + ".",
+                hint="Suba a pilha com a imagem do harness (docker/zap), que traz ascanrulesBeta "
+                "e ascanrulesAlpha fixos; a imagem estável oficial não os tem.",
+            )
+        ids = ",".join(str(item) for item in policy.experimental_rules)
+        self._action("ascan", "enableScanners", {"ids": ids, "scanPolicyName": policy.name})
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        on = {
+            _text(item.get("id"))
+            for item in _dict_list(body, "scanners", "ascan/view/scanners")
+            if _text(item.get("enabled")).lower() == "true"
+        }
+        off = sorted(str(item) for item in policy.experimental_rules if str(item) not in on)
+        if off:
+            raise ExternalToolError(
+                "Regras experimentais continuam desligadas: " + ", ".join(off) + ".",
+                hint="Confira a versão do ZAP (2.17.x) e os complementos da imagem do harness.",
             )
 
     def _verify_disabled(self, policy: ScanPolicy) -> None:

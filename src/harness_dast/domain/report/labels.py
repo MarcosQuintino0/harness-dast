@@ -37,6 +37,19 @@ def seed_tag(seed_outcome: str | None) -> str:
     return f"(semente: {seed_outcome})" if seed_outcome else ""
 
 
+EXPERIMENTAL_NOTICE: Final = (
+    "Achados marcados como [experimental] vêm de regras alpha ou beta do ZAP, ligadas só porque a "
+    "carta autorizou (extra_checks.experimental_rules): têm mais chance de falso positivo e "
+    "pedem confirmação antes de qualquer decisão."
+)
+"""Aviso fixo do relatório quando há achado de regra experimental (ADR 0103)."""
+
+
+def experimental_tag(experimental: bool) -> str:
+    """`[experimental]` para achado de regra alpha ou beta, senão vazio."""
+    return "[experimental]" if experimental else ""
+
+
 CHECK_LABEL: Final = {
     "cors": "Política CORS",
     "horizontal": "Acesso horizontal (BOLA)",

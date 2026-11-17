@@ -13,7 +13,7 @@ from harness_dast.domain.scan_policy import build_limits, build_policy
 from harness_dast.domain.scan_result import ScanRefused
 from harness_dast.domain.scan_tokens import ReplacerRule
 from tests.fakes.local_server import Reply, serve
-from tests.fakes.zap_scan_server import API_KEY, FakeScanZapServer, ok
+from tests.fakes.zap_scan_server import API_KEY, IMAGE_EXTRA_RULES, FakeScanZapServer, ok
 
 
 def client_for(url: str) -> ZapScanClient:
@@ -398,3 +398,57 @@ def test_malformed_oast_messages_are_external_tool_errors(bad: dict[str, str]) -
         pytest.raises(ExternalToolError, match="inesperada"),
     ):
         client_for(server.base_url).oast_events(0)
+
+
+def test_policy_without_the_key_disables_every_alpha_and_beta_rule_of_the_image() -> None:
+    zap = FakeScanZapServer()
+    policy, limits = policy_and_limits()
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(policy, limits)
+
+    assert set(IMAGE_EXTRA_RULES) <= zap.disabled
+    assert "ascan/action/enableScanners" not in zap.endpoints()
+
+
+def test_policy_with_the_key_enables_only_the_selected_experimental_rules() -> None:
+    zap = FakeScanZapServer()
+    config = ScanConfig()
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    policy = build_policy(config, experimental_rules=True)
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(policy, build_limits(limits, config))
+
+    enable = [q for name, q in zap.calls if name == "ascan/action/enableScanners"]
+    assert [item["ids"] for item in enable] == ["40033,90039"]
+    assert {"40033", "90039"}.isdisjoint(zap.disabled)
+    assert (set(IMAGE_EXTRA_RULES) - {"40033", "90039"}) <= zap.disabled
+
+
+def test_the_key_on_an_image_without_the_experimental_rules_is_a_clear_error() -> None:
+    zap = FakeScanZapServer()
+    zap.known_rules = zap.known_rules - {"40033"}
+    config = ScanConfig(disable_rules=())
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    policy = build_policy(config, experimental_rules=True)
+    with (
+        serve(zap) as server,
+        pytest.raises(ExternalToolError, match="experimentais 40033") as caught,
+    ):
+        client_for(server.base_url).apply_policy(policy, build_limits(limits, config))
+
+    assert "docker/zap" in (caught.value.hint or "")
+
+
+def test_the_key_fails_when_an_experimental_rule_refuses_to_turn_on() -> None:
+    zap = FakeScanZapServer()
+    zap.stubborn_enable = frozenset({"90039"})
+    config = ScanConfig()
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    zap.disabled.add("90039")
+    with (
+        serve(zap) as server,
+        pytest.raises(ExternalToolError, match="continuam desligadas: 90039"),
+    ):
+        client_for(server.base_url).apply_policy(
+            build_policy(config, experimental_rules=True), build_limits(limits, config)
+        )

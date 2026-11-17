@@ -132,6 +132,7 @@ def _zap_finding(
         suspected_false_positive=None if note is None else note.suspected_false_positive,
         triage_note=(note.note or None) if note else None,
         explanation=explanations.get(item.finding_id),
+        experimental=item.experimental,
     )
 
 

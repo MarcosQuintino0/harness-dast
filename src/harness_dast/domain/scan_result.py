@@ -143,6 +143,7 @@ class AppliedPolicy(ApiModel):
         disabled_rules: Ids das regras desligadas.
         oast: Retorno fora de banda ligado (ADR 0099).
         oast_rules: Regras que dependem do retorno e ficaram ligadas.
+        experimental_rules: Regras alpha/beta selecionadas que ficaram ligadas (ADR 0103).
     """
 
     name: str
@@ -153,6 +154,7 @@ class AppliedPolicy(ApiModel):
     disabled_rules: tuple[int, ...]
     oast: bool = False
     oast_rules: tuple[int, ...] = ()
+    experimental_rules: tuple[int, ...] = ()
 
     @classmethod
     def from_policy(cls, policy: ScanPolicy) -> "AppliedPolicy":
@@ -166,6 +168,7 @@ class AppliedPolicy(ApiModel):
             disabled_rules=policy.disabled_rules,
             oast=policy.oast,
             oast_rules=policy.oast_rules,
+            experimental_rules=policy.experimental_rules,
         )
 
 

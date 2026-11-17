@@ -113,7 +113,8 @@
         90034
       ],
       "oast": false,
-      "oast_rules": []
+      "oast_rules": [],
+      "experimental_rules": []
     },
     "traffic": {
       "enabled": false,
@@ -194,7 +195,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-ce1a5087",
@@ -235,7 +237,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-2f11bee2",
@@ -276,7 +279,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-2602e516",
@@ -317,7 +321,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-25f11dca",
@@ -358,7 +363,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-a1c30554",
@@ -399,7 +405,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-b1d6a451",
@@ -440,7 +447,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-b7bf6b8d",
@@ -481,7 +489,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-de30cb2b",
@@ -522,7 +531,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-275f10e3",
@@ -563,7 +573,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-317171ee",
@@ -604,7 +615,8 @@
       "status": "needs_triage",
       "comparison": null,
       "triage": null,
-      "seed_outcome": null
+      "seed_outcome": null,
+      "experimental": false
     }
   ],
   "groups": [

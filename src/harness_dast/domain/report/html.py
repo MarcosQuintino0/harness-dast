@@ -16,6 +16,7 @@ from collections.abc import Iterable
 from typing import Final
 
 from harness_dast.domain import html_safe as h
+from harness_dast.domain.experimental_rules import is_experimental_plugin
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.fix_hints import fix_hint
@@ -27,8 +28,10 @@ from harness_dast.domain.report.html_signals import signal_section
 from harness_dast.domain.report.html_style import STYLE
 from harness_dast.domain.report.html_traffic import traffic_section
 from harness_dast.domain.report.labels import (
+    EXPERIMENTAL_NOTICE,
     SEVERITY_LABEL,
     SEVERITY_ORDER,
+    experimental_tag,
     seed_tag,
     seeded_scans_notice,
 )
@@ -213,6 +216,11 @@ def _group(group: FindingGroup, by_id: dict[str, Finding]) -> str:
     fresh = sum(1 for item in members if item.comparison == "new")
     compare = f'<span class="badge">{fresh} novo(s)</span>' if fresh else ""
     note = f'<p class="note">{h.plain(group.expected_note)}</p>' if group.expected_note else ""
+    experimental = (
+        f' <span class="badge">{h.plain(experimental_tag(True))}</span>'
+        if is_experimental_plugin(group.plugin_id)
+        else ""
+    )
     repro = (
         "<p>Como reproduzir (defina <code>BASE_URL</code>, <code>TOKEN</code> e "
         f"<code>CSRF_TOKEN</code>):</p><pre>{h.block(head.reproduce_curl)}</pre>"
@@ -220,7 +228,7 @@ def _group(group: FindingGroup, by_id: dict[str, Finding]) -> str:
         else ""
     )
     return (
-        f'<article class="group {sev}"><h4>{h.text(group.title, 160)}'
+        f'<article class="group {sev}"><h4>{h.text(group.title, 160)}{experimental}'
         f'<span class="badge {sev}">{group.findings_count} achado(s)</span>'
         f'<span class="badge">{group.occurrences} alerta(s)</span>{compare}</h4>'
         f'<p class="muted">{h.text(" · ".join(tag for tag in tags if tag), 200)} '
@@ -247,6 +255,8 @@ def _findings(report: FindingsReport) -> str:
         )
     by_id = {item.finding_id: item for item in report.findings}
     out = ["<h2>Achados por gravidade</h2>"]
+    if any(item.experimental for item in report.findings):
+        out.append(f'<p class="note">{h.plain(EXPERIMENTAL_NOTICE)}</p>')
     for name in SEVERITY_ORDER:
         groups = [item for item in report.groups if item.proposed_severity == name]
         if groups:

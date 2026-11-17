@@ -321,7 +321,9 @@ class Scan:
             uploads=uploads,
             started=started,
             deadline=deadline,
-            policy=build_policy(profile.scan),
+            policy=build_policy(
+                profile.scan, experimental_rules=profile.extra_checks.experimental_rules
+            ),
             zap_limits=build_limits(limits, profile.scan),
             operations={op.operation_id: op for op in spec.operations},
         )

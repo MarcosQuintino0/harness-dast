@@ -661,3 +661,11 @@ def test_two_groups_with_the_same_title_say_what_tells_them_apart() -> None:
     assert "Session Management Response Identified (campo XSRF-TOKEN) 29 achados" in text
     assert "Session Management Response Identified (campo token) 1 achado" in text
     assert "Cookie No HttpOnly Flag 30 achados" in text
+
+
+def test_an_experimental_finding_gets_a_visible_chip_and_the_others_do_not() -> None:
+    marked = page_for(finding(experimental=True))
+    plain = page_for(finding())
+
+    assert "Experimental: regra alpha/beta, confirme antes" in marked
+    assert "Experimental" not in plain

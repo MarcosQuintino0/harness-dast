@@ -288,3 +288,13 @@ def test_run_ids_and_long_operation_ids_are_not_masked() -> None:
 
 def test_finding_fixture_type_is_a_finding() -> None:
     assert isinstance(report([zap_alert("9")]).findings[0], Finding)
+
+
+def test_experimental_group_carries_the_badge_and_the_notice() -> None:
+    nosql = zap_alert("9", pluginId="40033", alertRef="40033", name="NoSQL Injection - MongoDB")
+
+    page = render_html(report([nosql]))
+
+    assert "[experimental]" in page
+    assert "regras alpha ou beta do ZAP" in page
+    assert "[experimental]" not in render_html(report([zap_alert("9")]))
