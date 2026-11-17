@@ -151,7 +151,6 @@ class AgentMetrics(Frozen):
     schema_version: Literal[1]
     label: str | None
     model: str | None
-    pacing: Literal["legacy", "proxy"] | None = None
     totals: Totals
     stages: dict[str, StageMetrics]
     loops: Loops

@@ -19,7 +19,6 @@ from evals.runner.measurements import (
     write_agent_metrics,
 )
 from evals.runner.metrics import measure_agent
-from evals.runner.pacing import PACINGS
 from evals.runner.prepare import MODES, prepare
 from evals.runner.render import failures, render_classify, render_score
 from evals.runner.reuse import export_reuse
@@ -32,7 +31,6 @@ def build_parser() -> argparse.ArgumentParser:
     prep = sub.add_parser("prepare", help="cria o workspace cego e lacra o modo")
     prep.add_argument("--case", required=True)
     prep.add_argument("--mode", choices=MODES, default="random")
-    prep.add_argument("--pacing", choices=PACINGS, default="legacy")
     prep.add_argument("--seed", type=int, default=0)
     prep.add_argument("--out", type=Path, required=True)
     prep.add_argument("--allow-leaks", action="store_true")
@@ -105,7 +103,6 @@ def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
             allow_leaks=args.allow_leaks,
             reuse_from=args.reuse_from,
             reuse_package=args.reuse_package,
-            pacing=args.pacing,
         )
         return (
             f"workspace: {result.workspace}\nlacre (NAO mostrar ao agente): {result.sealed}\n"
