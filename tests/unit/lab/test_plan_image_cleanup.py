@@ -58,7 +58,41 @@ def inputs() -> tuple[Ledger, list[BaselineRow], ProtectedImages, FakeDocker]:
 
 def test_gera_comando_restrito_para_imagem_propria() -> None:
     ledger, baseline, protected, docker = inputs()
-    assert plan_cleanup(ledger, baseline, protected, docker) == [f"docker image rm {REF}"]
+    assert plan_cleanup(ledger, baseline, protected, docker) == [f"docker image rm {IMAGE}"]
+
+
+def test_ledger_vazio_nao_consulta_docker() -> None:
+    _, baseline, protected, _ = inputs()
+
+    def unavailable(args: list[str]) -> object:
+        raise AssertionError("consulta inesperada")
+
+    assert plan_cleanup(Ledger(images=[]), baseline, protected, unavailable) == []
+
+
+def test_baseline_sem_digest_preserva_bloqueio_por_id() -> None:
+    ledger, _, protected, docker = inputs()
+    baseline = [
+        BaselineRow.model_validate({"ID": IMAGE, "Digest": "<none>", "Repository": "x", "Tag": "v"})
+    ]
+    assert baseline[0].Digest is None
+    with pytest.raises(ValueError, match="imagem"):
+        plan_cleanup(ledger, baseline, protected, docker)
+
+
+def test_recusa_digest_malformado_na_captura() -> None:
+    with pytest.raises(ValidationError):
+        BaselineRow.model_validate(
+            {"ID": IMAGE, "Digest": "sha256:bad", "Repository": "x", "Tag": "v"}
+        )
+
+
+def test_comando_nao_depende_de_tag_remapeavel() -> None:
+    ledger, baseline, protected, docker = inputs()
+    command = plan_cleanup(ledger, baseline, protected, docker)[0]
+    docker.image["Id"] = OTHER
+    assert command == f"docker image rm {IMAGE}"
+    assert REF not in command
 
 
 @pytest.mark.parametrize(

@@ -11,7 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 PROTECTED = ROOT / "lab/scripts/protected-images.json"
@@ -35,7 +35,7 @@ class Ledger(BaseModel):
     """Registro explícito de imagens criadas durante esta trilha."""
 
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
-    images: list[Candidate] = Field(min_length=1)
+    images: list[Candidate]
 
     @model_validator(mode="after")
     def unique_images(self) -> "Ledger":
@@ -52,9 +52,15 @@ class BaselineRow(BaseModel):
 
     model_config = ConfigDict(extra="ignore", strict=True, frozen=True)
     ID: Id
-    Digest: Id
+    Digest: Id | None = None
     Repository: str
     Tag: str
+
+    @field_validator("Digest", mode="before")
+    @classmethod
+    def normalize_absent_digest(cls, value: object) -> object:
+        """Normaliza o marcador do Docker sem afrouxar a validação de outros valores."""
+        return None if value == "<none>" else value
 
 
 class ProtectedImages(BaseModel):
@@ -139,8 +145,10 @@ def plan_cleanup(
     """Valida todas as imagens antes de devolver comandos estritos para revisão."""
     if not baseline:
         raise ValueError("baseline vazio")
+    if not ledger.images:
+        return []
     baseline_ids = {row.ID for row in baseline}
-    baseline_digests = {row.Digest for row in baseline}
+    baseline_digests = {row.Digest for row in baseline if row.Digest is not None}
     for baseline_id in set(baseline_ids):
         baseline_image = inspect_image(runner, baseline_id)
         baseline_ids.add(baseline_image.Id)
@@ -163,7 +171,7 @@ def plan_cleanup(
             raise ValueError("imagem protegida")
         if any(not re.fullmatch(r"[^@\s]+@" + IMAGE_ID, digest) for digest in repo_digests):
             raise ValueError("digest de imagem inválido")
-        commands.append(f"docker image rm {candidate.reference}")
+        commands.append(f"docker image rm {candidate.image_id}")
     return commands
 
 
