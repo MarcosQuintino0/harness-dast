@@ -99,6 +99,30 @@ def test_up_reconstroi_proxy_mesmo_sem_flag_build(tmp_path: Path) -> None:
     assert rig.compose.builds["hdast"] is True
 
 
+def test_sufixo_isola_projetos_e_rede_tambem_no_down(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto"))
+    state = rig.states.state
+    assert state is not None
+    assert [project.name for project in state.projects] == ["hdast-codex", "hdast-pilotrun-codex"]
+    assert rig.compose.envs["hdast-pilotrun-codex"]["HDAST_LAB_NETWORK"] == "hdast-codex_lab_net"
+    rig.environ["HDAST_STACK_PROJECT_SUFFIX"] = "-outro"
+    rig.manager.down()
+    assert ("down", "hdast-codex") in rig.compose.calls
+
+
+@pytest.mark.parametrize("suffix", ["codex", "-UPPER", "-a_b", "-", "-" + "a" * 21])
+def test_sufixo_invalido_recusa_antes_de_tocar_pilha(tmp_path: Path, suffix: str) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": suffix})
+
+    with pytest.raises(ConfigError, match="Sufixo"):
+        rig.manager.up(StackUpRequest(product="demo"))
+
+    assert rig.compose.calls == []
+    assert rig.policies.published == []
+
+
 def test_up_respeita_a_chave_ja_definida_no_ambiente(tmp_path: Path) -> None:
     rig = Rig(tmp_path, {"HDAST_ZAP_API_KEY": "minha-chave-fixa"})
 

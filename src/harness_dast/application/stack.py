@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
@@ -38,6 +40,7 @@ from harness_dast.application.stack_lock import StackLockService
 from harness_dast.application.stack_models import (
     ComposeProject,
     ServiceStatus,
+    StackProjectSuffix,
     StackReport,
     StackState,
     StopReport,
@@ -156,6 +159,7 @@ class StackManager:
         profile = self._profiles.load(request.product)
         profile.ensure_runnable(now)
         target = lab_target_for(profile.environment.base_url)
+        suffix = _project_suffix(self._environ)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
         run_id = RunId.create(
@@ -167,7 +171,7 @@ class StackManager:
         zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
         proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
         oracle = self._oracle_requested(request, target)
-        projects = self._projects(target, oracle=oracle)
+        projects = self._projects(target, oracle=oracle, suffix=suffix)
         state = StackState(
             product=profile.product,
             run_id=run_id.value,
@@ -189,13 +193,13 @@ class StackManager:
             env = self._up_env(
                 project, state, _target_options(target, request), (zap_port, proxy_port)
             )
-            if project.name == MAIN_PROJECT:
+            if project == projects[0]:
                 env.update(proxy_env)
             self._compose.up(
                 project,
                 env,
                 # A imagem antiga nao conhece o vinculo obrigatorio de aprovacao.
-                build=request.build or project.name == MAIN_PROJECT,
+                build=request.build or project == projects[0],
                 timeout_seconds=request.timeout_seconds,
             )
         report = self._report(state, policy_file=policy_file)
@@ -337,10 +341,12 @@ class StackManager:
             if name == "PILOT_DB_PASSWORD" or not self._environ.get(name)
         }
 
-    def _projects(self, target: LabTarget | None, *, oracle: bool) -> tuple[ComposeProject, ...]:
+    def _projects(
+        self, target: LabTarget | None, *, oracle: bool, suffix: str
+    ) -> tuple[ComposeProject, ...]:
         services = BASE_SERVICES + (target.main_services if target else ())
         main = ComposeProject(
-            name=MAIN_PROJECT,
+            name=MAIN_PROJECT + suffix,
             workdir=str(self._root),
             files=("compose.yaml",),
             profiles=target.main_profiles if target else (),
@@ -349,7 +355,7 @@ class StackManager:
         if target is None or target.attached_workdir is None:
             return (main,)
         attached = ComposeProject(
-            name=PILOT_PROJECT,
+            name=PILOT_PROJECT + suffix,
             workdir=str(self._root / target.attached_workdir),
             files=target.attached_files + ((PILOT_ORACLE_FILE,) if oracle else ()),
             profiles=(PILOT_ORACLE_PROFILE,) if oracle else (),
@@ -363,8 +369,10 @@ class StackManager:
         options: dict[str, str],
         ports: tuple[str, str],
     ) -> dict[str, str]:
-        if project.name == MAIN_PROJECT:
+        network_env = {"HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net"}
+        if project == state.projects[0]:
             return {
+                **network_env,
                 KEY_ENV: state.zap_api_key,
                 POLICY_DIR_ENV: state.policy_dir.as_posix(),
                 AUDIT_DIR_ENV: state.audit_dir.as_posix(),
@@ -373,6 +381,7 @@ class StackManager:
                 **(options if state.lab_target == "vampi" else {}),
             }
         return {
+            **network_env,
             **{name: _PLACEHOLDER for name in CLINICA_PILOTO.inert_env},
             **state.target_env,
             "PILOT_HOST_PORT": str(PILOT_API_PORT),
@@ -430,12 +439,23 @@ def _common_env(state: StackState) -> dict[str, str]:
     pilot = state.lab_target == CLINICA_PILOTO.name
     names = CLINICA_PILOTO.credential_env + CLINICA_PILOTO.inert_env if pilot else ()
     return {
+        "HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net",
         **{name: _PLACEHOLDER for name in names},
         **state.target_env,
         KEY_ENV: state.zap_api_key,
         POLICY_DIR_ENV: state.policy_dir.as_posix(),
         AUDIT_DIR_ENV: state.audit_dir.as_posix(),
     }
+
+
+def _project_suffix(environ: Mapping[str, str]) -> str:
+    try:
+        return StackProjectSuffix(value=environ.get("HDAST_STACK_PROJECT_SUFFIX", "")).value
+    except ValidationError:
+        raise ConfigError(
+            "Sufixo de projeto Compose inválido.",
+            hint="Use vazio ou hífen seguido de até 20 letras minúsculas ou dígitos.",
+        ) from None
 
 
 def _stop_zap(stopper: ZapScanStopper) -> tuple[int, bool, str | None]:

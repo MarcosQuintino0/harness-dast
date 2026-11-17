@@ -15,6 +15,14 @@ from harness_dast.domain.scan_result import ScanProgress
 STATE_SCHEMA_VERSION = 1
 
 
+class StackProjectSuffix(BaseModel):
+    """Sufixo opcional e restrito para nomes de projetos Compose."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    value: str = Field(default="", pattern=r"^(?:-[a-z0-9]{1,20})?$")
+
+
 class ComposeProject(BaseModel):
     """Um projeto do Docker Compose a subir ou derrubar.
 

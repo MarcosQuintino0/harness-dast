@@ -255,4 +255,4 @@ networks:
   # Rede INTERNA do lab (compose da raiz, projeto "hdast"): so o scope-proxy a alcanca.
   lab_net:
     external: true
-    name: hdast_lab_net
+    name: ${HDAST_LAB_NETWORK:-hdast_lab_net}

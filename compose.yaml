@@ -289,5 +289,6 @@ networks:
     internal: true
   lab_net:
     internal: true
+    name: ${HDAST_LAB_NETWORK:-hdast_lab_net}
   egress_net: {}
   host_net: {}
