@@ -17,17 +17,17 @@ Esta seção consolida o vigente. As seções de provas por versão e as notas t
 na data da entrega: uma prova posterior pode completar uma lacuna anterior. [Histórico](../CHANGELOG.md),
 [provas datadas](reviews/README.md) e [estado dos planos](plans/README.md) preservam essa distinção.
 
-## Laboratório da V1.12 — trilha L parcial
+## V1.12: mais achados (provada só no laboratório)
 
-O crAPI tem contrato próprio na pilha, cadastro de contas por API/MailHog e encerramento dos volumes descartáveis
-(ADR 0094, proposto). O chatbot não é necessário à composição atual. Projetos podem receber sufixo validado;
-as provas concorrentes usam `-codex`. A primeira prova Docker subiu e encerrou a pilha, mas o `preflight`
-foi bloqueado por `STACK_STALE`; login e `probe` não estão comprovados nesta trilha.
-O caso `crapi-foco` tem carta estruturada, força baixa e orçamento de 900 segundos. Preparo e aprovação
-descartável foram ensaiados; os seis desafios permanecem `detectable: false`, sem rodada cega ou tempo total medido.
-Cabeçalho e a regressão completa da frente L3/L5 não foram integrados após recusa do provedor.
-Não há implementação das capacidades da trilha F nesta entrega. Escopo: [plano V1.12](plans/2026-11-17-v1-12-mais-achados.md).
-Prova e limites: [registro inicial](reviews/2026-11-17-v1-12-lab-prova-inicial.md).
+Entregue na branch `feat/v1-12-mais-achados`, versão 1.12.0, sem PR, merge nem release. Os ADRs 0092 a 0103 estão propostos.
+
+- **Carta:** o bloco `attack` liga `pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules` e `inventory`; só a carta liga, pela CLI (ADR 0096).
+- **Capacidades:** JWT no `authz` (ADR 0098); injeção em cabeçalhos e cookies (0097); OAST na varredura e SSRF guiado pelo contrato (0099, 0100); limite de consumo (0101); inventário de versões e documentação (0102); imagem derivada `hdast/zap` com regras alpha e beta selecionadas (0103). Tabela do que o ZAP faz em [uso do ZAP](reference/uso-do-zap.md).
+- **Laboratório (trilha L):** crAPI na pilha (0094), ponte de retorno isolada (0095), falha H11 na Clínica Piloto (0092), vigia (0093), regressão dirigida e caso `crapi-foco`.
+
+**Provado só no laboratório (Clínica Piloto, VAmPI e crAPI, 2026-11-17):** H11 achada só com a chave; SSRF do crAPI (C11) achado com OAST; JWT (C15) aceito com `alg none` e claims alteradas; OTP da v2 (C3) sem limite. Detalhes, `run_id` e números no [relatório da V1.12](reviews/relatorio-v1.12.md).
+
+**Não provado:** injeção em cookie sem alvo plantado; Log4Shell, XXE e SSTI cega sem alvo; chave HMAC fraca só em unidade; C12 (NoSQL) não achado em força baixa; 5 alarmes falsos de gravidade alta da regra 40033 na Clínica segura; `check_otp_v3` com provável falso positivo; página enorme só em unidade; `kid`, `jku` e confusão de algoritmo fora. Sem produto real, sem rodada cega e sem validação independente (pendentes). O caso `crapi-foco` ganhou a versão 2, com `detectable: true` em C3, C11 e C15; na Clínica Piloto a H11 continua `detectable: false`, porque a carta da Clínica não autoriza cabeçalhos.
 
 ## Organização V1.9.4
 
@@ -63,7 +63,7 @@ As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-s
 
 Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
 
-Estado consolidado inclui a V1.11, provada só no laboratório. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
+Estado consolidado inclui a V1.11 e a V1.12, provadas só no laboratório. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
 
 ### V1.11: verificação de achados (provada só no laboratório)
 

@@ -412,7 +412,6 @@ Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema 
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
-| `pacing` | `legacy` ou `proxy` | `legacy` | Ritmo da varredura ([ADR 0067](../adr/0067-ritmo-unico-e-medicao-do-executor.md), [0075](../adr/0075-ritmo-proxy-em-perfis-novos.md)). A carta o declara em `attack.pacing` (ADR 0096); mudar exige nova aprovação |
 | `strength` | `LOW`, `MEDIUM` ou `HIGH` | `LOW` | Força de ataque da política |
 | `threshold` | `LOW`, `MEDIUM` ou `HIGH` | `MEDIUM` | Limiar de alerta: só entram alertas com pelo menos esta confiança |
 | `url_path_injection` | booleano | `true` | Injeção em segmentos de caminho. Ligada porque, sem ela, a injeção de SQL em parâmetro de caminho passa batida (spike do M0) |
@@ -436,7 +435,7 @@ scan:
 
 ### `scan.pacing` (V1.7)
 
-`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
+`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). A carta o declara em `attack.pacing` (ADR 0096). Ritmo da varredura: [ADR 0067](../adr/0067-ritmo-unico-e-medicao-do-executor.md), [0075](../adr/0075-ritmo-proxy-em-perfis-novos.md). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
 
 ## `authz` (opcional)
 
