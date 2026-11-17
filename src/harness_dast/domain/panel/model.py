@@ -17,7 +17,7 @@ from datetime import date, datetime
 from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz.result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult, AuthzTechnique
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel.format import FunctionStateKind, RunStateKind
@@ -237,7 +237,8 @@ class PanelFinding(ApiModel):
         description: Descrição padrão da regra (texto do ZAP).
         solution: Solução padrão da regra (texto do ZAP).
         evidence: Prova gravada (já redigida), ou `None` em falha de autorização.
-        authz_evidence: Resumo da prova do teste entre contas, ou `None`.
+        authz_evidence: Resumo da prova do teste de autorização, ou `None`.
+        authz_technique: Técnica do achado de autorização, ou `None` quando não informada.
         negative_evidence: Resumo da prova do teste de valores proibidos, ou `None`.
         reproduce_curl: Comando `curl` com marcadores no lugar dos segredos, ou `None`.
         repro: Dados de "Como reproduzir à mão" (sem segredo, dado pessoal mascarado), ou `None`
@@ -268,6 +269,7 @@ class PanelFinding(ApiModel):
     solution: str = ""
     evidence: FindingEvidence | None = None
     authz_evidence: str | None = None
+    authz_technique: AuthzTechnique | None = None
     negative_evidence: str | None = None
     reproduce_curl: str | None = None
     repro: ManualRepro | None = None

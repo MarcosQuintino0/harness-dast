@@ -158,6 +158,7 @@ def _authz_finding(
         description=item.description,
         solution=item.solution,
         authz_evidence=item.evidence,
+        authz_technique=item.technique,
         explanation=explanations.get(item.finding_id),
     )
 
