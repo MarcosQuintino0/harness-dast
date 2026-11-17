@@ -22,6 +22,7 @@ from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel.format import FunctionStateKind, RunStateKind
 from harness_dast.domain.report.model import NotTested
+from harness_dast.domain.report.presentation import Presentation
 from harness_dast.domain.rule_stats import RuleTotal
 from harness_dast.domain.run_metrics import DisabledRuleMetric, OperationMetric
 from harness_dast.domain.traffic import TrafficGaps, TrafficSummary
@@ -248,6 +249,7 @@ class PanelFinding(ApiModel):
     """
 
     finding_id: str
+    fingerprint: str | None = None
     origin: FindingOrigin
     title: str
     severity: str
@@ -481,3 +483,4 @@ class PanelView(ApiModel):
     commands: tuple[PanelCommand, ...] | None = None
     commands_skipped: int = 0
     links: PanelLinks = PanelLinks()
+    presentation: Presentation | None = None

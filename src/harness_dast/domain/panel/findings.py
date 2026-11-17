@@ -18,13 +18,13 @@ from harness_dast.domain.panel.format import fmt_count, pick, plural
 from harness_dast.domain.panel.layout import card, chip, meter, row
 from harness_dast.domain.panel.model import PanelFinding, PanelGroup, PanelView
 from harness_dast.domain.panel.repro import render_repro
+from harness_dast.domain.report.presentation_render import render_presentation_html
 
 _REPORT: Final = "../report.html"
 _MAX_GROUPS: Final = 10
 _ZAP_SURE: Final = frozenset({"high", "confirmed"})
 _CONFIRM_SENTENCE: Final = (
-    "O terceiro degrau só acende quando uma pessoa repete a falha e confirma; este painel "
-    "ainda não consulta os registros de confirmação."
+    "O terceiro degrau só acende quando uma pessoa repete a falha e confirma."
 )
 _REPEAT_SENTENCE: Final = (
     "Falha a confirmar: a resposta gravada não mostra a falha sozinha (por exemplo, o ataque só "
@@ -216,7 +216,11 @@ def _confidence_rows(item: PanelFinding) -> str:
     def line(kind: str, text: str, end: str, *, first: bool = False) -> str:
         return row(kind, h.plain(text), end=f'<span class="end">{h.plain(end)}</span>', first=first)  # type: ignore[arg-type]  # `kind` vem só das chamadas abaixo, sempre um marcador válido
 
-    confirmed = line("no", "Uma pessoa repetiu e confirmou", "ainda não")
+    confirmed = line(
+        "ok" if item.confidence == 3 else "no",
+        "Uma pessoa repetiu e confirmou",
+        "sim" if item.confidence == 3 else "ainda não",
+    )
     if item.origin == "authz":
         return (
             line(
@@ -379,4 +383,5 @@ def render_findings(view: PanelView) -> str:
         f'<div style="flex: 3 1 620px; display: flex; flex-direction: column; gap: 16px; '
         f'min-width: 0">{details or _no_severe_card(view)}</div>'
     )
-    return f'<h1 class="vh">Falhas</h1><div class="g">{_list_card(view)}{right}</div>'
+    presentation = render_presentation_html(view.presentation) if view.presentation else ""
+    return f'<h1 class="vh">Falhas</h1><div class="g">{_list_card(view)}{right}</div>{presentation}'

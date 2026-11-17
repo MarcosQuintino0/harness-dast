@@ -93,8 +93,7 @@ def _confidence(item: Finding) -> int:
     """Degrau do medidor (1 a confirmar, 2 prova forte, 3 confirmada), pela regra única.
 
     A regra mora em `finding_confidence.confidence_step` (ADR 0032, item 8). Aqui só vira
-    número. Nenhum arquivo da execução registra confirmação por pessoa, então o degrau 3 não
-    sai deste cálculo.
+    número. A montagem aplica confirmações humanas validadas em separado.
     """
     return _STEP_LEVEL[confidence_step(item)]
 
@@ -109,6 +108,7 @@ def _zap_finding(
     note = item.triage
     return PanelFinding(
         finding_id=item.finding_id,
+        fingerprint=item.fingerprint,
         origin="zap",
         title=item.title,
         severity=item.proposed_severity,
@@ -143,6 +143,7 @@ def _authz_finding(
 ) -> PanelFinding:
     return PanelFinding(
         finding_id=item.finding_id,
+        fingerprint=item.fingerprint,
         origin="authz",
         title=item.title,
         severity=item.proposed_severity,
@@ -166,6 +167,7 @@ def _negative_finding(
 ) -> PanelFinding:
     return PanelFinding(
         finding_id=item.finding_id,
+        fingerprint=item.fingerprint,
         origin="negative",
         title=item.title,
         severity=item.proposed_severity,
