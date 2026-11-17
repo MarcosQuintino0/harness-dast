@@ -28,6 +28,7 @@ from harness_dast.domain.authz.compare import (
 )
 from harness_dast.domain.authz.findings_access import anonymous_finding, tampered_finding
 from harness_dast.domain.authz.jwt_forge import (
+    MAX_PROOF_REQUESTS_PER_OPERATION,
     MAX_WEAK_KEY_OPERATIONS,
     WeakKey,
     find_weak_key,
@@ -193,7 +194,7 @@ def _send_weak_key(
     if forged is None:
         return results, statuses, None
     ctx.settings.vault.register(weak.key)
-    for item in forged:
+    for item in forged[:MAX_PROOF_REQUESTS_PER_OPERATION]:
         reply = ctx.sender.tampered(
             exchange, TamperedSession(credential, item.value, ctx.settings.vault)
         )
