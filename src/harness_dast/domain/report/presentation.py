@@ -88,14 +88,13 @@ class Presentation(ApiModel):
 
     findings: tuple[PresentedFinding, ...]
     calibration: Calibration | None = None
+    warnings: tuple[str, ...] = ()
 
 
-def calibration_text(item: CalibrationMeasurement) -> str | None:
-    """Mostra proporção medida somente com pelo menos dez observações."""
-    if item.sample < 10:
-        return None
-    percent = 100 * item.correct / item.sample
+def calibration_text(item: CalibrationMeasurement) -> str:
+    """Mostra contagens e inclui porcentagem somente com dez observações."""
+    percentage = f" ({100 * item.correct / item.sample:.1f}%)" if item.sample >= 10 else ""
     return (
-        f"No laboratório, {item.correct} de {item.sample} ({percent:.1f}%) — "
+        f"No laboratório, {item.correct} de {item.sample}{percentage} — "
         f"{item.finding_type}; {item.criterion}; amostra {item.sample}; {item.provenance}."
     )

@@ -15,7 +15,6 @@ from harness_dast.adapters.reporting.sinks import (
 from harness_dast.application.report_presentation import PresentationBuilder
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.cors import cors_finding
-from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.panel.build import build_panel_view
 from harness_dast.domain.panel.findings import render_findings
 from harness_dast.domain.panel.sources import PanelSources
@@ -126,8 +125,9 @@ def test_invalid_verification_never_becomes_reproduced(
     folder = tmp_path / report.run_id
     folder.mkdir()
     (folder / "verification.json").write_text(content, encoding="utf-8")
-    with pytest.raises(ConfigError):
-        _builder(tmp_path).build(report)
+    view = _builder(tmp_path).build(report)
+    assert view.warnings
+    assert all(item.verification.level != "reproduced" for item in view.findings)
 
 
 def test_rejects_different_execution(tmp_path: Path, report: FindingsReport) -> None:
@@ -142,8 +142,9 @@ def test_rejects_different_execution(tmp_path: Path, report: FindingsReport) -> 
             "entries": [],
         },
     )
-    with pytest.raises(ConfigError):
-        _builder(tmp_path).build(report)
+    view = _builder(tmp_path).build(report)
+    assert view.warnings
+    assert all(item.verification.level != "reproduced" for item in view.findings)
 
 
 def test_panel_marks_confirmed_only_after_human_record(
@@ -258,14 +259,16 @@ def test_malformed_consultative_file_fails_closed(
     folder = tmp_path / report.run_id
     folder.mkdir()
     (folder / name).write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
-    with pytest.raises(ConfigError):
-        _builder(tmp_path).build(report)
+    view = _builder(tmp_path).build(report)
+    assert view.warnings
+    assert all(item.verification.level != "reproduced" for item in view.findings)
 
 
 def test_rejects_invalid_calibration_file(tmp_path: Path, report: FindingsReport) -> None:
     (tmp_path / "calibration.json").write_text("[]", encoding="utf-8")
-    with pytest.raises(ConfigError):
-        _builder(tmp_path).build(report)
+    view = _builder(tmp_path).build(report)
+    assert view.warnings
+    assert all(item.verification.level != "reproduced" for item in view.findings)
 
 
 def test_report_shows_only_calibration_with_sufficient_samples(
@@ -303,4 +306,6 @@ def test_report_shows_only_calibration_with_sufficient_samples(
         text = (tmp_path / report.run_id / name).read_text(encoding="utf-8")
         assert "7 de 10" in text
         assert "70.0%" in text
-        assert "pequena" not in text
+        assert "4 de 9" in text
+        assert "amostra 9" in text
+        assert "44.4%" not in text

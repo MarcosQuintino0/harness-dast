@@ -14,17 +14,15 @@ from harness_dast.domain.report.presentation_render import render_presentation_h
 from harness_dast.domain.verification import VerificationEntry
 
 
-@pytest.mark.parametrize(("sample", "expected"), [(9, False), (10, True)])
-def test_percentage_requires_minimum_sample(sample: int, expected: bool) -> None:
+@pytest.mark.parametrize("sample", [9, 10])
+def test_percentage_requires_minimum_sample(sample: int) -> None:
     item = CalibrationMeasurement(
         finding_type="XSS", criterion="acertos", correct=4, sample=sample, provenance="lab"
     )
     result = calibration_text(item)
-    assert (result is not None) is expected
-    if result:
-        assert "4 de 10" in result
-        assert "40.0%" in result
-        assert "XSS" in result
+    assert f"4 de {sample}" in result
+    assert ("%" in result) is (sample >= 10)
+    assert f"amostra {sample}" in result
 
 
 @pytest.mark.parametrize(
