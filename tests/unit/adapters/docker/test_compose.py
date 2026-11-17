@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from harness_dast.adapters.docker.compose import CommandResult, DockerComposeCli
+from harness_dast.adapters.docker.compose import BUILD_SECONDS, CommandResult, DockerComposeCli
 from harness_dast.application.stack_models import ComposeProject
 from harness_dast.cli.output import build_failure
 from harness_dast.domain.errors import ExitCode, ExternalToolError
@@ -56,6 +56,17 @@ def test_up_monta_o_comando_com_prazo_e_manda_o_segredo_so_no_ambiente() -> None
     assert env["HDAST_ZAP_API_KEY"] == SECRET
     assert env["OUTRA"] == "1"
     assert timeout > 100
+
+
+def test_up_com_build_ganha_prazo_extra_e_sem_build_fica_como_antes() -> None:
+    with_build = Recorder(CommandResult(0, "", ""))
+    without = Recorder(CommandResult(0, "", ""))
+
+    cli(with_build).up(PROJECT, {}, build=True, timeout_seconds=100)
+    cli(without).up(PROJECT, {}, build=False, timeout_seconds=100)
+
+    assert with_build.calls[0][2] == without.calls[0][2] + BUILD_SECONDS
+    assert without.calls[0][2] == 130
 
 
 def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:

@@ -128,11 +128,13 @@ OAST_RULES: Final[tuple[OastRule, ...]] = (
     OastRule(plugin_id=90023, name="XML External Entity Attack"),
     OastRule(plugin_id=90036, name="Server Side Template Injection (Blind)"),
 )
-"""Regras da imagem fixada (`ascanrules` 84, ZAP 2.17.0) que usam o OAST (ADR 0099).
+"""Regras estáveis da imagem fixada (`ascanrules` 84, ZAP 2.17.0) que usam o OAST (ADR 0099).
 
-A imagem NÃO traz regra de SSRF nem de injeção de comando cega: o `ascanrules` 84 só tem a de
-comando por eco e por tempo, e o `ascanrulesBeta` (onde fica o SSRF) não está instalado. Esses
-dois casos ficam com o `scan.oast` guiado pelo contrato (ADR 0100)."""
+A regra de SSRF (40046) mora no `ascanrulesBeta`, que a imagem `hdast/zap` do ADR 0103 agora traz:
+ela é uma regra experimental (`domain/experimental_rules.py`) e só liga com a chave
+`extra_checks.experimental_rules` somada a `scan.oast`, não por esta lista. Injeção de comando
+cega não tem regra com OAST em nenhuma das imagens. Esses dois casos seguem cobertos pelo
+`scan.oast` guiado pelo contrato (ADR 0100)."""
 
 
 class ScanPolicy(BaseModel):

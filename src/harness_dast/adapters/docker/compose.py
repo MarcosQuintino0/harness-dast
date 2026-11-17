@@ -19,6 +19,13 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError
 
 STATUS_TIMEOUT_SECONDS = 30
 _GRACE_SECONDS = 30
+BUILD_SECONDS = 600
+"""Prazo extra do processo quando o `up` reconstrói imagens (`--build`).
+
+O `--wait-timeout` só conta a espera pela saúde dos contêineres; o build (a imagem `hdast/zap`
+baixa dois complementos no primeiro `stack up`, ADR 0103, e o `scope-proxy` instala dependências)
+roda antes e ficaria dentro dos 30 s de folga. Sem build o prazo é o de antes.
+"""
 
 
 @dataclass(frozen=True)
@@ -96,7 +103,8 @@ class DockerComposeCli:
         if build:
             command.append("--build")
         command.extend(project.services)
-        self._run(project, command, env, timeout_seconds + _GRACE_SECONDS, "subir")
+        allowance = BUILD_SECONDS if build else 0
+        self._run(project, command, env, timeout_seconds + _GRACE_SECONDS + allowance, "subir")
 
     def down(self, project: ComposeProject, env: dict[str, str], *, timeout_seconds: int) -> None:
         """Derruba o projeto (`down --remove-orphans`) dentro do prazo."""
