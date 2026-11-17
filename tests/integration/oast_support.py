@@ -277,6 +277,7 @@ class OastLab:
             )
             if result.unsafe:
                 result.errors.append("stack_down_recusado_propriedade")
+                result.errors.append("intervencao_humana_necessaria")
             else:
                 self.cleanup._attempt("stack_down", self._stack_down)
             self.cleanup.verify_final()

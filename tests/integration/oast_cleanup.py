@@ -205,6 +205,12 @@ class OastCleanup:
 
     def verify_projects_owned(self) -> None:
         """Recusa derrubar projetos que ganharam serviços não reconhecidos."""
+        if (
+            self.stack_containers is None
+            or self.stack_networks is None
+            or self.stack_volumes is None
+        ):
+            raise ValueError("inventário confiável ausente; requer intervenção humana")
         allowed = {
             PROJECT: {
                 "zap",

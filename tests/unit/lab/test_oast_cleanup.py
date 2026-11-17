@@ -6,6 +6,7 @@ falhas de criação, inspeção, remoção e conferência final, sem compartilha
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
@@ -27,13 +28,23 @@ FOREIGN = "1" * 64
 
 
 class FakeCli:
-    def __init__(self, down_code: int = 0) -> None:
+    def __init__(
+        self, down_code: int = 0, *, up_mode: str = "ok", on_up: Callable[[], None] | None = None
+    ) -> None:
         self.env: dict[str, str] = {}
         self.down_code = down_code
+        self.up_mode = up_mode
+        self.on_up = on_up
         self.calls: list[tuple[str, ...]] = []
 
     def run(self, *args: str, timeout: int = 0) -> CliResult:
         self.calls.append(args)
+        if args[:2] == ("stack", "up"):
+            if self.on_up is not None:
+                self.on_up()
+            if self.up_mode == "timeout":
+                raise subprocess.TimeoutExpired("stack up", 1)
+            return CliResult(1 if self.up_mode == "error" else 0, {}, "", "")
         if self.down_code == -1:
             raise subprocess.TimeoutExpired("stack", 1)
         return CliResult(self.down_code, {}, "credential-not-for-evidence", "")
@@ -83,6 +94,7 @@ class FakeDocker:
         if args[0] in {"stop", "rm"}:
             return self._remove(args)
         if args[:2] == ("volume", "ls"):
+            self._failure("volume_lookup")
             return "\n".join(self.volumes)
         raise AssertionError(f"comando não previsto: {args}")
 
@@ -304,9 +316,10 @@ def test_falha_de_consulta_nao_interrompe_outras_etapas(failure: str) -> None:
 
 def test_workshop_alheio_fora_da_rede_impede_stack_down() -> None:
     docker = FakeDocker()
-    docker.add(WORKSHOP, "workshop", CRAPI_PROJECT, "crapi-workshop", "outro")
     cli = FakeCli()
     lab = make_lab(docker, cli)
+    lab.cleanup.capture_stack()
+    docker.add(WORKSHOP, "workshop", CRAPI_PROJECT, "crapi-workshop", "outro")
     lab.cleanup.workshop_intended = True
     lab.stack_intended = True
     result = lab.finish()
@@ -316,10 +329,10 @@ def test_workshop_alheio_fora_da_rede_impede_stack_down() -> None:
 
 def test_servico_alheio_injetado_apos_snapshot_impede_stack_down() -> None:
     docker = FakeDocker()
-    docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
     cli = FakeCli()
     lab = make_lab(docker, cli)
-    lab.cleanup.stack_containers = set()
+    lab.cleanup.capture_stack()
+    docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
     lab.stack_intended = True
     result = lab.finish()
     assert "stack_down_recusado_propriedade" in result.errors
@@ -345,12 +358,128 @@ def test_recurso_alheio_injetado_apos_snapshot_impede_stack_down(kind: str) -> N
     assert ("stack", "down") not in cli.calls
 
 
+@pytest.mark.parametrize("mode", ["error", "timeout"])
+def test_up_sem_snapshot_recusa_down_e_limpa_apenas_oast_comprovado(mode: str) -> None:
+    docker = FakeDocker()
+
+    def inject_foreign() -> None:
+        docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
+        docker.foreign_network = True
+        docker.volumes = ["foreign-volume"]
+
+    cli = FakeCli(up_mode=mode, on_up=inject_foreign)
+    lab = make_lab(docker, cli)
+    lab.assert_project_unused()
+    lab.assert_crapi_unused()
+    if mode == "timeout":
+        with pytest.raises(subprocess.TimeoutExpired):
+            lab.stack_up("crapi")
+    else:
+        assert lab.stack_up("crapi").code == 1
+    docker.network = True
+    docker.add(GATEWAY, "gateway", PROJECT, "oast-gateway")
+    docker.members.add(GATEWAY)
+    lab.cleanup.gateway_intended = True
+
+    result = lab.finish()
+
+    assert result.unsafe
+    assert "projeto_propriedade" in result.errors
+    assert "stack_down_recusado_propriedade" in result.errors
+    assert "intervencao_humana_necessaria" in result.errors
+    assert ("stack", "down") not in cli.calls
+    assert GATEWAY not in docker.containers
+    assert FOREIGN in docker.containers
+    assert docker.foreign_network
+    assert ("network", "rm", FOREIGN) not in docker.calls
+    assert docker.volumes == ["foreign-volume"]
+    assert PROJECT + "_containers_restantes" in result.errors
+
+
+@pytest.mark.parametrize("field", ["stack_containers", "stack_networks", "stack_volumes"])
+def test_inventario_parcial_recusa_stack_down(field: str) -> None:
+    docker = FakeDocker()
+    cli = FakeCli()
+    lab = make_lab(docker, cli)
+    lab.cleanup.capture_stack()
+    setattr(lab.cleanup, field, None)
+    docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
+    lab.stack_intended = True
+
+    result = lab.finish()
+
+    assert result.unsafe
+    assert "stack_down_recusado_propriedade" in result.errors
+    assert "intervencao_humana_necessaria" in result.errors
+    assert ("stack", "down") not in cli.calls
+    assert FOREIGN in docker.containers
+
+
+def test_falha_de_captura_intermediaria_nao_autoriza_down() -> None:
+    docker = FakeDocker()
+
+    def fail_capture() -> None:
+        docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
+        docker.fail.add("volume_lookup")
+
+    cli = FakeCli(on_up=fail_capture)
+    lab = make_lab(docker, cli)
+    lab.assert_project_unused()
+    lab.assert_crapi_unused()
+    with pytest.raises(subprocess.TimeoutExpired):
+        lab.stack_up("crapi")
+    assert lab.cleanup.stack_containers is None
+    assert lab.cleanup.stack_networks is None
+    assert lab.cleanup.stack_volumes is None
+
+    result = lab.finish()
+
+    assert result.unsafe
+    assert "stack_down_recusado_propriedade" in result.errors
+    assert ("stack", "down") not in cli.calls
+    assert FOREIGN in docker.containers
+
+
+def test_snapshot_confiavel_autoriza_stack_down() -> None:
+    docker = FakeDocker()
+    cli = FakeCli()
+    lab = make_lab(docker, cli)
+    lab.cleanup.capture_stack()
+    lab.stack_intended = True
+
+    result = lab.finish()
+
+    assert result.errors == []
+    assert ("stack", "down") in cli.calls
+
+
+def test_inventario_ausente_grava_recusa_sanitizada(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    docker = FakeDocker()
+    docker.add(FOREIGN, "outro", PROJECT, "zap", "outro")
+    cli = FakeCli()
+    lab = make_lab(docker, cli)
+    lab.stack_intended = True
+    monkeypatch.setenv("HDAST_IT_METRICS_DIR", str(tmp_path))
+
+    with pytest.raises(AssertionError, match="intervencao_humana_necessaria"):
+        finish_proof(lab, "lab-123456789abc", {"interaction": "not_confirmed"})
+
+    evidence = (tmp_path / "oast-callback-lab-123456789abc.json").read_text(encoding="utf-8")
+    assert '"status": "error"' in evidence
+    assert "stack_down_recusado_propriedade" in evidence
+    assert "credential-not-for-evidence" not in evidence
+    assert ("stack", "down") not in cli.calls
+
+
 def test_stack_down_nao_zero_faz_prova_falhar_e_grava_erro_sanitizado(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     docker = FakeDocker()
     cli = FakeCli(down_code=1)
     lab = make_lab(docker, cli)
+    lab.cleanup.capture_stack()
     lab.stack_intended = True
     monkeypatch.setenv("HDAST_IT_METRICS_DIR", str(tmp_path))
     with pytest.raises(AssertionError, match="stack_down"):
@@ -377,6 +506,7 @@ def test_sobras_sao_reportadas_apos_stack_down_com_sucesso() -> None:
     docker = FakeDocker()
     docker.add(WORKSHOP, "workshop", CRAPI_PROJECT, "crapi-workshop")
     lab = make_lab(docker)
+    lab.cleanup.capture_stack()
     lab.stack_intended = True
     result = lab.finish()
     assert CRAPI_PROJECT + "_containers_restantes" in result.errors
@@ -392,6 +522,7 @@ def test_sobras_sao_reportadas_apos_stack_down_com_sucesso() -> None:
 def test_timeout_de_stack_down_nao_impede_verificacao_final() -> None:
     docker = FakeDocker()
     lab = make_lab(docker, FakeCli(down_code=-1))
+    lab.cleanup.capture_stack()
     lab.stack_intended = True
     result = lab.finish()
     assert "stack_down" in result.errors
@@ -408,6 +539,7 @@ def test_falha_original_recebe_nota_da_limpeza(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     lab = make_lab(FakeDocker(), FakeCli(down_code=1))
+    lab.cleanup.capture_stack()
     lab.stack_intended = True
     monkeypatch.setenv("HDAST_IT_METRICS_DIR", str(tmp_path))
 
