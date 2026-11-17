@@ -10,7 +10,7 @@ from evals.runner.approve import approve
 from evals.runner.prepare import prepare
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.domain.probe_result import ProbeResult
-from tests.integration.lab_support import LabCli, proxy_audit, require_docker, run_audit
+from tests.integration.lab_support import LabCli, read_jsonl, require_docker, run_audit
 from tests.integration.run_support import record_metrics
 from tests.integration.test_crapi_focus_dryrun import (
     _configure_health_path,
@@ -26,6 +26,26 @@ from tests.integration.v112_resource_support import (
 
 pytestmark = pytest.mark.integration
 BLOCKED = {"check_otp_v2", "validate_coupon"}
+
+
+def _bound_proxy_audit(
+    cli: LabCli, records: dict[str, Any], name: str, approval_file: Path, approval: bytes
+) -> list[dict[str, Any]]:
+    """Lê a auditoria mantendo a aprovação do runner e conferindo o vínculo da pilha."""
+    assert approval_file.read_bytes() == approval
+    status = execute(cli, records, name, "stack", "status")
+    assert status.code == 0
+    assert status.data.get("binding") == "fresh"
+    assert not status.data.get("stale_parts")
+    audit_file = status.data.get("audit_file")
+    assert isinstance(audit_file, str)
+    audit_path = Path(audit_file).resolve(strict=True)
+    assert audit_path.is_relative_to((cli.state / "stacks").resolve())
+    assert audit_path.name == "audit.jsonl"
+    assert audit_path.is_file()
+    rows = read_jsonl(audit_path)
+    assert approval_file.read_bytes() == approval
+    return rows
 
 
 def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None:
@@ -65,11 +85,13 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
         install_focus_spec(prepared.workspace, cli.products)
         _remove_template_examples(cli.products)
         _configure_health_path(cli.products)
-        approve(out)
+        approval_file = approve(out).file
+        approved_bytes = approval_file.read_bytes()
         guard.before_up()
         stack_attempted = True
         assert execute(cli, records, "up", "stack", "up", "crapi", timeout=600).code == 0
         guard.capture()
+        assert approval_file.read_bytes() == approved_bytes
         assert execute(cli, records, "preflight", "preflight", "crapi").data.get("ready") is True
         first = execute(cli, records, "probe", "probe", "crapi", timeout=900)
         assert first.code == 0
@@ -94,7 +116,9 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
         assert pending_context.keys() >= BLOCKED
         assert all(pending_context[op].run_id == first_probe.run_id for op in BLOCKED)
         assert all(pending_context[op].account == failures[op].account for op in BLOCKED)
-        before_proxy = proxy_audit(cli)
+        before_proxy = _bound_proxy_audit(
+            cli, records, "status_before_run", approval_file, approved_bytes
+        )
         blocked_paths = {op.path for op in failures.values()}
         for path in blocked_paths:
             assert (
@@ -136,7 +160,9 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
         assert run_id, diagnostic
         stages = {row["name"]: row["status"] for row in summary(run)["stages"]}
         assert all(stages[name] == "ok" for name in ("scan", "authz", "negative", "report"))
-        after_proxy = proxy_audit(cli)
+        after_proxy = _bound_proxy_audit(
+            cli, records, "status_after_run", approval_file, approved_bytes
+        )
         assert not [
             row
             for row in after_proxy[len(before_proxy) :]
@@ -170,6 +196,7 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
         ]
         assert "mutation_pending" in (cli.runs / run_id / "report.html").read_text(encoding="utf-8")
         assert execute(cli, records, "panel", "panel", "crapi", "--run", run_id).code == 0
+        assert approval_file.read_bytes() == approved_bytes
         pages = (cli.runs / run_id / "panel").glob("*.html")
         assert any("mutation_pending" in page.read_text(encoding="utf-8") for page in pages)
         scan = read_scan(cli.runs, run_id)
