@@ -9,8 +9,12 @@ o contrato está em `inputs/openapi.json`. O modo de caminhos é estrito.
 Autorizam-se somente POST no login, na verificação de OTP da v2, no contato do mecânico e na validação de cupom;
 GET na lista e localização de veículos, detalhe de vídeos e produtos; PUT no detalhe
 de vídeos. A lista de veículos fornece identificadores e produtos é a verificação de saúde.
-O contato com mecânico só pode usar infraestrutura isolada do laboratório, sem saída
-à internet. Não são autorizados testes de negação de serviço. A verificação de OTP da v2
+No contato com o mecânico, `mechanic_api` deve receber
+`http://localhost:8000/workshop/api/mechanic/receive_report`: `localhost` é o próprio
+serviço `crapi-workshop`, dentro do contêiner e da rede interna do laboratório, sem
+saída à internet. O código do mecânico é `TRAC_JHN` e `number_of_repeats` é o inteiro `1`.
+Esse endereço é um dado do pedido de contato; não autoriza o agente a chamar outro caminho.
+Não são autorizados testes de negação de serviço. A verificação de OTP da v2
 só admite o teste de limite de consumo da carta, com teto de pedidos e parada no primeiro
 bloqueio. A v3 do OTP e a recuperação de senha estão explicitamente negadas. DELETE e
 PATCH não são autorizados. Os caminhos negados são /identity/api/auth/v3/check-otp
@@ -28,3 +32,7 @@ e as capacidades de injeção em cabeçalhos e cookies, retorno fora de banda, l
 consumo, regras experimentais e inventário, cada uma com a frase de autorização. O limite
 de consumo tem teto de 66 pedidos e parada no primeiro bloqueio. A meta total da rodada
 é 900 segundos, ainda não medida. O coordenador prepara e conecta a infraestrutura.
+
+Versão 3 do caso (V1.12.1): explicita os dados locais do contato do mecânico, já usados
+no OpenAPI e na prova de integração OAST. Caminhos, métodos, limites, capacidades
+e detectabilidade de C11/C15 permanecem os mesmos da versão 2.

@@ -1,6 +1,6 @@
 schema_version: 1
 name: crapi-foco
-title: crAPI foco (versão 2, V1.12)
+title: crAPI foco (versão 3, V1.12.1)
 product: crapi
 modes: [vulnerable]
 target: { kind: crapi, state_url: null }

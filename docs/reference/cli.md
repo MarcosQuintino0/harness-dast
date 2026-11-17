@@ -24,6 +24,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast panel <produto> [--run ID]` ou `hdast panel --index` | Gera as páginas HTML do painel da execução (`summary`, `stages`, `findings`, `coverage`, `authorization`, `terminal`, `time-and-tokens`) em `runs/<run_id>/panel/` e refaz os índices `runs/index.html` e `runs/history-<produto>.html`; `report` e `run` também os geram no fim, e o `run` grava `panel/live.html` durante o teste. Sem `--run`, usa a execução mais recente do produto. `--index` sozinho só refaz os índices | Não | Implementado ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto); as sete abas estão documentadas. Seção abaixo |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
+| `hdast mutation list` / `hdast mutation release <id>` | Lista intenções pendentes sem corpo ou segredo; só uma pessoa em terminal interativo pode liberar depois de conferir o alvo. O agente pode listar, mas nunca liberar | Não | V1.12.1, [ADR 0104](../adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto |
 | `hdast run <produto>` | Encadeia preflight, probe, scan (usa `scan.include_outcomes` do perfil; `--no-include-outcomes` o reduz a só `success`), authz e negative (ligados por padrão; `--no-authz` e `--no-negative` os pulam) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast wait --product PRODUTO [--lock ID] [--timeout SEGUNDOS]` ou `hdast wait --run ID` | Espera uma execução terminar ou o prazo vencer; só lê estado local | Não | Em desenvolvimento (V1.5.5); [referência](wait.md) |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
@@ -49,6 +50,14 @@ Veja as [receitas e limites](verification.md), inclusive a restrição de autori
 `hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.
 
 O arquivo aditivo `human-confirmations.json` v1 preserva declarações anteriores e contém produto, execução e entradas com `fingerprint`, `person`, `confirmed_at` em UTC e `observation` redigida. Arquivo inválido ou de outro contexto é recusado. Nenhum achado, severidade ou status muda. TTY e nome declarado não autenticam a identidade da pessoa. Contrato: [ADR 0086](../adr/0086-confirmacao-humana-de-achados.md), proposto.
+
+## `hdast mutation`
+
+`hdast mutation list [--json]` lê o diário local da pasta de estado e mostra as pendências com identificador, operação, apelido da conta, método, `run_id` e horário. O envelope contém `data.pending`, uma lista de `{id, metadata}`; `metadata` é `null` nos registros antigos sem contexto. Não exibe snapshot, segredo ou corpo. Registro malformado é erro de configuração, sem expor seu conteúdo.
+
+`hdast mutation release <id>` pede que uma pessoa confira o estado no alvo e digite o identificador completo da pendência. Exige TTY em entrada e saídas, recusa `--json` e não tem confirmação automática. O agente nunca executa esse comando nem modifica o diário diretamente. A liberação arquiva a entrada em `mutations/completed/`, com desfecho `human_release`, horário e auditoria; não toca o alvo nem prova que a mutação deu certo. Consulte [diário e reconciliação](knowledge.md#reconciliar-uma-pendência-do-diário).
+
+Uma intenção pendente pula somente a mesma operação e conta com motivo `mutation_pending`, sem reenviá-la ou contar alcance/sucesso. As demais seguem. Erro de E/S ou diário inválido continua interrompendo o estágio.
 
 ## `hdast panel`
 
@@ -100,7 +109,7 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `authz`, `negative`, `fail_on`, `compare`, `max_minutes` efetivos |
+| `options` | `seed`, `skip_scan`, `authz`, `negative`, `include_outcomes`, `fail_on`, `compare`, `max_minutes` efetivos. `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
 | `stages` | Sempre os seis (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
 | `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...). A pasta `panel/` não aparece aqui: é uma pasta, e o `run` a gera depois de gravar este arquivo |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |

@@ -158,6 +158,12 @@ somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as re
 | [0090](0090-vinculo-semente-confirmacao.md) | Recibo da semente efetiva, prova resumida e preservação da causa de interrupção (Proposto) |
 | [0091](0091-observacoes-passivas-de-confirmacao.md) | Cabeçalhos e comparações de autorização guardadas, sem tráfego novo (Proposto) |
 
+## Correção V1.12.1
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0104](0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md) | Bloqueio por operação e conta, motivo `mutation_pending`, listagem segura, liberação humana interativa e compatibilidade do diário |
+
 ## Quando escrever um ADR
 
 - Dependência nova.
