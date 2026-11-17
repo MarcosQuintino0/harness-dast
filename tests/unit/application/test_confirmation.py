@@ -324,3 +324,57 @@ def test_revogacao_no_meio_preserva_codigo_e_resposta_parcial(tmp_path: Path) ->
     assert entry.control is not None
     assert "HTTP 200" in entry.control
     assert len([r for r in rig.rig.target.requests if r.operation_id.startswith("confirm:")]) == 1
+
+
+def test_prazo_durante_receita_conserva_codigo_e_parcial(tmp_path: Path) -> None:
+    from harness_dast.application.run_support import DeadlineReached
+    from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+    from tests.fakes.confirmation_rig import confirmation_target
+
+    def handle(request: HttpRequest, jar: dict[str, str]) -> HttpResponse:
+        response = confirmation_target(request, jar)
+        if request.operation_id.startswith("confirm:"):
+            rig.rig.clock.advance(86400)
+        return response
+
+    rig = ConfirmationRig(tmp_path, handler=handle)
+    with pytest.raises(DeadlineReached) as error:
+        rig.execute()
+    assert error.value.exit_code == 3
+    assert rig.store.read().entries[0].level == "inconclusive"
+
+
+@pytest.mark.parametrize("error_kind", ["approval", "stale"])
+def test_recusa_aprovacao_ou_pilha_antes_da_sessao(tmp_path: Path, error_kind: str) -> None:
+    from harness_dast.application.common_ports import ReferencedFile
+    from harness_dast.application.confirmation import ConfirmationRequest
+    from harness_dast.domain.errors import ScopeNotApproved, StackStale
+    from harness_dast.domain.profile import ProductProfile
+
+    rig = ConfirmationRig(tmp_path)
+
+    class RefusingProfiles:
+        reads = 0
+
+        def load(self, product: str) -> ProductProfile:
+            self.reads += 1
+            if self.reads > 1:
+                if error_kind == "approval":
+                    raise ScopeNotApproved("token-secreto")
+                raise StackStale("token-secreto", stale_parts=("approval",))
+            return rig.rig.profiles.load(product)
+
+        def missing_files(
+            self, product: str, profile: ProductProfile
+        ) -> tuple[ReferencedFile, ...]:
+            return rig.rig.profiles.missing_files(product, profile)
+
+    before = len(rig.rig.target.requests)
+    expected = ScopeNotApproved if error_kind == "approval" else StackStale
+    with pytest.raises(expected) as error:
+        rig.service(profiles=RefusingProfiles()).execute(
+            ConfirmationRequest(product="agenda", run_id=rig.run_id)
+        )
+    assert "token-secreto" not in error.value.message
+    assert rig.store.read().entries[0].level == "inconclusive"
+    assert len(rig.rig.target.requests) == before
