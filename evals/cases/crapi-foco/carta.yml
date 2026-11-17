@@ -17,7 +17,7 @@ scope:
         scheme: http
         port: 80
         allow_local: true
-        paths: ["/identity/api/auth/login", "/workshop/api/merchant/contact_mechanic", "/community/api/v2/coupon/validate-coupon"]
+        paths: ["/identity/api/auth/login", "/identity/api/auth/v2/check-otp", "/workshop/api/merchant/contact_mechanic", "/community/api/v2/coupon/validate-coupon"]
         methods: [POST]
       - host: crapi
         scheme: http
@@ -33,7 +33,7 @@ scope:
         methods: [PUT]
   deny_paths:
     source: carta
-    value: ["/identity/api/auth/v2/check-otp", "/identity/api/auth/v3/check-otp", "/identity/api/auth/forget-password"]
+    value: ["/identity/api/auth/v3/check-otp", "/identity/api/auth/forget-password"]
   path_mode: { value: strict, source: carta }
 authorization:
   reference: { value: LAB-CRAPI-FOCO, source: carta }
@@ -62,3 +62,9 @@ auth:
         password: { secret_ref: "env:CRAPI_USER_B_PASSWORD" }
 attack:
   strength: { value: LOW, source: carta }
+  pacing: { value: proxy, source: carta }
+  inject_headers: { value: true, source: carta, quote: "Autorizamos a injeção em cabeçalhos e cookies no laboratório crAPI, dentro do escopo desta carta." }
+  oast: { value: true, source: carta, quote: "Autorizamos o retorno fora de banda no servidor de retorno isolado do laboratório, sem saída à internet." }
+  allow_rate_tests: { value: true, source: carta, quote: "Autorizamos testes de limite de consumo com teto de 66 pedidos, parando no primeiro bloqueio." }
+  experimental_rules: { value: true, source: carta, quote: "Autorizamos as regras experimentais do ZAP no laboratório crAPI, com achados marcados como experimentais." }
+  inventory: { value: true, source: carta, quote: "Autorizamos o inventário de versões irmãs e de documentação exposta, só nos caminhos que a cerca permite." }

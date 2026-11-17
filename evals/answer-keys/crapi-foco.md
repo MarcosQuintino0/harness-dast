@@ -1,19 +1,28 @@
 # Gabarito reservado: crapi-foco
 
-O caso usa somente o crAPI, vulnerável em laboratório isolado. Nenhuma detecção
-abaixo foi provada neste caso; todas permanecem `detectable: false`.
+Versão 2 do caso (V1.12, 2026-11-17). A versão 1 marcava todos os desafios como
+`detectable: false`; a versão 2 muda o valor só onde há prova no laboratório (execuções
+de integração com `run_id` no [relatório da V1.12](../../docs/reviews/relatorio-v1.12.md)).
+A carta passa a ligar, na seção `attack`, o ritmo `proxy` e as cinco capacidades da V1.12,
+cada uma com frase de autorização (ADR 0096). A verificação de OTP da v2 entra no escopo
+(só POST); a v3 e a recuperação de senha continuam negadas.
 
-| ID | Operação | Limite da prova |
-| --- | --- | --- |
-| C1 | GET /identity/api/v2/vehicle/{vehicleId}/location | Controle BOLA; depende de IDs e duas contas, sem prova neste caso. |
-| C10 | PUT /identity/api/v2/user/videos/{video_id} | Controle de atribuição em massa; ID de vídeo e detecção não foram provados; escrita adicional de authz não autorizada. |
-| C11 | POST /workshop/api/merchant/contact_mechanic | SSRF depende de infraestrutura e funcionalidade futura, sem prova de detecção. |
-| C12 | POST /community/api/v2/coupon/validate-coupon | NoSQL ainda sem prova para este caso. |
-| C15 | Login e leitura autenticada | JWT ainda sem prova para este caso. |
-| C6 | POST /workshop/api/merchant/contact_mechanic | Falta de limite; DoS é proibido e teste limitado é apenas intenção futura. |
+O caso usa somente o crAPI, vulnerável em laboratório isolado. As provas foram feitas por
+comandos dirigidos, não por agente cego: a rodada cega da V1.12 ainda está pendente.
 
-H11 é uma falha de cabeçalho prevista para a Clínica Piloto, não uma operação existente
-na branch entregue nem no crAPI. L3/L5 estão congeladas após recusa; a prova de cabeçalho
-está fora do escopo deste caso. Este caso de alvo único não cobre integralmente o requisito
-de cabeçalho ou um caso multi-alvo.
+| ID | Operação | `detectable` | Base e limite da prova |
+| --- | --- | --- | --- |
+| C1 | GET /identity/api/v2/vehicle/{vehicleId}/location | não | Controle BOLA; depende de IDs e duas contas, sem prova neste caso. |
+| C3 | POST /identity/api/auth/v2/check-otp | sim | Limite de consumo (ADR 0101): 20 tentativas com valor errado, todas com HTTP 500 e sem bloqueio (`crapi-338a`). A v3 não está no escopo; o achado dela na prova foi provável falso positivo (sem OTP emitido). |
+| C6 | POST /workshop/api/merchant/contact_mechanic | não | O teste de limite de consumo só cobre autenticação e verificação; nenhuma prova neste endpoint. DoS continua proibido. |
+| C10 | PUT /identity/api/v2/user/videos/{video_id} | não | Controle de atribuição em massa; ID de vídeo e detecção não foram provados; escrita adicional de authz não autorizada. |
+| C11 | POST /workshop/api/merchant/contact_mechanic | sim | SSRF guiado pelo contrato com `attack.oast` (ADR 0100): campo `mechanic_api`, 1 pedido e 1 retorno (`crapi-7b43`, `crapi-11fa`). Sem a chave, zero interações (`crapi-0efe`). |
+| C12 | POST /community/api/v2/coupon/validate-coupon | não | Esperado não achar: as regras NoSQL experimentais rodaram em força baixa e não acharam (`crapi-d197`). |
+| C15 | Login e leitura autenticada | sim | `authz` achou `alg_none` e claims alteradas (`crapi-a379`, ADR 0098). Chave fraca só em unidade; `kid`, `jku` e confusão de algoritmo não avaliados. |
+
+Controles: C1 e C10 medem regressão. A injeção de SQL em cabeçalho (H11) é uma falha da
+Clínica Piloto, não uma operação do crAPI; a prova de cabeçalho não pertence a este caso.
+Alarmes falsos de regras experimentais e de limite de consumo devem ser lidos como
+achados marcados `[experimental]` ou de severidade média, sem ser contados como acerto
+além dos desafios acima.
 Os 900 segundos são orçamento, não duração medida.

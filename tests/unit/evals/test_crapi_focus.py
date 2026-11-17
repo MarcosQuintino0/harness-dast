@@ -148,8 +148,25 @@ def test_listagem_de_veiculos_existe_no_contrato_e_na_carta() -> None:
     )
 
 
-def test_caso_nao_declara_detecao_ou_prazo_medido() -> None:
+def test_caso_declara_so_a_deteccao_provada_e_nenhum_prazo_medido() -> None:
     case = load_case("crapi-foco")
-    assert {f.id for f in case.flaws} == {"C1", "C6", "C10", "C11", "C12", "C15"}
-    assert not any(f.detectable for f in case.flaws)
+    assert {f.id for f in case.flaws} == {"C1", "C3", "C6", "C10", "C11", "C12", "C15"}
+    assert {f.id for f in case.flaws if f.detectable} == {"C3", "C11", "C15"}
     assert case.budget.duration_seconds == 900
+
+
+def test_carta_liga_as_capacidades_da_v1_12_com_frase_e_gera_o_perfil(
+    focus_round: RoundDirs,
+) -> None:
+    data = yaml.safe_load(_init(focus_round).read_text(encoding="utf-8"))
+    assert data["scan"]["pacing"] == "proxy"
+    assert data["scan"]["inject_headers"] is True
+    assert data["scan"]["oast"] is True
+    assert data["extra_checks"] == {
+        "allow_rate_tests": True,
+        "experimental_rules": True,
+        "inventory": True,
+    }
+    denied = data["scope"]["deny_paths"]
+    assert "/identity/api/auth/v2/check-otp" not in denied
+    assert "/identity/api/auth/v3/check-otp" in denied
