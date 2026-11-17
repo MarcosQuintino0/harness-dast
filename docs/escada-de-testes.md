@@ -118,6 +118,12 @@ uv run pytest -m regressao_dirigida
 
 Roda `probe` e `authz` em cada cenário e um `scan --only` só nas operações em que o ZAP detecta a falha (`tests/integration/test_regressao_dirigida.py`). Exige Docker, a trava do laboratório quando há outras frentes e uma pilha por vez. O tempo por cenário vai para `HDAST_IT_METRICS_DIR` (`regressao-dirigida-<cenário>`). A H11 (injeção em cabeçalho, ADR 0092) fica fora até a trilha F poder detectá-la. Roteiro de regressão, não nota: não substitui o degrau 4 nem a rodada cega.
 
+Medição da coordenação em 2026-11-17: 715,24 s (11min55s), com 14 testes aprovados e
+26 combinações inaplicáveis puladas. Clínica vulnerável: 419,4 s; segura: 181,2 s;
+VAmPI vulnerável: 62,5 s. O tempo total do pytest inclui encerramentos e sobrecarga
+que não entram nesses tempos por cenário. Evidências externas em
+`C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\regression.log` e `metrics-regression/`.
+
 ## Degrau 4. Varredura completa
 
 Só no fechamento de versão, ou quando muda o motor ou a política padrão do ZAP:
