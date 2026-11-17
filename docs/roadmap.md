@@ -55,9 +55,9 @@ Estado consolidado inclui o trabalho parcial da V1.11. Provas datadas em [review
 
 ### V1.11: verificação de achados em andamento
 
-Código das fases A, B, C e E integrado: classificação aditiva, `hdast confirm`, declaração humana separada e apresentação no painel e nos relatórios. As receitas e restrições estão em [verificação](reference/verification.md); os ADRs 0085 a 0089 permanecem propostos. A régua privada `triage_accuracy` é suplementar e preserva a grade histórica.
+Código das fases A, B, C e E integrado: classificação aditiva, `hdast confirm`, declaração humana separada e apresentação no painel e nos relatórios. As receitas e restrições estão em [verificação](reference/verification.md); os ADRs 0085 a 0091 permanecem propostos. A régua privada `triage_accuracy` é suplementar e preserva a grade histórica. O recibo da semente efetivamente varrida é obrigatório para confirmação ativa; execuções antigas sem recibo recusam tráfego.
 
-**Parcial:** a aprovação humana dos perfis locais não foi obtida; fase 0, calibração D e prova operacional F não foram executadas. Não há `run_id`, contagens nem matriz medidos nesta rodada. A fixture sintética offline não é prova de laboratório e a inspeção visual não foi concluída. QA independente, parecer do validador e gates finais estão em andamento; não há release publicada, PR ou merge desta versão. Sem rodada cega nesta fase e sem produto real. A V1.10 permanece fechada.
+**Parcial:** a aprovação humana dos perfis locais não foi obtida; fase 0, calibração D e prova operacional F não foram executadas. Não há `run_id`, contagens nem matriz medidos nesta rodada. A fixture sintética offline não é prova de laboratório e a inspeção visual não foi concluída. QA e validação independente encontraram defeitos corrigidos; o reteste permite continuar no escopo revisado. Gates consolidados anteriores passaram; os comprovantes finais e limites estão no [relatório da V1.11](reviews/relatorio-v1.11.md). Não há release publicada, PR ou merge desta versão. Sem rodada cega nesta fase e sem produto real. A V1.10 permanece fechada.
 
 ### Fundação (M1)
 

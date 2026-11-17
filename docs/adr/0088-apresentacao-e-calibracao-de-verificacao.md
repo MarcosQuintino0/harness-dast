@@ -12,9 +12,9 @@ A verificação é consultiva e não modifica os achados. Resultados automático
 
 Vamos apresentar a verificação, a confirmação humana e a calibração separadamente, sem mudar o contrato de `findings.json`. A leitura de calibração passa por porta e adaptador a partir de JSON versionado fora de `src/`. Só exibir porcentagens medidas para amostras de pelo menos 10, com tipo, numerador e denominador; não extrapolar para outros ambientes nem atribuir probabilidade aos níveis. Ausência de medição não é zero. Os registros são dados não confiáveis, redigidos e escapados na apresentação.
 
-## Alternativas consideradas
-
 Os renderizadores recebem `Presentation` opcional de forma estruturada. O HTML inclui a seção dentro de `main`, sem substituir uma sequência de fechamento de tags; sem a visão, os chamados anteriores preservam a saída. Dados consultivos inválidos geram aviso seguro e não promovem reprodução. Contagem e tamanho da amostra aparecem mesmo abaixo de dez; somente a porcentagem é omitida.
+
+## Alternativas consideradas
 
 Inserir resultados no contrato de achados misturaria dados originais e pareceres posteriores. Fixar números no código ou exibir porcentagens de amostras pequenas esconderia a origem e as limitações das medições.
 

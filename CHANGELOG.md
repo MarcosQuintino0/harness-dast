@@ -33,6 +33,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 ### Verificação
 
 - Contrato aditivo `verification.json` v1, com nível e motivo definidos no domínio; classificação sem tráfego que preserva achados, severidade e status (ADR 0085, proposto).
+- Leitores consultivos compartilham decodificação estrita: chaves duplicadas, constantes não finitas e conteúdo malformado falham com erro seguro.
 - `hdast finding acknowledge`: declaração humana aditiva em terminal interativo, separada da verificação automática e da opinião em `triage.json`; bloqueio do comando para o agente (ADR 0086, proposto).
 - `hdast confirm`: receitas fixas de leitura com controle, resultado aditivo e contagem separada de pedidos de receita e sessão; painel e relatórios apresentam verificação e confirmação humana (ADRs 0087 e 0088, propostos). Calibração e prova operacional no laboratório estão pendentes de aprovação humana.
 - Recibo aditivo da URL e conta efetivamente varridas; execuções antigas sem recibo não geram confirmação ativa. Prova parcial e causa de parada são preservadas, e sessão, CSRF e recuos consomem o teto por achado (ADR 0090, proposto).

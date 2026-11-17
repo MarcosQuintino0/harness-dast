@@ -10,5 +10,6 @@ O JSON tem `schema_version`, `status`, `provenance` e `measurements`. Enquanto e
 `blocked`, a lista de medições fica vazia. Depois de medida, `status` passa a `measured`
 e cada entrada deve conter `finding_type`, `criterion`, `correct`, `sample` e
 `provenance`: respectivamente, tipo, critério, quantidade correta, tamanho da amostra e
-referência da prova. A quantidade correta não pode superar a amostra. O relatório omite
-medições abaixo do limiar; dados ausentes ou inválidos não se tornam contagens zero.
+referência da prova. A quantidade correta não pode superar a amostra. O relatório mostra
+contagem e tamanho da amostra mesmo abaixo do limiar; somente a porcentagem é omitida.
+Dados ausentes ou inválidos não se tornam contagens zero.
