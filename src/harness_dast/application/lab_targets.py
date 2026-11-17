@@ -1,4 +1,4 @@
-"""Alvos de laboratório que o `hdast stack up` sabe anexar (VAmPI e Clínica Piloto).
+"""Alvos de laboratório que o `hdast stack up` sabe anexar.
 
 Reconhecidos pelo host de `environment.base_url` do perfil. Só dados: quais serviços subir,
 em qual projeto compose e quais variáveis o alvo exige. Nada aqui decide escopo.
@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 PILOT_PROJECT = "hdast-pilotrun"
 """Projeto compose do alvo piloto: distinto de `hdast-pilot` (usado à mão, com Oracle)."""
+CRAPI_PROJECT = "hdast-crapi"
 
 PILOT_API_PORT = 28080
 PILOT_MANAGEMENT_PORT = 29091
@@ -94,7 +95,26 @@ CLINICA_PILOTO = LabTarget(
     ttl_env="PILOT_JWT_TTL_SECONDS",
 )
 
-_TARGETS = (VAMPI, CLINICA_PILOTO)
+CRAPI = LabTarget(
+    name="crapi",
+    host="crapi",
+    main_profiles=(),
+    main_services=(),
+    attached_workdir="lab/crapi",
+    attached_files=("compose.yaml",),
+    credential_env=(
+        "CRAPI_DB_PASSWORD",
+        "CRAPI_USER_A_EMAIL",
+        "CRAPI_USER_A_PASSWORD",
+        "CRAPI_USER_B_EMAIL",
+        "CRAPI_USER_B_PASSWORD",
+    ),
+    inert_env=(),
+    vulnerable_env="",
+    ttl_env="",
+)
+
+_TARGETS = (VAMPI, CLINICA_PILOTO, CRAPI)
 
 
 def lab_target_for(base_url: str) -> LabTarget | None:

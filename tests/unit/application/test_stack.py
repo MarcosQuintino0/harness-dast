@@ -53,10 +53,12 @@ class Rig:
         self.profiles.add(valid_profile("demo"))
         self.profiles.add(lab_profile("vampi", "vampi", 5000))
         self.profiles.add(lab_profile("clinica-piloto", "clinica-piloto", 8080))
+        self.profiles.add(lab_profile("crapi", "crapi", 80))
         self.compose = FakeCompose()
         self.states = InMemoryStackState(tmp_path)
         self.policies = RecordingPolicyStore()
         self.environ = environ or {}
+        self.accounts = FakeCrapiAccounts()
         self.manager = StackManager(
             profiles=self.profiles,
             clock=ManualClock(),
@@ -69,7 +71,61 @@ class Rig:
             repo_root=tmp_path / "repo",
             running_scans=running_scans,
             freshness=None if bindings is None else StackFreshnessCheck(self.states, bindings),
+            crapi_accounts=self.accounts,
         )
+
+
+class FakeCrapiAccounts:
+    def __init__(self) -> None:
+        self.credentials: dict[str, str] = {}
+
+    def provision(self, credentials: dict[str, str]) -> None:
+        self.credentials = dict(credentials)
+
+
+def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+
+    report = rig.manager.up(StackUpRequest(product="crapi"))
+
+    state = rig.states.state
+    assert state is not None
+    assert [p.name for p in state.projects] == ["hdast-codex", "hdast-crapi-codex"]
+    assert state.projects[1].remove_volumes is True
+    assert rig.accounts.credentials == state.target_env
+    assert rig.accounts.credentials["CRAPI_USER_A_PASSWORD"].startswith("Aa1#")
+    assert all(value not in report.model_dump_json() for value in state.target_env.values())
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
+
+
+def test_crapi_seguro_recusa_antes_de_derrubar_pilha_anterior(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="demo"))
+    calls = list(rig.compose.calls)
+
+    with pytest.raises(ConfigError, match="modo seguro"):
+        rig.manager.up(StackUpRequest(product="crapi", vulnerable=False))
+
+    assert rig.compose.calls == calls
+    assert rig.states.state is not None
+    assert rig.states.state.product == "demo"
+
+
+def test_falha_no_cadastro_mantem_estado_para_derrubar_projetos(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+
+    class BrokenAccounts:
+        def provision(self, credentials: dict[str, str]) -> None:
+            raise ExternalToolError("cadastro falhou", hint="Derrube a pilha.")
+
+    rig.manager._crapi_accounts = BrokenAccounts()
+    with pytest.raises(ExternalToolError):
+        rig.manager.up(StackUpRequest(product="crapi"))
+
+    assert rig.states.state is not None
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-crapi"), ("down", "hdast")]
 
 
 def test_up_gera_chave_politica_e_estado_e_sobe_so_o_compose_raiz_para_produto_externo(

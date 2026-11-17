@@ -25,6 +25,8 @@ from harness_dast.application.common_ports import (
 )
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
+    CRAPI,
+    CRAPI_PROJECT,
     PILOT_API_PORT,
     PILOT_MANAGEMENT_PORT,
     PILOT_ORACLE_ENV_FIXED,
@@ -47,6 +49,7 @@ from harness_dast.application.stack_models import (
 )
 from harness_dast.application.stack_ports import (
     ComposeRunner,
+    LabAccountProvisioner,
     ProxyPolicyStore,
     RandomSource,
     ZapScanStopper,
@@ -115,6 +118,7 @@ class StackManager:
         locks: StackLockService | None = None,
         proxy_env: Callable[[str], Mapping[str, str]] | None = None,
         freshness: StackFreshnessCheck | None = None,
+        crapi_accounts: LabAccountProvisioner | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -132,6 +136,7 @@ class StackManager:
             locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
             proxy_env: Montagens e identidade do proxy gerenciado para o produto.
             freshness: Conferência do frescor da pilha, para o `status` (ADR 0081).
+            crapi_accounts: Cadastro das contas sintéticas do crAPI.
         """
         self._profiles = profiles
         self._clock = clock
@@ -146,6 +151,7 @@ class StackManager:
         self._locks = locks
         self._proxy_env = proxy_env
         self._freshness = freshness
+        self._crapi_accounts = crapi_accounts
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -159,6 +165,19 @@ class StackManager:
         profile = self._profiles.load(request.product)
         profile.ensure_runnable(now)
         target = lab_target_for(profile.environment.base_url)
+        if target is CRAPI and request.vulnerable is False:
+            raise ConfigError(
+                "O crAPI não tem modo seguro.", hint="Use o modo vulnerável no laboratório."
+            )
+        if target is CRAPI and request.token_ttl_seconds is not None:
+            raise ConfigError(
+                "O crAPI não oferece ajuste de token nesta pilha.",
+                hint="Retire a opção de duração do token.",
+            )
+        if target is CRAPI and self._crapi_accounts is None:
+            raise ConfigError(
+                "Cadastro de contas do crAPI indisponível.", hint="Confira a montagem da CLI."
+            )
         suffix = _project_suffix(self._environ)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
@@ -201,6 +220,17 @@ class StackManager:
                 # A imagem antiga nao conhece o vinculo obrigatorio de aprovacao.
                 build=request.build or project == projects[0],
                 timeout_seconds=request.timeout_seconds,
+            )
+        if target is CRAPI and self._crapi_accounts is not None:
+            self._crapi_accounts.provision(
+                {
+                    **state.target_env,
+                    **{
+                        name: self._environ[name]
+                        for name in CRAPI.credential_env
+                        if self._environ.get(name)
+                    },
+                }
             )
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})
@@ -315,8 +345,12 @@ class StackManager:
         for name in target.credential_env if target else ():
             if self._environ.get(name):
                 continue
-            if name.endswith("USERNAME"):
+            if name.endswith("_EMAIL"):
+                generated[name] = f"lab.{self._random.token_hex(_USERNAME_BYTES)}@example.com"
+            elif name.endswith("USERNAME"):
                 generated[name] = f"lab_{self._random.token_hex(_USERNAME_BYTES)}"
+            elif target is CRAPI and name.endswith("_PASSWORD") and name != "CRAPI_DB_PASSWORD":
+                generated[name] = "Aa1#" + self._random.token_hex(_PASSWORD_BYTES)
             else:
                 generated[name] = self._random.token_hex(_PASSWORD_BYTES)
         return generated
@@ -355,10 +389,11 @@ class StackManager:
         if target is None or target.attached_workdir is None:
             return (main,)
         attached = ComposeProject(
-            name=PILOT_PROJECT + suffix,
+            name=(CRAPI_PROJECT if target is CRAPI else PILOT_PROJECT) + suffix,
             workdir=str(self._root / target.attached_workdir),
             files=target.attached_files + ((PILOT_ORACLE_FILE,) if oracle else ()),
             profiles=(PILOT_ORACLE_PROFILE,) if oracle else (),
+            remove_volumes=target is CRAPI,
         )
         return (main, attached)
 
@@ -386,6 +421,11 @@ class StackManager:
             **state.target_env,
             "PILOT_HOST_PORT": str(PILOT_API_PORT),
             "PILOT_MGMT_HOST_PORT": str(PILOT_MANAGEMENT_PORT),
+            **(
+                {"CRAPI_WEB_PORT": "28888", "CRAPI_MAIL_PORT": "28025"}
+                if state.lab_target == CRAPI.name
+                else {}
+            ),
             **options,
         }
 
@@ -416,9 +456,9 @@ def _target_options(target: LabTarget | None, request: StackUpRequest) -> dict[s
     options: dict[str, str] = {}
     if target is None:
         return options
-    if request.vulnerable is not None:
+    if request.vulnerable is not None and target.vulnerable_env:
         options[target.vulnerable_env] = "1" if request.vulnerable else "0"
-    if request.token_ttl_seconds is not None:
+    if request.token_ttl_seconds is not None and target.ttl_env:
         options[target.ttl_env] = str(request.token_ttl_seconds)
     return options
 
@@ -438,6 +478,8 @@ def _common_env(state: StackState) -> dict[str, str]:
     # um valor qualquer basta porque nada é criado nem lido.
     pilot = state.lab_target == CLINICA_PILOTO.name
     names = CLINICA_PILOTO.credential_env + CLINICA_PILOTO.inert_env if pilot else ()
+    if state.lab_target == CRAPI.name:
+        names = CRAPI.credential_env
     return {
         "HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net",
         **{name: _PLACEHOLDER for name in names},

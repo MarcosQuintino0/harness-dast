@@ -102,6 +102,8 @@ class DockerComposeCli:
     def down(self, project: ComposeProject, env: dict[str, str], *, timeout_seconds: int) -> None:
         """Derruba o projeto (`down --remove-orphans`) dentro do prazo."""
         command = [*_prefix(project), "down", "--remove-orphans", "--timeout", "20"]
+        if project.remove_volumes:
+            command.append("--volumes")
         self._run(project, command, env, timeout_seconds, "derrubar")
 
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:

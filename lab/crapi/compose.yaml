@@ -3,8 +3,7 @@
 # Apache License 2.0 (LICENSE-crAPI.txt). Esta e uma adaptacao: imagens fixadas por digest, portas so em
 # 127.0.0.1, bancos so na rede interna do proprio compose, limites de memoria.
 #
-# Subir:  veja README.md (pilha do hdast primeiro, depois este compose, depois seed.py).
-# Parar:  docker compose -p hdast-crapi -f lab/crapi/compose.yaml down -v
+# Subir e parar: veja README.md (pilha gerenciada pelo hdast).
 #
 # O servico "crapi-web" (nginx) e a porta de entrada de toda a API (/identity, /community, /workshop).
 # Ele entra tambem na rede INTERNA do lab (hdast_lab_net, criada pelo compose da raiz) com o apelido
@@ -129,45 +128,22 @@ services:
     cpus: 1.0
     networks: [crapi_net]
 
-  # O nginx do crapi-web resolve este nome ao iniciar; o chatbot (sem chave de LLM) so precisa existir.
-  crapi-chatbot:
-    <<: *comum
-    image: crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f
-    environment:
-      TLS_ENABLED: "false"
-      SERVER_PORT: "5002"
-      DB_NAME: crapi
-      DB_USER: admin
-      DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
-      DB_HOST: postgresdb
-      DB_PORT: "5432"
-      MONGO_DB_HOST: mongodb
-      MONGO_DB_PORT: "27017"
-      MONGO_DB_USER: admin
-      MONGO_DB_PASSWORD: "${CRAPI_DB_PASSWORD:?Defina CRAPI_DB_PASSWORD}"
-      MONGO_DB_NAME: crapi
-    depends_on:
-      mongodb: {condition: service_healthy}
-    mem_limit: 256m
-    networks: [crapi_net]
-
   crapi-web:
     <<: *comum
     image: crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746
     ports:
-      # So loopback. A porta existe para o seed.py e para olhar a interface; o ZAP usa a rede interna.
+      # So loopback. Cadastro local e interface usam esta porta; o ZAP usa o proxy.
       - "127.0.0.1:${CRAPI_WEB_PORT:-28888}:80"
     environment:
       COMMUNITY_SERVICE: crapi-community:8087
       IDENTITY_SERVICE: crapi-identity:8080
       WORKSHOP_SERVICE: crapi-workshop:8000
-      CHATBOT_SERVICE: crapi-chatbot:5002
+      CHATBOT_SERVICE: crapi-identity:8080
       TLS_ENABLED: "false"
     depends_on:
       crapi-community: {condition: service_healthy}
       crapi-identity: {condition: service_healthy}
       crapi-workshop: {condition: service_healthy}
-      crapi-chatbot: {condition: service_started}
     healthcheck:
       test: curl 0.0.0.0:80/web/health
       interval: 15s

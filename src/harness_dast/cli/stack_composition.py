@@ -12,6 +12,7 @@ from pathlib import Path
 from pydantic import SecretStr
 
 from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
+from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
@@ -101,6 +102,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         locks=open_stack_lock(),
         proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
         freshness=open_stack_freshness(root),
+        crapi_accounts=CrapiAccountProvisioner(),
     )
 
 

@@ -66,6 +66,12 @@ def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:
     assert error.value.hint
 
 
+def test_down_remove_volumes_somente_quando_projeto_os_declara_descartaveis() -> None:
+    runner = Recorder(CommandResult(0, "", ""))
+    cli(runner).down(PROJECT.model_copy(update={"remove_volumes": True}), {}, timeout_seconds=10)
+    assert "--volumes" in runner.calls[0][0]
+
+
 def test_prazo_estourado_vira_erro_de_ferramenta_com_orientacao() -> None:
     runner = Recorder(subprocess.TimeoutExpired("docker", 10))
 

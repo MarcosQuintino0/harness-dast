@@ -32,6 +32,7 @@ class ComposeProject(BaseModel):
         files: Arquivos compose (`-f`), em ordem.
         profiles: Perfis do compose a ativar.
         services: Serviços a subir; vazio sobe todos os do(s) perfil(is) ativo(s).
+        remove_volumes: Se os volumes do projeto são descartáveis e devem ser removidos no down.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -41,6 +42,7 @@ class ComposeProject(BaseModel):
     files: tuple[str, ...] = Field(min_length=1)
     profiles: tuple[str, ...] = ()
     services: tuple[str, ...] = ()
+    remove_volumes: bool = False
 
 
 class ServiceStatus(BaseModel):

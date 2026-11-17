@@ -85,6 +85,14 @@ class ComposeRunner(Protocol):
         ...
 
 
+class LabAccountProvisioner(Protocol):
+    """Cadastra contas sintéticas do laboratório após a subida do alvo."""
+
+    def provision(self, credentials: dict[str, str]) -> None:
+        """Cadastra contas e veículos; falhas não devem conter valores de credenciais."""
+        ...
+
+
 class StackLockFile(Protocol):
     """Arquivo de trava exclusiva da pilha, na pasta de estado (ADR 0035).
 
