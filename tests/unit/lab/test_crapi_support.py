@@ -1,10 +1,12 @@
 """Contratos das consultas sanitizadas da prova de integração do crAPI."""
 
 import json
+import subprocess
 
 import pytest
 
 from tests.integration import crapi_support as support
+from tests.integration.lab_support import LabCli
 
 
 def _docker_fixture(*args: str) -> str:
@@ -73,8 +75,8 @@ def test_metricas_nao_incluem_resposta_arbitraria(monkeypatch: pytest.MonkeyPatc
         stderr = "secret"
         returncode = 4
 
-    monkeypatch.setattr(support.subprocess, "run", lambda *args, **kwargs: Completed())
-    cli = support.LabCli.__new__(support.LabCli)
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: Completed())
+    cli = LabCli.__new__(LabCli)
     cli.env = {}
     _, metrics = support.run_cli(cli, "preflight", "crapi")
     assert metrics["error_code"] == "STACK_STALE"
