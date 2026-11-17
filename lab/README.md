@@ -426,7 +426,7 @@ Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referê
 
 ## Retorno OAST isolado (proposto)
 
-Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0091](../docs/adr/0091-retorno-oast-isolado.md). Não ligam varredura. A operação e as provas dependem do coordenador e da trava do laboratório; a presença do complemento na imagem fixada ainda precisa ser conferida.
+Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0091](../docs/adr/0091-retorno-oast-isolado.md). Não ligam varredura. Em 2026-11-17, a prova dirigida confirmou o complemento na imagem fixada e recebeu um evento real do workshop. A operação exige coordenação sob a trava do laboratório.
 
 ### Simular a seleção de imagens
 
@@ -449,7 +449,7 @@ $env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\oast-proof'
 uv run pytest -v -m integration tests/integration/test_lab_oast.py::test_callback_e_isolamento_a_partir_do_workshop_crapi
 ```
 
-O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução exige Docker e ainda não foi realizada nesta trilha.
+O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução real de 2026-11-17 passou em 238,91 s na pilha `2026-11-17T08-00-17Z-crapi-4538`: contador de 0 para 1 e limpeza sem erros. Evidências externas em `C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\metrics-oast-fixed\`.
 
 ### Inventário de imagens em ensaio
 
