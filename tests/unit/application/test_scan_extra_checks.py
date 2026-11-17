@@ -60,8 +60,14 @@ class Target:
     """Alvo falso configurável: página com ou sem teto, OTP com ou sem limite, irmã v2 viva."""
 
     def __init__(
-        self, *, page_cap: int | None = None, otp_limit: int | None = None, sibling: bool = True
+        self,
+        *,
+        page_cap: int | None = None,
+        otp_limit: int | None = None,
+        sibling: bool = True,
+        otp_status: int = 400,
     ) -> None:
+        self.otp_status = otp_status
         self.page_cap = page_cap
         self.otp_limit = otp_limit
         self.sibling = sibling
@@ -78,7 +84,7 @@ class Target:
             self.otp_calls += 1
             if self.otp_limit is not None and self.otp_calls > self.otp_limit:
                 return reply(429, {"message": "too many"}, retry_after="60")
-            return reply(500, {"message": "invalid otp"})
+            return reply(self.otp_status, {"message": "invalid otp"})
         if path == "/api/v2/itens" and self.sibling:
             return reply(200, {"ok": True})
         if path == "/api/v3/itens":
@@ -150,6 +156,17 @@ def test_attempts_without_any_limit_signal_are_a_finding_and_stop_at_the_hard_ca
     otp = [r for r in rig.target.requests if r.operation_id == "rate:checar_otp"]
     assert all(b"alice" in (r.body or b"") for r in otp)  # a conta de teste da carta
     assert all(b"senha-secreta-xyz" not in (r.body or b"") for r in otp)  # nunca a senha real
+
+
+def test_an_otp_that_answers_500_every_time_is_inconclusive_with_a_single_request() -> None:
+    target = Target(otp_status=500)
+    rig, result = _scan(target, extra_checks={"allow_rate_tests": True})
+
+    assert target.otp_calls == 1
+    assert _alerts(rig, result, RATE_ATTEMPTS_PLUGIN) == []
+    assert result.rate_checks is not None
+    attempts = [r for r in result.rate_checks.results if r.check == "attempts"]
+    assert (attempts[0].outcome, attempts[0].detail) == ("inconclusive", "server_error_http_500")
 
 
 def test_the_first_429_stops_the_attempts_with_no_finding() -> None:

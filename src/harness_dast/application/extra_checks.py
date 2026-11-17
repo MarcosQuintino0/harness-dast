@@ -369,7 +369,12 @@ class RateChecks:
             if count == 1:
                 problem = first_reply_problem(current)
                 if problem is not None:
-                    self._attempt_result(case, "inconclusive", count, problem)
+                    detail = (
+                        "possible_state_change: o valor errado foi aceito (2xx)"
+                        if problem == "unexpected_success"
+                        else problem
+                    )
+                    self._attempt_result(case, "inconclusive", count, detail)
                     return
                 first = status
             signal = limit_signal(current, first)

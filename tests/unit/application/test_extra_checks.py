@@ -18,7 +18,7 @@ from harness_dast.domain.rate_attempts import (
 )
 from harness_dast.domain.rate_page import PagePlan
 
-CASE = AttemptCase("otp", "/auth/otp", "otp", '{"otp":"hdas"}')
+CASE = AttemptCase("otp", "/auth/otp", "otp", '{"otp":"0987"}')
 NO_PAGES = PagePlan(cases=(), skipped=())
 
 
@@ -59,11 +59,33 @@ def test_twenty_identical_rejections_are_a_finding_and_the_twenty_first_is_never
 
 
 def test_a_status_change_after_some_attempts_is_a_limit_and_stops_there() -> None:
-    sender, checks = _attempts(lambda n: Reply(500) if n < 6 else Reply(503))
+    sender, checks = _attempts(lambda n: Reply(400) if n < 6 else Reply(503))
 
     outcome, alerts, _ = _run(checks)
 
     assert (outcome, alerts, sender.sent) == ("limited", 0, 6)
+
+
+def test_a_constant_500_is_inconclusive_and_never_a_finding() -> None:
+    sender, checks = _attempts(lambda n: Reply(500))
+
+    summary, alerts = checks.run(NO_PAGES, AttemptPlan(cases=(CASE,), skipped=()))
+
+    assert alerts == ()
+    assert [(r.outcome, r.detail) for r in summary.results] == [
+        ("inconclusive", "server_error_http_500")
+    ]
+    assert sender.sent == 1
+
+
+def test_a_2xx_is_inconclusive_and_flagged_as_a_possible_state_change() -> None:
+    _, checks = _attempts(lambda n: Reply(200))
+
+    summary, alerts = checks.run(NO_PAGES, AttemptPlan(cases=(CASE,), skipped=()))
+
+    assert alerts == ()
+    assert summary.results[0].detail is not None
+    assert summary.results[0].detail.startswith("possible_state_change")
 
 
 def test_retry_after_alone_is_a_limit_signal() -> None:

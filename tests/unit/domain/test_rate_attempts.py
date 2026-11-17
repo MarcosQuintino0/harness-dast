@@ -78,8 +78,7 @@ def test_the_otp_operation_is_chosen_with_a_wrong_body_and_the_test_identity() -
     body = json.loads(case.body)
     assert case.guess_field == "otp"
     assert body["email"] == "conta@lab.test"
-    assert body["otp"] == "hdas"  # letras: nunca é um OTP numérico válido
-    assert not body["otp"].isdigit()
+    assert body["otp"] == "0987"  # dígitos do tamanho do contrato: o formato certo, valor errado
     assert body["password"] != body["email"]
 
 
@@ -197,8 +196,11 @@ def test_the_same_rejection_every_time_is_no_signal() -> None:
         (422, "not_testable_http_422"),
         (502, "not_testable_http_502"),
         (401, None),
-        (500, None),
+        (301, "not_testable_http_301"),
+        (500, "server_error_http_500"),
+        (501, "server_error_http_501"),
         (400, None),
+        (403, None),
     ],
 )
 def test_first_reply_problem(status: int | None, problem: str | None) -> None:
@@ -216,3 +218,65 @@ def test_the_finding_is_medium_with_the_count_and_no_secret() -> None:
     assert (alert["risk"], alert["cweid"], alert["method"]) == ("Medium", "307", "POST")
     assert f"{ATTEMPTS_PER_OPERATION} tentativas" in alert["evidence"]
     assert "a@b.test" not in json.dumps(alert)
+
+
+@pytest.mark.parametrize(
+    ("schema", "expected"),
+    [
+        (Schema(type="string", max_length=6), "098765"),
+        (Schema(type="string", min_length=4, max_length=4), "0987"),
+        (Schema(type="string", pattern=r"^\d{5}$"), "09876"),
+        (Schema(type="string", pattern=r"^[0-9]{4,6}$"), "098765"),
+        (Schema(type="string", example="123456"), "098765"),
+        (Schema(type="string", example="0987"), "1987"),
+        (Schema(type="string"), "098765"),
+        (Schema(type="string", min_length=10), "0987654321"),
+    ],
+)
+def test_a_numeric_code_gets_digits_of_the_size_the_contract_says(
+    schema: Schema, expected: str
+) -> None:
+    built = build_attempt_body(form(otp=schema, email=STR), identity="a@b.test")
+
+    assert isinstance(built, tuple)
+    assert json.loads(built[0])["otp"] == expected
+
+
+def test_a_text_code_with_a_digit_pattern_also_gets_digits() -> None:
+    schema = form(verification_code=Schema(type="string", pattern=r"^\d{6}$"), email=STR)
+
+    built = build_attempt_body(schema, identity="a@b.test")
+
+    assert isinstance(built, tuple)
+    assert json.loads(built[0])["verification_code"] == "098765"
+
+
+def test_a_free_text_code_keeps_a_letter_value_of_the_declared_size() -> None:
+    schema = form(verification_code=Schema(type="string", max_length=5), email=STR)
+
+    built = build_attempt_body(schema, identity="a@b.test")
+
+    assert isinstance(built, tuple)
+    assert json.loads(built[0])["verification_code"] == "hdast"
+
+
+@pytest.mark.parametrize(
+    "path", ["/auth/change-password", "/auth/set-pin", "/auth/register-otp", "/user/update-token"]
+)
+def test_operations_that_change_or_register_a_credential_are_skipped(path: str) -> None:
+    plan = plan_attempts({"x": op("x", path, OTP_FORM)}, identity="a@b.test", permits=allow_all)
+
+    assert plan.cases == ()
+    assert plan.skipped == (ExtraSkip(subject="x", reason="state_changing_operation"),)
+
+
+@pytest.mark.parametrize("field", ["new_password", "current_password", "confirm_password"])
+def test_a_body_with_a_new_current_or_confirm_password_is_skipped(field: str) -> None:
+    schema = form(**{field: STR}, email=STR, otp=STR)
+
+    plan = plan_attempts(
+        {"x": op("x", "/auth/verify", schema)}, identity="a@b.test", permits=allow_all
+    )
+
+    assert plan.cases == ()
+    assert [s.reason for s in plan.skipped] == ["state_changing_operation"]
