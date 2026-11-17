@@ -153,6 +153,9 @@ flaws:
     detectable: true      # medido: achada nos dois modos
     weight: 2
     match: { titles: ["SQL Injection"], path_contains: /api/medicos/crm }
+  # V1.12 (ADR 0092): operacao nova com injecao em CABECALHO. Fora da nota ate a V1.12 ter a injecao em
+  # cabecalhos (passo F6): a politica padrao do ZAP nao a alcanca. O OpenAPI entregue passa a trazer a operacao.
+  - { id: H11, title: Injecao de SQL em cabecalho (medico por CRM no X-CRM), detectable: false }
 
 forbidden:
   methods: [DELETE]

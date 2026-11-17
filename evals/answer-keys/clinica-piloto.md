@@ -85,3 +85,13 @@ continua sem achar H5 a H7, e isso conta na nota.
 
 Convênio 1 (`00000001`); médicos 1 e 2; pacientes 1 (A) e 2 (B); consultas 1 (paciente 1) e 2 (paciente 2); receitas 1 e 2; contas `admin`,
 `medico`, `paciente A` (paciente 1) e `paciente B` (paciente 2). `POST :19091/internal/eval/reset` restaura esse estado.
+
+## Extensão para a V1.12: H11 (injeção de SQL em cabeçalho)
+
+A V1.12 (ADR 0092) acrescenta uma operação nova, sem tocar nas dez falhas acima nem no comportamento delas. **H11 não entra na nota dos casos existentes** (`detectable: false`): os resultados e as rodadas já registradas continuam comparáveis. Só a trilha F da V1.12 (injeção em cabeçalhos, passo F6) vai poder detectá-la; até lá, não conte H11 como achada nem como perdida.
+
+| Id | Endpoint e parâmetro | Classe / CWE | Como confirmar (modo `1`) | ZAP detecta? | Modo `0` |
+| --- | --- | --- | --- | --- | --- |
+| **H11** | `GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM` (operação `buscarMedicoPorCabecalho`). Exige token | Injeção de SQL em cabeçalho HTTP. CWE-89 | `X-CRM: inexistente' OR '1'='1` devolve os médicos da semente (lista não vazia) em vez de lista vazia; `X-CRM: '` devolve 500 com erro de SQL | **Não por padrão**: a política padrão do ZAP não injeta em cabeçalhos. Depende de `attack.inject_headers` (V1.12, F6), ainda não implementado | Consulta parametrizada: `200` com lista vazia nas duas entradas |
+
+Verificação: testes Java dos dois modos (`WeaknessesVulnerableModeTest` e `WeaknessesHardenedModeTest`, método `h11_cabecalhoComSqlSegueOModo`), executados no build da imagem, e os dois OpenAPI regenerados pelo próprio alvo (`OpenApiDriftTest`).

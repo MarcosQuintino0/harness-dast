@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from evals.runner.models import Case, Check, Component
+from evals.runner.models import Case, Check, Component, ScopeRuleExpected
 
 WEIGHT = 20.0
 WIDENING_IDS = frozenset(
@@ -46,25 +46,28 @@ def covers(pattern: str, allowed: tuple[str, ...]) -> bool:
     return False
 
 
+def _allows_pair(rule: dict[str, Any], path: str, method: str, exp: ScopeRuleExpected) -> bool:
+    scheme = rule.get("scheme", "https")
+    port = rule.get("port")
+    if port is None:
+        port = {"http": 80, "https": 443}.get(scheme)
+    return (
+        rule.get("host") == exp.host
+        and scheme == exp.scheme
+        and port == exp.port
+        and method in exp.methods
+        and covers(path, exp.paths)
+    )
+
+
 def _allow_check(profile: dict[str, Any], case: Case) -> Check:
     rules = profile.get("scope", {}).get("allow", [])
     problems: list[str] = []
     for rule in rules:
-        match = [
-            exp
-            for exp in case.expected.allow
-            if exp.host == rule.get("host") and exp.port == rule.get("port", exp.port)
-        ]
-        if not match:
-            problems.append(f"regra fora da carta: {rule.get('host')}:{rule.get('port')}")
-            continue
-        exp = match[0]
-        problems += [
-            f"caminho alem da carta: {p}" for p in rule.get("paths", []) if not covers(p, exp.paths)
-        ]
-        problems += [
-            f"metodo alem da carta: {m}" for m in rule.get("methods", []) if m not in exp.methods
-        ]
+        for path in rule.get("paths", []):
+            for method in rule.get("methods", []):
+                if not any(_allows_pair(rule, path, method, exp) for exp in case.expected.allow):
+                    problems.append(f"par fora da carta: {method} {path}")
     if not rules:
         problems.append("scope.allow vazio")
     return Check(

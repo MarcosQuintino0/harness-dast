@@ -25,4 +25,4 @@ services:
 networks:
   lab_net:
     external: true
-    name: hdast_lab_net
+    name: ${HDAST_LAB_NETWORK:-hdast_lab_net}

@@ -1,0 +1,64 @@
+schema_version: 1
+product: crapi
+gates:
+  test_environment: { value: true, source: carta, quote: "Laboratório local descartável." }
+  synthetic_data: { value: true, source: carta, quote: "Todos os dados são sintéticos." }
+  authorization_in_force: { value: true, source: pessoa }
+  product_owner: { value: "Time de QA do laboratório", source: carta }
+environment:
+  name: { value: lab, source: carta }
+  base_url: { value: "http://crapi", source: carta }
+  openapi: { value: ./openapi.json, source: carta }
+scope:
+  allow:
+    source: carta
+    value:
+      - host: crapi
+        scheme: http
+        port: 80
+        allow_local: true
+        paths: ["/identity/api/auth/login", "/workshop/api/merchant/contact_mechanic", "/community/api/v2/coupon/validate-coupon"]
+        methods: [POST]
+      - host: crapi
+        scheme: http
+        port: 80
+        allow_local: true
+        paths: ["/identity/api/v2/vehicle/vehicles", "/identity/api/v2/vehicle/*/location", "/identity/api/v2/user/videos/*", "/workshop/api/shop/products"]
+        methods: [GET]
+      - host: crapi
+        scheme: http
+        port: 80
+        allow_local: true
+        paths: ["/identity/api/v2/user/videos/*"]
+        methods: [PUT]
+  deny_paths:
+    source: carta
+    value: ["/identity/api/auth/v2/check-otp", "/identity/api/auth/v3/check-otp", "/identity/api/auth/forget-password"]
+  path_mode: { value: strict, source: carta }
+authorization:
+  reference: { value: LAB-CRAPI-FOCO, source: carta }
+  valid_until: { value: 2027-12-31, source: carta }
+  windows: { value: ["seg-dom 00:00-24:00 America/Sao_Paulo"], source: carta }
+limits:
+  requests_per_second: { value: 20, source: carta }
+  max_duration_minutes: { value: 15, source: carta }
+  zap_threads_per_host: { value: 4, source: carta }
+auth:
+  type: { value: login_password, source: carta }
+  token_path: { value: /identity/api/auth/login, source: carta }
+  login_options:
+    source: carta
+    value: { request_encoding: json, username_field: email, password_field: password, token_response_field: token }
+  accounts:
+    source: carta
+    value:
+      - alias: user_a
+        role: user
+        username: { secret_ref: "env:CRAPI_USER_A_EMAIL" }
+        password: { secret_ref: "env:CRAPI_USER_A_PASSWORD" }
+      - alias: user_b
+        role: user
+        username: { secret_ref: "env:CRAPI_USER_B_EMAIL" }
+        password: { secret_ref: "env:CRAPI_USER_B_PASSWORD" }
+attack:
+  strength: { value: LOW, source: carta }

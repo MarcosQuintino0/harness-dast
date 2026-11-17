@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-from harness_dast.application.stack_models import ComposeProject, ServiceStatus
+from harness_dast.application.stack_models import ComposeProject, LabAccountPaths, ServiceStatus
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
 from harness_dast.domain.stack_binding import StackDigests
@@ -82,6 +82,14 @@ class ComposeRunner(Protocol):
         Raises:
             ExternalToolError: Docker ausente, daemon parado ou saída ilegível.
         """
+        ...
+
+
+class LabAccountProvisioner(Protocol):
+    """Cadastra contas sintéticas do laboratório após a subida do alvo."""
+
+    def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
+        """Cadastra contas e veículos; falhas não devem conter valores de credenciais."""
         ...
 
 

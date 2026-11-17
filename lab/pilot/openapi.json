@@ -1137,6 +1137,51 @@
         "tags" : [ "caminho-controller" ]
       }
     },
+    "/api/medicos/por-cabecalho" : {
+      "get" : {
+        "operationId" : "buscarMedicoPorCabecalho",
+        "parameters" : [ {
+          "example" : "12345-SP",
+          "in" : "header",
+          "name" : "X-CRM",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "additionalProperties" : { }
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description" : "Erro (corpo padrão com code, message e errors)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Busca um médico pelo CRM no cabeçalho",
+        "tags" : [ "caminho-controller" ]
+      }
+    },
     "/api/medicos/{id}" : {
       "get" : {
         "operationId" : "buscarMedico",

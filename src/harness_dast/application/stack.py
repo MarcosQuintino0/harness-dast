@@ -15,14 +15,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     ProfileRepository,
+    SpecLoader,
     StackStateStore,
 )
+from harness_dast.application.lab_accounts import account_paths
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
+    CRAPI,
+    CRAPI_PROJECT,
     PILOT_API_PORT,
     PILOT_MANAGEMENT_PORT,
     PILOT_ORACLE_ENV_FIXED,
@@ -38,12 +44,14 @@ from harness_dast.application.stack_lock import StackLockService
 from harness_dast.application.stack_models import (
     ComposeProject,
     ServiceStatus,
+    StackProjectSuffix,
     StackReport,
     StackState,
     StopReport,
 )
 from harness_dast.application.stack_ports import (
     ComposeRunner,
+    LabAccountProvisioner,
     ProxyPolicyStore,
     RandomSource,
     ZapScanStopper,
@@ -112,6 +120,8 @@ class StackManager:
         locks: StackLockService | None = None,
         proxy_env: Callable[[str], Mapping[str, str]] | None = None,
         freshness: StackFreshnessCheck | None = None,
+        crapi_accounts: LabAccountProvisioner | None = None,
+        specs: SpecLoader | None = None,
     ) -> None:
         """Cria o caso de uso.
 
@@ -129,6 +139,8 @@ class StackManager:
             locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
             proxy_env: Montagens e identidade do proxy gerenciado para o produto.
             freshness: Conferência do frescor da pilha, para o `status` (ADR 0081).
+            crapi_accounts: Cadastro das contas sintéticas do crAPI.
+            specs: Leitor do OpenAPI do perfil, para preparar contas de laboratório.
         """
         self._profiles = profiles
         self._clock = clock
@@ -143,6 +155,8 @@ class StackManager:
         self._locks = locks
         self._proxy_env = proxy_env
         self._freshness = freshness
+        self._crapi_accounts = crapi_accounts
+        self._specs = specs
 
     def up(self, request: StackUpRequest) -> StackReport:
         """Sobe a pilha para o produto.
@@ -156,6 +170,29 @@ class StackManager:
         profile = self._profiles.load(request.product)
         profile.ensure_runnable(now)
         target = lab_target_for(profile.environment.base_url)
+        if target is CRAPI and request.vulnerable is False:
+            raise ConfigError(
+                "O crAPI não tem modo seguro.", hint="Use o modo vulnerável no laboratório."
+            )
+        if target is CRAPI and request.token_ttl_seconds is not None:
+            raise ConfigError(
+                "O crAPI não oferece ajuste de token nesta pilha.",
+                hint="Retire a opção de duração do token.",
+            )
+        if target is CRAPI and self._crapi_accounts is None:
+            raise ConfigError(
+                "Cadastro de contas do crAPI indisponível.", hint="Confira a montagem da CLI."
+            )
+        paths = None
+        if target is CRAPI:
+            if self._specs is None:
+                raise ConfigError(
+                    "Leitor do OpenAPI indisponível.", hint="Confira a montagem da CLI."
+                )
+            paths = account_paths(self._specs.load(profile.product, profile))
+        suffix = _project_suffix(self._environ)
+        oracle = self._oracle_requested(request, target)
+        projects = self._projects(target, oracle=oracle, suffix=suffix)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
         run_id = RunId.create(
@@ -166,8 +203,6 @@ class StackManager:
         policy_file = self._policies.publish(profile, run_id, not_after, directories.policy_dir)
         zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
         proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
-        oracle = self._oracle_requested(request, target)
-        projects = self._projects(target, oracle=oracle)
         state = StackState(
             product=profile.product,
             run_id=run_id.value,
@@ -189,14 +224,26 @@ class StackManager:
             env = self._up_env(
                 project, state, _target_options(target, request), (zap_port, proxy_port)
             )
-            if project.name == MAIN_PROJECT:
+            if project == projects[0]:
                 env.update(proxy_env)
             self._compose.up(
                 project,
                 env,
                 # A imagem antiga nao conhece o vinculo obrigatorio de aprovacao.
-                build=request.build or project.name == MAIN_PROJECT,
+                build=request.build or project == projects[0],
                 timeout_seconds=request.timeout_seconds,
+            )
+        if target is CRAPI and self._crapi_accounts is not None and paths is not None:
+            self._crapi_accounts.provision(
+                {
+                    **state.target_env,
+                    **{
+                        name: self._environ[name]
+                        for name in CRAPI.credential_env
+                        if self._environ.get(name)
+                    },
+                },
+                paths,
             )
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})
@@ -311,8 +358,12 @@ class StackManager:
         for name in target.credential_env if target else ():
             if self._environ.get(name):
                 continue
-            if name.endswith("USERNAME"):
+            if name.endswith("_EMAIL"):
+                generated[name] = f"lab.{self._random.token_hex(_USERNAME_BYTES)}@example.com"
+            elif name.endswith("USERNAME"):
                 generated[name] = f"lab_{self._random.token_hex(_USERNAME_BYTES)}"
+            elif target is CRAPI and name.endswith("_PASSWORD") and name != "CRAPI_DB_PASSWORD":
+                generated[name] = "Aa1#" + self._random.token_hex(_PASSWORD_BYTES)
             else:
                 generated[name] = self._random.token_hex(_PASSWORD_BYTES)
         return generated
@@ -337,10 +388,12 @@ class StackManager:
             if name == "PILOT_DB_PASSWORD" or not self._environ.get(name)
         }
 
-    def _projects(self, target: LabTarget | None, *, oracle: bool) -> tuple[ComposeProject, ...]:
+    def _projects(
+        self, target: LabTarget | None, *, oracle: bool, suffix: str
+    ) -> tuple[ComposeProject, ...]:
         services = BASE_SERVICES + (target.main_services if target else ())
         main = ComposeProject(
-            name=MAIN_PROJECT,
+            name=MAIN_PROJECT + suffix,
             workdir=str(self._root),
             files=("compose.yaml",),
             profiles=target.main_profiles if target else (),
@@ -349,10 +402,11 @@ class StackManager:
         if target is None or target.attached_workdir is None:
             return (main,)
         attached = ComposeProject(
-            name=PILOT_PROJECT,
+            name=(CRAPI_PROJECT if target is CRAPI else PILOT_PROJECT) + suffix,
             workdir=str(self._root / target.attached_workdir),
             files=target.attached_files + ((PILOT_ORACLE_FILE,) if oracle else ()),
             profiles=(PILOT_ORACLE_PROFILE,) if oracle else (),
+            remove_volumes=target is CRAPI,
         )
         return (main, attached)
 
@@ -363,8 +417,10 @@ class StackManager:
         options: dict[str, str],
         ports: tuple[str, str],
     ) -> dict[str, str]:
-        if project.name == MAIN_PROJECT:
+        network_env = {"HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net"}
+        if project == state.projects[0]:
             return {
+                **network_env,
                 KEY_ENV: state.zap_api_key,
                 POLICY_DIR_ENV: state.policy_dir.as_posix(),
                 AUDIT_DIR_ENV: state.audit_dir.as_posix(),
@@ -373,10 +429,16 @@ class StackManager:
                 **(options if state.lab_target == "vampi" else {}),
             }
         return {
+            **network_env,
             **{name: _PLACEHOLDER for name in CLINICA_PILOTO.inert_env},
             **state.target_env,
             "PILOT_HOST_PORT": str(PILOT_API_PORT),
             "PILOT_MGMT_HOST_PORT": str(PILOT_MANAGEMENT_PORT),
+            **(
+                {"CRAPI_WEB_PORT": "28888", "CRAPI_MAIL_PORT": "28025"}
+                if state.lab_target == CRAPI.name
+                else {}
+            ),
             **options,
         }
 
@@ -407,9 +469,9 @@ def _target_options(target: LabTarget | None, request: StackUpRequest) -> dict[s
     options: dict[str, str] = {}
     if target is None:
         return options
-    if request.vulnerable is not None:
+    if request.vulnerable is not None and target.vulnerable_env:
         options[target.vulnerable_env] = "1" if request.vulnerable else "0"
-    if request.token_ttl_seconds is not None:
+    if request.token_ttl_seconds is not None and target.ttl_env:
         options[target.ttl_env] = str(request.token_ttl_seconds)
     return options
 
@@ -429,13 +491,26 @@ def _common_env(state: StackState) -> dict[str, str]:
     # um valor qualquer basta porque nada é criado nem lido.
     pilot = state.lab_target == CLINICA_PILOTO.name
     names = CLINICA_PILOTO.credential_env + CLINICA_PILOTO.inert_env if pilot else ()
+    if state.lab_target == CRAPI.name:
+        names = CRAPI.credential_env
     return {
+        "HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net",
         **{name: _PLACEHOLDER for name in names},
         **state.target_env,
         KEY_ENV: state.zap_api_key,
         POLICY_DIR_ENV: state.policy_dir.as_posix(),
         AUDIT_DIR_ENV: state.audit_dir.as_posix(),
     }
+
+
+def _project_suffix(environ: Mapping[str, str]) -> str:
+    try:
+        return StackProjectSuffix(value=environ.get("HDAST_STACK_PROJECT_SUFFIX", "")).value
+    except ValidationError:
+        raise ConfigError(
+            "Sufixo de projeto Compose inválido.",
+            hint="Use vazio ou hífen seguido de até 20 letras minúsculas ou dígitos.",
+        ) from None
 
 
 def _stop_zap(stopper: ZapScanStopper) -> tuple[int, bool, str | None]:

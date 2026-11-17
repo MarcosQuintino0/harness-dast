@@ -6,6 +6,26 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Laboratório da V1.12 — trilha L parcial
+
+- crAPI na pilha gerenciada, com cadastro sintético via API/MailHog, projeto próprio, recusa de modo seguro e descida com volumes descartáveis (ADR 0094, proposto). O chatbot de 1,5 GB deixou de ser necessário; o nginx usa um upstream já presente.
+- Sufixo opcional e validado `HDAST_STACK_PROJECT_SUFFIX` para isolar projetos e rede; integrações desta trilha usam `-codex`.
+- Opções incompatíveis são recusadas antes de derrubar a pilha anterior. Erros do Compose omitem saída arbitrária do subprocesso para preservar também credenciais herdadas ou transformadas.
+- Ponte interna para Callback do ZAP, overlay do workshop e provas dirigidas de evento/topologia, ainda sem execução real nesta trilha (ADR 0095, proposto). Nenhuma regra de varredura é ligada.
+- O suporte OAST reconcilia recursos por identidade e etiqueta da prova, tenta etapas independentes após falhas e registra a limpeza separadamente do evento. O cadastro do crAPI obtém as rotas do OpenAPI validado do perfil, preservando a cópia cega.
+- Inventário de imagens e roteiro de limpeza em simulação: valida IDs, captura inicial, referências protegidas e contêineres em uso antes de gerar comandos para revisão humana; não remove imagens automaticamente.
+- Caso curto `crapi-foco` com carta estruturada, orçamento de 900 segundos e detectabilidade conservadora. O verificador da avaliação confere cada par caminho/método na mesma origem autorizada, com testes de recusa de combinações cruzadas.
+- Prova inicial do crAPI: subida e descida passaram, mas o `preflight` parou com `STACK_STALE`. Nenhuma detecção nova da trilha F ou rodada cega foi executada. A frente L3/L5 foi recusada pelo provedor; alterações parciais foram preservadas fora da branch para retomada conforme o plano.
+- V1.12 (L3, ADR 0092 proposto): operação `buscarMedicoPorCabecalho` (`GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM`) na Clínica Piloto com a falha H11 (injeção de SQL em cabeçalho) só no modo vulnerável; OpenAPI regenerado pelo alvo; H11 no gabarito e no caso `clinica-piloto` como `detectable: false`.
+- V1.12 (L5): marcador `regressao_dirigida` e roteiro de regressão dirigida (H1 a H10, controle seguro, V1 e V3) em `tests/integration/test_regressao_dirigida.py`.
+- Retomada L1: ciclo crAPI descartável com subida, preflight das duas contas, probe de `get_products`, run curto LOW e descida passou em 229,63 s. Os preparadores preservam as operações de cadastro e isolam regras do contrato reduzido.
+- Retomada L2: evento real do workshop chegou ao Callback pela ponte interna; contador de 0 para 1, redes internas e `ENETUNREACH` verificados, com limpeza concluída. O suporte interpreta a resposta plana da API de estatísticas do ZAP; isso não liga OAST na varredura.
+- Diagnóstico sanitizado do primeiro travamento da vigia (ADR 0093, proposto), mantendo as recusas e o limite de 200 ms. Uma repetição verde não demonstra correção da intermitência de `STACK_STALE`.
+- Inventário de imagens por todos os Compose versionados e contêineres, inclusive parados, em modo de ensaio; imagens sem tag ou digest permanecem sem atribuição. Nenhuma imagem é removida pelo roteiro.
+- Retomada L5: regressão dirigida verde em 715,24 s (11min55s): H1–H10 na Clínica vulnerável, zero achado de autorização no modo seguro, V1 e V3 no VAmPI. Foram 14 testes aprovados e 26 combinações de cenário/falha inaplicáveis puladas.
+- Retomada L4: `evals.runner` preparou o `crapi-foco` sem vazamentos e o ensaio sem agente concluiu em 294,265 s, incluindo subida e descida. O probe do run tentou nove operações; duas chegaram ao scan e houve exclusões em authz/negative. É prova de duração operacional, sem cobertura integral ou detecção das falhas da trilha F. O ensaio evita repetir o probe mutante antes do run e preserva o bloqueio de mutações com resultado desconhecido.
+- Revisão e repetição finais: provas crAPI verificam projetos livres, identidades e ausência de recursos após a descida; recusam derrubar uma subida parcial sem inventário confiável. Ciclo curto verde em 254,098 s e foco em 310,344 s de ponta a ponta, com conclusão operacional separada de cobertura. Falhas previsíveis do emissor da vigia têm estado sanitizado e não interrompem a recusa. A causa do `STACK_STALE` anterior continua não estabelecida.
+
 ### Organização
 
 - Navegação por intenção (`docs/README.md`, com "Onde colocar cada coisa"), índice de planos e estado centralizado no roadmap; histórico retirado das instruções.

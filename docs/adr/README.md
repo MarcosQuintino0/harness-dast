@@ -112,6 +112,26 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | --- | --- |
 | [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
 | [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
+| [0092](0092-operacao-de-cabecalho-na-clinica-piloto.md) | Operação de cabeçalho (H11) na Clínica Piloto, fora da nota dos casos existentes (Proposto) |
+
+## Reservas da trilha L da V1.12
+
+Reserva de 2026-11-17; ao juntar com a V1.11, que ocupou 0085–0091, os dois primeiros foram renumerados:
+0094 para o contrato do crAPI na pilha, 0095 para o retorno OAST isolado e 0092 para
+a operação de cabeçalho e a versão do caso da Clínica. As decisões serão propostas;
+a reserva não implica aceite nem implementação.
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0094](0094-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
+| [0095](0095-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
+
+0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
+somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0093](0093-diagnostico-sanitizado-da-vigia.md) | Categoria fechada no primeiro travamento da vigia, sem fontes, valores ou segredos |
 
 ## Verificação V1.11
 

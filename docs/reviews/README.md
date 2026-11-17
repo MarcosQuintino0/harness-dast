@@ -14,6 +14,7 @@ Nome dos arquivos: `AAAA-MM-DD-assunto.md` para o relatório e `AAAA-MM-DD-assun
 
 | Relatório | Resposta | Escopo | Parecer |
 | --- | --- | --- | --- |
+| [V1.12, prova inicial do laboratório](2026-11-17-v1-12-lab-prova-inicial.md) | Diário externo da coordenação | L1–L6, sem trilha F ou rodada cega | Parcial: subida/descida do crAPI, preflight bloqueado; L3/L5 recusada e prova OAST pendente |
 | [V1.11](relatorio-v1.11.md) | [QA](2026-11-17-v1-11-qa.md), [resposta](2026-11-17-v1-11-qa-resposta.md), [validação](2026-11-17-v1-11-validacao.md) e [reteste](2026-11-17-v1-11-validacao-reteste.md) | Contrato, confirmação controlada, declaração humana, apresentação e régua suplementar | Parcial; reteste permite continuar no escopo corrigido. Baseline, calibração, laboratório e inspeção visual pendentes |
 | [Painel V1.11: preparação](2026-11-17-painel-olhar-de-usuario.md) | (registro factual, sem medição) | Preparação da fase 0 na base develop 44ef387 | Sem run_id ou contagens; aprovação humana ausente e inspeção visual bloqueada |
 | [V1.8, rodada 3](relatorio-v1.8-rodada3.md) | [Validador novo](2026-11-16-v1-8-validacao-rodada3.md), [QA da vigia](2026-11-16-v1-8-qa-rodada3.md) e [matriz](../../evals/measurements/v1-8/round3/t4-comparison.json) | Correção do custo por concessão; micro antes/depois, quatro T4 A/B e revogação real | Corrigir lacuna de prova; desempenho passou, promoção recusada por contagens divergentes; PR permanece em rascunho |

@@ -6,11 +6,14 @@ import pytest
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
 from harness_dast.application.stack_freshness import StackFreshnessCheck
+from harness_dast.application.stack_models import LabAccountPaths
+from harness_dast.domain.api_model import ApiSpec, Operation
 from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.scan_result import ScanProgress
 from harness_dast.domain.stack_binding import StackDigests
+from tests.fakes.probe_ports import InMemorySpecs
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.runtime import FixedEntropy, ManualClock
@@ -53,10 +56,12 @@ class Rig:
         self.profiles.add(valid_profile("demo"))
         self.profiles.add(lab_profile("vampi", "vampi", 5000))
         self.profiles.add(lab_profile("clinica-piloto", "clinica-piloto", 8080))
+        self.profiles.add(lab_profile("crapi", "crapi", 80))
         self.compose = FakeCompose()
         self.states = InMemoryStackState(tmp_path)
         self.policies = RecordingPolicyStore()
         self.environ = environ or {}
+        self.accounts = FakeCrapiAccounts()
         self.manager = StackManager(
             profiles=self.profiles,
             clock=ManualClock(),
@@ -69,7 +74,91 @@ class Rig:
             repo_root=tmp_path / "repo",
             running_scans=running_scans,
             freshness=None if bindings is None else StackFreshnessCheck(self.states, bindings),
+            crapi_accounts=self.accounts,
+            specs=InMemorySpecs(
+                ApiSpec(
+                    title="lab",
+                    version="1",
+                    operations=tuple(
+                        Operation(operation_id=name, method="post", path=f"/sample/{index}")
+                        for index, name in enumerate(
+                            ("signup", "login", "vehicle_resend_email", "add_vehicle")
+                        )
+                    ),
+                )
+            ),
         )
+
+
+class FakeCrapiAccounts:
+    def __init__(self) -> None:
+        self.credentials: dict[str, str] = {}
+
+    def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
+        self.credentials = dict(credentials)
+        self.paths = paths
+
+
+def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+
+    report = rig.manager.up(StackUpRequest(product="crapi"))
+
+    state = rig.states.state
+    assert state is not None
+    assert [p.name for p in state.projects] == ["hdast-codex", "hdast-crapi-codex"]
+    assert state.projects[1].remove_volumes is True
+    assert rig.accounts.credentials == state.target_env
+    assert rig.accounts.paths.signup == "/sample/0"
+    assert rig.accounts.credentials["CRAPI_USER_A_PASSWORD"].startswith("Aa1#")
+    assert all(value not in report.model_dump_json() for value in state.target_env.values())
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
+
+
+def test_crapi_seguro_recusa_antes_de_derrubar_pilha_anterior(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="demo"))
+    calls = list(rig.compose.calls)
+
+    with pytest.raises(ConfigError, match="modo seguro"):
+        rig.manager.up(StackUpRequest(product="crapi", vulnerable=False))
+
+    assert rig.compose.calls == calls
+    assert rig.states.state is not None
+    assert rig.states.state.product == "demo"
+
+
+def test_openapi_incompleto_preserva_pilha_anterior(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="demo"))
+    state = rig.states.state
+    calls = list(rig.compose.calls)
+    policies = list(rig.policies.published)
+    rig.manager._specs = InMemorySpecs(ApiSpec(title="incompleto", version="1"))
+
+    with pytest.raises(ConfigError, match="não existe"):
+        rig.manager.up(StackUpRequest(product="crapi"))
+
+    assert rig.states.state == state
+    assert rig.compose.calls == calls
+    assert rig.policies.published == policies
+
+
+def test_falha_no_cadastro_mantem_estado_para_derrubar_projetos(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+
+    class BrokenAccounts:
+        def provision(self, credentials: dict[str, str], paths: LabAccountPaths) -> None:
+            raise ExternalToolError("cadastro falhou", hint="Derrube a pilha.")
+
+    rig.manager._crapi_accounts = BrokenAccounts()
+    with pytest.raises(ExternalToolError):
+        rig.manager.up(StackUpRequest(product="crapi"))
+
+    assert rig.states.state is not None
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-crapi"), ("down", "hdast")]
 
 
 def test_up_gera_chave_politica_e_estado_e_sobe_so_o_compose_raiz_para_produto_externo(
@@ -97,6 +186,30 @@ def test_up_reconstroi_proxy_mesmo_sem_flag_build(tmp_path: Path) -> None:
     rig.manager.up(StackUpRequest(product="demo"))
 
     assert rig.compose.builds["hdast"] is True
+
+
+def test_sufixo_isola_projetos_e_rede_tambem_no_down(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto"))
+    state = rig.states.state
+    assert state is not None
+    assert [project.name for project in state.projects] == ["hdast-codex", "hdast-pilotrun-codex"]
+    assert rig.compose.envs["hdast-pilotrun-codex"]["HDAST_LAB_NETWORK"] == "hdast-codex_lab_net"
+    rig.environ["HDAST_STACK_PROJECT_SUFFIX"] = "-outro"
+    rig.manager.down()
+    assert ("down", "hdast-codex") in rig.compose.calls
+
+
+@pytest.mark.parametrize("suffix", ["codex", "-UPPER", "-a_b", "-", "-" + "a" * 21])
+def test_sufixo_invalido_recusa_antes_de_tocar_pilha(tmp_path: Path, suffix: str) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": suffix})
+
+    with pytest.raises(ConfigError, match="Sufixo"):
+        rig.manager.up(StackUpRequest(product="demo"))
+
+    assert rig.compose.calls == []
+    assert rig.policies.published == []
 
 
 def test_up_respeita_a_chave_ja_definida_no_ambiente(tmp_path: Path) -> None:
@@ -341,6 +454,38 @@ def test_up_com_oracle_em_outro_alvo_falha_com_orientacao(tmp_path: Path) -> Non
 
     with pytest.raises(ConfigError, match="Clínica Piloto"):
         rig.manager.up(StackUpRequest(product="vampi", oracle=True))
+
+
+@pytest.mark.parametrize(
+    ("up_request", "message"),
+    [
+        (StackUpRequest(product="crapi", oracle=True), "Clínica Piloto"),
+        (StackUpRequest(product="vampi", oracle=True), "Clínica Piloto"),
+        (StackUpRequest(product="crapi", vulnerable=False), "modo seguro"),
+        (StackUpRequest(product="crapi", token_ttl_seconds=30), "ajuste de token"),
+    ],
+)
+def test_opcao_invalida_preserva_pilha_crapi_anterior(
+    tmp_path: Path, up_request: StackUpRequest, message: str
+) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="crapi"))
+    original_state = rig.states.state
+    assert original_state is not None
+    policy_file = original_state.policy_dir / "policy.json"
+    policy_content = policy_file.read_bytes()
+    published = list(rig.policies.published)
+    calls = list(rig.compose.calls)
+    projects = dict(rig.compose.running)
+
+    with pytest.raises(ConfigError, match=message):
+        rig.manager.up(up_request)
+
+    assert rig.states.state == original_state
+    assert policy_file.read_bytes() == policy_content
+    assert rig.policies.published == published
+    assert rig.compose.calls == calls
+    assert rig.compose.running == projects
 
 
 def test_stop_sem_pilha_usa_a_pasta_informada_ou_falha_com_orientacao(tmp_path: Path) -> None:

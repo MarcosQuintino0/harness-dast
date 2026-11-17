@@ -30,7 +30,7 @@ o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
 
-O OWASP crAPI é o terceiro alvo do lab, **fora** do `hdast stack up`: veja
+O OWASP crAPI é o terceiro alvo do lab, integrado ao `hdast stack up`: veja
 [`crapi/README.md`](crapi/README.md).
 
 ## Subir e parar
@@ -394,3 +394,95 @@ Não garante:
 Limites de recursos (medidos com `docker stats` no lab ocioso após as provas):
 `zap` 1,14 GiB de 2,5 GiB (JVM com `-Xmx1536m`), `scope-proxy` 62 MiB de 512 MiB,
 `vampi` 136 MiB de 256 MiB, `vampi-tls` 67 MiB de 256 MiB, `zap-gateway` 4 MiB de 64 MiB.
+
+## Inventário de imagens (V1.12)
+
+Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID variável. Os tamanhos são da captura `images-before.jsonl` do coordenador em 2026-11-17, não uma consulta atual. O manifesto verificável [protected-images.json](scripts/protected-images.json) protege as imagens desta tabela, exceto `scratch`, que é estágio vazio e não uma imagem local removível.
+
+| Imagem e digest declarado | Uso | Tamanho instalado |
+| --- | --- | --- |
+| `zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af` | Base / VAmPI: zap | 3.75GB (captura inicial) |
+| `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | 15MB (captura inicial) |
+| `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | 339MB (captura inicial) |
+| `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | 186MB (captura inicial) |
+| `hdast-clinica-piloto:1.0.0` | Clínica Piloto: pilot | 365MB (captura inicial) |
+| `gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093` | Clínica Piloto: oracle | 6.46GB (captura inicial) |
+| `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | 809MB (captura inicial) |
+| `crapi/crapi-community:1.1.6-rc8@sha256:ff62181b9089df60379c1cecdcfceb0f54ea6d6c4d7c407bb2f5fd55208f2be0` | crAPI: crapi-community | 47.9MB (captura inicial) |
+| `crapi/crapi-workshop:1.1.6-rc8@sha256:b73a2e4aed1a62ba9c626214eca6b66289f2f5cced7169dbd791837edf263de6` | crAPI: crapi-workshop | 307MB (captura inicial) |
+| `crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746` | crAPI: crapi-web | 182MB (captura inicial) |
+| `postgres:14@sha256:980b7cb415aa0f812f65bdec8f6f599be408d8ed9c83ffcaa12650eac397b264` | crAPI: postgresdb | 654MB (captura inicial) |
+| `mongo:4.4@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef` | crAPI: mongodb | 594MB (captura inicial) |
+| `crapi/mailhog:1.1.6-rc8@sha256:c3a74b1f63673996aec82f175ad4dd49cc3152637f68dc3dfc9f765e06c0f5e9` | crAPI: mailhog | 31.9MB (captura inicial) |
+| `crapi/gateway-service:1.1.6-rc8@sha256:111a996957c1e9f78fe401b4d9a16bb99e6d6a3aa836792382a52c9ecbd39c8c` | crAPI: api.mypremiumdealership.com | 131MB (captura inicial) |
+| `python:3.13-slim-bookworm@sha256:a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72` | Build do proxy | 183MB (captura inicial) |
+| `maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237` | Build da Clínica | 801MB (captura inicial) |
+| `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | 287MB (captura inicial) |
+| `scratch` | Estágio de exportação da Clínica (imagem vazia) | Não aplicável |
+
+A imagem antiga `crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f` (1,5 GB na captura inicial) já existia e não foi removida. Ela deixou de fazer parte da pilha do crAPI; permanece protegida como imagem anterior à trilha, inclusive no manifesto.
+
+Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
+
+## Retorno OAST isolado (proposto)
+
+Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0095](../docs/adr/0095-retorno-oast-isolado.md). Não ligam varredura. Em 2026-11-17, a prova dirigida confirmou o complemento na imagem fixada e recebeu um evento real do workshop. A operação exige coordenação sob a trava do laboratório.
+
+### Simular a seleção de imagens
+
+O registro explícito, criado quando a trilha cria uma imagem temporária, tem o formato `{"images":[{"image_id":"sha256:<64 hex>","reference":"hdast/v1-12-oast-temp:<tag>"}]}`. Não invente registros para imagens existentes. Sob a trava do laboratório, execute:
+
+```powershell
+uv run python lab/scripts/plan_image_cleanup.py registro.json C:\harness-dast-artefatos\v1-12-lab\images-before.jsonl
+```
+
+O roteiro consulta apenas IDs, tags e digests do Docker, sem ler variáveis de ambiente nem remover imagens. Ele recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Também exige conseguir resolver todos os IDs da captura inicial para impedir divergência entre ID local e digest; se algum não estiver disponível, recusa o plano. Com registro vazio, gera plano vazio sem consultar o Docker. Gera comandos estritos com o **ID completo validado**, sem `--force`, para revisão humana; mudança posterior da tag não direciona o comando para outra imagem. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
+
+A captura inicial é vinculada pelo SHA-256 `e7aa7746b87f428e0f928a855c4947cf6389e25954f22398982feebf6130747e`: arquivo ausente, alterado ou malformado recusa o plano inteiro.
+
+### Prova dirigida de Callback
+
+Após obter a trava exclusiva do laboratório e confirmar que o projeto `hdast-codex` está livre, o coordenador executa na raiz:
+
+```powershell
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\oast-proof'
+uv run pytest -v -m integration tests/integration/test_lab_oast.py::test_callback_e_isolamento_a_partir_do_workshop_crapi
+```
+
+O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução real de 2026-11-17 passou em 238,91 s na pilha `2026-11-17T08-00-17Z-crapi-4538`: contador de 0 para 1 e limpeza sem erros. Evidências externas em `C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\metrics-oast-fixed\`.
+
+### Inventário de imagens em ensaio
+
+Na raiz do repositório, o coordenador pode gerar um relatório externo sem modificar imagens:
+
+```powershell
+uv run python lab/scripts/inventory_images.py --output C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\images-inventory.json
+```
+
+O comando lê os arquivos versionados cujo nome contém `compose` e termina em `.yaml` ou `.yml`, sem interpolar variáveis ou ler `.env`. Consulta do Docker somente os campos ID, tags, digests, tamanho e data das imagens e o ID da imagem de cada contêiner, inclusive parado. Não remove, baixa, cria ou altera imagens. O relatório distingue imagens do namespace `harness`/`hdast` usadas por Compose ou contêiner, imagens próprias fora de ambos e imagens sem proveniência atribuível. Tamanhos aparecem em bytes e em unidades legíveis. Imagens alheias com identificação não são listadas.
+
+O nome gerado para um serviço com `build` sem `image` usa o nome de projeto do arquivo ou o diretório e a tag `latest`. Nomes de projeto fornecidos em execução, arquivos não versionados, builds externos e referências dinâmicas não podem ser comprovados por este inventário. Referências interpoladas, `include`/`extends`, arquivos inválidos e falhas de consulta causam recusa; revise-os antes de concluir qualquer análise. O relatório é uma fotografia sujeita a mudanças e não é autorização nem plano de remoção.
+
+### Ciclos crAPI descartáveis
+
+Sob a trava exclusiva, com os projetos `hdast-codex` e `hdast-crapi-codex` livres:
+
+```powershell
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\nova-prova'
+uv run pytest -m integration tests/integration/test_v112_cli_cycle.py tests/integration/test_crapi_focus_dryrun.py
+```
+
+Os testes usam somente produtos e estado temporários, aprovação do suporte/runner e
+sufixo `-codex`. Recusam projetos ocupados, registram identidades após a subida e
+conferem propriedade antes da descida e ausência depois. Uma subida parcial sem
+inventário confiável recusa a derrubada e exige intervenção humana. Essa conferência
+não é atômica: a trava externa continua obrigatória.
+
+Em 2026-11-17, os dois testes finais passaram em 566,37 s. O controle levou 254,098 s;
+o foco, 310,344 s desde antes do preparo até depois da descida. O foco tentou nove
+operações, varreu duas e registrou exclusões em authz/negative: conclusão operacional
+no prazo não significa cobertura completa. A medição do `evals.runner` usa uma
+representação de compatibilidade dos comandos, sem agente, modelo ou tokens; o tempo
+fim a fim usa medição monotônica separada. A ocorrência anterior de `STACK_STALE`
+continua sem causa estabelecida. Evidências em
+`C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\final-proofs.log` e `metrics-final-proofs/`.

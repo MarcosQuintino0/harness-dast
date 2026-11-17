@@ -13,7 +13,7 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 | `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](measurements/README.md) |
 | `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](results/README.md) |
 
-Casos: `clinica-piloto` (alvo próprio, com falhas plantadas, que nenhum modelo viu), `vampi` (público; pode estar na memória dos modelos, então serve de linha de base) e `crapi` ([OWASP crAPI](../lab/crapi/README.md), público, só vulnerável, **fora** do `hdast stack up`: veja [O caso crAPI](#o-caso-crapi)). Outro caso entra só com uma pasta nova (veja [Criar um caso](#criar-um-caso)).
+Casos: `clinica-piloto` (alvo próprio), `vampi` e `crapi` (públicos, com possível conhecimento prévio dos modelos), além do recorte [`crapi-foco`](cases/crapi-foco/case.yml). O crAPI só tem modo vulnerável e agora tem suporte no `hdast stack up`; a prova de `preflight` ainda está bloqueada nesta trilha. Veja [O caso crAPI](#o-caso-crapi) e [Criar um caso](#criar-um-caso).
 
 **Primeira avaliação cega (2026-11-13):** cinco rodadas com agente novo, resultado em [docs/reviews/2026-11-13-rodadas-cegas.md](../docs/reviews/2026-11-13-rodadas-cegas.md). Depois veio a rodada da V1.1 (Clínica Piloto, modo vulnerável, nota 8,51): [docs/reviews/2026-11-13-rodada-cega-v1-1.md](../docs/reviews/2026-11-13-rodada-cega-v1-1.md). Todas com o modelo Sonnet; a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem) segue em aberto. O parágrafo seguinte descreve os ensaios anteriores, não cegos.
 
@@ -221,7 +221,11 @@ Resumo: o modo continua descobrível por quem **violar uma regra** (docker, env,
 
 ## O caso crAPI
 
-O [OWASP crAPI](../lab/crapi/README.md) é o terceiro alvo. Ele **não** é um alvo de `application/lab_targets.py` (que só conhece VAmPI e piloto, e cuja estrutura pede modo vulnerável e variáveis de credencial; mudar isso é mudança de contrato). Por isso a rodada tem um passo a mais do coordenador, na linha da saída B:
+O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; a operação completa ainda não está provada.
+
+O recorte `crapi-foco` entrega OpenAPI e carta estruturada para `init --from-letter`, força baixa e orçamento de 900 segundos. O preparo e o ensaio de aprovação descartável passaram, sem execução cega ou duração medida. Todos os desafios continuam com `detectable: false`; cabeçalho depende da frente da Clínica e fica fora do caso de alvo único. As capacidades da trilha F não são ativadas por este caso.
+
+**Fluxo histórico de 2026-11-13, anterior à pilha gerenciada:** a sequência abaixo explica o ensaio arquivado, não é o procedimento atual.
 
 1. `prepare --case crapi` (sem modo: só vulnerável) e `uv sync` no workspace, como nos outros casos.
 2. O agente roda `hdast stack up crapi` (a pilha sobe **sem** alvo: o host `crapi` não é reconhecido) e escreve no diário que aguarda.

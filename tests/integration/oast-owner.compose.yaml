@@ -1,0 +1,9 @@
+services:
+  oast-gateway:
+    labels:
+      io.hdast.oast.owner: ${HDAST_OAST_OWNER:?Identificador da prova obrigatório}
+
+networks:
+  oast_net:
+    labels:
+      io.hdast.oast.owner: ${HDAST_OAST_OWNER:?Identificador da prova obrigatório}
