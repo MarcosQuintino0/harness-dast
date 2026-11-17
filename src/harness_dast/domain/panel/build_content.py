@@ -37,7 +37,7 @@ from harness_dast.domain.report.labels import seeded_scans_notice
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.report.traffic import path_shape_warning
 from harness_dast.domain.scan_plan import ScanSkip
-from harness_dast.domain.scan_result import ScanEntry, ScanResult
+from harness_dast.domain.scan_result import MUTATION_PENDING_NOTE, ScanEntry, ScanResult
 
 OTHER_AREA: Final = "Outras"
 STRONG: Final = 2
@@ -335,7 +335,7 @@ def _decide(
             "stopped": "Parada antes do fim.",
         }
         return ("severe" if severe else "tested", cut.get(entry.outcome))
-    if entry is not None and entry.note and "mutation_pending" in entry.note:
+    if entry is not None and entry.note == MUTATION_PENDING_NOTE:
         return "not_tried", entry.note
     if entry is not None:
         return "failed", "O ZAP recusou iniciar a varredura desta função."

@@ -33,7 +33,7 @@ from harness_dast.domain.report.model import (
     TruncatedScan,
 )
 from harness_dast.domain.scan_config import EXTRA_OUTCOMES
-from harness_dast.domain.scan_result import ScanResult
+from harness_dast.domain.scan_result import MUTATION_PENDING_NOTE, ScanResult
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.triage import TriageFile, merge_triage
 from harness_dast.domain.zap_alert import RawAlert
@@ -90,7 +90,7 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
         expected_login = str(item.outcome) == "auth_rejected_expected"
         reason = "scan_refused" if refusal else skip.reason if skip else f"probe_{item.outcome}"
         if item.outcome == "mutation_pending" or (
-            refusal and refusal.note and "mutation_pending" in refusal.note
+            refusal and refusal.note == MUTATION_PENDING_NOTE
         ):
             reason = "mutation_pending"
         message = (

@@ -77,6 +77,14 @@ def interpret_finish(status: ScanStatus, *, stop_requested: bool) -> EntryOutcom
     return "completed" if status.progress >= 100 else "truncated"
 
 
+MUTATION_PENDING_NOTE: Final = "mutation_pending: mutação pendente de reconciliação."
+"""Nota exata que só a CLI grava numa entrada recusada por mutação pendente.
+
+Quem classifica a pendência compara por igualdade com esta constante, nunca por trecho de
+`note`, porque outras notas podem conter texto do ZAP ou do alvo.
+"""
+
+
 class ScanEntry(ApiModel):
     """Uma varredura executada (uma por requisição aprendida).
 

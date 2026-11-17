@@ -31,6 +31,7 @@ from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_plan import ScanTarget
 from harness_dast.domain.scan_policy import POLL_SECONDS, ScanLimits, ScanPolicy, scan_cap_minutes
 from harness_dast.domain.scan_result import (
+    MUTATION_PENDING_NOTE,
     EntryOutcome,
     Phase,
     ScanEntry,
@@ -153,7 +154,7 @@ class ScanRunner:
                             message_id=target.message_id,
                             seed_outcome=target.seed_outcome,
                             outcome="refused",
-                            note="mutation_pending: mutação pendente de reconciliação.",
+                            note=MUTATION_PENDING_NOTE,
                         )
                     )
         except WindowClosed as error:
