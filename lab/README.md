@@ -394,3 +394,41 @@ Não garante:
 Limites de recursos (medidos com `docker stats` no lab ocioso após as provas):
 `zap` 1,14 GiB de 2,5 GiB (JVM com `-Xmx1536m`), `scope-proxy` 62 MiB de 512 MiB,
 `vampi` 136 MiB de 256 MiB, `vampi-tls` 67 MiB de 256 MiB, `zap-gateway` 4 MiB de 64 MiB.
+
+## Inventário de imagens (V1.12, sem medição local)
+
+Os digests abaixo são os declarados nos arquivos; imagens locais de build têm ID variável. O tamanho instalado depende da plataforma e deve ser medido pelo coordenador com a trava, sem pull. O invent?rio não comprova que uma imagem exista localmente.
+
+| Imagem e digest declarado | Uso | Tamanho instalado |
+| --- | --- | --- |
+| `zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af` | Base / VAmPI: zap | Pendente de medição |
+| `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | Pendente de medição |
+| `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | Pendente de medição |
+| `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | Pendente de medição |
+| `hdast-clinica-piloto:1.0.0` | Clínica Piloto: pilot | Pendente de medição |
+| `gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093` | Clínica Piloto: oracle | Pendente de medição |
+| `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | Pendente de medição |
+| `crapi/crapi-community:1.1.6-rc8@sha256:ff62181b9089df60379c1cecdcfceb0f54ea6d6c4d7c407bb2f5fd55208f2be0` | crAPI: crapi-community | Pendente de medição |
+| `crapi/crapi-workshop:1.1.6-rc8@sha256:b73a2e4aed1a62ba9c626214eca6b66289f2f5cced7169dbd791837edf263de6` | crAPI: crapi-workshop | Pendente de medição |
+| `crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f` | crAPI: crapi-chatbot | Pendente de medição |
+| `crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746` | crAPI: crapi-web | Pendente de medição |
+| `postgres:14@sha256:980b7cb415aa0f812f65bdec8f6f599be408d8ed9c83ffcaa12650eac397b264` | crAPI: postgresdb | Pendente de medição |
+| `mongo:4.4@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef` | crAPI: mongodb | Pendente de medição |
+| `crapi/mailhog:1.1.6-rc8@sha256:c3a74b1f63673996aec82f175ad4dd49cc3152637f68dc3dfc9f765e06c0f5e9` | crAPI: mailhog | Pendente de medição |
+| `crapi/gateway-service:1.1.6-rc8@sha256:111a996957c1e9f78fe401b4d9a16bb99e6d6a3aa836792382a52c9ecbd39c8c` | crAPI: api.mypremiumdealership.com | Pendente de medição |
+| `python:3.13-slim-bookworm@sha256:a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72` | Build do proxy | Pendente de medição |
+| `maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237` | Build da Clínica | Pendente de medição |
+| `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | Pendente de medição |
+| `scratch` | Estágio de exportação da Clínica (imagem vazia) | Pendente de medição |
+
+Medi??o posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
+
+## Retorno OAST isolado (proposto)
+
+Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0091](../docs/adr/0091-retorno-oast-isolado.md). Não ligam varredura. A operação e as provas dependem do coordenador e da trava do laboratório; a presença do complemento na imagem fixada ainda precisa ser conferida.
+
+### Simular a seleção de imagens
+
+`uv run python lab/scripts/plan_image_cleanup.py inventario.json` lê um inventário explícito e emite IDs candidatos em JSON. Cada entrada de `images` precisa ter `image_id` completo, `reference`, `harness_created`, `in_use`, `protected` e `tags`. Ausência, formato inválido ou duplicata recusam o arquivo. Apenas uma referência temporária `hdast-...:...` ou `hdast/...:...`, com uma única tag igual à referência, criada pelo harness, sem uso e fora do inventário protegido, pode aparecer no plano.
+
+O arquivo de entrada é uma declaração, não uma verificação do Docker nem prova de propriedade. O simulador **não remove imagens**. Ainda falta implementar e testar a verificação do estado real e a remoção segura; não use a saída como autorização de remoção. Não use `prune`, `dangling`, remoção forçada ou remoção por nome de projeto como atalho.
