@@ -22,7 +22,8 @@ não garante que todo alerta compatível expresse o mesmo comportamento: revise 
 A CLI (`reproduced` ou `likely` versus `likely_false_positive`) e o agente
 (`suspected_false_positive`) são julgados separadamente como **Acertou**, **Errou**,
 **Indeterminado** ou **Não avaliado**. `inconclusive` e `not_verifiable` são indeterminados.
-A matriz por tipo registra reais e falsos reproduzidos, falsos classificados FP, reais
+A matriz agrupa por categoria, t?cnica ou t?tulo do alerta; a observa??o tamb?m identifica
+a falha correspondente. Registra reais e falsos reproduzidos, falsos classificados FP, reais
 classificados FP, resultados do agente, totais e denominador. Problemas de arquivo e órfãos
 são listados à parte, pois não fornecem denominador de achados confiável. Não há porcentagens
 nem probabilidades; nenhuma medição de laboratório foi inventada. A calibração efetiva e a

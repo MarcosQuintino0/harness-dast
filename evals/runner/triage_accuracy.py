@@ -162,7 +162,12 @@ def _measure_run(
     rows = []
     for finding in findings:
         fingerprint = finding["fingerprint"]
-        kind, truth, reason = _truth(case, mode, finding)
+        flaw_id, truth, reason = _truth(case, mode, finding)
+        technique = finding.get("technique")
+        kind = str(
+            finding.get("category")
+            or (technique if technique and technique != "zap_active_scan" else finding["title"])
+        )
         entry = entries.get(fingerprint)
         annotation = annotations.get(fingerprint) if fingerprint in declared else None
         level = entry.level if entry else None
@@ -178,6 +183,7 @@ def _measure_run(
                 "run_id": folder.name,
                 "fingerprint": fingerprint,
                 "tipo": kind,
+                "falha": flaw_id,
                 "verdade": truth,
                 "motivo": reason,
                 "nivel": level,

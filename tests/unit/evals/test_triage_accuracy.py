@@ -126,7 +126,7 @@ def test_mesmo_fingerprint_em_execucoes_distintas(tmp_path: Path) -> None:
     setup_run(tmp_path)
     setup_run(tmp_path, "2026-11-13T10-00-01Z-clinica-piloto-bbbb")
     result = measure(tmp_path, load_case("clinica-piloto"), "secure")
-    assert result["matriz"]["H1"]["falsos_reproduzidos"] == 2
+    assert result["matriz"]["SQL Injection"]["falsos_reproduzidos"] == 2
 
 
 def test_contexto_divergente_e_ausente(tmp_path: Path) -> None:
