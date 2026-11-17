@@ -420,7 +420,7 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | 287MB (captura inicial) |
 | `scratch` | Estágio de exportação da Clínica (imagem vazia) | Não aplicável |
 
-A imagem antiga do chatbot (1,5 GB na captura inicial) já existia e não foi removida. Ela deixou de fazer parte da pilha do crAPI; permanece protegida como imagem anterior à trilha, inclusive no manifesto.
+A imagem antiga `crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f` (1,5 GB na captura inicial) já existia e não foi removida. Ela deixou de fazer parte da pilha do crAPI; permanece protegida como imagem anterior à trilha, inclusive no manifesto.
 
 Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
 
