@@ -5,6 +5,7 @@ redação e de suficiência das provas em todas elas.
 """
 
 import re
+from types import MappingProxyType
 from urllib.parse import urlsplit
 
 from harness_dast.domain.authz.result import AuthzFinding
@@ -12,12 +13,14 @@ from harness_dast.domain.cors import classify_cors
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.verification import VerificationEntry, VerificationLevel
 
-_PASSIVE = {"10020", "10021", "10035", "10036", "10038", "10098"}
-_NAMES = {
-    "10020": "x-frame-options",
-    "10021": "x-content-type-options",
-    "10038": "content-security-policy",
-}
+_PASSIVE = frozenset({"10020", "10021", "10035", "10036", "10038", "10098"})
+_NAMES = MappingProxyType(
+    {
+        "10020": "x-frame-options",
+        "10021": "x-content-type-options",
+        "10038": "content-security-policy",
+    }
+)
 
 
 def _entry(
@@ -29,6 +32,7 @@ def _entry(
         reason=reason,
         recipe="recorded_observation",
         attack=proof,
+        control="Observação direta da evidência guardada, sem novo pedido de controle.",
     )
 
 
