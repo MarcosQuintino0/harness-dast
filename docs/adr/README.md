@@ -116,15 +116,15 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 
 ## Reservas da trilha L da V1.12
 
-Reserva de 2026-11-17 para evitar colisão com os ADRs 0085–0089 da V1.11 concorrente:
-0090 para o contrato do crAPI na pilha, 0091 para o retorno OAST isolado e 0092 para
+Reserva de 2026-11-17; ao juntar com a V1.11, que ocupou 0085–0091, os dois primeiros foram renumerados:
+0094 para o contrato do crAPI na pilha, 0095 para o retorno OAST isolado e 0092 para
 a operação de cabeçalho e a versão do caso da Clínica. As decisões serão propostas;
 a reserva não implica aceite nem implementação.
 
 | ADR | Contrato proposto |
 | --- | --- |
-| [0090](0090-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
-| [0091](0091-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
+| [0094](0094-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
+| [0095](0095-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
 
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
@@ -132,6 +132,18 @@ somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as re
 | ADR | Contrato proposto |
 | --- | --- |
 | [0093](0093-diagnostico-sanitizado-da-vigia.md) | Categoria fechada no primeiro travamento da vigia, sem fontes, valores ou segredos |
+
+## Verificação V1.11
+
+| ADR | Contrato |
+| --- | --- |
+| [0085](0085-verificacao-de-achados.md) | Envelope aditivo de verificação v1 e classificação sem tráfego (Proposto) |
+| [0086](0086-confirmacao-humana-de-achados.md) | Declaração humana aditiva, terminal interativo e limites de identidade (Proposto) |
+| [0087](0087-reproducao-controlada-de-achados.md) | Receitas fixas, controle, orçamento e recusa conservadora de repetição (Proposto) |
+| [0088](0088-apresentacao-e-calibracao-de-verificacao.md) | Apresentação aditiva e calibração medida com tamanho da amostra (Proposto) |
+| [0089](0089-criterio-privado-triagem.md) | Critério privado de acerto da triagem separado da nota histórica (Proposto) |
+| [0090](0090-vinculo-semente-confirmacao.md) | Recibo da semente efetiva, prova resumida e preservação da causa de interrupção (Proposto) |
+| [0091](0091-observacoes-passivas-de-confirmacao.md) | Cabeçalhos e comparações de autorização guardadas, sem tráfego novo (Proposto) |
 
 ## Quando escrever um ADR
 

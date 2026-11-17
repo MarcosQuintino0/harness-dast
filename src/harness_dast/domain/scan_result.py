@@ -12,6 +12,7 @@ from pydantic import Field
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.run import RunLimits
+from harness_dast.domain.scan_binding import ScanBinding
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.traffic import TrafficSummary
@@ -110,6 +111,7 @@ class ScanEntry(ApiModel):
     alert_ids: tuple[str, ...] = ()
     note: str | None = None
     seed_outcome: str | None = None
+    seed_binding: ScanBinding | None = None
 
 
 class PlannedScan(ApiModel):

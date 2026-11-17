@@ -16,6 +16,7 @@ As [skills `dev-*`](../AGENTS.md#descoberta-de-instruções-e-skills) orientam t
 
 Veja [finalidade](finalidade-e-uso-responsavel.md), [arquitetura](architecture.md),
 [políticas de operação](operations/README.md) e [contratos técnicos](reference/).
+Para níveis, receitas e limites de confirmação, consulte [verificação de achados](reference/verification.md).
 
 ## Quero ver provas
 

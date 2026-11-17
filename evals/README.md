@@ -221,7 +221,7 @@ Resumo: o modo continua descobrível por quem **violar uma regra** (docker, env,
 
 ## O caso crAPI
 
-O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0090](../docs/adr/0090-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; a operação completa ainda não está provada.
+O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; a operação completa ainda não está provada.
 
 O recorte `crapi-foco` entrega OpenAPI e carta estruturada para `init --from-letter`, força baixa e orçamento de 900 segundos. O preparo e o ensaio de aprovação descartável passaram, sem execução cega ou duração medida. Todos os desafios continuam com `detectable: false`; cabeçalho depende da frente da Clínica e fica fora do caso de alvo único. As capacidades da trilha F não são ativadas por este caso.
 

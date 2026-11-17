@@ -1,4 +1,4 @@
-# 0091. Retorno OAST isolado no laboratório
+# 0095. Retorno OAST isolado no laboratório
 
 - **Status:** Proposto
 - **Data:** 2026-11-17

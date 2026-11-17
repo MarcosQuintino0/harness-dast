@@ -426,7 +426,7 @@ Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referê
 
 ## Retorno OAST isolado (proposto)
 
-Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0091](../docs/adr/0091-retorno-oast-isolado.md). Não ligam varredura. Em 2026-11-17, a prova dirigida confirmou o complemento na imagem fixada e recebeu um evento real do workshop. A operação exige coordenação sob a trava do laboratório.
+Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0095](../docs/adr/0095-retorno-oast-isolado.md). Não ligam varredura. Em 2026-11-17, a prova dirigida confirmou o complemento na imagem fixada e recebeu um evento real do workshop. A operação exige coordenação sob a trava do laboratório.
 
 ### Simular a seleção de imagens
 

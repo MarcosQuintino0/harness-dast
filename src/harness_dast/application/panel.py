@@ -20,6 +20,7 @@ import structlog
 
 from harness_dast.application.common_ports import ProfileRepository, SpecLoader
 from harness_dast.application.panel_ports import PanelFiles
+from harness_dast.application.report_presentation import PresentationBuilder
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, HarnessError
@@ -107,6 +108,7 @@ class Panel:
         files: PanelFiles,
         timezone: tzinfo,
         hooks: PanelHooks | None = None,
+        presentation: PresentationBuilder | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
@@ -116,12 +118,14 @@ class Panel:
             files: Arquivos da execução que o painel lê e a gravação das páginas.
             timezone: Fuso das datas da página: o do computador que a gera.
             hooks: Diário de comandos e catálogo de explicação, quando existirem.
+            presentation: Montagem opcional da visão consultiva de verificação.
         """
         self._profiles = profiles
         self._specs = specs
         self._files = files
         self._zone = timezone
         self._hooks = hooks
+        self._presentation = presentation
 
     def execute(self, request: PanelRequest) -> PanelOutcome:
         """Gera as páginas do painel.
@@ -178,6 +182,11 @@ class Panel:
         probe = self._optional(run_id, "probe.json", read.read_probe)
         scan = self._optional(run_id, "scan.json", read.read_scan)
         findings = self._optional(run_id, "findings.json", read.read_findings)
+        if findings is not None and findings.run_id != run_id:
+            raise ConfigError(
+                "O relatório pertence a outra execução.",
+                hint="Confira o run_id e os arquivos da execução.",
+            )
         authz = self._optional(run_id, "authz.json", read.read_authz)
         negative = self._optional(run_id, "negative.json", read.read_negative)
         metrics = self._optional(run_id, "metrics.json", self._files.read_metrics)
@@ -216,6 +225,9 @@ class Panel:
             commands=journal.commands if journal else None,
             commands_skipped=journal.skipped_lines if journal else 0,
             explanations=self._hooks.explanations(findings, authz) if self._hooks else {},
+            presentation=self._presentation.build(findings)
+            if self._presentation and findings
+            else None,
         )
         return _Found(sources, present, tuple(name for name in named if name not in present))
 

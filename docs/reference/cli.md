@@ -32,7 +32,23 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
 
-**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
+**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `confirm`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
+
+## `hdast confirm`
+
+`hdast confirm <produto> --run <run_id> [--finding <fingerprint>] [--max N] [--products-dir DIR] [--json]` executa receitas fixas com controle e acrescenta resultados em `verification.json` v1. `--finding` seleciona um fingerprint completo da execução; `--max` reduz o teto de 30 achados, priorizados por severidade. O teto de 12 pedidos por achado inclui receita, login, CSRF e recuos. O envelope de sucesso contém `verification`, `recipe_requests` e `session_requests`; as contagens de sessão e receita são separadas, sob o mesmo teto.
+
+O comando exige perfil aprovado e pilha atual, autorização, janela e prazo vigentes. Só repete operações já varridas, pelo mesmo método, pela cerca, com limitação de taxa e parada. A implementação inicial restringe tráfego a GET com parâmetro de consulta inequívoco e semente de sucesso. Escritas e DELETE são recusados, e travessia sem oráculo benigno conhecido fica não verificável. A receita de tempo é específica de PostgreSQL; resultado inconclusivo não refuta o alerta. Não há replay livre de carga ou URL recebida do alvo. A decisão de nível fica no domínio, sem alterar severidade, status ou `findings.json`.
+
+Níveis: `reproduced`, `likely`, `inconclusive`, `likely_false_positive` e `not_verifiable`, sempre com motivo. São categorias, não probabilidades. Provas de ataque e controle são resumidas e redigidas; resultados não selecionados são preservados. A apresentação consulta esse arquivo e a declaração humana separadamente. Contratos: [ADR 0085](../adr/0085-verificacao-de-achados.md), [ADR 0087](../adr/0087-reproducao-controlada-de-achados.md) e [ADR 0088](../adr/0088-apresentacao-e-calibracao-de-verificacao.md), propostos. A [calibração](verification-calibration.md) declara quando faltam medições; testes offline não substituem prova no laboratório.
+
+Veja as [receitas e limites](verification.md), inclusive a restrição de autorização à comparação guardada elegível e o significado de reflexão HTML.
+
+## `hdast finding acknowledge`
+
+`hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.
+
+O arquivo aditivo `human-confirmations.json` v1 preserva declarações anteriores e contém produto, execução e entradas com `fingerprint`, `person`, `confirmed_at` em UTC e `observation` redigida. Arquivo inválido ou de outro contexto é recusado. Nenhum achado, severidade ou status muda. TTY e nome declarado não autenticam a identidade da pessoa. Contrato: [ADR 0086](../adr/0086-confirmacao-humana-de-achados.md), proposto.
 
 ## `hdast panel`
 

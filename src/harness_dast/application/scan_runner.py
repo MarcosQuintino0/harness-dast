@@ -23,6 +23,7 @@ from harness_dast.application.scan_tokens import AccountTokens
 from harness_dast.domain.errors import ExternalToolError, PreflightError
 from harness_dast.domain.knowledge_mutation import mutation_key
 from harness_dast.domain.rule_stats import MAX_REASON, OperationRules
+from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_plan import ScanTarget
 from harness_dast.domain.scan_policy import POLL_SECONDS, ScanLimits, ScanPolicy, scan_cap_minutes
 from harness_dast.domain.scan_result import (
@@ -311,6 +312,16 @@ class ScanRunner:
                 alert_ids=alert_ids,
                 note=note,
                 seed_outcome=target.seed_outcome,
+                seed_binding=(
+                    bind_scan_seed(
+                        target.operation_id,
+                        target.method,
+                        target.url,
+                        target.account or d.default_account,
+                    )
+                    if target.account or d.default_account
+                    else None
+                ),
             )
         )
 

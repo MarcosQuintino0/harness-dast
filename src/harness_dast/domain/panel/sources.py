@@ -11,6 +11,7 @@ from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.report.presentation import Presentation
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
@@ -45,6 +46,7 @@ class PanelSources:
     product: str
     run_id: str
     timezone: tzinfo
+    presentation: Presentation | None = None
     summary: RunSummary | None = None
     manifest: RunManifest | None = None
     probe: ProbeResult | None = None

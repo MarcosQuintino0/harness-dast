@@ -2,8 +2,8 @@
 
 Registro de 2026-11-17, anterior ao fechamento da trilha. Não é aceite de versão.
 Escopo: L1–L6 do [plano](../plans/2026-11-17-v1-12-mais-achados.md), sem funcionalidades F,
-rodada cega, PR ou merge. ADRs [0090](../adr/0090-crapi-na-pilha.md) e
-[0091](../adr/0091-retorno-oast-isolado.md) propostos; 0092 reservado.
+rodada cega, PR ou merge. ADRs [0094](../adr/0094-crapi-na-pilha.md) e
+[0095](../adr/0095-retorno-oast-isolado.md) propostos; 0092 reservado.
 
 ## Prova real inicial de L1
 

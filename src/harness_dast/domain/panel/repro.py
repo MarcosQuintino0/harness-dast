@@ -27,6 +27,7 @@ from harness_dast.domain.manual_repro import (
     is_time_based,
     sleep_seconds,
 )
+from harness_dast.domain.panel.authz_copy import authz_repro_text
 from harness_dast.domain.panel.format import fmt_date, plural
 from harness_dast.domain.panel.layout import row
 from harness_dast.domain.panel.model import PanelFinding, PanelView
@@ -347,9 +348,7 @@ def render_repro(item: PanelFinding, view: PanelView) -> str:
         return (
             '<div style="display: flex; flex-direction: column; gap: 14px">'
             + head
-            + '<p class="mu">Esta falha vem da comparação entre duas contas: o programa repete um '
-            "pedido com a outra conta e compara as respostas, sem guardar o pedido nem a resposta "
-            "inteiros. Por isso não há passo a passo para reproduzir à mão aqui.</p>"
+            + f'<p class="mu">{h.plain(authz_repro_text(item))}</p>'
             + (
                 '<p class="sm"><b>O que o teste observou:</b> '
                 f"{h.text(item.authz_evidence, 600)}</p>"

@@ -16,6 +16,8 @@ from harness_dast.domain.report.authz import authz_lines
 from harness_dast.domain.report.labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
 from harness_dast.domain.report.model import Coverage, FindingsReport
 from harness_dast.domain.report.negative import negative_lines, negative_summary_lines
+from harness_dast.domain.report.presentation import Presentation
+from harness_dast.domain.report.presentation_render import render_presentation_markdown
 from harness_dast.domain.report.signals import (
     PASSIVE_SUBSET_NOTE,
     has_signal_reading,
@@ -377,7 +379,7 @@ def _internal_error_lines(report: FindingsReport) -> list[str]:
     ]
 
 
-def render_markdown(report: FindingsReport) -> str:
+def render_markdown(report: FindingsReport, presentation: Presentation | None = None) -> str:
     """Gera o `report.md` completo (texto UTF-8 terminado em quebra de linha)."""
     lines = [
         f"# Relatório de varredura: {escape_inline(report.product)}",
@@ -416,4 +418,6 @@ def render_markdown(report: FindingsReport) -> str:
             f"{len(report.triage_orphans)} anotação(ões) de triagem sem achado correspondente "
             "foram ignoradas."
         )
+    if presentation is not None:
+        lines += ["", render_presentation_markdown(presentation)]
     return "\n".join(lines).rstrip("\n") + "\n"

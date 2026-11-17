@@ -101,18 +101,29 @@ class RunGate:
 class AuditTrail:
     """Grava `audit.jsonl`: a decisão antes do envio e o resultado depois."""
 
-    def __init__(self, store: RunStore, run_id: str, clock: Clock) -> None:
+    def __init__(
+        self,
+        store: RunStore,
+        run_id: str,
+        clock: Clock,
+        *,
+        sequence: int = 0,
+        on_decision: Callable[[HttpRequest, str | None], None] | None = None,
+    ) -> None:
         """Cria a trilha de uma execução.
 
         Args:
             store: Armazém dos arquivos da execução.
             run_id: Identificador da execução.
             clock: Relógio injetado (carimbo das linhas).
+            sequence: Última sequência persistida, para continuar uma trilha existente.
+            on_decision: Observador opcional chamado após a gravação da decisão.
         """
         self._store = store
         self._run_id = run_id
         self._clock = clock
-        self._seq = 0
+        self._seq = sequence
+        self._on_decision = on_decision
 
     def decide(self, request: HttpRequest, reason: str | None) -> int:
         """Grava a linha de decisão (`reason` não nulo = recusada) e devolve o `seq`."""
@@ -120,6 +131,8 @@ class AuditTrail:
         self._store.append_audit(
             self._run_id, decision_entry(self._seq, self._clock.now(), request, reason=reason)
         )
+        if self._on_decision is not None:
+            self._on_decision(request, reason)
         return self._seq
 
     def finish(
