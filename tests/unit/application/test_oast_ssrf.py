@@ -1,6 +1,7 @@
 """`GuidedSsrf`: envio do plano, paradas e leitura do retorno, com emissor e retorno falsos."""
 
 import json
+from dataclasses import replace
 
 from harness_dast.application.authz.sender import Reply, StopRun
 from harness_dast.application.oast_ssrf import WAIT_SECONDS, GuidedSsrf, SsrfOutcome
@@ -158,3 +159,38 @@ def test_a_failure_reading_the_events_is_a_note_not_an_error() -> None:
     assert summary.observed == 0
     assert summary.note is not None
     assert "eventos" in summary.note
+
+
+def test_ssrf_pula_conta_pendente_e_correlaciona_apenas_pedido_enviado() -> None:
+    from harness_dast.domain.knowledge_mutation import mutation_key
+    from tests.fakes.mutation_journal import MemoryMutationJournal
+    from tests.unit.application.test_negative_sender_attempts import sender as journal_sender
+
+    first, second = _plan().cases
+    second = replace(second, exchange=second.exchange.model_copy(update={"account": "b"}))
+    plan = SsrfPlan(cases=(first, second), skipped=())
+    journal = MemoryMutationJournal()
+    journal.begin(mutation_key("loja", first.operation_id, "a", "POST"), "unknown")
+    sender = journal_sender(200, journal, attempts=False, prefix="oast:")
+    events = FakeEvents(
+        (OastEvent(event_id=1, path=first.token), OastEvent(event_id=2, path=second.token))
+    )
+    outcome = GuidedSsrf(sender=sender, events=events, sleeper=ManualClock(), base_url=BASE).run(
+        plan
+    )
+    assert outcome.summary.sent == 1
+    assert [(skip.operation_id, skip.field, skip.reason) for skip in outcome.summary.skipped] == [
+        (first.operation_id, first.field, "mutation_pending")
+    ]
+    assert [item.token for item in outcome.summary.observations] == [second.token]
+    assert len(outcome.alerts) == 1
+
+
+def test_ssrf_interrompe_quando_diario_inacessivel() -> None:
+    from harness_dast.application.mutation_guard import MutationJournalBlocked
+
+    outcome, _ = _run(FakeSender([MutationJournalBlocked("diario indisponivel")]), FakeEvents())
+    assert outcome.summary.sent == 0
+    assert outcome.summary.observed == 0
+    assert outcome.summary.note is not None
+    assert "diario indisponivel" in outcome.summary.note

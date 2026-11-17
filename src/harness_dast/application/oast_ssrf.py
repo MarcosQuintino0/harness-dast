@@ -14,6 +14,7 @@ from harness_dast.application.common_ports import Sleeper
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.scan_ports import OastEvents
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.knowledge_mutation import MutationPending
 from harness_dast.domain.oast_ssrf import (
     SSRF_MAX_REQUESTS,
     OastEvent,
@@ -111,6 +112,13 @@ class GuidedSsrf:
             target, body = render_case(case)
             try:
                 reply = self._sender.send(case.exchange, target, body, tag="")
+            except MutationPending:
+                refused.append(
+                    SsrfSkip(
+                        operation_id=case.operation_id, field=case.field, reason="mutation_pending"
+                    )
+                )
+                continue
             except (StopRun, WindowClosed, DeadlineReached, ExternalToolError) as stop:
                 stopped = f"A etapa parou antes de terminar: {stop}"
                 break
