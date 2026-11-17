@@ -135,7 +135,7 @@ a reserva não implica aceite nem implementação.
 | [0098](0098-chave-hmac-fraca-de-jwt-no-authz.md) | Chave HMAC fraca de JWT no `authz`: quebra offline com lista fixa e prova re-assinada, teto de 20 pedidos (Proposto) |
 | [0099](0099-oast-na-varredura.md) | OAST na varredura: Callback do ZAP e regras que dependem do retorno ligadas por `scan.oast` (Proposto) |
 | [0100](0100-ssrf-guiado-pelo-contrato.md) | SSRF guiado pelo contrato: campos de URL do OpenAPI recebem a URL de retorno, com teto de 10 pedidos e correlação por token (Proposto) |
-| [0101](0101-limite-de-consumo.md) | Limite de consumo com `extra_checks.allow_rate_tests`: tamanho de página enorme (2 pedidos por operação) e até 20 tentativas erradas por operação de autenticação, com parada no primeiro sinal de limite e teto de 66 pedidos (Proposto) |
+| [0101](0101-limite-de-consumo.md) | Limite de consumo com `extra_checks.allow_rate_tests`: tamanho de página enorme (2 pedidos por operação) e até 20 tentativas erradas por operação de autenticação, com parada no primeiro sinal de limite e teto de 66 pedidos (Proposto; parcialmente substituído pelo [0104](0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md) na chave do diário das tentativas de rejeição) |
 | [0102](0102-inventario-de-versoes-e-documentacao.md) | Inventário com `extra_checks.inventory`: versões irmãs não documentadas (com controle `v999`) e documentação exposta, só `GET` pela cerca, teto de 40 pedidos (Proposto) |
 | [0103](0103-regras-alpha-selecionadas-na-imagem-do-zap.md) | Regras alpha e beta selecionadas: imagem derivada do ZAP com complementos fixos por SHA-256, lista fixa no domínio e achados marcados como experimentais (Proposto) |
 

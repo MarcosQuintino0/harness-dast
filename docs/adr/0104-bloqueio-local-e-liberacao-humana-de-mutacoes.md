@@ -69,6 +69,30 @@ Os testes de tentativas de rejeição em `extra_checks` usam a mesma chave de
 operação, conta e método dos demais estágios. Resposta 5xx conserva a pendência;
 não é sinal de limite de consumo nem motivo para repetir o POST.
 
+### Mudança em relação ao ADR 0101
+
+O [ADR 0101](0101-limite-de-consumo.md) dava às tentativas de rejeição uma chave própria
+no diário (`rejection-attempt:<operação>`), de modo que um 5xx numa tentativa de valor
+errado ficava `observed` e não bloqueava a seguinte. A V1.12.1 removeu essa chave: as
+tentativas usam a chave comum de operação, conta e método, e um 5xx deixa a mutação
+pendente. Efeito: a pendência passa a bloquear também o `probe` da mesma operação e conta
+(e o `probe` bloqueia as tentativas), até uma pessoa liberar. O restante do 0101 vale.
+
+## Efeitos conhecidos
+
+- No `negative`, a restauração de PUT/PATCH depois de um 5xx não ocorre: ela reusa a chave
+  pendente e é recusada, então a nota fica `unrestored` e a execução é interrompida. A
+  pessoa confere o alvo e libera com `hdast mutation release`.
+- Entrada do diário corrompida (por exemplo, arquivo de duas linhas quando o desfecho foi
+  gravado e o arquivamento falhou) continua bloqueando o envio daquela chave, de modo
+  fechado. `hdast mutation list` mostra as válidas e aponta as inválidas só por id e motivo
+  genérico (`invalid_or_unreadable`), sem conteúdo; `release` lê e valida apenas o arquivo
+  do id pedido, então uma entrada corrompida não impede liberar as demais. O envelope de
+  `list` ganha o campo aditivo `data.invalid`, lista de `{id, reason}`, sempre presente.
+- A nota da entrada de `scan` recusada por pendência é uma constante exata
+  (`MUTATION_PENDING_NOTE`); relatório e painel a reconhecem por igualdade, não por trecho,
+  para que texto vindo do ZAP ou do alvo não seja classificado como pendência.
+
 `options.include_outcomes` do envelope mantém o contrato: `true` usa a lista
 `scan.include_outcomes` do perfil, inclusive quando vazia, e `false` restringe a
 `success`. A explicação documental não concede autorização para novas classes.
