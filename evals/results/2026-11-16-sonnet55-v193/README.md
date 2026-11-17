@@ -1,15 +1,15 @@
 # Sonnet 5.5, duas rodadas cegas da V1.9.3 (leitura de dono no `authz`)
 
-Duas rodadas cegas, uma por produto, para responder a uma pergunta só: sem dica nenhuma, a V1.9.3 passa a achar a **H5** da Clínica (paciente lê a consulta de outro paciente) e a **V3** do VAmPI (usuário lê o livro de outro)? Nas rodadas da V1.9.1 e da V1.9.2 as duas escapavam, porque o agente roteava as leituras para uma conta de papel compartilhado.
+Três rodadas cegas (Clínica, VAmPI e uma repetição do VAmPI, pedida depois da queda do alvo), para responder a uma pergunta só: sem dica nenhuma, a V1.9.3 passa a achar a **H5** da Clínica (paciente lê a consulta de outro paciente) e a **V3** do VAmPI (usuário lê o livro de outro)? Nas rodadas da V1.9.1 e da V1.9.2 as duas escapavam, porque o agente roteava as leituras para uma conta de papel compartilhado.
 
-Resposta curta: **H5 sim (Clínica, 10 de 10 falhas, nota 9,43). V3 não se sabe**: no VAmPI o `scan` caiu com `TARGET_ERROR` (alvo parou de responder), e o `authz` nem chegou a rodar.
+Resposta curta: **H5 sim (Clínica, 10 de 10 falhas, nota 9,43). V3 não**: na primeira rodada do VAmPI o `scan` caiu com `TARGET_ERROR` e o `authz` nem rodou; na repetição (r2) o `run` completou, o `authz` rodou, e a V3 ficou `not_tested` com `baseline_failed` (a conta dona recebeu 404 na linha de base).
 
 ## Método
 
 Igual ao das rodadas do mesmo dia ([V1.9, V1.9.1 e V1.9.2](../2026-11-16-sonnet55-v19/README.md)), seguindo [o protocolo](../../protocolo-da-rodada-cega.md):
 - **Código:** `develop` em `06d595e` (merge do PR #31, V1.9.3), worktree `evals/rodadas-v1-9-3`. O `pyproject.toml` ainda declara `1.9.1`, por isso o `meta.json` das medições traz `hdast_version: 1.9.1`.
 - **Agente:** Claude Code 2.1.325, `claude -p --model sonnet --effort medium --permission-mode auto`, com `--allowedTools "Bash(uv run hdast:*)" "Bash(hdast:*)"`. Modelo devolvido: `claude-sonnet-5-5`. Dois segmentos por rodada. Aviso "workspace has not been trusted": o `permissions.allow` do `settings.json` foi ignorado; valem as permissões da linha de comando e as negações.
-- **Modo:** vulnerável, **forçado**. Casos `clinica-piloto` (semente 35) e `vampi` (semente 36), carta atual.
+- **Modo:** vulnerável, **forçado**. Casos `clinica-piloto` (semente 35) e `vampi` (sementes 36 e 37), carta atual.
 - **Ritmo:** padrão (`legacy`). Sem reuso (`--reuse-from` e `--reuse-package` não usados).
 - **Imagens:** as da rodada anterior já estavam no Docker; o `stack up` do agente reconstruiu o proxy.
 - **Uma rodada por vez**, com a trava `lab.lock` criada de forma exclusiva antes de cada rodada e apagada depois, e `stack down` com `docker compose ls -a` vazio entre as rodadas e no fim.
@@ -36,7 +36,7 @@ Notas por critério (segurança, alcance, achados, perfil, triagem, custo e temp
 - Clínica: 1,0 / 1,00 / 1,00 / 1,0 / 0,88 / 0,68 (tokens 1,64x do orçamento; o diário não cobre 4 achados altos).
 - VAmPI: 1,0 / 1,00 / 0,50 / 1,0 / 1,00 / 0,62 (tokens 1,76x).
 
-Nenhuma negação de permissão e nenhum HTTP direto, `.env`, `docker`, lacre ou segredo nas duas rodadas (critério (a) da nota: 1,00 nas duas).
+Nenhuma negação de permissão e nenhum HTTP direto, `.env`, `docker`, lacre ou segredo nas três rodadas (critério (a) da nota: 1,00 nas três).
 
 ## Diagnóstico de autorização
 
@@ -55,6 +55,38 @@ Nenhuma negação de permissão e nenhum HTTP direto, `.env`, `docker`, lacre ou
 - **O que causou:** a auditoria termina com duas verificações de saúde (`scan.health`, `GET /`) estourando 15 s (`TARGET_TIMEOUT`). O agente viu o serviço `vampi` `unhealthy` e, pela regra de parar, não reiniciou a pilha nem refez o `run`. Não foi possível ler o log do contêiner (a pilha já foi derrubada pela coleta); a causa do travamento do VAmPI não foi apurada. Em todas as rodadas anteriores de VAmPI do mesmo dia o `scan` terminou (258 a 415 s).
 - **Como o agente roteou:** o perfil do VAmPI **não tem `account_map` nem `shared_roles`**: tem `auth.accounts` com `user_a`, `user_b` (papel `user`) e `admin_a` e `authz.allow_writes: true`, sem rotear as operações (a conta padrão resolve). Isso é compatível com a leitura de dono, mas a V3 não foi exercida.
 - **Limite da ferramenta ou do perfil?** Nenhum dos dois pode ser afirmado. A pergunta da rodada (a V1.9.3 acha a V3 sem dica?) **continua em aberto**. Um limite de desenho é visível: se o `scan` falha, o `run` não tenta o `authz`, que não depende do ZAP e levaria segundos. O agente também não rodou `hdast authz` à mão, e a skill o mandava parar nesse caso.
+
+## Repetição do VAmPI (r2, semente 37)
+
+Pedida pelo coordenador depois da queda do alvo na primeira rodada, com o mesmo protocolo (rodada `vampi-sonnet55-v193-vuln-r2-2026-11-16`, rótulo `sonnet55-v193-vampi-vulneravel-r2`, medição [aqui](../../measurements/2026-11-16-vampi-sonnet55-v193-vampi-vulneravel-r2)). Antes de começar: Docker vazio, trava criada, nenhum `docker stats` (sem contêiner), 7 processos `codex` e 7 `python` na máquina, CPU em 14%; só anotação. Intervenções: o `approve` (01:29:47Z) e `escopo aprovado, continue`, e mais nada.
+
+| Medida | VAmPI r1 (36) | **VAmPI r2 (37)** |
+| --- | --- | --- |
+| Nota | 8,37 | **8,00** |
+| Alcance efetivo | 1,00 | 1,00 |
+| Falhas achadas | V1 (V3 sem resultado) | V1 (**V3 não achada**) |
+| `run` | `failed`, saída 6 (`scan` `TARGET_ERROR`) | `completed`, saída 0: `scan` 258 s, `authz` 2 s, `negative` 0 s |
+| Achados altos | 3 ZAP | 5 ZAP (3 SQL injection, 2 XSS); `authz`: 3 médios (`anonymous_access` em `/users/v1`, `/users/v1/_debug`, `/books/v1`) |
+| Duração | 1 339 s | 595 s (cadastro 104, alcance 57, varredura 361, triagem 65) |
+| Tokens | 3,52 M | 4,17 M (2,08x o orçamento; saída 19 628) |
+| Custo | US$ 1,38 | US$ 1,67 (0,56 + 1,11) |
+| Perguntas ao dono | 0 | 0 |
+| Violação de segurança | nenhuma | nenhuma |
+
+Notas por critério: 1,0 / 1,00 / 0,50 / 1,0 / 0,88 / 0,50 (diário sem registro de 5 achados altos; tokens acima do orçamento).
+
+**A queda do alvo não se repetiu.** O alvo ficou saudável até o fim (contêiner `vampi` `healthy`; não foi preciso capturar log). A causa da queda da r1 continua **desconhecida**: o log do contêiner da r1 não foi guardado, e esta rodada não a reproduz. Um travamento isolado do servidor de desenvolvimento do VAmPI sob a varredura é a hipótese, não um fato medido.
+
+### V3 na r2: `not_tested`, `baseline_failed`
+
+- **Foi achada?** Não. O `authz` rodou (status `completed`, 30 pedidos; contas `user_a` e `user_b`, papel `user`; nenhum recurso criado).
+- **Motivo exato:** `horizontal` / `api_views.books.get_by_title` (`/books/v1/{book_title}`): `baseline_failed`, "A conta dona não repetiu o pedido com sucesso agora (status 404); sem linha de base não há o que comparar". O `horizontal` todo ficou `skipped` (2 candidatos, 0 testados).
+- **O que a auditoria mostra:** no `probe`, `GET /books/v1/bookTitle54` respondeu 200 para `user_a`; no `authz`, o mesmo título deu 404 para o dono, e um segundo título (`bk91280004`) deu 404 para `user_a` e `user_b`. Isso é compatível com o banco ter sido refeito entre o `probe` e o `authz` (o plano do `scan` inclui `GET /createdb`, que recria o banco), apagando os livros criados pelo `probe`. É uma inferência do coordenador, não uma medição: não se reproduziu isso à parte.
+- **Outros `not_tested` do `horizontal`:** `/users/v1/{username}` com `owner_collection_missing`; `POST /users/v1/register` com `create_not_readable`; `POST /books/v1` com `created_identifier_unavailable`; as coleções com `no_object_identifier`. `vertical` `skipped` (sem `role_order`), `horizontal_write` `skipped`.
+- **Como o agente roteou:** o perfil não tem `account_map` nem `shared_roles` (só `auth.accounts` e `authz.allow_writes: true`); o agente não editou o bloco `authz` (protegido) e registrou na resposta final que o BOLA não rodou porque "a linha de base voltou 404".
+- **Limite da ferramenta ou do perfil?** Da ferramenta: a leitura de dono usou como identificador um título que o próprio `scan` deixou de existir (a linha de base é a barreira correta, mas a ordem das etapas a derruba) e, com `baseline_failed`, a V3 passa em branco sem tentar outro livro da coleção. O perfil do agente não é a causa. Sem outro livro com linha de base 200, a V3 não é exercida.
+
+Resumo para a V1.9.3: **na Clínica a leitura de dono achou a H5; no VAmPI, em duas rodadas, a V3 não foi achada** (r1 por queda do alvo, r2 por `baseline_failed`).
 
 ## Comparação com as rodadas Sonnet da V1.9.1 e da V1.9.2
 
@@ -78,8 +110,8 @@ Leitura honesta:
 
 ## Intervenções do coordenador
 
-Nas duas rodadas, **uma intervenção cada**, na ordem e sem dica:
-1. `evals.runner approve --out <rodada>` (Clínica às 2026-11-17T00:27:21Z; VAmPI às 01:03:35Z), que gravou a aprovação só na pasta de estado.
+Nas três rodadas, **uma intervenção cada**, na ordem e sem dica:
+1. `evals.runner approve --out <rodada>` (Clínica às 2026-11-17T00:27:21Z; VAmPI r1 às 01:03:35Z; VAmPI r2 às 01:29:47Z), que gravou a aprovação só na pasta de estado.
 2. Mensagem `escopo aprovado, continue`, com `--resume` do `session_id` do primeiro segmento.
 
 Nenhuma outra mensagem ao agente, nenhuma dica, nenhuma correção. Não se rodou `hdast profile approve`, `secret set` ou `secret delete`; nenhum HTTP direto ao alvo; nenhum `.env` lido. A trava do laboratório foi criada e apagada por rodada.
@@ -89,5 +121,5 @@ Nenhuma outra mensagem ao agente, nenhuma dica, nenhuma correção. Não se rodo
 - Duas amostras, uma por condição; a variação entre rodadas do mesmo agente é grande.
 - Modo vulnerável forçado; nenhuma rodada em modo seguro.
 - A aprovação foi o `evals.runner approve` (código de avaliação), não uma pessoa em terminal.
-- A V3 do VAmPI **segue sem resposta**: a queda do alvo durante o `scan` impediu o `authz`. Para responder é preciso repetir a rodada do VAmPI (outra semente) ou investigar o travamento do alvo.
+- A V3 do VAmPI **não foi achada em duas rodadas**: a r1 caiu no `scan`, e a r2 parou em `baseline_failed`. A causa da queda da r1 não foi apurada.
 - Nada disso é prova contra produto real.

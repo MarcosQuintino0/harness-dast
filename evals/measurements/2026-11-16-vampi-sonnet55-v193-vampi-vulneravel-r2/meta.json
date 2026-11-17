@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "case": "vampi",
+  "mode": "vulnerable",
+  "hdast_version": "1.9.1",
+  "date": "2026-11-16",
+  "label": "sonnet55-v193-vampi-vulneravel-r2",
+  "round": "vampi-sonnet55-v193-vuln-r2-2026-11-16",
+  "model": "claude-sonnet-5-5"
+}
