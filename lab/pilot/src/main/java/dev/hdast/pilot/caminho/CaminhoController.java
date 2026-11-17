@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -116,6 +117,19 @@ public class CaminhoController {
             if (!crm.matches("\\d{4,7}-[A-Z]{2}")) {
                 throw ApiException.badRequest("PARAMETRO_INVALIDO", "crm", "Pattern", "O CRM deve seguir NNNNN-UF.");
             }
+            return jdbc.sql("SELECT ID, NOME, CRM FROM MEDICO WHERE CRM = :crm").param("crm", crm)
+                    .query((rs, i) -> linhaMedico(rs.getLong(1), rs.getString(2), rs.getString(3))).list();
+        }
+        String sql = "SELECT ID, NOME, CRM FROM MEDICO WHERE CRM = '" + crm + "'";
+        return template.query(sql, (rs, i) -> linhaMedico(rs.getLong(1), rs.getString(2), rs.getString(3)));
+    }
+
+    /** H11: consulta por cabeçalho, parametrizada apenas no modo corrigido. */
+    @Operation(operationId = "buscarMedicoPorCabecalho", summary = "Busca um médico pelo CRM no cabeçalho")
+    @GetMapping("/api/medicos/por-cabecalho")
+    public List<Map<String, Object>> medicoPorCabecalho(
+            @Parameter(example = "12345-SP") @RequestHeader("X-CRM") String crm) {
+        if (hardening.applies(Hardening.Item.H11)) {
             return jdbc.sql("SELECT ID, NOME, CRM FROM MEDICO WHERE CRM = :crm").param("crm", crm)
                     .query((rs, i) -> linhaMedico(rs.getLong(1), rs.getString(2), rs.getString(3))).list();
         }

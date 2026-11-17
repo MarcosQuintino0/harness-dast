@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Adicionado
+
+- V1.12 (L3, ADR 0092 proposto): operação `buscarMedicoPorCabecalho` (`GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM`) na Clínica Piloto com a falha H11 (injeção de SQL em cabeçalho) só no modo vulnerável; OpenAPI regenerado pelo alvo; H11 no gabarito e no caso `clinica-piloto` como `detectable: false`.
+- V1.12 (L5): marcador `regressao_dirigida` e roteiro de regressão dirigida (H1 a H10, controle seguro, V1 e V3) em `tests/integration/test_regressao_dirigida.py`.
+
 ### Organização
 
 - Navegação por intenção (`docs/README.md`, com "Onde colocar cada coisa"), índice de planos e estado centralizado no roadmap; histórico retirado das instruções.

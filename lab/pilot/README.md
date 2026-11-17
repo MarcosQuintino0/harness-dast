@@ -314,3 +314,7 @@ O perfil pronto está em [`product-profile/`](product-profile/) (veja `NOTES.md`
 | `documentos/` | arquivos fictícios do endpoint de download |
 | `product-profile/` | perfil pronto (`target.yml`, `data-rules.yml`, `flows.yml`) e `NOTES.md` |
 | `scripts/check-sync.sh` | confere as cópias do perfil e o OpenAPI ao vivo |
+
+### Extensão do alvo na V1.12 (H11)
+
+A operação `buscarMedicoPorCabecalho` (`GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM`) acrescenta a falha H11: injeção de SQL em cabeçalho no modo vulnerável; no modo corrigido a consulta é parametrizada. As dez falhas anteriores e os gabaritos históricos mantêm seus identificadores e comportamento. H11 está no gabarito como `detectable: false` até a V1.12 ter a injeção em cabeçalhos (ADR 0092).

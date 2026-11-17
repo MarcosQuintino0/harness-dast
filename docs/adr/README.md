@@ -112,6 +112,7 @@ As decisões continuam **Propostas**, sujeitas à revisão humana.
 | --- | --- |
 | [0083](0083-copia-cega-por-lista-de-permissao.md) | Cópia cega por lista de permissão, manifesto e comparação histórica (Proposto) |
 | [0084](0084-localizacao-da-apresentacao.md) | Localização futura da renderização HTML/CSS; nenhuma troca de camada nesta entrega (Proposto) |
+| [0092](0092-operacao-de-cabecalho-na-clinica-piloto.md) | Operação de cabeçalho (H11) na Clínica Piloto, fora da nota dos casos existentes (Proposto) |
 
 ## Reservas da trilha L da V1.12
 

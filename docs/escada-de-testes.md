@@ -104,6 +104,20 @@ Para o modo corrigido do alvo, repita com `stack up clinica-piloto --secure`: um
 
 O código da cerca é copiado para dentro da imagem do proxy de escopo. Se você mudou `adapters/scope_proxy/`, `domain/` da cerca ou `docker/` e subiu a pilha sem `--build`, o teste roda a cerca **antiga** e passa sem provar nada. Depois de qualquer mudança nesses lugares, suba com `--build`. A pilha principal já impõe reconstrução no caso de uso `StackUp` (`application/stack.py`). Isso não dispensa conferir as demais imagens e reconstruir o alvo quando seu código mudar.
 
+### Regressão dirigida (V1.12, L5)
+
+Roteiro **não cego** que prova em poucos minutos que nada regrediu no laboratório, sem a varredura completa. Uma asserção por falha, com o mesmo critério da régua da avaliação (`flaw_status` sobre o gabarito dos casos):
+
+- Clínica Piloto vulnerável: H1 a H10, a H5 pela leitura de dono;
+- Clínica Piloto segura: nenhum achado de autorização;
+- VAmPI vulnerável: V1 e V3.
+
+```bash
+uv run pytest -m regressao_dirigida
+```
+
+Roda `probe` e `authz` em cada cenário e um `scan --only` só nas operações em que o ZAP detecta a falha (`tests/integration/test_regressao_dirigida.py`). Exige Docker, a trava do laboratório quando há outras frentes e uma pilha por vez. O tempo por cenário vai para `HDAST_IT_METRICS_DIR` (`regressao-dirigida-<cenário>`). A H11 (injeção em cabeçalho, ADR 0092) fica fora até a trilha F poder detectá-la. Roteiro de regressão, não nota: não substitui o degrau 4 nem a rodada cega.
+
 ## Degrau 4. Varredura completa
 
 Só no fechamento de versão, ou quando muda o motor ou a política padrão do ZAP:
