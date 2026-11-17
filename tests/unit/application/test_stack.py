@@ -423,6 +423,38 @@ def test_up_com_oracle_em_outro_alvo_falha_com_orientacao(tmp_path: Path) -> Non
         rig.manager.up(StackUpRequest(product="vampi", oracle=True))
 
 
+@pytest.mark.parametrize(
+    ("up_request", "message"),
+    [
+        (StackUpRequest(product="crapi", oracle=True), "Clínica Piloto"),
+        (StackUpRequest(product="vampi", oracle=True), "Clínica Piloto"),
+        (StackUpRequest(product="crapi", vulnerable=False), "modo seguro"),
+        (StackUpRequest(product="crapi", token_ttl_seconds=30), "ajuste de token"),
+    ],
+)
+def test_opcao_invalida_preserva_pilha_crapi_anterior(
+    tmp_path: Path, up_request: StackUpRequest, message: str
+) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="crapi"))
+    original_state = rig.states.state
+    assert original_state is not None
+    policy_file = original_state.policy_dir / "policy.json"
+    policy_content = policy_file.read_bytes()
+    published = list(rig.policies.published)
+    calls = list(rig.compose.calls)
+    projects = dict(rig.compose.running)
+
+    with pytest.raises(ConfigError, match=message):
+        rig.manager.up(up_request)
+
+    assert rig.states.state == original_state
+    assert policy_file.read_bytes() == policy_content
+    assert rig.policies.published == published
+    assert rig.compose.calls == calls
+    assert rig.compose.running == projects
+
+
 def test_stop_sem_pilha_usa_a_pasta_informada_ou_falha_com_orientacao(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
     folder = tmp_path / "politica"

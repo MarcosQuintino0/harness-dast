@@ -179,6 +179,8 @@ class StackManager:
                 "Cadastro de contas do crAPI indisponível.", hint="Confira a montagem da CLI."
             )
         suffix = _project_suffix(self._environ)
+        oracle = self._oracle_requested(request, target)
+        projects = self._projects(target, oracle=oracle, suffix=suffix)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
         run_id = RunId.create(
@@ -189,8 +191,6 @@ class StackManager:
         policy_file = self._policies.publish(profile, run_id, not_after, directories.policy_dir)
         zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
         proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
-        oracle = self._oracle_requested(request, target)
-        projects = self._projects(target, oracle=oracle, suffix=suffix)
         state = StackState(
             product=profile.product,
             run_id=run_id.value,
