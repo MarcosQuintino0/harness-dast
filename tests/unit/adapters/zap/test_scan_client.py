@@ -103,6 +103,18 @@ def test_malformed_message_listings_are_external_tool_errors(payload: dict[str, 
         client_for(server.base_url).list_messages("http://alvo")
 
 
+def test_policy_with_header_injection_sets_the_mask_and_scans_headers_of_all_requests() -> None:
+    zap = FakeScanZapServer()
+    policy, limits = policy_and_limits()
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(
+            policy.model_copy(update={"header_injection": True}), limits
+        )
+
+    assert zap.options["injectable"] == "63"
+    assert zap.options["scan_headers_all"] == "true"
+
+
 def test_policy_sets_limits_first_recreates_the_policy_and_disables_the_rules() -> None:
     zap = FakeScanZapServer()
     zap.policies.add("hdast-scan")
@@ -116,6 +128,7 @@ def test_policy_sets_limits_first_recreates_the_policy_and_disables_the_rules() 
     assert zap.options["max_rule"] == "2"
     assert zap.options["injectable"] == "51"
     assert zap.options["host_per_scan"] == "1"
+    assert zap.options["scan_headers_all"] == "false"
     assert (zap.options["strength"], zap.options["threshold"]) == ("LOW", "MEDIUM")
     assert zap.policies == {"hdast-scan"}
     assert {"40044", "10104"} <= zap.disabled

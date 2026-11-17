@@ -27,6 +27,12 @@ BASE_INJECTABLE_MASK: Final = 35
 URL_PATH_INJECTABLE_BIT: Final = 16
 """Bit que liga a injeção em segmentos de caminho (spike: 35 + 16 = 51)."""
 
+COOKIE_INJECTABLE_BIT: Final = 4
+"""Bit que liga a injeção em cookies (ADR 0097; `ScannerParam.TARGET_COOKIE` do ZAP)."""
+
+HEADER_INJECTABLE_BIT: Final = 8
+"""Bit que liga a injeção em cabeçalhos HTTP (ADR 0097; `ScannerParam.TARGET_HTTPHEADERS`)."""
+
 POLL_SECONDS: Final = 2.0
 """Intervalo entre consultas ao andamento de uma varredura."""
 
@@ -104,6 +110,7 @@ class ScanPolicy(BaseModel):
         strength: Força de ataque.
         threshold: Limiar de alerta.
         url_path_injection: Se a injeção em segmentos de caminho está ligada.
+        header_injection: Se a injeção em cabeçalhos e cookies está ligada (só a carta liga).
         disabled_rules: Ids das regras desligadas (padrão do harness mais as do perfil).
     """
 
@@ -114,11 +121,14 @@ class ScanPolicy(BaseModel):
     threshold: Level
     url_path_injection: bool
     disabled_rules: tuple[int, ...]
+    header_injection: bool = False
 
     @property
     def injectable_mask(self) -> int:
         """Valor de `TargetParamsInjectable` que o ZAP recebe."""
         extra = URL_PATH_INJECTABLE_BIT if self.url_path_injection else 0
+        if self.header_injection:
+            extra += COOKIE_INJECTABLE_BIT + HEADER_INJECTABLE_BIT
         return BASE_INJECTABLE_MASK + extra
 
 
@@ -149,6 +159,7 @@ def build_policy(config: ScanConfig) -> ScanPolicy:
         strength=config.strength,
         threshold=config.threshold,
         url_path_injection=config.url_path_injection,
+        header_injection=config.inject_headers,
         disabled_rules=tuple(sorted(dict.fromkeys(disabled))),
     )
 

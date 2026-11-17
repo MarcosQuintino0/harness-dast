@@ -74,6 +74,18 @@ def test_path_injection_off_uses_the_zap_default_mask() -> None:
     assert build_policy(ScanConfig(url_path_injection=False)).injectable_mask == 35
 
 
+def test_header_injection_is_off_by_default_and_keeps_the_previous_mask() -> None:
+    assert build_policy(ScanConfig()).header_injection is False
+    assert build_policy(ScanConfig()).injectable_mask == 51
+    assert build_policy(ScanConfig(url_path_injection=False)).injectable_mask == 35
+
+
+def test_inject_headers_adds_the_cookie_and_header_bits_to_the_mask() -> None:
+    assert build_policy(ScanConfig(inject_headers=True)).injectable_mask == 35 + 16 + 4 + 8
+    off_path = build_policy(ScanConfig(inject_headers=True, url_path_injection=False))
+    assert off_path.injectable_mask == 35 + 4 + 8
+
+
 @pytest.mark.parametrize(("rps", "delay"), [(50, 20), (5, 200), (1, 1000), (0.5, 2000), (3, 334)])
 def test_request_rate_becomes_a_per_host_delay(rps: float, delay: int) -> None:
     assert delay_ms_for(rps) == delay

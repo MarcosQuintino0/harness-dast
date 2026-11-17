@@ -192,6 +192,12 @@ class FakeScanZapServer:
     def _ascan_action_setOptionHostPerScan(self, query: dict[str, str]) -> Reply:  # noqa: N802
         return self._option("host_per_scan", query)
 
+    def _ascan_action_setOptionScanHeadersAllRequests(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        if "Boolean" not in query:
+            return error("missing_parameter")
+        self.options["scan_headers_all"] = query["Boolean"]
+        return ok({"Result": "OK"})
+
     def _option(self, name: str, query: dict[str, str]) -> Reply:
         if "Integer" not in query:
             return error("missing_parameter")
