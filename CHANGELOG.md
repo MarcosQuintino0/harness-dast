@@ -28,6 +28,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [1.11.0] - 2026-11-17
 
+- Provas 0/D/F retomadas por decisão explícita da coordenação: aprovação sintética do suporte de integração somente em estado descartável, trava exclusiva e projetos Compose `-codex`; sem aprovação da CLI ou escrita no estado real. Primeira baseline `44ef387` da Clínica vulnerável: run `2026-11-17T05-02-42Z-clinica-piloto-80a9`, 28 entradas de scan concluídas, 98 achados ZAP, 4 authz e 29 sinais do proxy. Demais cenários e calibração ainda em execução.
+
 Carimbo da candidata na branch, sem publicação e com aceites operacionais pendentes.
 
 ### Verificação
