@@ -22,11 +22,19 @@ def _journal() -> FileMutationJournal:
 
 def list_command(ctx: typer.Context) -> None:
     """Lista pendências sem mostrar snapshots ou corpos."""
-    entries = _journal().list_pending()
+    inventory = _journal().inspect()
+    entries = inventory.pending
     data = TypeAdapter(dict[str, JsonValue]).validate_python(
-        {"pending": [entry.model_dump(mode="json") for entry in entries]}
+        {
+            "pending": [entry.model_dump(mode="json") for entry in entries],
+            "invalid": [entry.model_dump(mode="json") for entry in inventory.invalid],
+        }
     )
-    human = "\n".join(str(entry.model_dump(mode="json")) for entry in entries)
+    lines = [str(entry.model_dump(mode="json")) for entry in entries]
+    lines += [
+        f"Entrada inválida (segue bloqueando o envio): {entry.id}" for entry in inventory.invalid
+    ]
+    human = "\n".join(lines)
     emit(
         build_success(data),
         json_mode=get_state(ctx).json_mode,

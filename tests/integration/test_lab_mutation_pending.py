@@ -110,7 +110,7 @@ def test_lab_mutation_pending_nao_reenvia_e_varre_demais(tmp_path: Path) -> None
             if row["phase"] == "result" and row["status"] == 500
         } >= BLOCKED
         assert all(op.attempts == 1 for op in failures.values())
-        pending = FileMutationJournal(cli.state / "mutations").list_pending()
+        pending = FileMutationJournal(cli.state / "mutations").inspect().pending
         pending_context = {
             item.metadata.operation_id: item.metadata for item in pending if item.metadata
         }

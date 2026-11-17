@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from harness_dast.domain.authz.created import parse_unique_json
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.knowledge_mutation import (
+    InvalidMutation,
+    MutationInventory,
     MutationMetadata,
     MutationPending,
     PendingMutation,
@@ -75,17 +77,35 @@ class FileMutationJournal:
             hint=f"Confira a permissão e o espaço da pasta {self._directory}.",
         )
 
-    def list_pending(self) -> tuple[PendingMutation, ...]:
-        """Lista intenções válidas; registros corrompidos interrompem a leitura."""
+    def inspect(self) -> MutationInventory:
+        """Separa pendências válidas das entradas inválidas, sem expor conteúdo.
+
+        Entrada inválida segue bloqueando o envio (`begin` falha fechado); aqui ela só é
+        apontada por id. Nomes que não são chave de mutação não bloqueiam e são ignorados.
+        """
         try:
             paths = sorted(path for path in self._directory.iterdir() if path.suffix == ".jsonl")
-            return tuple(self._read_pending(path) for path in paths)
         except FileNotFoundError:
-            if not self._directory.exists():
-                return ()
-            raise ConfigError("Não foi possível ler o diário de mutações.") from None
+            return MutationInventory()
         except OSError:
             raise ConfigError("Não foi possível ler o diário de mutações.") from None
+        pending: list[PendingMutation] = []
+        invalid: list[InvalidMutation] = []
+        for path in paths:
+            if not valid_mutation_key(path.stem):
+                continue
+            try:
+                pending.append(self._read_pending(path))
+            except ConfigError:
+                invalid.append(InvalidMutation(id=path.stem))
+        return MutationInventory(pending=tuple(pending), invalid=tuple(invalid))
+
+    def read_pending(self, key: str) -> PendingMutation:
+        """Lê e valida somente a entrada pedida; ausente ou inválida levanta `ConfigError`."""
+        path = self._path(key)
+        if not path.is_file() and not path.is_symlink():
+            raise ConfigError("Mutação pendente não encontrada ou identificador inválido.")
+        return self._read_pending(path)
 
     def _read_pending(self, path: Path) -> PendingMutation:
         self._path(path.stem)
@@ -109,7 +129,7 @@ class FileMutationJournal:
 
     def release(self, key: str, released_at: datetime) -> None:
         """Registra liberação humana e arquiva; não inspeciona nem toca o alvo."""
-        self._read_pending(self._path(key))
+        self.read_pending(key)
         self._finish(key, "human_release", released_at)
 
     def finish(self, key: str, outcome: Outcome) -> None:

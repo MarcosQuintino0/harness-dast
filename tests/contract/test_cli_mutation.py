@@ -24,6 +24,25 @@ def test_lista_pendencias_em_envelope_sem_snapshot(
     assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
     envelope = json.loads(capsys.readouterr().out)
     assert envelope["data"]["pending"] == [{"id": "a" * 64, "metadata": None}]
+    assert envelope["data"]["invalid"] == []
+
+
+def test_lista_mostra_validas_e_aponta_invalidas_sem_conteudo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    journal_dir = tmp_path / "mutations"
+    FileMutationJournal(journal_dir).begin("a" * 64, "unknown")
+    (journal_dir / ("b" * 64 + ".jsonl")).write_text(
+        '{"intent":"mutation","previous_state":"SEGREDO"}\n{"outcome":"failed"}\n',
+        encoding="utf-8",
+    )
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    text = capsys.readouterr().out
+    data = json.loads(text)["data"]
+    assert [item["id"] for item in data["pending"]] == ["a" * 64]
+    assert data["invalid"] == [{"id": "b" * 64, "reason": "invalid_or_unreadable"}]
+    assert "SEGREDO" not in text
 
 
 def test_lista_so_os_metadados_permitidos(
@@ -55,7 +74,7 @@ def test_release_recusa_json_e_preserva_pendencia(
     journal.begin("a" * 64, "unknown")
     assert run_app(build_app(), ["--json", "mutation", "release", "a" * 64]) == 2
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "CONFIG_ERROR"
-    assert len(journal.list_pending()) == 1
+    assert len(journal.inspect().pending) == 1
 
 
 def test_release_recusa_ausencia_de_terminal(
@@ -69,7 +88,7 @@ def test_release_recusa_ausencia_de_terminal(
     journal.begin("a" * 64, "unknown")
     assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 2
     assert "terminal interativo" in capsys.readouterr().err
-    assert len(journal.list_pending()) == 1
+    assert len(journal.inspect().pending) == 1
 
 
 @pytest.mark.parametrize("args", [["mutation", "release"], ["mutation", "release", "../bad"]])
@@ -92,18 +111,20 @@ def test_release_recusa_id_ausente_ou_invalido_sem_pedir_confirmacao(
     journal.begin("a" * 64, "unknown")
     assert run_app(build_app(), args) == 2
     assert asked == []
-    assert len(journal.list_pending()) == 1
+    assert len(journal.inspect().pending) == 1
 
 
-def test_lista_recusa_diario_corrompido(
+def test_lista_aponta_diario_corrompido_sem_conteudo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
     directory = tmp_path / "mutations"
     directory.mkdir()
     (directory / ("a" * 64 + ".jsonl")).write_text("segredo-malformado", encoding="utf-8")
-    assert run_app(build_app(), ["--json", "mutation", "list"]) == 2
-    assert "segredo-malformado" not in capsys.readouterr().out
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "a" * 64 in out
+    assert "segredo-malformado" not in out
 
 
 def test_release_interativo_confirma_por_terminal(
@@ -118,7 +139,7 @@ def test_release_interativo_confirma_por_terminal(
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     monkeypatch.setattr(typer, "prompt", lambda *args, **kwargs: "a" * 64)
     assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
-    assert journal.list_pending() == ()
+    assert journal.inspect().pending == ()
     assert "liberada" in capsys.readouterr().out
 
 
@@ -142,7 +163,7 @@ def test_release_recusa_execucao_concorrente_antes_do_prompt(
     with hold_stack("probe", "agenda"):
         assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 8
     assert asked == []
-    assert len(journal.list_pending()) == 1
+    assert len(journal.inspect().pending) == 1
 
 
 def test_release_sem_terminal_recusa_antes_da_trava_ocupada(
@@ -175,4 +196,4 @@ def test_release_mantem_trava_durante_confirmacao(
 
     monkeypatch.setattr(command, "_confirm", confirm)
     assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
-    assert len(journal.list_pending()) == 1
+    assert len(journal.inspect().pending) == 1

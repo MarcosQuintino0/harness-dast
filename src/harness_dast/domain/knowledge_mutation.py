@@ -44,6 +44,24 @@ class PendingMutation(BaseModel):
     metadata: MutationMetadata | None = None
 
 
+class InvalidMutation(BaseModel):
+    """Entrada do diário que não pôde ser validada; só o id e um motivo genérico."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reason: Literal["invalid_or_unreadable"] = "invalid_or_unreadable"
+
+
+class MutationInventory(BaseModel):
+    """Pendências válidas e entradas inválidas; estas seguem bloqueando o envio."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    pending: tuple[PendingMutation, ...] = ()
+    invalid: tuple[InvalidMutation, ...] = ()
+
+
 def safe_mutation_metadata(
     operation_id: str, account: str | None, method: str, run_id: str | None, started_at: datetime
 ) -> MutationMetadata | None:

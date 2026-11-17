@@ -259,7 +259,7 @@ def test_scan_falha_apos_envio_mantem_intencao(tmp_path: Path) -> None:
     )
     assert result.status == "stopped_zap"
     assert len(rig.zap.started) == 1
-    pending = journal.list_pending()
+    pending = journal.inspect().pending
     assert len(pending) == 1
     assert pending[0].metadata is not None
     assert pending[0].metadata.run_id == rig.probe_result.run_id

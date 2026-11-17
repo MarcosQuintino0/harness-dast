@@ -30,7 +30,7 @@ def test_falha_ao_renomear_nao_reenvia_nem_libera(
     lines = target.read_text(encoding="utf-8").splitlines()
     assert json.loads(lines[1])["outcome"] == "observed"
     with pytest.raises(ConfigError):
-        journal.list_pending()
+        journal.read_pending(key)
     with pytest.raises(ConfigError):
         journal.begin(key, "unknown")
     with pytest.raises(ConfigError):

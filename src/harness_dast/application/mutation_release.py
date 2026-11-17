@@ -11,8 +11,8 @@ from harness_dast.domain.knowledge_mutation import PendingMutation
 class MutationReleaseStore(Protocol):
     """Lê e arquiva intenções, mantendo o desfecho de liberação humana."""
 
-    def list_pending(self) -> tuple[PendingMutation, ...]:
-        """Lista pendências ou recusa diário ilegível."""
+    def read_pending(self, key: str) -> PendingMutation:
+        """Valida só a entrada pedida; ausente, inválida ou corrompida levanta `ConfigError`."""
         ...
 
     def release(self, key: str, released_at: datetime) -> None:
@@ -30,8 +30,7 @@ def release_mutation(
 ) -> bool:
     """Exige terminal e confirmação expressa após conferir a intenção; False cancela."""
     require_interactive(interactive)
-    if not any(item.id == key for item in store.list_pending()):
-        raise ConfigError("Mutação pendente não encontrada ou identificador inválido.")
+    store.read_pending(key)
     if not confirm(key):
         return False
     store.release(key, now())
