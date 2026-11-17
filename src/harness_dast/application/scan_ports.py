@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.oast_ssrf import OastEvent
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report.model import FindingsReport
@@ -406,5 +408,37 @@ class PanelRefresher(Protocol):
         Returns:
             O caminho da página de entrada, relativo à pasta da execução, ou `None` se o painel
             não pôde ser gerado.
+        """
+        ...
+
+
+class OastEvents(Protocol):
+    """Eventos que o serviço de retorno (Callback do OAST do ZAP) recebeu (ADR 0100)."""
+
+    def oast_baseline(self) -> int:
+        """Marca o ponto a partir do qual os eventos novos contam.
+
+        Raises:
+            ExternalToolError: Falha da API do ZAP.
+        """
+        ...
+
+    def oast_events(self, since: int) -> tuple[OastEvent, ...]:
+        """Eventos recebidos depois do ponto devolvido por `oast_baseline`.
+
+        Raises:
+            ExternalToolError: Falha da API do ZAP ou resposta fora da forma conhecida.
+        """
+        ...
+
+
+class ExchangeSource(Protocol):
+    """Os pedidos que o `probe` provou (`exchanges.json`), para o SSRF guiado."""
+
+    def read_exchanges(self, run_id: str) -> ExchangeLog:
+        """Lê `exchanges.json`.
+
+        Raises:
+            ConfigError: Arquivo ausente, ilegível ou inválido.
         """
         ...

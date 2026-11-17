@@ -129,6 +129,7 @@ class FakeScanZapServer:
     rules: dict[str, dict[str, str]] = field(default_factory=dict)
     policies: set[str] = field(default_factory=set)
     options: dict[str, str] = field(default_factory=dict)
+    oast: dict[str, object] = field(default_factory=dict)
     disabled: set[str] = field(default_factory=set)
     known_rules: frozenset[str] = frozenset(REAL_ACTIVE_RULES)
     scan_progress: dict[str, object] = field(default_factory=dict)
@@ -165,6 +166,9 @@ class FakeScanZapServer:
     def _core_view_messages(self, query: dict[str, str]) -> Reply:
         start, count = int(query["start"]), int(query["count"])
         return ok({"messages": self.messages[start : start + count]})
+
+    def _core_view_numberOfMessages(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        return ok({"numberOfMessages": str(len(self.messages))})
 
     def _core_view_message(self, query: dict[str, str]) -> Reply:
         for message in self.messages:
@@ -224,6 +228,20 @@ class FakeScanZapServer:
         for rule in query["ids"].split(","):
             if rule not in self.stubborn_rules:
                 self.disabled.add(rule)
+        return ok({"Result": "OK"})
+
+    def _ascan_action_enableScanners(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        if any(rule not in self.known_rules for rule in query["ids"].split(",")):
+            return error("does_not_exist")
+        self.disabled.difference_update(query["ids"].split(","))
+        return ok({"Result": "OK"})
+
+    def _oast_action_setCallbackOptions(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        self.oast["callback"] = (query["localAddress"], query["remoteAddress"], query["port"])
+        return ok({"Result": "OK"})
+
+    def _oast_action_setActiveScanService(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        self.oast["service"] = query["name"]
         return ok({"Result": "OK"})
 
     def _ascan_view_scanners(self, query: dict[str, str]) -> Reply:

@@ -47,6 +47,7 @@ class NegativeSettings:
     product: str = ""
     mutation_journal: MutationJournal | None = None
     credential_fields: frozenset[str] = frozenset()
+    prefix: str = PREFIX
 
 
 class NegativeSender:
@@ -127,7 +128,7 @@ class NegativeSender:
             url=join_url(self._s.base_url, target),
             headers=headers,
             body=body.encode("utf-8") if body else None,
-            operation_id=f"{PREFIX}{tag}{exchange.operation_id}",
+            operation_id=f"{self._s.prefix}{tag}{exchange.operation_id}",
             account=exchange.account,
         )
         mutating = exchange.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}

@@ -9,7 +9,7 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
-from harness_dast.application.scan_ports import ProcessSampler
+from harness_dast.application.scan_ports import OastEvents, ProcessSampler
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.scan_result import ScanResult
@@ -61,6 +61,7 @@ class ScanRig(Rig):
         live: ScanLive | None = None,
         process_sampler: ProcessSampler | None = None,
         kill_switch: KillSwitch | None = None,
+        oast: OastEvents | None = None,
     ) -> Scan:
         return Scan(
             profiles=self.profiles,
@@ -78,6 +79,9 @@ class ScanRig(Rig):
             live=live,
             process_sampler=process_sampler,
             kill_switch=kill_switch,
+            oast=oast,
+            exchanges=self.artifacts,
+            entropy=self.entropy,
         )
 
     def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:

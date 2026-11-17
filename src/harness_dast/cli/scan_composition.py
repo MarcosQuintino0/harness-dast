@@ -130,6 +130,9 @@ def build_scan(
         strategy_store=FileStrategyRepository(root),
         approvals=open_approval_store(),
         mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
+        oast=net.scanner,
+        exchanges=FileRunArtifacts(runs_dir),
+        entropy=SystemEntropy(),
         basis_for=lambda product, profile, version: basis_for_engine(
             FileStrategyRepository(root), product, profile, version
         ),

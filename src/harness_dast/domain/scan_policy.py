@@ -33,6 +33,12 @@ COOKIE_INJECTABLE_BIT: Final = 4
 HEADER_INJECTABLE_BIT: Final = 8
 """Bit que liga a injeção em cabeçalhos HTTP (ADR 0097; `ScannerParam.TARGET_HTTPHEADERS`)."""
 
+OAST_CALLBACK_HOST: Final = "oast-gateway"
+"""Nome, na rede interna de retorno, da ponte que leva o retorno ao Callback do ZAP (ADR 0095)."""
+
+OAST_CALLBACK_PORT: Final = 8090
+"""Porta do serviço Callback do OAST no ZAP e da ponte (ADR 0095)."""
+
 POLL_SECONDS: Final = 2.0
 """Intervalo entre consultas ao andamento de uma varredura."""
 
@@ -77,7 +83,7 @@ DEFAULT_DISABLED_RULES: Final[tuple[DisabledRule, ...]] = (
     DisabledRule(
         plugin_id=40043,
         name="Log4Shell",
-        reason="Depende de retorno externo (OAST), que o proxy de escopo nega; só gera carga.",
+        reason="Depende de retorno fora de banda: só liga com scan.oast (ADR 0099).",
     ),
     DisabledRule(
         plugin_id=90034,
@@ -102,6 +108,32 @@ DEFAULT_DISABLED_RULES: Final[tuple[DisabledRule, ...]] = (
 )
 
 
+class OastRule(BaseModel):
+    """Regra de varredura ativa que só funciona com retorno fora de banda.
+
+    Attributes:
+        plugin_id: Identificador da regra no ZAP.
+        name: Nome da regra.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    plugin_id: int
+    name: str
+
+
+OAST_RULES: Final[tuple[OastRule, ...]] = (
+    OastRule(plugin_id=40043, name="Log4Shell"),
+    OastRule(plugin_id=90023, name="XML External Entity Attack"),
+    OastRule(plugin_id=90036, name="Server Side Template Injection (Blind)"),
+)
+"""Regras da imagem fixada (`ascanrules` 84, ZAP 2.17.0) que usam o OAST (ADR 0099).
+
+A imagem NÃO traz regra de SSRF nem de injeção de comando cega: o `ascanrules` 84 só tem a de
+comando por eco e por tempo, e o `ascanrulesBeta` (onde fica o SSRF) não está instalado. Esses
+dois casos ficam com o `scan.oast` guiado pelo contrato (ADR 0100)."""
+
+
 class ScanPolicy(BaseModel):
     """Política aplicada à varredura.
 
@@ -111,6 +143,8 @@ class ScanPolicy(BaseModel):
         threshold: Limiar de alerta.
         url_path_injection: Se a injeção em segmentos de caminho está ligada.
         header_injection: Se a injeção em cabeçalhos e cookies está ligada (só a carta liga).
+        oast: Se o retorno fora de banda está ligado (só a carta liga; ADR 0099).
+        oast_rules: Ids das regras que dependem do retorno e ficam ligadas; vazio sem `oast`.
         disabled_rules: Ids das regras desligadas (padrão do harness mais as do perfil).
     """
 
@@ -122,6 +156,8 @@ class ScanPolicy(BaseModel):
     url_path_injection: bool
     disabled_rules: tuple[int, ...]
     header_injection: bool = False
+    oast: bool = False
+    oast_rules: tuple[int, ...] = ()
 
     @property
     def injectable_mask(self) -> int:
@@ -152,7 +188,11 @@ class ScanLimits(BaseModel):
 
 def build_policy(config: ScanConfig) -> ScanPolicy:
     """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam)."""
-    disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES]
+    declined = set(config.disable_rules)
+    oast_ids = tuple(
+        rule.plugin_id for rule in OAST_RULES if config.oast and rule.plugin_id not in declined
+    )
+    disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES if rule.plugin_id not in oast_ids]
     disabled.extend(config.disable_rules)
     return ScanPolicy(
         name=POLICY_NAME,
@@ -160,6 +200,8 @@ def build_policy(config: ScanConfig) -> ScanPolicy:
         threshold=config.threshold,
         url_path_injection=config.url_path_injection,
         header_injection=config.inject_headers,
+        oast=config.oast,
+        oast_rules=oast_ids,
         disabled_rules=tuple(sorted(dict.fromkeys(disabled))),
     )
 
