@@ -111,7 +111,7 @@ class GuidedSsrf:
             target, body = render_case(case)
             try:
                 reply = self._sender.send(case.exchange, target, body, tag="")
-            except (StopRun, WindowClosed, DeadlineReached) as stop:
+            except (StopRun, WindowClosed, DeadlineReached, ExternalToolError) as stop:
                 stopped = f"A etapa parou antes de terminar: {stop}"
                 break
             if reply.problem is not None:

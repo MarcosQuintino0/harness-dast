@@ -123,6 +123,16 @@ def test_a_stop_in_the_middle_keeps_what_was_sent_and_says_why() -> None:
     assert "alvo mudo" in summary.note
 
 
+def test_a_proxy_failure_in_the_middle_is_a_stop_note_and_does_not_abort_the_scan() -> None:
+    sender = FakeSender([Reply(200), ExternalToolError("proxy do ZAP fora do ar")])
+
+    outcome, _ = _run(sender, FakeEvents())
+
+    assert outcome.summary.sent == 1
+    assert outcome.summary.note is not None
+    assert "proxy do ZAP fora do ar" in outcome.summary.note
+
+
 def test_a_deadline_stops_the_stage_without_raising() -> None:
     sender = FakeSender([DeadlineReached("prazo")])
 
