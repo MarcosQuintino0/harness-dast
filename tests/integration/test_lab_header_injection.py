@@ -72,7 +72,9 @@ def _sql_findings(cli: LabCli, run_id: str) -> list[dict[str, Any]]:
 
 def _operation_requests(cli: LabCli, run_id: str) -> int:
     stats = json.loads((cli.runs / run_id / "rule-stats.json").read_text(encoding="utf-8"))
-    rules = [r for op in stats["operations"] if op["operation_id"] == OPERATION for r in op["rules"]]
+    rules = [
+        r for op in stats["operations"] if op["operation_id"] == OPERATION for r in op["rules"]
+    ]
     return sum(int(rule.get("requests", 0)) for rule in rules)
 
 

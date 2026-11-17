@@ -130,7 +130,7 @@ class ZapScanClient(ZapApiClient):
             ("setOptionHostPerScan", 1),
         ):
             self._action("ascan", option, {"Integer": str(value)})
-        # Sem isto o ZAP só varre cabeçalhos de alguns pedidos; é explícito nos dois sentidos (ADR 0097).
+        # Sem isto o ZAP varre cabeçalhos de poucos pedidos; explícito nos dois sentidos (ADR 0097).
         self._action(
             "ascan",
             "setOptionScanHeadersAllRequests",
