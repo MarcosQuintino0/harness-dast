@@ -1,7 +1,6 @@
 """Ensaio crapi-foco sem agente: só o coordenador executa esta integração."""
 
 import json
-import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,12 @@ from evals.runner.metrics import measure_agent
 from evals.runner.prepare import prepare
 from tests.integration.lab_support import LabCli, require_docker
 from tests.integration.run_support import record_metrics
-from tests.integration.v112_proof_support import execute, summary
+from tests.integration.v112_proof_support import (
+    execute,
+    install_focus_spec,
+    probe_attempts,
+    summary,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -96,6 +100,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         raise
     records["prepare"] = {"exclusoes": list(prepared.excluded), "vazamentos": len(prepared.leaks)}
     cli = LabCli(tmp_path / "isolado", {})
+    cli.env["HDAST_STACK_PROJECT_SUFFIX"] = "-codex"
     cli.products = prepared.workspace / "products"
     cli.runs = prepared.workspace / "runs"
     cli.state = out / "state"
@@ -111,6 +116,8 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         if key.startswith("CRAPI_"):
             del cli.env[key]
     stack_attempted = False
+    flow_complete = False
+    down_complete = False
     try:
         init = execute(
             cli,
@@ -122,9 +129,7 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
             str(prepared.workspace / "inputs/carta.yml"),
         )
         assert init.code == 0
-        shutil.copy2(
-            prepared.workspace / "inputs/openapi.json", cli.products / "crapi/openapi.json"
-        )
+        install_focus_spec(prepared.workspace, cli.products)
         approve(out)
         records["approval"] = "runner de ensaio"
         stack_attempted = True
@@ -136,15 +141,10 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         checks = {row["id"] for row in preflight.data.get("checks", []) if row.get("ok")}
         assert {"login:user_a", "login:user_b"} <= checks
         probe = execute(cli, records, "probe", "probe", "crapi", timeout=900)
-        operations = probe.data.get("operations", [])
-        attempts = {
-            row.get("operation_id"): row.get("attempts", 0)
-            for row in operations
-            if row.get("operation_id") in EXPECTED
-        }
+        probe_status, attempts = probe_attempts(probe.data, EXPECTED)
         records["operacoes"] = attempts
         assert probe.code == 0
-        assert probe.data.get("status") == "completed"
+        assert probe_status == "completed"
         run = execute(cli, records, "run", "run", "crapi", "--max-minutes", "14", timeout=900)
         records["run_summary"] = summary(run)
         assert set(attempts) == EXPECTED
@@ -162,16 +162,26 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
             "report",
         ]
         assert all(stage["status"] == "ok" for stage in stages)
+        flow_complete = True
     finally:
         try:
             if stack_attempted:
                 down = execute(cli, records, "down", "stack", "down", timeout=240)
                 assert down.code == 0
+                down_complete = True
         finally:
             records["duracao_fim_a_fim_segundos"] = round(time.monotonic() - started, 3)
+            records["caso_concluido_na_meta"] = (
+                flow_complete and down_complete and records["duracao_fim_a_fim_segundos"] <= 900
+            )
             if any(isinstance(v, dict) and "started_at" in v for v in records.values()):
                 _transcript(out, records)
                 metrics = measure_agent(out, "ensaio-sem-agente")
+                # write_agent_metrics consulta segredos do lacre; não é permitido nesta tarefa.
+                (out / "agent-metrics.json").write_text(
+                    metrics.model_dump_json(indent=2) + "\n", encoding="utf-8"
+                )
                 records["medicao_runner"] = metrics.model_dump(mode="json")
+                record_metrics("v112-crapi-foco-agent-metrics", metrics.model_dump(mode="json"))
             record_metrics("v112-crapi-foco-ensaio", records)
     assert records["duracao_fim_a_fim_segundos"] <= 900

@@ -7,7 +7,12 @@ import pytest
 
 from tests.integration.lab_support import REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics
-from tests.integration.v112_proof_support import control_spec, execute, summary
+from tests.integration.v112_proof_support import (
+    control_spec,
+    execute,
+    narrow_control_profile,
+    summary,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -15,13 +20,15 @@ pytestmark = pytest.mark.integration
 def test_v112_crapi_cli_cycle(tmp_path: Path) -> None:
     require_docker()
     cli = LabCli(tmp_path, {})
+    cli.env["HDAST_STACK_PROJECT_SUFFIX"] = "-codex"
     for key in tuple(cli.env):
         if key.startswith("CRAPI_"):
             del cli.env[key]
     product = cli.install_product("crapi", REPO / "lab/crapi/product-profile")
     control_spec(REPO / "lab/crapi/openapi.json", product / "openapi.json")
+    narrow_control_profile(cli.products)
     cli.approve_installed_products()
-    records: dict[str, Any] = {"scope": "get_products only", "strength": "LOW (padrão)"}
+    records: dict[str, Any] = {"scope": "get_products e login", "strength": "LOW explícito"}
     try:
         up = execute(cli, records, "up", "stack", "up", "crapi", timeout=600)
         assert up.code == 0, f"stack up: código {up.code}"

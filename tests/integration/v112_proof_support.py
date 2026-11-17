@@ -1,24 +1,87 @@
 """Apoio sanitizado das provas V1.12; não consulta estado ou credenciais."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
+import yaml
+
+from harness_dast.adapters.storage.product_paths import resolve_product_file
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run import is_run_id
+from harness_dast.domain.scope import OutboundRequest
 from tests.integration.crapi_support import run_cli
 from tests.integration.lab_support import CliResult, LabCli
 
 
 def control_spec(source: Path, destination: Path) -> None:
-    """Mantém somente a operação de controle e os componentes do OpenAPI original."""
+    """Preserva controle, cadastro das contas e metadados do OpenAPI."""
     spec = json.loads(source.read_text(encoding="utf-8"))
-    path = "/workshop/api/shop/products"
-    operation = spec["paths"][path]["get"]
-    if operation.get("operationId") != "get_products":
-        raise ValueError("Operação de controle inesperada no OpenAPI.")
-    spec["paths"] = {path: {"get": operation}}
+    wanted = {"signup", "login", "vehicle_resend_email", "add_vehicle", "get_products"}
+    found: set[str] = set()
+    paths: dict[str, Any] = {}
+    for path, item in spec["paths"].items():
+        selected = {
+            method: op
+            for method, op in item.items()
+            if isinstance(op, dict) and op.get("operationId") in wanted
+        }
+        if selected:
+            found.update(op["operationId"] for op in selected.values())
+            paths[path] = {
+                **{
+                    key: value
+                    for key, value in item.items()
+                    if key
+                    not in {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
+                },
+                **selected,
+            }
+    if found != wanted:
+        raise ValueError("Operações de controle ou cadastro ausentes no OpenAPI.")
+    spec["paths"] = paths
     destination.write_text(json.dumps(spec), encoding="utf-8")
+
+
+def narrow_control_profile(products: Path) -> None:
+    """Reduz o perfil descartável antes da aprovação e fixa LOW explicitamente."""
+    repository = FileProfileRepository(products)
+    profile = repository.load("crapi")
+    selections = (("POST", "/identity/api/auth/login"), ("GET", "/workshop/api/shop/products"))
+    for method, path in selections:
+        profile.guard().ensure_allowed(
+            OutboundRequest(method=method, url=profile.environment.base_url + path)
+        )
+    target = products / "crapi" / "target.yml"
+    data = yaml.safe_load(target.read_text(encoding="utf-8"))
+    if len(data["scope"]["allow"]) != 1:
+        raise ValueError("Perfil de controle inesperado: confira as regras antes de reduzir.")
+    original = data["scope"]["allow"][0]
+    data["scope"]["allow"] = [
+        dict(original, paths=[path], methods=[method]) for method, path in selections
+    ]
+    data.setdefault("scan", {})["strength"] = "LOW"
+    target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    assert repository.load("crapi").scan.strength == "LOW"
+
+
+def probe_attempts(data: dict[str, Any], expected: set[str]) -> tuple[str, dict[str, int]]:
+    """Valida o envelope de probe com o modelo da CLI e extrai apenas contagens."""
+    result = ProbeResult.model_validate(data)
+    return result.status, {
+        op.operation_id: op.attempts for op in result.operations if op.operation_id in expected
+    }
+
+
+def install_focus_spec(workspace: Path, products: Path) -> None:
+    """Copia o contrato entregue para o caminho gerado pela carta, sem editar o perfil."""
+    profile = FileProfileRepository(products).load("crapi")
+    target = resolve_product_file(products, "crapi", profile.openapi)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(workspace / "inputs" / "openapi.json", target)
 
 
 def execute(
