@@ -53,6 +53,10 @@ ALWAYS: tuple[Exclusion, ...] = (
     Exclusion("lab/pilot/src", "codigo-fonte do alvo; blocos de falha marcados no codigo"),
     Exclusion("lab/pilot/Dockerfile", "como o alvo e construido (substituido por um stub)"),
     Exclusion("lab/pilot/pom.xml", "build do alvo"),
+    Exclusion(
+        "lab/pilot/target",
+        "saida de build do alvo (ignorada pelo git): classes compiladas revelam o codigo",
+    ),
     Exclusion("lab/pilot/README.md", "descreve o alvo por dentro"),
     Exclusion("lab/pilot/.env", "senhas do alvo"),
     Exclusion("lab/pilot/.env.example", "variaveis internas do alvo"),

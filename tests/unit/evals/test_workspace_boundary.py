@@ -28,6 +28,7 @@ USE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-finding
         "tests/unit/test_lab_expectations.py",
         "products/real/target.yml",
         "src/.env.local",
+        "lab/pilot/target/classes/db/migration/V1__schema.sql",
     ],
 )
 def test_unapproved_context_is_not_copied(repo: Path, out: Path, relative: str) -> None:

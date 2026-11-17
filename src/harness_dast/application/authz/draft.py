@@ -3,7 +3,7 @@
 Só LÊ o perfil e o OpenAPI (como o `spec inspect`) e, se houver `--run`, o `exchanges.json` do
 `probe`. **Não envia nada ao alvo**, não carrega a aprovação do escopo, não usa a pilha e não
 toca o `target.yml`: grava um arquivo à parte que o carregador do perfil não lê. O rascunho é
-hipótese e nunca preenche `deny` (veja `domain.authz_matrix_draft`).
+hipótese e nunca preenche `deny` (veja `domain.authz.matrix_draft`).
 """
 
 from dataclasses import dataclass

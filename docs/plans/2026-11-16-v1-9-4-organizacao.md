@@ -59,3 +59,12 @@ Conferir primeiro a fronteira da cópia cega e seu manifesto: menor contexto mud
 Depois, revisar imports/nomes de authz (especialmente owner_*), portas comuns e os golden de painel/relatório.
 Conferir o tamanho da integração no runner e as imagens necessárias antes do primeiro disparo manual do CI.
 As referências de regras em ADRs aceitos e relatórios datados são históricas; a fonte canônica atual é AGENTS.
+
+## Revisão do Claude (2026-11-16)
+
+- Código: as 3.547 definições de topo de `src/` são idênticas antes e depois (comparação da árvore sintática sem imports e docstrings de módulo); a reorganização não muda comportamento.
+- Regras: todas as regras das partes A e B do `CLAUDE.md` anterior estão no `AGENTS.md`; a única mudança de texto atualiza o lugar das portas.
+- Estado: termos de estado que só existiam no `CLAUDE.md` (por exemplo `auth_rejected_expected`, `shared_role`, `multipart_not_scannable`, leitura de dono) estão no roadmap.
+- Cópia cega, exercitada contra o checkout principal (com `sites/`, `translate-app/` e o alvo compilado): pastas de fora, skills `dev-*`, CHANGELOG, roadmap, pesquisa e testes ficam fora. Encontrado e corrigido: `lab/pilot/target/` entrava (defeito anterior a esta entrega), agora excluído com teste.
+- CI: digests das imagens conferidos com os arquivos compose; o job não foi executado.
+- Corrigidas três docstrings e uma linha do roadmap que ainda citavam caminhos antigos.

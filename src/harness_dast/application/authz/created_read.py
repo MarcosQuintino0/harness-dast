@@ -2,7 +2,7 @@
 
 Única exceção à regra de que o `authz` só repete pedidos gravados em `exchanges.json`: monta UM
 tipo de pedido novo, o `GET` do recurso criado, com o modelo de caminho que o `probe` provou e o
-identificador que o servidor devolveu à própria requisição (`domain/authz_created`). O pedido
+identificador que o servidor devolveu à própria requisição (`domain/authz/created`). O pedido
 passa pelo `ReplaySender` e pelo `ScopeGuard` como os demais; quando há leitor, recusa ou resposta
 sem prova nunca é substituída pela resposta do próprio `POST`.
 """
