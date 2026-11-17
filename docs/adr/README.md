@@ -120,6 +120,13 @@ Reserva de 2026-11-17 para evitar colisão com os ADRs 0085–0089 da V1.11 conc
 a operação de cabeçalho e a versão do caso da Clínica. As decisões serão propostas;
 a reserva não implica aceite nem implementação.
 
+| ADR | Contrato proposto |
+| --- | --- |
+| [0090](0090-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
+| [0091](0091-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
+
+0092 continua reservado à frente da Clínica; seu rascunho recusado pelo provedor não foi integrado.
+
 ## Quando escrever um ADR
 
 - Dependência nova.

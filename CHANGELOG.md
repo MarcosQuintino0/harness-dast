@@ -10,6 +10,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - crAPI na pilha gerenciada, com cadastro sintético via API/MailHog, projeto próprio, recusa de modo seguro e descida com volumes descartáveis (ADR 0090, proposto). O chatbot de 1,5 GB deixou de ser necessário; o nginx usa um upstream já presente.
 - Sufixo opcional e validado `HDAST_STACK_PROJECT_SUFFIX` para isolar projetos e rede; integrações desta trilha usam `-codex`.
+- Ponte interna para Callback do ZAP, overlay do workshop e provas dirigidas de evento/topologia, ainda sem execução real nesta trilha (ADR 0091, proposto). Nenhuma regra de varredura é ligada.
+- Inventário de imagens e roteiro de limpeza em simulação: valida IDs, captura inicial, referências protegidas e contêineres em uso antes de gerar comandos para revisão humana; não remove imagens automaticamente.
 - Caso curto `crapi-foco` com carta estruturada, orçamento de 900 segundos e detectabilidade conservadora. O verificador da avaliação confere cada par caminho/método na mesma origem autorizada, com testes de recusa de combinações cruzadas.
 - Prova inicial do crAPI: subida e descida passaram, mas o `preflight` parou com `STACK_STALE`. Nenhuma detecção nova da trilha F ou rodada cega foi executada. A frente L3/L5 foi recusada pelo provedor; alterações parciais foram preservadas fora da branch para retomada conforme o plano.
 

@@ -30,7 +30,7 @@ o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
 
-O OWASP crAPI é o terceiro alvo do lab, **fora** do `hdast stack up`: veja
+O OWASP crAPI é o terceiro alvo do lab, integrado ao `hdast stack up`: veja
 [`crapi/README.md`](crapi/README.md).
 
 ## Subir e parar
@@ -410,7 +410,6 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | 809MB (captura inicial) |
 | `crapi/crapi-community:1.1.6-rc8@sha256:ff62181b9089df60379c1cecdcfceb0f54ea6d6c4d7c407bb2f5fd55208f2be0` | crAPI: crapi-community | 47.9MB (captura inicial) |
 | `crapi/crapi-workshop:1.1.6-rc8@sha256:b73a2e4aed1a62ba9c626214eca6b66289f2f5cced7169dbd791837edf263de6` | crAPI: crapi-workshop | 307MB (captura inicial) |
-| `crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f` | crAPI: crapi-chatbot | 1.5GB (captura inicial) |
 | `crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746` | crAPI: crapi-web | 182MB (captura inicial) |
 | `postgres:14@sha256:980b7cb415aa0f812f65bdec8f6f599be408d8ed9c83ffcaa12650eac397b264` | crAPI: postgresdb | 654MB (captura inicial) |
 | `mongo:4.4@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef` | crAPI: mongodb | 594MB (captura inicial) |
@@ -420,6 +419,8 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | `maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237` | Build da Clínica | 801MB (captura inicial) |
 | `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | 287MB (captura inicial) |
 | `scratch` | Estágio de exportação da Clínica (imagem vazia) | Não aplicável |
+
+A imagem antiga do chatbot (1,5 GB na captura inicial) já existia e não foi removida. Ela deixou de fazer parte da pilha do crAPI; permanece protegida como imagem anterior à trilha, inclusive no manifesto.
 
 Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
 

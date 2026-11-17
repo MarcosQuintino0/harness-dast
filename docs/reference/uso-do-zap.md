@@ -16,7 +16,7 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 | Regras passivas sobre o tráfego | Sim | Alertas lidos de `alert/view/alerts` |
 | Injeção em cabeçalhos e cookies | Não | Bits 4 e 8 da máscara ficam desligados |
 | Regras "alpha" (experimentais) | Não | Só as regras estáveis e beta da imagem oficial |
-| OAST (detecção fora de banda, com servidor de retorno) | Não | Sem complemento de OAST nem servidor de retorno; SSRF, injeção cega e Log4Shell ficam sem detecção |
+| OAST (detecção fora de banda, com servidor de retorno) | Infraestrutura proposta; sem varredura | Trilha L: ponte interna para Callback e suporte de prova local (ADR 0091). Presença do complemento e evento real ainda pendentes nesta trilha; SSRF, injeção cega e Log4Shell continuam sem detecção |
 | Regras ativas por script próprio | Não | A regra 50000 ("Script Active Scan Rules") roda sem nenhum script carregado |
 | XSS baseado em DOM (40026) | Não | Exige navegador; exclusão pré-existente, pouco relevante para API |
 | Spider e AJAX spider | Não | Desnecessários: as rotas vêm do OpenAPI e o `probe` alimenta o histórico |
