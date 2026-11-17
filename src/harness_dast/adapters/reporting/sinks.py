@@ -13,10 +13,6 @@ from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.report.html import render_html
 from harness_dast.domain.report.markdown import render_markdown
 from harness_dast.domain.report.model import FindingsReport
-from harness_dast.domain.report.presentation_render import (
-    render_presentation_html,
-    render_presentation_markdown,
-)
 from harness_dast.domain.run_ref import require_run_id
 
 FINDINGS_FILE: Final = "findings.json"
@@ -71,9 +67,8 @@ class MarkdownReportSink:
 
     def write(self, run_id: str, report: FindingsReport) -> str:
         """Grava o relatório em Markdown e devolve o nome do arquivo."""
-        text = render_markdown(report)
-        if self._presentation is not None:
-            text += "\n" + render_presentation_markdown(self._presentation.build(report))
+        view = self._presentation.build(report) if self._presentation is not None else None
+        text = render_markdown(report, view)
         return _write_atomic(self._runs_dir, run_id, REPORT_FILE, text)
 
 
@@ -92,8 +87,6 @@ class HtmlReportSink:
 
     def write(self, run_id: str, report: FindingsReport) -> str:
         """Grava o relatório em HTML e devolve o nome do arquivo."""
-        text = render_html(report)
-        if self._presentation is not None:
-            section = render_presentation_html(self._presentation.build(report))
-            text = text.replace("</main></body></html>", section + "</main></body></html>")
+        view = self._presentation.build(report) if self._presentation is not None else None
+        text = render_html(report, view)
         return _write_atomic(self._runs_dir, run_id, HTML_FILE, text)

@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -309,3 +310,37 @@ def test_report_shows_only_calibration_with_sufficient_samples(
         assert "4 de 9" in text
         assert "amostra 9" in text
         assert "44.4%" not in text
+
+
+class _SectionParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.in_main = False
+        self.section_in_main = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "main":
+            self.in_main = True
+        if tag == "section" and ("aria-label", "Verificação dos achados") in attrs:
+            self.section_in_main = self.in_main
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "main":
+            self.in_main = False
+
+
+def test_html_inclui_aviso_consultivo_dentro_de_main_com_fechamento_multilinha(
+    tmp_path: Path, report: FindingsReport
+) -> None:
+    folder = tmp_path / report.run_id
+    folder.mkdir()
+    (folder / "verification.json").write_text('{"secret": "senha-privada"', encoding="utf-8")
+    HtmlReportSink(tmp_path, _builder(tmp_path)).write(report.run_id, report)
+    html = (folder / "report.html").read_text(encoding="utf-8")
+    parser = _SectionParser()
+    parser.feed(html)
+    assert parser.section_in_main
+    assert "</main>\n</body>\n</html>" in html
+    assert "Verificação inválida" in html
+    assert "senha-privada" not in html
+    assert "Reproduzido" not in html
