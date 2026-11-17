@@ -10,16 +10,20 @@ import yaml
 from pydantic import ValidationError
 
 from evals.runner.metrics import measure_agent
+from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.application.lab_accounts import account_paths
+from harness_dast.application.probe import Probe, ProbeRequest
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_review import review_letter
 from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import OperationResult, ProbeResult, ProbeSummary
 from harness_dast.domain.scan_policy import build_policy
 from harness_dast.domain.scope import OutboundRequest
+from tests.fakes.rig import Rig
 from tests.integration.lab_support import REPO, CliResult
 from tests.integration.test_crapi_focus_dryrun import (
     HEALTH_PATH,
@@ -29,7 +33,7 @@ from tests.integration.test_crapi_focus_dryrun import (
 from tests.integration.v112_proof_support import (
     control_spec,
     install_focus_spec,
-    narrow_control_profile,
+    prepare_control_product,
     probe_attempts,
     summary,
 )
@@ -47,10 +51,7 @@ def test_control_spec_recusa_operacao_incorreta(tmp_path: Path) -> None:
 
 def test_control_spec_preserva_cadastro_e_restringe_plano(tmp_path: Path) -> None:
     products = tmp_path / "products"
-    product = products / "crapi"
-    shutil.copytree(REPO / "lab/crapi/product-profile", product)
-    control_spec(REPO / "lab/crapi/openapi.json", product / "openapi.json")
-    narrow_control_profile(products)
+    prepare_control_product(products)
     profile = FileProfileRepository(products).load("crapi")
     loader = FileSpecLoader(lambda name, path: resolve_product_file(products, name, path))
     spec = loader.load("crapi", profile)
@@ -67,6 +68,33 @@ def test_control_spec_preserva_cadastro_e_restringe_plano(tmp_path: Path) -> Non
         "get_products",
     }
     assert build_policy(profile.scan).strength == "LOW"
+
+
+def test_produto_de_controle_permite_probe_dry_run_com_documentos_reais(tmp_path: Path) -> None:
+    products = tmp_path / "products"
+    product = prepare_control_product(products)
+    assert {path.name for path in product.iterdir()} == {"target.yml", "openapi.json"}
+    rig = Rig(env={})
+    probe = Probe(
+        profiles=FileProfileRepository(products),
+        specs=FileSpecLoader(lambda name, path: resolve_product_file(products, name, path)),
+        documents=FileProductDocuments(products),
+        secrets=rig.secrets,
+        vault=rig.vault,
+        client=rig.target,
+        zap=rig.zap,
+        store=rig.store,
+        clock=rig.clock,
+        sleeper=rig.clock,
+        entropy=rig.entropy,
+        value_sources=GeneratorCatalogue,
+        harness_version="0.0-test",
+    )
+    result = probe.execute(ProbeRequest(product="crapi", dry_run=True))
+    assert result.status == "completed"
+    assert result.dry_run is True
+    assert {op.operation_id: op.outcome for op in result.operations}["get_products"] == "dry_run"
+    assert rig.target.requests == []
 
 
 def test_probe_attempts_le_formato_serializado_pela_cli() -> None:

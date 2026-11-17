@@ -14,7 +14,7 @@ from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run import is_run_id
 from harness_dast.domain.scope import OutboundRequest
 from tests.integration.crapi_support import run_cli
-from tests.integration.lab_support import CliResult, LabCli
+from tests.integration.lab_support import REPO, CliResult, LabCli
 
 
 def control_spec(source: Path, destination: Path) -> None:
@@ -66,6 +66,16 @@ def narrow_control_profile(products: Path) -> None:
     data.setdefault("scan", {})["strength"] = "LOW"
     target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     assert repository.load("crapi").scan.strength == "LOW"
+
+
+def prepare_control_product(products: Path) -> Path:
+    """Cria produto descartável somente com o perfil e o OpenAPI do controle."""
+    product = products / "crapi"
+    product.mkdir(parents=True, exist_ok=False)
+    shutil.copy2(REPO / "lab/crapi/product-profile/target.yml", product / "target.yml")
+    control_spec(REPO / "lab/crapi/openapi.json", product / "openapi.json")
+    narrow_control_profile(products)
+    return product
 
 
 def probe_attempts(data: dict[str, Any], expected: set[str]) -> tuple[str, dict[str, int]]:
