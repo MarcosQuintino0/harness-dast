@@ -11,7 +11,7 @@ O `ScanResult` devolvido nunca contém URL concreta, corpo nem segredo.
 """
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
@@ -22,6 +22,7 @@ from harness_dast.application.account_session import AccountSession, TokenCache
 from harness_dast.application.common_ports import (
     ApprovalStore,
     Clock,
+    EntropySource,
     KillSwitch,
     MutationJournal,
     ProductDocuments,
@@ -36,8 +37,16 @@ from harness_dast.application.common_ports import (
     ZapControl,
 )
 from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.extra_checks import (
+    ExtraContext,
+    ExtraOutcome,
+    not_run_outcome,
+    run_extra_checks,
+)
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.mutation_guard import finish_mutation
+from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
+from harness_dast.application.oast_ssrf import OAST_PREFIX, GuidedSsrf, SsrfOutcome
 from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.run_support import (
     AuditTrail,
@@ -49,6 +58,8 @@ from harness_dast.application.run_support import (
 from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
 from harness_dast.application.scan_ports import (
+    ExchangeSource,
+    OastEvents,
     ProcessSampler,
     ProxyAudit,
     RunArtifacts,
@@ -56,13 +67,16 @@ from harness_dast.application.scan_ports import (
 )
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
+from harness_dast.application.session_pool import SessionPool
 from harness_dast.application.strategy import load_strategy
+from harness_dast.domain.api_model import Operation
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
     HarnessError,
     PreflightError,
 )
+from harness_dast.domain.oast_ssrf import SSRF_MAX_REQUESTS, plan_ssrf
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
@@ -96,6 +110,7 @@ from harness_dast.domain.scan_result import (
 )
 from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.scan_tokens import origin_regex
+from harness_dast.domain.scope import OutboundRequest
 from harness_dast.domain.scope_fingerprint import block_digests
 from harness_dast.domain.strategy_basis import StrategyBasis
 from harness_dast.domain.strategy_plan import compile_scan_snapshot
@@ -153,6 +168,7 @@ class _Prepared:
     deadline: datetime
     policy: ScanPolicy
     zap_limits: ScanLimits
+    operations: Mapping[str, Operation]
 
 
 @dataclass(frozen=True)
@@ -160,6 +176,7 @@ class _Live:
     gate: RunGate
     health: TargetHealth
     tokens: AccountTokens
+    dispatcher: OperationDispatcher
 
 
 class _ContinuingTrail(AuditTrail):
@@ -198,8 +215,14 @@ class Scan:
         approvals: ApprovalStore | None = None,
         basis_for: Callable[[str, ProductProfile, str], StrategyBasis | None] | None = None,
         mutation_journal: MutationJournal | None = None,
+        oast: OastEvents | None = None,
+        exchanges: ExchangeSource | None = None,
+        entropy: EntropySource | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
+
+        `oast`, `exchanges` e `entropy` só servem ao SSRF guiado (`scan.oast`, ADR 0100); sem
+        qualquer um deles a etapa não roda.
 
         `token_cache`, `login_budget` e `kill_switch` são compartilhados com as outras etapas
         quando o `run` encadeia tudo num processo só (cada conta faz login uma vez). `live`
@@ -227,6 +250,9 @@ class Scan:
         self._approvals = approvals
         self._basis_for = basis_for
         self._mutation_journal = mutation_journal
+        self._oast = oast
+        self._exchanges = exchanges
+        self._entropy = entropy
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -301,8 +327,11 @@ class Scan:
             uploads=uploads,
             started=started,
             deadline=deadline,
-            policy=build_policy(profile.scan),
+            policy=build_policy(
+                profile.scan, experimental_rules=profile.extra_checks.experimental_rules
+            ),
             zap_limits=build_limits(limits, profile.scan),
+            operations={op.operation_id: op for op in spec.operations},
         )
 
     def _execute_live(
@@ -339,18 +368,27 @@ class Scan:
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
         runner = ScanRunner(self._deps(prep, request, live, context_id))
+        guided: SsrfOutcome | None = None
         try:
             self._configure(prep)
+            guided = self._guided_ssrf(prep, request, live)
             outcome = runner.run(plan.targets)
         finally:
             removed = live.tokens.remove_all()
             self._drop_policy(prep.policy.name)
+        extra_checks = self._extra_checks(prep, request, live, outcome.status)
         self._write_progress(request.run_id, "collecting", len(plan.targets))
-        collected, status, message = self._collect(request.run_id, base_url, outcome)
+        extra = (guided.alerts if guided is not None else ()) + (
+            extra_checks.alerts if extra_checks is not None else ()
+        )
+        collected, status, message = self._collect(request.run_id, base_url, outcome, extra)
         result = self._result(
             prep, request, status, message, plan=plan, entries=outcome.entries
         ).model_copy(
             update={
+                "ssrf": guided.summary if guided is not None else None,
+                "rate_checks": extra_checks.rate if extra_checks is not None else None,
+                "inventory": extra_checks.inventory if extra_checks is not None else None,
                 "alerts_total": collected.alerts_total if collected else 0,
                 "alerts_by_risk": collected.by_risk if collected else {},
                 "evidence_messages": collected.evidence_messages if collected else 0,
@@ -496,13 +534,13 @@ class Scan:
             sleeper=self._sleeper,
         )
         tokens = AccountTokens(lambda alias: self._delivery(prep, alias, dispatcher), self._zap)
-        return _Live(gate, health, tokens)
+        return _Live(gate, health, tokens, dispatcher)
 
-    def _delivery(
+    def _account_session(
         self, prep: _Prepared, alias: str, dispatcher: OperationDispatcher
-    ) -> TokenDelivery:
+    ) -> AccountSession:
         profile = prep.profile
-        session = AccountSession(
+        return AccountSession(
             account=profile.select_account(alias),
             auth=profile.auth,
             base_url=profile.environment.base_url,
@@ -512,6 +550,87 @@ class Scan:
             dispatcher=dispatcher,
             token_cache=self._token_cache,
         )
+
+    def _guided_ssrf(
+        self, prep: _Prepared, request: ScanRequest, live: _Live
+    ) -> SsrfOutcome | None:
+        """SSRF guiado pelo contrato (ADR 0100): só com `scan.oast` e as portas ligadas."""
+        if not (prep.policy.oast and self._oast and self._exchanges and self._entropy):
+            return None
+        profile = prep.profile
+        try:
+            log = self._exchanges.read_exchanges(request.run_id)
+        except ConfigError as error:
+            _log.warning("ssrf_exchanges_unavailable", reason=error.message)
+            return None
+        guard = profile.guard()
+        base_url = profile.environment.base_url
+
+        def permits(method: str, target: str) -> bool:
+            url = join_url(base_url, target)
+            return guard.evaluate(OutboundRequest(method=method, url=url)).verdict == "allowed"
+
+        plan = plan_ssrf(
+            log.exchanges,
+            prep.operations,
+            permits=permits,
+            seed=self._entropy.seed(),
+            infrastructure=profile.infrastructure_paths,
+            only=frozenset(request.only),
+        )
+        pool = SessionPool(lambda alias: self._account_session(prep, alias, live.dispatcher))
+        settings = NegativeSettings(
+            base_url=base_url,
+            dispatcher=live.dispatcher,
+            sessions=pool,
+            max_requests=SSRF_MAX_REQUESTS,
+            product=profile.product,
+            mutation_journal=self._mutation_journal,
+            prefix=OAST_PREFIX,
+        )
+        return GuidedSsrf(
+            sender=NegativeSender(settings),
+            events=self._oast,
+            sleeper=self._sleeper,
+            base_url=base_url,
+        ).run(plan)
+
+    def _extra_checks(
+        self, prep: _Prepared, request: ScanRequest, live: _Live, status: str
+    ) -> ExtraOutcome | None:
+        """Limite de consumo e inventário (ADR 0101 e 0102): só com as chaves da carta.
+
+        Rodam depois das varreduras do ZAP (uma conta de teste que o limite bloqueasse não atrapalha
+        a varredura) e só se ela terminou normalmente; senão ficam como "não executado".
+        """
+        flags = prep.profile.extra_checks
+        if not (flags.allow_rate_tests or flags.inventory):
+            return None
+        if status != "completed" or self._exchanges is None:
+            return not_run_outcome(prep.profile, f"a varredura terminou como {status}.")
+        try:
+            log = self._exchanges.read_exchanges(request.run_id)
+        except ConfigError as error:
+            _log.warning("extra_checks_exchanges_unavailable", reason=error.message)
+            return not_run_outcome(prep.profile, "exchanges.json indisponível.")
+        context = ExtraContext(
+            profile=prep.profile,
+            operations=prep.operations,
+            exchanges=log,
+            dispatcher=live.dispatcher,
+            session_factory=lambda alias: self._account_session(prep, alias, live.dispatcher),
+            account=prep.default_account,
+            only=frozenset(request.only),
+            product=prep.profile.product,
+            mutation_journal=self._mutation_journal,
+        )
+        return run_extra_checks(context)
+
+    def _delivery(
+        self, prep: _Prepared, alias: str, dispatcher: OperationDispatcher
+    ) -> TokenDelivery:
+        profile = prep.profile
+        session = self._account_session(prep, alias, dispatcher)
         session.open()
         limit = profile.login_limit
         floor = math.ceil(60 / limit.max_per_minute) if limit is not None else 0
@@ -581,7 +700,11 @@ class Scan:
             _log.error("scan_policy_remove_failed", policy=name, reason=error.message)
 
     def _collect(
-        self, run_id: str, base_url: str, outcome: RunOutcome
+        self,
+        run_id: str,
+        base_url: str,
+        outcome: RunOutcome,
+        extra: tuple[dict[str, str], ...] = (),
     ) -> tuple[Collected | None, ScanStatusName, str | None]:
         if outcome.status == "stopped_zap":
             return None, outcome.status, outcome.message
@@ -592,6 +715,7 @@ class Scan:
                 vault=self._vault,
                 run_id=run_id,
                 base_url=base_url,
+                extra=extra,
             )
         except ExternalToolError as error:
             _log.error("scan_collect_failed", reason=error.message)

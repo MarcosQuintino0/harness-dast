@@ -71,6 +71,11 @@ class ScanConfig(ProfileModel):
             armazenamento do alvo (nome e conteúdo de arquivo, campos de texto), então só a carta
             o liga. Sem ele, a operação de upload é alcançada pelo `probe`, mas não varrida
             (`upload_scan_not_authorized`). Ligá-lo muda a impressão digital da aprovação.
+        inject_headers: A carta autoriza injetar também em cabeçalhos e cookies (V1.12, ADR 0096)?
+            Padrão `false`; só a carta o liga e ligá-lo muda a impressão digital da aprovação. A
+            capacidade que o consome vem em passo posterior; hoje o campo só é guardado.
+        oast: A carta autoriza o retorno fora de banda (servidor de retorno do laboratório;
+            V1.12, ADR 0096)? Padrão `false`; mesma regra de `inject_headers`.
         fail_on: Severidade mínima (proposta pelo ZAP) que faz `report` sair com código 1;
             `none` desliga o gate.
     """
@@ -89,6 +94,8 @@ class ScanConfig(ProfileModel):
     fail_on: FailOn = "none"
     include_outcomes: tuple[ExtraOutcome, ...] = Field(default=(), max_length=5)
     allow_upload_scan: StrictBool = False
+    inject_headers: StrictBool = False
+    oast: StrictBool = False
 
     @field_validator("include_outcomes")
     @classmethod

@@ -18,19 +18,33 @@ como no spike), na rede de laço local. Nada disto é registrado em log.
 """
 
 import json
+from datetime import UTC, datetime
 from typing import Final
+from urllib.parse import urlsplit
+
+import structlog
 
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.adapters.zap.scan_progress import parse_scan_progress
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.oast_ssrf import OastEvent
 from harness_dast.domain.rule_stats import RuleStat
-from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
+from harness_dast.domain.scan_policy import (
+    OAST_CALLBACK_HOST,
+    OAST_CALLBACK_PORT,
+    ScanLimits,
+    ScanPolicy,
+)
 from harness_dast.domain.scan_result import ScanRefused, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
 from harness_dast.domain.zap_messages import ZapMessage
 
 from harness_dast.application.scan_ports import ScanStart  # isort: skip
 
+_log = structlog.get_logger()
+_OAST_MESSAGE_TYPE: Final = "22"
+_OAST_PAGE: Final = 100
+_AGENT_CAP: Final = 80
 _MESSAGE_PAGE: Final = 10
 _ALERT_PAGE: Final = 50
 _MAX_PAGES: Final = 1000
@@ -61,6 +75,44 @@ def _dict_list(body: dict[str, object], key: str, endpoint: str) -> list[dict[st
     if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
         raise _unexpected(endpoint)
     return [item for item in items if isinstance(item, dict)]
+
+
+def _oast_event(raw: dict[str, object]) -> OastEvent | None:
+    """Evento do Callback (mensagem do tipo 22); outras mensagens do histórico dão `None`."""
+    if _text(raw.get("type")) != _OAST_MESSAGE_TYPE:
+        return None
+    identifier = raw.get("id")
+    if not isinstance(identifier, str) or not identifier.isdigit():
+        raise _unexpected("core/view/messages")
+    lines = _text(raw.get("requestHeader", "")).splitlines()
+    request_line = lines[0].split(" ") if lines else []
+    if len(request_line) < 2:
+        raise _unexpected("core/view/messages")
+    agent = next(
+        (
+            line.split(":", 1)[1].strip()
+            for line in lines[1:]
+            if line.lower().startswith("user-agent:")
+        ),
+        None,
+    )
+    stamp = raw.get("timestamp")
+    moment = (
+        datetime.fromtimestamp(int(stamp) / 1000, tz=UTC).isoformat()
+        if isinstance(stamp, str) and stamp.isdigit()
+        else None
+    )
+    return OastEvent(
+        event_id=int(identifier),
+        path=urlsplit(request_line[1]).path,
+        at=moment,
+        method=request_line[0][:10],
+        user_agent=_clean(agent) if agent else None,
+    )
+
+
+def _clean(value: str) -> str:
+    return "".join(char for char in value if char.isprintable())[:_AGENT_CAP]
 
 
 def _message(raw: dict[str, object], endpoint: str) -> ZapMessage:
@@ -111,6 +163,31 @@ class ZapScanClient(ZapApiClient):
                 break
         return tuple(found)
 
+    def oast_baseline(self) -> int:
+        """Quantas mensagens o histórico tem agora (`core/view/numberOfMessages`)."""
+        body = self._call("core", "view", "numberOfMessages")
+        count = body.get("numberOfMessages")
+        if not isinstance(count, str) or not count.isdigit():
+            raise _unexpected("core/view/numberOfMessages")
+        return int(count)
+
+    def oast_events(self, since: int) -> tuple[OastEvent, ...]:
+        """Acessos que o Callback do OAST recebeu depois de `since` (mensagens do tipo 22)."""
+        found: list[OastEvent] = []
+        for page in range(_MAX_PAGES):
+            start = since + page * _OAST_PAGE
+            body = self._call(
+                "core", "view", "messages", {"start": str(start), "count": str(_OAST_PAGE)}
+            )
+            items = _dict_list(body, "messages", "core/view/messages")
+            for item in items:
+                event = _oast_event(item)
+                if event is not None:
+                    found.append(event)
+            if len(items) < _OAST_PAGE:
+                break
+        return tuple(found)
+
     def get_message(self, message_id: int) -> ZapMessage:
         """Uma mensagem do histórico (`core/view/message`)."""
         body = self._call("core", "view", "message", {"id": str(message_id)})
@@ -130,6 +207,12 @@ class ZapScanClient(ZapApiClient):
             ("setOptionHostPerScan", 1),
         ):
             self._action("ascan", option, {"Integer": str(value)})
+        # Sem isto o ZAP varre cabeçalhos de poucos pedidos; explícito nos dois sentidos (ADR 0097).
+        self._action(
+            "ascan",
+            "setOptionScanHeadersAllRequests",
+            {"Boolean": "true" if policy.header_injection else "false"},
+        )
         self.remove_scan_policy(policy.name)
         self._action(
             "ascan",
@@ -145,6 +228,10 @@ class ZapScanClient(ZapApiClient):
             ids = ",".join(str(item) for item in policy.disabled_rules)
             self._action("ascan", "disableScanners", {"ids": ids, "scanPolicyName": policy.name})
         self._verify_disabled(policy)
+        if policy.oast:
+            self._configure_oast(policy)
+        if policy.experimental_rules:
+            self._enable_experimental(policy)
 
     def start_scan(self, request: ScanStart) -> str:
         """Inicia a varredura de uma requisição, SEMPRE com `contextId` e sem recursão."""
@@ -260,6 +347,80 @@ class ZapScanClient(ZapApiClient):
             raise ExternalToolError(
                 "O ZAP não tem as regras de varredura ativa " + ", ".join(unknown) + ".",
                 hint="Confira a versão do ZAP (2.17.x) e os ids em scan.disable_rules do perfil.",
+            )
+
+    def _configure_oast(self, policy: ScanPolicy) -> None:
+        """Aponta o Callback do OAST para a ponte do laboratório e liga as regras (ADR 0099).
+
+        Só roda com `scan.oast`. O Callback escuta em 0.0.0.0 dentro da rede interna do ZAP e
+        anuncia o nome da ponte; o ZAP não ganha rede nova nem rota externa.
+        """
+        self._action(
+            "oast",
+            "setCallbackOptions",
+            {
+                "localAddress": "0.0.0.0",  # noqa: S104 - rede interna do ZAP, sem porta publicada
+                "remoteAddress": OAST_CALLBACK_HOST,
+                "port": str(OAST_CALLBACK_PORT),
+            },
+        )
+        self._action("oast", "setActiveScanService", {"name": "Callback"})
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        known = {
+            _text(item.get("id")) for item in _dict_list(body, "scanners", "ascan/view/scanners")
+        }
+        present = [item for item in policy.oast_rules if str(item) in known]
+        absent = [item for item in policy.oast_rules if str(item) not in known]
+        if absent:
+            _log.warning("oast_rules_absent", ids=absent)
+        if not present:
+            return
+        ids = ",".join(str(item) for item in present)
+        self._action("ascan", "enableScanners", {"ids": ids, "scanPolicyName": policy.name})
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        on = {
+            _text(item.get("id"))
+            for item in _dict_list(body, "scanners", "ascan/view/scanners")
+            if _text(item.get("enabled")).lower() == "true"
+        }
+        off = sorted(str(item) for item in present if str(item) not in on)
+        if off:
+            raise ExternalToolError(
+                "Regras de retorno fora de banda continuam desligadas: " + ", ".join(off) + ".",
+                hint="Confira a versão do ZAP (2.17.x) e o complemento OAST da imagem.",
+            )
+
+    def _enable_experimental(self, policy: ScanPolicy) -> None:
+        """Liga as regras alpha/beta selecionadas e confere que ligaram (ADR 0103).
+
+        Só roda com `extra_checks.experimental_rules`. Falta de regra é erro: a chave liga uma
+        capacidade que a imagem estável do ZAP não tem, e seguir sem ela daria a falsa ideia de
+        que a regra rodou.
+        """
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        known = {
+            _text(item.get("id")) for item in _dict_list(body, "scanners", "ascan/view/scanners")
+        }
+        absent = sorted(str(item) for item in policy.experimental_rules if str(item) not in known)
+        if absent:
+            raise ExternalToolError(
+                "O ZAP não tem as regras experimentais " + ", ".join(absent) + ".",
+                hint="Suba a pilha com a imagem do harness (docker/zap), que traz ascanrulesBeta "
+                "e ascanrulesAlpha fixos; a imagem estável oficial não os tem.",
+            )
+        ids = ",".join(str(item) for item in policy.experimental_rules)
+        self._action("ascan", "enableScanners", {"ids": ids, "scanPolicyName": policy.name})
+        body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
+        on = {
+            _text(item.get("id"))
+            for item in _dict_list(body, "scanners", "ascan/view/scanners")
+            if _text(item.get("enabled")).lower() == "true"
+        }
+        off = sorted(str(item) for item in policy.experimental_rules if str(item) not in on)
+        if off:
+            raise ExternalToolError(
+                "Regras experimentais continuam desligadas: " + ", ".join(off) + ".",
+                hint="Confira a versão do ZAP (2.17.x) e os complementos da imagem do harness.",
             )
 
     def _verify_disabled(self, policy: ScanPolicy) -> None:

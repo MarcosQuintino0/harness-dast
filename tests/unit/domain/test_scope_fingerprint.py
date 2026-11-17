@@ -240,7 +240,9 @@ def test_every_protected_block_has_a_digest_in_display_order() -> None:
     profile = ProductProfile.from_data(valid_profile_data())
 
     # O bloco `negative` só entra quando difere do padrão (ADR 0051); veja o teste dele.
-    present = tuple(name for name in BLOCK_IDS if name not in {"negative", "technologies"})
+    present = tuple(
+        name for name in BLOCK_IDS if name not in {"negative", "technologies", "extra_checks"}
+    )
     assert tuple(block_digests(profile)) == present
     assert tuple(protected_blocks(profile)) == present
 
@@ -410,6 +412,7 @@ TOP_LEVEL_PROTECTED: frozenset[str] = frozenset(
         "scan",
         "authz",
         "negative",
+        "extra_checks",
         "cleanup",
         "technologies",
     }
@@ -450,6 +453,8 @@ def test_every_scan_authz_and_cleanup_field_is_covered_by_the_dump_of_its_block(
                     "include_outcomes": ["not_found"],
                     "allow_upload_scan": True,
                     "pacing": "proxy",
+                    "inject_headers": True,
+                    "oast": True,
                 },
             )
         )

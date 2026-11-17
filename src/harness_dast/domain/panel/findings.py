@@ -169,6 +169,8 @@ def _list_card(view: PanelView) -> str:
 
 def _chips(view: PanelView, item: PanelFinding) -> str:
     chips = [chip("Grave", "gr")]
+    if item.experimental:
+        chips.append(chip("Experimental: regra alpha/beta, confirme antes", "mu", dot=False))
     area = _area_of(view, item)
     if area:
         chips.append(f'<span class="chip ch-mu">{h.ident(area, 60)}</span>')

@@ -136,7 +136,7 @@ def test_compose_images_reads_the_real_repository_compose_file() -> None:
         ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
     )
 
-    assert any(image.startswith("zaproxy/zap-stable") for image in images)
+    assert "hdast/zap:2.17.0-alpha54-beta64" in images
     assert "hdast/scope-proxy:local" in images
 
 

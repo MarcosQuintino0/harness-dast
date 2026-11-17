@@ -43,6 +43,7 @@ pytestmark = pytest.mark.integration
 
 EXPECTED = {
     "login",
+    "check_otp_v2",
     "contact_mechanic",
     "validate_coupon",
     "get_vehicles",

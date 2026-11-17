@@ -8,12 +8,19 @@ do ZAP ou do agente entra por `markdown_safe`. Este módulo é puro.
 
 from collections.abc import Iterable
 
+from harness_dast.domain.experimental_rules import is_experimental_plugin
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.fix_hints import fix_hint
 from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline, fenced
 from harness_dast.domain.report.authz import authz_lines
-from harness_dast.domain.report.labels import SEVERITY_LABEL, seed_tag, seeded_scans_notice
+from harness_dast.domain.report.labels import (
+    EXPERIMENTAL_NOTICE,
+    SEVERITY_LABEL,
+    experimental_tag,
+    seed_tag,
+    seeded_scans_notice,
+)
 from harness_dast.domain.report.model import Coverage, FindingsReport
 from harness_dast.domain.report.negative import negative_lines, negative_summary_lines
 from harness_dast.domain.report.presentation import Presentation
@@ -215,13 +222,15 @@ def _summary_lines(report: FindingsReport) -> list[str]:
     rule = "|---|---|---|---|---|---|"
     if report.comparison:
         columns, rule = columns + " Comparação |", rule + "---|"
+    if any(item.experimental for item in report.findings):
+        lines += ["", escape_inline(EXPERIMENTAL_NOTICE, 400)]
     lines += ["", columns + " Triagem (agente) |", rule + "---|"]
     for item in report.findings:
         cells = [
             code_span(item.finding_id),
             SEVERITY_LABEL[item.proposed_severity],
             escape_inline(item.proposed_confidence),
-            escape_inline(item.title, 120),
+            escape_inline(f"{item.title} {experimental_tag(item.experimental)}".strip(), 140),
             code_span(f"{item.method} {item.path_template}")
             + (f" {escape_inline(seed_tag(item.seed_outcome))}" if item.seed_outcome else ""),
             str(item.occurrences),
@@ -238,6 +247,10 @@ def _triage_cell(item: Finding) -> str:
         return "-"
     flag = "suspeita de falso positivo: " if item.triage.suspected_false_positive else ""
     return escape_inline(flag + (item.triage.reason or item.triage.note), 160) or "-"
+
+
+def _group_title(title: str, plugin_id: str) -> str:
+    return f"{title} {experimental_tag(is_experimental_plugin(plugin_id))}".strip()
 
 
 def _group_lines(report: FindingsReport) -> list[str]:
@@ -262,7 +275,8 @@ def _group_lines(report: FindingsReport) -> list[str]:
         where += f" e mais {extra}" if extra > 0 else ""
         lines.append(
             f"| {cell_code(group.group_id)} | {SEVERITY_LABEL[group.proposed_severity]} | "
-            f"{escape_inline(group.title, 120)} | {cell_code(group.parameter or '-')} | "
+            f"{escape_inline(_group_title(group.title, group.plugin_id), 140)} | "
+            f"{cell_code(group.parameter or '-')} | "
             f"{group.findings_count} | {group.occurrences} | {escape_inline(where, 200)} |"
         )
     notes = [
@@ -302,7 +316,8 @@ def _finding_lines(item: Finding) -> list[str]:
     tags = [f"CWE-{cls.cwe}" if cls.cwe else None, f"WASC-{cls.wasc}" if cls.wasc else None]
     tags.append(cls.owasp_api_2023)
     lines = [
-        f"### {code_span(item.finding_id)} {escape_inline(item.title, 160)}",
+        f"### {code_span(item.finding_id)} "
+        f"{escape_inline(f'{item.title} {experimental_tag(item.experimental)}'.strip(), 180)}",
         "",
         f"- **Severidade proposta pelo ZAP:** {SEVERITY_LABEL[item.proposed_severity]} "
         f"(confiança {escape_inline(item.proposed_confidence)}). Status: needs_triage.",

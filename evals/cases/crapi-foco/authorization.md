@@ -6,14 +6,15 @@ Base: http://crapi, porta 80. A carta estruturada entregue em `inputs/carta.yml`
 é a fonte dos caminhos e métodos, limites e contas. Use-a com `hdast init --from-letter`;
 o contrato está em `inputs/openapi.json`. O modo de caminhos é estrito.
 
-Autorizam-se somente POST no login, contato do mecânico e validação de cupom;
+Autorizam-se somente POST no login, na verificação de OTP da v2, no contato do mecânico e na validação de cupom;
 GET na lista e localização de veículos, detalhe de vídeos e produtos; PUT no detalhe
 de vídeos. A lista de veículos fornece identificadores e produtos é a verificação de saúde.
 O contato com mecânico só pode usar infraestrutura isolada do laboratório, sem saída
-à internet. Não são autorizados força bruta de OTP nem testes de negação de serviço.
-OTP e recuperação de senha estão explicitamente negados. DELETE e PATCH não são autorizados.
-Os caminhos negados são /identity/api/auth/v2/check-otp,
-/identity/api/auth/v3/check-otp e /identity/api/auth/forget-password.
+à internet. Não são autorizados testes de negação de serviço. A verificação de OTP da v2
+só admite o teste de limite de consumo da carta, com teto de pedidos e parada no primeiro
+bloqueio. A v3 do OTP e a recuperação de senha estão explicitamente negadas. DELETE e
+PATCH não são autorizados. Os caminhos negados são /identity/api/auth/v3/check-otp
+e /identity/api/auth/forget-password.
 
 Limites: 20 requisições por segundo, 15 minutos por execução e 4 threads por host;
 força LOW. Não são autorizados testes adicionais de escrita entre contas, valores
@@ -22,7 +23,8 @@ As contas user_a e user_b, papel user, são providas pelo coordenador por refer�
 CRAPI_USER_A_EMAIL, CRAPI_USER_A_PASSWORD, CRAPI_USER_B_EMAIL e CRAPI_USER_B_PASSWORD.
 O login recebe JSON com email e password e devolve token. Cada conta tem um veículo.
 
-Para um futuro teste de limite de taxa, a intenção é teto de 20 pedidos e parada no
-primeiro 429; isso não está representado no contrato vigente nem autoriza execução
-antes de existir suporte e autorização formal correspondente. A meta total da rodada
+Versão 2 do caso (V1.12): a carta estruturada liga, na seção `attack`, o ritmo `proxy`
+e as capacidades de injeção em cabeçalhos e cookies, retorno fora de banda, limite de
+consumo, regras experimentais e inventário, cada uma com a frase de autorização. O limite
+de consumo tem teto de 66 pedidos e parada no primeiro bloqueio. A meta total da rodada
 é 900 segundos, ainda não medida. O coordenador prepara e conecta a infraestrutura.

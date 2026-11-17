@@ -1,6 +1,7 @@
 """Apoio exclusivo à prova de Callback com emissor sintético em rede interna."""
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -18,8 +19,9 @@ PYTHON_IMAGE = (
     "python:3.13-slim-bookworm@sha256:"
     "a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72"
 )
-PROJECT = "hdast-codex"
-CRAPI_PROJECT = "hdast-crapi-codex"
+_SUFFIX = os.environ.get("HDAST_IT_STACK_SUFFIX") or "-codex"
+PROJECT = "hdast" + _SUFFIX
+CRAPI_PROJECT = "hdast-crapi" + _SUFFIX
 CALLBACK_INTERACTIONS = "stats.oast.callback.interactions"
 
 
@@ -108,7 +110,7 @@ class OastLab:
         assert "code" not in result, result
         return result
 
-    def start(self, *, synthetic: bool = True) -> None:
+    def start(self, *, synthetic: bool = True, configure: bool = True) -> None:
         """Cria o gateway sem recriar nem adicionar redes ao ZAP."""
         self.cleanup.gateway_intended = True
         self.compose("up", "-d", "--no-deps", "oast-gateway")
@@ -130,12 +132,13 @@ class OastLab:
                 "-c",
                 "import time; time.sleep(300)",
             )
-        self.api(
-            "oast/action/setCallbackOptions",
-            localAddress="0.0.0.0",  # noqa: S104 - somente rede interna do ZAP
-            remoteAddress="oast-gateway",
-            port="8090",
-        )
+        if configure:  # a varredura (ADR 0099) faz a própria configuração do Callback
+            self.api(
+                "oast/action/setCallbackOptions",
+                localAddress="0.0.0.0",  # noqa: S104 - somente rede interna do ZAP
+                remoteAddress="oast-gateway",
+                port="8090",
+            )
 
     def assert_project_unused(self) -> None:
         """Não reutiliza contêineres ou redes de outra sessão do projeto."""

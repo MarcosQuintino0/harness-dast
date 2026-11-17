@@ -1,8 +1,9 @@
 """Classificação e adulteração de tokens para o teste "token adulterado" (ADR 0039).
 
-A única coisa que este módulo faz com um token é REMOVER ou CORROMPER o que o protege: nunca
-assina nada, nunca tenta chave conhecida, nunca troca identidade ou papel (`sub`, `role`...) e
-nunca testa confusão de algoritmo. O que sai daqui jamais é um token válido. As funções são
+Este módulo só REMOVE ou CORROMPE o que protege o token: nunca assina nada, nunca tenta chave,
+nunca troca identidade ou papel (`sub`, `role`...) e nunca testa confusão de algoritmo. A
+assinatura com chave fraca vive em `jwt_forge` (ADR 0098). O que sai daqui jamais é um token
+válido. As funções são
 puras e determinísticas (mesma entrada, mesma saída) e nunca levantam exceção: entrada
 malformada vira "token opaco". O valor do token é dado sensível: nenhum texto de erro o cita.
 """
@@ -14,7 +15,14 @@ import re
 from dataclasses import dataclass, field
 from typing import Final, Literal
 
-TamperVariant = Literal["stripped_signature", "alg_none", "altered_claims", "scrambled"]
+TamperVariant = Literal[
+    "stripped_signature",
+    "alg_none",
+    "altered_claims",
+    "scrambled",
+    "weak_key",
+    "weak_key_expired",
+]
 """Nome estável de cada variante de adulteração (campo `variants` do achado)."""
 
 MAX_TOKEN_CHARS: Final = 8192
@@ -54,7 +62,8 @@ class TamperedToken:
     value: str = field(repr=False)
 
 
-def _b64url_decode(segment: str) -> bytes | None:
+def b64url_decode(segment: str) -> bytes | None:
+    """Decodifica um segmento base64url; `None` se malformado."""
     if not _B64URL.fullmatch(segment) or len(segment) % 4 == 1:
         return None
     try:
@@ -63,12 +72,13 @@ def _b64url_decode(segment: str) -> bytes | None:
         return None
 
 
-def _b64url_encode(raw: bytes) -> str:
+def b64url_encode(raw: bytes) -> str:
+    """Codifica em base64url sem preenchimento."""
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
 def _json_object(segment: str) -> dict[str, object] | None:
-    raw = _b64url_decode(segment)
+    raw = b64url_decode(segment)
     if raw is None:
         return None
     try:
@@ -78,9 +88,10 @@ def _json_object(segment: str) -> dict[str, object] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _encode_object(value: dict[str, object]) -> str:
+def encode_object(value: dict[str, object]) -> str:
+    """Objeto JSON compacto em base64url."""
     text = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
-    return _b64url_encode(text.encode("utf-8"))
+    return b64url_encode(text.encode("utf-8"))
 
 
 def classify_token(token: str) -> JwtToken | None:
@@ -107,11 +118,9 @@ def _jwt_variants(token: str, jwt: JwtToken) -> tuple[TamperedToken, ...]:
         found.append(TamperedToken("stripped_signature", f"{head}.{body}."))
     if jwt.header["alg"] != "none":
         header = {**jwt.header, "alg": "none"}
-        found.append(TamperedToken("alg_none", f"{_encode_object(header)}.{body}."))
+        found.append(TamperedToken("alg_none", f"{encode_object(header)}.{body}."))
     claims = {**jwt.payload, ADDED_CLAIM[0]: ADDED_CLAIM[1]}
-    found.append(
-        TamperedToken("altered_claims", f"{head}.{_encode_object(claims)}.{jwt.signature}")
-    )
+    found.append(TamperedToken("altered_claims", f"{head}.{encode_object(claims)}.{jwt.signature}"))
     return tuple(item for item in found if item.value != token)
 
 

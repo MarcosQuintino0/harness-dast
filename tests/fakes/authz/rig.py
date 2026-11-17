@@ -12,6 +12,8 @@ responde como um alvo seguro ou com a falha ligada:
 - `lax`: como o servidor confere o token: `strict` (igualdade), `ignore_signature` (lê o `sub`
   do JWT sem conferir assinatura nem `alg`) ou `any_token` (reconhece o apelido em qualquer parte
   do texto do token, até invertido);
+- `jwt_key`: o JWT é assinado de verdade (HS256) com esta chave; `lax="verify_hmac"` faz o servidor
+  conferir a assinatura com ela (e o `exp`, salvo `check_exp=False`), aceitando token re-assinado;
 - `open_different`: o caminho aberto devolve outro corpo a quem não se identificou;
 - `unauth_status`: código devolvido a quem não se identificou (401 por padrão);
 - `stores`: campos extras que `PUT /api/me` guarda e devolve (atribuição em massa derivada do
@@ -26,7 +28,10 @@ verdade sobre o alvo falso e `authz()` devolve o caso de uso sobre o mesmo armaz
 """
 
 import base64
+import hashlib
+import hmac
 import json
+import time
 from typing import Any
 
 from harness_dast.application.authz.service import Authz
@@ -64,11 +69,32 @@ def _b64(value: dict[str, Any]) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
-def jwt_of(alias: str) -> str:
-    """JWT de teste: assinatura é texto fixo (nunca assinado de verdade)."""
+def _hs256(key: str, signing_input: str) -> str:
+    digest = hmac.new(key.encode(), signing_input.encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+def jwt_of(alias: str, key: str | None = None) -> str:
+    """JWT de teste: sem `key`, a assinatura é texto fixo; com `key`, HS256 de verdade."""
     header = _b64({"alg": "HS256", "typ": "JWT"})
     payload = _b64({"sub": alias, "role": ROLES[alias], "exp": 4102444800})
-    return f"{header}.{payload}.c2lnbmF0dXJlLWZpeGE"
+    signature = _hs256(key, f"{header}.{payload}") if key else "c2lnbmF0dXJlLWZpeGE"
+    return f"{header}.{payload}.{signature}"
+
+
+def _verified_subject(token: str, key: str, *, check_exp: bool) -> str | None:
+    """Sujeito de um JWT HS256 cuja assinatura confere com `key` (e que não venceu, se pedido)."""
+    parts = token.split(".")
+    if len(parts) != 3 or not hmac.compare_digest(_hs256(key, ".".join(parts[:2])), parts[2]):
+        return None
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+    except ValueError:
+        return None
+    if check_exp and claims.get("exp", 0) < time.time():
+        return None
+    sub = claims.get("sub")
+    return sub if sub in ROLES else None
 
 
 def _jwt_subject(token: str) -> str | None:
@@ -104,6 +130,8 @@ class Clinic:
         empty_lists: bool = False,
         open_paths: frozenset[str] = frozenset(),
         jwt: bool = False,
+        jwt_key: str | None = None,
+        check_exp: bool = True,
         lax: str = "strict",
         open_different: bool = False,
         unauth_status: int = 401,
@@ -126,6 +154,8 @@ class Clinic:
         self.counter = 0
         self.open_paths = open_paths
         self.jwt = jwt
+        self.jwt_key = jwt_key
+        self.check_exp = check_exp
         self.lax = lax
         self.open_different = open_different
         self.unauth_status = unauth_status
@@ -141,7 +171,7 @@ class Clinic:
         self.medicos: dict[int, dict[str, Any]] = {}
 
     def issue(self, alias: str) -> str:
-        return jwt_of(alias) if self.jwt else token_of(alias)
+        return jwt_of(alias, self.jwt_key) if self.jwt else token_of(alias)
 
     def __call__(self, request: HttpRequest, jar: dict[str, str]) -> HttpResponse | HarnessError:
         path = request.url.split("://", 1)[1].split("/", 1)[1].split("?")[0]
@@ -165,6 +195,8 @@ class Clinic:
         for alias in ROLES:
             if token == self.issue(alias):
                 return alias
+        if self.lax == "verify_hmac" and self.jwt_key:
+            return _verified_subject(token, self.jwt_key, check_exp=self.check_exp)
         if self.lax == "ignore_signature":
             return _jwt_subject(token)
         if self.lax == "any_token":

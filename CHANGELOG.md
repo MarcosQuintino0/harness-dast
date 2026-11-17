@@ -6,7 +6,26 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
-### Laboratório da V1.12 — trilha L parcial
+## [1.12.0] - 2026-11-17
+
+Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínica Piloto, VAmPI e crAPI), sem produto real; rodada cega e validação independente pendentes. Relatório em `docs/reviews/relatorio-v1.12.md`. A tabela do que usamos do ZAP foi revisada para o estado final (`docs/reference/uso-do-zap.md`), com a correção da afirmação do ADR 0099 sobre a regra de SSRF.
+
+### Caso cego `crapi-foco`, versão 2
+
+- A carta do caso liga `attack.pacing: proxy` e as cinco capacidades (`inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules`, `inventory`), cada uma com frase de autorização; o POST da verificação de OTP da v2 entra no escopo (a v3 e a recuperação de senha seguem negadas). O gabarito marca `detectable: true` em C3, C11 e C15 e `false` em C1, C6, C10 e C12. O caso da Clínica Piloto não muda: a H11 segue `detectable: false` porque a carta da Clínica não autoriza cabeçalhos.
+
+### Trilha F: capacidades
+
+- F1 (ADR 0096, proposto): a seção `attack` da carta ganha `pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules` e `inventory`, todas desligadas quando ausentes. O `init --from-letter` gera `scan.pacing`, `scan.inject_headers`, `scan.oast` e o bloco `extra_checks`; só a carta liga (booleanos com `source: carta` e frase). A impressão digital da aprovação só muda quando uma chave é ligada; perfis existentes mantêm a aprovação. As capacidades que consomem as chaves vêm nos passos F2 a F8.
+- F2 (ADR 0099, proposto): `scan.oast` configura o Callback do OAST do ZAP para a ponte do laboratório (ADR 0095) e liga as regras da imagem que dependem do retorno (Log4Shell 40043, XXE 90023, SSTI cega 90036; a `zap-stable` pura não tem regra de SSRF nem de comando cego; a imagem derivada do F7 traz o SSRF 40046, ver ADR 0103). Desligado, nenhuma chamada `oast/*` e política idêntica à de antes.
+- F3 (ADR 0100, proposto): com `scan.oast`, o `scan` manda a URL de retorno nos campos de URL do contrato (`format: uri`, nomes como `*_url`, `*_api`, `callback`, `webhook`), pela cerca, com teto rígido de 10 pedidos; o retorno correlacionado por token vira achado de SSRF (CWE 918) com a prova do evento. Prova do desafio de SSRF do crAPI no laboratório em `tests/integration/test_lab_oast_scan.py`.
+- F4 (ADR 0098, proposto): o `tampered_token` do `authz` passa a quebrar OFFLINE a chave HMAC de um JWT com uma lista fixa e versionada de chaves fracas e, achada, envia até 2 pedidos de prova com o token re-assinado (reivindicação inofensiva e `exp` vencido), com teto de 10 operações por execução. Sem chave nova na carta; severidade alta, CWE-347; chave e tokens nunca são gravados. Prova no lab: o crAPI aceitou `alg_none` e `altered_claims` no `authz` (C15 parcial: `kid`/`jku` não avaliados) e a Clínica segura ficou sem achado; a quebra da chave HMAC fraca só foi exercitada em teste de unidade, nunca contra um alvo no laboratório.
+- F5 (ADR 0101, proposto): com `extra_checks.allow_rate_tests`, o `scan` faz, depois do ZAP e pela cerca, (a) dois pedidos de tamanho de página (normal e 10 000, ou `maximum` + 1000) nos `GET` com parâmetro inteiro `limit`/`page_size`/`size`... e (b) até 20 tentativas com valor errado e sintético, com o identificador da conta de teste, em `POST` de autenticação ou verificação (`otp`, `password`, `code`...), parando no primeiro `429`, `Retry-After`, bloqueio ou mudança de resposta. Teto de 66 pedidos; achados `Medium` (CWE 770 e 307) com a contagem; `scan.json` ganha `rate_checks`.
+- F6 (ADR 0097, proposto): `scan.inject_headers` liga os bits de cabeçalho e cookie da máscara (63) e `ScanHeadersAllRequests` no ZAP; desligado, nada muda. Prova no laboratório: H11 achada só com a chave; 519 pedidos sem e 1089 com a chave na operação; modo seguro com a chave sem achado (ver `tests/integration/test_lab_header_injection.py`).
+- F7 (ADR 0103, proposto): a imagem do ZAP passa a ser `hdast/zap` (`docker/zap/Dockerfile`), derivada da `zap-stable` 2.17.0 já fixada por digest, com `ascanrulesBeta` 64 e `ascanrulesAlpha` 54 baixados no build e conferidos por SHA-256 (nada é baixado em execução). As 26 regras novas ficam sempre desligadas na política; `extra_checks.experimental_rules` (só a carta) liga NoSQL MongoDB (40033 e 90039) e, junto com `scan.oast`, o SSRF 40046. Achados dessas regras saem com `experimental: true` no `findings.json` (campo aditivo, padrão `false`) e a marca `[experimental]` no relatório, no painel e na verificação. Desligado, a política efetiva é a de antes.
+- F8 (ADR 0102, proposto): com `extra_checks.inventory`, o `scan` faz até 40 `GET` pela cerca: versões irmãs não documentadas (`/v2/x` quando o contrato tem `/v3/x`, com controle `v999` contra resposta curinga) e 16 caminhos fixos de documentação exposta. O que a cerca nega vira `not_verifiable_by_fence`, nunca é forçado. Achados baixos ou informativos; `scan.json` ganha `inventory`.
+
+### Trilha L: laboratório
 
 - crAPI na pilha gerenciada, com cadastro sintético via API/MailHog, projeto próprio, recusa de modo seguro e descida com volumes descartáveis (ADR 0094, proposto). O chatbot de 1,5 GB deixou de ser necessário; o nginx usa um upstream já presente.
 - Sufixo opcional e validado `HDAST_STACK_PROJECT_SUFFIX` para isolar projetos e rede; integrações desta trilha usam `-codex`.
@@ -46,6 +65,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - Cópia cega: `lab/pilot/target/` (saída de build da Clínica Piloto, ignorada pelo git) entrava no workspace com as classes compiladas, `application.yml` e o esquema SQL, que revelam o código do alvo. A lista antiga de exclusões e a nova lista de permissão deixavam a pasta passar quando ela existia na origem; agora ela é excluída, com teste. Rodadas antigas preparadas a partir de um checkout com o alvo compilado podem ter recebido esses arquivos.
 - `hdast confirm`: a leitura de cabeçalhos registrados aceita `Vary`, `Set-Cookie` e outros nomes repetíveis; antes, qualquer nome repetido tornava a evidência "indisponível" (30 alertas de `X-Content-Type-Options` da Clínica Piloto). Com teste.
+- `authz`: o envio da chave HMAC fraca de JWT respeita o teto de pedidos de prova (2 por chave achada, 10 por execução). Com teste.
+- Limite de consumo: as tentativas de valor errado têm intenção própria no diário da cerca (`rejection-attempt:`), e lista vazia no teste de página enorme dá resultado inconclusivo, não limpo. Com teste.
+- Limite de consumo, correções da validação independente (ADR 0101): (1) tentativas repetidas só viram achado com rejeição 4xx estável; `5xx` na primeira resposta é inconclusivo (`server_error_http_5xx`), e o valor errado respeita tipo, `pattern`, exemplo e tamanho do contrato (dígitos num código numérico); (2) a intenção `rejection-attempt:` do diário agora tem teste com o `NegativeSender` real: 5xx fica `observed` só com a intenção, `502`, `503` e `504` continuam pendentes e um 2xx fica `succeeded`; (3) operações que trocam ou cadastram credencial (`change`, `set`, `register`, `new_password`...) saem do teste e um 2xx registra `possible_state_change`; (7) página enorme sem `maximum` tem confiança baixa e diz que é heurística.
+- SSRF guiado: falha do proxy do ZAP durante o envio vira nota de parada no resumo `ssrf`, sem abortar o `scan`. Com teste.
+- Inventário: versão irmã que responde `5xx` é inconclusiva, não existente. Com teste.
+- `authz`: só a chave HMAC fraca com 8 ou mais caracteres entra no cofre de mascaramento (palavras como `test` e `key` mascarariam qualquer saída); os tokens re-assinados continuam registrados. Com teste.
+- `stack up`: com `--build`, o processo do Compose ganha 600 s além do prazo de saúde (o build da imagem `hdast/zap` baixa dois complementos e rodava dentro de 30 s de folga). Com teste.
+
 
 ## [1.11.0] - 2026-11-17
 

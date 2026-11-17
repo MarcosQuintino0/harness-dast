@@ -1,4 +1,4 @@
-"""Verificações de acesso: pedido sem login e token adulterado (ADR 0039). Só leem (`GET`).
+"""Verificações de acesso: pedido sem login e token adulterado (ADR 0039, 0098). Só leem (`GET`).
 
 `run_anonymous` repete o `GET` da conta dona sem nenhuma credencial; `run_tampered` o repete com o
 token da conta dona estragado de propósito (nunca válido, nunca de outra conta) e sem cookie. O
@@ -27,6 +27,13 @@ from harness_dast.domain.authz.compare import (
     judge_replay,
 )
 from harness_dast.domain.authz.findings_access import anonymous_finding, tampered_finding
+from harness_dast.domain.authz.jwt_forge import (
+    MAX_PROOF_REQUESTS_PER_OPERATION,
+    MAX_WEAK_KEY_OPERATIONS,
+    WeakKey,
+    find_weak_key,
+    forge_with_weak_key,
+)
 from harness_dast.domain.authz.plan import Planned
 from harness_dast.domain.authz.result import AuthzNotTested
 from harness_dast.domain.authz.token import TamperedToken, TamperVariant, build_tampered_tokens
@@ -155,48 +162,123 @@ def _send_variants(
     return results, statuses, None
 
 
+class _WeakKeyBudget:
+    """Estado de UMA execução do teste de chave fraca: operações restantes e chave por conta."""
+
+    def __init__(self, extra_candidates: tuple[str, ...]) -> None:
+        self.remaining = MAX_WEAK_KEY_OPERATIONS
+        self._extra = extra_candidates
+        self._keys: dict[str, WeakKey | None] = {}
+
+    def key_for(self, account: str, credential: AuthCredential) -> WeakKey | None:
+        """Quebra a chave offline uma vez por conta; token que não é `Bearer` nunca é tentado."""
+        if account not in self._keys:
+            found = (
+                find_weak_key(credential.value, self._extra) if credential.kind == "token" else None
+            )
+            self._keys[account] = found
+        return self._keys[account]
+
+
+MIN_MASKED_KEY_LENGTH = 8
+
+
+def _send_weak_key(
+    ctx: CheckContext,
+    exchange: ExchangeRecord,
+    base: Reply,
+    credential: AuthCredential,
+    weak: WeakKey,
+) -> tuple[list[tuple[TamperVariant, Verdict]], dict[TamperVariant, int], Reply | None]:
+    """Até dois pedidos de prova: token re-assinado e, se aceito, o mesmo com `exp` vencido."""
+    results: list[tuple[TamperVariant, Verdict]] = []
+    statuses: dict[TamperVariant, int] = {}
+    forged = forge_with_weak_key(credential.value, weak)
+    if forged is None:
+        return results, statuses, None
+    # Só a chave de 8 ou mais caracteres entra no cofre: palavras curtas da lista (`test`, `dev`,
+    # `key`) mascarariam essas palavras em qualquer saída. Os tokens re-assinados, que são o que
+    # trafega, são registrados pela `TamperedSession`; a chave em si nunca vai a artefato algum.
+    if len(weak.key) >= MIN_MASKED_KEY_LENGTH:
+        ctx.settings.vault.register(weak.key)
+    for item in forged[:MAX_PROOF_REQUESTS_PER_OPERATION]:
+        reply = ctx.sender.tampered(
+            exchange, TamperedSession(credential, item.value, ctx.settings.vault)
+        )
+        if reply.problem is not None:
+            return results, statuses, reply
+        verdict = _verdict(ctx, base, reply)
+        results.append((item.variant, verdict))
+        if reply.status is not None:
+            statuses[item.variant] = reply.status
+        if verdict != "allowed_equivalent":
+            break
+    return results, statuses, None
+
+
+def _tamper_operation(
+    ctx: CheckContext,
+    exchange: ExchangeRecord,
+    out: CheckResult,
+    budget: _WeakKeyBudget,
+) -> None:
+    base = usable_baseline("tampered_token", exchange, ctx.sender, out)
+    if base is None or base.status is None or not _closed_to_anonymous(ctx, exchange, out):
+        return
+    prepared = _prepare(ctx, exchange)
+    if isinstance(prepared, AuthzNotTested):
+        out.not_tested.append(prepared)
+        return
+    results, statuses, refused = _send_variants(ctx, exchange, base, prepared)
+    weak = budget.key_for(exchange.account, prepared[0]) if refused is None else None
+    if weak is not None and budget.remaining > 0 and not accepted_variants(results):
+        budget.remaining -= 1
+        more, more_statuses, refused = _send_weak_key(ctx, exchange, base, prepared[0], weak)
+        results += more
+        statuses.update(more_statuses)
+    if refused is not None:
+        out.not_tested.append(problem_note("tampered_token", exchange, refused))
+        return
+    conclusion = conclude_variants(results)
+    if conclusion == "inconclusive":
+        out.not_tested.append(
+            note(
+                "tampered_token",
+                exchange,
+                "inconclusive",
+                "Alguma variante ficou sem resposta ou deu erro do servidor; não conta "
+                "como seguro.",
+            )
+        )
+        return
+    out.tested += 1
+    accepted = accepted_variants(results)
+    if conclusion == "finding" and accepted:
+        out.findings.append(
+            tampered_finding(
+                product=ctx.settings.product,
+                operation_id=exchange.operation_id,
+                method=exchange.method,
+                path_template=exchange.path,
+                actor=(exchange.account, ctx.settings.roles.get(exchange.account)),
+                variants=accepted,
+                statuses=(base.status, statuses[accepted[0]]),
+            )
+        )
+
+
 def run_tampered(ctx: CheckContext, plan: Planned[ExchangeRecord]) -> CheckResult:
-    """Repete cada `GET` com o token adulterado: aceitar é não conferir o token (assinatura)."""
+    """Repete cada `GET` com o token adulterado: aceitar é não conferir o token (assinatura).
+
+    Se nenhuma variante comum foi aceita e o token é um JWT HMAC com chave da lista fraca
+    (achada offline), a operação recebe até dois pedidos de prova (ADR 0098), dentro do teto
+    de `MAX_WEAK_KEY_OPERATIONS` operações por execução.
+    """
     out = ctx.begin(
         "tampered_token",
         CheckResult(not_tested=list(plan.not_tested), candidates=len(plan.tasks)),
     )
+    budget = _WeakKeyBudget((ctx.settings.product,))
     for exchange in plan.tasks:
-        base = usable_baseline("tampered_token", exchange, ctx.sender, out)
-        if base is None or base.status is None or not _closed_to_anonymous(ctx, exchange, out):
-            continue
-        prepared = _prepare(ctx, exchange)
-        if isinstance(prepared, AuthzNotTested):
-            out.not_tested.append(prepared)
-            continue
-        results, statuses, refused = _send_variants(ctx, exchange, base, prepared)
-        if refused is not None:
-            out.not_tested.append(problem_note("tampered_token", exchange, refused))
-            continue
-        conclusion = conclude_variants(results)
-        if conclusion == "inconclusive":
-            out.not_tested.append(
-                note(
-                    "tampered_token",
-                    exchange,
-                    "inconclusive",
-                    "Alguma variante ficou sem resposta ou deu erro do servidor; não conta "
-                    "como seguro.",
-                )
-            )
-            continue
-        out.tested += 1
-        accepted = accepted_variants(results)
-        if conclusion == "finding" and accepted:
-            out.findings.append(
-                tampered_finding(
-                    product=ctx.settings.product,
-                    operation_id=exchange.operation_id,
-                    method=exchange.method,
-                    path_template=exchange.path,
-                    actor=(exchange.account, ctx.settings.roles.get(exchange.account)),
-                    variants=accepted,
-                    statuses=(base.status, statuses[accepted[0]]),
-                )
-            )
+        _tamper_operation(ctx, exchange, out, budget)
     return out

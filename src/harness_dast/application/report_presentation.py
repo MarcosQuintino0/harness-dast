@@ -78,6 +78,7 @@ class PresentationBuilder:
                         finding_id=item.finding_id,
                         title=item.title,
                         severity=item.proposed_severity,
+                        experimental=isinstance(item, Finding) and item.experimental,
                         origin=origin,
                         verification=entry,
                         confirmations=tuple(

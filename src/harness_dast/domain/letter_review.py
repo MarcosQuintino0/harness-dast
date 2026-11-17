@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, JsonValue
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.letter import Gates, Letter
+from harness_dast.domain.letter_attack import AttackFlags, read_attack_flags
 from harness_dast.domain.letter_collect import (
     GATE_DENIED,
     INVALID_VALUE,
@@ -56,6 +57,10 @@ GENERATED_BLOCKS: Final = (
     "scan.strength",
     "scan.include_outcomes",
     "scan.allow_upload_scan",
+    "scan.pacing",
+    "scan.inject_headers",
+    "scan.oast",
+    "extra_checks",
     "authz.allow_writes",
     "authz.shared_roles",
     "negative.allow_writes",
@@ -64,6 +69,8 @@ GENERATED_BLOCKS: Final = (
 
 `scan.strength` só se informada; `scan.include_outcomes` só com lista não vazia (ADR 0050);
 `scan.allow_upload_scan` só quando a carta o autoriza (ADR 0052);
+`scan.pacing` só se `proxy`, `scan.inject_headers`, `scan.oast` e `extra_checks` só quando a
+carta os liga (ADR 0096);
 `authz.allow_writes` só quando a carta o autoriza (ADR 0038); `negative.allow_writes`, idem
 (ADR 0051).
 """
@@ -87,6 +94,12 @@ _HEADER_WRITES = (
 )
 _HEADER_NEGATIVE = (
     "# Também gerado da carta (ADR 0051): negative.allow_writes, que só a carta autoriza.\n"
+)
+
+
+_HEADER_ATTACK = (
+    "# Também gerado da carta (ADR 0096): scan.pacing, scan.inject_headers, scan.oast e "
+    "extra_checks, que só a carta liga.\n"
 )
 
 
@@ -152,6 +165,7 @@ def _profile_data(
     negative_writes = read_allow_invalid_writes(c, letter.attack.allow_invalid_input_writes)
     outcomes = read_include_outcomes(c, letter.attack.include_outcomes)
     upload_scan = read_allow_upload_scan(c, letter.attack.allow_upload_scan)
+    flags = read_attack_flags(c, letter.attack)
     examples = read_example_data(c, letter.example_data)
     if (
         c.issues
@@ -181,6 +195,24 @@ def _profile_data(
     data.update(
         {} if technologies is None else {"technologies": technologies.model_dump(mode="json")}
     )
+    scan = _scan_data(strength, outcomes, upload_scan, flags)
+    if scan:
+        data["scan"] = scan
+    extra_checks = _extra_checks_data(flags)
+    if extra_checks:
+        data["extra_checks"] = extra_checks
+    authz = _authz_data(allow_writes, shared_roles)
+    if authz:
+        data["authz"] = authz
+    if negative_writes:
+        data["negative"] = {"allow_writes": True}
+    return data, examples
+
+
+def _scan_data(
+    strength: str | None, outcomes: tuple[str, ...], upload_scan: bool, flags: AttackFlags
+) -> Block:
+    """Bloco `scan` gerado: só as chaves que a carta informou ou ligou."""
     scan: Block = {}
     if strength is not None:
         scan["strength"] = strength
@@ -188,14 +220,31 @@ def _profile_data(
         scan["include_outcomes"] = list(outcomes)
     if upload_scan:
         scan["allow_upload_scan"] = True
-    if scan:
-        data["scan"] = scan
-    authz = _authz_data(allow_writes, shared_roles)
-    if authz:
-        data["authz"] = authz
-    if negative_writes:
-        data["negative"] = {"allow_writes": True}
-    return data, examples
+    scan.update(_scan_flags(flags))
+    return scan
+
+
+def _scan_flags(flags: AttackFlags) -> Block:
+    """Chaves da V1.12 que moram em `scan`; só as ligadas (ou o ritmo `proxy`)."""
+    scan: Block = {}
+    if flags.pacing != "legacy":
+        scan["pacing"] = flags.pacing
+    if flags.inject_headers:
+        scan["inject_headers"] = True
+    if flags.oast:
+        scan["oast"] = True
+    return scan
+
+
+def _extra_checks_data(flags: AttackFlags) -> Block:
+    data: Block = {}
+    if flags.allow_rate_tests:
+        data["allow_rate_tests"] = True
+    if flags.experimental_rules:
+        data["experimental_rules"] = True
+    if flags.inventory:
+        data["inventory"] = True
+    return data
 
 
 def _authz_data(allow_writes: bool, shared_roles: tuple[str, ...]) -> dict[str, object]:
@@ -205,6 +254,16 @@ def _authz_data(allow_writes: bool, shared_roles: tuple[str, ...]) -> dict[str, 
     if shared_roles:
         data["shared_roles"] = list(shared_roles)
     return data
+
+
+def _has_attack_keys(profile: ProductProfile) -> bool:
+    scan = profile.scan
+    return (
+        scan.pacing != "legacy"
+        or scan.inject_headers
+        or scan.oast
+        or not profile.extra_checks.is_default()
+    )
 
 
 def _has_block(data: Mapping[str, object], name: str) -> bool:
@@ -256,6 +315,7 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
         + (_HEADER_UPLOAD if profile.scan.allow_upload_scan else "")
         + (_HEADER_WRITES if profile.authz.allow_writes else "")
         + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
+        + (_HEADER_ATTACK if _has_attack_keys(profile) else "")
         + render_yaml(data),
         blocks=blocks,
         example_data=examples,

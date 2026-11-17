@@ -74,6 +74,7 @@ class PresentedFinding(ApiModel):
     origin: Literal["zap", "authz", "negative", "proxy"]
     verification: VerificationEntry
     confirmations: tuple[HumanConfirmation, ...] = ()
+    experimental: bool = False
 
     @property
     def needs_person(self) -> bool:

@@ -16,6 +16,9 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
   normalizada: a ordem das regras e dos papéis não conta, e tabela vazia fica de fora);
 - `negative`: o bloco inteiro (escrita de valor inválido, tetos de casos e de pedidos, classes
   desligadas), só quando difere do padrão (ADR 0051);
+- `extra_checks`: as permissões extras da V1.12 (testes de limite, regras experimentais,
+  inventário), só quando difere do padrão (ADR 0096); `scan.inject_headers` e `scan.oast` entram
+  com o `scan`, também só fora do padrão;
 - `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
   de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
@@ -58,6 +61,7 @@ BLOCKS: Final[tuple[tuple[str, str], ...]] = (
     ("scan", "política da varredura e do gate de severidade"),
     ("authz", "configuração do teste de autorização"),
     ("negative", "teste de valores que o esquema proíbe"),
+    ("extra_checks", "capacidades extras da V1.12, ligadas só pela carta"),
     ("cleanup", "limpeza do ambiente, com script, banco e tetos"),
 )
 """Blocos de proteção, em ordem de exibição: identificador e descrição em português."""
@@ -246,12 +250,15 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
         "scan": _scan(profile),
         "authz": _authz(profile),
         "negative": _negative(profile),
+        "extra_checks": profile.extra_checks.model_dump(mode="json"),
         "cleanup": None if profile.cleanup is None else profile.cleanup.model_dump(mode="json"),
     }
     if profile.technologies is not None:
         blocks["technologies"] = profile.technologies.model_dump(mode="json")
     if profile.negative.is_default():
         del blocks["negative"]
+    if profile.extra_checks.is_default():
+        del blocks["extra_checks"]
     return {block_id: blocks[block_id] for block_id in BLOCK_IDS if block_id in blocks}
 
 

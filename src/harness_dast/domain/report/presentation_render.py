@@ -5,6 +5,7 @@ from types import MappingProxyType
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.markdown_safe import escape_inline
 from harness_dast.domain.redaction import redact_body, redact_header_block
+from harness_dast.domain.report.labels import experimental_tag
 from harness_dast.domain.report.presentation import Presentation, PresentedFinding, calibration_text
 
 _LABELS = MappingProxyType(
@@ -23,6 +24,11 @@ def _clean(value: str) -> str:
     return redact_body(headers.partition("\n")[2], lambda text: text, cap=400)[0]
 
 
+def _titled(item: PresentedFinding) -> str:
+    """Título limpo do achado, com a marca de experimental (ADR 0103) quando houver."""
+    return f"{_clean(item.title)} {experimental_tag(item.experimental)}".strip()
+
+
 def _html_finding(item: PresentedFinding) -> str:
     entry = item.verification
     attack = h.text(_clean(entry.attack or "Não registrado"))
@@ -39,7 +45,7 @@ def _html_finding(item: PresentedFinding) -> str:
     return (
         f'<article id="verificacao-{h.ident(item.finding_id)}" style="border:1px solid;'
         'padding:12px;margin:12px 0;overflow-wrap:anywhere">'
-        f"<h3>{h.text(item.finding_id)} — {h.text(_clean(item.title))}</h3>"
+        f"<h3>{h.text(item.finding_id)} — {h.text(_titled(item))}</h3>"
         f"<p>Origem: {h.text(item.origin)} · Severidade: {h.text(item.severity)}</p>"
         f"<p><b>Verificação:</b> {h.plain(_LABELS[entry.level])} — {reason}</p>"
         '<div style="display:flex;flex-wrap:wrap;gap:12px">'
@@ -55,7 +61,7 @@ def render_presentation_html(view: Presentation) -> str:
     links = (
         "".join(
             f'<li><a href="#verificacao-{h.ident(item.finding_id)}">{h.text(item.finding_id)} — '
-            f"{h.text(_clean(item.title))}</a></li>"
+            f"{h.text(_titled(item))}</a></li>"
             for item in selected
         )
         or "<li>Nenhum achado neste filtro.</li>"
@@ -110,7 +116,7 @@ def render_presentation_markdown(view: Presentation) -> str:
     for item in view.findings:
         entry = item.verification
         lines += [
-            f"### {escape_inline(item.finding_id)} — {escape_inline(_clean(item.title))}",
+            f"### {escape_inline(item.finding_id)} — {escape_inline(_titled(item))}",
             f"Origem: {escape_inline(item.origin)}; severidade: {escape_inline(item.severity)}.",
             f"**Verificação:** {_LABELS[entry.level]} — {escape_inline(_clean(entry.reason))}",
             f"**Ataque:** {escape_inline(_clean(entry.attack or 'Não registrado'))}",

@@ -7,6 +7,7 @@ varredura barulhenta não encha o disco.
 """
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -47,6 +48,7 @@ def collect(
     vault: SecretVault,
     run_id: str,
     base_url: str,
+    extra: Sequence[dict[str, str]] = (),
 ) -> Collected:
     """Lê os alertas do ZAP, redige, busca a evidência, redige e grava.
 
@@ -54,7 +56,9 @@ def collect(
         ExternalToolError: Falha ao listar alertas, ou três falhas seguidas ao buscar mensagens.
         ConfigError: Falha de escrita.
     """
-    redacted = [redact_alert(alert, vault.mask) for alert in scanner.list_alerts(base_url)]
+    # `extra`: alertas que a CLI mesma montou (SSRF guiado, ADR 0100); passam pela mesma redação.
+    alerts = (*scanner.list_alerts(base_url), *extra)
+    redacted = [redact_alert(alert, vault.mask) for alert in alerts]
     artifacts.write_alerts(run_id, redacted)
     parsed = [RawAlert.model_validate(alert) for alert in redacted]
     messages = _fetch_evidence(scanner, vault, parsed)

@@ -227,3 +227,20 @@ def test_grouped_view_is_absent_without_findings_and_escapes_hostile_titles() ->
     grouped = text.split("## Achados agrupados pela causa")[1].split("## Achados\n")[0]
     assert "<script>" not in grouped
     assert "](http://evil" not in grouped
+
+
+def test_experimental_findings_are_marked_in_the_table_the_detail_and_the_groups() -> None:
+    nosql = zap_alert("9", pluginId="40033", alertRef="40033", name="NoSQL Injection - MongoDB")
+
+    text = render_markdown(report([nosql, zap_alert("8")]))
+
+    assert text.count(r"\[experimental\]") >= 3
+    assert "regras alpha ou beta do ZAP" in text
+    sql_line = next(line for line in text.splitlines() if "SQL Injection |" in line)
+    assert "experimental" not in sql_line
+
+
+def test_without_experimental_findings_the_report_has_no_mark_or_notice() -> None:
+    text = render_markdown(report([zap_alert("9")]))
+
+    assert "experimental" not in text

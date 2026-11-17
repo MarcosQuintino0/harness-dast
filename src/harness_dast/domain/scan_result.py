@@ -11,6 +11,8 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.extra_check_result import ExtraChecksSummary
+from harness_dast.domain.oast_ssrf import SsrfSummary
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_binding import ScanBinding
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
@@ -140,6 +142,9 @@ class AppliedPolicy(ApiModel):
         url_path_injection: Injeção em caminho ligada.
         injectable_mask: Valor de `TargetParamsInjectable`.
         disabled_rules: Ids das regras desligadas.
+        oast: Retorno fora de banda ligado (ADR 0099).
+        oast_rules: Regras que dependem do retorno e ficaram ligadas.
+        experimental_rules: Regras alpha/beta selecionadas que ficaram ligadas (ADR 0103).
     """
 
     name: str
@@ -148,6 +153,9 @@ class AppliedPolicy(ApiModel):
     url_path_injection: bool
     injectable_mask: int
     disabled_rules: tuple[int, ...]
+    oast: bool = False
+    oast_rules: tuple[int, ...] = ()
+    experimental_rules: tuple[int, ...] = ()
 
     @classmethod
     def from_policy(cls, policy: ScanPolicy) -> "AppliedPolicy":
@@ -159,6 +167,9 @@ class AppliedPolicy(ApiModel):
             url_path_injection=policy.url_path_injection,
             injectable_mask=policy.injectable_mask,
             disabled_rules=policy.disabled_rules,
+            oast=policy.oast,
+            oast_rules=policy.oast_rules,
+            experimental_rules=policy.experimental_rules,
         )
 
 
@@ -248,6 +259,9 @@ class ScanResult(ApiModel):
         alerts_by_risk: Contagem por risco proposto pelo ZAP.
         evidence_messages: Mensagens de evidência gravadas.
         health: Guarda de saúde do alvo.
+        ssrf: Resumo do SSRF guiado pelo contrato (ADR 0100); `None` sem `scan.oast`.
+        rate_checks: Resumo do limite de consumo (ADR 0101); `None` sem `allow_rate_tests`.
+        inventory: Resumo do inventário (ADR 0102); `None` sem `extra_checks.inventory`.
         traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
             escopo).
         local_queue_seconds: Soma da espera de cada trabalho na fila serial; sobrepõe o scan.
@@ -279,6 +293,9 @@ class ScanResult(ApiModel):
     alerts_by_risk: dict[str, int] = Field(default_factory=dict)
     evidence_messages: int = 0
     health: HealthSummary
+    ssrf: SsrfSummary | None = None
+    rate_checks: ExtraChecksSummary | None = None
+    inventory: ExtraChecksSummary | None = None
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)
     local_queue_seconds: float | None = None
     authentication_seconds: float | None = None

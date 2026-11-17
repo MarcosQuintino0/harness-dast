@@ -6,7 +6,7 @@ A severidade e o CWE são decididos em código (`authz_anonymous`), nunca pelo a
 | ----------------------- | ------------------------------------------------------- | ------------ |
 | authz_anonymous_access  | alta se o OpenAPI exige autenticação; média se não      | 306          |
 |                         | declara `security`                                      |              |
-| authz_tampered_token    | alta                                                    | 347 ou 287   |
+| authz_tampered_token    | alta (inclui chave HMAC fraca, ADR 0098)                | 347 ou 287   |
 
 Nenhum valor de token entra no texto: só o nome das variantes aceitas. Este módulo é puro.
 """
@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.authz.anonymous import anonymous_severity, tampered_cwe
 from harness_dast.domain.authz.finding_build import build_finding
+from harness_dast.domain.authz.jwt_forge import WEAK_KEYS_VERSION
 from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.authz.token import TamperVariant
 from harness_dast.domain.finding import normalize_path_template
@@ -25,6 +26,8 @@ VARIANT_LABEL: dict[TamperVariant, str] = {
     "alg_none": "com algoritmo none",
     "altered_claims": "com uma reivindicação a mais",
     "scrambled": "com o texto embaralhado",
+    "weak_key": "re-assinado com uma chave HMAC fraca",
+    "weak_key_expired": "re-assinado com uma chave HMAC fraca e com `exp` vencido",
 }
 """Descrição curta de cada variante, usada na evidência."""
 
@@ -90,6 +93,13 @@ def tampered_finding(
     """Achado de token adulterado aceito: o servidor não conferiu o token que recebeu."""
     accepted = tuple(variants)
     names = ", ".join(VARIANT_LABEL[name] for name in accepted)
+    weak = "weak_key" in accepted
+    extra = (
+        f" A chave HMAC está na lista fixa de chaves fracas (versão {WEAK_KEYS_VERSION}) e foi "
+        "achada offline; ela não foi gravada."
+        if weak
+        else ""
+    )
     return build_finding(
         product=product,
         technique="authz_tampered_token",
@@ -107,14 +117,16 @@ def tampered_finding(
         cwe=tampered_cwe(accepted),
         evidence=(
             f"O token da conta {actor[0]}, enviado {names}, recebeu {statuses[1]} com corpo "
-            "equivalente ao do pedido autenticado. O valor do token não foi gravado."
+            f"equivalente ao do pedido autenticado. O valor do token não foi gravado.{extra}"
         ),
         description=(
             "O servidor aceitou um token que não pode ser válido: a assinatura (ou o próprio "
-            "token) não é conferida. Qualquer pessoa poderia fabricar uma credencial."
+            "token) não é conferida, ou o token é assinado com chave fraca. Qualquer pessoa "
+            "poderia fabricar uma credencial."
         ),
         solution=(
             "Validar a assinatura e o algoritmo de todo token em toda requisição, recusar "
-            "`alg: none` e responder 401 a token inválido."
+            "`alg: none` e responder 401 a token inválido; trocar a chave HMAC por um segredo "
+            "aleatório de pelo menos 256 bits (ou usar assinatura assimétrica)."
         ),
     )

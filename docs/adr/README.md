@@ -126,6 +126,19 @@ a reserva não implica aceite nem implementação.
 | [0094](0094-crapi-na-pilha.md) | crAPI vulnerável na pilha, cadastro sintético local e volumes descartáveis |
 | [0095](0095-retorno-oast-isolado.md) | Callback do ZAP por ponte interna auditada, sem ligação à varredura |
 
+## Trilha F da V1.12
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) | Bloco `attack` da carta liga as capacidades da V1.12: ritmo, OAST, cabeçalhos, limites, regras experimentais e inventário (Proposto) |
+| [0097](0097-injecao-em-cabecalhos-e-cookies.md) | Injeção em cabeçalhos e cookies: bits 4 e 8 da máscara e `ScanHeadersAllRequests` com `scan.inject_headers` (Proposto) |
+| [0098](0098-chave-hmac-fraca-de-jwt-no-authz.md) | Chave HMAC fraca de JWT no `authz`: quebra offline com lista fixa e prova re-assinada, teto de 20 pedidos (Proposto) |
+| [0099](0099-oast-na-varredura.md) | OAST na varredura: Callback do ZAP e regras que dependem do retorno ligadas por `scan.oast` (Proposto) |
+| [0100](0100-ssrf-guiado-pelo-contrato.md) | SSRF guiado pelo contrato: campos de URL do OpenAPI recebem a URL de retorno, com teto de 10 pedidos e correlação por token (Proposto) |
+| [0101](0101-limite-de-consumo.md) | Limite de consumo com `extra_checks.allow_rate_tests`: tamanho de página enorme (2 pedidos por operação) e até 20 tentativas erradas por operação de autenticação, com parada no primeiro sinal de limite e teto de 66 pedidos (Proposto) |
+| [0102](0102-inventario-de-versoes-e-documentacao.md) | Inventário com `extra_checks.inventory`: versões irmãs não documentadas (com controle `v999`) e documentação exposta, só `GET` pela cerca, teto de 40 pedidos (Proposto) |
+| [0103](0103-regras-alpha-selecionadas-na-imagem-do-zap.md) | Regras alpha e beta selecionadas: imagem derivada do ZAP com complementos fixos por SHA-256, lista fixa no domínio e achados marcados como experimentais (Proposto) |
+
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.
 

@@ -247,6 +247,7 @@ class PanelFinding(ApiModel):
         suspected_false_positive: Suspeita do agente (consultiva), ou `None` sem triagem.
         triage_note: Observação do agente, ou `None`.
         explanation: Explicação do catálogo, quando o gancho a trouxe.
+        experimental: Achado de regra alpha ou beta do ZAP (ADR 0103); o painel o marca.
     """
 
     finding_id: str
@@ -277,6 +278,7 @@ class PanelFinding(ApiModel):
     suspected_false_positive: bool | None = None
     triage_note: str | None = None
     explanation: PanelExplanation | None = None
+    experimental: bool = False
 
 
 class PanelGroup(ApiModel):

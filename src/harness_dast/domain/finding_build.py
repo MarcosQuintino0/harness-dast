@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.curl_repro import build_curl
+from harness_dast.domain.experimental_rules import is_experimental_plugin
 from harness_dast.domain.finding import (
     Attribution,
     Classification,
@@ -205,6 +206,7 @@ def _finding(
         solution=plain_text(best.solution),
         reproduce_curl=build_curl(proof, auth_header=auth_header, csrf_header=csrf_header),
         seed_outcome=resolution.operation.seed_outcome if resolution.operation else None,
+        experimental=is_experimental_plugin(best.plugin_id),
     )
 
 

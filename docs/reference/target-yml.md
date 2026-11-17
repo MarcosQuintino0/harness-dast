@@ -29,7 +29,7 @@ O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste r
 
 ## Blocos de proteção e aprovação humana
 
-Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, o bloco `scan` inteiro, o bloco `authz` inteiro e o bloco `cleanup` inteiro (a configuração: caminho do script, **nomes** de `secret_ref`, tabelas, teto de linhas, esquema; nunca valor de segredo nem o conteúdo do script, que a limpeza confere por conta própria na hora de apagar). Critério: entra tudo que amplia o que é tocado, com que conta, com que carga ou por quanto tempo, **e tudo que reduz o que é relatado** (`fail_on`, `threshold`, `disable_rules`, `public_operations`, `disabled_checks`, `volatile_fields`). **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`) e `probe`. Mudar o que entra muda a versão do cálculo (agora 2): aprovações gravadas na versão 1 valem como não aprovadas. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
+Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, o bloco `scan` inteiro, o bloco `authz` inteiro, o bloco `extra_checks` (só quando difere do padrão, ADR 0096) e o bloco `cleanup` inteiro (a configuração: caminho do script, **nomes** de `secret_ref`, tabelas, teto de linhas, esquema; nunca valor de segredo nem o conteúdo do script, que a limpeza confere por conta própria na hora de apagar). Critério: entra tudo que amplia o que é tocado, com que conta, com que carga ou por quanto tempo, **e tudo que reduz o que é relatado** (`fail_on`, `threshold`, `disable_rules`, `public_operations`, `disabled_checks`, `volatile_fields`). **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`) e `probe`. Mudar o que entra muda a versão do cálculo (agora 2): aprovações gravadas na versão 1 valem como não aprovadas. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
 
 ## Exemplo completo
 
@@ -93,6 +93,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 | `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
 | `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
+| `extra_checks` | bloco | Não | Capacidades extras da V1.12, só pela carta. Veja [`extra_checks`](#extra_checks-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -422,6 +423,8 @@ Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema 
 | `fail_on` | `none`, `low`, `medium` ou `high` | `none` | Severidade proposta a partir da qual `report` sai com código 1. `report --fail-on` sobrepõe |
 | `include_outcomes` | lista de até 5 classes: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error` | vazia | Classes do `probe` além de `success` cujas operações o `scan` também ataca ([ADR 0050](../adr/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada, sem curinga e sem repetição; `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`, `timeout` e `skipped_*` nunca entram. Não amplia o escopo (o `ScopeGuard` e o proxy continuam decidindo), `DELETE`, login, `deny_paths` e `PUT`/`PATCH` sem recurso criado seguem fora; mas ataca a partir de um pedido que o alvo recusou ou não achou, e nos `POST`, `PUT` e `PATCH` cria e altera mais dados sintéticos. Vem da carta (`attack.include_outcomes`, `source: carta` ou `pessoa`, aviso `OUTCOMES_ATTACK_EXTENDED`). Fora do padrão entra na impressão digital da aprovação: ligar exige aprovar de novo; vazia mantém as aprovações existentes. `hdast scan --include-outcome` só escolhe dentro dela |
 | `allow_upload_scan` | booleano | `false` | A carta autoriza o ZAP a varrer operações de envio de arquivo (`multipart/form-data`, [ADR 0052](../adr/0052-multipart-no-probe-e-no-scan.md)). O ZAP grava conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do alvo, e esta ferramenta não o controla; por isso só a carta liga. Sem ele, a operação é alcançada pelo `probe` mas o `scan` a pula com o motivo `upload_scan_not_authorized` (no relatório ela aparece como alcançada e não varrida). Só vem da carta (`attack.allow_upload_scan`, `source: carta` e a frase em `quote`; aviso `UPLOAD_SCAN_AUTHORIZED`); texto, número e `null` no perfil são recusados. No padrão (`false`) fica fora da impressão digital da aprovação e as aprovações existentes continuam valendo; `true` muda o bloco `scan` e exige aprovar de novo |
+| `inject_headers` | booleano | `false` | A carta autoriza injetar também em cabeçalhos e cookies ([ADR 0096](../adr/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Só a carta o liga; a capacidade que o consome chega depois. Ligá-lo muda a impressão digital |
+| `oast` | booleano | `false` | A carta autoriza o retorno fora de banda, no servidor de retorno do laboratório (ADR 0096). Mesma regra de `inject_headers` |
 
 ```yaml
 scan:
@@ -432,7 +435,7 @@ scan:
 
 ### `scan.pacing` (V1.7)
 
-`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
+`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). A carta o declara em `attack.pacing` (ADR 0096). Ritmo da varredura: [ADR 0067](../adr/0067-ritmo-unico-e-medicao-do-executor.md), [0075](../adr/0075-ritmo-proxy-em-perfis-novos.md). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
 
 ## `authz` (opcional)
 
@@ -486,6 +489,16 @@ negative:
   max_requests: 200
   disabled_classes: []
 ```
+
+## `extra_checks` (opcional)
+
+Capacidades extras da V1.12, todas desligadas ([ADR 0096](../adr/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Nada aqui amplia escopo, janela ou limites; cada chave muda o tráfego ou o relato e só a carta a liga (`attack.*`, pelo `init --from-letter`). O bloco entra na impressão digital da aprovação **quando difere do padrão**. Chave desconhecida ou valor que não é booleano é recusado. As capacidades que consomem as chaves chegam em passos posteriores da V1.12.
+
+| Campo | Tipo | Padrão | Descrição |
+| --- | --- | --- | --- |
+| `allow_rate_tests` | booleano | `false` | Testes de limite de consumo, com poucos pedidos e teto rígido |
+| `experimental_rules` | booleano | `false` | Regras experimentais (alpha) do ZAP |
+| `inventory` | booleano | `false` | Inventário de versões irmãs e documentação exposta, só no escopo |
 
 ## Segredos: `secret_ref`
 

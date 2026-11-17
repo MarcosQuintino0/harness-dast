@@ -38,6 +38,9 @@ class NegativeSettings:
         sessions: Sessões das contas (um login por conta).
         max_requests: Teto de requisições do estágio; as repetições do despachante (429, novo
             login) também contam e nunca o ultrapassam. `None` não limita.
+        rejection_attempts: Tentativas de valor errado do limite de consumo (ADR 0101): o diário
+            usa uma intenção própria por operação e um 5xx (exceto 502, 503 e 504, falha de
+            transporte) conta como rejeição conhecida.
     """
 
     base_url: str
@@ -47,6 +50,8 @@ class NegativeSettings:
     product: str = ""
     mutation_journal: MutationJournal | None = None
     credential_fields: frozenset[str] = frozenset()
+    prefix: str = PREFIX
+    rejection_attempts: bool = False
 
 
 class NegativeSender:
@@ -127,7 +132,7 @@ class NegativeSender:
             url=join_url(self._s.base_url, target),
             headers=headers,
             body=body.encode("utf-8") if body else None,
-            operation_id=f"{PREFIX}{tag}{exchange.operation_id}",
+            operation_id=f"{self._s.prefix}{tag}{exchange.operation_id}",
             account=exchange.account,
         )
         mutating = exchange.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
@@ -154,8 +159,11 @@ class NegativeSender:
             self._accounts.append(exchange.account)
         self._sent += sent.attempts
         response = sent.response
-        if response is not None and response.status < 500:
-            self._finish_mutation(key, "observed")
+        if response is not None and self._is_settled(response.status):
+            # Um 2xx a um valor errado do limite de consumo pode ter mudado estado (a conta de
+            # teste aceitou o valor): o diário registra `succeeded`, não só `observed`.
+            changed = self._s.rejection_attempts and 200 <= response.status < 300
+            self._finish_mutation(key, "succeeded" if changed else "observed")
         failed = response is None or response.status in TRANSPORT_FAILURE_STATUSES
         self._failures = self._failures + 1 if failed else 0
         if self._failures >= UNRESPONSIVE_THRESHOLD:
@@ -165,7 +173,24 @@ class NegativeSender:
             )
         if response is None:
             return Reply(None)
-        return Reply(response.status, location=response.location)
+        return Reply(
+            response.status,
+            response.body,
+            location=response.location,
+            retry_after=response.retry_after,
+            body_truncated=response.body_truncated,
+        )
+
+    def _is_settled(self, status: int) -> bool:
+        """Se a resposta é um desfecho conhecido da mutação (o diário a libera como `observed`).
+
+        Um 5xx deixa a mutação pendente (efeito incerto), salvo na tentativa de valor errado do
+        limite de consumo, em que o 5xx comum é a rejeição esperada. `502`, `503` e `504` são
+        falha de transporte (o pedido pode nem ter chegado) e continuam pendentes sempre.
+        """
+        if status < 500:
+            return True
+        return self._s.rejection_attempts and status not in TRANSPORT_FAILURE_STATUSES
 
     def _begin_mutation(
         self, exchange: ExchangeRecord, snapshot: MutationSnapshot | None
@@ -173,12 +198,19 @@ class NegativeSender:
         journal = self._s.mutation_journal
         if journal is None:
             return None
-        key = mutation_key(
-            self._s.product, exchange.operation_id, exchange.account, exchange.method
+        # Tentativa de valor errado (limite de consumo, ADR 0101): é uma intenção própria, não a
+        # repetição do pedido do `probe`, e o 5xx faz parte da rejeição esperada.
+        operation = (
+            f"rejection-attempt:{exchange.operation_id}"
+            if self._s.rejection_attempts
+            else exchange.operation_id
         )
+        key = mutation_key(self._s.product, operation, exchange.account, exchange.method)
         begin_mutation(journal, key, snapshot)
         return key
 
-    def _finish_mutation(self, key: str | None, outcome: Literal["failed", "observed"]) -> None:
+    def _finish_mutation(
+        self, key: str | None, outcome: Literal["failed", "observed", "succeeded"]
+    ) -> None:
         if key is not None and self._s.mutation_journal is not None:
             finish_mutation(self._s.mutation_journal, key, outcome)

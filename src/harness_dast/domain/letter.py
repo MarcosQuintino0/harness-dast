@@ -187,6 +187,21 @@ class AttackSection(ProfileModel):
             (`multipart/form-data`), gravando conteúdo de ataque no armazenamento do alvo?
             Booleano -> `scan.allow_upload_scan`. Ausente, nulo ou `desconhecido` valem `false`;
             `true` só com `source: carta` e a frase em `quote` (ADR 0052).
+        pacing: Ritmo da varredura (`legacy` ou `proxy`) -> `scan.pacing`. Ausente, nulo ou
+            `desconhecido` valem `legacy`; aceita `source: carta` ou `pessoa`, sem `quote`
+            (ADR 0096; não promove nada do ADR 0075).
+        inject_headers: A carta permite injetar também em cabeçalhos e cookies? Booleano
+            -> `scan.inject_headers`.
+        oast: A carta permite o retorno fora de banda (servidor de retorno do laboratório)?
+            Booleano -> `scan.oast`.
+        allow_rate_tests: A carta permite testes de limite de consumo (poucos pedidos, com
+            teto)? Booleano -> `extra_checks.allow_rate_tests`.
+        experimental_rules: A carta permite as regras experimentais do ZAP? Booleano
+            -> `extra_checks.experimental_rules`.
+        inventory: A carta permite o inventário de versões irmãs e documentação exposta?
+            Booleano -> `extra_checks.inventory`. Os cinco booleanos: ausente, nulo ou
+            `desconhecido` valem `false`; `true` só com `source: carta` e a frase em `quote`
+            (ADR 0096).
     """
 
     technologies: Answer | None = None
@@ -196,6 +211,12 @@ class AttackSection(ProfileModel):
     include_outcomes: Answer | None = None
     allow_invalid_input_writes: Answer | None = None
     allow_upload_scan: Answer | None = None
+    pacing: Answer | None = None
+    inject_headers: Answer | None = None
+    oast: Answer | None = None
+    allow_rate_tests: Answer | None = None
+    experimental_rules: Answer | None = None
+    inventory: Answer | None = None
 
 
 class Letter(ProfileModel):

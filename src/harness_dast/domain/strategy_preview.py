@@ -76,7 +76,7 @@ def preview(profile: ProductProfile, spec: ApiSpec, flows: FlowSpec | None) -> S
     """Constrói prévia do plano padrão, sem rede nem aprovação e sem valores de entrada."""
     plans = plan_probe(spec, flows, profile.guard(), profile.environment.base_url)
     operations = {operation.operation_id: operation for operation in spec.operations}
-    policy = build_policy(profile.scan)
+    policy = build_policy(profile.scan, experimental_rules=profile.extra_checks.experimental_rules)
     return StrategyPreview(
         operations=tuple(
             _operation(profile, operations[item.operation_id], item) for item in plans

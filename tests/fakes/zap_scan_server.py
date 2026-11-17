@@ -71,6 +71,38 @@ REAL_ACTIVE_RULES = {
     "90037": "Remote OS Command Injection (Time Based)",
 }
 
+# Regras que a imagem do harness (hdast/zap) acrescenta com ascanrulesBeta 64 e
+# ascanrulesAlpha 54 (capturadas de ascan/view/scanners; ADR 0103).
+IMAGE_EXTRA_RULES = {
+    "41": "Source Code Disclosure - Git",
+    "42": "Source Code Disclosure - SVN",
+    "43": "Source Code Disclosure - File Inclusion",
+    "10051": "Relative Path Confusion",
+    "10095": "Backup File Disclosure",
+    "10107": "Httpoxy - Proxy Header Misuse",
+    "20012": "Anti-CSRF Tokens Check",
+    "20014": "HTTP Parameter Pollution",
+    "20016": "Cross-Domain Misconfiguration",
+    "30003": "Integer Overflow Error",
+    "40013": "Session Fixation",
+    "40015": "LDAP Injection",
+    "40023": "Possible Username Enumeration",
+    "40025": "Proxy Disclosure",
+    "40031": "Out of Band XSS",
+    "40033": "NoSQL Injection - MongoDB",
+    "40038": "Bypassing 403",
+    "40039": "Web Cache Deception",
+    "40040": "CORS Header",
+    "40046": "Server Side Request Forgery",
+    "40047": "Text4shell (CVE-2022-42889)",
+    "90025": "Expression Language Injection",
+    "90027": "Cookie Slack Detector",
+    "90028": "Insecure HTTP Method",
+    "90039": "NoSQL Injection - MongoDB (Time Based)",
+    "100044": "Suspicious Input Transformation",
+}
+REAL_ACTIVE_RULES = {**REAL_ACTIVE_RULES, **IMAGE_EXTRA_RULES}
+
 
 def ok(payload: object, status: int = 200) -> Reply:
     return Reply(status, json.dumps(payload).encode(), [("Content-Type", "application/json")])
@@ -101,6 +133,7 @@ class FakeScanZapServer:
         alerts: Alertas (dicionários no formato da API).
         scan_states: Resposta de `ascan/view/scans` por consulta; a última se repete.
         stubborn_rules: Regras que `disableScanners` não consegue desligar.
+        stubborn_enable: Regras que `enableScanners` não consegue ligar.
         rules: Regras do Replacer (descrição -> parâmetros).
         policies: Nomes de políticas existentes.
         scan_progress: Resposta de `ascan/view/scanProgress` (a forma real do ZAP 2.17.0).
@@ -126,9 +159,11 @@ class FakeScanZapServer:
         ]
     )
     stubborn_rules: frozenset[str] = frozenset()
+    stubborn_enable: frozenset[str] = frozenset()
     rules: dict[str, dict[str, str]] = field(default_factory=dict)
     policies: set[str] = field(default_factory=set)
     options: dict[str, str] = field(default_factory=dict)
+    oast: dict[str, object] = field(default_factory=dict)
     disabled: set[str] = field(default_factory=set)
     known_rules: frozenset[str] = frozenset(REAL_ACTIVE_RULES)
     scan_progress: dict[str, object] = field(default_factory=dict)
@@ -166,6 +201,9 @@ class FakeScanZapServer:
         start, count = int(query["start"]), int(query["count"])
         return ok({"messages": self.messages[start : start + count]})
 
+    def _core_view_numberOfMessages(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        return ok({"numberOfMessages": str(len(self.messages))})
+
     def _core_view_message(self, query: dict[str, str]) -> Reply:
         for message in self.messages:
             if message["id"] == query["id"]:
@@ -191,6 +229,12 @@ class FakeScanZapServer:
 
     def _ascan_action_setOptionHostPerScan(self, query: dict[str, str]) -> Reply:  # noqa: N802
         return self._option("host_per_scan", query)
+
+    def _ascan_action_setOptionScanHeadersAllRequests(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        if "Boolean" not in query:
+            return error("missing_parameter")
+        self.options["scan_headers_all"] = query["Boolean"]
+        return ok({"Result": "OK"})
 
     def _option(self, name: str, query: dict[str, str]) -> Reply:
         if "Integer" not in query:
@@ -218,6 +262,22 @@ class FakeScanZapServer:
         for rule in query["ids"].split(","):
             if rule not in self.stubborn_rules:
                 self.disabled.add(rule)
+        return ok({"Result": "OK"})
+
+    def _ascan_action_enableScanners(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        if any(rule not in self.known_rules for rule in query["ids"].split(",")):
+            return error("does_not_exist")
+        self.disabled.difference_update(
+            rule for rule in query["ids"].split(",") if rule not in self.stubborn_enable
+        )
+        return ok({"Result": "OK"})
+
+    def _oast_action_setCallbackOptions(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        self.oast["callback"] = (query["localAddress"], query["remoteAddress"], query["port"])
+        return ok({"Result": "OK"})
+
+    def _oast_action_setActiveScanService(self, query: dict[str, str]) -> Reply:  # noqa: N802
+        self.oast["service"] = query["name"]
         return ok({"Result": "OK"})
 
     def _ascan_view_scanners(self, query: dict[str, str]) -> Reply:
