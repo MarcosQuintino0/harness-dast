@@ -462,3 +462,27 @@ uv run python lab/scripts/inventory_images.py --output C:\harness-dast-artefatos
 O comando lê os arquivos versionados cujo nome contém `compose` e termina em `.yaml` ou `.yml`, sem interpolar variáveis ou ler `.env`. Consulta do Docker somente os campos ID, tags, digests, tamanho e data das imagens e o ID da imagem de cada contêiner, inclusive parado. Não remove, baixa, cria ou altera imagens. O relatório distingue imagens do namespace `harness`/`hdast` usadas por Compose ou contêiner, imagens próprias fora de ambos e imagens sem proveniência atribuível. Tamanhos aparecem em bytes e em unidades legíveis. Imagens alheias com identificação não são listadas.
 
 O nome gerado para um serviço com `build` sem `image` usa o nome de projeto do arquivo ou o diretório e a tag `latest`. Nomes de projeto fornecidos em execução, arquivos não versionados, builds externos e referências dinâmicas não podem ser comprovados por este inventário. Referências interpoladas, `include`/`extends`, arquivos inválidos e falhas de consulta causam recusa; revise-os antes de concluir qualquer análise. O relatório é uma fotografia sujeita a mudanças e não é autorização nem plano de remoção.
+
+### Ciclos crAPI descartáveis
+
+Sob a trava exclusiva, com os projetos `hdast-codex` e `hdast-crapi-codex` livres:
+
+```powershell
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\nova-prova'
+uv run pytest -m integration tests/integration/test_v112_cli_cycle.py tests/integration/test_crapi_focus_dryrun.py
+```
+
+Os testes usam somente produtos e estado temporários, aprovação do suporte/runner e
+sufixo `-codex`. Recusam projetos ocupados, registram identidades após a subida e
+conferem propriedade antes da descida e ausência depois. Uma subida parcial sem
+inventário confiável recusa a derrubada e exige intervenção humana. Essa conferência
+não é atômica: a trava externa continua obrigatória.
+
+Em 2026-11-17, os dois testes finais passaram em 566,37 s. O controle levou 254,098 s;
+o foco, 310,344 s desde antes do preparo até depois da descida. O foco tentou nove
+operações, varreu duas e registrou exclusões em authz/negative: conclusão operacional
+no prazo não significa cobertura completa. A medição do `evals.runner` usa uma
+representação de compatibilidade dos comandos, sem agente, modelo ou tokens; o tempo
+fim a fim usa medição monotônica separada. A ocorrência anterior de `STACK_STALE`
+continua sem causa estabelecida. Evidências em
+`C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\final-proofs.log` e `metrics-final-proofs/`.

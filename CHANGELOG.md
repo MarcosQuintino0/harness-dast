@@ -24,6 +24,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Inventário de imagens por todos os Compose versionados e contêineres, inclusive parados, em modo de ensaio; imagens sem tag ou digest permanecem sem atribuição. Nenhuma imagem é removida pelo roteiro.
 - Retomada L5: regressão dirigida verde em 715,24 s (11min55s): H1–H10 na Clínica vulnerável, zero achado de autorização no modo seguro, V1 e V3 no VAmPI. Foram 14 testes aprovados e 26 combinações de cenário/falha inaplicáveis puladas.
 - Retomada L4: `evals.runner` preparou o `crapi-foco` sem vazamentos e o ensaio sem agente concluiu em 294,265 s, incluindo subida e descida. O probe do run tentou nove operações; duas chegaram ao scan e houve exclusões em authz/negative. É prova de duração operacional, sem cobertura integral ou detecção das falhas da trilha F. O ensaio evita repetir o probe mutante antes do run e preserva o bloqueio de mutações com resultado desconhecido.
+- Revisão e repetição finais: provas crAPI verificam projetos livres, identidades e ausência de recursos após a descida; recusam derrubar uma subida parcial sem inventário confiável. Ciclo curto verde em 254,098 s e foco em 310,344 s de ponta a ponta, com conclusão operacional separada de cobertura. Falhas previsíveis do emissor da vigia têm estado sanitizado e não interrompem a recusa. A causa do `STACK_STALE` anterior continua não estabelecida.
 
 ### Organização
 
