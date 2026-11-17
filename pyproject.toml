@@ -289,6 +289,10 @@ ignore_names = [
     "autocommit",
     "call_timeout",
     "stack_managed",
+    # SSRF guiado (ADR 0100): campos de scan.json lidos só pela serialização do pydantic, pelos
+    # testes e pelo agente.
+    "ssrf",
+    "events_seen",
     # Medição da execução (ADR 0031): campos de rule-stats.json e metrics.json lidos só pela
     # serialização do pydantic, pelos testes e por quem analisa o arquivo depois.
     "quality",
