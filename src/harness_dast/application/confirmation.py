@@ -299,10 +299,10 @@ class Confirmation:
                 if outcome.response is None:
                     return judge_confirmation(plan, tuple(responses), fingerprint), True
         except (ScopeViolation, ExternalToolError, PreflightError, ConfigError):
-            return VerificationEntry(
-                fingerprint=fingerprint,
-                recipe=plan.recipe,
-                level="inconclusive",
-                reason="Confirmação interrompida por escopo, pilha, prazo, janela ou sessão.",
+            partial = judge_confirmation(plan, tuple(responses), fingerprint)
+            return partial.model_copy(
+                update={
+                    "reason": "Confirmação interrompida por escopo, pilha, prazo, janela ou sessão."
+                }
             ), True
         return judge_confirmation(plan, tuple(responses), fingerprint), False

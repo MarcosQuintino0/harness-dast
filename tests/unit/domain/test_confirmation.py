@@ -313,3 +313,10 @@ def test_selecao_recusa_fingerprint_duplicado() -> None:
 
     with pytest.raises(ConfigError):
         select_confirmation_findings((finding(), finding()), 2, None)
+
+
+def test_resultado_parcial_resume_sem_guardar_corpo_quando_transporte_falha() -> None:
+    result = judge_confirmation(plan(), (response(b"segredo-na-resposta"), None), FINGERPRINT)
+    assert result.level == "inconclusive"
+    assert result.attack == "HTTP 200, 20 ms"
+    assert "segredo-na-resposta" not in result.model_dump_json()

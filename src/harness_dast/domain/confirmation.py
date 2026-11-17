@@ -135,12 +135,14 @@ def judge_confirmation(
     """Compara medições repetidas; nunca inclui corpos nem mensagens externas no resultado."""
     expected = len(recipe_targets(plan))
     if len(responses) != expected or any(response is None for response in responses):
-        return _result(
+        partial = tuple(response for response in responses if response is not None)
+        result = _result(
             fingerprint,
             plan.recipe,
             "inconclusive",
             "Falha de transporte ou orçamento insuficiente.",
         )
+        return result.model_copy(update={"attack": _summarize(partial) if partial else None})
     measured = tuple(response for response in responses if response is not None)
     if (
         any(response.body_truncated or response.status >= 500 for response in measured)
