@@ -18,6 +18,7 @@ from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.application.common_ports import Clock, CommandJournalStore
 from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
+from harness_dast.cli.commands.confirm import confirm_command
 from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.finding import build_finding_app
 from harness_dast.cli.commands.init import init_command
@@ -87,6 +88,7 @@ def build_app() -> typer.Typer:
     app.command("preflight")(preflight_command)
     app.command("probe")(probe_command)
     app.command("scan")(scan_command)
+    app.command("confirm")(confirm_command)
     app.command("authz")(authz_command)
     app.command("negative")(negative_command)
     app.command("report")(report_command)
