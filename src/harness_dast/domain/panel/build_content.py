@@ -81,6 +81,7 @@ _OUTCOME_WORDS: Final = {
     "redirect": "o sistema mandou para outro endereço (não seguido)",
     "timeout": "o sistema não respondeu a tempo",
     "skipped_dependency": "depende de outra função que não respondeu",
+    "mutation_pending": "mutation_pending: mutação pendente de reconciliação",
     "build_error": "a ferramenta não conseguiu montar o pedido",
 }
 _BLIND: Final = (
@@ -334,6 +335,8 @@ def _decide(
             "stopped": "Parada antes do fim.",
         }
         return ("severe" if severe else "tested", cut.get(entry.outcome))
+    if entry is not None and entry.note and "mutation_pending" in entry.note:
+        return "not_tried", entry.note
     if entry is not None:
         return "failed", "O ZAP recusou iniciar a varredura desta função."
     if result is None:
@@ -358,6 +361,8 @@ def _decide_probe(
         return "forbidden", "Recusa esperada de login; a varredura não ataca login."
     if result.outcome in _FORBIDDEN_OUTCOMES:
         return "forbidden", _FORBIDDEN_OUTCOMES[result.outcome]
+    if result.outcome == "mutation_pending":
+        return "not_tried", "mutation_pending: mutação pendente de reconciliação."
     if result.outcome == "dry_run":
         return "not_tried", "Só simulação (dry-run): nada foi enviado."
     if skip is not None:

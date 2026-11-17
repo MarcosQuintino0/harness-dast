@@ -622,6 +622,8 @@ class Scan:
             account=prep.default_account,
             only=frozenset(request.only),
             product=prep.profile.product,
+            run_id=request.run_id,
+            clock=self._clock,
             mutation_journal=self._mutation_journal,
         )
         return run_extra_checks(context)

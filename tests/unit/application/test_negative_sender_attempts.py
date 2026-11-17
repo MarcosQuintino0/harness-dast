@@ -1,4 +1,4 @@
-"""Intenção `rejection-attempt:` no diário de mutações do `NegativeSender` (ADR 0101)."""
+"""Intenção compartilhada entre limite de consumo e demais emissores."""
 
 from dataclasses import dataclass
 from typing import cast
@@ -75,11 +75,11 @@ def send(
     return journal
 
 
-def test_a_500_with_rejection_attempts_is_observed_and_released() -> None:
+def test_a_500_with_rejection_attempts_stays_pending() -> None:
     journal = send(500, attempts=True)
 
-    assert journal.outcomes == ["observed"]
-    assert journal.pending == set()
+    assert journal.outcomes == []
+    assert len(journal.pending) == 1
 
 
 def test_a_500_without_rejection_attempts_stays_pending() -> None:
@@ -102,10 +102,10 @@ def test_a_4xx_is_observed_with_or_without_rejection_attempts() -> None:
     assert send(401, attempts=False).outcomes == ["observed"]
 
 
-def test_the_rejection_attempt_key_has_its_own_prefix() -> None:
+def test_the_rejection_attempt_key_uses_the_operation() -> None:
     journal = send(401, attempts=True)
 
-    expected = mutation_key("loja", "rejection-attempt:otp", "user_a", "POST")
+    expected = mutation_key("loja", "otp", "user_a", "POST")
     assert journal.began == [expected]
 
 
@@ -128,3 +128,13 @@ def test_a_second_send_after_a_pending_5xx_is_blocked() -> None:
 def test_a_2xx_to_a_wrong_value_is_recorded_as_a_possible_state_change() -> None:
     assert send(200, attempts=True).outcomes == ["succeeded"]
     assert send(200, attempts=False).outcomes == ["observed"]
+
+
+def test_rate_pula_operacao_pendente_criada_por_outro_consumidor() -> None:
+    from harness_dast.domain.knowledge_mutation import MutationPending
+
+    journal = MemoryMutationJournal()
+    journal.begin(mutation_key("loja", "otp", "user_a", "POST"), "unknown")
+    rate = sender(401, journal, attempts=True)
+    with pytest.raises(MutationPending):
+        rate.send(EXCHANGE, EXCHANGE.target, EXCHANGE.body)

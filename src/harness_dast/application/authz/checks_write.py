@@ -143,6 +143,8 @@ def _write_apply(
         tag="write:",
     )
     if reply.problem is not None:
+        if reply.problem == "mutation_pending":
+            out.writes -= 1
         pending.attempted = False
         out.not_tested.append(problem_note(CHECK, exchange, reply))
     elif reply.status in DENIED_WRITE:
@@ -151,6 +153,22 @@ def _write_apply(
     elif not is_success_status(reply.status) or reply.status is None:
         pending.attempted = False
         out.not_tested.append(inconclusive(CHECK, exchange, reply))
+        if ctx.settings.mutation_journal is not None and (
+            reply.status is None or reply.status >= 500
+        ):
+            out.not_tested.append(
+                note(
+                    CHECK,
+                    exchange,
+                    "mutation_pending",
+                    "Escrita com efeito desconhecido; reconcilie o estado.",
+                )
+            )
+            out.not_tested.append(
+                unrestored_note(
+                    CHECK, exchange, "a escrita foi enviada", "do pedido", "outcome_unknown"
+                )
+            )
     else:
         _confirm(ctx, task, original, marker, (out, pending), reply.status)
 

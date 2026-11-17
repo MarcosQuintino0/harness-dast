@@ -89,6 +89,10 @@ def _not_tested(probe: ProbeResult, scan: ScanResult) -> tuple[NotTested, ...]:
         refusal = refused.get(item.operation_id)
         expected_login = str(item.outcome) == "auth_rejected_expected"
         reason = "scan_refused" if refusal else skip.reason if skip else f"probe_{item.outcome}"
+        if item.outcome == "mutation_pending" or (
+            refusal and refusal.note and "mutation_pending" in refusal.note
+        ):
+            reason = "mutation_pending"
         message = (
             (refusal.note or "O ZAP recusou iniciar a varredura.")
             if refusal

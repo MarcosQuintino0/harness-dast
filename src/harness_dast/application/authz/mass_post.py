@@ -12,6 +12,7 @@ from harness_dast.application.authz.mass_common import choose_injection
 from harness_dast.application.authz.sender import (
     CheckContext,
     CheckResult,
+    Reply,
     inconclusive,
     note,
     problem_note,
@@ -22,6 +23,7 @@ from harness_dast.domain.authz.compare import injected_effect, is_success_status
 from harness_dast.domain.authz.findings import mass_assignment_finding
 from harness_dast.domain.authz.plan_mass import MassTask
 from harness_dast.domain.authz.result import AuthzFinding, AuthzNotTested
+from harness_dast.domain.probe_exchange import ExchangeRecord
 
 CONFLICT_STATUS = 409
 
@@ -53,10 +55,12 @@ def run_post_candidate(
         max_attempts=1,
     )
     if reply.problem is not None:
+        out.writes -= int(reply.problem == "mutation_pending")
+        ctx.shared_writes -= int(reply.problem == "mutation_pending")
         out.not_tested.append(problem_note("mass_assignment", exchange, reply))
         return False
     if reply.status is None or reply.status >= 500:
-        out.not_tested.append(inconclusive("mass_assignment", exchange, reply))
+        _unknown_post(ctx, exchange, reply, out)
         return True
     if reply.status == CONFLICT_STATUS:
         out.not_tested.append(_conflict_note(task))
@@ -78,6 +82,21 @@ def run_post_candidate(
     elif task.candidate_readers:
         out.not_tested.append(_unobservable_note(task, chosen.name))
     return True
+
+
+def _unknown_post(
+    ctx: CheckContext, exchange: ExchangeRecord, reply: Reply, out: CheckResult
+) -> None:
+    if ctx.settings.mutation_journal is not None:
+        out.not_tested.append(
+            note(
+                "mass_assignment",
+                exchange,
+                "mutation_pending",
+                "Criação com efeito desconhecido; reconcilie o estado.",
+            )
+        )
+    out.not_tested.append(inconclusive("mass_assignment", exchange, reply))
 
 
 def _finding(

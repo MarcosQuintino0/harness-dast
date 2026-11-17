@@ -26,6 +26,7 @@ from harness_dast.domain.errors import (
 from harness_dast.domain.excerpt import sanitize_excerpt
 from harness_dast.domain.flow import ResolvedBindings
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.knowledge_mutation import MutationPending
 from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse
 from harness_dast.domain.outcome import Outcome, classify_response, parse_json_body
 from harness_dast.domain.probe_conflict import annotate_blocked, conflict_fields
@@ -183,6 +184,13 @@ class ProbeRunner:
             sent = dispatcher.send(request, None if anonymous else self._session_for(request))
         except (WindowClosed, DeadlineReached):
             raise
+        except MutationPending:
+            return self._result(
+                planned,
+                "mutation_pending",
+                account=request.account,
+                message="Mutação pendente; reconcilie o estado antes de repetir.",
+            )
         except ScopeViolation as error:
             denied = (
                 self._s.guard.evaluate(

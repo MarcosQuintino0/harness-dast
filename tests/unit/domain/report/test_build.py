@@ -491,3 +491,39 @@ def test_404_com_entrada_no_scan_nao_e_listado_como_sem_varredura() -> None:
     )
 
     assert report.coverage.not_tested == ()
+
+
+def test_pendencia_aparece_no_relatorio_e_painel_sem_alcance() -> None:
+    from harness_dast.domain.panel.build import build_panel_view
+    from tests.unit.domain.panel.helpers import sources
+
+    probe = probe_result([operation("criar", "POST", "/items", "mutation_pending")])
+    skip = ScanSkip(
+        operation_id="criar",
+        method="POST",
+        path="/items",
+        reason="not_success",
+        message="Sem sucesso.",
+    )
+    scan = scan_result([], skipped=[skip])
+    report = assemble_report(
+        probe=probe,
+        scan=scan,
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    panel = build_panel_view(sources(probe=probe, scan=scan))
+    assert report.coverage.not_tested[0].reason == "mutation_pending"
+    assert "mutation_pending" in render_markdown(report)
+    assert "mutation_pending" in render_html(report)
+    item = next(item for item in panel.functions if item.operation_id == "criar")
+    assert item.state == "not_tried"
+    assert "mutation_pending" in (item.reason or "")
+    assert probe.summary.reached == 0
+    assert probe.summary.operations_sent == 0

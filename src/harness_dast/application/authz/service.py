@@ -342,6 +342,7 @@ class Authz:
                 counter_checkpoint=checkpoint,
                 builder=builder,
                 mutation_journal=self._mutation_journal,
+                clock=self._clock,
                 credential_fields=_credential_fields(profile),
             )
         )

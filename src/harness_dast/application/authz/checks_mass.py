@@ -180,6 +180,8 @@ def _mass_apply(
         snapshot=snapshot,
     )
     if put.problem is not None:
+        out.writes -= int(put.problem == "mutation_pending")
+        ctx.shared_writes -= int(put.problem == "mutation_pending")
         pending.attempted = False
         out.not_tested.append(problem_note("mass_assignment", exchange, put))
         return
@@ -191,6 +193,16 @@ def _mass_apply(
             )
         )
         pending.attempted = False
+        if ctx.settings.mutation_journal is not None:
+            out.not_tested.append(
+                note(
+                    "mass_assignment",
+                    exchange,
+                    "mutation_pending",
+                    "Escrita com efeito desconhecido; reconcilie o estado.",
+                )
+            )
+            return
         raise StopRun(
             "stopped_target_unresponsive",
             "A escrita teve resultado desconhecido; confira o estado antes de continuar.",

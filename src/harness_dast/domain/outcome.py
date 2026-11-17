@@ -31,6 +31,7 @@ Outcome = Literal[
     "skipped_denied",
     "skipped_destructive",
     "skipped_dependency",
+    "mutation_pending",
     "build_error",
     "dry_run",
 ]

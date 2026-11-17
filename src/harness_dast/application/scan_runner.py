@@ -21,7 +21,11 @@ from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl, ScanStart
 from harness_dast.application.scan_tokens import AccountTokens
 from harness_dast.domain.errors import ExternalToolError, PreflightError
-from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.knowledge_mutation import (
+    MutationPending,
+    mutation_key,
+    safe_mutation_metadata,
+)
 from harness_dast.domain.rule_stats import MAX_REASON, OperationRules
 from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_plan import ScanTarget
@@ -138,7 +142,20 @@ class ScanRunner:
                     0.0, (self._d.clock.now() - queued_at).total_seconds()
                 )
                 self._state.index = index
-                self._scan_one(target, len(targets))
+                try:
+                    self._scan_one(target, len(targets))
+                except MutationPending:
+                    self._state.entries.append(
+                        ScanEntry(
+                            operation_id=target.operation_id,
+                            method=target.method,
+                            path=target.path,
+                            message_id=target.message_id,
+                            seed_outcome=target.seed_outcome,
+                            outcome="refused",
+                            note="mutation_pending: mutação pendente de reconciliação.",
+                        )
+                    )
         except WindowClosed as error:
             return self._stopped("stopped_window", error.message)
         except DeadlineReached as error:
@@ -188,7 +205,14 @@ class ScanRunner:
             key = mutation_key(
                 d.product, target.operation_id, target.account or d.default_account, target.method
             )
-            begin_mutation(d.mutation_journal, key)
+            metadata = safe_mutation_metadata(
+                target.operation_id,
+                target.account or d.default_account,
+                target.method.upper(),
+                d.run_id,
+                d.clock.now(),
+            )
+            begin_mutation(d.mutation_journal, key, metadata=metadata)
         try:
             scan_id = d.scanner.start_scan(request)
         except ScanRefused as error:

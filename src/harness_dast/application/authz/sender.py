@@ -15,7 +15,7 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from harness_dast.application.common_ports import MutationJournal, SecretVault
+from harness_dast.application.common_ports import Clock, MutationJournal, SecretVault
 from harness_dast.application.dispatcher import OperationDispatcher, SessionHooks
 from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
@@ -31,7 +31,11 @@ from harness_dast.domain.errors import ExternalToolError, PreflightError, ScopeV
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.http_messages import HttpRequest
 from harness_dast.domain.knowledge import KnowledgeEffect
-from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.knowledge_mutation import (
+    MutationPending,
+    mutation_key,
+    safe_mutation_metadata,
+)
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_config import SuccessCriteria
 from harness_dast.domain.probe_exchange import ExchangeRecord
@@ -139,6 +143,7 @@ class AuthzSettings:
     counter_checkpoint: Callable[[int], None] | None = None
     mutation_journal: MutationJournal | None = None
     credential_fields: frozenset[str] = frozenset()
+    clock: Clock | None = None
 
 
 class ReplaySender:
@@ -218,7 +223,21 @@ class ReplaySender:
         if request.method not in ("POST", "PUT", "PATCH", "DELETE") or journal is None:
             return self._dispatch(request, account, max_attempts=max_attempts)
         key = mutation_key(self._s.product, exchange.operation_id, account, request.method)
-        begin_mutation(journal, key, snapshot)
+        try:
+            metadata = (
+                safe_mutation_metadata(
+                    exchange.operation_id,
+                    account,
+                    request.method,
+                    self._s.run_id,
+                    self._s.clock.now(),
+                )
+                if self._s.clock is not None
+                else None
+            )
+            begin_mutation(journal, key, snapshot, metadata)
+        except MutationPending:
+            return Reply(None, problem="mutation_pending")
         try:
             result = self._dispatch(request, account, max_attempts=1)
         except (WindowClosed, DeadlineReached):
@@ -385,6 +404,8 @@ def usable_baseline(
 
 def problem_note(check: AuthzCheck, exchange: ExchangeRecord, reply: Reply) -> AuthzNotTested:
     """Anotação para pedido recusado pelo escopo ou conta sem sessão."""
+    if reply.problem == "mutation_pending":
+        return note(check, exchange, "mutation_pending", "Mutação pendente; reconcilie o estado.")
     if reply.problem == "scope":
         return note(
             check,

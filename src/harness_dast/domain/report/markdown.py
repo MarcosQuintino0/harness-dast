@@ -168,6 +168,12 @@ def _seeded_lines(coverage: Coverage) -> list[str]:
     return lines
 
 
+def _probe_outcome_cell(outcome: str | None) -> str:
+    if outcome == "mutation_pending":
+        return cell_code(outcome)
+    return escape_inline(outcome or "não registrado")
+
+
 def _not_tested_lines(coverage: Coverage) -> list[str]:
     if not coverage.not_tested:
         return []
@@ -180,7 +186,7 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
     ]
     lines += [
         f"| {cell_code(item.operation_id)} | {cell_code(item.method + ' ' + item.path)} | "
-        f"{escape_inline(item.probe_outcome or 'não registrado')} | "
+        f"{_probe_outcome_cell(item.probe_outcome)} | "
         f"{escape_inline(item.message, 200)} |"
         for item in coverage.not_tested
     ]

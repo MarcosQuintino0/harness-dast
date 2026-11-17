@@ -74,6 +74,9 @@ def _one(ctx: CheckContext, task: CreatedPairTask, out: CheckResult) -> None:
     reply = ctx.sender.send(
         post, task.owner[0], body=body, with_body=True, tag="pair:", max_attempts=1
     )
+    if reply.problem == "mutation_pending":
+        ctx.shared_writes -= 1
+        out.writes -= 1
     _check_created(ctx, task, out, reply, before, markers)
 
 
@@ -304,6 +307,17 @@ def _check_created(
         out.not_tested.append(problem_note("horizontal", post, reply))
         return
     if not _successful(ctx, reply):
+        if ctx.settings.mutation_journal is not None and (
+            reply.status is None or reply.status >= 500
+        ):
+            out.not_tested.append(
+                note(
+                    "horizontal",
+                    post,
+                    "mutation_pending",
+                    "Criação com efeito desconhecido; reconcilie o estado.",
+                )
+            )
         out.not_tested.append(
             note(
                 "horizontal",

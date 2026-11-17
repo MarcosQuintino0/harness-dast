@@ -26,6 +26,7 @@ from harness_dast.application.negative_sender import NegativeSender
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.domain.authz.compare import parse_json
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.knowledge_mutation import MutationPending
 from harness_dast.domain.mutation_snapshot import MutationSnapshot, project_snapshot
 from harness_dast.domain.negative_findings import build_negative_finding
 from harness_dast.domain.negative_plan import NegativeCase, NegativePlan
@@ -110,6 +111,7 @@ class NegativeRunner:
         self._findings: list[NegativeFinding] = []
         self._notes: list[NegativeNotTested] = []
         self._closed: dict[_OperationKey, str] = {}
+        self._pending: set[tuple[_OperationKey, str]] = set()
         self._left: dict[tuple[_OperationKey, str], int] = {}
         self._created = 0
         self._created_by_op: dict[_OperationKey, int] = {}
@@ -129,7 +131,15 @@ class NegativeRunner:
         done = 0
         try:
             for case in plan.cases:
-                self._case(case)
+                try:
+                    self._case(case)
+                except MutationPending:
+                    self._pending.add((case.key, case.exchange.account))
+                    self._notes.append(
+                        _case_note(
+                            case, "mutation_pending", "Mutação pendente; reconcilie o estado."
+                        )
+                    )
                 done += 1
         except MutationJournalBlocked as error:
             status, message = "stopped_zap", error.message
@@ -158,6 +168,9 @@ class NegativeRunner:
 
     def _case(self, case: NegativeCase) -> None:
         key = case.key
+        if (key, case.exchange.account) in self._pending:
+            self._skip(key, "mutation_pending")
+            return
         if key in self._closed:
             self._skip(key, self._closed[key])
             return
@@ -181,7 +194,7 @@ class NegativeRunner:
                 and case.exchange.method.upper() in {"POST", "PUT", "PATCH"}
                 and self._sender.journals_mutations
             ):
-                raise MutationJournalBlocked("Efeito da mutação após 5xx é desconhecido.")
+                raise MutationPending("Efeito da mutação após 5xx é desconhecido.")
         elif reaction.verdict == "inconclusive":
             self._inconclusive(case, reaction.reason or "inconclusive", reply)
 
@@ -196,7 +209,7 @@ class NegativeRunner:
             return self._sender.send(
                 case.exchange, target, body, reserve=reserve, snapshot=self._snapshot(case)
             )
-        except MutationJournalBlocked:
+        except (MutationPending, MutationJournalBlocked):
             raise
         except (StopRun, ExternalToolError):
             # Janela e prazo são conferidos ANTES do envio (nada saiu); aqui a escrita pode ter
@@ -269,6 +282,9 @@ class NegativeRunner:
         exchange = case.exchange
         try:
             ok = restore_original(self._sender, exchange, self._snapshot(case))
+        except MutationPending as stop:
+            self._notes.append(unrestored_note(exchange, interrupted=True))
+            return False, stop
         except MutationJournalBlocked as stop:
             self._notes.append(unrestored_note(exchange, interrupted=True))
             self._closed[case.key] = "restore_pending"

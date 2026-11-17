@@ -268,6 +268,8 @@ class Negative:
             sessions=pool,
             max_requests=limit,
             product=profile.product,
+            run_id=run_id,
+            clock=self._clock,
             mutation_journal=self._mutation_journal,
             credential_fields=_credential_fields(profile),
         )
