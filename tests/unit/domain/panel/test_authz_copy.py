@@ -20,7 +20,7 @@ from harness_dast.domain.panel.model import PanelFinding
         (None, "", "teste de autorização"),
     ],
 )
-def test_confidence_descreve_observacao_quando_tecnica_varia(
+def test_confidence_describes_observation_when_technique_varies(
     technique: str | None, parameter: str, expected: str
 ) -> None:
     item = PanelFinding.model_validate(

@@ -1,6 +1,7 @@
 """Aba Falhas: fiel a `screens/findings.html` e aos estados de `system/states.html`."""
 
 import re
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -146,7 +147,7 @@ def test_verification_is_shown_in_matching_card_with_comparison_and_person() -> 
     person = HumanConfirmation(
         fingerprint="a" * 64,
         person="Ana",
-        confirmed_at="2026-11-17T00:00:00Z",
+        confirmed_at=datetime(2026, 11, 17, tzinfo=UTC),
         observation="Vi a resposta.",
     )
     item = PresentedFinding(

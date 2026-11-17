@@ -117,7 +117,7 @@ def test_panel_writes_the_six_pages_and_answers_with_the_envelope(
 
 
 @pytest.mark.parametrize("method", ["GET", "POST"])
-def test_panel_preserva_verificacao_e_confirmacao_humana_gravadas(
+def test_panel_preserves_recorded_verification_and_human_confirmation(
     world: tuple[Path, Path], capsys: pytest.CaptureFixture[str], method: str
 ) -> None:
     runs, _ = world
@@ -184,7 +184,7 @@ def test_panel_preserva_verificacao_e_confirmacao_humana_gravadas(
         ("authz_excessive_data", (), "campos da resposta com o esquema do OpenAPI"),
     ],
 )
-def test_panel_descreve_tecnica_authz_gravada_sem_inventar_duas_contas(
+def test_panel_describes_recorded_authz_technique_without_inventing_two_accounts(
     world: tuple[Path, Path],
     capsys: pytest.CaptureFixture[str],
     technique: str,

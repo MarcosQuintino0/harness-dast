@@ -49,7 +49,7 @@ def _authz(
         ("authz_horizontal", (), "comparação entre duas contas"),
     ],
 )
-def test_repro_descreve_tecnica_quando_achado_vem_de_authz(
+def test_repro_describes_technique_when_finding_comes_from_authz(
     technique: str, fields: tuple[str, ...], expected: str
 ) -> None:
     panel = view(authz=_authz(technique, fields))
@@ -65,7 +65,7 @@ def test_repro_descreve_tecnica_quando_achado_vem_de_authz(
 
 
 @pytest.mark.parametrize("evidence", ["", "[REDACTED]", '<script>alert("x")</script>'])
-def test_repro_escapa_evidencia_quando_recebe_texto_externo(evidence: str) -> None:
+def test_repro_escapes_evidence_when_receiving_external_text(evidence: str) -> None:
     panel = view(authz=_authz("authz_cors", ("reflected_credentials",), evidence))
     item = next(item for item in panel.severe if item.origin == "authz")
 
