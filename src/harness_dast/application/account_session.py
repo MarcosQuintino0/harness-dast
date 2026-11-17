@@ -132,6 +132,15 @@ class AccountSession:
         return isinstance(self._auth, PasswordLoginAuth)
 
     @property
+    def username(self) -> str | None:
+        """Identificador (usuário) da conta de teste, ou `None` sem login por senha.
+
+        Só serve ao identificador das tentativas sintéticas do limite de consumo (ADR 0101): é o
+        da conta de teste da carta, já registrado para mascaramento, e nunca a senha.
+        """
+        return self._values.get("username")
+
+    @property
     def csrf(self) -> CsrfConfig | None:
         """Configuração de CSRF do perfil."""
         return self._auth.csrf

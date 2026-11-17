@@ -293,6 +293,8 @@ ignore_names = [
     # testes e pelo agente.
     "ssrf",
     "events_seen",
+    # Limite de consumo (ADR 0101): campo de scan.json lido só pela serialização do pydantic.
+    "rate_checks",
     # Medição da execução (ADR 0031): campos de rule-stats.json e metrics.json lidos só pela
     # serialização do pydantic, pelos testes e por quem analisa o arquivo depois.
     "quality",

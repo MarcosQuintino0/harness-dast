@@ -37,6 +37,12 @@ from harness_dast.application.common_ports import (
     ZapControl,
 )
 from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.extra_checks import (
+    ExtraContext,
+    ExtraOutcome,
+    not_run_outcome,
+    run_extra_checks,
+)
 from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.mutation_guard import finish_mutation
 from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
@@ -370,14 +376,19 @@ class Scan:
         finally:
             removed = live.tokens.remove_all()
             self._drop_policy(prep.policy.name)
+        extra_checks = self._extra_checks(prep, request, live, outcome.status)
         self._write_progress(request.run_id, "collecting", len(plan.targets))
-        extra = guided.alerts if guided is not None else ()
+        extra = (guided.alerts if guided is not None else ()) + (
+            extra_checks.alerts if extra_checks is not None else ()
+        )
         collected, status, message = self._collect(request.run_id, base_url, outcome, extra)
         result = self._result(
             prep, request, status, message, plan=plan, entries=outcome.entries
         ).model_copy(
             update={
                 "ssrf": guided.summary if guided is not None else None,
+                "rate_checks": extra_checks.rate if extra_checks is not None else None,
+                "inventory": extra_checks.inventory if extra_checks is not None else None,
                 "alerts_total": collected.alerts_total if collected else 0,
                 "alerts_by_risk": collected.by_risk if collected else {},
                 "evidence_messages": collected.evidence_messages if collected else 0,
@@ -583,6 +594,37 @@ class Scan:
             sleeper=self._sleeper,
             base_url=base_url,
         ).run(plan)
+
+    def _extra_checks(
+        self, prep: _Prepared, request: ScanRequest, live: _Live, status: str
+    ) -> ExtraOutcome | None:
+        """Limite de consumo e inventário (ADR 0101 e 0102): só com as chaves da carta.
+
+        Rodam depois das varreduras do ZAP (uma conta de teste que o limite bloqueasse não atrapalha
+        a varredura) e só se ela terminou normalmente; senão ficam como "não executado".
+        """
+        flags = prep.profile.extra_checks
+        if not (flags.allow_rate_tests or flags.inventory):
+            return None
+        if status != "completed" or self._exchanges is None:
+            return not_run_outcome(prep.profile, f"a varredura terminou como {status}.")
+        try:
+            log = self._exchanges.read_exchanges(request.run_id)
+        except ConfigError as error:
+            _log.warning("extra_checks_exchanges_unavailable", reason=error.message)
+            return not_run_outcome(prep.profile, "exchanges.json indisponível.")
+        context = ExtraContext(
+            profile=prep.profile,
+            operations=prep.operations,
+            exchanges=log,
+            dispatcher=live.dispatcher,
+            session_factory=lambda alias: self._account_session(prep, alias, live.dispatcher),
+            account=prep.default_account,
+            only=frozenset(request.only),
+            product=prep.profile.product,
+            mutation_journal=self._mutation_journal,
+        )
+        return run_extra_checks(context)
 
     def _delivery(
         self, prep: _Prepared, alias: str, dispatcher: OperationDispatcher
