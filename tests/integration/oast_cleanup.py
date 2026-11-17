@@ -5,6 +5,7 @@ mesma prova componham um único resultado sanitizado, mesmo com falhas independe
 """
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -15,8 +16,9 @@ from harness_dast.domain.errors import HarnessError
 
 Runner = Callable[[tuple[str, ...]], str]
 OWNER_LABEL = "io.hdast.oast.owner"
-PROJECT = "hdast-codex"
-CRAPI_PROJECT = "hdast-crapi-codex"
+_SUFFIX = os.environ.get("HDAST_IT_STACK_SUFFIX") or "-codex"
+PROJECT = "hdast" + _SUFFIX
+CRAPI_PROJECT = "hdast-crapi" + _SUFFIX
 FAILURES = (
     OSError,
     subprocess.SubprocessError,
