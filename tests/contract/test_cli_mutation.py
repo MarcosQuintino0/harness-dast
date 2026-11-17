@@ -1,9 +1,11 @@
 """Contrato de inspeção e recusa não interativa de mutações."""
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
+import typer
 
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.cli.app import build_app, run_app
@@ -39,3 +41,19 @@ def test_lista_recusa_diario_corrompido(
     (directory / ("a" * 64 + ".jsonl")).write_text("segredo-malformado", encoding="utf-8")
     assert run_app(build_app(), ["--json", "mutation", "list"]) == 2
     assert "segredo-malformado" not in capsys.readouterr().out
+
+
+def test_release_interativo_confirma_por_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(typer, "prompt", lambda *args, **kwargs: "a" * 64)
+    assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
+    assert journal.list_pending() == ()
+    assert "liberada" in capsys.readouterr().out

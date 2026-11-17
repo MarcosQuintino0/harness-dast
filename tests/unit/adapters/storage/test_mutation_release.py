@@ -45,6 +45,14 @@ def test_recusa_registro_malformado_sem_expor_conteudo(tmp_path: Path, content: 
     assert not isinstance(error.value, MutationPending)
 
 
+@pytest.mark.parametrize("metadata", [None, {}, {"operation_id": "read"}, "invalid"])
+def test_recusa_metadados_malformados(tmp_path: Path, metadata: object) -> None:
+    entry = {"intent": "mutation", "previous_state": "unknown", "metadata": metadata}
+    (tmp_path / (KEY + ".jsonl")).write_text(json.dumps(entry), encoding="utf-8")
+    with pytest.raises(ConfigError):
+        FileMutationJournal(tmp_path).list_pending()
+
+
 def test_pendencia_valida_tem_excecao_propria(tmp_path: Path) -> None:
     journal = FileMutationJournal(tmp_path)
     journal.begin(KEY, "unknown")
@@ -67,7 +75,21 @@ def test_libera_com_confirmacao_e_registra_auditoria(tmp_path: Path) -> None:
     assert journal.list_pending() == ()
     archive = next((tmp_path / "completed").iterdir())
     event = json.loads(archive.read_text(encoding="utf-8").splitlines()[1])
-    assert event == {"outcome": "human_release", "released_at": NOW.isoformat()}
+    assert event == {
+        "outcome": "human_release",
+        "event": "mutation_human_release",
+        "released_at": NOW.isoformat(),
+    }
+
+
+def test_libera_registro_legado_sem_pasta_completed(tmp_path: Path) -> None:
+    (tmp_path / (KEY + ".jsonl")).write_text(
+        '{"intent":"mutation","previous_state":"unknown"}\n', encoding="utf-8"
+    )
+    journal = FileMutationJournal(tmp_path)
+    assert release_mutation(journal, KEY, interactive=True, confirm=lambda _: True, now=lambda: NOW)
+    assert journal.list_pending() == ()
+    assert len(list((tmp_path / "completed").iterdir())) == 1
 
 
 @pytest.mark.parametrize("key", ["../outside", "", "a" * 63])
