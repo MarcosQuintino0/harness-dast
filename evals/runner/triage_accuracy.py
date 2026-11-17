@@ -46,6 +46,12 @@ def _report(path: Path, case: Case) -> list[dict[str, Any]]:
         if section is not None:
             rows.extend(item.model_dump() for item in section.findings)
     fingerprints = [row["fingerprint"] for row in rows]
+    if any(
+        type(row.get("fingerprint_version")) is not int
+        or row["fingerprint_version"] != (2 if row.get("origin") == "proxy" else 1)
+        for row in rows
+    ):
+        raise ValueError("versão de fingerprint do achado incompatível")
     if any(not re.fullmatch(r"[0-9a-f]{64}", fp) for fp in fingerprints):
         raise ValueError("fingerprint invalido no relatorio")
     if len(set(fingerprints)) != len(fingerprints):

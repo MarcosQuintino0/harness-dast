@@ -205,3 +205,13 @@ def test_relatorio_de_outra_execucao_nao_e_medido(tmp_path: Path) -> None:
     result = measure(tmp_path, load_case("clinica-piloto"), "vulnerable")
     assert not result["observacoes"]
     assert "divergente" in result["problemas"][0]["motivo"]
+
+
+def test_versao_de_fingerprint_invalida_nao_e_medida(tmp_path: Path) -> None:
+    folder = setup_run(tmp_path)
+    data = report()
+    data["findings"][0]["fingerprint_version"] = 2
+    write(folder / "findings.json", data)
+    result = measure(tmp_path, load_case("clinica-piloto"), "vulnerable")
+    assert not result["observacoes"]
+    assert "fingerprint" in result["problemas"][0]["motivo"]
