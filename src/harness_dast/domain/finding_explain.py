@@ -23,7 +23,7 @@ import re
 from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz_result import AuthzTechnique
+from harness_dast.domain.authz.result import AuthzTechnique
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.manual_repro import is_time_based
 from harness_dast.domain.redaction import strip_control

@@ -2,14 +2,14 @@
 
 import hashlib
 
-from harness_dast.application.authz_sender import (
+from harness_dast.application.authz.sender import (
     CheckContext,
     CheckResult,
     inconclusive,
     problem_note,
 )
-from harness_dast.domain.authz_compare import is_success_status
-from harness_dast.domain.authz_plan import Planned
+from harness_dast.domain.authz.compare import is_success_status
+from harness_dast.domain.authz.plan import Planned
 from harness_dast.domain.cors import CorsPolicy, classify_cors, cors_finding
 from harness_dast.domain.probe_exchange import ExchangeRecord
 

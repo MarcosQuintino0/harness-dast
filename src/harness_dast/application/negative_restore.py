@@ -10,9 +10,9 @@ levanta de novo. `POST` não tem restauração (não há valor anterior e `DELET
 aqui decide veredito de segurança.
 """
 
-from harness_dast.application.authz_sender import INTERRUPTIONS
+from harness_dast.application.authz.sender import INTERRUPTIONS
 from harness_dast.application.negative_sender import NegativeSender
-from harness_dast.domain.authz_compare import is_success_status
+from harness_dast.domain.authz.compare import is_success_status
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.negative_result import NegativeNotTested
 from harness_dast.domain.probe_exchange import ExchangeRecord

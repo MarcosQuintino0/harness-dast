@@ -8,7 +8,7 @@ altera severidade, confiança ou status do achado.
 
 from typing import Final
 
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding_explain import (
     FindingExplanation,
     Who,

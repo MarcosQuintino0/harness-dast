@@ -21,7 +21,7 @@ from harness_dast.application.stack_models import (
 from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.cleanup_binds import BindValue
 from harness_dast.domain.cleanup_confirmation import ConfirmationRecord
 from harness_dast.domain.cleanup_gate import CleanupStatement

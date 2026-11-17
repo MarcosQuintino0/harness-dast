@@ -21,7 +21,7 @@ from typing import Final, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog

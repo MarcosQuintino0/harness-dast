@@ -52,7 +52,7 @@ uv run pytest -q
 O padrão já deixa de fora os testes que precisam de Docker (`integration` e `e2e`). No laço local, enquanto conserta, rode só os arquivos afetados e deixe a suíte inteira para o fim:
 
 ```bash
-uv run pytest -q tests/unit/domain/test_authz_config.py tests/contract/test_cli_authz.py
+uv run pytest -q tests/unit/domain/authz/test_config.py tests/contract/test_cli_authz.py
 ```
 
 Se a mudança não tocou a régua de avaliação, pode pular `tests/unit/evals/` no laço local (`--ignore=tests/unit/evals`). Antes de dizer que terminou e antes do pull request, rode a suíte inteira, sem filtro, depois da última mudança. O CI sempre roda tudo.

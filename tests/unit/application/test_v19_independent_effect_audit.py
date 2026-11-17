@@ -1,11 +1,11 @@
 """Prova observável da aplicação da receita de efeito, sem rede real."""
 
-from harness_dast.application.authz import Authz, AuthzRequest
+from harness_dast.application.authz.service import Authz, AuthzRequest
 from harness_dast.domain.knowledge import KnowledgeEffect
-from tests.fakes.authz_rig import Clinic
-from tests.fakes.authz_write_rig import exchange, seed
+from tests.fakes.authz.rig import Clinic
+from tests.fakes.authz.write_rig import exchange, seed
 from tests.fakes.rig import INT, operation, parameter
-from tests.unit.application.test_authz_mass_derived import derived_rig
+from tests.unit.application.authz.test_mass_derived import derived_rig
 
 
 def test_receita_com_efeito_provado_identifica_leituras_na_auditoria() -> None:

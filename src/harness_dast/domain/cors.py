@@ -2,8 +2,8 @@
 
 from typing import Literal
 
-from harness_dast.domain.authz_finding_build import build_finding
-from harness_dast.domain.authz_result import AuthzFinding
+from harness_dast.domain.authz.finding_build import build_finding
+from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.probe_exchange import ExchangeRecord
 
 CorsPolicy = Literal["reflected_credentials", "wildcard"]

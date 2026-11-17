@@ -7,7 +7,7 @@ import pytest
 
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.probe_ports import FakeTarget, reply
-from tests.unit.application.test_authz_created_pair import execute, make_rig
+from tests.unit.application.authz.test_created_pair import execute, make_rig
 
 
 @pytest.mark.parametrize("shape", ["empty", "multiple", "wrong", "ambiguous", "duplicate"])

@@ -7,7 +7,7 @@ escopo (3); falha da ferramenta externa é 5; alvo sem resposta é 6; login recu
 
 from harness_dast.application.doctor_report import DoctorReport
 from harness_dast.application.preflight_report import PreflightReport
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,

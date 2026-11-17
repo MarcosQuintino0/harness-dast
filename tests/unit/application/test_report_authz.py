@@ -3,14 +3,14 @@
 import pytest
 
 from harness_dast.application.report import ReportRequest, exceeds
-from harness_dast.domain.authz_findings import (
+from harness_dast.domain.authz.findings import (
     excessive_data_finding,
     horizontal_finding,
     mass_assignment_finding,
 )
-from harness_dast.domain.authz_findings_access import anonymous_finding, tampered_finding
-from harness_dast.domain.authz_findings_write import horizontal_write_finding
-from harness_dast.domain.authz_result import AuthzNotTested, AuthzResult, CheckSummary
+from harness_dast.domain.authz.findings_access import anonymous_finding, tampered_finding
+from harness_dast.domain.authz.findings_write import horizontal_write_finding
+from harness_dast.domain.authz.result import AuthzNotTested, AuthzResult, CheckSummary
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.report_markdown import render_markdown
 from harness_dast.domain.report_model import (
@@ -311,7 +311,7 @@ def write_result() -> AuthzResult:
 
 
 def test_the_markdown_and_the_html_show_the_write_technique_and_the_field_name() -> None:
-    from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+    from harness_dast.domain.authz.findings import TECHNIQUE_LABEL
     from harness_dast.domain.report_html import render_html
 
     report = report_with(scanned(), write_result())

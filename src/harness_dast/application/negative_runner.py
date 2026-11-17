@@ -14,7 +14,7 @@ resposta é guardado: só o veredito, os códigos e os NOMES de campo.
 from dataclasses import dataclass
 from typing import Final
 
-from harness_dast.application.authz_sender import INTERRUPTIONS, Reply, StopRun
+from harness_dast.application.authz.sender import INTERRUPTIONS, Reply, StopRun
 from harness_dast.application.mutation_guard import MutationJournalBlocked
 from harness_dast.application.negative_restore import (
     RESTORABLE_METHODS,
@@ -24,7 +24,7 @@ from harness_dast.application.negative_restore import (
 )
 from harness_dast.application.negative_sender import NegativeSender
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
-from harness_dast.domain.authz_compare import parse_json
+from harness_dast.domain.authz.compare import parse_json
 from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.mutation_snapshot import MutationSnapshot, project_snapshot
 from harness_dast.domain.negative_findings import build_negative_finding

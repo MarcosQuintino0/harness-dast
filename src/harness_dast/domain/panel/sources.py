@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, tzinfo
 
 from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import Operation
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation
 from harness_dast.domain.probe_result import ProbeResult, RunManifest

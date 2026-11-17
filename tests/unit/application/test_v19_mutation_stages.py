@@ -17,7 +17,7 @@ from tests.fakes.negative_rig import CREATE, PRICE, PRODUCTS, UPDATE, Catalog, N
 from tests.fakes.probe_ports import FakeTarget
 from tests.fakes.rig import operation
 from tests.fakes.scan_ports import InMemoryRunArtifacts
-from tests.unit.application.test_authz_created_pair import execute, make_rig
+from tests.unit.application.authz.test_created_pair import execute, make_rig
 from tests.unit.application.test_scan import ready
 
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
+from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
 from harness_dast.domain.panel.build import build_panel_view
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation, PanelView
 from harness_dast.domain.panel.sources import parse_moment

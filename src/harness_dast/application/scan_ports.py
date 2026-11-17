@@ -11,7 +11,7 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage

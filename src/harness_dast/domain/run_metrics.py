@@ -14,7 +14,7 @@ from typing import Final, Literal
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile, RuleTotal, total_rules

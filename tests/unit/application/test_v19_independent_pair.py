@@ -5,7 +5,7 @@ from __future__ import annotations
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.probe_ports import FakeTarget, reply
 from tests.fakes.rig import INT, STR, operation
-from tests.unit.application.test_authz_created_pair import execute, make_rig
+from tests.unit.application.authz.test_created_pair import execute, make_rig
 
 
 def test_v19_independent_server_generated_id_is_not_tested_without_proof() -> None:

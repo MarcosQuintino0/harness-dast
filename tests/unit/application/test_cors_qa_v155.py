@@ -1,6 +1,6 @@
 """Limites da verificação CORS exercitados pelo caso de uso completo."""
 
-from harness_dast.application.authz import Authz, AuthzRequest
+from harness_dast.application.authz.service import Authz, AuthzRequest
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.probe_ports import InMemorySpecs, reply

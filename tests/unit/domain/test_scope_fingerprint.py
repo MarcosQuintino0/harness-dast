@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from harness_dast.domain.auth import ApiKeyAuth, PasswordLoginAuth
-from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.profile import CleanupConfig, ProductProfile
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scope_fingerprint import (

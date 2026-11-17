@@ -13,7 +13,7 @@ from typing import Any
 
 from harness_dast.application.scan_ports import ScanStart
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog

@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from harness_dast.adapters.reporting.run_files import MAX_FILE_BYTES, FileRunArtifacts
 from harness_dast.domain.agent_metrics import AGENT_METRICS_SCHEMA_VERSION, AgentMetrics
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.panel.model import PANEL_DIR

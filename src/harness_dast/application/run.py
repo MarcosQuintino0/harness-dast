@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from harness_dast.application.authz import AuthzRequest
+from harness_dast.application.authz.service import AuthzRequest
 from harness_dast.application.negative import NegativeRequest
 from harness_dast.application.panel_index_ports import RunLive
 from harness_dast.application.ports import Clock, KillSwitch, ProfileRepository
@@ -57,7 +57,7 @@ from harness_dast.application.stage_errors import (
     probe_stop_error,
     scan_stop_error,
 )
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExitCode, HarnessError, UserInterrupt
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult

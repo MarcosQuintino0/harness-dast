@@ -10,7 +10,7 @@ from typing import Final
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.internal_error_signals import InternalErrorSignals

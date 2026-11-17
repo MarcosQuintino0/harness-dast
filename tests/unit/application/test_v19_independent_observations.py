@@ -63,7 +63,7 @@ def test_v19_independent_rejects_wrong_run_or_stale_hash_before_capture(
 def test_v19_independent_post_readback_refutes_echo(monkeypatch: pytest.MonkeyPatch) -> None:
     from harness_dast.domain.http_messages import HttpRequest, HttpResponse
     from tests.fakes.probe_ports import reply
-    from tests.unit.application import test_authz_effect_reuse as support
+    from tests.unit.application.authz import test_effect_reuse as support
 
     class EchoButIgnore(support.Objects):
         def _route(self, request: HttpRequest, path: str, alias: str) -> HttpResponse:
@@ -84,14 +84,14 @@ def test_v19_independent_post_readback_refutes_echo(monkeypatch: pytest.MonkeyPa
 
 @pytest.mark.parametrize("before", [10, 11])
 def test_v19_independent_put_readback_refutes_echo_or_preexisting(before: int) -> None:
-    from harness_dast.application.authz import Authz, AuthzRequest
+    from harness_dast.application.authz.service import Authz, AuthzRequest
     from harness_dast.domain.http_messages import HttpRequest, HttpResponse
     from harness_dast.domain.knowledge import KnowledgeEffect
-    from tests.fakes.authz_rig import Clinic
-    from tests.fakes.authz_write_rig import exchange, seed
+    from tests.fakes.authz.rig import Clinic
+    from tests.fakes.authz.write_rig import exchange, seed
     from tests.fakes.probe_ports import FakeTarget, reply
     from tests.fakes.rig import INT, operation, parameter
-    from tests.unit.application.test_authz_mass_derived import derived_rig
+    from tests.unit.application.authz.test_mass_derived import derived_rig
 
     rig = derived_rig(
         Clinic(),

@@ -6,14 +6,14 @@ from datetime import timedelta
 from types import SimpleNamespace
 from typing import cast
 
-from harness_dast.application.authz import AuthzRequest
+from harness_dast.application.authz.service import AuthzRequest
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run import RunPipeline, RunRequest, RunResult
 from harness_dast.application.scan import ScanRequest
-from harness_dast.domain.authz_findings import horizontal_finding
-from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
+from harness_dast.domain.authz.findings import horizontal_finding
+from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
 from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.scan_result import ScanResult

@@ -8,6 +8,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ### Organização
 
+- Grupo authz: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
+
 - ADR 0084 proposto compara apresentação no domínio e em adapters/reporting; recomenda migração futura, sem troca de camada nesta entrega.
 
 - Grupo panel: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
@@ -233,7 +235,7 @@ Versão do "achar mais: autorização". O teste de autorização entre contas pa
 
 ### Refatoração
 
-- `application/authz_runner.py` (693 linhas) dividido em envio, verificações de leitura, atribuição em massa e um mapa de verificações (`CHECK_RUNNERS`), sem mudar comportamento.
+- `application/authz/runner.py` (693 linhas) dividido em envio, verificações de leitura, atribuição em massa e um mapa de verificações (`CHECK_RUNNERS`), sem mudar comportamento.
 
 ### Correções
 

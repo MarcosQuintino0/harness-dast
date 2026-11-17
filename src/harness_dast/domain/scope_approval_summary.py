@@ -7,7 +7,7 @@ Mostra NOMES de `secret_ref`, nunca valor de segredo. Este módulo é puro.
 """
 
 from harness_dast.domain.auth import PasswordLoginAuth
-from harness_dast.domain.authz_config import (
+from harness_dast.domain.authz.config import (
     DEFAULT_DERIVED_LIMIT,
     DEFAULT_MASS_METHODS,
     AuthzConfig,

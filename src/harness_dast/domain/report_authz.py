@@ -5,9 +5,9 @@ Fica separada dos achados do ZAP: a técnica é a comparação determinística e
 campo e códigos HTTP, que passam por `markdown_safe` do mesmo jeito. Este módulo é puro.
 """
 
-from harness_dast.domain.authz_findings import SOURCE_TEXT, TECHNIQUE_LABEL
-from harness_dast.domain.authz_owner_plan import visible_authz_notes
-from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
+from harness_dast.domain.authz.findings import SOURCE_TEXT, TECHNIQUE_LABEL
+from harness_dast.domain.authz.owner_plan import visible_authz_notes
+from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
 from harness_dast.domain.markdown_safe import cell_code, code_span, escape_inline
 from harness_dast.domain.report_authz_matrix import matrix_lines
 from harness_dast.domain.report_labels import CHECK_LABEL, CHECK_STATUS_LABEL, SEVERITY_LABEL

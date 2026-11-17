@@ -75,7 +75,7 @@ def test_v19_independent_probe_timeout_blocks_same_negative(tmp_path: Path) -> N
 
 
 def test_v19_independent_probe_timeout_blocks_same_authz(tmp_path: Path) -> None:
-    from tests.unit.application.test_authz_created_pair import execute, make_rig
+    from tests.unit.application.authz.test_created_pair import execute, make_rig
 
     first = make_rig("api/widgets", exposed=True)
     delegate = first.clinic

@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 
 from pydantic import ValidationError
 
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
 from harness_dast.domain.finding_diff import compare_findings, ensure_comparable

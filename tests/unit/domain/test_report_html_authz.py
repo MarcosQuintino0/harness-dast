@@ -2,7 +2,7 @@
 
 import pytest
 
-from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+from harness_dast.domain.authz.findings import TECHNIQUE_LABEL
 from harness_dast.domain.report_actions import next_steps
 from harness_dast.domain.report_build import assemble_report
 from harness_dast.domain.report_html import render_html

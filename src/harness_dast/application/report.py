@@ -30,7 +30,7 @@ from harness_dast.application.scan_ports import (
     RunMetricsRecorder,
 )
 from harness_dast.domain.auth import PasswordLoginAuth
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding_build import AlertResolver
 from harness_dast.domain.negative_result import NegativeResult

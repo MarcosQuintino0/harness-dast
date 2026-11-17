@@ -11,7 +11,7 @@ from collections.abc import Collection, Mapping, Sequence
 from typing import Final
 
 from harness_dast.domain.api_model import Operation
-from harness_dast.domain.authz_result import AuthzFinding, AuthzResult
+from harness_dast.domain.authz.result import AuthzFinding, AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_confidence import confidence_step
 from harness_dast.domain.manual_repro import build_manual_repro

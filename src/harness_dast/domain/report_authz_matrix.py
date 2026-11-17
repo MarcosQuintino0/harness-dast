@@ -9,7 +9,7 @@ de papel e de motivo vêm do OpenAPI e do perfil e passam por `escape_inline`, `
 from typing import Final
 
 from harness_dast.domain import html_safe as h
-from harness_dast.domain.authz_matrix_report import AccessMatrixReport, CellResult, MatrixCell
+from harness_dast.domain.authz.matrix_report import AccessMatrixReport, CellResult, MatrixCell
 from harness_dast.domain.markdown_safe import cell_code, escape_inline
 
 MAX_MARKDOWN_ROWS: Final = 100

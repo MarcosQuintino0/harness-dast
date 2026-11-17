@@ -1,6 +1,6 @@
 """Lacunas horizontais continuam visíveis depois do limite geral das apresentações."""
 
-from harness_dast.domain.authz_result import AuthzNotTested, CheckSummary
+from harness_dast.domain.authz.result import AuthzNotTested, CheckSummary
 from harness_dast.domain.panel.authz import render_authz
 from harness_dast.domain.panel.build import build_panel_view
 from harness_dast.domain.report_authz import authz_lines

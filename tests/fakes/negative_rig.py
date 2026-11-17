@@ -27,7 +27,7 @@ from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.profile import ProductProfile
-from tests.fakes.authz_rig import AuthzRig, Clinic, clinic_profile_data, clinic_spec
+from tests.fakes.authz.rig import AuthzRig, Clinic, clinic_profile_data, clinic_spec
 from tests.fakes.probe_ports import reply
 
 PRODUCTS = "/api/produtos"

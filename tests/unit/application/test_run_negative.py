@@ -4,14 +4,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-from harness_dast.application.authz import AuthzRequest
+from harness_dast.application.authz.service import AuthzRequest
 from harness_dast.application.negative import NegativeRequest
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import ReportOutcome, ReportRequest
 from harness_dast.application.run import RunPipeline, RunRequest, RunResult
 from harness_dast.application.scan import ScanRequest
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ExitCode
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult

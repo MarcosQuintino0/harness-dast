@@ -8,7 +8,7 @@ não lê este arquivo.
 from pathlib import Path
 
 from harness_dast.adapters.storage.product_paths import resolve_product_file
-from harness_dast.domain.authz_matrix_draft import DRAFT_FILE
+from harness_dast.domain.authz.matrix_draft import DRAFT_FILE
 from harness_dast.domain.errors import ConfigError
 
 

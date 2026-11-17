@@ -17,7 +17,7 @@ from datetime import date, datetime
 from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding import FindingEvidence
 from harness_dast.domain.manual_repro import ManualRepro
 from harness_dast.domain.panel.format import FunctionStateKind, RunStateKind

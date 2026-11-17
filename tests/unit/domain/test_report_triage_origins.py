@@ -2,7 +2,7 @@
 
 import pytest
 
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.cors import cors_finding
 from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_exchange import ExchangeRecord

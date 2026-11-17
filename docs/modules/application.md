@@ -89,9 +89,14 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 
 | Módulo | Conteúdo |
 | --- | --- |
-| `authz.py`, `authz_ports.py`, `authz_runner.py` | `Authz`: o teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)) |
+| `authz/service.py`, `authz/ports.py`, `authz/runner.py` | `Authz`: o teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)) |
 | `doctor.py`, `doctor_checks.py`, `doctor_report.py` | `Doctor`: confere ambiente e perfil sem tocar o alvo ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) |
 | `secret_admin.py`, `secret_refs.py`, `secret_router.py` | `hdast secret` e o roteamento de `env:` e `keyring:` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
 | `metrics.py` | Montagem do `metrics.json` ([ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
 | `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel/live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
 | `command_journal.py` | Diário de comandos por produto ([ADR 0033](../adr/0033-diario-de-comandos.md), Proposto) |
+
+## Grupo `authz/`
+
+17 módulos de produção agrupados na mesma camada, sem alterar contratos.
+Novas regras deste assunto entram em `application/authz/`, com testes espelhados em `tests/unit/application/authz/`.

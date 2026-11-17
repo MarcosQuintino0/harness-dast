@@ -69,7 +69,7 @@ A tabela acima cobre o M1 ao M5. As versões 1.1 e 1.2 acrescentaram famílias d
 | Família | Módulos | ADR |
 | --- | --- | --- |
 | Cerca com motivo granular e modo amplo | `scope_reason.py`, `scope_labels.py`, `widepath.py`, `wide_guard.py`, `traffic.py` | [0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) |
-| Teste de autorização entre contas | `authz_config.py`, `authz_plan.py`, `authz_compare.py`, `authz_result.py`, `authz_findings.py`, `authz_sensitive.py`, `probe_exchange.py` | [0027](../adr/0027-teste-de-autorizacao-entre-contas.md) |
+| Teste de autorização entre contas | `authz/config.py`, `authz/plan.py`, `authz/compare.py`, `authz/result.py`, `authz/findings.py`, `authz/sensitive.py`, `probe_exchange.py` | [0027](../adr/0027-teste-de-autorizacao-entre-contas.md) |
 | Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report_*.py`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
 | Medição da execução | `run_metrics.py`, `rule_stats.py`, `run_summary.py` | [0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) |
 | Painel, diário de comandos e explicação de falha | `panel_*.py`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../adr/0032-painel-da-execucao.md), [0033](../adr/0033-diario-de-comandos.md), [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
@@ -99,3 +99,8 @@ Os módulos listados estão implementados e testados e são usados pelos comando
 
 29 módulos de produção agrupados na mesma camada, sem alterar contratos.
 Novas regras deste assunto entram em `domain/panel/`, com testes espelhados em `tests/unit/domain/panel/`.
+
+## Grupo `authz/`
+
+35 módulos de produção agrupados na mesma camada, sem alterar contratos.
+Novas regras deste assunto entram em `domain/authz/`, com testes espelhados em `tests/unit/domain/authz/`.

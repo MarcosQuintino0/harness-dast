@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from harness_dast.domain.authz_matrix_report import AccessMatrixReport, MatrixCell, MatrixRow
+from harness_dast.domain.authz.matrix_report import AccessMatrixReport, MatrixCell, MatrixRow
 from harness_dast.domain.report_html import render_html
 from harness_dast.domain.report_markdown import render_markdown
 from tests.unit.domain.test_report_html import XSS, parse

@@ -19,8 +19,8 @@ from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
-from harness_dast.application.authz import Authz
-from harness_dast.application.authz_draft import AuthzDraft
+from harness_dast.application.authz.draft import AuthzDraft
+from harness_dast.application.authz.service import Authz
 from harness_dast.application.knowledge import load_validated_effects
 from harness_dast.cli.approval_composition import checked_profiles
 from harness_dast.cli.composition import (

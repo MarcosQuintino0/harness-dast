@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from harness_dast.domain.authz_config import CHECK_ORDER
+from harness_dast.domain.authz.config import CHECK_ORDER
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     LabCli,

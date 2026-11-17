@@ -6,7 +6,7 @@ from datetime import UTC
 import pytest
 
 from harness_dast.application.panel import Panel, PanelRequest
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.panel.model import PanelCommand, PanelExplanation, PanelJournal
 from harness_dast.domain.probe_result import RunManifest

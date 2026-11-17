@@ -3,7 +3,7 @@
 import pytest
 
 from harness_dast.domain.api_schema import Schema
-from harness_dast.domain.authz_pair_marker import marker_fields
+from harness_dast.domain.authz.pair_marker import marker_fields
 from harness_dast.domain.datagen import DataRules
 from harness_dast.domain.request_builder import RequestBuilder
 from tests.fakes.rig import STR, operation, parameter
