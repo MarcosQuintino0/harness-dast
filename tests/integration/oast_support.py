@@ -15,6 +15,7 @@ PYTHON_IMAGE = (
     "a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72"
 )
 PROJECT = "hdast-codex"
+CRAPI_PROJECT = "hdast-crapi-codex"
 
 
 class OastLab:
@@ -26,8 +27,10 @@ class OastLab:
         self.network = f"hdast-oast-{nonce}"
         self.client = f"hdast-oast-client-{nonce}"
         self.cli.env["HDAST_OAST_NETWORK"] = self.network
+        self.cli.env["HDAST_LAB_NETWORK"] = PROJECT + "_lab_net"
         self._client_created = False
         self._overlay_started = False
+        self._workshop_attached = False
 
     def docker(self, *args: str) -> str:
         """Executa comando explícito de suporte Docker, com timeout."""
@@ -66,25 +69,26 @@ class OastLab:
         assert "code" not in result, result
         return result
 
-    def start(self) -> None:
+    def start(self, *, synthetic: bool = True) -> None:
         """Cria o gateway sem recriar nem adicionar redes ao ZAP."""
         self._overlay_started = True
         self.compose("up", "-d", "--no-deps", "oast-gateway")
-        self.docker(
-            "run",
-            "-d",
-            "--pull=never",
-            "--name",
-            self.client,
-            "--network",
-            self.network,
-            "--entrypoint",
-            "python",
-            PYTHON_IMAGE,
-            "-c",
-            "import time; time.sleep(300)",
-        )
-        self._client_created = True
+        if synthetic:
+            self.docker(
+                "run",
+                "-d",
+                "--pull=never",
+                "--name",
+                self.client,
+                "--network",
+                self.network,
+                "--entrypoint",
+                "python",
+                PYTHON_IMAGE,
+                "-c",
+                "import time; time.sleep(300)",
+            )
+            self._client_created = True
         self.api(
             "oast/action/setCallbackOptions",
             localAddress="0.0.0.0",  # noqa: S104 - somente rede interna do ZAP
@@ -97,14 +101,51 @@ class OastLab:
         label = "label=com.docker.compose.project=" + PROJECT
         assert not self.docker("ps", "-aq", "--filter", label)
         assert not self.docker("network", "ls", "-q", "--filter", label)
+        assert not self.docker("network", "ls", "-q", "--filter", f"name=^{self.network}$")
+        assert not self.docker("ps", "-aq", "--filter", f"name=^/{self.client}$")
         for suffix in ("zap_net", "lab_net", "egress_net", "host_net"):
             assert not self.docker("network", "ls", "-q", "--filter", f"name=^{PROJECT}_{suffix}$")
+
+    def assert_crapi_unused(self) -> None:
+        """Não reutiliza recursos crAPI de outra sessão."""
+        label = "label=com.docker.compose.project=" + CRAPI_PROJECT
+        assert not self.docker("ps", "-aq", "--filter", label)
+        assert not self.docker("network", "ls", "-q", "--filter", label)
+        assert not self.docker("volume", "ls", "-q", "--filter", label)
+        for suffix in ("crapi_net", "publish_net"):
+            assert not self.docker(
+                "network", "ls", "-q", "--filter", f"name=^{CRAPI_PROJECT}_{suffix}$"
+            )
+
+    def crapi_compose(self, *args: str) -> str:
+        """Usa o overlay do workshop com ambiente sintético de teste."""
+        return self.docker(
+            "compose",
+            "-p",
+            CRAPI_PROJECT,
+            "-f",
+            "lab/crapi/compose.yaml",
+            "-f",
+            "lab/crapi/compose.oast.yaml",
+            *args,
+        )
+
+    def attach_workshop(self) -> None:
+        """Recria somente o workshop usando o overlay e captura seu identificador."""
+        self.crapi_compose(
+            "up", "-d", "--no-deps", "--force-recreate", "--pull", "never", "crapi-workshop"
+        )
+        container = self.crapi_compose("ps", "-q", "crapi-workshop")
+        assert re.fullmatch(r"[0-9a-f]{12,64}", container)
+        self.client = self.docker("container", "inspect", "--format", "{{.Id}}", container)
+        assert re.fullmatch(r"[0-9a-f]{64}", self.client)
+        self._workshop_attached = True
 
     def inspect_json(self, kind: str, name: str, expression: str) -> object:
         """Lê apenas o campo de rede requerido, nunca o ambiente do contêiner."""
         return json.loads(self.docker(kind, "inspect", "--format", expression, name))
 
-    def topology(self) -> None:
+    def topology(self, *, workshop: bool = False) -> None:
         """Confere redes internas, ausência de publicação e isolamento do ZAP."""
         zap = self.compose("ps", "-q", "zap")
         gateway = self.compose("ps", "-q", "oast-gateway")
@@ -125,10 +166,14 @@ class OastLab:
             self.network,
         }
         assert isinstance(client_networks, dict)
-        assert set(client_networks) == {self.network}
-        for network in (PROJECT + "_zap_net", self.network):
+        expected = {self.network}
+        if workshop:
+            expected.add(CRAPI_PROJECT + "_crapi_net")
+        assert set(client_networks) == expected
+        for network in (PROJECT + "_zap_net", *expected):
             assert self.inspect_json("network", network, "{{json .Internal}}") is True
         assert not self.inspect_json("container", gateway, "{{json .HostConfig.PortBindings}}")
+        assert not self.inspect_json("container", self.client, "{{json .HostConfig.PortBindings}}")
 
     def interaction_count(self) -> int:
         """Lê o contador do próprio serviço Callback no ZAP."""
@@ -157,7 +202,7 @@ class OastLab:
             "import urllib.request as u; o=u.build_opener(u.ProxyHandler({})); "
             f"r=o.open('http://oast-gateway:8090/{marker}', timeout=5); assert r.status == 200"
         )
-        self.docker("exec", self.client, "python", "-c", code)
+        self.docker("exec", self.client, "python3", "-c", code)
 
     def assert_no_external_route(self) -> None:
         """TEST-NET-1 não hospeda serviço; conexão deve falhar a partir do emissor."""
@@ -166,10 +211,12 @@ class OastLab:
             "result=s.connect_ex(('192.0.2.1', 443)); "
             "assert result == errno.ENETUNREACH, result"
         )
-        self.docker("exec", self.client, "python", "-c", code)
+        self.docker("exec", self.client, "python3", "-c", code)
 
     def close(self) -> None:
         """Encerra exclusivamente o contêiner e a ponte criados nesta prova."""
+        if self._workshop_attached:
+            self.docker("network", "disconnect", self.network, self.client)
         if self._client_created:
             self.docker("stop", "-t", "1", self.client)
             self.docker("rm", self.client)

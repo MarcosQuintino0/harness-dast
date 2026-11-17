@@ -435,7 +435,7 @@ O registro explícito, criado quando a trilha cria uma imagem temporária, tem o
 uv run python lab/scripts/plan_image_cleanup.py registro.json C:\harness-dast-artefatos\v1-12-lab\images-before.jsonl
 ```
 
-O roteiro consulta apenas IDs, tags e digests do Docker, sem ler variáveis de ambiente nem remover imagens. Ele recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Também exige conseguir resolver todos os IDs da captura inicial para impedir divergência entre ID local e digest; se algum não estiver disponível, recusa o plano. Gera comandos estritos para revisão humana, sem `--force`. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
+O roteiro consulta apenas IDs, tags e digests do Docker, sem ler variáveis de ambiente nem remover imagens. Ele recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Também exige conseguir resolver todos os IDs da captura inicial para impedir divergência entre ID local e digest; se algum não estiver disponível, recusa o plano. Com registro vazio, gera plano vazio sem consultar o Docker. Gera comandos estritos com o **ID completo validado**, sem `--force`, para revisão humana; mudança posterior da tag não direciona o comando para outra imagem. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
 
 A captura inicial é vinculada pelo SHA-256 `e7aa7746b87f428e0f928a855c4947cf6389e25954f22398982feebf6130747e`: arquivo ausente, alterado ou malformado recusa o plano inteiro.
 
@@ -444,7 +444,8 @@ A captura inicial é vinculada pelo SHA-256 `e7aa7746b87f428e0f928a855c4947cf638
 Após obter a trava exclusiva do laboratório e confirmar que o projeto `hdast-codex` está livre, o coordenador executa na raiz:
 
 ```powershell
-uv run pytest -v -m integration tests/integration/test_lab_oast.py
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\oast-proof'
+uv run pytest -v -m integration tests/integration/test_lab_oast.py::test_callback_e_isolamento_a_partir_do_workshop_crapi
 ```
 
-O teste sobe a pilha VAmPI via `LabCli`, liga a ponte sem recriar o ZAP, configura seu Callback pela API de controle e usa um contêiner sintético na rede interna para enviar um único retorno. Confere a mensagem OAST no histórico do ZAP, o contador do Callback, as redes e a falha por falta de rota para `192.0.2.1`. Não envia pedidos HTTP ao VAmPI nem demonstra o SSRF do crAPI. Usa somente a imagem Python já fixada, com pull desativado; encerra os recursos que criou. A execução exige Docker e ainda não foi realizada nesta trilha.
+O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução exige Docker e ainda não foi realizada nesta trilha.
