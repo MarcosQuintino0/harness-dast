@@ -162,3 +162,18 @@ def test_when_the_return_service_is_down_nothing_is_sent_and_the_scan_goes_on() 
     assert result.ssrf.note is not None
     assert "indisponível" in result.ssrf.note
     assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
+
+
+def test_without_the_probe_exchanges_the_step_is_skipped_and_the_scan_goes_on() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    rig.store.exchanges.clear()
+    oast = FakeOast(())
+
+    result = rig.scan(oast=oast).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+
+    assert result.status == "completed"
+    assert result.ssrf is None
+    assert oast.baselines == 0
