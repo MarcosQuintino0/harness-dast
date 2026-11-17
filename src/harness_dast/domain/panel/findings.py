@@ -23,8 +23,8 @@ _REPORT: Final = "../report.html"
 _MAX_GROUPS: Final = 10
 _ZAP_SURE: Final = frozenset({"high", "confirmed"})
 _CONFIRM_SENTENCE: Final = (
-    "O terceiro degrau (confirmada) só acende quando uma pessoa repete a falha e confirma; este "
-    "painel ainda não tem onde registrar a confirmação, por isso nenhuma falha chega lá."
+    "O terceiro degrau só acende quando uma pessoa repete a falha e confirma; este painel "
+    "ainda não consulta os registros de confirmação."
 )
 _REPEAT_SENTENCE: Final = (
     "Falha a confirmar: a resposta gravada não mostra a falha sozinha (por exemplo, o ataque só "
