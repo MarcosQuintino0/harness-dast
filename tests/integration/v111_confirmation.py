@@ -1,4 +1,4 @@
-"""Confirma??o individual e verifica??o de execu??es legadas do laborat?rio V1.11."""
+"""Confirmação individual e verificação de execuções legadas do laboratório V1.11."""
 
 from collections import Counter
 from pathlib import Path
