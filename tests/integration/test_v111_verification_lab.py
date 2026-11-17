@@ -9,18 +9,20 @@ import pytest
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
+from tests.integration.v111_confirmation import (
+    confirm_individually,
+    confirm_legacy,
+    verification_summary,
+)
 from tests.integration.v111_support import (
     ARTIFACTS,
     LabRun,
     check_ownership,
-    confirm_individually,
-    confirm_legacy,
     findings,
     load_json,
     make_cli,
     prepare_root,
     run_id_for,
-    verification_summary,
 )
 
 pytestmark = pytest.mark.integration
