@@ -157,3 +157,36 @@ def test_fluxo_com_artefatos_reais_e_cliente_falso(tmp_path: Path) -> None:
     assert verification.read() == result
     assert result.entries[0].level == "reproduced"
     assert (directory / "audit.jsonl").read_text(encoding="utf-8").count("confirm:listar") == 10
+
+
+def test_comparacao_authz_valida_nao_gera_novo_trafego(tmp_path: Path) -> None:
+    from harness_dast.domain.authz.findings import horizontal_finding
+    from harness_dast.domain.authz.result import AuthzResult
+
+    rig = ConfirmationRig(tmp_path)
+    item = horizontal_finding(
+        product="agenda",
+        operation_id="listar",
+        method="GET",
+        path_template="/api/pacientes",
+        actor=("user_a", "comum"),
+        owner=("user_b", "comum"),
+        statuses=(200, 200),
+    )
+    authz = AuthzResult(
+        run_id=rig.run_id,
+        product="agenda",
+        status="completed",
+        started_at="2026-01-01T00:00:00Z",
+        finished_at="2026-01-01T00:00:00Z",
+        findings=(item,),
+    )
+    report = rig.rig.artifacts.findings[rig.run_id]
+    rig.rig.artifacts.findings[rig.run_id] = report.model_copy(
+        update={"findings": (), "authz": authz}
+    )
+    before = len(rig.rig.target.requests)
+    result = rig.execute()
+    assert isinstance(result, VerificationFile)
+    assert result.entries[0].level == "reproduced"
+    assert len(rig.rig.target.requests) == before

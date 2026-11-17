@@ -264,6 +264,10 @@ def test_authz_usa_comparacao_guardada_quando_contas_e_status_sao_validos() -> N
         classify_authz_confirmation(item.model_copy(update={"owner_account": "user_a"})).level
         == "not_verifiable"
     )
+    assert (
+        classify_authz_confirmation(item.model_copy(update={"evidence": ""})).level
+        == "not_verifiable"
+    )
 
 
 def test_cabecalho_usa_somente_evidencia_guardada() -> None:
