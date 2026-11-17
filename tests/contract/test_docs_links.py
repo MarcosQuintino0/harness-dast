@@ -26,6 +26,8 @@ SKIPPED_DIRS = {
     "worktrees",
     "dist",
     "build",
+    "translate-app",
+    "sites",
 }
 LINK = re.compile(
     r"(?<!\\)!?\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)"
@@ -136,6 +138,9 @@ def test_the_checker_finds_a_missing_file_and_a_missing_anchor(tmp_path: Path) -
 def test_the_checker_skips_generated_folders(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "a.md").write_text("x", encoding="utf-8")
+    for folder in ("translate-app", "sites"):
+        (tmp_path / folder).mkdir()
+        (tmp_path / folder / "outside.md").write_text("x", encoding="utf-8")
     (tmp_path / "runs").mkdir()
     (tmp_path / "runs" / "b.md").write_text("x", encoding="utf-8")
     (tmp_path / ".claude" / "worktrees" / "w").mkdir(parents=True)

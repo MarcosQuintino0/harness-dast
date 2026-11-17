@@ -1,6 +1,6 @@
 # Arquitetura
 
-Este documento descreve a arquitetura aprovada do `harness-dast`. Estado atual: **versão 1.2.0** (M1 a M6 entregues; M7, o piloto em produto real, não existe). Cada seção diz o que existe hoje e o que ficou só como desenho. A tabela de status por componente fica em [roadmap.md](roadmap.md#tabela-de-status), e é o único lugar a atualizar.
+Este documento descreve a arquitetura aprovada do `harness-dast`. O [roadmap](roadmap.md#estado-atual) é a fonte do estado vigente e dos limites de prova por componente.
 
 ## Visão geral
 

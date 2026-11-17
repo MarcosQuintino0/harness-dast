@@ -42,3 +42,61 @@ Qualquer coisa que um agente consiga passar (flag, arquivo, variável de ambient
 ## Sem limpeza
 
 Se o ambiente é descartável ou recriado depois de cada execução, a carta de autorização diz isso, o perfil fica **sem** bloco `cleanup` e o `run` não mostra comando de limpeza.
+
+## Preparação detalhada pela pessoa responsável
+
+### 1. Prepare o perfil e o script
+
+Bloco `cleanup` do `target.yml` (campos novos em negrito; veja o [exemplo completo](../reference/target-yml.md)):
+
+```yaml
+cleanup:
+  type: oracle_sql
+  script: ./cleanup/cleanup.sql
+  connection: { secret_ref: "env:AGENDA_ORACLE_DSN" }      # DSN: host:porta/serviço, sem usuário nem senha
+  user: { secret_ref: "env:AGENDA_ORACLE_LIMPEZA_USUARIO" }   # usuário de banco só da limpeza
+  password: { secret_ref: "env:AGENDA_ORACLE_LIMPEZA_SENHA" }
+  allowed_tables: [RECEITA, CONSULTA, PACIENTE]             # as únicas tabelas que o script pode tocar
+  max_rows: 500                                             # teto de linhas apagadas no total
+  db_schema: AGENDA                                         # opcional: dono das tabelas, se não for o usuário
+  requires_confirmation: true
+```
+
+`user`, `password`, `allowed_tables` e `max_rows` são opcionais no esquema (um perfil antigo continua válido), mas **sem eles a limpeza se recusa a rodar** e diz o que falta. Os valores de `allowed_tables` e `max_rows` vêm da pessoa dona do produto, não do agente. A senha nunca entra no DSN: três referências separadas.
+
+O script segue as regras de [`products/_template/cleanup/`](../../products/_template/cleanup/README.md) e o contrato de variáveis: `:run_start` (início da execução, UTC), `:run_id`, `:run_tag` (a etiqueta embutida nos valores únicos gerados) e `:account_1` a `:account_N` (usuários das contas de teste, na ordem do perfil). Exemplo real, que roda no Oracle da Clínica Piloto: `lab/pilot/cleanup/cleanup.sql`.
+
+### 2. Crie o usuário de banco da limpeza
+
+O portão é defesa em profundidade; **a proteção de verdade é o que esse usuário pode fazer**. Como DBA do ambiente de **testes**:
+
+```sql
+CREATE USER hdast_limpeza IDENTIFIED BY "<senha-forte-gerada>";
+GRANT CREATE SESSION TO hdast_limpeza;
+-- Só as tabelas de teste listadas em allowed_tables, e só estes dois privilégios:
+GRANT SELECT, DELETE ON agenda.receita  TO hdast_limpeza;
+GRANT SELECT, DELETE ON agenda.consulta TO hdast_limpeza;
+GRANT SELECT, DELETE ON agenda.paciente TO hdast_limpeza;
+-- Nada de DROP ANY TABLE, TRUNCATE, CREATE, INSERT, UPDATE, papéis (DBA, RESOURCE, CONNECT)
+-- nem acesso a outros esquemas.
+```
+
+- **`SELECT` é necessário.** No Oracle 23ai, um `DELETE ... WHERE coluna = ...` sem `SELECT` na tabela falha com `ORA-41900`; também as subconsultas do script leem as tabelas.
+- Privilégio é por tabela, não por linha: com `DELETE` na tabela, o usuário **consegue** apagar tudo dela. É por isso que o script, o portão e o teto `max_rows` existem, e por isso a lista de tabelas deve ser a mínima. Para limite por linha no próprio banco, use uma visão restrita ou Virtual Private Database do Oracle (fora do escopo da CLI).
+- Guarde as três referências em variáveis de ambiente (ou no `.env` ignorado pelo git). Nunca no perfil, nunca no script.
+
+
+## Quando a limpeza recusa
+
+| Mensagem (resumo) | O que fazer |
+| --- | --- |
+| "A limpeza exige campos que o perfil não tem: cleanup.user, ..." | Peça à pessoa dona do produto os valores e preencha o bloco `cleanup` (preparação detalhada acima). |
+| "A tabela X não está em cleanup.allowed_tables" | Se X realmente deve ser limpa, a pessoa dona do produto a inclui na lista. Senão, corrija o script. |
+| "Comando N do script de limpeza recusado: DELETE sem WHERE" | Adicione o `WHERE` com a amarração. |
+| "o WHERE não tem uma condição de amarração" | Inclua, ligada por `AND` e fora de parênteses com `OR`, uma condição entre uma COLUNA da tabela e uma variável, como `CREATED_AT >= :run_start` ou `CREATED_BY IN (:account_1, ...)`. Pseudo-coluna (`SYSDATE`), literal e faixa contra variável de texto não valem. |
+| "a variável de ligação :x não faz parte do contrato" | Use só `:run_start`, `:run_id`, `:run_tag` e `:account_1..N` (N = contas do perfil). |
+| "A execução ainda está em andamento" | Espere o `probe` terminar. Uma execução interrompida (sem `finished_at`) vale como terminada depois do prazo `limits.max_duration_minutes` dela. |
+| "Sem terminal interativo: a limpeza de verdade não será executada" | Só uma pessoa, num terminal interativo, confirma digitando o nome do produto. |
+| "A limpeza apagaria N linhas, acima do teto" | Nada foi gravado. Confira o script e o banco; só aumente `max_rows` com a concordância da pessoa dona do produto. |
+| "Erro do banco ao executar o comando (ORA-02292)" | Há linhas filhas: ajuste a ordem do script (filhos antes dos pais). O banco não foi alterado. |
+| "Erro do banco ao conectar (ORA-01017 ...)" | Confira usuário, senha e DSN nas variáveis de ambiente. |

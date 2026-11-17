@@ -33,3 +33,7 @@ products/*
 
 # Worktrees de agentes (locais)
 .claude/worktrees/
+
+# Projetos locais independentes, fora do produto harness-dast
+translate-app/
+sites/

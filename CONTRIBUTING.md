@@ -12,10 +12,11 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run lint-imports
+uv run vulture
 uv run pytest
 ```
 
-Rode os cinco comandos antes de abrir um pull request. O CI roda também `uv run vulture` (detecta código sem uso); rode-o localmente se tocar em funções públicas. `uv run pytest` roda os testes unitários e de contrato; os níveis de integração e ponta a ponta pedem Docker e chegam em marcos posteriores.
+Rode os seis comandos antes de abrir um pull request, incluindo `vulture` (detecta código sem uso), em toda mudança. `uv run pytest` roda os testes unitários e de contrato; os níveis de integração e ponta a ponta pedem Docker e chegam em marcos posteriores.
 
 Para os hooks locais (os mesmos gates, mais `gitleaks` e a checagem da mensagem de commit):
 

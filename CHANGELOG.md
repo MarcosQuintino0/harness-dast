@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+### Organização
+
+- Navegação por intenção, índice de planos e estado centralizado no roadmap; histórico retirado das instruções.
+- Pacote e lock alinhados à publicação 1.9.3; contrato impede versões divergentes e estado versionado no README/arquitetura.
+- Limpeza: procedimento no guia, contrato na referência e política em operations; seis gates obrigatórios e projetos locais ignorados.
+
 ## [1.9.3] - 2026-11-16
 
 ### Adicionado
