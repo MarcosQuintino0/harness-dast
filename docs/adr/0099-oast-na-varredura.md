@@ -1,6 +1,6 @@
 # 0099. OAST na varredura do ZAP
 
-- **Status:** Proposto
+- **Status:** Parcialmente substituído pelo [ADR 0105](0105-ponte-oast-na-pilha-e-verificabilidade.md)
 - **Data:** 2026-11-17
 - **Origem:** F2 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0095](0095-retorno-oast-isolado.md); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)
 
