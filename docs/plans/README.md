@@ -5,6 +5,7 @@ O [roadmap](../roadmap.md#estado-atual) prevalece como estado vigente.
 
 | Plano | Estado | Evidência e limite |
 | --- | --- | --- |
+| [2026-11-17-v1-11-verificacao-de-achados.md](2026-11-17-v1-11-verificacao-de-achados.md) | Em execução | Contrato, declaração humana e skills na branch; reprodução, apresentação, calibração e fechamento em execução. Provas contra alvos aguardam aprovação humana dos perfis locais. |
 | [2026-11-14-briefing-codex-v1-5-e-v1-6.md](2026-11-14-briefing-codex-v1-5-e-v1-6.md) | Substituído parcialmente | V1.5 entregue; V1.6 proposta; roteiros seguintes em planos específicos. |
 | [2026-11-14-ciclo-v1-3-a-v1-8.md](2026-11-14-ciclo-v1-3-a-v1-8.md) | Substituído parcialmente | 1.3 a 1.5 entregues; 1.6 proposta; temas 1.7/1.8 redefinidos em 2026-11-16. |
 | [2026-11-15-plano-v1-5-2-avaliacao.md](2026-11-15-plano-v1-5-2-avaliacao.md) | Concluído | Escopo registrado nos relatórios e no roadmap; conclusão não concede aceite ausente nem aceita ADR. |
