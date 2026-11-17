@@ -402,6 +402,7 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | Imagem e digest declarado | Uso | Tamanho instalado |
 | --- | --- | --- |
 | `zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af` | Base / VAmPI: zap | 3.75GB (captura inicial) |
+| `hdast/zap:2.17.0-alpha54-beta64` | Base / VAmPI: zap (derivada da `zap-stable` acima, ADR 0103) | 3.77GB (medido em 2026-11-17; só 12MB próprios, o resto são camadas da `zap-stable`) |
 | `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | 15MB (captura inicial) |
 | `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | 339MB (captura inicial) |
 | `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | 186MB (captura inicial) |

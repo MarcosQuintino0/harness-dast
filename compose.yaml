@@ -23,8 +23,13 @@ name: hdast
 services:
   # ---------------------------------------------------------------- ZAP
   zap:
-    # Fonte: https://www.zaproxy.org/docs/docker/about/ (imagem estável oficial)
-    image: zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
+    # Imagem derivada (ADR 0103): a estável oficial (https://www.zaproxy.org/docs/docker/about/),
+    # fixada por digest no Dockerfile, mais ascanrulesBeta 64 e ascanrulesAlpha 54 baixados no BUILD
+    # e conferidos por SHA-256. As regras novas ficam desligadas na política; só
+    # extra_checks.experimental_rules liga as selecionadas. Nada é baixado em execução.
+    build:
+      context: docker/zap
+    image: hdast/zap:2.17.0-alpha54-beta64
     # Execução como usuário "zap" (não root), como a documentação oficial.
     user: zap
     environment:
