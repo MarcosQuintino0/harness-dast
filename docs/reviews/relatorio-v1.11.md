@@ -50,22 +50,17 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    revisão dirigida. Não é parecer de fechamento. O [QA Terra high](2026-11-17-v1-11-qa.md)
    tem [resposta por item](2026-11-17-v1-11-qa-resposta.md); a falta de prova real
    permanece aberta.
-7. **Gates.** No SHA `653dbac`, todos passaram: ruff, format, mypy Windows e Linux,
-   import-linter, vulture, pytest (10.459 aprovados, 5 pulados, 252 desmarcados),
-   pisos (domain 97,9%, application 95,7%), diff-cover 94% e gitleaks sem achados.
-   Esses números antecedem a correção JSON. Após a correção, 37 focados,
-   ruff/mypy/vulture passaram. Os comprovantes definitivos após esta documentação
-   ficam em `C:\harness-dast-artefatos\v1-11\gates-final\manifest.json` e
-   `windows-final\manifest.json`, com SHA e códigos de saída. Somente manifesto
-   concluído com `all_passed: true` e fonte inalterada comprova o gate final;
-   este registro não presume resultado futuro. CI remoto não executado.
-8. **Commits e hash.** Commits pequenos por assunto, com coautoria, integrados
-   por cherry-pick e enviados à branch. Código revisado em `26c56b7`; exemplos:
-   `abcc580` (recibo), `90fde87` (confirmação/prova), `09c8f02` (HTML), `a37a7e4`
-   (passivos), `6922c01` (teto total) e `26c56b7` (JSON estrito). Hash final,
-   igualdade com a branch remota, gates e limpeza das worktrees próprias são
-   registrados em `C:\harness-dast-artefatos\v1-11\entrega-final.json` e no diário.
-   Sem PR, merge, force-push ou modificação de develop/main.
+7. **Gates.** Retomada, SHA `1d8f02c`: ruff, format, mypy Windows e Linux, import-linter,
+   vulture, pytest (10.474 aprovados, 5 pulados, 255 desmarcados), pisos (domain 98,0%,
+   application 95,7%), diff-cover 94% e gitleaks sem achados, todos verdes, com o roteiro de gates
+   do coordenador (manifesto `C:\harness-dast-artefatos\v1-11\gates-claude\manifest.json`,
+   `all_passed: true`, fonte inalterada). Os números do coordenador anterior (SHA `719fdf5`,
+   10.472 aprovados) seguem preservados em `gates-final`. A falha de memória do teste de
+   descompressão que apareceu uma vez antes não voltou. CI remoto não executado.
+8. **Commits e hash.** 49 commits do coordenador anterior sobre `44ef387` (hash final dele
+   `719fdf5`, depois mais comprovantes de laboratório até `e79c5b0`) e, na retomada, `80929bb`
+   (correção dos cabeçalhos repetidos) e `1d8f02c` (calibração, prova e relatório), mais o commit
+   deste ajuste de gates. Sem PR, merge, force-push ou modificação de develop/main.
 9. **Recusas.** Nenhuma recusa de cibersegurança do provedor nos programadores ou
    validadores. Retornos prematuros de propostas foram retomados. Houve bloqueio
    de computer use na inspeção do Edge; a interação foi encerrada sem contorno.
