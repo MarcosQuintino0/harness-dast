@@ -6,8 +6,10 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import Annotated
 
 import httpx
+from pydantic import Field, TypeAdapter
 
 from tests.integration.lab_support import REPO, CliResult, LabCli
 from tests.integration.oast_cleanup import CleanupResult, OastCleanup
@@ -18,6 +20,17 @@ PYTHON_IMAGE = (
 )
 PROJECT = "hdast-codex"
 CRAPI_PROJECT = "hdast-crapi-codex"
+CALLBACK_INTERACTIONS = "stats.oast.callback.interactions"
+
+
+def parse_interaction_count(result: object) -> int:
+    """Valida o mapa plano do ZAP 2.17 e interpreta contador ausente como zero."""
+    stats = TypeAdapter(dict[str, Annotated[str, Field(pattern=r"^[0-9]+$")]]).validate_python(
+        result, strict=True
+    )
+    if any(not key.startswith(CALLBACK_INTERACTIONS) for key in stats):
+        raise ValueError("estatística fora do prefixo solicitado")
+    return int(stats.get(CALLBACK_INTERACTIONS, "0"))
 
 
 class OastLab:
@@ -228,10 +241,8 @@ class OastLab:
 
     def interaction_count(self) -> int:
         """Lê o contador do próprio serviço Callback no ZAP."""
-        result = self.api("stats/view/stats", keyPrefix="stats.oast.callback.interactions")
-        stats = result.get("stats")
-        assert isinstance(stats, dict), result
-        return int(str(stats.get("stats.oast.callback.interactions", 0)))
+        result = self.api("stats/view/stats", keyPrefix=CALLBACK_INTERACTIONS)
+        return parse_interaction_count(result)
 
     def has_event(self, marker: str) -> bool:
         """Encontra a mensagem OAST persistida na sessão do ZAP (tipo 22)."""
