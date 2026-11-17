@@ -23,6 +23,7 @@ from evals.runner import (
     checks_reach,
     checks_security,
     checks_triage,
+    triage_accuracy,
 )
 from evals.runner.cases import CASES_DIR, RoundDirs, load_round_case
 from evals.runner.models import Case, Check, Component
@@ -127,6 +128,7 @@ def compute(
         else None
     )
     return {
+        "triage_accuracy": triage_accuracy.measure(trace, case, mode),
         "case_source": case_source,
         "case": case.name,
         "mode": mode,

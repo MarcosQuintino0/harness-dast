@@ -1,22 +1,27 @@
-# 0089. Critério privado de acerto da triagem
+﻿# 0089. Critério privado de acerto da triagem
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
 
 ## Contexto e decisão
 
-A nota existente mede formato e cobertura da triagem, não se a classificação proposta está
-correta. Acrescentar o critério privado `evals/rubrics/triage-accuracy-v1.md`, julgado pelo
-coordenador contra o gabarito aplicável e o controle seguro, distinguindo acerto, erro,
-indeterminado e não avaliado. O critério é separado da nota automática e das suas ponderações;
-rodadas históricas não são recalculadas. Registrar versão, denominadores e limites.
+A nota histórica mede formato e cobertura, não o acerto da classificação. O executor implementa
+a régua privada `evals/rubrics/triage-accuracy-v1.md` como campo suplementar `triage_accuracy`
+versão 1 em `score.json`. A fórmula, os componentes e os pesos permanecem iguais; rodadas
+históricas não são reescritas. A decisão segue proposta, sujeita ao aceite do dono.
 
-A integração automática depende do contrato final de `verification.json` e de associação entre
-artefatos da mesma execução. Não presumir equivalência de categorias a probabilidades nem
-inventar resultados de calibração. O critério, gabarito e calibração detalhada não entram na
-cópia cega. Este ADR também é excluído pela lista de permissão operacional.
+A medição associa execução e fingerprint, valida os arquivos e confronta com o Case. Usa
+somente correspondências específicas e inequívocas. O modo seguro não basta para declarar
+falso: a correção da falha precisa estar documentada. Sem essa base, sem artefato válido ou
+com órfão, registra indeterminação ou impossibilidade com motivo. A classificação automática
+da CLI e a anotação do agente são medidas separadamente. Os totais incluem denominadores;
+nenhum nível é probabilidade e nenhuma calibração foi inventada. Não apresentar porcentagem
+para amostras menores que dez; esta implementação não apresenta porcentagens.
+
+A régua, o gabarito e a calibração detalhada não entram na cópia cega (ADR 0083).
 
 ## Alternativas e consequências
 
-Mudar os pesos da nota agora invalidaria comparações e dependeria de contrato ainda pendente.
-A avaliação manual exige revisão e ainda não fornece nota automática: é uma lacuna explícita.
+Mudar os pesos comprometeria a comparação histórica. A medição aditiva preserva a nota,
+mas correspondências limitadas deixam casos indeterminados e exigem revisão da prova por uma
+pessoa. A calibração com resultados reais continua pendente de execução autorizada no laboratório.
