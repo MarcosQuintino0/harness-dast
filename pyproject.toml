@@ -213,6 +213,9 @@ ignore_decorators = ["@field_validator", "@model_validator"]
 # O vulture compara por NOME simples (não há como qualificar por classe); cada grupo abaixo
 # existe por um motivo e deve perder a entrada quando ganhar um chamador de produção.
 ignore_names = [
+    # V1.11 fase A: API pública consumida pelas futuras fases C e E; remover após integração.
+    "VerificationStore",
+    "verify_offline",
     # Proxy de escopo: chamados só por docker/scope-proxy/addon.py, que roda no contêiner com o
     # mitmproxy e fica fora de `paths`; `ts` e `query_params` são campos lidos pelo pydantic.
     "ScopeProxyEngine",
