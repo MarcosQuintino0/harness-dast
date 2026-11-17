@@ -90,6 +90,7 @@ Mantenha `decision-log.md` na pasta do produto. Uma entrada por decisão: o que 
 ## Nunca
 
 - Escrever à mão `environment`, `scope`, `limits`, `auth.accounts`, `scan.strength`, `scan.include_outcomes`, `scan.allow_upload_scan`, `scan.pacing`, `scan.inject_headers`, `scan.oast`, `extra_checks`, `authz.allow_writes`, `authz.shared_roles` ou `negative.allow_writes`; ligar a escrita do teste entre contas, a do teste de valores inválidos ou a varredura de envio de arquivo sem a frase da carta; inventar ou alargar `scope` (inclui `scope.path_mode: wide` sem a carta; nenhuma flag o liga), `limits`, `authorization`, janela ou `cleanup`.
+- Ligar ou escrever à mão as chaves `attack.*` da carta (`pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules`, `inventory`): elas vêm só da carta, pelo `hdast init --from-letter`; ausente na carta significa desligada.
 - Marcar opção como recomendada ou pré-preencher resposta de escopo, limite, janela ou autorização.
 - Rodar o comando de aprovação do escopo: é da pessoa. Preencher `deny` da tabela quem pode o quê sem a decisão dela (o rascunho da CLI nunca o preenche; ele não vale nada até a pessoa levá-lo ao perfil e aprovar).
 - Ler `.env` ou qualquer arquivo ou variável com segredo; use só apelidos e `secret_ref`. Rodar `hdast secret set` ou `hdast secret delete`.
