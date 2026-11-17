@@ -148,7 +148,9 @@ class ExtraContext:
     mutation_journal: MutationJournal | None = None
 
 
-def _settings(ctx: ExtraContext, pool: SessionPool, *, prefix: str, cap: int) -> NegativeSettings:
+def _settings(
+    ctx: ExtraContext, pool: SessionPool, *, prefix: str, cap: int, attempts: bool = False
+) -> NegativeSettings:
     return NegativeSettings(
         base_url=ctx.profile.environment.base_url,
         dispatcher=ctx.dispatcher,
@@ -157,6 +159,7 @@ def _settings(ctx: ExtraContext, pool: SessionPool, *, prefix: str, cap: int) ->
         product=ctx.product,
         mutation_journal=ctx.mutation_journal,
         prefix=prefix,
+        rejection_attempts=attempts,
     )
 
 
@@ -236,7 +239,9 @@ def _rate(
         infrastructure=infrastructure,
         only=ctx.only,
     )
-    sender = NegativeSender(_settings(ctx, pool, prefix=RATE_PREFIX, cap=RATE_MAX_REQUESTS))
+    sender = NegativeSender(
+        _settings(ctx, pool, prefix=RATE_PREFIX, cap=RATE_MAX_REQUESTS, attempts=True)
+    )
     checks = RateChecks(sender, base_url=ctx.profile.environment.base_url, account=ctx.account)
     summary, found = checks.run(pages, attempts)
     alerts.extend(found)

@@ -38,6 +38,8 @@ class NegativeSettings:
         sessions: Sessões das contas (um login por conta).
         max_requests: Teto de requisições do estágio; as repetições do despachante (429, novo
             login) também contam e nunca o ultrapassam. `None` não limita.
+        rejection_attempts: Tentativas de valor errado do limite de consumo (ADR 0101): o diário
+            usa uma intenção própria por operação e um 5xx conta como rejeição conhecida.
     """
 
     base_url: str
@@ -48,6 +50,7 @@ class NegativeSettings:
     mutation_journal: MutationJournal | None = None
     credential_fields: frozenset[str] = frozenset()
     prefix: str = PREFIX
+    rejection_attempts: bool = False
 
 
 class NegativeSender:
@@ -155,7 +158,8 @@ class NegativeSender:
             self._accounts.append(exchange.account)
         self._sent += sent.attempts
         response = sent.response
-        if response is not None and response.status < 500:
+        settled = response is not None and (response.status < 500 or self._s.rejection_attempts)
+        if settled:
             self._finish_mutation(key, "observed")
         failed = response is None or response.status in TRANSPORT_FAILURE_STATUSES
         self._failures = self._failures + 1 if failed else 0
@@ -180,9 +184,14 @@ class NegativeSender:
         journal = self._s.mutation_journal
         if journal is None:
             return None
-        key = mutation_key(
-            self._s.product, exchange.operation_id, exchange.account, exchange.method
+        # Tentativa de valor errado (limite de consumo, ADR 0101): é uma intenção própria, não a
+        # repetição do pedido do `probe`, e o 5xx faz parte da rejeição esperada.
+        operation = (
+            f"rejection-attempt:{exchange.operation_id}"
+            if self._s.rejection_attempts
+            else exchange.operation_id
         )
+        key = mutation_key(self._s.product, operation, exchange.account, exchange.method)
         begin_mutation(journal, key, snapshot)
         return key
 

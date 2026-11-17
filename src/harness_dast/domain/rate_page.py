@@ -278,6 +278,10 @@ def judge_page(base: PageReply, huge: PageReply, maximum: int | None) -> PageVer
         return PageVerdict("inconclusive", f"o pedido normal não deu sucesso (HTTP {base.status})")
     if not _is_ok(huge.status):
         return PageVerdict("limited", f"o alvo recusou o tamanho enorme (HTTP {huge.status})")
+    if base.items == 0 and huge.items == 0:
+        return PageVerdict(
+            "inconclusive", "a lista veio vazia nos dois pedidos: sem dados para comparar"
+        )
     if base.items is not None and huge.items is not None:
         limit = maximum if maximum is not None else base.items
         if huge.items > limit:
