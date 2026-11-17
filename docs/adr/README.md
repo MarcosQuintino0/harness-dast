@@ -131,6 +131,7 @@ a reserva não implica aceite nem implementação.
 | ADR | Contrato proposto |
 | --- | --- |
 | [0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) | Bloco `attack` da carta liga as capacidades da V1.12: ritmo, OAST, cabeçalhos, limites, regras experimentais e inventário (Proposto) |
+| [0097](0097-injecao-em-cabecalhos-e-cookies.md) | Injeção em cabeçalhos e cookies: bits 4 e 8 da máscara e `ScanHeadersAllRequests` com `scan.inject_headers` (Proposto) |
 
 0092 foi integrado pela frente da Clínica. Na retomada das provas, 0093 registra
 somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as recusas.

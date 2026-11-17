@@ -10,6 +10,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - F1 (ADR 0096, proposto): a seção `attack` da carta ganha `pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules` e `inventory`, todas desligadas quando ausentes. O `init --from-letter` gera `scan.pacing`, `scan.inject_headers`, `scan.oast` e o bloco `extra_checks`; só a carta liga (booleanos com `source: carta` e frase). A impressão digital da aprovação só muda quando uma chave é ligada; perfis existentes mantêm a aprovação. As capacidades que consomem as chaves vêm nos passos F2 a F8.
 
+- F6 (ADR 0097, proposto): `scan.inject_headers` liga os bits de cabeçalho e cookie da máscara (63) e `ScanHeadersAllRequests` no ZAP; desligado, nada muda. Prova no laboratório: H11 achada só com a chave; 519 pedidos sem e 1089 com a chave na operação; modo seguro com a chave sem achado (ver `tests/integration/test_lab_header_injection.py`).
+
 ### Laboratório da V1.12 — trilha L parcial
 
 - crAPI na pilha gerenciada, com cadastro sintético via API/MailHog, projeto próprio, recusa de modo seguro e descida com volumes descartáveis (ADR 0094, proposto). O chatbot de 1,5 GB deixou de ser necessário; o nginx usa um upstream já presente.
