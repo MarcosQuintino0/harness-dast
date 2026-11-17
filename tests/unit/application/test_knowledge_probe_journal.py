@@ -49,6 +49,10 @@ def test_timeout_apos_intencao_impede_repeticao_em_novo_probe(tmp_path: Path) ->
     result = _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
     assert result.operations[0].outcome == "mutation_pending"
     assert count == 1
+    pending = FileMutationJournal(tmp_path).list_pending()
+    assert pending[0].metadata is not None
+    assert pending[0].metadata.run_id == first.run_id
+    assert pending[0].metadata.operation_id == "criar"
     assert all(request.operation_id != "criar" for request in other.target.requests)
 
 

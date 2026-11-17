@@ -35,6 +35,9 @@ def test_mass_grava_campo_observado_antes_de_envio_com_resultado_500(tmp_path: P
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
     record = json.loads(pending[0].read_text(encoding="utf-8"))
+    assert record["metadata"]["run_id"] == probe.run_id
+    assert record["metadata"]["operation_id"] == "atualizarPerfil"
+    assert record["metadata"]["method"] == "PUT"
     assert record["previous_state"] == "present"
     assert record["snapshot"] == {"field": "saldo", "value": 10, "source": "observed"}
 

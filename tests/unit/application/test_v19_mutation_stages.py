@@ -229,6 +229,9 @@ def test_negative_grava_projecao_baseline_antes_do_envio_incerto(tmp_path: Path)
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
     record = json.loads(pending[0].read_text(encoding="utf-8"))
+    assert record["metadata"]["run_id"] == probe.run_id
+    assert record["metadata"]["operation_id"] == "criarProduto"
+    assert record["metadata"]["account"] == prior.account
     assert record["previous_state"] == "unknown"
     assert record["snapshot"] == {"field": "preco", "value": 5, "source": "request_baseline"}
 
@@ -256,7 +259,11 @@ def test_scan_falha_apos_envio_mantem_intencao(tmp_path: Path) -> None:
     )
     assert result.status == "stopped_zap"
     assert len(rig.zap.started) == 1
-    assert len(list(tmp_path.glob("*.jsonl"))) == 1
+    pending = journal.list_pending()
+    assert len(pending) == 1
+    assert pending[0].metadata is not None
+    assert pending[0].metadata.run_id == rig.probe_result.run_id
+    assert pending[0].metadata.operation_id == "criar"
 
 
 class BrokenArtifacts(InMemoryRunArtifacts):
