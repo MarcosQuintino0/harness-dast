@@ -27,14 +27,24 @@ class FakeDocker:
     def __init__(self) -> None:
         self.image: dict[str, object] = {"Id": IMAGE, "RepoTags": [REF], "RepoDigests": []}
         self.containers: list[dict[str, str]] = []
+        self.resolved_baseline = OTHER
 
     def __call__(self, args: list[str]) -> object:
         if args[0] == "ps":
             return ["c" * 64 for _ in self.containers]
         if args[:3] == ["inspect", "--type", "container"]:
             return self.containers
-        assert args == ["image", "inspect", REF]
-        return [self.image]
+        assert args[:4] == [
+            "image",
+            "inspect",
+            "--format",
+            "{{json .Id}}|{{json .RepoTags}}|{{json .RepoDigests}}",
+        ]
+        if args[-1] == REF:
+            return [self.image]
+        assert args[-1] in {IMAGE, OTHER}
+        resolved = self.resolved_baseline if args[-1] == OTHER else args[-1]
+        return [{"Id": resolved, "RepoTags": [], "RepoDigests": []}]
 
 
 def inputs() -> tuple[Ledger, list[BaselineRow], ProtectedImages, FakeDocker]:
@@ -52,12 +62,23 @@ def test_gera_comando_restrito_para_imagem_propria() -> None:
 
 
 @pytest.mark.parametrize(
-    "reason", ["baseline", "baseline_digest", "remapped", "in_use", "foreign_tag", "protected"]
+    "reason",
+    [
+        "baseline",
+        "resolved_baseline",
+        "baseline_digest",
+        "remapped",
+        "in_use",
+        "foreign_tag",
+        "protected",
+    ],
 )
 def test_recusa_imagem_inelegivel(reason: str) -> None:
     ledger, baseline, protected, docker = inputs()
     if reason == "baseline":
         baseline.append(BaselineRow(ID=IMAGE, Digest=IMAGE, Repository="old", Tag="old"))
+    elif reason == "resolved_baseline":
+        docker.resolved_baseline = IMAGE
     elif reason == "baseline_digest":
         docker.image["RepoDigests"] = ["old@" + OTHER]
     elif reason == "remapped":

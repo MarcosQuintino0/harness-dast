@@ -80,17 +80,6 @@ class DockerContainer(BaseModel):
     Image: Id
 
 
-def docker_json(args: list[str]) -> object:
-    """Consulta Docker sem shell; erro ou JSON inválido interrompe o planejamento."""
-    executable = shutil.which("docker")
-    if executable is None:
-        raise FileNotFoundError("Docker indisponível")
-    done = subprocess.run(  # noqa: S603 - argumentos fixos e referências validadas
-        [executable, *args], capture_output=True, text=True, timeout=60, check=True
-    )
-    return json.loads(done.stdout)
-
-
 def read_baseline(path: Path, expected_hash: str = BASELINE_SHA256) -> list[BaselineRow]:
     """Exige captura inicial não vazia e registros válidos."""
     content = path.read_bytes()
@@ -115,10 +104,19 @@ def container_ids(runner: Runner) -> set[str]:
         return set()
     if not all(re.fullmatch(r"[0-9a-f]{64}", item) for item in listing):
         raise ValueError("ID de contêiner inválido")
-    data = runner(["inspect", "--type", "container", *listing])
+    data = runner(["inspect", "--type", "container", "--format", "{{json .Image}}", *listing])
     if not isinstance(data, list) or len(data) != len(listing):
         raise ValueError("inspeção de contêineres incompleta")
     return {DockerContainer.model_validate(item).Image for item in data}
+
+
+def inspect_image(runner: Runner, reference: str) -> DockerImage:
+    """Lê somente ID, tags e digests, sem dados de ambiente da imagem."""
+    fields = "{{json .Id}}|{{json .RepoTags}}|{{json .RepoDigests}}"
+    inspected = runner(["image", "inspect", "--format", fields, reference])
+    if not isinstance(inspected, list) or len(inspected) != 1:
+        raise ValueError("inspeção de imagem incompleta")
+    return DockerImage.model_validate(inspected[0])
 
 
 def protected_parts(protected: ProtectedImages) -> tuple[set[str], set[str]]:
@@ -143,15 +141,16 @@ def plan_cleanup(
         raise ValueError("baseline vazio")
     baseline_ids = {row.ID for row in baseline}
     baseline_digests = {row.Digest for row in baseline}
+    for baseline_id in set(baseline_ids):
+        baseline_image = inspect_image(runner, baseline_id)
+        baseline_ids.add(baseline_image.Id)
+        baseline_digests.update(ref.partition("@")[2] for ref in baseline_image.RepoDigests or [])
     baseline_refs = {f"{row.Repository}:{row.Tag}" for row in baseline}
     names, digests = protected_parts(protected)
     in_use = container_ids(runner)
     commands: list[str] = []
     for candidate in ledger.images:
-        inspected = runner(["image", "inspect", candidate.reference])
-        if not isinstance(inspected, list) or len(inspected) != 1:
-            raise ValueError("inspeção de imagem incompleta")
-        image = DockerImage.model_validate(inspected[0])
+        image = inspect_image(runner, candidate.reference)
         tags = image.RepoTags or []
         repo_digests = image.RepoDigests or []
         if image.Id != candidate.image_id or image.Id in baseline_ids or image.Id in in_use:
@@ -186,16 +185,28 @@ def main() -> int:
 
 
 def cli_docker_json(args: list[str]) -> object:
-    """Adapta a listagem JSON Lines de contêineres à inspeção JSON."""
-    if args[:2] != ["ps", "-a"]:
-        return docker_json(args)
+    """Lê campos selecionados do Docker, sem coletar variáveis de ambiente."""
     executable = shutil.which("docker")
     if executable is None:
         raise FileNotFoundError("Docker indisponível")
     done = subprocess.run(  # noqa: S603 - argumentos fixos, sem shell
         [executable, *args], capture_output=True, text=True, timeout=60, check=True
     )
-    return [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
+    lines = [line for line in done.stdout.splitlines() if line.strip()]
+    if args[:2] == ["ps", "-a"]:
+        return [json.loads(line) for line in lines]
+    if args[:3] == ["inspect", "--type", "container"]:
+        return [{"Image": json.loads(line)} for line in lines]
+    if args[:2] == ["image", "inspect"]:
+        images = []
+        for line in lines:
+            parts = line.split("|")
+            if len(parts) != 3:
+                raise ValueError("campos de inspeção inválidos")
+            image_id, tags, digests = (json.loads(part) for part in parts)
+            images.append({"Id": image_id, "RepoTags": tags, "RepoDigests": digests})
+        return images
+    raise ValueError("consulta Docker não permitida")
 
 
 if __name__ == "__main__":

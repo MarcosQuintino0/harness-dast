@@ -435,7 +435,7 @@ O registro explícito, criado quando a trilha cria uma imagem temporária, tem o
 uv run python lab/scripts/plan_image_cleanup.py registro.json C:\harness-dast-artefatos\v1-12-lab\images-before.jsonl
 ```
 
-O roteiro consulta o Docker sem remover nada, recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Gera comandos estritos para revisão humana, sem `--force`. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
+O roteiro consulta apenas IDs, tags e digests do Docker, sem ler variáveis de ambiente nem remover imagens. Ele recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Também exige conseguir resolver todos os IDs da captura inicial para impedir divergência entre ID local e digest; se algum não estiver disponível, recusa o plano. Gera comandos estritos para revisão humana, sem `--force`. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
 
 A captura inicial é vinculada pelo SHA-256 `e7aa7746b87f428e0f928a855c4947cf6389e25954f22398982feebf6130747e`: arquivo ausente, alterado ou malformado recusa o plano inteiro.
 
