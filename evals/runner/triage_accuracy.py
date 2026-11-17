@@ -188,6 +188,18 @@ def _measure_run(
                 "motivo": reason,
                 "nivel": level,
                 "cli": _judgment(truth, prediction) if entry else "não avaliado",
+                "motivo_cli": (
+                    "sem resultado para este fingerprint"
+                    if entry is None
+                    else "nível inconclusivo ou não verificável"
+                    if prediction is None
+                    else reason
+                ),
+                "motivo_agente": (
+                    "sem classificação explícita para este fingerprint"
+                    if annotation is None
+                    else reason
+                ),
                 "suspected_false_positive": annotation.suspected_false_positive
                 if annotation
                 else None,
