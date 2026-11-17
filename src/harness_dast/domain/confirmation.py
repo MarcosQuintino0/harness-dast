@@ -320,9 +320,19 @@ def select_confirmation_findings(
 
 def classify_authz_confirmation(finding: AuthzFinding) -> VerificationEntry:
     """Reconhece comparação guardada entre contas somente com estados e identidades válidos."""
-    comparable = finding.technique in {"authz_horizontal", "authz_vertical"}
+    horizontal = (
+        finding.technique == "authz_horizontal"
+        and "com corpo equivalente para o mesmo pedido." in finding.evidence
+    )
+    vertical = (
+        finding.technique == "authz_vertical"
+        and finding.actor_role is not None
+        and finding.owner_role is not None
+        and finding.actor_role != finding.owner_role
+        and "menor) recebeu" in finding.evidence
+    )
     if (
-        comparable
+        (horizontal or vertical)
         and finding.owner_account is not None
         and finding.owner_account != finding.actor_account
         and finding.baseline_status is not None

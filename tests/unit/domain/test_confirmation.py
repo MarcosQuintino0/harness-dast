@@ -255,7 +255,7 @@ def test_authz_usa_comparacao_guardada_quando_contas_e_status_sao_validos() -> N
         owner_account="user_b",
         baseline_status=200,
         observed_status=200,
-        evidence="Comparação guardada",
+        evidence="com corpo equivalente para o mesmo pedido.",
         description="",
         solution="",
     )
@@ -292,3 +292,20 @@ def test_recusa_scan_sem_pedidos_quando_nao_prova_varredura() -> None:
     result = plan_confirmation(finding(), (exchange(),), (unfinished,), MARKER)
     assert isinstance(result, VerificationEntry)
     assert result.level == "not_verifiable"
+
+
+def test_selecao_prioriza_altos_e_medios_quando_limite_reduz() -> None:
+    from harness_dast.domain.confirmation import select_confirmation_findings
+
+    low = finding().model_copy(update={"fingerprint": "b" * 64, "proposed_severity": "low"})
+    medium = finding().model_copy(update={"fingerprint": "c" * 64, "proposed_severity": "medium"})
+    high = finding().model_copy(update={"fingerprint": "d" * 64, "proposed_severity": "high"})
+    assert select_confirmation_findings((low, medium, high), 2, None) == (high, medium)
+
+
+def test_selecao_recusa_fingerprint_duplicado() -> None:
+    from harness_dast.domain.confirmation import select_confirmation_findings
+    from harness_dast.domain.errors import ConfigError
+
+    with pytest.raises(ConfigError):
+        select_confirmation_findings((finding(), finding()), 2, None)

@@ -112,3 +112,48 @@ def test_pilha_desatualizada_para_antes_do_login(tmp_path: Path) -> None:
         service.execute(ConfirmationRequest(product="agenda", run_id=rig.run_id))
     assert len(rig.rig.target.requests) == before
     assert rig.store.read().entries[0].level == "inconclusive"
+
+
+def test_fluxo_com_artefatos_reais_e_cliente_falso(tmp_path: Path) -> None:
+    from harness_dast.adapters.reporting.run_files import FileRunArtifacts
+    from harness_dast.adapters.storage.run_store import FileRunStore
+    from harness_dast.adapters.storage.verification_store import VerificationStore
+    from harness_dast.application.account_session import TokenCache
+    from harness_dast.application.confirmation import (
+        Confirmation,
+        ConfirmationDependencies,
+        ConfirmationRequest,
+    )
+
+    rig = ConfirmationRig(tmp_path)
+    directory = tmp_path / rig.run_id
+    directory.mkdir()
+    models = {
+        "probe.json": rig.rig.artifacts.read_probe(rig.run_id),
+        "scan.json": rig.rig.artifacts.read_scan(rig.run_id),
+        "exchanges.json": rig.rig.artifacts.read_exchanges(rig.run_id),
+        "findings.json": rig.rig.artifacts.read_findings(rig.run_id),
+    }
+    for name, model in models.items():
+        (directory / name).write_text(model.model_dump_json(), encoding="utf-8")
+    (directory / "audit.jsonl").write_text("", encoding="utf-8")
+    verification = VerificationStore(directory / "verification.json", rig.rig.vault.mask)
+    deps = ConfirmationDependencies(
+        profiles=rig.rig.profiles,
+        artifacts=FileRunArtifacts(tmp_path),
+        verification=verification,
+        existing=False,
+        store=FileRunStore(tmp_path),
+        client=rig.rig.target,
+        secrets=rig.rig.secrets,
+        vault=rig.rig.vault,
+        clock=rig.rig.clock,
+        sleeper=rig.rig.clock,
+        kill_switch=rig.switch,
+        token_cache=TokenCache(),
+        marker=lambda: "0123456789abcdef",
+    )
+    result = Confirmation(deps).execute(ConfirmationRequest(product="agenda", run_id=rig.run_id))
+    assert verification.read() == result
+    assert result.entries[0].level == "reproduced"
+    assert (directory / "audit.jsonl").read_text(encoding="utf-8").count("confirm:listar") == 10
