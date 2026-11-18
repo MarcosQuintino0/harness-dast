@@ -157,7 +157,9 @@ def test_setup_without_the_person_confirming_keeps_the_password_but_does_not_app
     code, _, out, _ = run(capsys, products, json_mode=False)
 
     assert code == ExitCode.OK
-    assert "cancelada" in out
+    assert "nenhuma aprovação foi gravada" in out
+    assert "nada foi gravado" not in out
+    assert "continuam no cofre" in out
     assert (KEYRING_SERVICE, NAME) in backend.data
     assert not approval_file(tmp_path).exists()
 

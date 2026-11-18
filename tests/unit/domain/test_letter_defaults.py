@@ -250,3 +250,10 @@ def test_default_notes_round_trip_and_ignore_other_comments() -> None:
 )
 def test_read_default_notes_ignores_text_that_is_not_a_note(text: str) -> None:
     assert read_default_notes(text) == ()
+
+
+def test_minimum_defaults_rejects_change_when_code_tries_to_widen_a_value() -> None:
+    with pytest.raises(TypeError):
+        MINIMUM_DEFAULTS["limits.requests_per_second"] = MINIMUM_DEFAULTS[  # type: ignore[index]  # prova que a tabela é imutável
+            "limits.max_duration_minutes"
+        ]

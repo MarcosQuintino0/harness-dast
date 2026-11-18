@@ -9,7 +9,8 @@ mais estreito quando ausentes. Este módulo é puro.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict
@@ -34,31 +35,33 @@ class MinimumDefault(BaseModel):
     reason: str
 
 
-MINIMUM_DEFAULTS: Final = {
-    default.field: default
-    for default in (
-        MinimumDefault(
-            field="limits.requests_per_second",
-            value=1,
-            reason="uma requisição por segundo é a carga mínima útil para a varredura",
-        ),
-        MinimumDefault(
-            field="limits.max_duration_minutes",
-            value=30,
-            reason="meia hora limita o tempo em que o alvo fica sob teste",
-        ),
-        MinimumDefault(
-            field="limits.zap_threads_per_host",
-            value=1,
-            reason="uma conexão simultânea por host é o menor paralelismo do varredor",
-        ),
-        MinimumDefault(
-            field="auth.login_max_per_minute",
-            value=1,
-            reason="um login por minuto é o menor valor que o perfil aceita (ge=1)",
-        ),
-    )
-}
+MINIMUM_DEFAULTS: Final[Mapping[str, MinimumDefault]] = MappingProxyType(
+    {
+        default.field: default
+        for default in (
+            MinimumDefault(
+                field="limits.requests_per_second",
+                value=1,
+                reason="uma requisição por segundo é a carga mínima útil para a varredura",
+            ),
+            MinimumDefault(
+                field="limits.max_duration_minutes",
+                value=30,
+                reason="meia hora limita o tempo em que o alvo fica sob teste",
+            ),
+            MinimumDefault(
+                field="limits.zap_threads_per_host",
+                value=1,
+                reason="uma conexão simultânea por host é o menor paralelismo do varredor",
+            ),
+            MinimumDefault(
+                field="auth.login_max_per_minute",
+                value=1,
+                reason="um login por minuto é o menor valor que o perfil aceita (ge=1)",
+            ),
+        )
+    }
+)
 """Tabela única dos padrões mínimos, por campo da carta."""
 
 

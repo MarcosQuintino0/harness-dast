@@ -38,10 +38,14 @@ def _render(report: SetupReport) -> str:
     elif approval.approved:
         verdict = f"Escopo de {report.product} APROVADO em {approval.approved_at}."
     else:
-        verdict = f"Aprovação de {report.product} cancelada; nada foi gravado."
+        verdict = f"Aprovação de {report.product} cancelada; nenhuma aprovação foi gravada."
     lines = [verdict]
     if report.secrets_written:
         lines.append("Senhas gravadas no cofre: " + ", ".join(report.secrets_written))
+        if not (approval.approved or approval.already_approved):
+            lines.append(
+                "Essas senhas continuam no cofre; remova com hdast secret delete se quiser."
+            )
     if report.secrets_present:
         lines.append("Senhas que já estavam no cofre: " + ", ".join(report.secrets_present))
     if report.env_secrets:

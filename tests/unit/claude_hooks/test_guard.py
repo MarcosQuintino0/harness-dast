@@ -133,6 +133,41 @@ def test_denies_human_command_when_invoked(
 
 
 @pytest.mark.parametrize(
+    "command",
+    [
+        "printf '\\ndemo\\n' | script -q -c \"uv run hdast setup demo\" /dev/null",
+        "script -qc 'hdast profile approve demo' /dev/null",
+        "timeout 60 uv run hdast setup demo",
+        "nohup hdast --json secret set NOME",
+        "unbuffer python -m harness_dast mutation release x",
+        "winpty hdast.exe finding acknowledge x",
+    ],
+)
+def test_denies_human_command_when_wrapped_by_another_program(
+    guard: ModuleType, command: str
+) -> None:
+    code, error = _call(guard, "Bash", command=command)
+
+    assert code == 2
+    assert "barrado" in error
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'git commit -m "feat(cli): adicionar o comando humano hdast setup"',
+        'gh pr create --title "hdast setup" --body "x"',
+        'grep -rn "hdast profile approve" docs',
+        "rg 'hdast setup' .claude",
+    ],
+)
+def test_allows_human_command_text_when_program_only_quotes_it(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
     ("tool", "command"),
     [
         ("Bash", "curl example.invalid"),
