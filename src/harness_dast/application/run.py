@@ -145,6 +145,8 @@ class RunRequest:
         max_minutes: Reduz o prazo do `scan` (conta o tempo já gasto); nunca amplia o perfil.
         include_outcomes: `True` (padrão): o `scan` usa `scan.include_outcomes` do perfil.
             `False` equivale a `--no-include-outcomes` (só `success`); nunca amplia (ADR 0050).
+        only: Operações escolhidas (`--only`, ADR 0112), repassadas ao `probe`, ao `scan` e ao
+            `negative`; vazio = todas. Só reduz. O `authz` roda inteiro (só lê).
     """
 
     product: str
@@ -156,6 +158,7 @@ class RunRequest:
     compare: str | None = None
     max_minutes: int | None = None
     include_outcomes: bool = True
+    only: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -395,6 +398,7 @@ class RunPipeline:
                 run_id=_require(progress.run_id),
                 deadline=progress.deadline,
                 tolerate_missing_exchanges=True,
+                only=request.only,
             )
         )
         counts = Counter(item.proposed_severity for item in result.findings)
@@ -482,7 +486,12 @@ class RunPipeline:
     ) -> None:
         progress.deadline = self._deadline(request, started)
         result = stage.execute(
-            ProbeRequest(product=request.product, seed=request.seed, deadline=progress.deadline)
+            ProbeRequest(
+                product=request.product,
+                seed=request.seed,
+                deadline=progress.deadline,
+                only=request.only,
+            )
         )
         progress.run_id = result.run_id
         error = probe_stop_error(result)
@@ -500,6 +509,7 @@ class RunPipeline:
                 max_minutes=self._remaining(request.max_minutes, started),
                 include_outcomes=None if request.include_outcomes else (),
                 deadline=progress.deadline,
+                only=request.only,
             )
         )
         error = scan_stop_error(result)
@@ -591,6 +601,7 @@ class RunPipeline:
                 compare=request.compare,
                 max_minutes=request.max_minutes,
                 include_outcomes=request.include_outcomes,
+                only=request.only,
             ),
             stages=tuple(progress.records[name] for name in STAGES),
             artifacts=self._sink.existing_files(run_id),

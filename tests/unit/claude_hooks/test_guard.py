@@ -63,6 +63,14 @@ BASELINE_DENY = (
     "PowerShell(uv run hdast --json profile approve:*)",
     "PowerShell(hdast profile approve:*)",
     "PowerShell(hdast --json profile approve:*)",
+    "Bash(uv run hdast setup:*)",
+    "Bash(uv run hdast --json setup:*)",
+    "Bash(hdast setup:*)",
+    "Bash(hdast --json setup:*)",
+    "PowerShell(uv run hdast setup:*)",
+    "PowerShell(uv run hdast --json setup:*)",
+    "PowerShell(hdast setup:*)",
+    "PowerShell(hdast --json setup:*)",
     "Bash(uv run hdast finding acknowledge:*)",
     "Bash(uv run hdast --json finding acknowledge:*)",
     "Bash(hdast finding acknowledge:*)",
@@ -123,6 +131,14 @@ def _call(guard: ModuleType, tool: str, **tool_input: object) -> tuple[int, str]
         ("Bash", "hdast cleanup x --dry-run", "cleanup"),
         ("Bash", "uv run --project . .venv/bin/hdast --json profile approve x", "profile approve"),
         ("Bash", "sh -c 'hdast profile approve x'", "profile approve"),
+        ("Bash", "hdast setup produto", "setup"),
+        ("Bash", "uv run hdast setup produto --products-dir x", "setup"),
+        ("Bash", "uv run hdast --json setup produto", "setup"),
+        ("Bash", "hdast setup --json produto", "setup"),
+        ("Bash", "python -m harness_dast setup produto", "setup"),
+        ("Bash", "sh -c 'hdast setup x'", "setup"),
+        ("PowerShell", r'& ".\.venv\Scripts\hdast.exe" "setup" x', "setup"),
+        ("PowerShell", "uv run hdast --json setup x", "setup"),
     ],
 )
 def test_denies_human_command_when_invoked(
@@ -131,6 +147,43 @@ def test_denies_human_command_when_invoked(
     code, error = _call(guard, tool, command=command)
 
     assert (code, error) == (2, f"hdast {reserved} barrado. Somente uma pessoa pode executá-lo.\n")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "printf '\\ndemo\\n' | script -q -c \"uv run hdast setup demo\" /dev/null",
+        "script -qc 'hdast profile approve demo' /dev/null",
+        "timeout 60 uv run hdast setup demo",
+        "nohup hdast --json secret set NOME",
+        "unbuffer python -m harness_dast mutation release x",
+        "winpty hdast.exe finding acknowledge x",
+        "env hdast demo",
+        "env HDAST_X=1 uv run hdast --json demo --keep",
+    ],
+)
+def test_denies_human_command_when_wrapped_by_another_program(
+    guard: ModuleType, command: str
+) -> None:
+    code, error = _call(guard, "Bash", command=command)
+
+    assert code == 2
+    assert "barrado" in error
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'git commit -m "feat(cli): adicionar o comando humano hdast setup"',
+        'gh pr create --title "hdast setup" --body "x"',
+        'grep -rn "hdast profile approve" docs',
+        "rg 'hdast setup' .claude",
+    ],
+)
+def test_allows_human_command_text_when_program_only_quotes_it(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
 
 
 @pytest.mark.parametrize(
@@ -379,6 +432,8 @@ def test_settings_register_the_guard_for_the_expected_tools() -> None:
         "uvx --from pacote hdast secret set NOME",
         ".venv/bin/hdast cleanup x",
         r".venv\Scripts\hdast.exe mutation release x",
+        "uvx hdast setup x",
+        ".venv/bin/hdast setup x",
         "echo $(curl example.invalid)",
         "echo `curl example.invalid`",
         "echo \"$(sh -c 'curl example.invalid')\"",

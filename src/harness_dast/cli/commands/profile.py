@@ -13,9 +13,10 @@ import typer
 from harness_dast.application.scope_approval import ApprovalInfo, ApproveReport
 from harness_dast.application.validate_profile import ProfileReport
 from harness_dast.cli.approval_composition import build_scope_approvals
+from harness_dast.cli.approval_prompt import TerminalApprovalPrompt
 from harness_dast.cli.composition import build_validate_profile, products_dir_or_default
 from harness_dast.cli.output import build_success, emit, get_state
-from harness_dast.cli.terminal import confirm_typed_name, is_interactive
+from harness_dast.cli.terminal import is_interactive
 
 _PRODUCTS_DIR = typer.Option(
     "--products-dir",
@@ -74,26 +75,6 @@ def _render(report: ProfileReport) -> str:
         lines.append(f"Ainda NÃO executável ({len(report.issues)} pendência(s)):")
         lines.extend(f"  - [{i.code}] {i.field}: {i.message}" for i in report.issues)
     return "\n".join(lines)
-
-
-class TerminalApprovalPrompt:
-    """Mostra o resumo no stderr e exige que a pessoa digite o nome do produto."""
-
-    def confirm(self, product: str, summary: tuple[str, ...], changes: tuple[str, ...]) -> bool:
-        """Devolve `True` só se o texto digitado for exatamente o nome do produto."""
-        typer.echo(f"Escopo de {product} que você vai APROVAR:", err=True)
-        for line in summary:
-            typer.echo(f"  {line}", err=True)
-        if changes:
-            typer.echo("Mudou desde a aprovação anterior:", err=True)
-            for change in changes:
-                typer.echo(f"  - {change}", err=True)
-        typer.echo(
-            "Confira com a carta de autorização. Depois da aprovação, qualquer mudança nestes "
-            "blocos do perfil exige nova aprovação sua.",
-            err=True,
-        )
-        return confirm_typed_name(product)
 
 
 def _render_approve(report: ApproveReport) -> str:

@@ -178,7 +178,7 @@ def read_limits(c: Collector, section: LimitsSection) -> Block | None:
     present = {
         name: value
         for name, answer in answers.items()
-        if (value := c.take(f"limits.{name}", answer)) is not None
+        if (value := c.take_with_default(f"limits.{name}", answer)) is not None
     }
     filler = {"requests_per_second": 1, "max_duration_minutes": 1, "zap_threads_per_host": 1}
     limits = c.check_model("limits", RunLimits, present, filler)
@@ -233,7 +233,7 @@ def _read_login_options(c: Collector, answer: Answer | None) -> Block | None:
 
 
 def _read_login_limit(c: Collector, answer: Answer | None) -> Block | None:
-    value = c.take("auth.login_max_per_minute", answer, required=False)
+    value = c.take_with_default("auth.login_max_per_minute", answer, required=False)
     if value is None:
         return {}
     limit = c.check_model("auth.login_max_per_minute", LoginLimit, {"max_per_minute": value}, {})

@@ -32,9 +32,11 @@ from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
+from harness_dast.cli.commands.retestar import retestar_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.secret import build_secret_app
+from harness_dast.cli.commands.setup import setup_command
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.strategy import build_strategy_app
@@ -59,6 +61,7 @@ def _register_commands(app: typer.Typer) -> None:
     # O Typer exibe os painéis na ordem em que encontra seus primeiros comandos.
     app.command("demo", rich_help_panel=START_HERE_PANEL)(demo_command)
     app.command("doctor", rich_help_panel=START_HERE_PANEL)(doctor_command)
+    app.command("setup", rich_help_panel=START_HERE_PANEL)(setup_command)
     app.command("run", rich_help_panel=START_HERE_PANEL)(run_command)
     app.command("report", rich_help_panel=START_HERE_PANEL)(report_command)
     app.command("stop", rich_help_panel=START_HERE_PANEL)(stop_command)
@@ -77,6 +80,7 @@ def _register_commands(app: typer.Typer) -> None:
     app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
     app.command("plan", rich_help_panel=TEST_STAGES_PANEL)(plan_command)
 
+    app.command("retestar", rich_help_panel=RESULTS_AND_RETEST_PANEL)(retestar_command)
     app.add_typer(build_finding_app(), name="finding", rich_help_panel=RESULTS_AND_RETEST_PANEL)
     app.command("panel", rich_help_panel=RESULTS_AND_RETEST_PANEL)(panel_command)
     app.command("cleanup", rich_help_panel=RESULTS_AND_RETEST_PANEL)(cleanup_command)

@@ -29,6 +29,7 @@ from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.retest import RetestReport
 from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_ref import require_run_id
@@ -49,6 +50,7 @@ NEGATIVE_FILE: Final = "negative.json"
 RULE_STATS_FILE: Final = "rule-stats.json"
 METRICS_FILE: Final = "metrics.json"
 SIGNALS_FILE: Final = "error-signals.json"
+RETEST_FILE: Final = "retest.json"
 _SCAN_MISSING_HINT: Final = (
     "O report precisa do scan.json (mesmo com authz.json). Uma execução só com probe, ou com "
     "'run --skip-scan', não o tem. Rode 'hdast scan PRODUTO --run RUN_ID' ou 'hdast run PRODUTO' "
@@ -68,6 +70,7 @@ KNOWN_FILES: Final = (
     ALERTS_FILE,
     EVIDENCE_FILE,
     FINDINGS_FILE,
+    RETEST_FILE,
     "report.md",
     "report.html",
     METRICS_FILE,
@@ -106,6 +109,17 @@ class FileRunArtifacts:
     def read_findings(self, run_id: str) -> FindingsReport:
         """Lê `findings.json` de outra execução."""
         return self._model(run_id, FINDINGS_FILE, FindingsReport, "o report")
+
+    def write_retest(self, run_id: str, report: RetestReport) -> str:
+        """Grava `retest.json` (reteste de achados, ADR 0112) e devolve o nome do arquivo."""
+        self._write(run_id, RETEST_FILE, report.model_dump_json(indent=2))
+        # O `run.json` foi gravado antes do reteste: sem isto o índice não listaria `retest.json`.
+        summary = self.read_summary(run_id)
+        if summary is not None:
+            self.write_summary(
+                run_id, summary.model_copy(update={"artifacts": self.existing_files(run_id)})
+            )
+        return RETEST_FILE
 
     def read_exchanges(self, run_id: str) -> ExchangeLog:
         """Lê `exchanges.json` (gravado pelo `probe`)."""

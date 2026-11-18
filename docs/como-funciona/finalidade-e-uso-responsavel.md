@@ -9,7 +9,7 @@ O harness-dast é uma ferramenta **defensiva** de teste de segurança de APIs, f
 1. **Achar** vulnerabilidades nas APIs dos nossos produtos, num ambiente de teste, antes que alguém de fora as ache.
 2. **Relatar** cada achado com prova, gravidade proposta e o que não foi testado, num relatório que o time de desenvolvimento entende.
 3. **Corrigir:** o time do produto corrige com base no relatório.
-4. **Retestar:** a ferramenta repete o teste e confirma que a falha sumiu, ou que a função não foi testada desta vez.
+4. **Retestar:** `hdast retestar` repete só as operações dos achados escolhidos e diz quais voltaram (`reproduced`), quais não voltaram nesta execução (`not_reproduced`) e quais não foram testados (`not_tested`). Não reproduzir não prova correção: confirme com uma nova rodada controlada.
 
 É a mesma prática de um teste de invasão contratado ou de um DAST no pipeline: atacar o próprio sistema, com autorização, para fortalecê-lo.
 

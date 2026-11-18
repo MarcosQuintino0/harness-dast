@@ -7,7 +7,8 @@ vigente, dono do produto): um "não" ou "desconhecido" recusa tudo e nenhum outr
 (2) cada campo obrigatório, com origem e valor. Só sem nenhuma pendência o perfil é montado, e
 ele ainda passa por `ProductProfile.from_data`: o que o perfil recusa, a carta recusa.
 Autorização com validade vencida é pendência. Avisos (`warnings`) não recusam nem mudam o
-perfil. Este módulo é puro.
+perfil. Resposta `desconhecido` nos quatro campos da tabela `MINIMUM_DEFAULTS` vira o padrão
+mínimo da CLI, com aviso (ADR 0114). Este módulo é puro.
 """
 
 from collections.abc import Mapping
@@ -27,6 +28,7 @@ from harness_dast.domain.letter_collect import (
     Collector,
     LetterIssue,
 )
+from harness_dast.domain.letter_defaults import default_notes
 from harness_dast.domain.letter_negative import read_allow_invalid_writes
 from harness_dast.domain.letter_outcomes import read_include_outcomes
 from harness_dast.domain.letter_sections import (
@@ -42,7 +44,7 @@ from harness_dast.domain.letter_sections import (
 from harness_dast.domain.letter_shared_roles import read_shared_roles
 from harness_dast.domain.letter_technology import read_technologies
 from harness_dast.domain.letter_upload import read_allow_upload_scan
-from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
+from harness_dast.domain.letter_warnings import default_warning, expired_issue, letter_warnings
 from harness_dast.domain.letter_writes import read_allow_writes
 from harness_dast.domain.letter_yaml import render_yaml
 from harness_dast.domain.profile import ProductProfile
@@ -316,8 +318,12 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
         + (_HEADER_WRITES if profile.authz.allow_writes else "")
         + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
         + (_HEADER_ATTACK if _has_attack_keys(profile) else "")
+        + default_notes(c.defaults)
         + render_yaml(data),
         blocks=blocks,
         example_data=examples,
-        warnings=letter_warnings(profile, today),
+        warnings=(
+            *(default_warning(default) for default in c.defaults),
+            *letter_warnings(profile, today),
+        ),
     )

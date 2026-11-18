@@ -150,12 +150,16 @@ class ScopeApprovals:
         """
         return info_of(current_check(self._store, self._profiles.load(product)))
 
-    def approve(self, product: str, *, interactive: bool) -> ApproveReport:
+    def approve(
+        self, product: str, *, interactive: bool, notes: tuple[str, ...] = ()
+    ) -> ApproveReport:
         """Mostra os blocos de proteção e grava a aprovação se a pessoa confirmar.
 
         Args:
             product: Slug do produto.
             interactive: Se há terminal interativo e a saída não é `--json`; a CLI calcula.
+            notes: Avisos em destaque mostrados antes do resumo (`hdast setup`, ADR 0114);
+                não entram na aprovação gravada.
 
         Raises:
             ConfigError: Sem terminal interativo (o agente não aprova), produto ou perfil
@@ -180,7 +184,7 @@ class ScopeApprovals:
                 summary=summary,
             )
         changes = tuple(f"{block}: {describe_block(block)}" for block in check.changed_blocks)
-        if not self._prompt.confirm(product, summary, changes):
+        if not self._prompt.confirm(product, (*notes, *summary), changes):
             return ApproveReport(
                 product=product,
                 approved=False,

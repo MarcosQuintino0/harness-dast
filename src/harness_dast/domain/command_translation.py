@@ -12,6 +12,7 @@ UNKNOWN_COMMAND_TEXT: Final = "Comando sem tradução cadastrada; veja o nome t�
 _TRANSLATIONS: Final[dict[str, str]] = {
     "version": "Mostrou qual versão da ferramenta está instalada.",
     "doctor": "Conferiu se estava tudo pronto para começar.",
+    "setup": "Pediu a uma pessoa que gravasse as senhas e aprovasse a cerca e os limites.",
     "init": "Criou a pasta do produto com os arquivos de perfil para preencher.",
     "profile validate": "Conferiu se o que foi copiado da carta está completo e coerente.",
     "profile approve": "Pediu a uma pessoa que revisasse e aprovasse a cerca e os limites.",
@@ -36,6 +37,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "negative": "Enviou valores que o contrato proíbe, um campo por vez, para ver se caem.",
     "report": "Montou o relatório com as falhas encontradas.",
     "run": "Fez o teste inteiro em sequência: alcance, ataque e relatório.",
+    "retestar": "Repetiu o teste só nas funções dos achados escolhidos, sem afirmar correção.",
     "wait": "Aguardou uma execução e consultou seu estado, sem tocar o alvo.",
     "cleanup": "Limpou os dados criados pelo teste, com a confirmação de uma pessoa.",
     "secret set": "Pediu a uma pessoa que guardasse uma credencial no cofre do sistema.",

@@ -22,7 +22,8 @@ from harness_dast.cli.demo_runtime import (
     open_demo_session,
 )
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
-from harness_dast.cli.terminal import confirm_typed_name, is_interactive
+from harness_dast.cli.approval_prompt import confirm_product_name
+from harness_dast.cli.terminal import is_interactive
 from harness_dast.domain.errors import ConfigError, ExitCode
 
 _DEMO_SUMMARY = (
@@ -39,7 +40,7 @@ class DemoApprovalPrompt:
         """Usa o nome do comando na confirmação do perfil de laboratório."""
         for line in _DEMO_SUMMARY:
             typer.echo(line, err=True)
-        return confirm_typed_name("demo")
+        return confirm_product_name("demo")
 
 
 def _announce(message: str) -> None:
