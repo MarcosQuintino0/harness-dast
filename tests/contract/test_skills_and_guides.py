@@ -432,3 +432,26 @@ def test_shared_rules_are_canonical_and_claude_imports_them_without_a_cycle() ->
     assert "prevalece `CLAUDE.md`" not in rules
     for path in ALL_SKILL_FILES:
         assert path.relative_to(ROOT).as_posix() in rules
+
+
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_ask_the_person_to_run_setup_and_never_run_it(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "hdast setup <produto>` num terminal dela" in text
+    assert "nunca roda `setup`, `secret set` nem `profile approve`" in text.replace("Você ", "")
+
+
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_limit_the_minimum_default_to_the_table_fields(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "mínimo da CLI" in text
+    assert "auth.login_max_per_minute" in text
+    assert "portões" in text
+
+
+def test_onboard_skill_keeps_deny_paths_as_a_gate() -> None:
+    text = _skill_text("onboard-product")
+
+    assert "`deny_paths` é **portão**" in text
