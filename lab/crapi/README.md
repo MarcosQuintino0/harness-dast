@@ -19,8 +19,8 @@ alvo** do lab e do caso de avaliação [`evals/cases/crapi`](../../evals/cases/c
 | [`product-profile/`](product-profile/target.yml) | Perfil do produto (`target.yml`, `data-rules.yml`, `flows.yml`) |
 
 **Licença e origem.** O repositório do crAPI é Apache-2.0 (confira `LICENSE.md` na tag), que permite redistribuir com o aviso de origem: por
-isso o OpenAPI está versionado aqui, em vez de baixado no setup. Copyright dos autores do crAPI (OWASP crAPI contributors). A licença do
-**harness-dast** continua indefinida (P-14); este diretório não declara licença para o projeto.
+isso o OpenAPI está versionado aqui, em vez de baixado no setup. Copyright dos autores do crAPI (OWASP crAPI contributors). O código do
+**harness-dast** usa a [licença MIT](../../LICENSE).
 
 **Alteração no OpenAPI.** A resposta `200` de `GET /workshop/api/shop/return_qr_code` tem a chave de tipo de mídia vazia (`"content": {"": {...}}`).
 O leitor de OpenAPI do `hdast` recusa isso com um ponteiro claro (`operação inválida (media_type)`); a cópia daqui troca a chave vazia por
