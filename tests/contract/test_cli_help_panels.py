@@ -30,6 +30,7 @@ EXPECTED_COMMANDS = frozenset(
         "probe",
         "profile",
         "report",
+        "retestar",
         "run",
         "scan",
         "secret",
