@@ -38,15 +38,38 @@ NETWORK_CLIENTS = frozenset(
     )
 )
 INLINE_NETWORK = re.compile(
-    r"\b(?:requests|httpx|urllib|http\.client|socket|aiohttp)\b|\bfetch\s*\("
+    r"\b(?:requests|httpx|urllib|http\.client|socket|aiohttp|axios|xmlhttprequest)\b"
+    r"|\bfetch\s*\(|\brequire\s*\(\s*['\"]https?['\"]"
+    r"|\bhttps?\.(?:get|request)\s*\(|\.request\s*\("
+    r"|\bnet\.connect\s*\(|\bnew\s+websocket\b"
 )
+INLINE_ENVIRONMENT = re.compile(r"\b(?:environ|getenv|process\.env)\b|\$env:", re.IGNORECASE)
+VARIABLE = re.compile(r"\$(?:\{[^}]+\}|env:[\w]+|[A-Za-z_]\w*)|%[^%]+%", re.IGNORECASE)
 POWERSHELL_NETWORK = re.compile(r"\b(?:net\.webclient|httpclient)\b")
 PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
 SHELLS = frozenset(("sh", "bash", "dash", "zsh", "ksh"))
 POWERSHELLS = frozenset(("powershell", "pwsh"))
-FILE_READERS = frozenset(("cat", "type", "get-content"))
 READ_ONLY = frozenset(
     ("cat", "type", "get-content", "head", "tail", "less", "grep", "rg", "ls", "dir")
+)
+WRITERS = frozenset(
+    (
+        "tee",
+        "set-content",
+        "out-file",
+        "add-content",
+        "new-item",
+        "copy-item",
+        "move-item",
+        "cp",
+        "mv",
+        "rm",
+        "remove-item",
+        "dd",
+        "install",
+        "ln",
+        "sed",
+    )
 )
 ENV_LISTERS = frozenset(("get-childitem", "gci", "dir", "ls"))
 # Subcomandos do git que não reescrevem arquivos da pasta de trabalho: citar um caminho
@@ -125,6 +148,13 @@ def _writes_control(path: str) -> bool:
     )
 
 
+def _resolve_path(path: str, cwd: str) -> str:
+    normalized = path.replace("\\", "/")
+    if normalized.startswith("/") or re.match(r"^[a-zA-Z]:/", normalized):
+        return normalized
+    return posixpath.join(cwd.replace("\\", "/"), normalized)
+
+
 def _executable(word: str) -> str:
     name = posixpath.basename(_normalize_path(word))
     stem, extension = posixpath.splitext(name)
@@ -178,32 +208,90 @@ def _shell_commands(command: str) -> Iterator[list[tuple[str, str]]]:
 
 
 def _inline_code(name: str, args: tuple[str, ...]) -> str | None:
-    if len(args) < 2:
-        return None
-    flag, code = args[:2]
-    if name in SHELLS and re.fullmatch(r"-[a-z]*c[a-z]*", flag):
-        return code
-    if name in POWERSHELLS and flag in {"-command", "-c"}:
-        return " ".join(args[1:])
-    if PYTHON.fullmatch(name) and flag == "-c":
-        return code
-    if name in {"node", "ruby", "perl"} and flag in {"-e", "--eval"}:
-        return code
+    index = 0
+    while index < len(args):
+        flag = args[index]
+        if not flag.startswith("-"):
+            break
+        shell_flag = name in SHELLS and re.fullmatch(r"-[a-z]*c[a-z]*", flag)
+        ps_flag = name in POWERSHELLS and flag in {
+            "-c",
+            "-co",
+            "-com",
+            "-comm",
+            "-comma",
+            "-comman",
+            "-command",
+        }
+        python_flag = PYTHON.fullmatch(name) and flag == "-c"
+        node_flag = name in {"node", "ruby", "perl"} and flag in {"-e", "--eval"}
+        if shell_flag or ps_flag or python_flag or node_flag:
+            if index + 1 >= len(args):
+                raise ValueError(INVALID_INPUT)
+            return " ".join(args[index + 1 :]) if ps_flag else args[index + 1]
+        if flag in {"-file", "-f"} and name in POWERSHELLS:
+            break
+        if PYTHON.fullmatch(name) and flag == "-m":
+            # Execução de módulo (python -m pytest): não há código inline a analisar.
+            break
+        try:
+            index += _option_step(name, flag)
+        except ValueError:
+            # Opção desconhecida: em vez de travar o uso normal (--version etc.), procura uma
+            # bandeira de código inline mais adiante; se houver, o código é analisado.
+            return _later_inline_code(name, args[index + 1 :])
+        if index > len(args):
+            raise ValueError(INVALID_INPUT)
     return None
 
 
-def _check_redirection(operator: str, path: str) -> str | None:
-    if ">" in operator and _writes_control(path):
+def _later_inline_code(name: str, rest: tuple[str, ...]) -> str | None:
+    inline_flags = {"-c", "-e", "--eval", "-command", "/c", "/k"}
+    for position, arg in enumerate(rest):
+        if arg in inline_flags or (name in SHELLS and re.fullmatch(r"-[a-z]*c[a-z]*", arg)):
+            if position + 1 >= len(rest):
+                raise ValueError(INVALID_INPUT)
+            return " ".join(rest[position + 1 :])
+    return None
+
+
+def _option_step(name: str, flag: str) -> int:
+    if name in POWERSHELLS:
+        if flag in {"-executionpolicy", "-ep", "-windowstyle", "-w", "-workingdirectory"}:
+            return 2
+        if flag not in {"-noprofile", "-nop", "-noninteractive"}:
+            raise ValueError(INVALID_INPUT)
+    return _language_option_step(name, flag)
+
+
+def _language_option_step(name: str, flag: str) -> int:
+    if PYTHON.fullmatch(name):
+        if flag in {"-w", "-x"}:
+            return 2
+        if flag not in {"-b", "-bb", "-i", "-o", "-oo", "-s", "-e", "-u", "-v", "-q"}:
+            raise ValueError(INVALID_INPUT)
+    if name in SHELLS and not re.fullmatch(r"-[a-z]+", flag):
+        raise ValueError(INVALID_INPUT)
+    if name in {"node", "ruby", "perl"}:
+        if flag in {"-r", "--require", "--import"}:
+            return 2
+        if flag not in {"--no-warnings", "--trace-warnings", "-w"}:
+            raise ValueError(INVALID_INPUT)
+    return 1
+
+
+def _check_redirection(operator: str, path: str, cwd: str) -> str | None:
+    if ">" in operator and (VARIABLE.search(path) or _writes_control(_resolve_path(path, cwd))):
         return WRITE_DENIED
     if operator.endswith("<") and not operator.endswith("<<") and _reads_secret(path):
         return SENSITIVE_READ_DENIED
     return None
 
 
-def _mentions_control(text: str) -> bool:
+def _mentions_control(text: str, cwd: str = "") -> bool:
     # Examina também caminhos dentro de literais de linguagens e argumentos nomeados.
     parts = re.split(r"""[\s'"\x60(),;=]+""", text)
-    return any(_writes_control(part) for part in parts if part)
+    return any(_writes_control(_resolve_path(part, cwd)) for part in parts if part)
 
 
 def _clearly_read_only(name: str, args: tuple[str, ...]) -> bool:
@@ -223,7 +311,7 @@ def _mentions_secret(text: str) -> bool:
     return bool(re.search(r"(?i)(?<![\w])\.env(?!\.example(?![\w.-]))|\bstack\.json\b", text))
 
 
-def _check_substitutions(command: str) -> str | None:
+def _check_substitutions(command: str, cwd: str) -> str | None:
     # Apenas substituições fora de aspas simples são executadas pelo shell.
     quote = ""
     index = 0
@@ -236,7 +324,7 @@ def _check_substitutions(command: str) -> str | None:
         elif quote != "'" and (command.startswith("$(", index) or char == "`"):
             end = _substitution_end(command, index)
             offset = 2 if char == "$" else 1
-            if reason := _check_shell(command[index + offset : end]):
+            if reason := _check_shell(command[index + offset : end], cwd):
                 return reason
             index = end
         index += 1
@@ -263,35 +351,51 @@ def _substitution_end(command: str, start: int) -> int:
 def _reads_secret_with_command(name: str, args: tuple[str, ...]) -> bool:
     if name == "printenv" or (name in {"env", "set"} and not args):
         return True
-    if name in ENV_LISTERS and any(_normalize_path(arg) == "env:" for arg in args):
+    if name in ENV_LISTERS and any(_normalize_path(arg).startswith("env:") for arg in args):
         return True
-    return name in FILE_READERS and any(_reads_secret(arg) for arg in args)
+    if name == "gh" or (name == "git" and args[:1] in {("commit",), ("add",), ("status",)}):
+        return False
+    return any(_reads_secret_reference(arg) for arg in args)
 
 
-def _check_inline(name: str, args: tuple[str, ...]) -> str | None:
+def _reads_secret_reference(text: str) -> bool:
+    return bool(
+        re.search(r"(?i)(?<![\w])\.env(?!\.example(?![\w.-]))", text)
+        or re.search(r"(?i)(?<![\w])hdast[\\/]+stack\.json\b", text)
+    )
+
+
+def _check_inline(name: str, args: tuple[str, ...], cwd: str) -> str | None:
     if name in POWERSHELLS and any(
         arg.split(":", 1)[0] in {"-encodedcommand", "-enc", "-e"} for arg in args
     ):
         return "Comando PowerShell codificado barrado. Uma pessoa deve executá-lo."
-    if name == "cmd" and args[:1] in {("/c",), ("/k",)}:
-        return _check_shell(" ".join(args[1:]))
+    if name == "cmd":
+        for index, arg in enumerate(args):
+            if arg in {"/c", "/k"}:
+                return _check_shell(" ".join(args[index + 1 :]), cwd)
+        raise ValueError(INVALID_INPUT)
     if name == "start-process":
-        return _check_start_process(args)
+        return _check_start_process(args, cwd)
     code = _inline_code(name, args)
     if code is None:
         return None
-    if _mentions_secret(code):
+    return _check_inline_code(name, code, cwd)
+
+
+def _check_inline_code(name: str, code: str, cwd: str) -> str | None:
+    if _mentions_secret(code) or INLINE_ENVIRONMENT.search(code):
         return SENSITIVE_READ_DENIED
     if name in POWERSHELLS and POWERSHELL_NETWORK.search(code):
         return NETWORK_DENIED
     if name in SHELLS or name in POWERSHELLS:
-        return _check_shell(code)
-    if _mentions_control(code):
+        return _check_shell(code, cwd)
+    if _mentions_control(code, cwd):
         return WRITE_DENIED
     return NETWORK_DENIED if INLINE_NETWORK.search(code) else None
 
 
-def _check_start_process(args: tuple[str, ...]) -> str | None:
+def _check_start_process(args: tuple[str, ...], cwd: str) -> str | None:
     values = [
         arg.strip(",")
         for arg in args
@@ -299,12 +403,12 @@ def _check_start_process(args: tuple[str, ...]) -> str | None:
     ]
     if not values:
         raise ValueError(INVALID_INPUT)
-    if reason := _check_words(values):
+    if reason := _check_words(values, cwd):
         return reason
-    return _check_shell(" ".join(values))
+    return _check_shell(" ".join(values), cwd)
 
 
-def _check_command(tokens: list[tuple[str, str]]) -> str | None:
+def _check_command(tokens: list[tuple[str, str]], cwd: str) -> str | None:
     words: list[str] = []
     remaining = iter(tokens)
     for kind, value in remaining:
@@ -314,16 +418,20 @@ def _check_command(tokens: list[tuple[str, str]]) -> str | None:
         target_kind, path = next(remaining, ("", ""))
         if target_kind != "word":
             raise ValueError(INVALID_INPUT)
-        if reason := _check_redirection(value, path):
+        if reason := _check_redirection(value, path, cwd):
             return reason
-    return _check_words(words) if words else None
+    return _check_words(words, cwd) if words else None
 
 
-def _check_words(words: list[str]) -> str | None:
+def _check_words(words: list[str], cwd: str) -> str | None:
     if not words[0]:
         raise ValueError(INVALID_INPUT)
     command = _normalize_command(words)
     name, args = command[0], command[1:]
+    if VARIABLE.search(name):
+        return WRITE_DENIED
+    if name == "patch" or (name == "git" and args[:1] in {("apply",), ("am",)}):
+        return "Aplicação de patch barrada. Somente uma pessoa pode aplicá-lo."
     if name == "hdast":
         for reserved in HUMAN_COMMANDS:
             if args[: len(reserved)] == reserved:
@@ -332,20 +440,35 @@ def _check_words(words: list[str]) -> str | None:
         return NETWORK_DENIED
     if _reads_secret_with_command(name, args):
         return SENSITIVE_READ_DENIED
-    if reason := _check_inline(name, args):
+    if reason := _check_inline(name, args, cwd):
         return reason
-    if not _clearly_read_only(name, args) and any(_mentions_control(arg) for arg in args):
+    return _check_write(name, args, cwd)
+
+
+def _check_write(name: str, args: tuple[str, ...], cwd: str) -> str | None:
+    if name in WRITERS and any(VARIABLE.search(arg) for arg in args):
+        return WRITE_DENIED
+    git_write = name == "git" and args[:1] in {("checkout",), ("restore",), ("mv",), ("rm",)}
+    if git_write and any(VARIABLE.search(arg) for arg in args):
+        return WRITE_DENIED
+    if name in WRITERS and any(
+        _writes_control(_resolve_path(arg, cwd)) for arg in args if not arg.startswith("-")
+    ):
+        return WRITE_DENIED
+    if _writes_control(cwd) and name != "echo" and not _clearly_read_only(name, args):
+        return WRITE_DENIED
+    if not _clearly_read_only(name, args) and any(_mentions_control(arg, cwd) for arg in args):
         return WRITE_DENIED
     return None
 
 
-def _check_shell(command: str) -> str | None:
-    if reason := _check_substitutions(command):
+def _check_shell(command: str, cwd: str = "") -> str | None:
+    if reason := _check_substitutions(command, cwd):
         return reason
     found_command = False
     for words in _shell_commands(command):
         found_command = True
-        if reason := _check_command(words):
+        if reason := _check_command(words, cwd):
             return reason
     if not found_command:
         raise ValueError(INVALID_INPUT)
@@ -379,17 +502,39 @@ def _check_search(tool: str, data: dict[str, object]) -> str | None:
     return SENSITIVE_READ_DENIED if any(_secret_pattern(path) for path in paths) else None
 
 
+def _check_mcp(value: object) -> str | None:
+    if isinstance(value, str):
+        if _mentions_control(value):
+            return WRITE_DENIED
+        if _reads_secret_reference(value):
+            return SENSITIVE_READ_DENIED
+    elif isinstance(value, list):
+        for item in value:
+            if reason := _check_mcp(item):
+                return reason
+    elif isinstance(value, dict):
+        for item in value.values():
+            if reason := _check_mcp(item):
+                return reason
+    return None
+
+
 def _check_call(event: object) -> str | None:
     if not isinstance(event, dict) or not isinstance(data := event.get("tool_input"), dict):
         raise TypeError(INVALID_INPUT)
     tool = _require_text(event, "tool_name")
+    cwd = _require_text(event, "cwd") if "cwd" in event else ""
+    if tool.startswith("mcp__"):
+        return _check_mcp(data)
     if tool in SHELL_TOOLS:
-        return _check_shell(_require_text(data, "command"))
+        command = _require_text(data, "command")
+        return _check_shell(command, cwd) if cwd else _check_shell(command)
     if tool == "Read":
         return SENSITIVE_READ_DENIED if _reads_secret(_require_text(data, "file_path")) else None
     if tool in WRITE_TOOLS:
         key = "notebook_path" if tool == "NotebookEdit" and "notebook_path" in data else "file_path"
-        return WRITE_DENIED if _writes_control(_require_text(data, key)) else None
+        path = _resolve_path(_require_text(data, key), cwd)
+        return WRITE_DENIED if _writes_control(path) else None
     if tool in SEARCH_TOOLS:
         return _check_search(tool, data)
     raise ValueError(INVALID_INPUT)

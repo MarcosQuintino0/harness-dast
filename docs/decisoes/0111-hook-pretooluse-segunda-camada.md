@@ -27,8 +27,12 @@ O código devolve `0` para liberar. Ação barrada, entrada inválida ou exceç�
 
 ## Consequências
 
-O hook é uma inspeção estática de formas conhecidas. Aliases, expansões, links simbólicos e arquivos apontados apenas indiretamente ficam fora da análise. Um script chamado pelo nome, que monta o endereço em tempo de execução, ainda pode escapar da inspeção. A barreira física contra acesso direto ao alvo é o isolamento de rede.
-
 O Claude Code v2.1.295 ou posterior é necessário para `onFailure: block`, que bloqueia falhas do lançador, saídas inesperadas e tempo esgotado. O `timeout` é de 30 segundos. O uso pressupõe `uv` no PATH e Python disponível.
 
 Os aceites são testes de unidade com entradas sintéticas para cada regra, variações de sintaxe, chamadas permitidas e falhas fechadas. O teste de contrato preserva as negações anteriores e confere o registro do hook.
+
+## Limite residual
+
+A análise é estática e textual. Variáveis, aliases, scripts gravados em disco e programas próprios podem escapar da inspeção. A barreira física contra tráfego direto ao alvo é o isolamento de rede da pilha. No laboratório, o alvo só é alcançável pelo proxy de escopo.
+
+A validação manual sem pydantic é uma exceção deliberada à regra de entrada do `AGENTS.md`. O hook executa somente com a biblioteca padrão, sem depender das bibliotecas instaladas no ambiente do projeto.

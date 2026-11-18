@@ -340,7 +340,7 @@ def test_settings_register_the_guard_for_the_expected_tools() -> None:
     pre_tool_use = settings["hooks"]["PreToolUse"]
 
     assert {
-        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep",
+        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|mcp__.*",
         "hooks": [
             {
                 "type": "command",
@@ -483,4 +483,154 @@ def test_allows_mention_of_control_when_command_does_not_rewrite_files(
 def test_denies_git_or_gh_command_when_it_rewrites_control_files(
     guard: ModuleType, command: str
 ) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 2
+
+
+def _event(guard: ModuleType, event: dict[str, object]) -> tuple[int, str]:
+    stderr = io.StringIO()
+    code = guard.run(io.StringIO(json.dumps(event)), stderr)
+    return code, stderr.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("cwd", "tool", "tool_input"),
+    [
+        ("/state/hdast/approvals", "Bash", {"command": "echo x > demo.json"}),
+        ("/project/.claude/hooks", "Bash", {"command": "tee guard.py"}),
+        ("/project/.claude", "Bash", {"command": "echo x > settings.json"}),
+        (r"C:\state\hdast\approvals", "Write", {"file_path": "demo.json"}),
+        ("/project/.claude/hooks", "Edit", {"file_path": "guard.py"}),
+        ("/project/.claude", "Write", {"file_path": "settings.json"}),
+        ("/project/.claude", "Bash", {"command": "python -c \"open('settings.json','w')\""}),
+    ],
+)
+def test_denies_relative_write_when_cwd_resolves_to_protected_path(
+    guard: ModuleType, cwd: str, tool: str, tool_input: dict[str, str]
+) -> None:
+    code, error = _event(guard, {"cwd": cwd, "tool_name": tool, "tool_input": tool_input})
+
+    assert code == 2
+    assert "protegido" in error
+
+
+def test_allows_relative_write_when_cwd_is_unprotected(guard: ModuleType) -> None:
+    event: dict[str, object] = {
+        "cwd": "/project/src",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "demo.py"},
+    }
+
+    assert _event(guard, event) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git apply changes.patch",
+        "git am changes.patch",
+        "patch -p1 < changes.patch",
+        "$VAR x",
+        "${VAR} x",
+        "%VAR% x",
+        "$env:VAR x",
+        "echo x > $VAR",
+        "echo x >> ${VAR}",
+        "tee %VAR%",
+        "Set-Content $env:VAR x",
+        "cmd /d /s /c curl x",
+        "powershell -NoProfile -Command 'iwr x'",
+        "powershell -ExecutionPolicy Bypass -Command 'iwr x'",
+        "pwsh -NoProfile -com 'iwr x'",
+        "python -B -c 'import httpx'",
+        "python -W ignore -c 'import httpx'",
+        "node --no-warnings -e \"require('http')\"",
+        "bash -l -c 'curl x'",
+        "sh -e -c 'curl x'",
+        "rg --hidden palavra .env",
+        "grep --hidden x hdast/stack.json",
+        "python -c 'print(environ)'",
+        "python -c 'getenv(\"X\")'",
+        "node -e 'console.log(process.env.X)'",
+        "powershell -Command 'echo $env:NAME'",
+        "Get-ChildItem Env:QUALQUER",
+        "gci env:TEST",
+        "dir env:TEST",
+        "node -e \"require('https')\"",
+        "node -e 'http.get(x)'",
+        "node -e 'https.get(x)'",
+        "node -e 'client.request(x)'",
+        "node -e 'axios(x)'",
+        "node -e 'net.connect(x)'",
+        "node -e 'new WebSocket(x)'",
+        "node -e 'new XMLHttpRequest()'",
+    ],
+)
+def test_denies_third_review_case_when_command_is_restricted(
+    guard: ModuleType, command: str
+) -> None:
+    code, error = _call(guard, "Bash", command=command)
+
+    assert code == 2
+    assert error
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo $HOME",
+        'git commit -m "env"',
+        "uv run pytest",
+        "rg -n approve src",
+        'node -e "console.log(1)"',
+        "git diff changes.patch",
+        "cmd /d /s /c git status",
+        "python -B -c 'print(1)'",
+        "powershell -ExecutionPolicy Bypass -Command 'echo ok'",
+        "Get-ChildItem src",
+        "echo .env.example",
+    ],
+)
+def test_allows_third_review_case_when_command_is_permitted(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize("value", [".env", "hdast/stack.json", "approvals/demo.json"])
+def test_denies_mcp_when_nested_value_mentions_protected_data(
+    guard: ModuleType, value: str
+) -> None:
+    event: dict[str, object] = {
+        "tool_name": "mcp__server__call",
+        "tool_input": {"nested": [{"path": value}]},
+    }
+
+    assert _event(guard, event)[0] == 2
+
+
+def test_allows_mcp_when_nested_values_are_safe(guard: ModuleType) -> None:
+    event: dict[str, object] = {
+        "tool_name": "mcp__server__call",
+        "tool_input": {"nested": [{"path": "src/main.py"}]},
+    }
+
+    assert _event(guard, event) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["python -m pytest tests/unit -q", "python --version", "node --version", "python3 -V"],
+)
+def test_allows_interpreter_when_no_inline_code_follows(guard: ModuleType, command: str) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python --unknown-flag -c 'import httpx'",
+        "node --some-flag -e \"require('https').get('https://x')\"",
+    ],
+)
+def test_denies_inline_code_after_unknown_option(guard: ModuleType, command: str) -> None:
     assert _call(guard, "Bash", command=command)[0] == 2

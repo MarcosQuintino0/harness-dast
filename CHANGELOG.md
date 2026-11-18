@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Hook PreToolUse reforçado para diretório atual, ferramentas MCP, patches, variáveis e opções anteriores ao código inline. O ADR 0111 registra os limites residuais da análise textual.
 - Hook PreToolUse reforçado contra comandos aninhados, caminhos relativos e padrões de busca amplos, com bloqueio de falhas do lançador no Claude Code v2.1.295 ou posterior.
 
 - Hook `PreToolUse` acrescenta uma segunda camada de proteção do Claude Code para comandos humanos, acessos diretos à rede, leitura de segredos e alterações em arquivos de controle. [ADR 0111](docs/decisoes/0111-hook-pretooluse-segunda-camada.md).
