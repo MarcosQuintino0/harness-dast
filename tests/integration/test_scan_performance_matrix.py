@@ -163,8 +163,10 @@ def _record(
 
 
 def _remaining(maximum: int) -> int:
-    deadline = float(os.environ["HDAST_V17_DEADLINE_EPOCH"])
-    remaining = int(deadline - time.time())
+    deadline = os.environ.get("HDAST_V17_DEADLINE_EPOCH")
+    if deadline is None:
+        pytest.skip("A medição V1.7 tem orçamento e requer HDAST_V17_DEADLINE_EPOCH.")
+    remaining = int(float(deadline) - time.time())
     if remaining < 1:
         pytest.fail("Orçamento V1.7 esgotado; interromper a prova")
     return min(maximum, remaining)

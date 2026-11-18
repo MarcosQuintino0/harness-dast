@@ -168,7 +168,7 @@ def lab(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
     cli = LabCli(tmp_path_factory.mktemp(f"regressao-{name}"), env)
     state: dict[str, Any] = {"seconds": {}, "exit_codes": {}}
     guard = None
-    if cli.env.get("HDAST_STACK_PROJECT_SUFFIX") == "-codex":
+    if cli.env.get("HDAST_STACK_PROJECT_SUFFIX"):
         guard = ResourceGuard(lambda: inventory(docker_runner(cli.env)))
     started = time.monotonic()
     completed = False

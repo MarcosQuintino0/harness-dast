@@ -1,7 +1,6 @@
 """Apoio exclusivo à prova de Callback com emissor sintético em rede interna."""
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -12,6 +11,7 @@ from typing import Annotated
 import httpx
 from pydantic import Field, TypeAdapter
 
+from tests.integration.crapi_support import crapi_project, project
 from tests.integration.lab_support import REPO, CliResult, LabCli
 from tests.integration.oast_cleanup import CleanupResult, OastCleanup
 
@@ -19,9 +19,6 @@ PYTHON_IMAGE = (
     "python:3.13-slim-bookworm@sha256:"
     "a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72"
 )
-_SUFFIX = os.environ.get("HDAST_IT_STACK_SUFFIX") or "-codex"
-PROJECT = "hdast" + _SUFFIX
-CRAPI_PROJECT = "hdast-crapi" + _SUFFIX
 CALLBACK_INTERACTIONS = "stats.oast.callback.interactions"
 
 
@@ -53,7 +50,7 @@ class OastLab:
         self.network = f"hdast-oast-{nonce}"
         self.client = f"hdast-oast-client-{nonce}"
         self.cli.env["HDAST_OAST_NETWORK"] = self.network
-        self.cli.env["HDAST_LAB_NETWORK"] = PROJECT + "_lab_net"
+        self.cli.env["HDAST_LAB_NETWORK"] = project() + "_lab_net"
         self.cli.env["HDAST_OAST_OWNER"] = nonce
         self.cleanup = OastCleanup(
             lambda args: self.docker(*args), nonce, self.network, self.client
@@ -85,7 +82,7 @@ class OastLab:
         return self.docker(
             "compose",
             "-p",
-            PROJECT,
+            project(),
             "-f",
             "compose.yaml",
             "-f",
@@ -142,24 +139,26 @@ class OastLab:
 
     def assert_project_unused(self) -> None:
         """Não reutiliza contêineres ou redes de outra sessão do projeto."""
-        label = "label=com.docker.compose.project=" + PROJECT
+        label = "label=com.docker.compose.project=" + project()
         assert not self.docker("ps", "-aq", "--filter", label)
         assert not self.docker("network", "ls", "-q", "--filter", label)
         assert not self.docker("network", "ls", "-q", "--filter", f"name=^{self.network}$")
         assert not self.docker("ps", "-aq", "--filter", f"name=^/{self.client}$")
         for suffix in ("zap_net", "lab_net", "egress_net", "host_net"):
-            assert not self.docker("network", "ls", "-q", "--filter", f"name=^{PROJECT}_{suffix}$")
+            assert not self.docker(
+                "network", "ls", "-q", "--filter", f"name=^{project()}_{suffix}$"
+            )
         self._project_checked = True
 
     def assert_crapi_unused(self) -> None:
         """Não reutiliza recursos crAPI de outra sessão."""
-        label = "label=com.docker.compose.project=" + CRAPI_PROJECT
+        label = "label=com.docker.compose.project=" + crapi_project()
         assert not self.docker("ps", "-aq", "--filter", label)
         assert not self.docker("network", "ls", "-q", "--filter", label)
         assert not self.docker("volume", "ls", "-q", "--filter", label)
         for suffix in ("crapi_net", "publish_net"):
             assert not self.docker(
-                "network", "ls", "-q", "--filter", f"name=^{CRAPI_PROJECT}_{suffix}$"
+                "network", "ls", "-q", "--filter", f"name=^{crapi_project()}_{suffix}$"
             )
         self._crapi_checked = True
 
@@ -177,7 +176,7 @@ class OastLab:
 
     def use_managed_bridge(self) -> None:
         """Seleciona a rede que a CLI cria, sem subir nem conectar recursos."""
-        self.network = PROJECT + "_oast_net"
+        self.network = project() + "_oast_net"
         self.cleanup.network = self.network
         self.cli.env["HDAST_OAST_NETWORK"] = self.network
         self.cleanup.managed_bridge = True
@@ -192,7 +191,7 @@ class OastLab:
         return self.docker(
             "compose",
             "-p",
-            CRAPI_PROJECT,
+            crapi_project(),
             "-f",
             "lab/crapi/compose.yaml",
             "-f",
@@ -205,7 +204,7 @@ class OastLab:
     def attach_workshop(self) -> None:
         """Recria somente o workshop usando o overlay e captura seu identificador."""
         before = self.cleanup._containers(
-            f"label=com.docker.compose.project={CRAPI_PROJECT}",
+            f"label=com.docker.compose.project={crapi_project()}",
             "label=com.docker.compose.service=crapi-workshop",
         )
         if len(before) != 1:
@@ -238,18 +237,18 @@ class OastLab:
             "container", self.client, "{{json .NetworkSettings.Networks}}"
         )
         assert isinstance(zap_networks, dict)
-        assert set(zap_networks) == {PROJECT + "_zap_net"}
+        assert set(zap_networks) == {project() + "_zap_net"}
         assert isinstance(gateway_networks, dict)
         assert set(gateway_networks) == {
-            PROJECT + "_zap_net",
+            project() + "_zap_net",
             self.network,
         }
         assert isinstance(client_networks, dict)
         expected = {self.network}
         if workshop:
-            expected.add(CRAPI_PROJECT + "_crapi_net")
+            expected.add(crapi_project() + "_crapi_net")
         assert set(client_networks) == expected
-        for network in (PROJECT + "_zap_net", *expected):
+        for network in (project() + "_zap_net", *expected):
             assert self.inspect_json("network", network, "{{json .Internal}}") is True
         assert not self.inspect_json("container", gateway, "{{json .HostConfig.PortBindings}}")
         assert not self.inspect_json("container", self.client, "{{json .HostConfig.PortBindings}}")

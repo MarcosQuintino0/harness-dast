@@ -8,10 +8,19 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from tests.integration.lab_support import REPO, CliResult, LabCli
+from harness_dast.application.lab_targets import CRAPI_PROJECT
+from harness_dast.application.stack import MAIN_PROJECT
+from tests.integration.lab_support import REPO, CliResult, LabCli, stack_suffix
 
-MAIN = "hdast-codex"
-TARGET = "hdast-crapi-codex"
+
+def project() -> str:
+    """Devolve o nome atual do projeto Compose principal."""
+    return MAIN_PROJECT + stack_suffix()
+
+
+def crapi_project() -> str:
+    """Devolve o nome atual do projeto Compose do crAPI."""
+    return CRAPI_PROJECT + stack_suffix()
 
 
 def run_cli(cli: LabCli, *args: str, timeout: int = 420) -> tuple[CliResult, dict[str, Any]]:
@@ -87,10 +96,12 @@ def _inspect(container: str, template: str) -> Any:
 
 def inspect_topology() -> set[str]:
     """Confere redes e portas, devolvendo nomes dos volumes anônimos ou nomeados usados."""
-    for network in (f"{MAIN}_lab_net", f"{TARGET}_crapi_net"):
+    main_project = project()
+    target_project = crapi_project()
+    for network in (f"{main_project}_lab_net", f"{target_project}_crapi_net"):
         assert _docker("network", "inspect", "--format", "{{json .Internal}}", network) == "true"
-    main = _containers(MAIN)
-    target = _containers(TARGET)
+    main = _containers(main_project)
+    target = _containers(target_project)
     assert main
     assert target
     volumes: set[str] = set()
@@ -112,7 +123,7 @@ def inspect_topology() -> set[str]:
             assert not set(networks) & target_networks
         if service == "crapi-workshop":
             workshop_found = True
-            assert set(networks) == {f"{TARGET}_crapi_net"}
+            assert set(networks) == {f"{target_project}_crapi_net"}
         for bindings in ports.values():
             for binding in bindings or []:
                 assert binding["HostIp"] in {"127.0.0.1", "::1"}

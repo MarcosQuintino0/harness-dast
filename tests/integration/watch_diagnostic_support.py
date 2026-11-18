@@ -7,9 +7,9 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from harness_dast.domain.errors import HarnessError
+from tests.integration.crapi_support import project
 from tests.integration.lab_resource_support import ResourceGuard
 from tests.integration.lab_support import REPO
-from tests.integration.oast_cleanup import PROJECT
 from tests.integration.proxy_watch_log import extract_categories
 
 
@@ -31,7 +31,7 @@ def collect_watch(
                 "-aq",
                 "--no-trunc",
                 "--filter",
-                f"label=com.docker.compose.project={PROJECT}",
+                f"label=com.docker.compose.project={project()}",
                 "--filter",
                 "label=com.docker.compose.service=scope-proxy",
             )
