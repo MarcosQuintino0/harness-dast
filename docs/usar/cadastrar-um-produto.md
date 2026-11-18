@@ -57,7 +57,7 @@ Com `uv` no PATH e Python 3.12 disponível, o hook usa `uv run --no-project --qu
 - Aprovações, confirmações humanas e arquivos que configuram o hook exigem alterações por uma pessoa. Skills e agentes continuam disponíveis para edição durante o desenvolvimento.
 - A negação de escrita em `cleanup/` cobre `products/*/cleanup/` dentro do repositório. A pasta de produtos real fica **fora** dele (`HDAST_PRODUCTS_DIR`): proteja o script de limpeza com as permissões do sistema de arquivos e a revisão do time do produto.
 - O processo do agente herda o ambiente do terminal. O hook barra formas conhecidas de listar variáveis e ler arquivos de segredo. Aplique também as regras da Parte B de `AGENTS.md`.
-- As duas camadas também se aplicam ao Claude Code durante o desenvolvimento. A CLI continua impondo escopo e autorização durante a operação. [Como usar o harness](../../README.md#como-usar).
+- As duas camadas também se aplicam ao Claude Code durante o desenvolvimento. A CLI continua impondo escopo e autorização durante a operação. [Testar o seu produto](../../README.md#testar-o-seu-produto).
 
 ## 5. A entrevista e a aprovação do escopo
 
