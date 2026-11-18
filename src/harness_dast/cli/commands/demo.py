@@ -53,7 +53,11 @@ def _approve(session: DemoSession) -> bool:
         approvals = build_scope_approvals(
             session.products, DemoApprovalPrompt(), environ=session.environ
         )
-        approved = approvals.approve(VAMPI.name, interactive=True).approved
+        confirmed = approvals.approve(VAMPI.name, interactive=True).approved
+        if confirmed:
+            # A aprovação relê o perfil: confere que ela vinculou a cópia do lab, e não outra.
+            session.ensure_profile_unchanged()
+        approved = confirmed
         return approved
     finally:
         if not approved:

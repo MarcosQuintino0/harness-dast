@@ -1,5 +1,6 @@
 """Montagem do laboratório isolado da demonstração e adaptação das saídas da CLI."""
 
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -101,6 +102,7 @@ class DemoSession:
             "VAMPI_ADMIN_USERNAME": "admin",
             "VAMPI_ADMIN_PASSWORD": "pass1",
         }
+        self._digests: dict[Path, str] = {}
 
     def install_profile(self) -> None:
         """Copia o perfil distribuído com o lab e confere que ele só autoriza o VAmPI local."""
@@ -111,6 +113,7 @@ class DemoSession:
             for filename in _PROFILE_FILES:
                 shutil.copyfile(source / "product-profile" / filename, product / filename)
             shutil.copyfile(source / "openapi3.yml", product / "openapi3.yml")
+            self._digests = {path: _digest(path) for path in product.iterdir()}
         except OSError:
             raise ConfigError(
                 "Não consegui copiar o perfil do VAmPI para a pasta temporária.",
@@ -128,8 +131,26 @@ class DemoSession:
                 hint="Restaure lab/vampi/product-profile/target.yml no checkout.",
             )
 
+    def ensure_profile_unchanged(self) -> None:
+        """Confere que o perfil temporário é o mesmo copiado do lab, sem arquivo a mais ou a menos.
+
+        Raises:
+            ConfigError: Algum arquivo mudou depois da cópia (outro processo mexeu na pasta).
+        """
+        product = self.products / VAMPI.name
+        try:
+            current = {path: _digest(path) for path in product.iterdir()}
+        except OSError:
+            current = {}
+        if not self._digests or current != self._digests:
+            raise ConfigError(
+                "O perfil temporário da demo mudou depois da cópia; nada foi executado.",
+                hint="Rode hdast demo de novo. Confira quem mais escreve na pasta temporária.",
+            )
+
     def start(self) -> DemoStep:
-        """Sobe a pilha existente com o VAmPI em modo vulnerável."""
+        """Sobe a pilha existente com o VAmPI em modo vulnerável, se o perfil não mudou."""
+        self.ensure_profile_unchanged()
         return self._invoke("stack", "up", VAMPI.name, "--vulnerable")
 
     def run(self) -> DemoStep:
@@ -168,6 +189,10 @@ class DemoSession:
             hint=f"Confira a instalação da CLI e consulte {DOCKER_GUIDE}.",
         )
         return DemoStep(error.exit_code, build_failure(error))
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def open_demo_session(environ: Mapping[str, str]) -> DemoSession:

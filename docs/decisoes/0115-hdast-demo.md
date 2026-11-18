@@ -32,3 +32,9 @@ A preparação das imagens é uma etapa anterior ao primeiro uso. A demo requer 
 - A aprovação e as execuções ficam na sessão temporária. O perfil só autoriza o VAmPI local e os subprocessos usam os controles existentes.
 - A pilha cai após a execução e em caso de falha, salvo quando `--keep` mantém uma pilha iniciada com sucesso. O relatório local, quando gravado, permanece disponível.
 - O hook e as oito negações de shell cobrem Bash e PowerShell, chamada direta e via `uv run`, com e sem `--json`.
+
+## Limites residuais
+
+- A demo confere o hash do perfil copiado depois da aprovação e antes de subir a pilha. Um processo da mesma pessoa que escreva na pasta temporária entre a conferência e a leitura pelo `stack up` ainda poderia trocá-lo. Para isso, ele já precisaria agir como a própria pessoa.
+- Com `--keep`, ou se a desmontagem falhar, o `stack.json` da pasta temporária guarda a chave da API do ZAP. Isso permite derrubar a pilha depois, igual ao `stack up` comum. O ZAP só escuta em loopback. A pasta deve ser apagada depois do `stack down`.
+- A confirmação digitada ignora espaços nas bordas, como o `profile approve`.

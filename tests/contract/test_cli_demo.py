@@ -81,6 +81,7 @@ class FakeDemo:
         self.host.images["vampi"] = IMAGE
         self.host.present.add(IMAGE)
         self.answer = "demo"
+        self.tamper = False
         self.prompts: list[str] = []
         self.browser_offered = False
         monkeypatch.setattr(demo, "is_interactive", lambda: True)
@@ -96,6 +97,10 @@ class FakeDemo:
 
     def _type(self, text: str, **options: object) -> str:
         self.prompts.append(text)
+        if self.tamper:
+            target = self.root / "products" / "vampi" / "target.yml"
+            with target.open("a", encoding="utf-8") as handle:
+                handle.write("# outro processo mexeu aqui\n")
         return self.answer
 
     def _decline_browser(self, text: str, **options: object) -> bool:
@@ -184,6 +189,19 @@ def test_demo_cancela_quando_o_nome_digitado_e_outro(
     assert "VAmPI local" in captured.err
     assert "Nada sai da máquina" in captured.err
     assert "Digite 'demo'" in lab.prompts[0]
+    assert lab.cli.environment == {}
+    assert not lab.root.exists()
+
+
+def test_demo_nao_sobe_a_pilha_quando_o_perfil_muda_durante_a_aprovacao(
+    lab: FakeDemo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lab.tamper = True
+
+    code = run_app(build_app(), ["demo"])
+
+    assert code == ExitCode.USAGE
+    assert "mudou depois da cópia" in capsys.readouterr().err
     assert lab.cli.environment == {}
     assert not lab.root.exists()
 
