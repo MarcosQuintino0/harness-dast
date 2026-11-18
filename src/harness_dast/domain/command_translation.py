@@ -36,6 +36,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "negative": "Enviou valores que o contrato proíbe, um campo por vez, para ver se caem.",
     "report": "Montou o relatório com as falhas encontradas.",
     "run": "Fez o teste inteiro em sequência: alcance, ataque e relatório.",
+    "retestar": "Repetiu o teste só nas funções dos achados escolhidos, sem afirmar correção.",
     "wait": "Aguardou uma execução e consultou seu estado, sem tocar o alvo.",
     "cleanup": "Limpou os dados criados pelo teste, com a confirmação de uma pessoa.",
     "secret set": "Pediu a uma pessoa que guardasse uma credencial no cofre do sistema.",

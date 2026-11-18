@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- `hdast retestar PRODUTO --run RUN` repete só as operações dos achados escolhidos pelo pipeline do `run` e grava `retest.json` (`reproduced`, `not_reproduced` ou `not_tested`; nunca "corrigido"). O `run` ganha `--only`, repetível, que só reduz e fica em `run.json` ([ADR 0112](docs/decisoes/0112-retestar-e-run-only.md)).
 - `hdast stack pull` baixa as imagens próprias do GHCR. O `stack up` confere a versão OCI do proxy antes de subir e o `doctor` diagnostica as imagens. Há build local explícito e guias de instalação da CLI e do Docker. [ADR 0113](docs/decisoes/0113-imagens-publicadas-e-conferencia-de-versao.md)
 - Hook PreToolUse reforçado para diretório atual, ferramentas MCP, patches, variáveis e opções anteriores ao código inline. O ADR 0111 registra os limites residuais da análise textual.
 - Hook PreToolUse reforçado contra comandos aninhados, caminhos relativos e padrões de busca amplos, com bloqueio de falhas do lançador no Claude Code v2.1.295 ou posterior.

@@ -101,6 +101,14 @@ def run_command(
             "nenhuma flag amplia o que o perfil autoriza.",
         ),
     ] = True,
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Reduz o probe, o scan e o negative a esta operação (repetível, operation_id "
+            "do OpenAPI). Só reduz: nunca amplia. O authz roda inteiro, porque só lê.",
+        ),
+    ] = None,
     fail_on: Annotated[
         FailOn | None,
         typer.Option(
@@ -149,6 +157,7 @@ def run_command(
                     compare=compare,
                     max_minutes=max_minutes,
                     include_outcomes=include_outcomes,
+                    only=tuple(only or ()),
                 )
             )
             marker.write("finished", result.summary.run_id)
