@@ -137,3 +137,31 @@ def test_snapshot_exige_versao_efetiva_correspondente() -> None:
     for version in (None, "2.18"):
         with pytest.raises(ConfigError):
             compile_with(version)
+
+
+def test_snapshot_estreitado_preserva_restricoes_ao_reduzir_oast() -> None:
+    from harness_dast.domain.scan_policy import without_oast
+
+    profile = valid_profile()
+    profile = profile.model_copy(update={"scan": profile.scan.model_copy(update={"oast": True})})
+    plan = ScanPlan((), (), ())
+    original = build_policy(profile.scan, experimental_rules=True)
+    narrowed = original.model_copy(update={"disabled_rules": (*original.disabled_rules, 90001)})
+    limits = build_limits(profile.limits, profile.scan)
+    snapshot = compile_scan_snapshot(
+        profile,
+        approval_for(profile),
+        None,
+        datetime(2026, 11, 16, tzinfo=UTC),
+        baseline=plan,
+        proposed=plan,
+        baseline_policy=narrowed,
+        proposed_policy=narrowed,
+        baseline_limits=limits,
+        proposed_limits=limits,
+    )
+
+    reduced = without_oast(snapshot.policy)
+    assert 90001 in reduced.disabled_rules
+    assert 40046 in reduced.disabled_rules
+    assert 40046 not in reduced.experimental_rules

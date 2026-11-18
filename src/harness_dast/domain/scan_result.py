@@ -13,6 +13,7 @@ from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.extra_check_result import ExtraChecksSummary
 from harness_dast.domain.oast_ssrf import SsrfSummary
+from harness_dast.domain.oast_verification import OastVerification
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_binding import ScanBinding
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
@@ -36,6 +37,10 @@ SCAN_NOTICE: Final = (
 )
 
 _RUNNING_STATES: Final = frozenset({"NOT_STARTED", "RUNNING", "PAUSED"})
+
+
+class OastUnavailable(ExternalToolError):
+    """A configuração do serviço Callback do ZAP não está disponível."""
 
 
 class ScanRefused(ExternalToolError):
@@ -268,6 +273,7 @@ class ScanResult(ApiModel):
         evidence_messages: Mensagens de evidência gravadas.
         health: Guarda de saúde do alvo.
         ssrf: Resumo do SSRF guiado pelo contrato (ADR 0100); `None` sem `scan.oast`.
+        oast_verification: Estado da observabilidade do retorno; `None` em legado ou sem OAST.
         rate_checks: Resumo do limite de consumo (ADR 0101); `None` sem `allow_rate_tests`.
         inventory: Resumo do inventário (ADR 0102); `None` sem `extra_checks.inventory`.
         traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
@@ -302,6 +308,7 @@ class ScanResult(ApiModel):
     evidence_messages: int = 0
     health: HealthSummary
     ssrf: SsrfSummary | None = None
+    oast_verification: OastVerification | None = None
     rate_checks: ExtraChecksSummary | None = None
     inventory: ExtraChecksSummary | None = None
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)
