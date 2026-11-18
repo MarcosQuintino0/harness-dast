@@ -361,6 +361,16 @@ def test_onboard_product_asks_whether_the_letter_authorizes_authz_writes() -> No
     assert "Não sei" in text
 
 
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_warn_and_discard_a_password_pasted_in_chat(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "senha foi compartilhada" in text
+    assert "Não use, grave nem repita o valor." in text
+    assert "trocar a senha da conta de teste" in text
+    assert "peça só o nome do segredo" in text
+
+
 def test_run_scan_says_authz_comes_on_and_never_turns_writes_on() -> None:
     text = _skill_text("run-scan")
 

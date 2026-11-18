@@ -13,6 +13,8 @@ Reúna **tudo de uma vez**, para não interromper depois: nome do produto, pasta
 
 **Primeiro passo: `uv run hdast doctor`** (sem produto). Ele só confere a máquina (Python, `uv`, Docker, imagens, portas) e não toca nenhum alvo. `FALHA` aqui: pare, repasse o que ele diz e espere a pessoa corrigir. Depois que o perfil existir, `uv run hdast doctor <produto>` confere também perfil, autorização, janela e segredos (só se existem).
 
+Se a pessoa colou uma senha, avise que uma senha foi compartilhada. Não use, grave nem repita o valor. Sugira trocar a senha da conta de teste e peça só o nome do segredo.
+
 ## Conhecimento em nova execução
 
 Confira o conhecimento anterior e suas dependências antes do cadastro e dos ajustes de alcance. Não reentreviste respostas ainda válidas; pergunte o que mudou ou está desconhecido. Reaproveite ajustes cuja validade no contexto atual seja comprovada, sem refazer reparos válidos; faça novo probe para renovar estado e obter novos identificadores. Mudanças invalidam seletivamente as partes dependentes. Observação não concede permissão: aprovação, escopo, janela e limites continuam obrigatórios. Não copie tokens, cookies, credenciais, respostas integrais, identificadores de recursos ou gabarito. Resultado desconhecido de mutação não é sucesso e não deve ser repetido às cegas; o diário bloqueia a mesma classe de trabalho entre estágios. Interrompa a ação afetada e peça à pessoa que verifique o estado. O estudo de reutilização permanece pendente.

@@ -69,7 +69,7 @@ Para consultar sem tráfego, use `uv run hdast --json strategy validate <produto
 | `init` sai com 2 e `LETTER_REJECTED` | Leia `data.issues` (`MISSING`, `UNKNOWN`, `GATE_DENIED`, `PLACEHOLDER`, `INVALID_VALUE`, `WIDE_NEEDS_LETTER`, `AUTHZ_WRITES_NEEDS_LETTER`, `NEGATIVE_WRITES_NEEDS_LETTER`, `AUTHORIZATION_EXPIRED`...): volte à entrevista só para esses campos. Não force. |
 | `GATE_DENIED` ou portão "não sei" | **Pare.** Sem ambiente de teste, dados sintéticos e autorização vigente, não há perfil. |
 | `WIDE_NEEDS_LETTER` | Tirou `wide` sem carta: use `strict` (ou deixe o campo fora) e avise que o modo amplo só vem da carta do dono. |
-| Pessoa respondeu um valor de senha no lugar do NOME | Não grave nem repita; peça só o nome do segredo. |
+| Pessoa colou uma senha | Avise que uma senha foi compartilhada. Não use, grave nem repita o valor. Sugira trocar a senha da conta de teste e peça só o nome do segredo. |
 | `init` falha com `CONFIG_ERROR` fora da carta | Nome inválido, pasta inexistente ou produto já existe: leia a mensagem; não force. |
 | `profile validate` sai com 2 | Estrutura inválida: a lista traz o caminho do campo; corrija o `carta.yml` (blocos gerados) ou seu arquivo (resto). |
 | `AUTHORIZATION_EXPIRED` ou `WINDOW_CLOSED` | Pare e avise: só o dono do produto renova. |
