@@ -147,6 +147,7 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     output = (live.stdout + live.stderr)[-1200:]
     assert live.code in {0, 3}, f"O scan terminou com código {live.code}.\n{output}"
     assert scan_file.is_file(), f"O scan não gerou {scan_file}.\n{output}"
+    all_rows = proxy_audit(cli)
     return OutcomesLab(
         mode=mode,
         run_id=run_id,
@@ -158,7 +159,7 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
         with_field=with_field.data,
         live_exit=live.code,
         live=json.loads(scan_file.read_text(encoding="utf-8")),
-        proxy_rows=(all_rows := proxy_audit(cli)),
+        proxy_rows=all_rows,
         scan_proxy_rows=all_rows[proxy_before:],
         seconds=seconds,
     )
