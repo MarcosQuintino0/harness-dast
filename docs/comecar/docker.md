@@ -30,6 +30,30 @@ uv run hdast doctor
 
 Se os pacotes tiverem acesso restrito, autentique o Docker no GHCR com uma conta autorizada antes do download. [Autenticação no GHCR](https://docs.github.com/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
 
+## Preparar as imagens da demo
+
+A demonstração usa apenas imagens locais do Docker. Baixe as duas imagens próprias com `uv run hdast stack pull`, com os nomes padrão do Compose. Para preparar as imagens auxiliares e a do VAmPI, use na raiz do repositório um terminal novo conectado ao Docker local, com as variáveis de Compose nos valores padrão.
+
+```powershell
+$env:HDAST_ZAP_API_KEY = 'preparo-local'
+try {
+    docker compose --profile lab pull zap-gateway proxy-gateway vampi
+} finally {
+    Remove-Item Env:HDAST_ZAP_API_KEY
+}
+```
+
+No Bash ou Zsh, use `HDAST_ZAP_API_KEY=preparo-local docker compose --profile lab pull zap-gateway proxy-gateway vampi`. O valor serve para o Compose interpretar o arquivo durante a preparação. Nenhum contêiner é iniciado.
+
+Se as imagens próprias ainda aguardam publicação, construa as duas usando os nomes padrão do Compose. No PowerShell, substitua a linha de `pull` no bloco acima por estas linhas. No Bash ou Zsh, use a mesma atribuição temporária de `HDAST_ZAP_API_KEY` antes de `docker compose build`.
+
+```powershell
+$hdastImageVersion = uv run python -c "from harness_dast import __version__; print(__version__)"
+docker compose build --build-arg "HDAST_IMAGE_VERSION=$hdastImageVersion" zap scope-proxy
+```
+
+Depois, prepare também as imagens auxiliares e a do VAmPI. O diagnóstico da demo aponta imagens ausentes ou incompatíveis e conflitos nas portas 8080 e 3128. Libere as duas portas antes de continuar. [Primeiro uso](primeiro-uso.md)
+
 ## Construir a partir do código local
 
 Use a construção local ao modificar o proxy, o ZAP ou seus Dockerfiles, ou enquanto as imagens da versão ainda aguardam publicação. O primeiro build pode precisar de rede para baixar bases e dependências. Rode `uv sync --locked` ao trocar de versão do repositório.

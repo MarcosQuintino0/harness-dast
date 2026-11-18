@@ -4,13 +4,14 @@ O [ADR 0010](../decisoes/0010-contrato-json-da-cli-e-codigos-de-saida.md) regist
 
 ## Comandos
 
-`hdast --help` organiza os comandos em cinco painéis: **Comece por aqui**, **Cadastro e escopo**, **Etapas do teste**, **Resultados e reteste** e **Avançado**. O primeiro reúne `doctor`, `setup`, `run`, `report` e `stop`.
+`hdast --help` organiza os comandos em cinco painéis: **Comece por aqui**, **Cadastro e escopo**, **Etapas do teste**, **Resultados e reteste** e **Avançado**. O primeiro reúne `demo`, `doctor`, `setup`, `run`, `report` e `stop`.
 
 As provas de execução foram feitas em laboratório. Consulte os [relatórios por versão](../arquivo/reviews/README.md).
 
 | Comando | O que faz | Toca o alvo? | Status |
 | --- | --- | --- | --- |
 | `hdast version` | Mostra a versão instalada do harness | Não | Implementado (M1) |
+| `hdast demo [--keep]` | Executa o fluxo no VAmPI local com aprovação digitada e oferece abrir o relatório HTML | Sim, só o VAmPI do laboratório | Implementado ([ADR 0115](../decisoes/0115-hdast-demo.md)). Seção abaixo |
 | `hdast doctor [produto]` | Responde "está tudo pronto para começar?": Python, `uv`, pasta de produtos, Docker, imagens, portas fixas, validade da pilha atual e, com produto, perfil, autorização, janela e presença das variáveis de segredo | Não (só lê a máquina) | Implementado ([ADR 0028](../decisoes/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)). Seção abaixo |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
@@ -43,6 +44,16 @@ As provas de execução foram feitas em laboratório. Consulte os [relatórios p
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
 
 **Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `confirm`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
+
+## `hdast demo`
+
+`hdast demo [--keep]` roda o perfil embutido do VAmPI vulnerável. Use um terminal interativo e digite `demo` para aprovar o escopo. O comando usa um perfil e uma pilha exclusivos da sessão temporária. Aceita apenas a opção `--keep`. Confira a [preparação do Docker e das imagens](../comecar/docker.md#preparar-as-imagens-da-demo).
+
+A demo usa o Docker local, exige as portas 8080 e 3128 livres e usa apenas imagens já baixadas ou construídas. Ela executa o `run` com um limite de cinco minutos para a varredura. Quando o `report.html` é gerado, inclusive em uma execução parcial, o caminho aparece no terminal e o comando oferece abrir o arquivo. A pasta temporária preserva o relatório após a desmontagem.
+
+Use `--keep` para manter uma pilha iniciada com sucesso. Para derrubá-la depois, defina `HDAST_STATE_DIR` como a pasta de estado exibida e rode `uv run hdast stack down` num terminal conectado ao mesmo Docker local. A mesma recuperação vale se a desmontagem falhar.
+
+Sem TTY ou com `--json`, a demo recusa com o erro `CONFIG_ERROR` (saída 2). Com `--json`, a recusa vem no envelope JSON. Texto diferente de `demo` cancela sem aprovar e retorna 0. Falha em pré-requisito do ambiente usa a saída 4 do `doctor`. Depois da confirmação a demo preserva o código de `stack up` ou de `run`. Se houver um resultado bem-sucedido e a desmontagem falhar, vale o código de `stack down`. [Códigos de saída](exit-codes.md)
 
 ## `hdast confirm`
 

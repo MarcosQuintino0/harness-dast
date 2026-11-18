@@ -22,6 +22,7 @@ HUMAN_COMMANDS = (
     ("finding", "acknowledge"),
     ("mutation", "release"),
     ("cleanup",),
+    ("demo",),
 )
 # Comando humano citado dentro de outro programa (script -c, timeout, nohup, cmd /c...). Um
 # lançador de pseudoterminal poderia simular a pessoa no TTY; por isso o texto inteiro é olhado.

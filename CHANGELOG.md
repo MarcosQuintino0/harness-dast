@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- `hdast demo` executa o VAmPI local em uma sessão temporária depois de aprovação digitada. A pilha é desmontada por padrão e o relatório HTML fica disponível para abrir no navegador. [ADR 0115](docs/decisoes/0115-hdast-demo.md)
+
 - Padrões mínimos da carta: "não sei" (`desconhecido`) em `limits.requests_per_second`, `limits.max_duration_minutes`, `limits.zap_threads_per_host` e `auth.login_max_per_minute` usa o mínimo fixado na CLI (1, 30, 1 e 1) e gera o aviso `MINIMUM_DEFAULT_APPLIED` em `data.warnings`; o valor também fica num comentário do cabeçalho do `target.yml`. Os portões, inclusive `scope.deny_paths`, continuam parando o cadastro com "não sei". Nada alarga: `path_mode`, força e o bloco `attack` seguem no mais estreito. [ADR 0114](docs/decisoes/0114-padroes-minimos-da-carta-e-setup.md).
 - Novo comando humano `hdast setup <produto>` (painel "Comece por aqui"): valida o perfil, grava as senhas `keyring:` que faltam, mostra o resumo com os avisos de padrão mínimo e de nenhum caminho proibido, faz uma pausa e pede o nome do produto. Reaproveita `secret set` e `profile approve`, que seguem iguais. Só em terminal interativo, sem `--json`; entra no hook, nas negações do `.claude/settings.json` e na Parte B do `AGENTS.md`. As skills `onboard-product` e `test-product` passam a aceitar o pedido curto, a perguntar em três grupos (portões, padrão seguro, opcionais) e a pedir que a pessoa rode `setup`.
 - Modelo curto de carta de autorização para o dono do produto, com referências de credencial. As skills de cadastro orientam avisar sobre senhas coladas, descartar o valor e sugerir a troca da senha.
@@ -15,7 +17,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Hook PreToolUse reforçado contra comandos aninhados, caminhos relativos e padrões de busca amplos, com bloqueio de falhas do lançador no Claude Code v2.1.295 ou posterior.
 
 - Hook `PreToolUse` acrescenta uma segunda camada de proteção do Claude Code para comandos humanos, acessos diretos à rede, leitura de segredos e alterações em arquivos de controle. [ADR 0111](docs/decisoes/0111-hook-pretooluse-segunda-camada.md).
-- `hdast --help` agrupa os comandos em cinco painéis e destaca `doctor`, `run`, `report` e `stop` em **Comece por aqui**.
+- `hdast --help` agrupa os comandos em cinco painéis e destaca `demo`, `doctor`, `run`, `report` e `stop` em **Comece por aqui**.
 - Índice com decisões essenciais e catálogo de ADRs, orientações de contribuição no `AGENTS.md` e adoção da licença MIT. O painel, a estratégia, o conhecimento reutilizável e o `plan` passam a receber apenas correções de defeitos. `knowledge_mutation` e a mutação pendente seguem como parte do núcleo de segurança. [ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 

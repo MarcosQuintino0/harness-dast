@@ -136,3 +136,4 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0112 | [`hdast retestar` e `run --only`](0112-retestar-e-run-only.md) | Proposto |
 | 0113 | [Imagens publicadas e conferência de versão da cerca](0113-imagens-publicadas-e-conferencia-de-versao.md) | Proposto |
 | 0114 | [Padrões mínimos da carta e o comando humano `hdast setup`](0114-padroes-minimos-da-carta-e-setup.md) | Proposto |
+| 0115 | [Demonstração local com `hdast demo`](0115-hdast-demo.md) | Proposto |
