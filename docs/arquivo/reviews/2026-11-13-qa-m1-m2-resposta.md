@@ -33,5 +33,5 @@ A coluna "Onde" aponta para o código, o documento ou o ADR. A confirmação fin
 - **Análise de mutação:** os quatro mutantes que a suíte original não matou (tetos de carga e `Settings` congelado) estão descritos em [../../desenvolver/testing.md](../../desenvolver/testing.md#análise-de-mutação); os testes `*_qa.py` os matam e passam a fazer parte da suíte.
 - **Afirmações do lab não reproduzidas pelo revisor** (nenhum contêiner foi iniciado): o `lab/README.md` registra a verificação feita em 2026-11-13 pelo autor; a reprodução independente segue em aberto.
 - **Digests das imagens e tags das ações do GitHub**: não verificados pelo revisor; ligados ao item A-16.
-- **Hooks do pre-commit** não instalados na máquina da revisão: instruções em [CONTRIBUTING.md](../../../CONTRIBUTING.md#ambiente-local).
+- **Hooks do pre-commit** não instalados na máquina da revisão: instruções em [CONTRIBUTING.md](../../../AGENTS.md#ambiente-local).
 - **Console `cp1252` no Windows:** registrado em [SECURITY.md](../../../SECURITY.md#política-de-dados); sem mudança de código.
