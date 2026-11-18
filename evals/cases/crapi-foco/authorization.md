@@ -36,3 +36,9 @@ de consumo tem teto de 66 pedidos e parada no primeiro bloqueio. A meta total da
 Versão 3 do caso (V1.12.1): explicita os dados locais do contato do mecânico, já usados
 no OpenAPI e na prova de integração OAST. Caminhos, métodos, limites e capacidades
 permanecem os mesmos da versão 2.
+
+Esclarecimento do contato (V1.12.2): o campo `vin` do contato deve ser o de um veículo da
+própria conta, o mesmo `0.vin` que a lista de veículos devolve. Um `vin` inventado não existe
+no alvo e o contato responde 500, com ou sem a ponte de retorno. Ligue-o em `flows.yml`
+(`get_vehicles` campo `0.vin`, consumido por `contact_mechanic` campo `vin`). Caminhos,
+métodos e limites seguem os mesmos.

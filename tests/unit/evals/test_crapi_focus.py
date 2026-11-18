@@ -194,6 +194,9 @@ def test_caso_v3_descreve_contato_coerente_sem_alargar_escopo() -> None:
     assert example["number_of_repeats"] == 1
     assert "number_of_repeats: 1" in letter_text
     assert "`number_of_repeats`" in authorization
+    assert "`0.vin`" in authorization
+    assert "`contact_mechanic` campo `vin`" in authorization
+    assert "0.vin" in letter_text
     actual = letter["scope"]["allow"]["value"]
     expected = case["expected"]["allow"]
     actual_pairs = {
