@@ -10,15 +10,17 @@ from harness_dast.adapters.scope_proxy.watch_diagnostic import (
     DiagnosticResult,
     WatchCause,
     log_latch,
+    log_slow_deny,
 )
 
 _INTERVAL = 0.05
 _MAX_AGE = 0.2
 _REVERIFY_TIMEOUT = 0.15
+_SLOW_LOG_INTERVAL = 1.0
 
 
 class GateWatch:
-    """Publica leituras verificadas; falha, tempo-limite ou encerramento travam a saida."""
+    """Publica leituras verificadas; falha ou encerramento travam; lentidao so nega o pedido."""
 
     def __init__(
         self,
@@ -32,13 +34,14 @@ class GateWatch:
             detect: Leitura das fontes; devolve a negação ou `None` se íntegras.
             clock: Relógio monotônico.
             reverify_timeout: Espera máxima, em segundos reais, pela reverificação de um
-                retrato velho; estourar trava.
+                retrato velho; estourar nega o pedido sem travar.
         """
         self._detect = detect
         self._clock = clock
         self._lock = Lock()
         self._reverify_timeout = reverify_timeout
         self._inflight: Event | None = None
+        self._last_slow_log: float | None = None
         self._stop = Event()
         self._started_at: float | None = None
         self._failure: Reason | None = None
@@ -78,9 +81,9 @@ class GateWatch:
     def check(self) -> Reason | None:
         """Concede só com retrato de idade <= 200 ms, reverificando na hora se estiver velho.
 
-        Atraso da vigia não trava: a reverificação síncrona (uma por vez, com tempo-limite e
-        sem segurar o lock) decide com o resultado novo. Mudança, erro, tempo-limite estourado,
-        encerramento e relógio para trás travam como antes.
+        Lentidão nega só o pedido (sem travar): reverificação lenta demais ou que estoura o
+        tempo-limite devolve a recusa e o pedido seguinte tenta de novo. Mudança, erro de leitura,
+        encerramento, relógio para trás e falha ao iniciar a thread travam de forma permanente.
         """
         reverified = False
         while True:
@@ -95,13 +98,14 @@ class GateWatch:
                 )
                 if judgement.action is SnapshotAction.GRANT:
                     return None
-                if judgement.action is SnapshotAction.REVERIFY and not reverified:
-                    done, leader = self._join_reverification()
-                else:
-                    cause = judgement.cause or WatchCause.AGE
-                    return self._latch_locked(cause)
+                if judgement.action is SnapshotAction.LATCH:
+                    return self._latch_locked(judgement.cause or WatchCause.NO_SNAPSHOT)
+                if reverified:
+                    return self._slow_deny_locked()
+                done, leader = self._join_reverification()
             if not self._await_reverification(done, leader):
-                return self._latch(WatchCause.REVERIFY_TIMEOUT)
+                with self._lock:
+                    return self._failure or self._slow_deny_locked()
             reverified = True
 
     def close(self) -> None:
@@ -125,6 +129,15 @@ class GateWatch:
             # `log_latch` só agenda uma thread; não faz E/S sob o lock.
             self.result = log_latch(cause)
         return self._failure
+
+    def _slow_deny_locked(self) -> Reason:
+        """Nega só este pedido por lentidão e registra no máximo uma linha por segundo."""
+        now = self._clock()
+        last = self._last_slow_log
+        if last is None or now < last or now - last >= _SLOW_LOG_INTERVAL:
+            self._last_slow_log = now
+            self.result = log_slow_deny()
+        return Reason.APPROVAL_CHANGED
 
     def _join_reverification(self) -> tuple[Event, bool]:
         """Entra na reverificação em andamento ou abre uma; o lock já está tomado."""

@@ -88,7 +88,16 @@ def test_erro_na_reverificacao_trava_sem_propagar(events: list[WatchCause]) -> N
     assert events == [WatchCause.DETECT_ERROR]
 
 
-def test_reverificacao_acima_do_tempo_limite_nega_e_trava(events: list[WatchCause]) -> None:
+@pytest.fixture
+def slow_denials(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    captured: list[str] = []
+    monkeypatch.setattr(gate_watch_module, "log_slow_deny", lambda: captured.append("slow"))
+    return captured
+
+
+def test_tempo_limite_da_reverificacao_nega_sem_travar(
+    events: list[WatchCause], slow_denials: list[str]
+) -> None:
     now = [0.0]
     entered = Event()
     release = Event()
@@ -98,7 +107,7 @@ def test_reverificacao_acima_do_tempo_limite_nega_e_trava(events: list[WatchCaus
         calls[0] += 1
         if calls[0] > 1:
             entered.set()
-            release.wait()
+            release.wait(5)
         return None
 
     watch = GateWatch(detect, lambda: now[0], reverify_timeout=0.02)
@@ -106,16 +115,26 @@ def test_reverificacao_acima_do_tempo_limite_nega_e_trava(events: list[WatchCaus
         now[0] = 0.5
         assert watch.check() is Reason.APPROVAL_CHANGED
         assert entered.wait(2)
+        release.set()
+        granted = False
+        for _ in range(200):
+            if watch.check() is None:
+                granted = True
+                break
+            Event().wait(0.01)
+        assert granted
     finally:
         release.set()
-    assert watch.check() is Reason.APPROVAL_CHANGED
-    watch.close()
-    assert events == [WatchCause.REVERIFY_TIMEOUT]
+        watch.close()
+    assert events == [WatchCause.CLOSE]
+    assert slow_denials
 
 
-def test_reverificacao_lenta_demais_pelo_relogio_nega(events: list[WatchCause]) -> None:
+def test_reverificacao_lenta_nega_sem_travar_e_pedido_seguinte_concede(
+    events: list[WatchCause], slow_denials: list[str]
+) -> None:
     now = [0.0]
-    slow = [False]
+    slow = [True]
 
     def detect() -> Reason | None:
         if slow[0]:
@@ -123,11 +142,49 @@ def test_reverificacao_lenta_demais_pelo_relogio_nega(events: list[WatchCause]) 
         return None
 
     watch = GateWatch(detect, lambda: now[0])
-    slow[0] = True
     now[0] = 0.5
     assert watch.check() is Reason.APPROVAL_CHANGED
+    slow[0] = False
+    now[0] += 0.5
+    assert watch.check() is None
     watch.close()
-    assert events == [WatchCause.AGE]
+    assert events == [WatchCause.CLOSE]
+    assert slow_denials == ["slow"]
+
+
+def test_negacao_por_lentidao_registra_no_maximo_uma_linha_por_segundo(
+    slow_denials: list[str],
+) -> None:
+    now = [0.0]
+    slow = [True]
+
+    def detect() -> Reason | None:
+        if slow[0]:
+            now[0] += 0.3
+        return None
+
+    watch = GateWatch(detect, lambda: now[0])
+    try:
+        now[0] = 0.5
+        for _ in range(3):
+            assert watch.check() is Reason.APPROVAL_CHANGED
+        assert slow_denials == ["slow"]
+        now[0] += 2.0
+        assert watch.check() is Reason.APPROVAL_CHANGED
+        assert slow_denials == ["slow", "slow"]
+    finally:
+        watch.close()
+
+
+def test_diagnostico_de_lentidao_tem_so_evento_e_categoria(
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    result = diagnostic.log_slow_deny()
+    for _ in range(200):
+        if result.status is not DiagnosticStatus.PENDING:
+            break
+        Event().wait(0.01)
+    assert capfd.readouterr().err == '{"event": "gate_watch_slow_deny", "category": "slow_deny"}\n'
 
 
 def test_encerramento_trava_mesmo_com_retrato_fresco(events: list[WatchCause]) -> None:
@@ -378,9 +435,9 @@ def test_falha_de_emissor_preserva_recusa_sem_traceback(
         def flush(self) -> None:
             pass
 
-    def observed_emit(cause: WatchCause, result: DiagnosticResult) -> None:
+    def observed_emit(cause: WatchCause, result: DiagnosticResult, event: str) -> None:
         try:
-            emit(cause, result)
+            emit(cause, result, event)
         finally:
             completed.set()
 
