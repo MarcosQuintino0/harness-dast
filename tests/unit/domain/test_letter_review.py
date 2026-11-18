@@ -259,6 +259,8 @@ REQUIRED = [
     "auth.type",
     "auth.accounts",
 ]
+# Os campos de `limits.*` aceitam "não sei" com o padrão mínimo da CLI (ADR 0114).
+GATE_FIELDS = [field for field in REQUIRED if not field.startswith("limits.")]
 
 
 @pytest.mark.parametrize("field", REQUIRED)
@@ -269,7 +271,7 @@ def test_review_reports_a_missing_required_field_by_its_path(field: str) -> None
     assert review.profile_text is None
 
 
-@pytest.mark.parametrize("field", REQUIRED)
+@pytest.mark.parametrize("field", GATE_FIELDS)
 def test_review_reports_an_unknown_answer_on_a_required_field(field: str) -> None:
     data = valid_letter_data()
     section, name = field.split(".")
