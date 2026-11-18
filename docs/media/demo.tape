@@ -8,11 +8,12 @@ Require uv
 
 Set Shell "bash"
 Set Width 1200
-Set Height 800
-Set FontSize 18
+Set Height 1150
+Set FontSize 16
 Set Theme "Dracula"
 Set TypingSpeed 55ms
 
+Sleep 1500ms
 Hide
 Type "cd ../.. && clear"
 Enter
