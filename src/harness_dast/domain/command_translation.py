@@ -46,6 +46,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "stack status": "Conferiu se o ambiente de ataque está no ar.",
     "stack pull": "Baixou as imagens prontas do ZAP e da cerca de escopo.",
     "stop": "Mandou parar o teste em andamento.",
+    "demo": "Mostrou a ferramenta funcionando contra o VAmPI local, com a aprovação de uma pessoa.",
     "panel": "Montou as páginas do painel deste teste.",
 }
 

@@ -18,6 +18,7 @@ EXPECTED_COMMANDS = frozenset(
         "authz",
         "cleanup",
         "confirm",
+        "demo",
         "doctor",
         "finding",
         "init",
