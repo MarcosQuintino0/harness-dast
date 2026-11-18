@@ -223,7 +223,7 @@ Resumo: o modo continua descobrível por quem **violar uma regra** (docker, env,
 
 O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; aquele ensaio não provou o ciclo completo. As provas dirigidas posteriores estão nos relatórios das versões e não demonstram cobertura integral do caso.
 
-Na V1.12.1, parte 2 ([ADR 0105](../docs/adr/0105-ponte-oast-na-pilha-e-verificabilidade.md), proposto),
+Na V1.12.1, parte 2 ([ADR 0105](../docs/adr/0105-lab-oast-bridge-and-verifiability.md), proposto),
 o `stack up crapi` também monta a ponte OAST isolada e conecta o workshop quando
 o perfil aprovado contém `scan.oast: true`, gerado pela carta com `attack.oast`.
 O agente avaliado usa somente a CLI; o coordenador não precisa intervir durante

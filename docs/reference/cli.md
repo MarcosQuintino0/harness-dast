@@ -149,7 +149,7 @@ Com `scan.oast: true` no perfil aprovado, `stack up crapi` também cria a ponte
 interna de retorno e conecta o workshop; `stack down` retira o alvo antes da ponte.
 Sem a chave, a ponte não sobe. Produtos comuns não recebem essa infraestrutura.
 Ponte indisponível deixa SSRF guiado e OAST do ZAP **não verificáveis**, com motivo
-no resultado e nas apresentações ([ADR 0105](../adr/0105-ponte-oast-na-pilha-e-verificabilidade.md)).
+no resultado e nas apresentações ([ADR 0105](../adr/0105-lab-oast-bridge-and-verifiability.md)).
 
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 

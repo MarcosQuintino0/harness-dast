@@ -163,7 +163,7 @@ somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as re
 | ADR | Contrato proposto |
 | --- | --- |
 | [0104](0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md) | Bloqueio por operação e conta, motivo `mutation_pending`, listagem segura, liberação humana interativa e compatibilidade do diário |
-| [0105](0105-ponte-oast-na-pilha-e-verificabilidade.md) | Ponte OAST no ciclo gerenciado do crAPI autorizado e motivo explícito quando o retorno não é verificável |
+| [0105](0105-lab-oast-bridge-and-verifiability.md) | Ponte OAST no ciclo gerenciado do crAPI autorizado e motivo explícito quando o retorno não é verificável |
 
 ## Quando escrever um ADR
 
