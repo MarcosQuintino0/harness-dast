@@ -10,10 +10,10 @@ from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scan_policy import build_limits, build_policy
-from harness_dast.domain.scan_result import ScanRefused
+from harness_dast.domain.scan_result import OastUnavailable, ScanRefused
 from harness_dast.domain.scan_tokens import ReplacerRule
-from tests.fakes.local_server import Reply, serve
-from tests.fakes.zap_scan_server import API_KEY, IMAGE_EXTRA_RULES, FakeScanZapServer, ok
+from tests.fakes.local_server import Received, Reply, serve
+from tests.fakes.zap_scan_server import API_KEY, IMAGE_EXTRA_RULES, FakeScanZapServer, error, ok
 
 
 def client_for(url: str) -> ZapScanClient:
@@ -452,3 +452,33 @@ def test_the_key_fails_when_an_experimental_rule_refuses_to_turn_on() -> None:
         client_for(server.base_url).apply_policy(
             build_policy(config, experimental_rules=True), build_limits(limits, config)
         )
+
+
+@pytest.mark.parametrize("action", ["setCallbackOptions", "setActiveScanService"])
+def test_configuracao_callback_indisponivel_tem_erro_especifico(action: str) -> None:
+    zap = FakeScanZapServer()
+
+    def handle(received: Received) -> Reply:
+        if received.path == f"/JSON/oast/action/{action}/":
+            return error("bad_action")
+        return zap(received)
+
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    with serve(handle) as server, pytest.raises(OastUnavailable):
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+
+
+def test_falha_de_limites_nao_e_confundida_com_indisponibilidade_callback() -> None:
+    zap = FakeScanZapServer()
+
+    def handle(received: Received) -> Reply:
+        if received.path.endswith("/setOptionThreadPerHost/"):
+            return error("bad_action")
+        return zap(received)
+
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    with serve(handle) as server, pytest.raises(ExternalToolError) as caught:
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+    assert not isinstance(caught.value, OastUnavailable)

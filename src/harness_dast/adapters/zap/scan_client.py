@@ -35,7 +35,7 @@ from harness_dast.domain.scan_policy import (
     ScanLimits,
     ScanPolicy,
 )
-from harness_dast.domain.scan_result import ScanRefused, ScanStatus
+from harness_dast.domain.scan_result import OastUnavailable, ScanRefused, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
 from harness_dast.domain.zap_messages import ZapMessage
 
@@ -355,16 +355,21 @@ class ZapScanClient(ZapApiClient):
         Só roda com `scan.oast`. O Callback escuta em 0.0.0.0 dentro da rede interna do ZAP e
         anuncia o nome da ponte; o ZAP não ganha rede nova nem rota externa.
         """
-        self._action(
-            "oast",
-            "setCallbackOptions",
-            {
-                "localAddress": "0.0.0.0",  # noqa: S104 - rede interna do ZAP, sem porta publicada
-                "remoteAddress": OAST_CALLBACK_HOST,
-                "port": str(OAST_CALLBACK_PORT),
-            },
-        )
-        self._action("oast", "setActiveScanService", {"name": "Callback"})
+        try:
+            self._action(
+                "oast",
+                "setCallbackOptions",
+                {
+                    "localAddress": "0.0.0.0",  # noqa: S104 - rede interna sem porta publicada
+                    "remoteAddress": OAST_CALLBACK_HOST,
+                    "port": str(OAST_CALLBACK_PORT),
+                },
+            )
+            self._action("oast", "setActiveScanService", {"name": "Callback"})
+        except ExternalToolError as error:
+            raise OastUnavailable(
+                "Não foi possível configurar o Callback OAST do ZAP.", hint=error.hint
+            ) from error
         body = self._call("ascan", "view", "scanners", {"scanPolicyName": policy.name})
         known = {
             _text(item.get("id")) for item in _dict_list(body, "scanners", "ascan/view/scanners")
