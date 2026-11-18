@@ -1,33 +1,16 @@
 """Diagnostico sanitizado da vigia para a prova de laboratorio."""
 
-import json
 import re
 import shutil
 import subprocess
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from harness_dast.adapters.scope_proxy.watch_diagnostic import WatchCause
 from harness_dast.domain.errors import HarnessError
 from tests.integration.lab_resource_support import ResourceGuard
 from tests.integration.lab_support import REPO
 from tests.integration.oast_cleanup import PROJECT
-
-
-def extract_categories(logs: str) -> list[str]:
-    """Mantem apenas categorias reconhecidas de eventos JSON da vigia."""
-    result: list[str] = []
-    for line in logs.splitlines():
-        try:
-            record = json.loads(line)
-        except (ValueError, RecursionError):
-            continue
-        if not isinstance(record, dict) or record.get("event") != "gate_watch_latch":
-            continue
-        value = record.get("category")
-        if isinstance(value, str) and value in {cause.value for cause in WatchCause}:
-            result.append(value)
-    return result
+from tests.integration.proxy_watch_log import extract_categories
 
 
 def collect_watch(

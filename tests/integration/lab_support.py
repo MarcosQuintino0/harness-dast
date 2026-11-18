@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,7 @@ from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ConfigError
 from harness_dast.observability.logging import SecretRegistry
 from tests.fakes.approvals import approval_for
+from tests.integration.proxy_watch_log import read_latch_categories
 
 REPO = Path(__file__).resolve().parents[2]
 PILOT_PROFILE = REPO / "lab" / "pilot" / "product-profile"
@@ -130,8 +132,9 @@ class LabCli:
             }
         )
         env.update(extra_env)
-        # A trilha concorrente usa projetos próprios sem alterar o padrão das outras provas.
-        if suffix := os.environ.get("HDAST_IT_STACK_SUFFIX"):
+        # Fonte única do sufixo: o `oast_support`, o `oast_cleanup` e o `crapi_support` leem o
+        # mesmo valor, para procurar os contêineres no projeto que a CLI realmente subiu.
+        if suffix := stack_suffix():
             env["HDAST_STACK_PROJECT_SUFFIX"] = suffix
         self.env = env
         self.freeze_approvals = False
@@ -235,8 +238,53 @@ class LabCli:
         return loaded
 
     def stack_down(self) -> None:
-        """Derruba a pilha, sem falhar se ela já não existe."""
+        """Guarda a causa de uma trava da vigia e derruba a pilha, sem falhar se ela não existe.
+
+        A causa (`gate_watch_latch`) só existe na saída do contêiner do proxy, que some no
+        `down`. Ela vai, sanitizada, para `proxy-watch.jsonl` na pasta do teste e, quando há
+        trava, vira um aviso do pytest, para a próxima trava falsa chegar com a causa.
+        """
+        self._record_watch_latch()
         self.run("stack", "down", timeout=240)
+
+    def restack(self, product: str, *flags: str, timeout: int = 900) -> CliResult:
+        """Derruba e sobe de novo a pilha, depois de o teste editar o perfil (ADR 0081).
+
+        A pilha fica presa ao `target.yml` e à aprovação do `stack up`; editar um deles depois
+        faz a CLI e o proxy recusarem tudo com `STACK_STALE`. É o que a mensagem da CLI manda
+        fazer. O alvo também é recriado, então quem chama refaz o `probe`.
+        """
+        self.stack_down()
+        return self.run("stack", "up", product, *flags, timeout=timeout)
+
+    def _record_watch_latch(self) -> None:
+        state_path = self.state / "stack.json"
+        if not state_path.is_file():
+            return
+        try:
+            state = self.state_file()
+            project = str(state["projects"][0]["name"])
+            run_id = str(state["run_id"])
+        except (ValueError, KeyError, IndexError, TypeError):
+            return
+        found = read_latch_categories(self.env, project)
+        with (self.root / "proxy-watch.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"stack_run_id": run_id, **found}) + "\n")
+        if found["categories"]:
+            warnings.warn(
+                f"A vigia do proxy travou na pilha {run_id}: {', '.join(found['categories'])}.",
+                ProxyWatchLatch,
+                stacklevel=2,
+            )
+
+
+class ProxyWatchLatch(UserWarning):
+    """Aviso de que a vigia do proxy travou (`approval_changed`) durante a pilha do teste."""
+
+
+def stack_suffix() -> str:
+    """Sufixo dos projetos Compose do laboratório (`HDAST_IT_STACK_SUFFIX`; vazio por padrão)."""
+    return os.environ.get("HDAST_IT_STACK_SUFFIX", "")
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
