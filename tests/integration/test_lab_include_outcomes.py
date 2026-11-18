@@ -90,6 +90,30 @@ def _pick_operation(probe_file: dict[str, Any]) -> tuple[str, str, list[str]]:
     return str(chosen["operation_id"]), str(chosen["path"]), names
 
 
+def _probe_after_restack(
+    cli: LabCli, flags: list[str], operation: str, seconds: dict[str, float]
+) -> tuple[str, dict[str, Any]]:
+    """Sobe a pilha de novo (ADR 0081), refaz o `probe` e devolve o `run_id` novo."""
+    started = time.monotonic()
+    up = cli.restack("clinica-piloto", "--build", *flags)
+    assert up.code == 0, (up.stdout + up.stderr)[-1200:]
+    seconds["restack"] = round(time.monotonic() - started, 1)
+    preflight = cli.run("preflight", "clinica-piloto")
+    assert preflight.code == 0, (preflight.stdout + preflight.stderr)[-1200:]
+    started = time.monotonic()
+    probe = cli.run("probe", "clinica-piloto", timeout=900)
+    seconds["probe_with_field"] = round(time.monotonic() - started, 1)
+    assert probe.code == 0, (probe.stdout + probe.stderr)[-1200:]
+    run_id = str(probe.envelope["run_id"])
+    probe_file = json.loads((cli.runs / run_id / "probe.json").read_text(encoding="utf-8"))
+    again = [r["outcome"] for r in probe_file["operations"] if r["operation_id"] == operation]
+    assert again == [OUTCOME], (
+        f"Depois de subir a pilha de novo, a operação {operation} deu {again} no probe "
+        f"{run_id}, e não [{OUTCOME!r}]."
+    )
+    return run_id, probe_file
+
+
 def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
@@ -109,6 +133,8 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     without = cli.run(*base, "--dry-run")
     assert without.code == 0, without.stdout[-800:]
     _enable_include_outcomes(cli.products / "clinica-piloto" / "target.yml")
+    run_id, probe_file = _probe_after_restack(cli, flags, operation, seconds)
+    base = ["scan", "clinica-piloto", "--run", run_id, "--only", operation]
     with_field = cli.run(*base, "--dry-run")
     assert with_field.code == 0, with_field.stdout[-800:]
     started = time.monotonic()

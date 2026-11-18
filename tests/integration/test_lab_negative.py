@@ -98,6 +98,7 @@ class NegativeLab:
 
     mode: str
     probe_run_id: str
+    write_probe_run_id: str = ""
     rounds: dict[str, Round] = field(default_factory=dict)
     runs: dict[str, dict[str, Any]] = field(default_factory=dict)
     leaked_files: list[str] = field(default_factory=list)
@@ -247,6 +248,21 @@ def _scan_for_invalid_values(cli: LabCli) -> tuple[list[str], list[str]]:
     return files, proxy
 
 
+def _probe_after_restack(cli: LabCli, flags: list[str], seconds: dict[str, float]) -> str:
+    """Sobe a pilha de novo (o perfil mudou, ADR 0081), confere o `preflight` e refaz o `probe`."""
+    started = time.monotonic()
+    up = cli.restack("clinica-piloto", "--build", *flags)
+    assert up.code == 0, (up.stdout + up.stderr)[-1200:]
+    seconds["restack"] = round(time.monotonic() - started, 1)
+    preflight = cli.run("preflight", "clinica-piloto")
+    assert preflight.code == 0, (preflight.stdout + preflight.stderr)[-1200:]
+    started = time.monotonic()
+    probe = cli.run("probe", "clinica-piloto", timeout=900)
+    seconds["probe_write"] = round(time.monotonic() - started, 1)
+    assert probe.code == 0, (probe.stdout + probe.stderr)[-1200:]
+    return str(probe.envelope["run_id"])
+
+
 def _measure(cli: LabCli, mode: str) -> NegativeLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
@@ -269,8 +285,8 @@ def _measure(cli: LabCli, mode: str) -> NegativeLab:
     )
     seconds["run_skip_scan_pair"] = round(time.monotonic() - started, 1)
     _enable_writes(cli.products / "clinica-piloto" / "target.yml")
-    assert cli.run("preflight", "clinica-piloto").code == 0
-    lab.rounds["write"] = _negative_round(cli, "write", run_id)
+    lab.write_probe_run_id = _probe_after_restack(cli, flags, seconds)
+    lab.rounds["write"] = _negative_round(cli, "write", lab.write_probe_run_id)
     needles = secret_values(cli, ZapHistory(cli.state_file()), PILOT_BASE)
     lab.secret_hits = files_containing(cli.runs, needles, [])
     lab.leaked_files, lab.leaked_proxy = _scan_for_invalid_values(cli)
