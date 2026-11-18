@@ -30,11 +30,12 @@ O perfil nunca tem senha. Ele tem uma referência, e o valor fica fora do reposi
 **Cofre do sistema (recomendado no dia a dia): `secret_ref: "keyring:NOME"`.** Você grava uma vez, num terminal seu, e vale em todo terminal e em toda sessão; nada fica no histórico do shell:
 
 ```powershell
-uv run hdast secret set MEU_PRODUTO_USER_A_SENHA      # pede o valor num prompt oculto, duas vezes
+uv run hdast setup meu-produto                        # grava só as senhas que faltam e pede a aprovação do escopo
+uv run hdast secret set MEU_PRODUTO_USER_A_SENHA      # ou uma por vez: prompt oculto, duas vezes
 uv run hdast secret list meu-produto                  # mostra quais existem (nunca o valor)
 ```
 
-Os nomes são os que a carta lista. O agente **não** roda `secret set` nem `secret delete` (a permissão os nega e o comando só funciona em terminal interativo): quando faltar um segredo, ele cita o NOME e pede que você rode o comando. No Windows o valor vai para o Gerenciador de Credenciais.
+Os nomes são os que a carta lista. O agente **não** roda `setup`, `secret set` nem `secret delete` (a permissão os nega e o comando só funciona em terminal interativo): quando faltar um segredo, ele cita o NOME e pede que você rode o comando. No Windows o valor vai para o Gerenciador de Credenciais.
 
 **Variável de ambiente: `secret_ref: "env:NOME"`** (CI, contêiner, ou se preferir), definida no terminal de onde abre o Claude Code:
 
@@ -67,11 +68,13 @@ Ao cadastrar, o agente lê a carta e o Swagger, monta um `carta.yml` com o que a
 3. **O que pode e o que é proibido** (hosts, caminhos, métodos). Proibição usa curinga (`/api/admin/**`), nunca um id literal.
 4. **Modo do caminho:** estrito (padrão) ou amplo. O amplo só vale se a carta disser; o agente nunca o sugere.
 5. **Janela, validade e referência** da autorização.
-6. **Limites:** requisições por segundo, duração máxima, threads.
+6. **Limites:** requisições por segundo, duração máxima, threads. "Não sei" aqui usa o mínimo da CLI (1 req/s, 30 min, 1 thread; e 1 login por minuto no limite de logins), com aviso. É o único campo em que "não sei" vira valor.
 7. **Contas:** apelido, papel e o **nome** do segredo (nunca a senha); se há duas contas do mesmo papel (o teste de autorização entre contas precisa).
 8. **Escrita do teste entre contas:** a carta autoriza o teste de autorização entre contas a **escrever** no ambiente (atribuição em massa, métodos de escrita)? O teste de leitura roda por padrão no `run`; só a escrita depende disto. "Não sei" vale não, e "sim" só vale com a frase da carta que o diz. Quem responde é o dono do produto.
 9. **Força do ataque:** leve, média ou forte. Mais força testa mais variações e demora mais; o limite por segundo e a janela continuam valendo. Sem escolha, vale o padrão do perfil.
 10. **Dados de exemplo** que existem no ambiente (um id, um nome de arquivo, um código válido). Sem eles, algumas funções não são alcançadas.
+
+**Pedido curto.** Você pode pedir em poucas linhas: o Swagger, as contas com papel (só o login, **nunca a senha**) e, se quiser, documentos `.md` de regra de negócio. Se colar uma senha, o agente avisa, não a usa e sugere trocar a senha da conta de teste. O agente pergunta só o que falta, numa rodada, em três grupos: **portões** ("não sei" para o cadastro: os quatro portões, endereço, o que pode, o que é proibido, referência, validade, janelas, tipo de login e contas), **padrão seguro** ("não sei" usa o mínimo da CLI e o agente diz qual) e **opcionais** (segunda conta do mesmo papel, dados de exemplo: "não sei" segue e o relatório anota).
 
 O agente **não marca opção como recomendada** nem preenche escopo, limite, janela ou autorização por conta própria. "Não sei" entra como `desconhecido` e o agente para naquele campo: quem responde é o dono do produto. Com tudo respondido, a CLI gera `environment`, `scope`, `limits`, as contas e a força do ataque no `target.yml`; o agente escreve só o que a carta não traz (`probe`, `auth.csrf`, `auth.account_map`, `data-rules.yml`, `flows.yml`).
 
@@ -81,7 +84,7 @@ Carta com autorização já vencida (`valid_until` no passado) é recusada com `
 
 Se a carta disser que contas de algum papel compartilham legitimamente seus recursos, registre os papéis em `attack.authz_shared_roles` com `source: carta` e a frase em `quote`. A CLI os leva a `authz.shared_roles`; isso deixa de comparar essas contas em `horizontal` e `horizontal_write`, com `shared_role` em `not_tested`. Não infira compartilhamento. Quando possível, distribua leituras distintas de cada tipo de objeto entre duas contas de um papel não compartilhado; cada operação aceita uma conta.
 
-**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força, política da varredura, teste de autorização e limpeza, se houver) e pede que **você** rode `hdast profile approve <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`SCOPE_NOT_APPROVED`). O agente não roda esse comando, e nenhuma permissão o libera: leia o resumo antes de aprovar. Depois dela, editar qualquer campo travado (`environment`, `scope`, `limits`, contas, `scan`, `authz`, `cleanup`) pede aprovar de novo; só o que serve para alcançar as operações (`probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, codificação do login, `openapi`) fica livre.
+**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força, política da varredura, teste de autorização e limpeza, se houver) e pede que **você** rode `hdast setup <produto>` (grava as senhas `keyring:` que faltam, mostra o resumo com os avisos de padrão mínimo e de nenhum caminho proibido, faz uma pausa e pede o nome do produto) ou, só a aprovação, `hdast profile approve <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`SCOPE_NOT_APPROVED`). O agente não roda esses comandos, e nenhuma permissão os libera: leia o resumo antes de aprovar. Depois dela, editar qualquer campo travado (`environment`, `scope`, `limits`, contas, `scan`, `authz`, `cleanup`) pede aprovar de novo; só o que serve para alcançar as operações (`probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, codificação do login, `openapi`) fica livre.
 
 ## 6. Os prompts
 
