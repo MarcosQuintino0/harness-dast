@@ -16,6 +16,7 @@ from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
 from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.internal_error_signals import classify_internal_error_signals
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.oast_verification import oast_gap
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report.labels import SEED_ASK_NOTICE
@@ -184,6 +185,7 @@ def coverage_is_partial(probe: ProbeResult, scan: ScanResult) -> bool:
         or bool(coverage_gaps(probe, scan))
         or any(entry.outcome != "completed" for entry in scan.entries)
         or bool(scan.rule_coverage_gaps)
+        or bool(oast_gap(scan))
         or (scan.rule_coverage_gaps is None and any(e.outcome != "refused" for e in scan.entries))
         or scan.traffic.denied_by_reason.get("rate_backoff", 0) > 0
     )
@@ -200,6 +202,7 @@ def _coverage(probe: ProbeResult, scan: ScanResult) -> Coverage:
         reachability_all=summary.reachability_all,
         partial=coverage_is_partial(probe, scan),
         rule_coverage_gaps=scan.rule_coverage_gaps,
+        oast_gap=oast_gap(scan),
         probe_status=probe.status,
         scan_status=scan.status,
         scan_stop_message=scan.stop_message,

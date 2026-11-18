@@ -124,6 +124,7 @@ class Coverage(ApiModel):
         scan_stop_message: Explicação da parada do scan.
         scans_run: Varreduras executadas.
         rule_coverage_gaps: Lacunas por regra, ou `None` quando indisponíveis.
+        oast_gap: Motivo de retorno OAST não verificável, quando houver.
         truncated_scans: Varreduras truncadas ou paradas.
         not_tested: Operações sem varredura, com o motivo.
         include_outcomes: Classes além de `success` que o `scan` aplicou (`scan.include_outcomes`,
@@ -148,6 +149,7 @@ class Coverage(ApiModel):
     scan_stop_message: str | None = None
     scans_run: int
     rule_coverage_gaps: tuple[RuleCoverageGap, ...] | None = None
+    oast_gap: str | None = None
     truncated_scans: tuple[TruncatedScan, ...] = ()
     not_tested: tuple[NotTested, ...] = ()
     include_outcomes: tuple[str, ...] = ()

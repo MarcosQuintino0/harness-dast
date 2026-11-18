@@ -16,6 +16,7 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_confidence import confidence_step
 from harness_dast.domain.manual_repro import build_manual_repro
 from harness_dast.domain.negative_result import NegativeFinding, NegativeResult
+from harness_dast.domain.oast_verification import oast_gap
 from harness_dast.domain.panel.format import (
     FunctionStateKind,
     capitalize_first,
@@ -478,6 +479,9 @@ def _scan_items(scan: ScanResult | None) -> list[PanelLeftOut]:
     if scan is None:
         return []
     items: list[PanelLeftOut] = []
+    gap = oast_gap(scan)
+    if gap:
+        items.append(PanelLeftOut(kind="scan", text=gap))
     cut = [item for item in scan.entries if item.outcome in ("truncated", "stopped")]
     if cut:
         items.append(

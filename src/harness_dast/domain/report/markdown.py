@@ -70,6 +70,8 @@ def _coverage_lines(coverage: Coverage, statements: Iterable[str]) -> list[str]:
         f"- Estado do probe: {escape_inline(coverage.probe_status)}; do scan: "
         f"{escape_inline(coverage.scan_status)}. Varreduras executadas: {coverage.scans_run}.",
     ]
+    if coverage.oast_gap:
+        lines.append(f"- {escape_inline(coverage.oast_gap)}")
     if coverage.scan_stop_message:
         lines.append(f"- Parada do scan: {escape_inline(coverage.scan_stop_message)}")
     limits, policy = coverage.limits, coverage.policy
