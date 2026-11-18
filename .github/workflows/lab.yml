@@ -113,10 +113,14 @@ jobs:
       fail-fast: false
       max-parallel: 20
       matrix: ${{ fromJSON(needs.planejar.outputs.matriz) }}
-    env:
-      LAB_OUTPUT: ${{ runner.temp }}/hdast-lab-out
-      LAB_PYTEST: ${{ runner.temp }}/hdast-lab-pytest
     steps:
+      # O contexto `runner` não existe no `env` do job: os caminhos vão para o GITHUB_ENV.
+      - name: Definir os caminhos do pedaço
+        run: |
+          {
+            printf 'LAB_OUTPUT=%s/hdast-lab-out\n' "$RUNNER_TEMP"
+            printf 'LAB_PYTEST=%s/hdast-lab-pytest\n' "$RUNNER_TEMP"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false

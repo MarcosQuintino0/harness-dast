@@ -29,6 +29,21 @@ def _uses(job: dict[str, Any]) -> list[str]:
     return [str(step["uses"]) for step in _steps(job) if "uses" in step]
 
 
+# Contextos que o GitHub aceita fora dos passos (concurrency, env e outputs do job, nome do job).
+# `runner`, `steps` e `job` só existem dentro dos passos; usá-los ali invalida o arquivo inteiro.
+_STEP_ONLY_CONTEXTS = re.compile(r"\$\{\{[^}]*\b(runner|steps|job)\.")
+
+
+def test_contextos_so_de_passo_nao_aparecem_no_nivel_do_job_quando_declarados(
+    workflow: dict[str, Any],
+) -> None:
+    for name, job in workflow["jobs"].items():
+        for key in ("env", "name", "runs-on", "concurrency", "strategy", "if"):
+            assert not _STEP_ONLY_CONTEXTS.search(str(job.get(key, ""))), (name, key)
+    assert not _STEP_ONLY_CONTEXTS.search(str(workflow.get("concurrency", "")))
+    assert not _STEP_ONLY_CONTEXTS.search(str(workflow.get("env", "")))
+
+
 def test_workflow_restringe_disparos_quando_em_pull_request(workflow: dict[str, Any]) -> None:
     events = workflow["on"]
 
