@@ -232,6 +232,7 @@ TOUCHING = {
     "scan": ("scan", "demo", "--run", RUN_ID),
     "authz": ("authz", "demo", "--run", RUN_ID),
     "run": ("run", "demo"),
+    "retestar": ("retestar", "demo", "--run", RUN_ID),
     "stack-up": ("stack", "up", "demo"),
     "cleanup": ("cleanup", "demo", "--run", RUN_ID, "--dry-run"),
 }

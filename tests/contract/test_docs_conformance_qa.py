@@ -155,6 +155,7 @@ def test_every_hdast_environment_variable_read_by_the_code_is_documented() -> No
     documented = _text(ROOT / "docs" / "referencia" / "env-vars.md")
     sources = [
         ROOT / "src" / "harness_dast" / "application" / "stack.py",
+        ROOT / "src" / "harness_dast" / "application" / "stack_images.py",
         ROOT / "src" / "harness_dast" / "adapters" / "storage" / "stack_state.py",
         ROOT / "src" / "harness_dast" / "config" / "settings.py",
     ]

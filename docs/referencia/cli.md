@@ -34,6 +34,7 @@ As provas de execução foram feitas em laboratório. Consulte os [relatórios p
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
 | `hdast mutation list` / `hdast mutation release <id>` | Lista intenções pendentes sem corpo ou segredo; só uma pessoa em terminal interativo pode liberar depois de conferir o alvo. O agente pode listar, mas nunca liberar | Não | Implementado na V1.12.1 ([ADR 0104](../decisoes/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md)) |
 | `hdast run <produto>` | Encadeia preflight, probe, scan (usa `scan.include_outcomes` do perfil; `--no-include-outcomes` o reduz a só `success`), authz e negative (ligados por padrão; `--no-authz` e `--no-negative` os pulam) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
+| `hdast retestar <produto> --run ID [--finding FP]... [--max N]` | Repete só as operações dos achados escolhidos (padrão: alta e média, até 10) pelo pipeline do `run`, com `--only` e `--compare` contra a execução anterior, e grava `retest.json` com `reproduced`, `not_reproduced` ou `not_tested` por achado. Nunca diz "corrigido" | Sim | Implementado ([ADR 0112](../decisoes/0112-retestar-e-run-only.md)). Seção abaixo |
 | `hdast wait --product PRODUTO [--lock ID] [--timeout SEGUNDOS]` ou `hdast wait --run ID [--timeout SEGUNDOS]` | Espera uma execução terminar ou o prazo vencer. Lê o estado local | Não | Implementado. [Referência](wait.md) |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../decisoes/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
 | `hdast stack status` / `hdast stack down` | Mostra a pilha (serviços, política, auditoria, trava) / derruba o que o `up` subiu | Não | Implementado |
@@ -95,10 +96,13 @@ Caso de uso `RunPipeline` ([ADR 0024](../decisoes/0024-run-encadeado-trava-de-em
 | `--authz` / `--no-authz` | O estágio `authz` (teste de autorização entre contas), depois do `scan` e antes do `report` ([authz.md](authz.md)), **vem ligado**: por padrão só lê (`horizontal`, `excessive_data` e `vertical` em `GET`/`HEAD`); a atribuição em massa e os métodos de escrita só rodam com `authz.allow_writes` no perfil, que vem da carta. `--no-authz` o pula (consta como `skipped`; é redução). `--authz` continua aceito por compatibilidade e é redundante. Com `--skip-scan` ele também fica `skipped`. Sem contas ou pedidos suficientes o estágio não derruba o `run`: as verificações vão para `not_tested` com o motivo. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
 | `--negative` / `--no-negative` | O estágio `negative` (valores que o esquema proíbe, [negative.md](negative.md)), depois do `authz` e antes do `report`, **vem ligado**: por padrão só lê (`GET`); a escrita só roda com `negative.allow_writes` no perfil, que vem da carta. `--no-negative` o pula (consta como `skipped`; é redução). `--negative` continua aceito por compatibilidade e é redundante. Com `--skip-scan` ele também fica `skipped`. Sem `exchanges.json` o estágio não derruba o `run`: vai para `not_tested`. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `negative`; os achados dele contam para o `--fail-on` |
 | `--include-outcomes` / `--no-include-outcomes` | O `scan` usa `scan.include_outcomes` do perfil (padrão, [ADR 0050](../decisoes/0050-varrer-operacoes-que-deram-nao-encontrado.md)); `--no-include-outcomes` o reduz a só operações com `success` e fica registrado em `run.json` (`options.include_outcomes`). Nenhuma flag amplia o que o perfil autoriza |
+| `--only OPERATION_ID` | Repetível. Reduz o `probe`, o `scan` e o `negative` às operações citadas (os produtores de `flows.yml` entram junto no `probe`); o `authz` roda inteiro, porque só lê. Só reduz: nunca amplia o escopo. Operação inexistente no OpenAPI é erro de uso (`2`) com dica. A seleção fica em `run.json` (`options.only`, [ADR 0112](../decisoes/0112-retestar-e-run-only.md)) |
 | `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
 | `--products-dir` | Pasta de produtos |
+
+Para um achado ausente na comparação, `operation_scanned_now` indica se há varredura registrada para a operação. Quando esse campo é `true`, leia o resultado como **não reproduzido nesta execução**. A ausência do fingerprint não prova correção, pois o varredor pode variar entre execuções e os limites podem cortar a cobertura. Para repetir só os achados escolhidos, use [`hdast retestar`](#hdast-retestar).
 
 **Prazo único por execução.** `limits.max_duration_minutes` (reduzido por `--max-minutes`) vale para a execução **inteira** e conta do início DELA (`run`, `probe` ou `scan`), não da subida da pilha: o `run` calcula um só prazo absoluto no início do `preflight` e o repassa ao `probe` e ao `scan`; nenhum estágio recomeça a contagem. O tempo gasto ajustando o `probe` antes do `run` não come o prazo da varredura. A pilha tem validade própria (veja `stack up`).
 
@@ -117,7 +121,7 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `authz`, `negative`, `include_outcomes`, `fail_on`, `compare`, `max_minutes` efetivos. `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
+| `options` | `seed`, `skip_scan`, `authz`, `negative`, `include_outcomes`, `only`, `fail_on`, `compare`, `max_minutes` efetivos. `only` é a lista de `--only` (vazia = todas as operações). `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
 | `stages` | Sempre os seis (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
 | `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...). A pasta `panel/` não aparece aqui: é uma pasta, e o `run` a gera depois de gravar este arquivo |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
@@ -125,6 +129,34 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `negative_findings_by_severity` | Achados do estágio `negative` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
 | `cleanup_command` | Comando de limpeza a rodar por uma pessoa, ou `null` |
+
+## `hdast retestar`
+
+```bash
+uv run hdast retestar meu-produto --run <run_anterior>
+uv run hdast retestar meu-produto --run <run_anterior> --finding <fingerprint> --finding <outro>
+uv run hdast --json retestar meu-produto --run <run_anterior> --max 5 --fail-on high
+```
+
+Repete o teste só nas operações dos achados escolhidos da execução anterior e diz, por achado, o que esta execução observou ([ADR 0112](../decisoes/0112-retestar-e-run-only.md)). Não é um caminho novo de tráfego: monta um `run` com `--only` nas operações dos achados e `--compare` com a execução anterior (os estágios `authz` e `negative` ficam desligados) e passa pelos mesmos controles dele: aprovação do escopo, pilha atual (`STACK_STALE`), janela, prazo, limite por segundo, trava da pilha e mutação pendente. Sem aprovação nada é enviado.
+
+| Opção | Efeito |
+| --- | --- |
+| `--run RUN_ID` | Obrigatória. Execução anterior (mesmo produto e mesma versão de fingerprint), de onde vêm os achados |
+| `--finding FINGERPRINT` | Repetível. Escolhe achados do ZAP da execução anterior (precisam ter operação do `probe`). Sem ela, escolhe os de severidade alta e média, do mais grave ao menos |
+| `--max N` | Máximo de achados (1 a 30, padrão 10). Fora do intervalo é erro de uso |
+| `--fail-on {none,low,medium,high}` | Só endurece `scan.fail_on` do perfil. Vale para achados **reproduzidos** |
+| `--max-minutes N`, `--products-dir` | Como no `run` |
+
+Resultados em `runs/<run_novo>/retest.json` (`schema_version: 1`; campos `previous_run_id`, `run_id`, `only`, `counts`, `entries[]` com `result` e `reason`, e `notice`):
+
+| `result` | Significado |
+| --- | --- |
+| `reproduced` | O mesmo fingerprint apareceu de novo |
+| `not_reproduced` | A operação foi testada nesta execução e o fingerprint não apareceu. **Não prova correção**: o varredor pode variar e os limites cortam a cobertura |
+| `not_tested` | A operação não foi testada nesta execução (corte, limite ou falha de alcance) |
+
+O `data` do envelope é `{"retest": <retest.json ou null>, "run": <run.json>}`. A saída é a do `run` se ele falhou; senão `1` se algum achado reproduzido tem severidade no limiar de falha, e `0` nos demais casos. Achado novo não muda essa saída: está no `report.md` da execução nova. Erros de uso (`2`): execução anterior inexistente, de outro produto ou de outra versão de fingerprint, fingerprint desconhecido, nenhum achado de severidade alta ou média, `--max` fora do intervalo. Os achados de `authz`, `negative` e dos sinais da cerca não entram: reteste esses com um `run` completo.
 
 ## Uso
 
@@ -139,6 +171,7 @@ A saída (JSON e texto) é sempre UTF-8, qualquer que seja a página de código 
 ## `hdast stack` e `hdast stop`
 
 ```bash
+uv run hdast --json stack pull                                        # baixa o ZAP e o proxy de escopo
 uv run hdast --json stack up vampi --products-dir ./meus-produtos      # sobe a pilha para o perfil
 uv run hdast --json stack up clinica-piloto --secure --token-ttl 20     # alvo piloto em modo seguro, token de 20 s
 uv run hdast --json stack up vampi --vulnerable --build                # modo vulnerável do laboratório e imagens reconstruídas
@@ -147,7 +180,11 @@ uv run hdast --json stop                                                # trava 
 uv run hdast --json stack down
 ```
 
-Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de laboratório (sem nenhuma, vale o padrão dele); `--token-ttl` fixa a vida do token do alvo em segundos; `--build` reconstrói as imagens locais antes de subir (necessário depois de mudar `docker/` ou o alvo); `--oracle` e `--timeout` estão abaixo; `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
+`stack pull` baixa as imagens configuradas para `zap` e `scope-proxy` e devolve `data.images`, uma lista das duas referências, no envelope de sucesso. Funciona sem perfil, sem iniciar contêineres e sem `run_id`. Saídas: `0` em sucesso, `2` em configuração inválida (`CONFIG_ERROR`), `5` em falha do Docker ou do download (`EXTERNAL_TOOL_ERROR`) e `8` com a pilha ocupada (`STACK_BUSY`). Uma nova tentativa pode reaproveitar o que já foi baixado.
+
+Antes de trocar a pilha, `stack up` exige as duas imagens próprias no Docker local. A versão de `org.opencontainers.image.version` no proxy precisa ser idêntica à da CLI. Imagem ausente, versão divergente ou rótulo ausente resultam em `EXTERNAL_TOOL_ERROR` (saída `5`). Rode `hdast stack pull` ou habilite o build local com `HDAST_STACK_BUILD=1` ou `--build`. As referências podem ser alteradas pelas [variáveis de ambiente](env-vars.md). As imagens auxiliares continuam a cargo do Compose.
+
+Opções de `stack up` incluem `--vulnerable` ou `--secure` para escolher o modo do alvo de laboratório e `--token-ttl` para fixar a vida do token do alvo em segundos. Use `--build` após alterar o código da cerca, os Dockerfiles ou o alvo. `--oracle` e `--timeout` estão abaixo. `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
 
 `stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = a VALIDADE DA PILHA: menor entre a duração máxima mais 60 minutos de folga para o ajuste do `probe`, o fim da autorização e o fechamento da janela; ela não é o prazo de uma varredura, que conta do início de cada execução e nunca passa de `max_duration_minutes`; passou de `not_after`, o proxy nega tudo e é preciso um novo `stack up`), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
@@ -197,7 +234,7 @@ Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`
 | `uv` | `uv` no PATH | `warn` (os comandos `uv run hdast ...` não funcionariam) |
 | `products_dir` | A pasta de produtos existe (`HDAST_PRODUCTS_DIR` ou `--products-dir`) | `fail` (tipo `config`) |
 | `docker` | O Docker responde (`docker version`, prazo de 20 s) | `fail` |
-| `images` | As imagens do `compose.yaml` (ZAP, pontes, proxy de escopo e, para o VAmPI, o alvo) já estão no Docker | `warn`: serão baixadas ou construídas no primeiro `stack up` |
+| `images` | Presença das imagens do `compose.yaml` e versão OCI do proxy igual à da CLI | `fail` se faltar imagem própria no modo de download ou se a versão do proxy divergir ou estiver ausente. `warn` se faltarem imagens auxiliares ou se o build local estiver habilitado e ainda precisar criar as imagens próprias |
 | `port:<n>` | As portas fixas 8080 (ZAP) e 3128 (proxy) em 127.0.0.1 (ou as de `HDAST_ZAP_HOST_PORT` e `HDAST_PROXY_HOST_PORT`) estão livres; para a Clínica Piloto, também 28080 e 29091. Com pilha gerenciada no ar, porta em uso é esperada | `fail`; porta configurada que não é número de 1 a 65535 é `fail` tipo `config` |
 | `stack` | Só com pilha gerenciada: se ainda vale (`not_after`) | `warn` se venceu |
 | `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |

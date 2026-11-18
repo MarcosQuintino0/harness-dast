@@ -58,10 +58,23 @@ class StackBindingSource(Protocol):
 class ComposeRunner(Protocol):
     """Docker Compose. Toda chamada tem prazo e devolve falha como `ExternalToolError`."""
 
+    def build(
+        self, project: ComposeProject, env: dict[str, str], services: tuple[str, ...]
+    ) -> None:
+        """Constrói os serviços indicados; falhas levantam `ExternalToolError`."""
+        ...
+
     def up(
-        self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        *,
+        build: bool | None,
+        timeout_seconds: int,
     ) -> None:
         """Sobe o projeto recriando os contêineres e espera ficarem saudáveis.
+
+        `build=None` deixa o Compose construir serviços de laboratório sob demanda.
 
         Raises:
             ExternalToolError: Docker ausente, daemon parado, falha do compose ou prazo.

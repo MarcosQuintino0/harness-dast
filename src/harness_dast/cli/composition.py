@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from harness_dast import __version__
 from harness_dast.adapters.cleanup.oracle_executor import OracleCleanupExecutor
 from harness_dast.adapters.cleanup.run_files import FileCleanupRuns
 from harness_dast.adapters.cleanup.script_reader import FileCleanupScripts
@@ -48,6 +49,7 @@ from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
 from harness_dast.application.secret_ports import SecretPrompt
+from harness_dast.application.stack_images import StackImages
 from harness_dast.application.validate_profile import ValidateProfile
 from harness_dast.cli.approval_composition import (
     checked_profiles,
@@ -299,8 +301,10 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
     root = products_dir_or_default(products_dir)
     clock = SystemClock()
     profiles = FileProfileRepository(root)
+    host = SystemHost(os.environ)
     return Doctor(
-        host=SystemHost(os.environ),
+        host=host,
+        images=StackImages(host, __version__),
         profiles=profiles,
         validator=ValidateProfile(profiles, clock, open_approval_store()),
         secrets=build_secret_provider(),

@@ -31,6 +31,7 @@ from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
+from harness_dast.cli.commands.retestar import retestar_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.secret import build_secret_app
@@ -77,6 +78,7 @@ def _register_commands(app: typer.Typer) -> None:
     app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
     app.command("plan", rich_help_panel=TEST_STAGES_PANEL)(plan_command)
 
+    app.command("retestar", rich_help_panel=RESULTS_AND_RETEST_PANEL)(retestar_command)
     app.add_typer(build_finding_app(), name="finding", rich_help_panel=RESULTS_AND_RETEST_PANEL)
     app.command("panel", rich_help_panel=RESULTS_AND_RETEST_PANEL)(panel_command)
     app.command("cleanup", rich_help_panel=RESULTS_AND_RETEST_PANEL)(cleanup_command)

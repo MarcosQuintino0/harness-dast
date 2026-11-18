@@ -6,8 +6,10 @@ from typing import Any
 
 import pytest
 
+from harness_dast import __version__
 from harness_dast.application.doctor import Doctor
 from harness_dast.application.doctor_report import DoctorReport
+from harness_dast.application.stack_images import ImageInfo, StackImages
 from harness_dast.application.stack_models import ComposeProject, StackState
 from harness_dast.application.stage_errors import doctor_failure
 from harness_dast.application.validate_profile import ValidateProfile
@@ -48,6 +50,7 @@ class Setup:
         self.vault = SecretRegistry()
         self.doctor = Doctor(
             host=self.host,
+            images=StackImages(self.host, __version__),
             profiles=self.profiles,
             validator=ValidateProfile(self.profiles, self.clock, InMemoryApprovalStore()),
             secrets=DictSecretProvider(ENV if env is None else env),
@@ -152,29 +155,63 @@ def test_docker_down_fails_with_the_fix_and_skips_the_image_check(tmp_path: Path
     assert report.ready is False
 
 
-def test_missing_images_are_a_warning_that_lists_a_few_without_digest(tmp_path: Path) -> None:
+def test_missing_own_images_fail_and_list_names_without_digest(tmp_path: Path) -> None:
     setup = Setup(tmp_path)
     setup.host.present = {"socat:1@sha256:bbb"}
 
     report = setup.doctor.execute()
 
     check = by_id(report)["images"]
-    assert check.status == "warn"
+    assert check.status == "fail"
     assert "Faltam 2 de 3" in check.detail
     assert "zap:1" in check.detail
     assert "sha256" not in check.detail
-    assert "stack up" in check.detail
-    assert report.ready is True
+    assert "hdast stack pull" in check.detail
+    assert report.ready is False
+
+
+def test_missing_auxiliary_images_warn_and_show_the_matching_proxy_version(tmp_path: Path) -> None:
+    setup = Setup(tmp_path)
+    setup.host.present.remove(setup.host.images["zap-gateway"])
+
+    check = by_id(setup.doctor.execute())["images"]
+
+    assert check.status == "warn"
+    assert "serão baixadas" in check.detail
+    assert f"versão da CLI ({__version__})" in check.detail
+
+
+@pytest.mark.parametrize("version", ["0.0.0", None])
+def test_doctor_fails_when_proxy_version_is_incompatible(
+    tmp_path: Path, version: str | None
+) -> None:
+    setup = Setup(tmp_path)
+    setup.host.versions[setup.host.images["scope-proxy"]] = version
+
+    check = by_id(setup.doctor.execute())["images"]
+
+    assert check.status == "fail"
+    assert f"A CLI exige a versão {__version__}" in check.detail
+
+
+def test_doctor_warns_when_local_build_will_create_the_images(tmp_path: Path) -> None:
+    setup = Setup(tmp_path, environ={"HDAST_STACK_BUILD": "1"})
+
+    check = by_id(setup.doctor.execute())["images"]
+
+    assert check.status == "warn"
+    assert "hdast/scope-proxy:local" in check.detail
+    assert "serão construídas" in check.detail
 
 
 def test_image_check_summarises_when_many_images_are_missing(tmp_path: Path) -> None:
     setup = Setup(tmp_path)
-    setup.host.images = tuple(f"img{n}:1" for n in range(6))
+    setup.host.images["proxy-gateway"] = "outra-ponte:1"
     setup.host.present = set()
 
     check = by_id(setup.doctor.execute())["images"]
 
-    assert "e mais 3" in check.detail
+    assert "e mais 1" in check.detail
 
 
 def test_compose_problem_fails_the_image_check(tmp_path: Path) -> None:
@@ -190,13 +227,13 @@ def test_compose_problem_fails_the_image_check(tmp_path: Path) -> None:
 def test_docker_dying_while_listing_images_fails_the_image_check(tmp_path: Path) -> None:
     setup = Setup(tmp_path)
     setup.host.present = set()
-    original = setup.host.image_present
+    original = setup.host.inspect_image
 
-    def dying(reference: str) -> bool:
+    def dying(reference: str) -> ImageInfo | None:
         setup.host.docker_error = ExternalToolError("O Docker caiu.", hint="Execute docker images.")
         return original(reference)
 
-    setup.host.image_present = dying  # type: ignore[method-assign]  # falha difícil de provocar
+    setup.host.inspect_image = dying  # type: ignore[method-assign]  # falha difícil de provocar
 
     check = by_id(setup.doctor.execute())["images"]
 
@@ -505,7 +542,7 @@ def test_doctor_never_touches_the_target_or_docker_more_than_to_read(tmp_path: P
     setup.doctor.execute("agenda")
 
     # 1 consulta de versão + 1 por imagem: leitura pura (o falso não tem como "subir" nada).
-    assert setup.host.docker_calls == 1 + len(setup.host.images)
+    assert setup.host.docker_calls == 1 + len(set(setup.host.images.values()))
 
 
 # ------------------------------------------------- avisos que olham o perfil (V1.1)

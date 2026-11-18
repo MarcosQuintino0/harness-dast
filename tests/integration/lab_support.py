@@ -124,6 +124,8 @@ class LabCli:
                 "HDAST_STATE_DIR": str(self.state),
                 "HDAST_RUNS_DIR": str(self.runs),
                 "HDAST_PRODUCTS_DIR": str(self.products),
+                # A prova de desenvolvimento precisa exercitar a cerca deste checkout.
+                "HDAST_STACK_BUILD": "1",
                 "PYTHONIOENCODING": "utf-8",
             }
         )

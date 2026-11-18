@@ -3,6 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
+from harness_dast import __version__
 from harness_dast.application.stack_models import (
     ComposeProject,
     ServiceStatus,
@@ -13,20 +14,38 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
 from harness_dast.domain.stack_binding import StackDigests
+from tests.fakes.host import FakeHost
 
 
 class FakeCompose:
     """Registra o que foi subido; `fail_on` faz a chamada indicada falhar."""
 
-    def __init__(self) -> None:
+    def __init__(self, host: FakeHost) -> None:
+        self._host = host
         self.running: dict[str, ComposeProject] = {}
         self.envs: dict[str, dict[str, str]] = {}
-        self.builds: dict[str, bool] = {}
+        self.builds: dict[str, bool | None] = {}
+        self.built_proxy_version = __version__
         self.calls: list[tuple[str, str]] = []
         self.fail_on: str | None = None
 
+    def build(
+        self, project: ComposeProject, env: dict[str, str], services: tuple[str, ...]
+    ) -> None:
+        self.calls.append(("build", project.name))
+        if self.fail_on == "build":
+            raise ExternalToolError("build falhou")
+        images = self._host.compose_images(services, env)
+        self._host.present.update(images.values())
+        self._host.versions[images["scope-proxy"]] = self.built_proxy_version
+
     def up(
-        self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        *,
+        build: bool | None,
+        timeout_seconds: int,
     ) -> None:
         self.calls.append(("up", project.name))
         self.builds[project.name] = build
