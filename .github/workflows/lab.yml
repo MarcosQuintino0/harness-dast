@@ -159,6 +159,20 @@ jobs:
         run: |
           gunzip -c "$RUNNER_TEMP/lab-images.tar.gz" | docker load
           rm -f "$RUNNER_TEMP/lab-images.tar.gz"
+      # Alguns testes usam imagens sem baixar (`--pull=never`): o cliente Python da prova OAST e
+      # o Oracle das provas de limpeza. Só o pedaço que precisa baixa, pelo digest fixado.
+      - name: Baixar as imagens auxiliares do pedaço
+        env:
+          ARQUIVO: ${{ matrix.file }}
+        run: |
+          set -o pipefail
+          uv run python -m tests.integration.lab_aux_images "$ARQUIVO" | while IFS= read -r ref; do
+            docker pull "$ref"
+            base="${ref%@*}"
+            if [ "$base" != "$ref" ]; then
+              docker tag "${base%:*}@${ref#*@}" "$base"
+            fi
+          done
       - name: Rodar o pedaço pelo lab_round
         timeout-minutes: 50
         env:
