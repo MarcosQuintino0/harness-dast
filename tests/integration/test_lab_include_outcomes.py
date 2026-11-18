@@ -62,6 +62,7 @@ class OutcomesLab:
     live_exit: int
     live: dict[str, Any]
     proxy_rows: list[dict[str, Any]]
+    scan_proxy_rows: list[dict[str, Any]]
     seconds: dict[str, float] = field(default_factory=dict)
 
     def planned(self, data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -90,6 +91,30 @@ def _pick_operation(probe_file: dict[str, Any]) -> tuple[str, str, list[str]]:
     return str(chosen["operation_id"]), str(chosen["path"]), names
 
 
+def _probe_after_restack(
+    cli: LabCli, flags: list[str], operation: str, seconds: dict[str, float]
+) -> tuple[str, dict[str, Any]]:
+    """Sobe a pilha de novo (ADR 0081), refaz o `probe` e devolve o `run_id` novo."""
+    started = time.monotonic()
+    up = cli.restack("clinica-piloto", "--build", *flags)
+    assert up.code == 0, (up.stdout + up.stderr)[-1200:]
+    seconds["restack"] = round(time.monotonic() - started, 1)
+    preflight = cli.run("preflight", "clinica-piloto")
+    assert preflight.code == 0, (preflight.stdout + preflight.stderr)[-1200:]
+    started = time.monotonic()
+    probe = cli.run("probe", "clinica-piloto", timeout=900)
+    seconds["probe_with_field"] = round(time.monotonic() - started, 1)
+    assert probe.code == 0, (probe.stdout + probe.stderr)[-1200:]
+    run_id = str(probe.envelope["run_id"])
+    probe_file = json.loads((cli.runs / run_id / "probe.json").read_text(encoding="utf-8"))
+    again = [r["outcome"] for r in probe_file["operations"] if r["operation_id"] == operation]
+    assert again == [OUTCOME], (
+        f"Depois de subir a pilha de novo, a operação {operation} deu {again} no probe "
+        f"{run_id}, e não [{OUTCOME!r}]."
+    )
+    return run_id, probe_file
+
+
 def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
@@ -109,11 +134,20 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     without = cli.run(*base, "--dry-run")
     assert without.code == 0, without.stdout[-800:]
     _enable_include_outcomes(cli.products / "clinica-piloto" / "target.yml")
+    run_id, probe_file = _probe_after_restack(cli, flags, operation, seconds)
+    base = ["scan", "clinica-piloto", "--run", run_id, "--only", operation]
     with_field = cli.run(*base, "--dry-run")
     assert with_field.code == 0, with_field.stdout[-800:]
+    # Só as linhas que o scan acrescentou: o probe novo também passa pela cerca na mesma pilha.
+    proxy_before = len(proxy_audit(cli))
     started = time.monotonic()
     live = cli.run(*base, "--max-minutes", "5", timeout=900)
     seconds["scan"] = round(time.monotonic() - started, 1)
+    scan_file = cli.runs / run_id / "scan.json"
+    output = (live.stdout + live.stderr)[-1200:]
+    assert live.code in {0, 3}, f"O scan terminou com código {live.code}.\n{output}"
+    assert scan_file.is_file(), f"O scan não gerou {scan_file}.\n{output}"
+    all_rows = proxy_audit(cli)
     return OutcomesLab(
         mode=mode,
         run_id=run_id,
@@ -124,15 +158,16 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
         without_field=without.data,
         with_field=with_field.data,
         live_exit=live.code,
-        live=json.loads((cli.runs / run_id / "scan.json").read_text(encoding="utf-8")),
-        proxy_rows=proxy_audit(cli),
+        live=json.loads(scan_file.read_text(encoding="utf-8")),
+        proxy_rows=all_rows,
+        scan_proxy_rows=all_rows[proxy_before:],
         seconds=seconds,
     )
 
 
 def _observations(lab: OutcomesLab) -> dict[str, Any]:
     entry = [e for e in lab.live["entries"] if e["operation_id"] == lab.operation]
-    rows = [r for r in lab.proxy_rows if r["path"].startswith(lab.path_template.split("{")[0])]
+    rows = [r for r in lab.scan_proxy_rows if r["path"].startswith(lab.path_template.split("{")[0])]
     return {
         "mode": lab.mode,
         "seconds": lab.seconds,
@@ -212,7 +247,7 @@ def test_every_proxy_row_of_the_scan_was_decided_by_the_fence_and_none_was_a_del
     lab: OutcomesLab,
 ) -> None:
     prefix = lab.path_template.split("{")[0]
-    rows = [r for r in lab.proxy_rows if r["path"].startswith(prefix)]
+    rows = [r for r in lab.scan_proxy_rows if r["path"].startswith(prefix)]
     assert rows
     assert {r["decision"] for r in rows} <= {"allow", "deny"}
     assert any(r["decision"] == "allow" for r in rows)
