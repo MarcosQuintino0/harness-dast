@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- `hdast --help` agrupa os comandos em cinco painéis e destaca `doctor`, `run`, `report` e `stop` em **Comece por aqui**.
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
 ## [1.12.2] - 2026-11-18
