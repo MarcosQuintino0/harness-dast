@@ -54,7 +54,7 @@ def test_oast_does_not_change_the_other_policy_fields() -> None:
     )
 
 
-def test_reducao_preserva_politica_estreitada_por_estrategia() -> None:
+def test_oast_reduction_preserves_narrowed_strategy_policy() -> None:
     base = build_policy(ScanConfig(oast=True), experimental_rules=True)
     narrowed = base.model_copy(
         update={

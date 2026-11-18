@@ -455,7 +455,7 @@ def test_the_key_fails_when_an_experimental_rule_refuses_to_turn_on() -> None:
 
 
 @pytest.mark.parametrize("action", ["setCallbackOptions", "setActiveScanService"])
-def test_configuracao_callback_indisponivel_tem_erro_especifico(action: str) -> None:
+def test_callback_configuration_failure_has_specific_error(action: str) -> None:
     zap = FakeScanZapServer()
 
     def handle(received: Received) -> Reply:
@@ -469,7 +469,7 @@ def test_configuracao_callback_indisponivel_tem_erro_especifico(action: str) -> 
         client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
 
 
-def test_falha_de_limites_nao_e_confundida_com_indisponibilidade_callback() -> None:
+def test_limits_failure_is_not_mistaken_for_callback_unavailability() -> None:
     zap = FakeScanZapServer()
 
     def handle(received: Received) -> Reply:

@@ -119,7 +119,7 @@ def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path
     assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
 
 
-def test_crapi_oast_sobe_ponte_isolada_e_desce_em_ordem(tmp_path: Path) -> None:
+def test_crapi_oast_starts_isolated_bridge_and_stops_in_order(tmp_path: Path) -> None:
     rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
     profile = lab_profile("crapi", "crapi", 80)
     rig.profiles.add(
@@ -140,7 +140,7 @@ def test_crapi_oast_sobe_ponte_isolada_e_desce_em_ordem(tmp_path: Path) -> None:
     assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
 
 
-def test_produto_comum_oast_nao_recebe_ponte_de_laboratorio(tmp_path: Path) -> None:
+def test_regular_product_with_oast_does_not_receive_lab_bridge(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
     profile = valid_profile("demo")
     rig.profiles.add(

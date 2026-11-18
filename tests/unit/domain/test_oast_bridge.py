@@ -16,11 +16,11 @@ from harness_dast.domain.oast_bridge import should_mount_oast_bridge
         ("", True, False),
     ],
 )
-def test_ponte_somente_quando_crapi_e_autorizado(url: str, requested: bool, expected: bool) -> None:
+def test_bridge_requires_crapi_and_authorization(url: str, requested: bool, expected: bool) -> None:
     assert should_mount_oast_bridge(url, requested=requested) is expected
 
 
-def test_estado_nao_verificavel_exige_motivo() -> None:
+def test_unverifiable_state_requires_reason() -> None:
     from pydantic import ValidationError
 
     from harness_dast.domain.oast_verification import OastVerification

@@ -139,7 +139,7 @@ def test_snapshot_exige_versao_efetiva_correspondente() -> None:
             compile_with(version)
 
 
-def test_snapshot_estreitado_preserva_restricoes_ao_reduzir_oast() -> None:
+def test_oast_reduction_preserves_narrowed_snapshot_restrictions() -> None:
     from harness_dast.domain.scan_policy import without_oast
 
     profile = valid_profile()

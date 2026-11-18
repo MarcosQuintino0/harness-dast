@@ -185,7 +185,7 @@ def test_without_the_probe_exchanges_the_step_is_skipped_and_the_scan_goes_on() 
     assert oast.baselines == 2
 
 
-def test_ponte_ausente_desliga_regras_e_informa_lacuna() -> None:
+def test_missing_bridge_disables_rules_and_reports_gap() -> None:
     rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
     rig.run_probe()
     scan = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(available=False))
@@ -201,7 +201,7 @@ def test_ponte_ausente_desliga_regras_e_informa_lacuna() -> None:
     assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
 
 
-def test_ponte_desconhecida_nao_e_tratada_como_disponivel() -> None:
+def test_unknown_bridge_is_not_treated_as_available() -> None:
     rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
     rig.run_probe()
     scan = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(available=None))
@@ -211,7 +211,7 @@ def test_ponte_desconhecida_nao_e_tratada_como_disponivel() -> None:
     assert not result.policy.oast
 
 
-def test_queda_apos_envio_deixa_ssrf_nao_verificavel() -> None:
+def test_observer_failure_after_sending_makes_ssrf_unverifiable() -> None:
     _, result = _scan(FakeOast(lost=True), oast=True)
     assert result.oast_verification is not None
     assert result.oast_verification.ssrf == "unverifiable"
@@ -219,7 +219,7 @@ def test_queda_apos_envio_deixa_ssrf_nao_verificavel() -> None:
     assert result.ssrf.sent == 1
 
 
-def test_artefato_legado_com_oast_e_lacuna_desconhecida() -> None:
+def test_legacy_oast_artifact_has_unknown_gap() -> None:
     from harness_dast.domain.oast_verification import oast_gap
 
     _, result = _scan(FakeOast(), oast=True)
@@ -227,7 +227,7 @@ def test_artefato_legado_com_oast_e_lacuna_desconhecida() -> None:
     assert oast_gap(legacy) is not None
 
 
-def test_callback_nao_configurado_desliga_oast_e_registra_lacuna() -> None:
+def test_callback_configuration_failure_disables_oast_and_reports_gap() -> None:
     rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
     rig.run_probe()
     rig.zap.oast_config_unavailable = True
@@ -246,7 +246,7 @@ def test_callback_nao_configurado_desliga_oast_e_registra_lacuna() -> None:
     assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
 
 
-def test_lacuna_da_ponte_aparece_no_relatorio_e_no_painel() -> None:
+def test_bridge_gap_appears_in_report_and_panel() -> None:
     from harness_dast.domain.panel.build_content import _scan_items
     from harness_dast.domain.report.html import render_html
     from harness_dast.domain.report.markdown import render_markdown
@@ -266,7 +266,7 @@ def test_lacuna_da_ponte_aparece_no_relatorio_e_no_painel() -> None:
     assert any(reason in item.text for item in _scan_items(result))
 
 
-def test_leitura_de_json_legado_oast_assinala_estado_desconhecido() -> None:
+def test_legacy_oast_json_has_unknown_state() -> None:
     import json
 
     from harness_dast.domain.oast_verification import oast_gap
@@ -277,3 +277,52 @@ def test_leitura_de_json_legado_oast_assinala_estado_desconhecido() -> None:
     legacy = ScanResult.model_validate_json(json.dumps(data))
 
     assert oast_gap(legacy) is not None
+
+
+def test_callback_unreachable_before_scan_disables_oast() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    result = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(callback=False)).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == "unverifiable"
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert not result.policy.oast
+    assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
+
+
+def test_callback_failure_during_scan_makes_oast_unverifiable() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    bridge = FakeOastBridge()
+
+    def on_status(scan_id: str, polls: int) -> None:
+        bridge.callback_available = False
+
+    rig.zap.on_status = on_status
+    result = rig.scan(oast=FakeOast(), bridge=bridge).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == "unverifiable"
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert result.oast_verification.reason is not None
+
+
+def test_observer_failure_during_scan_makes_oast_unverifiable() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    events = FakeOast()
+
+    def on_status(scan_id: str, polls: int) -> None:
+        events.down = True
+
+    rig.zap.on_status = on_status
+    result = rig.scan(oast=events).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == "unverifiable"
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert result.oast_verification.reason is not None
