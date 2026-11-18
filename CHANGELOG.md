@@ -8,7 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [1.12.2] - 2026-11-18
 
-- A vigia do proxy de escopo não trava mais para sempre por atraso: retrato com mais de 200 ms é reverificado na hora (uma reverificação por vez, com tempo-limite) e só concede se as fontes seguirem íntegras. Mudança real, arquivo ausente ou ilegível, kill switch, encerramento, relógio para trás, erro ou tempo-limite estourado continuam travando. Corrige a trava `gate_watch_latch` com categoria `age` vista numa rajada do ZAP, com aprovação intacta. Nova categoria `reverify_timeout`. [ADR 0106](docs/adr/0106-vigia-reverifica-retrato-velho.md), proposto, substitui parcialmente o 0081 e o 0093.
+- A vigia do proxy de escopo não trava mais para sempre por atraso: retrato com mais de 200 ms é reverificado na hora (uma reverificação por vez, com tempo-limite) e só concede se as fontes seguirem íntegras. Lentidão (reverificação lenta ou tempo-limite) nega só aquele pedido, sem travar, e registra no máximo uma linha por segundo `gate_watch_slow_deny` (`slow_deny`). Mudança real, erro de leitura, encerramento, relógio para trás e falha ao iniciar a thread continuam travando. Corrige a trava `gate_watch_latch` com categoria `age` vista numa rajada do ZAP, com aprovação intacta. [ADR 0106](docs/adr/0106-vigia-reverifica-retrato-velho.md), proposto, substitui parcialmente o 0081 e o 0093.
 - A gravação de `scan-progress.json` (e dos demais arquivos da execução) repete poucas vezes, com pausa curta, quando o Windows recusa por `PermissionError` (por exemplo `hdast wait` lendo ao mesmo tempo), e o `wait` trata o arquivo momentaneamente preso como andamento indisponível em vez de erro.
 
 ## [1.12.1] - 2026-11-17
