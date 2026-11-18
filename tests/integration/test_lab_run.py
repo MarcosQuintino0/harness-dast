@@ -309,6 +309,13 @@ def _wait_for_scanning(cli: LabCli, process: Any) -> dict[str, Any]:
                 assert isinstance(loaded, dict)
                 return loaded
         time.sleep(2)
+    if process.poll() is not None:
+        # Sem a saída do comando, uma saída precoce não diz o motivo (código 4 no GitHub).
+        stdout, stderr = process.communicate(timeout=30)
+        pytest.fail(
+            f"o run terminou com código {process.returncode} antes da varredura.\n"
+            f"{stdout[-1500:]}\n{stderr[-800:]}"
+        )
     pytest.fail("o run não chegou à varredura a tempo")
 
 

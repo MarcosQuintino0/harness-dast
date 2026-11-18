@@ -10,13 +10,20 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from tests.integration.lab_support import CliResult
+from harness_dast.application.lab_targets import PILOT_PROJECT
+from harness_dast.application.stack import MAIN_PROJECT
+from tests.integration.lab_support import CliResult, stack_suffix
 
-_PROJECTS = ("hdast", "hdast-pilotrun")
 _FORMAT = '{{.ID}}|{{.Label "com.docker.compose.service"}}|{{.State}}'
 _ROW = re.compile(r"^([a-f0-9]{12,64})\|([a-z0-9][a-z0-9_-]*)\|([a-z]+)$")
 _BASE = {"zap", "zap-gateway", "scope-proxy", "proxy-gateway"}
 type Runner = Callable[[str], subprocess.CompletedProcess[str]]
+
+
+def _projects() -> tuple[str, str]:
+    """Projetos Compose da rodada, com o mesmo sufixo que o `LabCli` aplica."""
+    suffix = stack_suffix()
+    return MAIN_PROJECT + suffix, PILOT_PROJECT + suffix
 
 
 class DownCli(Protocol):
@@ -41,7 +48,7 @@ class LifecycleError(RuntimeError):
 
 def docker_metadata(project: str) -> subprocess.CompletedProcess[str]:
     """Consulta apenas ID, serviço e estado, sem shell nem saída bruta no ledger."""
-    if project not in _PROJECTS:
+    if project not in _projects():
         raise ValueError("projeto inesperado")
     return subprocess.run(  # noqa: S603 - comando fixo, sem shell
         [
@@ -64,7 +71,7 @@ def docker_metadata(project: str) -> subprocess.CompletedProcess[str]:
 def snapshot(runner: Runner = docker_metadata) -> list[Container]:
     """Consulta os dois projetos; qualquer erro ou linha malformada impede comprovação."""
     containers: list[Container] = []
-    for project in _PROJECTS:
+    for project in _projects():
         try:
             result = runner(project)
         except subprocess.TimeoutExpired as error:
@@ -92,8 +99,9 @@ def expected_running(items: list[Container], product: str) -> bool:
     """Exige exatamente os serviços do produto, únicos, em execução."""
     if product not in {"vampi", "clinica-piloto"}:
         return False
-    expected = {("hdast", service) for service in _BASE}
-    expected.add(("hdast", "vampi") if product == "vampi" else ("hdast-pilotrun", "pilot"))
+    main, pilot = _projects()
+    expected = {(main, service) for service in _BASE}
+    expected.add((main, "vampi") if product == "vampi" else (pilot, "pilot"))
     actual = [(item.project, item.service) for item in items]
     return (
         len(actual) == len(expected)

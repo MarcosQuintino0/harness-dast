@@ -36,6 +36,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 PILOT_BASE = "http://clinica-piloto:8080"
 OPERATION = "enviarDocumento"
 UPLOAD_PATH = "/api/documentos/enviar"
+LOGIN_PATH = "/api/auth/login"
 MODES = ("vulnerable", "secure")
 # Conteúdo constante do arquivo sintético de texto e assinatura do PNG sintético: nada disso pode
 # ir para os artefatos.
@@ -192,7 +193,13 @@ def test_the_proxy_released_the_upload_inside_the_fence_once_per_send(lab: Multi
         if r["phase"] == "result" and r["method"] == "POST" and r["path"] == UPLOAD_PATH
     ]
     assert len(rows) == len(sent) == 1
-    denied = [r for r in lab.proxy_rows if r["decision"] != "allow"]
+    # O limite de logins do perfil faz a cerca recusar logins com `rate_backoff` (429); isso é
+    # carga, não escopo. Qualquer outra recusa continua proibida.
+    throttled = [r for r in lab.proxy_rows if r["reason"] == "rate_backoff"]
+    assert all(r["path"] == LOGIN_PATH and r["status"] == 429 for r in throttled), throttled
+    denied = [
+        r for r in lab.proxy_rows if r["decision"] != "allow" and r["reason"] != "rate_backoff"
+    ]
     assert denied == []
 
 

@@ -195,3 +195,12 @@ def test_consulta_externa_usa_somente_metadata_restrita(monkeypatch: pytest.Monk
 def test_consulta_recusa_projeto_fora_da_lista() -> None:
     with pytest.raises(ValueError, match="projeto inesperado"):
         docker_metadata("outro-projeto")
+
+
+def test_docker_metadata_recusa_projeto_sem_sufixo_quando_a_rodada_tem_sufixo(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HDAST_IT_STACK_SUFFIX", "-gh1a1p0")
+
+    with pytest.raises(ValueError, match="projeto inesperado"):
+        docker_metadata("hdast")
