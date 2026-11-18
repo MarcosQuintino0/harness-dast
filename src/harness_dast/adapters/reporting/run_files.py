@@ -70,6 +70,7 @@ KNOWN_FILES: Final = (
     ALERTS_FILE,
     EVIDENCE_FILE,
     FINDINGS_FILE,
+    RETEST_FILE,
     "report.md",
     "report.html",
     METRICS_FILE,
@@ -112,6 +113,12 @@ class FileRunArtifacts:
     def write_retest(self, run_id: str, report: RetestReport) -> str:
         """Grava `retest.json` (reteste de achados, ADR 0112) e devolve o nome do arquivo."""
         self._write(run_id, RETEST_FILE, report.model_dump_json(indent=2))
+        # O `run.json` foi gravado antes do reteste: sem isto o índice não listaria `retest.json`.
+        summary = self.read_summary(run_id)
+        if summary is not None:
+            self.write_summary(
+                run_id, summary.model_copy(update={"artifacts": self.existing_files(run_id)})
+            )
         return RETEST_FILE
 
     def read_exchanges(self, run_id: str) -> ExchangeLog:
