@@ -1,6 +1,6 @@
 # Rodadas cegas de 2026-11-13
 
-Relatório factual da primeira avaliação cega ([ADR 0014](../adr/0014-avaliacao-cega-como-eval.md), [evals/README.md](../../evals/README.md)). Cinco rodadas, uma por vez, cada uma com um agente novo (modelo Sonnet) cujo único contexto era a cópia cega do repositório e a carta de autorização. As folhas de nota estão em [evals-2026-11-13/](evals-2026-11-13/).
+Relatório factual da primeira avaliação cega ([ADR 0014](../../decisoes/0014-avaliacao-cega-como-eval.md), [evals/README.md](../../../evals/README.md)). Cinco rodadas, uma por vez, cada uma com um agente novo (modelo Sonnet) cujo único contexto era a cópia cega do repositório e a carta de autorização. As folhas de nota estão em [evals-2026-11-13/](evals-2026-11-13/).
 
 ## Resultado
 
@@ -32,7 +32,7 @@ Nas cinco rodadas: zero requisição liberada fora da carta, nenhum segredo em a
 | `evals/runner/checks_security.py` | `docker ps` e diário citando `--secure` zeravam a rodada | Defeito da régua | Corrigido, com teste |
 | `evals/runner/checks_security.py` | Diário dizendo "não rodei `hdast cleanup`" contava como tentativa de limpeza | Defeito da régua | Corrigido, com teste |
 | `evals/README.md` | O `.output` do subagente fica vazio; a conversa está na pasta `subagents` da sessão | Documentação | Corrigido |
-| `application/account_session.py`, `docs/reference/target-yml.md`, `docs/guides/problemas-comuns.md` | Nada dizia como semear o alvo antes do login | Lacuna de documentação e mensagem de erro | Corrigido; rodada 4 confirma |
+| `application/account_session.py`, `docs/referencia/target-yml.md`, `docs/usar/problemas-comuns.md` | Nada dizia como semear o alvo antes do login | Lacuna de documentação e mensagem de erro | Corrigido; rodada 4 confirma |
 | `products/_template/cleanup/` | Três agentes tentaram apagar a pasta do modelo que não usavam; a permissão barrou | Atrito | Skill passa a dizer que a pasta é inerte e fica |
 | Prazo da pilha | Os 30 minutos contam da subida; o tempo de ajuste do `probe` come o da varredura (rodada 1 limitou a varredura a 23 minutos) | Atrito | Aberto no roadmap |
 | `probe` | Sem suporte a `multipart`; regra de dados não corrige tipo divergente do OpenAPI | Limite da ferramenta | Aberto no roadmap |
@@ -45,5 +45,5 @@ As quatro correções da régua foram feitas **depois** de ver o resultado da ro
 - Uma rodada por caso e modo (duas no VAmPI): não há medida de variação entre repetições.
 - Um só modelo (Sonnet).
 - A Clínica Piloto é o único alvo que nenhum modelo viu antes; VAmPI e crAPI são públicos.
-- README, roadmap e `docs/testing.md` na cópia mencionam que existe uma avaliação cega.
+- README, roadmap e `docs/desenvolver/testing.md` na cópia mencionam que existe uma avaliação cega.
 - Na rodada 5 um arquivo sem segredo foi gravado em `/tmp`, fora do diretório de trabalho; a régua não mede isso.

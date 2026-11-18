@@ -13,7 +13,7 @@
 --   * A CLI executa dentro de uma transação, mostra quantas linhas seriam
 --     apagadas e só faz COMMIT após confirmação humana.
 --
--- Variáveis de ligação fornecidas pela CLI (docs/reference/cleanup.md):
+-- Variáveis de ligação fornecidas pela CLI (docs/referencia/cleanup.md):
 --   :run_start      início da execução (TIMESTAMP em UTC)
 --   :run_id         identificador completo da execução
 --   :run_tag        etiqueta curta embutida nos valores únicos gerados

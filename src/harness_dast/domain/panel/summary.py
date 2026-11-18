@@ -1,6 +1,6 @@
 """Aba Resumo do painel (`summary.html`): deu certo? o que faço agora? Módulo puro.
 
-Fiel a `docs/design/execution-panel/screens/summary.html` e aos estados de
+Fiel a `docs/arquivo/design/execution-panel/screens/summary.html` e aos estados de
 `system/states.html`: com falhas graves, sem falha grave (nunca "seguro"), parou no meio e erro.
 Texto nosso sai por `h.plain`; texto do alvo, do OpenAPI, do ZAP ou da CLI sai por `h.text` ou
 `h.ident`. Sem número inventado: dado ausente vira traço e "não medido".

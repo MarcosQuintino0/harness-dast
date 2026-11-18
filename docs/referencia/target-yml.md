@@ -1,6 +1,6 @@
 # Perfil de produto: `target.yml` (schema v1)
 
-Esta página descreve o schema v1 **como implementado** nos modelos de `src/harness_dast/domain/` (`profile.py`, `scope.py`, `auth.py`, `window.py`, `run.py`, `secret_ref.py`). Decisões: [ADR 0005](../adr/0005-perfil-de-produto-versionado.md) e [ADR 0013](../adr/0013-schema-v1-do-perfil-de-produto.md).
+Esta página descreve o schema v1 **como implementado** nos modelos de `src/harness_dast/domain/` (`profile.py`, `scope.py`, `auth.py`, `window.py`, `run.py`, `secret_ref.py`). Decisões: [ADR 0005](../decisoes/0005-perfil-de-produto-versionado.md) e [ADR 0013](../decisoes/0013-schema-v1-do-perfil-de-produto.md).
 
 > **O que existe.** Os modelos validados e imutáveis (`ProductProfile.from_data`), o carregador de YAML endurecido, `hdast init`, `hdast profile validate` e, desde o M3, `hdast spec inspect`, `hdast preflight` e `hdast probe`, que usam o perfil. `data-rules.yml` e `flows.yml` têm modelo e referência próprios ([data-rules-yml.md](data-rules-yml.md), [flows-yml.md](flows-yml.md)). Um teste valida o `products/_template/target.yml` contra os modelos.
 
@@ -13,9 +13,9 @@ Cada produto tem uma pasta (por padrão em `products/PRODUTO/`, ou onde `HDAST_P
 | Arquivo | Conteúdo | Quem escreve | Modelo no código |
 | --- | --- | --- | --- |
 | `target.yml` | Ambiente, escopo, autorização, janelas, limites, autenticação, limpeza | O agente, a partir da autorização formal informada pelo usuário. A CLI valida | Existe (esta página) |
-| `data-rules.yml` | Regras declarativas de geração de dados ([ADR 0006](../adr/0006-regras-de-dados-declarativas.md)) | O agente | `domain/datagen.py` |
+| `data-rules.yml` | Regras declarativas de geração de dados ([ADR 0006](../decisoes/0006-regras-de-dados-declarativas.md)) | O agente | `domain/datagen.py` |
 | `flows.yml` | Encadeamento entre chamadas, em vários níveis (sem ciclo) | O agente | `domain/flow.py` |
-| Hook de limpeza | Script SQL de limpeza ([ADR 0011](../adr/0011-limpeza-por-sql-oracle-com-python-oracledb.md)) | **Uma pessoa** do time do produto. O agente nunca escreve nem altera | Só o caminho é validado |
+| Hook de limpeza | Script SQL de limpeza ([ADR 0011](../decisoes/0011-limpeza-por-sql-oracle-com-python-oracledb.md)) | **Uma pessoa** do time do produto. O agente nunca escreve nem altera | Só o caminho é validado |
 
 O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste repositório (P-01). O perfil não contém segredos: só referências (`secret_ref`).
 
@@ -29,7 +29,7 @@ O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste r
 
 ## Blocos de proteção e aprovação humana
 
-Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../adr/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, o bloco `scan` inteiro, o bloco `authz` inteiro, o bloco `extra_checks` (só quando difere do padrão, ADR 0096) e o bloco `cleanup` inteiro (a configuração: caminho do script, **nomes** de `secret_ref`, tabelas, teto de linhas, esquema; nunca valor de segredo nem o conteúdo do script, que a limpeza confere por conta própria na hora de apagar). Critério: entra tudo que amplia o que é tocado, com que conta, com que carga ou por quanto tempo, **e tudo que reduz o que é relatado** (`fail_on`, `threshold`, `disable_rules`, `public_operations`, `disabled_checks`, `volatile_fields`). **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`) e `probe`. Mudar o que entra muda a versão do cálculo (agora 2): aprovações gravadas na versão 1 valem como não aprovadas. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
+Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, o bloco `scan` inteiro, o bloco `authz` inteiro, o bloco `extra_checks` (só quando difere do padrão, ADR 0096) e o bloco `cleanup` inteiro (a configuração: caminho do script, **nomes** de `secret_ref`, tabelas, teto de linhas, esquema; nunca valor de segredo nem o conteúdo do script, que a limpeza confere por conta própria na hora de apagar). Critério: entra tudo que amplia o que é tocado, com que conta, com que carga ou por quanto tempo, **e tudo que reduz o que é relatado** (`fail_on`, `threshold`, `disable_rules`, `public_operations`, `disabled_checks`, `volatile_fields`). **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`) e `probe`. Mudar o que entra muda a versão do cálculo (agora 2): aprovações gravadas na versão 1 valem como não aprovadas. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
 
 ## Exemplo completo
 
@@ -92,7 +92,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `cleanup` | bloco | Não | Padrão: ausente |
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 | `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
-| `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
+| `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../decisoes/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
 | `extra_checks` | bloco | Não | Capacidades extras da V1.12, só pela carta. Veja [`extra_checks`](#extra_checks-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
@@ -195,7 +195,7 @@ Tudo que não é explicitamente permitido é recusado (falha fechada).
 
 ### `scope.path_mode`
 
-Decide só como o **proxy de escopo** (a cerca por onde passa todo pedido do ZAP) lê o caminho. Valores: `strict` (padrão) e `wide`. Qualquer outro valor, número, lista ou `null` é recusado (`CONFIG_ERROR`). Não existe flag de linha de comando que o ligue. Decisão e risco: [ADR 0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md).
+Decide só como o **proxy de escopo** (a cerca por onde passa todo pedido do ZAP) lê o caminho. Valores: `strict` (padrão) e `wide`. Qualquer outro valor, número, lista ou `null` é recusado (`CONFIG_ERROR`). Não existe flag de linha de comando que o ligue. Decisão e risco: [ADR 0026](../decisoes/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md).
 
 | Modo | Caminho com `;`, `%2f`, `%5c`, `%252e`, `//`, `%` solto, ponto ou espaço final | `deny_paths` |
 | --- | --- | --- |
@@ -225,7 +225,7 @@ Forma de texto: `<dias> <HH:MM>-<HH:MM> <fuso IANA>`, separados por um único es
 - **Horas:** 24 h, `00:00` a `23:59` no início e até `24:00` no fim. O início é inclusivo e o fim é exclusivo.
 - **Início igual ao fim é sempre recusado**, na forma de texto e na forma estruturada. Para o dia todo use `00:00-24:00`.
 - **Fim menor que o início cruza a meia-noite**, e os dias listados são os dias em que a janela **começa**.
-- **Fuso:** nome IANA (`America/Sao_Paulo`). Vale o relógio de parede local; na mudança de horário de verão a janela continua de "20:00 locais" a "06:00 locais". O banco de fusos vem do pacote `tzdata` ([ADR 0012](../adr/0012-dependencias-tzdata-e-pyyaml.md)).
+- **Fuso:** nome IANA (`America/Sao_Paulo`). Vale o relógio de parede local; na mudança de horário de verão a janela continua de "20:00 locais" a "06:00 locais". O banco de fusos vem do pacote `tzdata` ([ADR 0012](../decisoes/0012-dependencias-tzdata-e-pyyaml.md)).
 
 | Texto | Significado |
 | --- | --- |
@@ -265,7 +265,7 @@ O campo `type` escolhe o tipo. A V1 aceita exatamente dois (P-04). Outros valore
 
 ### `type: login_password`
 
-Usuário e senha enviados a um endpoint de login, que devolve um token. (Nome anterior: `oauth2_password`; veja o [ADR 0013](../adr/0013-schema-v1-do-perfil-de-produto.md).)
+Usuário e senha enviados a um endpoint de login, que devolve um token. (Nome anterior: `oauth2_password`; veja o [ADR 0013](../decisoes/0013-schema-v1-do-perfil-de-produto.md).)
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
@@ -408,7 +408,7 @@ probe:
 
 ## `scan` (opcional)
 
-Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema v1; [scan.md](scan.md), [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)). Tudo dentro de conjuntos fechados: nenhum campo reativa uma regra desligada por padrão, amplia métodos além do escopo ou remove um limite (os limites de carga continuam em `limits`, com tetos absolutos).
+Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema v1; [scan.md](scan.md), [ADR 0022](../decisoes/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)). Tudo dentro de conjuntos fechados: nenhum campo reativa uma regra desligada por padrão, amplia métodos além do escopo ou remove um limite (os limites de carga continuam em `limits`, com tetos absolutos).
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
@@ -421,9 +421,9 @@ Política da varredura ativa do ZAP e gate de severidade (M4, aditivo na schema 
 | `max_rule_minutes` | inteiro, 1 a 10 | 2 | Teto de cada regra dentro de uma varredura |
 | `token_refresh_seconds` | inteiro, 10 a 3600 | 120 | Idade máxima do token no ZAP antes de renovar (nunca menos que `60 / auth.login_limit.max_per_minute`) |
 | `fail_on` | `none`, `low`, `medium` ou `high` | `none` | Severidade proposta a partir da qual `report` sai com código 1. `report --fail-on` sobrepõe |
-| `include_outcomes` | lista de até 5 classes: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error` | vazia | Classes do `probe` além de `success` cujas operações o `scan` também ataca ([ADR 0050](../adr/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada, sem curinga e sem repetição; `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`, `timeout` e `skipped_*` nunca entram. Não amplia o escopo (o `ScopeGuard` e o proxy continuam decidindo), `DELETE`, login, `deny_paths` e `PUT`/`PATCH` sem recurso criado seguem fora; mas ataca a partir de um pedido que o alvo recusou ou não achou, e nos `POST`, `PUT` e `PATCH` cria e altera mais dados sintéticos. Vem da carta (`attack.include_outcomes`, `source: carta` ou `pessoa`, aviso `OUTCOMES_ATTACK_EXTENDED`). Fora do padrão entra na impressão digital da aprovação: ligar exige aprovar de novo; vazia mantém as aprovações existentes. `hdast scan --include-outcome` só escolhe dentro dela |
-| `allow_upload_scan` | booleano | `false` | A carta autoriza o ZAP a varrer operações de envio de arquivo (`multipart/form-data`, [ADR 0052](../adr/0052-multipart-no-probe-e-no-scan.md)). O ZAP grava conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do alvo, e esta ferramenta não o controla; por isso só a carta liga. Sem ele, a operação é alcançada pelo `probe` mas o `scan` a pula com o motivo `upload_scan_not_authorized` (no relatório ela aparece como alcançada e não varrida). Só vem da carta (`attack.allow_upload_scan`, `source: carta` e a frase em `quote`; aviso `UPLOAD_SCAN_AUTHORIZED`); texto, número e `null` no perfil são recusados. No padrão (`false`) fica fora da impressão digital da aprovação e as aprovações existentes continuam valendo; `true` muda o bloco `scan` e exige aprovar de novo |
-| `inject_headers` | booleano | `false` | A carta autoriza injetar também em cabeçalhos e cookies ([ADR 0096](../adr/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Só a carta o liga; a capacidade que o consome chega depois. Ligá-lo muda a impressão digital |
+| `include_outcomes` | lista de até 5 classes: `logical_failure`, `validation_error`, `conflict`, `not_found`, `client_error` | vazia | Classes do `probe` além de `success` cujas operações o `scan` também ataca ([ADR 0050](../decisoes/0050-varrer-operacoes-que-deram-nao-encontrado.md)). Lista fechada, sem curinga e sem repetição; `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`, `timeout` e `skipped_*` nunca entram. Não amplia o escopo (o `ScopeGuard` e o proxy continuam decidindo), `DELETE`, login, `deny_paths` e `PUT`/`PATCH` sem recurso criado seguem fora; mas ataca a partir de um pedido que o alvo recusou ou não achou, e nos `POST`, `PUT` e `PATCH` cria e altera mais dados sintéticos. Vem da carta (`attack.include_outcomes`, `source: carta` ou `pessoa`, aviso `OUTCOMES_ATTACK_EXTENDED`). Fora do padrão entra na impressão digital da aprovação: ligar exige aprovar de novo; vazia mantém as aprovações existentes. `hdast scan --include-outcome` só escolhe dentro dela |
+| `allow_upload_scan` | booleano | `false` | A carta autoriza o ZAP a varrer operações de envio de arquivo (`multipart/form-data`, [ADR 0052](../decisoes/0052-multipart-no-probe-e-no-scan.md)). O ZAP grava conteúdo de ataque (nome e conteúdo de arquivo, campos de texto) no armazenamento do alvo, e esta ferramenta não o controla; por isso só a carta liga. Sem ele, a operação é alcançada pelo `probe` mas o `scan` a pula com o motivo `upload_scan_not_authorized` (no relatório ela aparece como alcançada e não varrida). Só vem da carta (`attack.allow_upload_scan`, `source: carta` e a frase em `quote`; aviso `UPLOAD_SCAN_AUTHORIZED`); texto, número e `null` no perfil são recusados. No padrão (`false`) fica fora da impressão digital da aprovação e as aprovações existentes continuam valendo; `true` muda o bloco `scan` e exige aprovar de novo |
+| `inject_headers` | booleano | `false` | A carta autoriza injetar também em cabeçalhos e cookies ([ADR 0096](../decisoes/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Só a carta o liga; a capacidade que o consome chega depois. Ligá-lo muda a impressão digital |
 | `oast` | booleano | `false` | A carta autoriza o retorno fora de banda, no servidor de retorno do laboratório (ADR 0096). Mesma regra de `inject_headers` |
 
 ```yaml
@@ -435,11 +435,11 @@ scan:
 
 ### `scan.pacing` (V1.7)
 
-`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). A carta o declara em `attack.pacing` (ADR 0096). Ritmo da varredura: [ADR 0067](../adr/0067-ritmo-unico-e-medicao-do-executor.md), [0075](../adr/0075-ritmo-proxy-em-perfis-novos.md). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
+`scan.pacing` aceita `legacy` (padrão, variante A) ou `proxy` (variante B). A carta o declara em `attack.pacing` (ADR 0096). Ritmo da varredura: [ADR 0067](../decisoes/0067-ritmo-unico-e-medicao-do-executor.md), [0075](../decisoes/0075-ritmo-proxy-em-perfis-novos.md). Em `legacy`, o ZAP recebe atraso por host de `ceil(1000 / limits.requests_per_second)` milissegundos; em `proxy`, recebe zero e a cerca continua limitando a taxa de saída. A opção não altera força, regras, limites, escopo ou janela. A mudança para `proxy` é opcional e entra na impressão digital da aprovação: exige nova aprovação humana. O padrão preserva as aprovações anteriores. O atraso configurado não mede o atraso efetivo do ZAP. A prova de velocidade e cobertura segue o [guia de desempenho](scan-performance.md); não há ganho presumido.
 
 ## `authz` (opcional)
 
-Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`, que vem ligado por padrão; [authz.md](authz.md), [ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
+Comportamento do teste de autorização entre contas (`hdast authz` e o estágio `authz` do `run`, que vem ligado por padrão; [authz.md](authz.md), [ADR 0027](../decisoes/0027-teste-de-autorizacao-entre-contas.md)). Aditivo na schema v1. Tudo aqui só ajusta ou reduz o que o estágio repete: nada amplia escopo, métodos do escopo, limites ou janela. Sem o bloco valem os padrões.
 
 | Campo | Tipo | Padrão | Regra |
 | --- | --- | --- | --- |
@@ -448,15 +448,15 @@ Comportamento do teste de autorização entre contas (`hdast authz` e o estágio
 | `volatile_fields` | lista de nomes de campo (até 50) | vazia | Campos ignorados ao comparar respostas, além de `timestamp`, `requestId`, `traceId`, `correlationId`, `date`, `now`, `elapsed`, `etag`, `nonce` (a comparação ignora maiúsculas e separadores) |
 | `vertical_methods` | lista de `GET`, `HEAD`, `POST`, `PUT`, `PATCH` | `[GET, HEAD]` | Métodos que o acesso vertical repete. `DELETE` é recusado. Os de escrita (`POST`, `PUT`, `PATCH`) só entram no plano com `allow_writes: true`; sem ele são retirados e o resultado traz a nota (`writes_not_authorized`) |
 | `mass_assignment_fields` | lista de `{name, value}` (até 10) | `role`=`admin`, `papel`=`admin`, `admin`=`true`, `isAdmin`=`true` | Campos extras (um por pedido) da atribuição em massa; sempre entram, antes dos derivados do OpenAPI. `value` é texto, inteiro ou booleano |
-| `derive_mass_candidates` | booleano | `true` | Junta aos campos declarados os que o OpenAPI sugere (somente leitura na entrada, só na resposta, ou nome de privilégio na entrada; [ADR 0040](../adr/0040-candidatos-de-campo-proibido-do-openapi.md)). `false` volta a testar só os declarados. Dono do recurso (`ownerId`, `tenantId`) nunca é derivado. Só vale com `allow_writes`. Fora do padrão, entra na impressão digital da aprovação |
+| `derive_mass_candidates` | booleano | `true` | Junta aos campos declarados os que o OpenAPI sugere (somente leitura na entrada, só na resposta, ou nome de privilégio na entrada; [ADR 0040](../decisoes/0040-candidatos-de-campo-proibido-do-openapi.md)). `false` volta a testar só os declarados. Dono do recurso (`ownerId`, `tenantId`) nunca é derivado. Só vale com `allow_writes`. Fora do padrão, entra na impressão digital da aprovação |
 | `max_derived_candidates` | inteiro de 1 a 20 | `6` | Máximo de campos derivados por operação (no `POST`, no máximo 4 derivados). O excesso vai para `not_tested` (`candidates_limited`). 0, 21, texto e decimal são recusados |
 | `mass_assignment_methods` | lista de `PATCH`, `POST`, `PUT` | `[PATCH, POST, PUT]` | Métodos testados na atribuição em massa. Tirar `POST` desliga o teste de cadastro, que **deixa um recurso criado por campo testado** no ambiente de teste (limpe com `hdast cleanup` ou o reset). Lista vazia, `DELETE` ou outro método é recusado (`CONFIG_ERROR`) |
-| `id_parameters` | lista de nomes (até 20; letras, dígitos e `_`, começando por letra; sem repetição) | vazia | Nomes de parâmetro de **consulta** que o dono do produto declara como identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; [ADR 0042](../adr/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)). Só acrescenta candidatos de leitura ao BOLA (`horizontal`) e à escrita em outra conta; o parâmetro precisa estar declarado no OpenAPI e o `ScopeGuard` segue decidindo. Nome inválido, repetido, mais de 20 ou tipo errado é `CONFIG_ERROR`. Fora do padrão (vazio), entra na impressão digital da aprovação e aparece no resumo do `profile approve` |
-| `access_matrix` | lista de regras `{operation, allow, deny}` (até 500; uma por operação) | vazia | Tabela "quem pode o quê" ([ADR 0041](../adr/0041-tabela-quem-pode-o-que.md)): por operação (`operationId` do OpenAPI), os papéis que **podem** (`allow`) e os que **NÃO podem** (`deny`, cada um é testado). Cada lista tem até 20 papéis, sem repetição e sem espaço; o mesmo papel não pode estar nas duas; `deny` vazio só documenta (a linha sai sem teste). **Declaração do dono do produto**: a ferramenta nunca a completa; papel de `auth.accounts` que não aparece na linha fica `unspecified` e **não é testado** (nunca é presumido proibido). Campo extra, tipo errado, regra repetida, mais de 500 regras, ou lista com mais de 20 papéis é `CONFIG_ERROR` (saída 2). Operação que não existe no OpenAPI, papel sem conta em `auth.accounts` ou operação também em `public_operations` é `AUTHZ_CONFIG_INVALID` (saída 2), conferido quando o `authz` roda (e no `--dry-run`). Método `GET` e `HEAD` por padrão; `POST`, `PUT`, `PATCH` só com `allow_writes: true`; `DELETE` nunca. Fora do padrão, **entra na impressão digital**: preencher ou mudar a tabela exige nova aprovação (`hdast profile approve`), que lista a tabela inteira; a ordem das regras e dos papéis não conta. Só vive no `target.yml` (a carta não tem campo para isso). O `hdast authz --draft-matrix` ajuda a rascunhar, fora do perfil |
-| `shared_roles` | lista de papéis | vazia | Papéis cujas contas compartilham legitimamente recursos, declarados pelo dono na carta (`attack.authz_shared_roles`, lista com `source: carta` e `quote`); gerado pela CLI, nunca inferido. `horizontal` e `horizontal_write` não comparam contas do mesmo papel listado e registram `shared_role` em `not_tested`; outras verificações não mudam. Preenchido entra no resumo e na impressão digital da aprovação; vazio preserva a impressão anterior. [ADR 0057](../adr/0057-papeis-compartilhados.md) |
+| `id_parameters` | lista de nomes (até 20; letras, dígitos e `_`, começando por letra; sem repetição) | vazia | Nomes de parâmetro de **consulta** que o dono do produto declara como identificador de objeto mesmo sem terminar em `id` (`cpf`, `matricula`; [ADR 0042](../decisoes/0042-escrita-em-recurso-de-outra-conta-e-id-fora-do-caminho.md)). Só acrescenta candidatos de leitura ao BOLA (`horizontal`) e à escrita em outra conta; o parâmetro precisa estar declarado no OpenAPI e o `ScopeGuard` segue decidindo. Nome inválido, repetido, mais de 20 ou tipo errado é `CONFIG_ERROR`. Fora do padrão (vazio), entra na impressão digital da aprovação e aparece no resumo do `profile approve` |
+| `access_matrix` | lista de regras `{operation, allow, deny}` (até 500; uma por operação) | vazia | Tabela "quem pode o quê" ([ADR 0041](../decisoes/0041-tabela-quem-pode-o-que.md)): por operação (`operationId` do OpenAPI), os papéis que **podem** (`allow`) e os que **NÃO podem** (`deny`, cada um é testado). Cada lista tem até 20 papéis, sem repetição e sem espaço; o mesmo papel não pode estar nas duas; `deny` vazio só documenta (a linha sai sem teste). **Declaração do dono do produto**: a ferramenta nunca a completa; papel de `auth.accounts` que não aparece na linha fica `unspecified` e **não é testado** (nunca é presumido proibido). Campo extra, tipo errado, regra repetida, mais de 500 regras, ou lista com mais de 20 papéis é `CONFIG_ERROR` (saída 2). Operação que não existe no OpenAPI, papel sem conta em `auth.accounts` ou operação também em `public_operations` é `AUTHZ_CONFIG_INVALID` (saída 2), conferido quando o `authz` roda (e no `--dry-run`). Método `GET` e `HEAD` por padrão; `POST`, `PUT`, `PATCH` só com `allow_writes: true`; `DELETE` nunca. Fora do padrão, **entra na impressão digital**: preencher ou mudar a tabela exige nova aprovação (`hdast profile approve`), que lista a tabela inteira; a ordem das regras e dos papéis não conta. Só vive no `target.yml` (a carta não tem campo para isso). O `hdast authz --draft-matrix` ajuda a rascunhar, fora do perfil |
+| `shared_roles` | lista de papéis | vazia | Papéis cujas contas compartilham legitimamente recursos, declarados pelo dono na carta (`attack.authz_shared_roles`, lista com `source: carta` e `quote`); gerado pela CLI, nunca inferido. `horizontal` e `horizontal_write` não comparam contas do mesmo papel listado e registram `shared_role` em `not_tested`; outras verificações não mudam. Preenchido entra no resumo e na impressão digital da aprovação; vazio preserva a impressão anterior. [ADR 0057](../decisoes/0057-papeis-compartilhados.md) |
 | `cors_max_requests` | inteiro de 0 a 10 | `5` | Teto de GETs provados amostrados pela verificação CORS; `0` desliga a amostra. A verificação usa origem sob `.invalid` e respeita a cerca e os limites. O padrão preserva a impressão digital anterior; valor diferente exige nova aprovação. Veja [cors.md](cors.md) |
 | `disabled_checks` | lista de `horizontal`, `excessive_data`, `anonymous_access`, `tampered_token`, `vertical`, `access_matrix`, `mass_assignment`, `horizontal_write`, `cors` | vazia | Verificações desligadas |
-| `allow_writes` | booleano | `false` | A carta de autorização permite que o teste entre contas **escreva** no alvo ([ADR 0038](../adr/0038-authz-padrao-no-run-e-escrita-pela-carta.md)). Com `false`, a atribuição em massa e a escrita em recurso de outra conta (`horizontal_write`, `PUT`/`PATCH`) vão para `not_tested` ("escrita não autorizada pela carta: authz.allow_writes") e os métodos de escrita de `vertical_methods` ficam fora do plano; `--check mass_assignment` não o liga. Só `hdast init --from-letter` o escreve (`attack.allow_authz_writes` com `source: carta` e `quote`); texto como `"sim"` é recusado. Entra na impressão digital da aprovação: mudar exige aprovar de novo |
+| `allow_writes` | booleano | `false` | A carta de autorização permite que o teste entre contas **escreva** no alvo ([ADR 0038](../decisoes/0038-authz-padrao-no-run-e-escrita-pela-carta.md)). Com `false`, a atribuição em massa e a escrita em recurso de outra conta (`horizontal_write`, `PUT`/`PATCH`) vão para `not_tested` ("escrita não autorizada pela carta: authz.allow_writes") e os métodos de escrita de `vertical_methods` ficam fora do plano; `--check mass_assignment` não o liga. Só `hdast init --from-letter` o escreve (`attack.allow_authz_writes` com `source: carta` e `quote`); texto como `"sim"` é recusado. Entra na impressão digital da aprovação: mudar exige aprovar de novo |
 
 ```yaml
 authz:
@@ -473,7 +473,7 @@ Para a verificação horizontal o perfil precisa de pelo menos DUAS contas do me
 
 ## `negative` (opcional)
 
-Teste de valores que o esquema proíbe ([ADR 0051](../adr/0051-valores-que-o-esquema-proibe.md); [negative.md](negative.md)). Sem o bloco, valem os padrões conservadores: só leitura. Nada aqui amplia escopo, métodos do escopo, janela nem limites (o `ScopeGuard` continua decidindo). Mas `allow_writes` escreve no alvo, os dois tetos são carga e `disabled_classes` esconde achado: por isso o bloco entra na impressão digital da aprovação humana **quando difere do padrão** (um perfil que não o usa mantém a aprovação que já tem).
+Teste de valores que o esquema proíbe ([ADR 0051](../decisoes/0051-valores-que-o-esquema-proibe.md); [negative.md](negative.md)). Sem o bloco, valem os padrões conservadores: só leitura. Nada aqui amplia escopo, métodos do escopo, janela nem limites (o `ScopeGuard` continua decidindo). Mas `allow_writes` escreve no alvo, os dois tetos são carga e `disabled_classes` esconde achado: por isso o bloco entra na impressão digital da aprovação humana **quando difere do padrão** (um perfil que não o usa mantém a aprovação que já tem).
 
 | Campo | Tipo | Padrão | Descrição |
 | --- | --- | --- | --- |
@@ -492,7 +492,7 @@ negative:
 
 ## `extra_checks` (opcional)
 
-Capacidades extras da V1.12, todas desligadas ([ADR 0096](../adr/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Nada aqui amplia escopo, janela ou limites; cada chave muda o tráfego ou o relato e só a carta a liga (`attack.*`, pelo `init --from-letter`). O bloco entra na impressão digital da aprovação **quando difere do padrão**. Chave desconhecida ou valor que não é booleano é recusado. As capacidades que consomem as chaves chegam em passos posteriores da V1.12.
+Capacidades extras da V1.12, todas desligadas ([ADR 0096](../decisoes/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Nada aqui amplia escopo, janela ou limites; cada chave muda o tráfego ou o relato e só a carta a liga (`attack.*`, pelo `init --from-letter`). O bloco entra na impressão digital da aprovação **quando difere do padrão**. Chave desconhecida ou valor que não é booleano é recusado. As capacidades que consomem as chaves chegam em passos posteriores da V1.12.
 
 | Campo | Tipo | Padrão | Descrição |
 | --- | --- | --- | --- |
@@ -521,7 +521,7 @@ Duas formas são aceitas, com `NOME` em maiúsculas, dígitos e `_`, começando 
 password: { secret_ref: "keyring:AGENDA_USER_A_SENHA" }
 ```
 
-Um valor literal (senha, token) não casa com nenhum formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`), nunca o agente. Valor ausente ou vazio é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../adr/0009-segredos-por-referencia.md) e [ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md).
+Um valor literal (senha, token) não casa com nenhum formato e é recusado sem ser citado na mensagem. Quem resolve o valor é a CLI (adaptador `adapters/secrets`), nunca o agente. Valor ausente ou vazio é erro de `preflight`/`probe` que cita só `apelido.campo`. Veja [ADR 0009](../decisoes/0009-segredos-por-referencia.md) e [ADR 0030](../decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md).
 
 Sobre `keyring:`:
 
@@ -547,7 +547,7 @@ Opcional. O bloco aponta para um SQL escrito e revisado por uma pessoa.
 | `max_rows` | inteiro | De 1 a 1 000 000. Teto de linhas apagadas no total; passar disso desfaz tudo (saída 7). Obrigatório para a limpeza rodar |
 | `db_schema` | texto | Opcional. Identificador do esquema dono das tabelas, quando o usuário da limpeza não é o dono (a CLI faz `ALTER SESSION SET CURRENT_SCHEMA`) |
 
-`user`, `password`, `allowed_tables` e `max_rows` são aditivos na schema v1 e opcionais no perfil (um perfil antigo continua válido), mas `hdast cleanup` se recusa a rodar sem eles. Execução, confirmação e portão de SQL: [operations/cleanup.md](../operations/cleanup.md) e [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md).
+`user`, `password`, `allowed_tables` e `max_rows` são aditivos na schema v1 e opcionais no perfil (um perfil antigo continua válido), mas `hdast cleanup` se recusa a rodar sem eles. Execução, confirmação e portão de SQL: [../como-funciona/operacao/cleanup.md](../como-funciona/operacao/cleanup.md) e [ADR 0020](../decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md).
 
 ## O que o `ScopeGuard` recusa
 
@@ -566,7 +566,7 @@ A consulta (`?a=b`) e o fragmento (`#x`) são descartados da decisão de escopo 
 
 ### Limitações conhecidas
 
-- **Sem resolução de DNS.** O guarda não detecta um nome permitido que aponte, ou passe a apontar, para um endereço interno (DNS rebinding). Quem cobre isso é a camada 3, o proxy de saída ([ADR 0008](../adr/0008-escopo-em-tres-camadas.md)).
+- **Sem resolução de DNS.** O guarda não detecta um nome permitido que aponte, ou passe a apontar, para um endereço interno (DNS rebinding). Quem cobre isso é a camada 3, o proxy de saída ([ADR 0008](../decisoes/0008-escopo-em-tres-camadas.md)).
 - **`%` literal em caminho.** Um caminho que contenha de fato o caractere `%` (codificado como `%25`) é recusado, por ser indistinguível de dupla codificação. Pode recusar a mais; nunca a menos.
 - **Cabeçalhos e corpo não são conferidos.** O guarda olha método, URL e redirecionamento. O conteúdo da requisição não passa por ele.
 - **Caminhos de IIS.** `/admin::$DATA` e nomes curtos 8.3 (`/ADMIN~1`) não são fechados, porque exigiriam recusar caminhos legítimos. Contra alvo Windows, negue esses padrões em `deny_paths`. A permissão (`allow`) é sensível a maiúsculas; só a negação ignora caixa.

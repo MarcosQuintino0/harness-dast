@@ -13,7 +13,7 @@ O motivo `mutation_pending` aparece no probe, cobertura, relatório e painel, se
 sucesso implícito. A reserva continua impedindo reenvio antes da liberação humana, inclusive
 nas checagens adicionais e no scan sobre semente histórica. Corrupção ou falha de E/S continua
 interrompendo o estágio. A decisão e a compatibilidade estão no
-[ADR 0104](../adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto.
+[ADR 0104](../../decisoes/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto.
 
 `hdast mutation list` projeta somente identificador e metadados não sensíveis; legado sem
 contexto continua bloqueante. `hdast mutation release <id>` exige pessoa, TTY, confirmação
@@ -116,7 +116,7 @@ da branch fica em `commits.txt` na pasta externa de evidências. ADR 0104 perman
 ## Parte 2: ponte OAST e verificabilidade
 
 Implementação enviada na mesma branch e no PR #37. O
-[ADR 0105](../adr/0105-lab-oast-bridge-and-verifiability.md) permanece proposto;
+[ADR 0105](../../decisoes/0105-lab-oast-bridge-and-verifiability.md) permanece proposto;
 no 0099, somente a linha de status mudou para parcialmente substituído.
 
 `stack up crapi` monta a ponte e conecta o workshop quando o perfil aprovado

@@ -1,6 +1,6 @@
 # Estratégia de testes
 
-Este documento define como o projeto é testado. Regras resumidas para agentes estão em [AGENTS.md](../AGENTS.md). O que já existe e o que é planejado está em [roadmap.md](roadmap.md#tabela-de-status).
+Este documento define como o projeto é testado. Regras resumidas para agentes estão em [AGENTS.md](../../AGENTS.md). O que já existe e o que é planejado está em [roadmap.md](../roadmap.md#tabela-de-status).
 
 ## Níveis
 
@@ -11,8 +11,8 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 | Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release (não roda no pull request) | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seção abaixo |
 | Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** `tests/contract/` tem um arquivo por comando (`test_cli_*.py`: envelope, códigos de saída, `--json`), o modelo de perfil (`test_template_profile.py`), a conformidade dos documentos (`test_docs_conformance_qa.py`), os links dos documentos (`test_docs_links.py`), as skills e os guias (`test_skills_and_guides.py`) e o isolamento do estado (`test_state_isolation.py`). A suíte única que todo adaptador de `Scanner` precisa passar ainda não existe (só há o adaptador do ZAP) |
 | Ponta a ponta | `hdast run` contra o VAmPI e a Clínica Piloto do lab: achado conhecido presente, zero requisição fora do escopo, nenhum segredo nos artefatos, regras removidas, trava de emergência e limpeza no Oracle | Docker, lab | Antes de release | **Existe**, dentro de `tests/integration/test_lab_run.py` e `test_cleanup_oracle.py`; não há marcador `e2e` separado |
-| Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Roteiro escrito ([guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md)); a confirmar se alguma pessoa o executou |
-| Avaliação cega (evals) | Agentes de teste sem contexto seguem o README contra o lab, com nota automática e rastro completo (seção abaixo) | Claude Code, Docker, lab | Ao fim da V1 e a cada mudança de skill, mensagem de erro ou trava | **Existe** como código e testes (M6); seis rodadas feitas em 2026-11-13 (cinco na 1.0 e uma na 1.1), por subagentes dentro de uma cópia cega e não com `claude -p`: [rodadas](reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](reviews/2026-11-13-rodada-cega-v1-1.md) |
+| Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Roteiro escrito ([avaliacao-das-skills.md](avaliacao-das-skills.md)); a confirmar se alguma pessoa o executou |
+| Avaliação cega (evals) | Agentes de teste sem contexto seguem o README contra o lab, com nota automática e rastro completo (seção abaixo) | Claude Code, Docker, lab | Ao fim da V1 e a cada mudança de skill, mensagem de erro ou trava | **Existe** como código e testes (M6); seis rodadas feitas em 2026-11-13 (cinco na 1.0 e uma na 1.1), por subagentes dentro de uma cópia cega e não com `claude -p`: [rodadas](../arquivo/reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](../arquivo/reviews/2026-11-13-rodada-cega-v1-1.md) |
 
 ## Como rodar
 
@@ -28,7 +28,7 @@ HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full   # nível COMPLETO: to
 
 Por padrão, `pytest` exclui os marcadores `integration` e `e2e` (configurado em `pyproject.toml`). Os marcadores `integration`, `contract` e `e2e` existem. Passar `-m` na linha de comando substitui o filtro padrão.
 
-Antes de abrir um pull request, rode os cinco comandos de qualidade listados em [CONTRIBUTING.md](../CONTRIBUTING.md#ambiente-local).
+Antes de abrir um pull request, rode os cinco comandos de qualidade listados em [CONTRIBUTING.md](../../CONTRIBUTING.md#ambiente-local).
 
 ### Dois níveis de integração contra o lab
 
@@ -69,7 +69,7 @@ Pisos propostos (AD-10):
 
 Percentual global alto incentiva teste artificial; por isso os pisos são por camada. O número não é o objetivo: na revisão vale o critério abaixo. Os valores podem ser calibrados no fim do M2.
 
-A verificação automática existe no CI (`.github/scripts/check_coverage_floors.py` e `diff-cover`). Achado A-05 (corrigido): o script ignorava qualquer camada sem instrução medida, o que deixava passar um prefixo errado ou um `coverage.json` quebrado. Agora só uma pasta que tem apenas `__init__.py` (como `application` hoje) é ignorada, com aviso; prefixo inexistente ou pasta com código e nada medido falham. Na revisão de 2026-11-13 a cobertura medida era: `domain` 100%, `config` 100%, `observability` 100%, `cli` 96,3%. Veja o [roadmap](roadmap.md#tabela-de-status) e a [resposta à revisão](reviews/2026-11-13-qa-m1-m2-resposta.md).
+A verificação automática existe no CI (`.github/scripts/check_coverage_floors.py` e `diff-cover`). Achado A-05 (corrigido): o script ignorava qualquer camada sem instrução medida, o que deixava passar um prefixo errado ou um `coverage.json` quebrado. Agora só uma pasta que tem apenas `__init__.py` (como `application` hoje) é ignorada, com aviso; prefixo inexistente ou pasta com código e nada medido falham. Na revisão de 2026-11-13 a cobertura medida era: `domain` 100%, `config` 100%, `observability` 100%, `cli` 96,3%. Veja o [roadmap](../roadmap.md#tabela-de-status) e a [resposta à revisão](../arquivo/reviews/2026-11-13-qa-m1-m2-resposta.md).
 
 ## Uma implementação está suficientemente testada quando
 
@@ -109,11 +109,11 @@ Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e exi
 
 ## Avaliação das skills
 
-Roteiro manual, antes de release e ao mudar uma skill: partindo de um Swagger do lab, o agente chega a um perfil válido e à alcançabilidade esperada. Escrito em [guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md) (M6). A avaliação cega, abaixo, complementa o roteiro com repetição e nota automática.
+Roteiro manual, antes de release e ao mudar uma skill: partindo de um Swagger do lab, o agente chega a um perfil válido e à alcançabilidade esperada. Escrito em [avaliacao-das-skills.md](avaliacao-das-skills.md) (M6). A avaliação cega, abaixo, complementa o roteiro com repetição e nota automática.
 
 ## Avaliação cega (evals)
 
-> **Implementado como código e testes (M6); seis rodadas contra o lab foram feitas em 2026-11-13** (resultados em [reviews/2026-11-13-rodadas-cegas.md](reviews/2026-11-13-rodadas-cegas.md) e [reviews/2026-11-13-rodada-cega-v1-1.md](reviews/2026-11-13-rodada-cega-v1-1.md)); faltam a forma fiel (`claude -p` com as permissões da cópia) e repetições por caso. O executor, os casos, a regra de nota e o passo a passo estão em [../evals/README.md](../evals/README.md); o executor é testado em `tests/unit/evals/` com artefatos de exemplo, sem Docker. Decisão e alternativas: [ADR 0014](adr/0014-avaliacao-cega-como-eval.md).
+> **Implementado como código e testes (M6); seis rodadas contra o lab foram feitas em 2026-11-13** (resultados em [../arquivo/reviews/2026-11-13-rodadas-cegas.md](../arquivo/reviews/2026-11-13-rodadas-cegas.md) e [../arquivo/reviews/2026-11-13-rodada-cega-v1-1.md](../arquivo/reviews/2026-11-13-rodada-cega-v1-1.md)); faltam a forma fiel (`claude -p` com as permissões da cópia) e repetições por caso. O executor, os casos, a regra de nota e o passo a passo estão em [../evals/README.md](../../evals/README.md); o executor é testado em `tests/unit/evals/` com artefatos de exemplo, sem Docker. Decisão e alternativas: [ADR 0014](../decisoes/0014-avaliacao-cega-como-eval.md).
 
 Uma **eval** é um teste automático de um sistema de IA: um caso com entrada e resposta esperada, rodado várias vezes, com nota calculada por regra. Ao fim da V1, a ferramenta é avaliada por agentes de teste **cegos**.
 
@@ -127,7 +127,7 @@ Uma **eval** é um teste automático de um sistema de IA: um caso com entrada e 
 | API pequena própria, com falhas plantadas (a Clínica Piloto, em `lab/`) | Mede o que o modelo não memorizou. O gabarito é nosso |
 | OWASP crAPI (`lab/crapi/`, só vulnerável) | Alvo maior, com `multipart`; nenhum desafio do gabarito é detectável pelo ZAP, então os achados ficam fora da nota |
 
-Cada caso roda várias vezes, porque o resultado varia entre execuções. O número de repetições e o orçamento por rodada ainda não foram definidos (item aberto no [roadmap](roadmap.md#itens-em-aberto)); até agora cada caso e modo rodou uma ou duas vezes (a segunda do VAmPI foi depois de uma correção).
+Cada caso roda várias vezes, porque o resultado varia entre execuções. O número de repetições e o orçamento por rodada ainda não foram definidos (item aberto no [roadmap](../roadmap.md#itens-em-aberto)); até agora cada caso e modo rodou uma ou duas vezes (a segunda do VAmPI foi depois de uma correção).
 
 **Nota automática por execução.**
 
@@ -167,7 +167,7 @@ Em 2026-11-13 a revisão de QA aplicou 40 mutantes à mão (uma alteração pequ
 - `MAX_ZAP_THREADS_PER_HOST` de 8 para 80;
 - `Settings` deixando de ser `frozen`.
 
-Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram passar sete mutantes que a suíte existente matou; em cinco deles a defesa é redundante com outra camada de validação. A análise foi pontual e não é um gate do CI. Detalhes na seção 6 do [relatório](reviews/2026-11-13-qa-m1-m2.md).
+Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram passar sete mutantes que a suíte existente matou; em cinco deles a defesa é redundante com outra camada de validação. A análise foi pontual e não é um gate do CI. Detalhes na seção 6 do [relatório](../arquivo/reviews/2026-11-13-qa-m1-m2.md).
 
 ## O que existe hoje
 
@@ -180,4 +180,4 @@ Os testes `*_qa.py` matam esses quatro. Os testes de QA, por sua vez, deixaram p
 - Desde o M6: `tests/unit/evals/` (executor da avaliação cega, com artefatos de exemplo) e `tests/contract/test_skills_and_guides.py` (comandos e flags citados em skills, subagentes e guias existem na CLI real; permissões e forma das skills).
 - Mutação à mão no M3 (cada mutante quebrou ao menos um teste): `approve` sem `ensure_allowed`; `deny_paths` sem pular; janela sem rechecagem; prazo sem checagem; trecho de resposta sem redação; token não registrado no redator; cabeçalho CSRF em todos os métodos; `DELETE` sem pular; novo login sem teto; redirecionamento seguido; decisão de auditoria gravada depois do envio.
 
-A suíte `*_qa.py` nasceu com 29 testes que demonstravam defeitos; eles guiaram a [rodada de correção](reviews/2026-11-13-qa-m1-m2-resposta.md).
+A suíte `*_qa.py` nasceu com 29 testes que demonstravam defeitos; eles guiaram a [rodada de correção](../arquivo/reviews/2026-11-13-qa-m1-m2-resposta.md).

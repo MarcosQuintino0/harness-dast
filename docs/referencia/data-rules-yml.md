@@ -1,6 +1,6 @@
 # Regras de dados: `data-rules.yml` (schema v1)
 
-Esta página descreve o schema v1 **como implementado** em `src/harness_dast/domain/datagen.py` (modelo e precedência), `datagen_catalog.py` (catálogo e argumentos) e `request_builder.py` (montagem da requisição). Os geradores estão em `src/harness_dast/adapters/datagen/`. Decisões: [ADR 0006](../adr/0006-regras-de-dados-declarativas.md) e [ADR 0016](../adr/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md).
+Esta página descreve o schema v1 **como implementado** em `src/harness_dast/domain/datagen.py` (modelo e precedência), `datagen_catalog.py` (catálogo e argumentos) e `request_builder.py` (montagem da requisição). Os geradores estão em `src/harness_dast/adapters/datagen/`. Decisões: [ADR 0006](../decisoes/0006-regras-de-dados-declarativas.md) e [ADR 0016](../decisoes/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md).
 
 > **O que existe e o que não existe.** Existem o modelo validado (`DataRules.from_data(dados)`), o catálogo de geradores, o leitor de OpenAPI e a montagem da requisição. `hdast probe` e `hdast scan` leem este arquivo: a fiação (casos de uso e CLI) vem depois. Hoje a validação é exercida pelos testes; um deles valida o `products/_template/data-rules.yml`.
 
@@ -32,7 +32,7 @@ Todo bloco rejeita **campo desconhecido**. Erros saem em `CONFIG_ERROR` (código
 | --- | --- | --- |
 | `field` | texto, obrigatório | Nome do campo (`cpf`) ou caminho com pontos (`endereco.cpf`, até 10 segmentos). Compara com o **final** do caminho do campo na requisição, sem índices de lista: `cpf` casa `cpf`, `socio.cpf` e `itens[].cpf`. Diferencia maiúsculas |
 | `operation` | texto, opcional | `operationId` do OpenAPI. Limita a regra a uma operação |
-| `location` | opcional | `path`, `query`, `header`, `cookie` ou `body`. Parâmetros usam o nome do parâmetro como `field`. Parâmetro `header` de roteamento (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Upgrade`, `TE`, `Expect`, `Proxy-*`, `X-Forwarded-*`...) nunca é enviado, com ou sem regra: aparece como pulado, com o motivo ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
+| `location` | opcional | `path`, `query`, `header`, `cookie` ou `body`. Parâmetros usam o nome do parâmetro como `field`. Parâmetro `header` de roteamento (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Upgrade`, `TE`, `Expect`, `Proxy-*`, `X-Forwarded-*`...) nunca é enviado, com ou sem regra: aparece como pulado, com o motivo ([ADR 0025](../decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 
 ### Precedência
 

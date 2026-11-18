@@ -32,5 +32,5 @@ Vamos:
 
 - `scan.json` ganha o campo `traffic` (aditivo; `findings.json` repete em `coverage.traffic`). Arquivos antigos continuam legíveis (valor padrão `enabled: false`).
 - O relatório diz quantas tentativas fora do escopo o proxy barrou e a que taxa o alvo foi atingido, com dado de quem está no meio do caminho.
-- Uma execução cortada à força (processo morto sem Ctrl+C) deixa regras `hdast-` no ZAP. O próximo `scan` as remove na partida (`remove_stale_rules`); `stack up` recria o ZAP. Documentado em [../reference/scan.md](../reference/scan.md).
+- Uma execução cortada à força (processo morto sem Ctrl+C) deixa regras `hdast-` no ZAP. O próximo `scan` as remove na partida (`remove_stale_rules`); `stack up` recria o ZAP. Documentado em [../reference/scan.md](../referencia/scan.md).
 - Fica registrado que a atribuição por `sourceMessageId` de uma injeção em caminho cai na operação VARRIDA, não na rota que respondeu (por exemplo, `GET /users/v1` varrido gera `GET /users/v1/'`, que o VAmPI roteia para `/users/v1/{username}`).

@@ -12,11 +12,11 @@ A candidata reúne as quatro entregas do recorte defensivo, mais a portabilidade
 
 | Item do plano | Estado nesta entrega | Decisão |
 | --- | --- | --- |
-| Sinais de erro interno | Entregue como análise passiva das evidências redigidas já disponíveis | [ADR 0045](../adr/0045-sinais-passivos-de-erro-interno.md) |
-| Operações que responderam 404 | Entregue a explicação da lacuna de cobertura. Inclusão automática dessas operações na varredura fica fora da entrega | [ADR 0046](../adr/0046-cobertura-de-operacoes-com-404.md) |
-| Valores que o esquema proíbe | Entregue diagnóstico dos exemplos locais do OpenAPI. Envio automatizado de valores inválidos fica fora da entrega | [ADR 0047](../adr/0047-validacao-offline-de-exemplos-openapi.md) |
-| Multipart | Entregues identificação de operações e ensaio de codificação e leitura de um arquivo sintético em memória. Aplicação ao probe e ao scan fica fora da entrega | [ADR 0048](../adr/0048-multipart-funcional-offline.md) |
-| Portabilidade do Codex | Entregue o guia e isolamento dos briefings ao preparar a cópia cega | [AGENTS.md](../../AGENTS.md) |
+| Sinais de erro interno | Entregue como análise passiva das evidências redigidas já disponíveis | [ADR 0045](../../decisoes/0045-sinais-passivos-de-erro-interno.md) |
+| Operações que responderam 404 | Entregue a explicação da lacuna de cobertura. Inclusão automática dessas operações na varredura fica fora da entrega | [ADR 0046](../../decisoes/0046-cobertura-de-operacoes-com-404.md) |
+| Valores que o esquema proíbe | Entregue diagnóstico dos exemplos locais do OpenAPI. Envio automatizado de valores inválidos fica fora da entrega | [ADR 0047](../../decisoes/0047-validacao-offline-de-exemplos-openapi.md) |
+| Multipart | Entregues identificação de operações e ensaio de codificação e leitura de um arquivo sintético em memória. Aplicação ao probe e ao scan fica fora da entrega | [ADR 0048](../../decisoes/0048-multipart-funcional-offline.md) |
+| Portabilidade do Codex | Entregue o guia e isolamento dos briefings ao preparar a cópia cega | [AGENTS.md](../../../AGENTS.md) |
 
 Os quatro ADRs estão no estado Proposto.
 
@@ -47,7 +47,7 @@ O teste focado do QA integrado passou nos três casos. Os logs detalhados estão
 
 ## 5. Problemas e decisões
 
-A suíte da base `e0521d5` falhou nos três casos de detecção de vazamento da cópia cega. O briefing de coordenação estava sendo entregue na cópia. A exclusão de `docs/plans/` preservou a entrega do AGENTS.md e reduziu a exposição de material do coordenador. A V1.4 também retirou a referência literal do seu briefing, no commit `f30a077`.
+A suíte da base `e0521d5` falhou nos três casos de detecção de vazamento da cópia cega. O briefing de coordenação estava sendo entregue na cópia. A exclusão de `docs/arquivo/plans/` preservou a entrega do AGENTS.md e reduziu a exposição de material do coordenador. A V1.4 também retirou a referência literal do seu briefing, no commit `f30a077`.
 
 O QA independente reproduziu dois defeitos na árvore integrada. A suíte com as duas primeiras regressões teve 7.586 aprovados e duas falhas esperadas antes das correções. Um terceiro teste local, acrescentado após a coleta, também reproduziu o defeito de exemplo nulo.
 

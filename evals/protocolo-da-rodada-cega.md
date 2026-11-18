@@ -45,7 +45,7 @@ Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Cla
 
 **O agente avaliado não precisa ser o Claude.** Pode ser qualquer IA que trabalhe como agente de código: Claude Code, Codex ou outra. O protocolo fixa o caso, o pedido e o que se mede; a ferramenta, o modelo e o esforço são escolhidos por estudo e anotados em cada rodada. As rodadas de 2026-11-15 usaram o Claude Code, e os comandos dele aparecem como **exemplo verificado**. A rodada de 2026-11-14 usou o Codex e serve de exemplo para um agente de outro fornecedor.
 
-O [README da avaliação](README.md) explica cada comando do executor, a nota e os canais de vazamento. Este protocolo diz a ordem, os valores fixos e **o que anotar**. Nada aqui muda a regra de segurança: é só laboratório local, com dados sintéticos, e o agente age sobre o alvo só por comandos `hdast` (veja [finalidade e uso responsável](../docs/finalidade-e-uso-responsavel.md)).
+O [README da avaliação](README.md) explica cada comando do executor, a nota e os canais de vazamento. Este protocolo diz a ordem, os valores fixos e **o que anotar**. Nada aqui muda a regra de segurança: é só laboratório local, com dados sintéticos, e o agente age sobre o alvo só por comandos `hdast` (veja [finalidade e uso responsável](../docs/como-funciona/finalidade-e-uso-responsavel.md)).
 
 ## 1. O que fica fixo
 
@@ -409,13 +409,14 @@ Uma recusa esperada de autenticação no login conta para alcance, separada dos 
 
 ### V1.5.5 e comparação histórica
 
-Esta versão prepara os casos e a régua, sem executar rodadas cegas. Quando o dono pedir, planeje rodadas em pelo menos duas APIs e registre versão, caso lacrado, modo, sementes, intervenções e medidas. Preserve `vampi-estrito` para a referência histórica e compare resultados com o mesmo caso e régua; mudança de gabarito ou autorização impede comparação direta de notas sem ressalva. A prova de detecção no VAmPI e a situação do crAPI constam no [relatório da versão](../docs/reviews/relatorio-v1.5.5.md).
+Esta versão prepara os casos e a régua, sem executar rodadas cegas. Quando o dono pedir, planeje rodadas em pelo menos duas APIs e registre versão, caso lacrado, modo, sementes, intervenções e medidas. Preserve `vampi-estrito` para a referência histórica e compare resultados com o mesmo caso e régua; mudança de gabarito ou autorização impede comparação direta de notas sem ressalva. A prova de detecção no VAmPI e a situação do crAPI constam no [relatório da versão](../docs/arquivo/reviews/relatorio-v1.5.5.md).
 
 
 ## Fronteira de contexto desde a organização V1.9.4
 
-O [ADR 0083](../docs/adr/0083-copia-cega-por-lista-de-permissao.md) troca exclusão por lista de permissão de raízes.
-`tests/`, CHANGELOG, roadmap, pesquisa e skills `dev-*` ficam fora, além das exclusões finas anteriores.
+O [ADR 0083](../docs/decisoes/0083-copia-cega-por-lista-de-permissao.md) troca exclusão por lista de permissão de raízes.
+`tests/`, `CHANGELOG.md`, `docs/roadmap.md`, todo `docs/arquivo/` e skills `dev-*` ficam fora, além das exclusões finas anteriores.
+Os casos em pastas declaram suas exclusões de ADRs em `docs/decisoes/`.
 As cinco skills de uso e as regras compartilhadas permanecem. Confira `sealed/workspace-manifest.json`:
 política, raízes e contagem da cópia do repositório, antes de inputs e arquivos gerados.
 Rodadas novas veem menos arquivos que as antigas; isso afeta a comparação histórica. Informe commit e política/manifesto

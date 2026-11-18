@@ -1,6 +1,6 @@
 # QA independente da retomada V1.8
 
-Data: 2026-11-16. Revisão offline sobre a integração `3d223e0`, após o rebase da V1.8 sobre a V1.7. Esta revisão não substitui a revisão humana exigida por [CONTRIBUTING](../../CONTRIBUTING.md).
+Data: 2026-11-16. Revisão offline sobre a integração `3d223e0`, após o rebase da V1.8 sobre a V1.7. Esta revisão não substitui a revisão humana exigida por [CONTRIBUTING](../../../CONTRIBUTING.md).
 
 **Decisão: bloqueado para aceite integral, condicionado às provas de laboratório e aos gates finais.** Os testes independentes abaixo sustentam a concessão no motor e na fila com arquivos temporários; não demonstram o comportamento da imagem e dos volumes no Docker, nem os critérios de qualidade e previsão B. Não há defeito de segurança reproduzido que permaneça aberto nesta revisão offline. A decisão não antecipa o resultado das provas em andamento pela coordenação.
 

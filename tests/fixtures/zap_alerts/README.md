@@ -1,6 +1,6 @@
 # Fixtures de alertas do ZAP
 
-**Estes arquivos foram RECONSTRUÍDOS a partir do spike do M0 (`docs/spikes/2026-11-13-m0-zap.md`),
+**Estes arquivos foram RECONSTRUÍDOS a partir do spike do M0 (`docs/arquivo/spikes/2026-11-13-m0-zap.md`),
 não capturados de um ZAP real.** As formas dos campos (`pluginId`, `alertRef`, `cweid`, `risk`,
 `confidence`, `inputVector`, `messageId`, `sourceMessageId`...) e os identificadores de regra
 (`40018` SQL Injection, `40012` XSS refletido, `10021`, `10036`, `10104`) são os do spike. Os

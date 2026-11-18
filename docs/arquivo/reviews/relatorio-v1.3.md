@@ -1,6 +1,6 @@
 # Relatório da versão 1.3.0
 
-Data: 2026-11-14. Branch: `feat/v1-3`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md).
+Data: 2026-11-14. Branch: `feat/v1-3`. Plano: [docs/arquivo/plans/2026-11-14-ciclo-v1-3-a-v1-8.md](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md).
 
 ## 1. Resumo
 
@@ -27,13 +27,13 @@ Data: 2026-11-14. Branch: `feat/v1-3`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-
 
 - **Como era:** nada impedia dois comandos ao mesmo tempo. Cada `probe` abre uma sessão limpa no ZAP e a regra que injeta o token é global; um segundo comando atrapalhava o primeiro sem aviso.
 - **Como é agora:** `probe`, `scan`, `authz` (fora do `--dry-run`), `run`, `stack up` e `stack down` tomam a trava `stack.lock` na partida e a soltam sempre. Pilha ocupada: erro `STACK_BUSY`, **código de saída 8** (novo), com a mensagem dizendo quem ocupa. Trava de processo morto é retomada com aviso. `stop` e `stack status` nunca são bloqueados; `stack status` mostra `data.lock`.
-- **Arquivos e componentes:** `domain/stack_lock.py` (decisão pura: ocupada, órfã ou ilegível), `application/stack_lock.py` (o caso de uso que segura a trava), `adapters/storage/stack_lock.py` (o arquivo de trava), `cli/stack_lock_composition.py`, `StackBusy` em `domain/errors.py`. Documentos: ADR 0035, `docs/reference/exit-codes.md`, `docs/reference/cli.md`.
+- **Arquivos e componentes:** `domain/stack_lock.py` (decisão pura: ocupada, órfã ou ilegível), `application/stack_lock.py` (o caso de uso que segura a trava), `adapters/storage/stack_lock.py` (o arquivo de trava), `cli/stack_lock_composition.py`, `StackBusy` em `domain/errors.py`. Documentos: ADR 0035, `docs/referencia/exit-codes.md`, `docs/referencia/cli.md`.
 
 ### 2.2 Carta estruturada
 
 - **Como era:** o agente lia a carta em texto livre e escrevia o `target.yml` à mão; erro de transcrição virava um perfil válido e diferente da carta.
 - **Como é agora:** a pessoa (ou o agente, com ela) preenche o `carta.yml`, onde cada resposta é `{value, source}` e `source` é `carta`, `pessoa` ou `desconhecido`. `hdast init <produto> --from-letter <carta.yml>` gera os blocos `environment`, `openapi`, `scope`, `limits`, `auth` e `scan.strength`; `--check` confere sem criar. Qualquer pendência recusa a carta inteira (`LETTER_REJECTED`, saída 2, com `data.issues`). Carta com validade vencida é recusada (`AUTHORIZATION_EXPIRED`). A carta pronta traz `data.warnings` (permissão em `/**`, `DELETE` autorizado, caminhos proibidos vazios, validade acima de um ano) e `data.example_data`.
-- **Arquivos e componentes:** `domain/letter_review.py` (revisão e `GENERATED_BLOCKS`), o caso de uso `InitFromLetter` (`application/init_from_letter.py`, recebe o `Clock`), o comando `init --from-letter`, o guia `docs/guides/modelo-de-autorizacao.md`. Documentos: ADR 0036 e `docs/reference/cli.md`.
+- **Arquivos e componentes:** `domain/letter_review.py` (revisão e `GENERATED_BLOCKS`), o caso de uso `InitFromLetter` (`application/init_from_letter.py`, recebe o `Clock`), o comando `init --from-letter`, o guia `docs/usar/modelo-de-autorizacao.md`. Documentos: ADR 0036 e `docs/referencia/cli.md`.
 
 ### 2.3 Aprovação humana do escopo
 
@@ -45,7 +45,7 @@ Data: 2026-11-14. Branch: `feat/v1-3`. Plano: [docs/plans/2026-11-14-ciclo-v1-3-
 
 - **Como era:** as perguntas ao dono do produto saíam aos poucos, ao longo do cadastro.
 - **Como é agora:** uma rodada só (portões, endereço, escopo, modo do caminho, janela, limites, contas, força do ataque, dados de exemplo); resumo do que será atacado antes de atacar; consulta de `hdast profile approval` antes de tocar o alvo; `STACK_BUSY` tratado (esperar ou perguntar, nunca contornar). O guia de autorização passou a usar um produto fictício no exemplo.
-- **Arquivos:** as skills em `.claude/skills/` (`onboard-product`, `fix-reachability`, `run-scan`, `test-product`) e os guias em `docs/guides/`.
+- **Arquivos:** as skills em `.claude/skills/` (`onboard-product`, `fix-reachability`, `run-scan`, `test-product`) e os guias em `docs/usar/`.
 
 ### 2.5 Documentos desatualizados e verificadores
 
@@ -130,7 +130,7 @@ Nenhuma nesta versão.
 - **Perfil gerado pela carta:** não foi rodado de ponta a ponta com Docker.
 - **Produto real:** nada foi provado.
 - **ADRs 0026 e 0032 a 0037** continuam "Proposto"; aceitar é decisão do dono.
-- **Itens "a confirmar"** continuam nos documentos (veja a tabela de itens em aberto do [roadmap](../roadmap.md)).
+- **Itens "a confirmar"** continuam nos documentos (veja a tabela de itens em aberto do [roadmap](../../roadmap.md)).
 - **Cobertura** não foi medida.
 
 ## 8. Conclusão

@@ -39,4 +39,4 @@ Composição e `typing.Protocol` no lugar de herança (AD-09):
 - Adicionar um motor de varredura novo é escrever uma classe que satisfaz o protocolo e registrá-la; ninguém herda de `ZapScanner`.
 - Ficam fora do desenho: contêiner de injeção de dependência, Repository genérico, barramento de eventos, CQRS e fábricas abstratas. Entram só se um caso concreto pedir, com ADR.
 - Porta nova exige ADR.
-- Páginas por pacote em [../modules/](../modules/domain.md).
+- Páginas por pacote em [../modules/](../desenvolver/modulos/domain.md).

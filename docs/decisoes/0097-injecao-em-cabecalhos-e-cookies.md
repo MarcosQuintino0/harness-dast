@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
-- **Origem:** F6 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md); [ADR 0092](0092-operacao-de-cabecalho-na-clinica-piloto.md)
+- **Origem:** F6 da V1.12 ([plano](../arquivo/plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md); [ADR 0092](0092-operacao-de-cabecalho-na-clinica-piloto.md)
 
 ## Contexto
 

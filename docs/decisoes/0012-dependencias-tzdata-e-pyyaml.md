@@ -2,7 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** Achado A-11 da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md); [CONTRIBUTING.md](../../CONTRIBUTING.md) ("Como adicionar uma dependência")
+- **Origem:** Achado A-11 da [revisão de QA](../arquivo/reviews/2026-11-13-qa-m1-m2.md); [CONTRIBUTING.md](../../CONTRIBUTING.md) ("Como adicionar uma dependência")
 
 ## Contexto
 

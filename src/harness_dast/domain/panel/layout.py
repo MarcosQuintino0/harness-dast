@@ -4,7 +4,7 @@ A casca é a mesma em toda página: `lang="pt-BR"`, política de conteúdo (CSP)
 qualquer recurso de fora, o caminho `hdast / Produto / data · hora`, o menu de abas com
 `aria-current="page"` e o rodapé. Os componentes (painel, etiqueta, marcador de estado, medidor,
 número em destaque, barra com `role="img"`, bloco de terminal) escrevem o HTML do desenho
-(`docs/design/execution-panel/system/components*.html`).
+(`docs/arquivo/design/execution-panel/system/components*.html`).
 
 Segurança: todo texto que vem do alvo, do OpenAPI, do ZAP, do agente ou de arquivo entra por
 `html_safe` (`h.text`, `h.ident`, `h.block`); texto nosso entra por `h.plain`. Nenhum componente

@@ -2,7 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** [rodadas cegas de 2026-11-13](../reviews/2026-11-13-rodadas-cegas.md) (atritos da rodada 3, de todas as rodadas com `allow_local`, das três com a pasta `cleanup/` e da rodada 1 com o prazo); altera o contrato de [ADR 0013](0013-schema-v1-do-perfil-de-produto.md) (campo novo do perfil), [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (comando novo), [ADR 0017](0017-proxy-de-escopo-com-scopeguard.md) e [ADR 0019](0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md) (prazo da política do proxy). Sem dependência nova.
+- **Origem:** [rodadas cegas de 2026-11-13](../arquivo/reviews/2026-11-13-rodadas-cegas.md) (atritos da rodada 3, de todas as rodadas com `allow_local`, das três com a pasta `cleanup/` e da rodada 1 com o prazo); altera o contrato de [ADR 0013](0013-schema-v1-do-perfil-de-produto.md) (campo novo do perfil), [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (comando novo), [ADR 0017](0017-proxy-de-escopo-com-scopeguard.md) e [ADR 0019](0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md) (prazo da política do proxy). Sem dependência nova.
 
 ## Contexto
 

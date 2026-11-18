@@ -2,11 +2,11 @@
 
 Data: 2026-11-16. Executor: Codex, com coordenador GPT 6.1 Sol (esforço xhigh) e desenvolvedores GPT 6.1 Terra (esforço high). A coordenação geral, a revisão e a junção ficam com o Claude Code, na sessão do dono.
 
-O plano de referência é `docs/plans/2026-11-16-personalization-and-scan-performance.md`, revisão 2. **Leia-o inteiro.** Esta versão executa a **V1.9** dele: seções 1.2, 3, 4, 6.1, 6.2 e 6.3, mais a meta da seção 10.
+O plano de referência é `docs/arquivo/plans/2026-11-16-personalization-and-scan-performance.md`, revisão 2. **Leia-o inteiro.** Esta versão executa a **V1.9** dele: seções 1.2, 3, 4, 6.1, 6.2 e 6.3, mais a meta da seção 10.
 
 A V1.7 (velocidade) e a V1.8 (contratos de personalização) já estão na `develop`. Leia os relatórios delas:
-- `docs/reviews/relatorio-v1.7.md`;
-- `docs/reviews/relatorio-v1.8.md`, `relatorio-v1.8-fechamento.md` e `relatorio-v1.8-rodada3.md`;
+- `docs/arquivo/reviews/relatorio-v1.7.md`;
+- `docs/arquivo/reviews/relatorio-v1.8.md`, `relatorio-v1.8-fechamento.md` e `relatorio-v1.8-rodada3.md`;
 - os ADRs 0066 a 0075.
 
 Nenhuma outra versão roda em paralelo agora. Mesmo assim, use a trava do laboratório.
@@ -15,7 +15,7 @@ Nenhuma outra versão roda em paralelo agora. Mesmo assim, use a trava do labora
 
 | Passo | O que fazer | Aceite |
 | --- | --- | --- |
-| 0. Prova pendente da V1.8 | Execute a investigação dirigida de `docs/plans/2026-11-16-v1-8-prova-pendente-rodada3.md`: a regra 90035 na Clínica e a 40008 no VAmPI, com prova dirigida e sem nova T4. Se a causa ficar demonstrada e não houver perda, promova `scan.pacing: proxy` no `init --from-letter` para perfis **novos**, conforme o ADR 0075. Se não ficar demonstrada, mantenha `legacy` e registre | Parecer com a causa, ou a lacuna mantida |
+| 0. Prova pendente da V1.8 | Execute a investigação dirigida de `docs/arquivo/plans/2026-11-16-v1-8-prova-pendente-rodada3.md`: a regra 90035 na Clínica e a 40008 no VAmPI, com prova dirigida e sem nova T4. Se a causa ficar demonstrada e não houver perda, promova `scan.pacing: proxy` no `init --from-letter` para perfis **novos**, conforme o ADR 0075. Se não ficar demonstrada, mantenha `legacy` e registre | Parecer com a causa, ou a lacuna mantida |
 | 1. Inventário e ADRs | Contratos do conhecimento executável: contas, dados, fluxos, observação de efeito, autenticação e reutilização validada. Inclua também a lista de arquivos exportáveis, a invalidação seletiva e o diário de mutações (intenção e estado anterior gravados antes do envio; resultado desconhecido nunca é repetido às cegas nem tratado como sucesso). ADRs a partir de **0076** | ADRs "Propostos" com contratos, envelopes e códigos de saída |
 | 2. Domínio e casos de uso | Implemente o passo 1 sem reduzir as travas: observação nunca concede permissão, e o que muda permissão, escopo, teto, janela ou política protegida é decisão humana. Nunca persista token, cookie, resposta inteira, credencial, ID de recurso ou gabarito | Testes de unidade e de contrato, inclusive com dado inválido, ausente e malformado |
 | 3. Par automático com 200 | Hoje `application/authz_created_pair.py` exige HTTP 201 e falha em APIs que criam o recurso com 200, como o VAmPI. Aceite também 2xx quando a resposta trouxer um identificador **novo** (que não existia antes da criação) **e** a conta dona conseguir ler o recurso por esse identificador. Sem as duas provas, continua "não testado", com o motivo | Teste de unidade com 201, 200 com identificador novo, 200 sem identificador e 200 com identificador já existente; prova no VAmPI (V3) e na Clínica |
@@ -36,7 +36,7 @@ Nenhuma outra versão roda em paralelo agora. Mesmo assim, use a trava do labora
 
 ## 3. Regras de sempre
 
-- **Leia antes:** `docs/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/escada-de-testes.md`.
+- **Leia antes:** `docs/como-funciona/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/desenvolver/escada-de-testes.md`.
 - **Nada específico de um produto:** nenhuma regra, dica ou skill com nomes de campo, rota, papel ou recurso. A ferramenta vai receber Swagger de outros produtos.
 - **Parte B no laboratório:**
   - só comandos `hdast` e o suporte de testes;
@@ -44,7 +44,7 @@ Nenhuma outra versão roda em paralelo agora. Mesmo assim, use a trava do labora
   - não leia `.env`;
   - nunca rode `hdast profile approve`, nem `secret set` ou `secret delete`.
 - **Gates** depois da última mudança: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run mypy --platform linux`, `uv run lint-imports`, `uv run vulture` e `uv run pytest -q`. O CI do GitHub voltou a funcionar: confira também o resultado no PR.
-- **Versão:** `1.9.0`, com CHANGELOG, `CLAUDE.md` (estado), `docs/roadmap.md` e `docs/adr/README.md`.
+- **Versão:** `1.9.0`, com CHANGELOG, `CLAUDE.md` (estado), `docs/roadmap.md` e `docs/decisoes/README.md`.
 - **Subagentes:**
   - programadores GPT 6.1 Terra **high**, no máximo três ao mesmo tempo, cada um com arquivos que não se cruzam e worktree própria criada a partir de `feat/v1-9-conhecimento`;
   - QA independente e documentação, GPT 6.1 Terra **high**;

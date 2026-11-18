@@ -1,8 +1,8 @@
 # Variáveis de ligação do script de limpeza
 
 Contrato entre o script SQL de limpeza (escrito por uma pessoa do time do produto), o `hdast cleanup` e o `probe`. O código que
-impõe o contrato é `src/harness_dast/domain/cleanup_binds.py`; o analisador do script está em `domain/cleanup_*.py`. Procedimento humano: [guia de limpeza](../guides/limpeza-de-dados.md); política: [operations/cleanup.md](../operations/cleanup.md) e
-[ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md). Modelo do script:
+impõe o contrato é `src/harness_dast/domain/cleanup_binds.py`; o analisador do script está em `domain/cleanup_*.py`. Procedimento humano: [guia de limpeza](../usar/limpeza-de-dados.md); política: [../como-funciona/operacao/cleanup.md](../como-funciona/operacao/cleanup.md) e
+[ADR 0020](../decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md). Modelo do script:
 [`products/_template/cleanup/`](../../products/_template/cleanup/README.md). Exemplo que roda no Oracle da Clínica Piloto:
 [`lab/pilot/cleanup/cleanup.sql`](../../lab/pilot/cleanup/cleanup.sql).
 

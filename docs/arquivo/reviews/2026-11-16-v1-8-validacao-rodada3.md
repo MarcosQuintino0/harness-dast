@@ -8,7 +8,7 @@ Não autorizar a promoção de `proxy` no `init` nem declarar a equivalência gl
 
 ## Desempenho e previsão
 
-A previsão foi congelada antes das novas T4; o conhecimento de B anteriores implica risco declarado de seleção. A clarificação também precedeu as T4. A divergência de hash CRLF/LF foi tratada por equivalência de conteúdo com normalização exclusiva de finais de linha; os arquivos congelados não foram reescritos. Veja [protocolo e medições](../../evals/measurements/v1-8/round3/README.md) e [matriz](../../evals/measurements/v1-8/round3/t4-comparison.json).
+A previsão foi congelada antes das novas T4; o conhecimento de B anteriores implica risco declarado de seleção. A clarificação também precedeu as T4. A divergência de hash CRLF/LF foi tratada por equivalência de conteúdo com normalização exclusiva de finais de linha; os arquivos congelados não foram reescritos. Veja [protocolo e medições](../../../evals/measurements/v1-8/round3/README.md) e [matriz](../../../evals/measurements/v1-8/round3/t4-comparison.json).
 
 | API | A histórica (s) | A nova (s) | B nova (s) | Erro ganho com A nova / histórica |
 | --- | ---: | ---: | ---: | ---: |

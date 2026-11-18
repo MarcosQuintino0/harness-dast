@@ -6,7 +6,7 @@ Data: 2026-11-16. Branch `feat/v1-9-3-authz-dono`. Provada só no laboratório (
 
 O `plan_horizontal` só repete pedidos que o `probe` já fez com sucesso, com a conta que o perfil escolheu. O perfil é otimizado para alcançar a API, e a conta que mais alcança (um papel compartilhado) é a que não serve para provar BOLA. Nas rodadas cegas da 1.5.3 à 1.9.2 o agente roteou as consultas ao médico compartilhado e a falha H5 da Clínica (um paciente lê a consulta de outro) nunca foi achada; a operação nem aparecia em `authz.json`, e a ausência de achado ficava invisível. A V3 do VAmPI (`/books/v1/{book_title}`) tem o mesmo desenho e também escapou. Orientar o agente nas skills não resolveu; a solução tinha de estar no código.
 
-## A mudança ([ADR 0082](../adr/0082-leitura-de-dono-no-teste-horizontal.md), proposto)
+## A mudança ([ADR 0082](../../decisoes/0082-leitura-de-dono-no-teste-horizontal.md), proposto)
 
 - **Domínio** (`authz_owner_ids.py`, `authz_owner_plan.py`): escolha determinística do par (primeiras duas contas do primeiro papel com par fora de `authz.shared_roles`; operação pública é excluída), validação do parâmetro (um marcador final escalar, sem outro parâmetro obrigatório), extração e validação de identidade, veredito e motivos.
 - **Aplicação** (`authz_owner_read.py`): só `GET`, pelo `ReplaySender` e pelo envio guardado já existentes (cerca, `deny_paths`, limites, janela, prazo, stop, diário, pilha atual). Teto de dois objetos por operação e par. A conta dona precisa obter 2xx com o mesmo identificador; a outra conta repete; 401/403/404 protege, 2xx com o mesmo objeto é `authz_horizontal` alto, o resto é inconclusivo.

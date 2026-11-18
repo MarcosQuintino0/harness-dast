@@ -51,7 +51,7 @@ def build_panel(products_dir: Path | None, journal: CommandJournalStore | None =
             FilePresentationFiles(
                 runs_dir,
                 Path(__file__).resolve().parents[3]
-                / "docs/reference/verification-calibration.json",
+                / "docs/referencia/verification-calibration.json",
             )
         ),
     )

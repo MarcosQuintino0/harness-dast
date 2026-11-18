@@ -6,13 +6,13 @@ Data: 2026-11-16. Branch `fix/v1-9-1-pilha-e-reuso`. Corrige defeitos que as rod
 
 **Causa.** O proxy gerenciado prende o hash SHA-256 completo do `target.yml` e da aprovação no `stack up` (`policy.json`, bloco `binding`). Qualquer edição posterior do `target.yml`, mesmo num campo livre (`auth.request_encoding`, `probe.setup_path`), faz o proxy negar tudo com 403 `approval_changed`. `hdast profile approval` seguia dizendo `approved` e a CLI não explicava nada; o motivo só estava no `audit.jsonl`. Num caso o agente parou; no outro adivinhou recriar a pilha.
 
-**Correção** ([ADR 0081](../adr/0081-pilha-desatualizada.md), proposto). O proxy não mudou: falha fechada, hash completo.
+**Correção** ([ADR 0081](../../decisoes/0081-pilha-desatualizada.md), proposto). O proxy não mudou: falha fechada, hash completo.
 - Código de erro novo `STACK_STALE` (`StackStale`), com a saída 4 já existente (verificação anterior à execução); envelope de falha comum, sem campos novos. Regra em `domain/stack_binding.py`, caso de uso em `application/stack_freshness.py` (`FreshStackProfiles` por cima do repositório que confere a aprovação: `SCOPE_NOT_APPROVED` tem prioridade), leitura do vínculo em `adapters/scope_proxy/binding_source.py`.
 - `preflight`, `probe`, `scan`, `authz`, `negative` e `run` (fora do `--dry-run`) comparam o `target.yml` e a aprovação de agora com o vínculo da pilha ativa do mesmo produto e falham **antes de qualquer pedido**. O `cleanup` (banco, sem proxy), `stack up|down|status` e `stop` não são bloqueados. Vínculo ausente, grande demais ou ilegível falha fechado; política sem vínculo não compara.
 - No meio da execução, o cliente do alvo traduz 403 + `X-Hdast-Reason: approval_changed` + corpo fixo do proxy no mesmo erro (não vira achado nem recusa de escopo comum); as outras recusas do proxy e qualquer 403 do alvo seguem como resposta. O `preflight` não converte o erro em verificação reprovada.
 - `stack status` ganha `binding` (`fresh`, `stale`, `unbound`, `unreadable`), `stale_parts` e `stale_message`.
 - Skills `fix-reachability`, `run-scan`, `onboard-product` e `test-product`: recriar a pilha depois de editar `target.yml` com a pilha de pé, e linha de tabela para `STACK_STALE`. Texto genérico, sem nada de produto.
-- Documentação: `docs/guides/problemas-comuns.md`, `docs/reference/cli.md`, `docs/reference/exit-codes.md`.
+- Documentação: `docs/usar/problemas-comuns.md`, `docs/referencia/cli.md`, `docs/referencia/exit-codes.md`.
 
 **Limites.** A conferência compara conteúdo (hash); o proxy compara também a identidade do arquivo. Regravar com o mesmo conteúdo muda a data e o proxy nega mesmo com hash igual: só a tradução do 403 pega isso. O tráfego do ZAP no `scan` não passa pelo cliente da CLI, então um 403 `approval_changed` no meio do `scan` continua só na auditoria do proxy (o `run` confere no início).
 

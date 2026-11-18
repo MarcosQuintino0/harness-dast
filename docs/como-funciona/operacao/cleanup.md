@@ -9,6 +9,6 @@ confirmar digitando o nome do produto em terminal interativo. Nenhum atalho, CI 
 O portão SQL é defesa em profundidade: não verifica privilégios, gatilhos, cascatas ou semântica da amarração.
 O pseudoterminal é um limite conhecido: regras do agente e usuário restrito completam a proteção.
 
-- Procedimento humano, preparação e diagnóstico: [guia de limpeza](../guides/limpeza-de-dados.md).
-- Contrato técnico, transação, portão, variáveis, artefatos e saídas: [referência de limpeza](../reference/cleanup.md).
-- Decisões: [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md) e [ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md).
+- Procedimento humano, preparação e diagnóstico: [guia de limpeza](../../usar/limpeza-de-dados.md).
+- Contrato técnico, transação, portão, variáveis, artefatos e saídas: [referência de limpeza](../../referencia/cleanup.md).
+- Decisões: [ADR 0020](../../decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md) e [ADR 0025](../../decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md).

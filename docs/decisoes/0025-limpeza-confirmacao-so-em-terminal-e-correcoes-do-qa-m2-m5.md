@@ -2,7 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** parecer de QA independente [2026-11-13-qa-m2-m5](../reviews/2026-11-13-qa-m2-m5.md) (Q-01, Q-03, Q-07, Q-09, Q-15, Q-16) e relatório do lab [2026-11-13-e2e-lab](../reviews/2026-11-13-e2e-lab.md); altera o que os ADRs [0020](0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0024](0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md) decidiram (eles seguem imutáveis; este os substitui nos pontos abaixo)
+- **Origem:** parecer de QA independente [2026-11-13-qa-m2-m5](../arquivo/reviews/2026-11-13-qa-m2-m5.md) (Q-01, Q-03, Q-07, Q-09, Q-15, Q-16) e relatório do lab [2026-11-13-e2e-lab](../arquivo/reviews/2026-11-13-e2e-lab.md); altera o que os ADRs [0020](0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0024](0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md) decidiram (eles seguem imutáveis; este os substitui nos pontos abaixo)
 
 ## Contexto
 

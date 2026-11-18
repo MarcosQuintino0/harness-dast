@@ -6,7 +6,7 @@
 
 Verificação: as 7 falhas foram provadas por teste de integração (modo `1` explorável, modo `0` não) e por requisição real contra o
 contêiner, com H2 e com Oracle Free (2026-11-13). A coluna "ZAP detecta" é **previsão** a partir do spike M0
-(`docs/spikes/2026-11-13-m0-zap.md`) e das regras do ZAP; não foi medida com varredura neste alvo.
+(`docs/arquivo/spikes/2026-11-13-m0-zap.md`) e das regras do ZAP; não foi medida com varredura neste alvo.
 
 ## Falhas plantadas
 
@@ -25,7 +25,7 @@ contêiner, com H2 e com Oracle Free (2026-11-13). A coluna "ZAP detecta" é **p
 Plantadas para medir o que a cerca (proxy de escopo) tira da varredura. Cada uma está atrás do mesmo botão (`PILOT_VULNERABLE`) e no código é
 marcada por `Hardening.Item.Hn`. Nada executa comando de sistema nem lê arquivo: o H9 trabalha sobre um mapa de "arquivos" em memória e o H8 simula o atraso
 com `Thread.sleep` limitado a 16 s. A coluna "Achada?" é **medida** (`hdast run`, ZAP 2.17, 2026-11-13, limites de lab; números em
-`docs/reviews/2026-11-13-lab-v1-1-cerca.md`), não previsão.
+`docs/arquivo/reviews/2026-11-13-lab-v1-1-cerca.md`), não previsão.
 
 | Id | Endpoint e parâmetro | Classe / CWE | Como confirmar (modo `1`) | Achada? (estrito / amplo) | Modo `0` |
 | --- | --- | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Notas de leitura:
   alta: cookie `XSRF-TOKEN` sem `HttpOnly` (o padrão de duplo envio exige leitura pelo cliente), `/v3/api-docs` público, resposta sem
   `Cache-Control` em alguns casos. Falso alarme = achado **de classe plantada** no modo `0` (ex.: "SQLi em `nome`" quando o modo é `0`).
 
-## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/adr/0027-teste-de-autorizacao-entre-contas.md))
+## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/decisoes/0027-teste-de-autorizacao-entre-contas.md))
 
 O ZAP não as detecta, mas o estágio `authz` (roda por padrão no `hdast run` desde a V1.4, ADR 0038; ou `hdast authz --run ID` depois do `probe`) é desenhado para
 detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse estágio** (achado de `authz` em `findings.json`, campo

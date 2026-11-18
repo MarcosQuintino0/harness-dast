@@ -2,8 +2,8 @@
 
 Registro de 2026-11-17, anterior ao fechamento da trilha. Não é aceite de versão.
 Escopo: L1–L6 do [plano](../plans/2026-11-17-v1-12-mais-achados.md), sem funcionalidades F,
-rodada cega, PR ou merge. ADRs [0094](../adr/0094-crapi-na-pilha.md) e
-[0095](../adr/0095-retorno-oast-isolado.md) propostos; 0092 reservado.
+rodada cega, PR ou merge. ADRs [0094](../../decisoes/0094-crapi-na-pilha.md) e
+[0095](../../decisoes/0095-retorno-oast-isolado.md) propostos; 0092 reservado.
 
 ## Prova real inicial de L1
 
@@ -51,7 +51,7 @@ A segunda prova L1 e a prova OAST aguardavam essa trava neste registro.
 
 A captura inicial de 53 registros está em `images-before.jsonl`. O chatbot de 1,5 GB já existia,
 deixou de ser necessário e foi preservado. Nenhuma imagem foi removida nesta prova.
-A tabela e o manifesto protegido ficam em [lab/README](../../lab/README.md).
+A tabela e o manifesto protegido ficam em [lab/README](../../../lab/README.md).
 O ensaio do roteiro com o registro vazio e a captura real devolveu
 `{"simulation": true, "commands": []}`, sem consultar Docker ou remover imagens.
 Casos com candidatos usam IDs completos, validação de origem, proteção e uso antes de gerar comandos.

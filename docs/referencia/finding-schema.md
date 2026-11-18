@@ -1,6 +1,6 @@
 # Modelo de achado e arquivos do `scan` e do `report` (schema v1)
 
-> **Status: Implementado (M4), verificado contra o ZAP 2.17 real** (VAmPI e Clínica Piloto). Decisões: [ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md). Resultado da conferência de cada item: [relatorio.md](relatorio.md#o-que-foi-verificado-contra-o-zap-real).
+> **Status: Implementado (M4), verificado contra o ZAP 2.17 real** (VAmPI e Clínica Piloto). Decisões: [ADR 0022](../decisoes/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [ADR 0023](../decisoes/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md). Resultado da conferência de cada item: [relatorio.md](relatorio.md#o-que-foi-verificado-contra-o-zap-real).
 
 O achado é um modelo **próprio da CLI**, independente do formato do ZAP (`domain/finding.py`). O adaptador do ZAP entrega alertas brutos; severidade, fingerprint e deduplicação são decididos no `domain`. Mudar qualquer formato desta página é mudança de contrato: exige ADR, atualização do teste de contrato e do arquivo de referência (`tests/fixtures/zap_alerts/findings.golden.json`).
 
@@ -14,18 +14,18 @@ Tudo em `<HDAST_RUNS_DIR>/<run_id>/`, na mesma pasta do `probe`. **Nada sem reda
 | `scan-progress.json` | `scan` | Andamento atual (fase, posição, operação, percentual). É o que `hdast stop` e o agente leem |
 | `alerts.raw.json` | `scan` | Alertas como o ZAP devolve, **depois** da redação |
 | `evidence.json` | `scan` | Requisição e resposta das mensagens de ataque mais graves e confiáveis (até 200), redigidas |
-| `rule-stats.json` | `scan` | Medição por regra do ZAP, por operação varrida: tempo, pedidos, alertas e estado (só números e ids; [ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
+| `rule-stats.json` | `scan` | Medição por regra do ZAP, por operação varrida: tempo, pedidos, alertas e estado (só números e ids; [ADR 0031](../decisoes/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
 | `metrics.json` | `report`, `run` | Onde o tempo foi: por etapa, por operação, por regra, tráfego e lacunas, regras desligadas (só números e ids; ADR 0031) |
 | `exchanges.json` | `probe` | Pedidos com sucesso (alvo concreto relativo à `base_url`, conta, status e, para `POST`/`PUT`/`PATCH`, o corpo JSON enviado, sem campos de segredo). Alimenta o `authz`; contrato em [authz.md](authz.md#exchangesjson-gravado-pelo-probe) |
 | `authz.json` | `authz` | Resultado do teste de autorização entre contas: verificações, achados de origem própria e o que não foi testado ([authz.md](authz.md)). Só nomes de campo, nunca valores |
 | `negative.json` | `negative` | Resultado do teste de valores que o esquema proíbe: contagem por classe e por operação, achados de origem própria (`N-`) e o que não foi testado ([negative.md](negative.md)). Só nomes de campo, classe e limite declarado; nunca o valor enviado |
-| `error-signals.json` | `report` | Sinais de erro interno vistos pela cerca (proxy de escopo) em toda resposta liberada: contagem de respostas lidas, não lidas e com sinal, e os achados de origem `proxy`. Só categorias, método, modelo de caminho, status e nomes de parâmetro, nunca corpo ([ADR 0049](../adr/0049-sinais-de-erro-interno-na-cerca.md)) |
+| `error-signals.json` | `report` | Sinais de erro interno vistos pela cerca (proxy de escopo) em toda resposta liberada: contagem de respostas lidas, não lidas e com sinal, e os achados de origem `proxy`. Só categorias, método, modelo de caminho, status e nomes de parâmetro, nunca corpo ([ADR 0049](../decisoes/0049-sinais-de-erro-interno-na-cerca.md)) |
 | `triage.json` | o agente (opcional) | Anotações; contrato em [relatorio.md](relatorio.md#triagem-triagejson) |
 | `findings.json` | `report` | Relatório estruturado (esta página) |
 | `run.json` | `run` | Resumo do `hdast run`: estágios, tempos, código de saída, artefatos ([cli.md](cli.md#runjson-e-data-do-envelope)) |
 | `report.md` | `report` | Relatório para quem corrige ([relatorio.md](relatorio.md)) |
-| `report.html` | `report` | O mesmo relatório numa página única, sem JavaScript nem recurso externo ([ADR 0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) |
-| `panel/*.html` | `report`, `run`, `panel` | O painel da execução: seis páginas (`summary`, `stages`, `findings`, `coverage`, `terminal`, `time-and-tokens`), sem JavaScript nem recurso externo. Não é contrato de leitura por máquina: leia os arquivos acima ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto) |
+| `report.html` | `report` | O mesmo relatório numa página única, sem JavaScript nem recurso externo ([ADR 0029](../decisoes/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md)) |
+| `panel/*.html` | `report`, `run`, `panel` | O painel da execução: seis páginas (`summary`, `stages`, `findings`, `coverage`, `terminal`, `time-and-tokens`), sem JavaScript nem recurso externo. Não é contrato de leitura por máquina: leia os arquivos acima ([ADR 0032](../decisoes/0032-painel-da-execucao.md), proposto) |
 
 ## `findings.json`
 
@@ -65,7 +65,7 @@ Raiz (`FindingsReport`):
 | `policy` | `name`, `strength`, `threshold`, `url_path_injection`, `injectable_mask`, `disabled_rules` |
 | `traffic` | Tráfego visto pelo proxy de escopo durante o scan, copiado de `scan.json`: `enabled`, `allowed`, `denied` (tentativas do varredor fora do escopo), `denied_by_reason` (recusa por forma agrupada em `malformed_request`), `denied_by_detail` (o código granular: `path_encoded_slash`, `url_forbidden_char`, `deny_path`...), `path_shape_denied` (recusas por forma do caminho, a base do aviso de cobertura parcial de injeção em caminho), `allowed_outside_allow` (modo amplo: liberados com leitura fora de `scope.allow`), `path_mode` (`strict` ou `wide`; ADR 0026), `allowed_by_method`, `duration_seconds`, `average_rps`, `peak_rps` (máximo em 1 s) e `limit_rps`. `enabled: false` sem pilha gerenciada |
 
-Desde a V1.12.1, `not_tested[].reason` também pode ser `mutation_pending`: a mesma operação e conta tem intenção anterior com efeito desconhecido. O pedido não foi reenviado e a pendência não conta como alcance ou sucesso. O motivo fica literal, inclusive quando vem do `probe` ou de semente histórica recusada no `scan` ([ADR 0104](../adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md)).
+Desde a V1.12.1, `not_tested[].reason` também pode ser `mutation_pending`: a mesma operação e conta tem intenção anterior com efeito desconhecido. O pedido não foi reenviado e a pendência não conta como alcance ou sucesso. O motivo fica literal, inclusive quando vem do `probe` ou de semente histórica recusada no `scan` ([ADR 0104](../decisoes/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md)).
 
 ### `Finding`
 
@@ -238,7 +238,7 @@ Limites: heurística com falso positivo e falso negativo; resposta `5xx` sozinha
 
 ## Onde o achado aparece e baseline
 
-Em `runs/<run_id>/`, junto de `audit.jsonl`, `manifest.json` e `probe.json`. A pasta `runs/` fica fora do git. O conjunto de achados esperados no VAmPI (teste de ponta a ponta) e o limite de severidade do modo seguro ficam para o teste contra o lab ([../testing.md](../testing.md)). Retenção das evidências em `runs/`: em aberto.
+Em `runs/<run_id>/`, junto de `audit.jsonl`, `manifest.json` e `probe.json`. A pasta `runs/` fica fora do git. O conjunto de achados esperados no VAmPI (teste de ponta a ponta) e o limite de severidade do modo seguro ficam para o teste contra o lab ([../desenvolver/testing.md](../desenvolver/testing.md)). Retenção das evidências em `runs/`: em aberto.
 
 ### Sinais passivos de erro interno
 

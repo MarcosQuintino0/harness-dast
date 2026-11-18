@@ -36,11 +36,11 @@ Todos os pares tiveram sinal positivo e amplitude inferior a dez pontos percentu
 
 Na T4 executaram-se 28/28 entradas planejadas da Clínica e 10/10 do VAmPI, após exclusões anteriores ao plano. Em cada operação, 43 regras ficaram `completed` e DOM XSS 40026 ficou `skipped`: Clínica 1.204/28 e VAmPI 430/10 regras concluídas/puladas por execução. Progresso 100% não elimina a lacuna. As quatro saídas reais de relatório exibiram **RELATÓRIO PARCIAL**.
 
-O estimador pré-registrado não foi alterado para contornar dados ausentes. O [congelamento](../../evals/measurements/v1.7/forecast-freeze.json), às 07:19:58 UTC, conserva previsão vazia e o desvio: `-k A-` também casou com `clinica-piloto`, incluindo B da Clínica. B VAmPI foi selecionado depois pelo node ID exato. O guia agora usa IDs completos em dois blocos, com congelamento entre eles. Ausência de previsão não significa ganho previsto de zero.
+O estimador pré-registrado não foi alterado para contornar dados ausentes. O [congelamento](../../../evals/measurements/v1.7/forecast-freeze.json), às 07:19:58 UTC, conserva previsão vazia e o desvio: `-k A-` também casou com `clinica-piloto`, incluindo B da Clínica. B VAmPI foi selecionado depois pelo node ID exato. O guia agora usa IDs completos em dois blocos, com congelamento entre eles. Ausência de previsão não significa ganho previsto de zero.
 
 ## 3. Qualidade — cada critério eliminatório
 
-As células abaixo se referem a A/B quando explicitado. Os controles adicionais de autorização, CORS, valores proibidos e fast usam **legacy/A**; não são prova de B. A [matriz detalhada](../../evals/measurements/v1.7/quality-evidence.md) discrimina as oito combinações API × modo × variante e os hashes.
+As células abaixo se referem a A/B quando explicitado. Os controles adicionais de autorização, CORS, valores proibidos e fast usam **legacy/A**; não são prova de B. A [matriz detalhada](../../../evals/measurements/v1.7/quality-evidence.md) discrimina as oito combinações API × modo × variante e os hashes.
 
 | Critério | Clínica vulnerável | Clínica segura | VAmPI vulnerável | VAmPI seguro |
 | --- | --- | --- | --- | --- |
@@ -64,7 +64,7 @@ O cálculo conserva sobreposição: por operação serial, a união dos interval
 | Clínica | 0–87,06% | 0–82,79% |
 | VAmPI | 0–91,02% | 0–90,36% |
 
-São limites condicionais do trabalho executado, não estimativa nem intervalo de confiança. Não classificam mutações, dependências, outras exclusividades ou trabalho omitido. **Não comprovam pelo menos 40% paralelizável; a condição para iniciar V1.10 permanece não demonstrada.** Fórmula, fonte primária ZAP 2.17 e hashes: [parallelizability-bound.json](../../evals/measurements/v1.7/parallelizability-bound.json).
+São limites condicionais do trabalho executado, não estimativa nem intervalo de confiança. Não classificam mutações, dependências, outras exclusividades ou trabalho omitido. **Não comprovam pelo menos 40% paralelizável; a condição para iniciar V1.10 permanece não demonstrada.** Fórmula, fonte primária ZAP 2.17 e hashes: [parallelizability-bound.json](../../../evals/measurements/v1.7/parallelizability-bound.json).
 
 ## 5. Decisões, incidentes e pendências
 
@@ -80,7 +80,7 @@ Para aceite integral, faltam investigar a regra 40026, completar os controles/at
 
 ## 6. Gates e integração
 
-Commit do candidato de código/testes verificado: **44f45df**. Gates finais locais: Ruff check e format, mypy Windows e Linux, seis contratos de importação, vulture e pytest: **9.604 passaram, 4 pulados, 211 desmarcados, 328,64 s**. Pisos e cobertura diferencial: **domínio 98,4311% (piso 95%), aplicação 96,7813% (piso 85%); diferencial 294/297 = 98,9899% (piso 90%)**. `gitleaks` sem afrouxamento: zero achados; `pip-audit` sobre dependências travadas: zero vulnerabilidades conhecidas. Resultados e hashes ficam em [gates-final.json](../../evals/measurements/v1.7/gates-final.json); as duas execuções anteriores com falhas permanecem nos logs externos.
+Commit do candidato de código/testes verificado: **44f45df**. Gates finais locais: Ruff check e format, mypy Windows e Linux, seis contratos de importação, vulture e pytest: **9.604 passaram, 4 pulados, 211 desmarcados, 328,64 s**. Pisos e cobertura diferencial: **domínio 98,4311% (piso 95%), aplicação 96,7813% (piso 85%); diferencial 294/297 = 98,9899% (piso 90%)**. `gitleaks` sem afrouxamento: zero achados; `pip-audit` sobre dependências travadas: zero vulnerabilidades conhecidas. Resultados e hashes ficam em [gates-final.json](../../../evals/measurements/v1.7/gates-final.json); as duas execuções anteriores com falhas permanecem nos logs externos.
 
 As alterações foram juntadas serialmente na feature, sem merge em `develop`. Todas as worktrees e branches auxiliares desta execução foram removidas após integração e conferência de limpeza; artefatos externos foram preservados. A publicação será por push da feature e PR rascunho para `develop`, sem merge. O estado remoto do CI é conferido na entrega; gates locais não são apresentados como execução do GitHub.
 
@@ -95,4 +95,4 @@ As alterações foram juntadas serialmente na feature, sem merge em `develop`. T
 | Documentação | GPT 6.1 Terra high | Worktree própria e blocos V1.7 nos documentos compartilhados |
 | Validador final novo | GPT 6.1 Terra medium | Worktree e evidência próprias, sem implementar; dois controles escolhidos reproduzidos |
 
-Índice dos dados e método: [evals/measurements/v1.7](../../evals/measurements/v1.7/README.md). Originais sanitizados e logs: `C:\harness-dast-artefatos\v1.7-velocidade`.
+Índice dos dados e método: [evals/measurements/v1.7](../../../evals/measurements/v1.7/README.md). Originais sanitizados e logs: `C:\harness-dast-artefatos\v1.7-velocidade`.

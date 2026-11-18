@@ -1,6 +1,6 @@
 # Relatório da versão 1.5.3
 
-Data: 2026-11-15. Branch: `feat/v1-5-3-papeis-compartilhados`. Plano: [V1.5.3](../plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md). Decisão: [ADR 0057](../adr/0057-papeis-compartilhados.md), **Proposto**.
+Data: 2026-11-15. Branch: `feat/v1-5-3-papeis-compartilhados`. Plano: [V1.5.3](../plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md). Decisão: [ADR 0057](../../decisoes/0057-papeis-compartilhados.md), **Proposto**.
 
 Entrega: itens A a D implementados, QA independente, gates de qualidade e prova local nos dois modos. O PR é destinado à `develop`, sem merge pelo Codex. `domain/` e `application/` abaixo pertencem a `src/harness_dast/`.
 
@@ -15,7 +15,7 @@ Entrega: itens A a D implementados, QA independente, gates de qualidade e prova 
 
 ## Qualidade e evidências
 
-Saídas externas: `C:\harness-dast-artefatos\v1.5.3\`. [Resumos sanitizados, manifesto e validação](../../evals/results/2026-11-15-v1-5-3-lab/README.md) estão versionados. A conferência completa final sem filtro fica em `gates/pytest-final.log` na pasta externa.
+Saídas externas: `C:\harness-dast-artefatos\v1.5.3\`. [Resumos sanitizados, manifesto e validação](../../../evals/results/2026-11-15-v1-5-3-lab/README.md) estão versionados. A conferência completa final sem filtro fica em `gates/pytest-final.log` na pasta externa.
 
 | Gate | Resultado |
 | --- | --- |

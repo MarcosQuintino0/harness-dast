@@ -11,7 +11,7 @@ write_files: {}
 exclude:
   - lab/crapi/README.md
   - lab/crapi/seed.py
-  - docs/adr
+  - docs/decisoes
 leak_terms: [answer-keys, challengeSolutions]
 authorization: authorization.md
 expected:

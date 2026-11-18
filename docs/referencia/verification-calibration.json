@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "status": "measured",
-  "provenance": "Medido só no laboratório (Clínica Piloto e VAmPI), em 2026-11-17, sem produto real; amostras pequenas, por isso contagens e não taxas. Ver docs/reference/verification-calibration.md.",
+  "provenance": "Medido só no laboratório (Clínica Piloto e VAmPI), em 2026-11-17, sem produto real; amostras pequenas, por isso contagens e não taxas. Ver docs/referencia/verification-calibration.md.",
   "measurements": [
     {
       "finding_type": "Autorização entre contas com recibo (Clínica Piloto)",

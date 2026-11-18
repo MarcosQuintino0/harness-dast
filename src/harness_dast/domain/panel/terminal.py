@@ -1,6 +1,6 @@
 """Aba Terminal do painel (`terminal.html`): o que o agente fez, comando por comando. Módulo puro.
 
-Fiel a `docs/design/execution-panel/screens/terminal.html` e ao estado "comando com erro" de
+Fiel a `docs/arquivo/design/execution-panel/screens/terminal.html` e ao estado "comando com erro" de
 `system/states.html`. Cada comando do diário (ADR 0033), em ordem, mostra a hora, o comando cru,
 a frase que o traduz, o estado (palavra, nunca só cor), a duração e a resposta resumida; comando
 parcial ou com erro já vem com a resposta aberta. Sem diário para o teste (teste anterior à

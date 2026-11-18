@@ -1,6 +1,6 @@
 # Instruções para agentes
 
-Finalidade: o harness-dast é uma ferramenta **defensiva** de teste de segurança de APIs, usada pelo time de QA nos ambientes de teste dos produtos da própria empresa, com autorização por escrito do dono do produto e dados sintéticos. O ciclo é achar a vulnerabilidade, relatar, corrigir e retestar. O agente conduz o fluxo autorizado por comandos `hdast`; a CLI e o ZAP executam as verificações, com escopo e limites impostos pelo código (carta, aprovação humana do escopo, cerca, janela, limites). Detalhes em `docs/finalidade-e-uso-responsavel.md`.
+Finalidade: o harness-dast é uma ferramenta **defensiva** de teste de segurança de APIs, usada pelo time de QA nos ambientes de teste dos produtos da própria empresa, com autorização por escrito do dono do produto e dados sintéticos. O ciclo é achar a vulnerabilidade, relatar, corrigir e retestar. O agente conduz o fluxo autorizado por comandos `hdast`; a CLI e o ZAP executam as verificações, com escopo e limites impostos pelo código (carta, aprovação humana do escopo, cerca, janela, limites). Detalhes em `docs/como-funciona/finalidade-e-uso-responsavel.md`.
 
 O desenvolvimento e as provas contra alvos rodam somente no laboratório local, nunca contra produto real.
 
@@ -43,8 +43,8 @@ Authz não cobre identificador no corpo nem `DELETE`; `horizontal_write` exige d
 - Padrão: falsos em memória (`tests/fakes/`) com comportamento. Mock só para injetar falha difícil de provocar. Nunca simule o módulo testado nem verifique chamadas internas em vez do resultado.
 - Todo defeito corrigido chega com o teste que o reproduzia. Toda entrada externa tem teste com dado inválido, ausente e malformado.
 - Nenhum teste depende de ordem, relógio real ou rede externa.
-- Detalhes e casos obrigatórios do ScopeGuard: `docs/testing.md`.
-- Teste cada mudança só até o degrau que ela exige (`docs/escada-de-testes.md`); varredura completa e rodada cega só no fechamento de versão.
+- Detalhes e casos obrigatórios do ScopeGuard: `docs/desenvolver/testing.md`.
+- Teste cada mudança só até o degrau que ela exige (`docs/desenvolver/escada-de-testes.md`); varredura completa e rodada cega só no fechamento de versão.
 
 ### Comentários e docstrings
 - Docstring estilo Google, obrigatória em módulo, porta e item público de `domain` e `application`. Descreve contrato: o que garante, o que levanta, o que não faz.

@@ -1,6 +1,6 @@
 # Cadastrar um produto e operar com o agente
 
-Para quem vai testar um produto **real** (ou de teste da empresa) com o Claude Code. Para o primeiro contato com a ferramenta, use antes o [primeiro-uso.md](primeiro-uso.md).
+Para quem vai testar um produto **real** (ou de teste da empresa) com o Claude Code. Para o primeiro contato com a ferramenta, use antes o [primeiro-uso.md](../comecar/primeiro-uso.md).
 
 ## 1. O que pedir ao dono do produto
 
@@ -76,7 +76,7 @@ O agente **não marca opção como recomendada** nem preenche escopo, limite, ja
 
 Carta com autorização já vencida (`valid_until` no passado) é recusada com `AUTHORIZATION_EXPIRED`. Com a carta pronta, o agente também pode trazer **avisos** (`data.warnings`), que não bloqueiam nada: permissão com `/**` na raiz, método `DELETE` autorizado, nenhum caminho proibido, validade a mais de um ano e escrita do teste entre contas autorizada (`AUTHZ_WRITES_AUTHORIZED`). Ele os mostra a você, e você confirma com o dono do produto se é isso mesmo.
 
-**A tabela "quem pode o quê" (opcional, é sua).** Para testar quem NÃO pode usar cada função (acesso vertical entre papéis que não formam uma escada), o agente roda `hdast authz <produto> --draft-matrix` (com `--run <run_id>` do `probe`, o `allow` vem preenchido pelo que o `probe` viu). Isso **não envia nada ao alvo** e grava só `authz-matrix.draft.yml` na pasta do produto, que o perfil não lê. O rascunho é uma hipótese: o `deny` vem **sempre vazio**, porque quem proíbe é o dono do produto. Você (com o dono) decide cada linha, o agente leva a tabela para `authz.access_matrix` do `target.yml` e valida, e **você** aprova o escopo de novo (o resumo mostra a tabela inteira). Papel que a tabela não cita não é testado, nunca é tratado como proibido. Detalhes em [authz.md](../reference/authz.md).
+**A tabela "quem pode o quê" (opcional, é sua).** Para testar quem NÃO pode usar cada função (acesso vertical entre papéis que não formam uma escada), o agente roda `hdast authz <produto> --draft-matrix` (com `--run <run_id>` do `probe`, o `allow` vem preenchido pelo que o `probe` viu). Isso **não envia nada ao alvo** e grava só `authz-matrix.draft.yml` na pasta do produto, que o perfil não lê. O rascunho é uma hipótese: o `deny` vem **sempre vazio**, porque quem proíbe é o dono do produto. Você (com o dono) decide cada linha, o agente leva a tabela para `authz.access_matrix` do `target.yml` e valida, e **você** aprova o escopo de novo (o resumo mostra a tabela inteira). Papel que a tabela não cita não é testado, nunca é tratado como proibido. Detalhes em [authz.md](../referencia/authz.md).
 
 Se a carta disser que contas de algum papel compartilham legitimamente seus recursos, registre os papéis em `attack.authz_shared_roles` com `source: carta` e a frase em `quote`. A CLI os leva a `authz.shared_roles`; isso deixa de comparar essas contas em `horizontal` e `horizontal_write`, com `shared_role` em `not_tested`. Não infira compartilhamento. Quando possível, distribua leituras distintas de cada tipo de objeto entre duas contas de um papel não compartilhado; cada operação aceita uma conta.
 

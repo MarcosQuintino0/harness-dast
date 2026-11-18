@@ -45,7 +45,7 @@ O `probe` envia uma requisição válida por operação pelo proxy do ZAP e mede
 
 ## Consequências
 
-- Mudança de contrato do perfil (aditiva) e da CLI (três comandos novos, `data` de cada um documentado em [../reference/cli.md](../reference/cli.md)); `target-yml.md` e o modelo `products/_template` documentam os blocos novos.
+- Mudança de contrato do perfil (aditiva) e da CLI (três comandos novos, `data` de cada um documentado em [../reference/cli.md](../referencia/cli.md)); `target-yml.md` e o modelo `products/_template` documentam os blocos novos.
 - `ApprovedRequest` não é à prova de um desenvolvedor que acesse a marca privada de propósito; a defesa é o nome privado, a revisão e o teste de mutação (remover a chamada do guarda quebra testes).
 - A heurística de 403 de CSRF (corpo cita csrf/xsrf, ou 403 sem mensagem) pode repetir uma requisição 403 de autorização uma vez; o custo é limitado.
 - Os cookies são guardados por conta e por processo; um alvo com vários hosts compartilharia o nome do cookie entre eles (o `probe` usa um único host, `environment.base_url`).

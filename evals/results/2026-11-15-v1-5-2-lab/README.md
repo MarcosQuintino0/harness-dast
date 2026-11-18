@@ -1,6 +1,6 @@
 # V1.5.2: provas de integração da Clínica Piloto
 
-Data: 2026-11-15. Branch: `feat/v1-5-2-avaliacao`. Plano: [V1.5.2](../../../docs/plans/2026-11-15-plano-v1-5-2-avaliacao.md). Relatório: [versão 1.5.2](../../../docs/reviews/relatorio-v1.5.2.md).
+Data: 2026-11-15. Branch: `feat/v1-5-2-avaliacao`. Plano: [V1.5.2](../../../docs/arquivo/plans/2026-11-15-plano-v1-5-2-avaliacao.md). Relatório: [versão 1.5.2](../../../docs/arquivo/reviews/relatorio-v1.5.2.md).
 
 **Integração automatizada com dados sintéticos, sem agente cego.** Estes resultados provam os mecanismos dos itens C, D e E; não dão nota à versão nem medem o efeito das skills sobre um agente.
 

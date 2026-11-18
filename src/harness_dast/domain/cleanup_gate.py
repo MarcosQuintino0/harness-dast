@@ -3,7 +3,7 @@
 IMPORTANTE: este portão é defesa em profundidade, NÃO uma prova. Um analisador sintático
 conservador reduz o dano de um script errado, mas não substitui o que de fato protege o
 ambiente: o usuário de banco da limpeza, que só deve ter `DELETE` (e `SELECT`) nas tabelas de
-teste. Veja `docs/operations/cleanup.md` para o que o portão garante e o que não garante.
+teste. Veja `docs/como-funciona/operacao/cleanup.md` para as garantias e limites do portão.
 
 O que ele aceita, por comando (separados por `;`):
 

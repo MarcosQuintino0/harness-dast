@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
-- **Origem:** F8 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`extra_checks.inventory`); [ADR 0100](0100-ssrf-guiado-pelo-contrato.md) (padrão de checagem própria da CLI)
+- **Origem:** F8 da V1.12 ([plano](../arquivo/plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`extra_checks.inventory`); [ADR 0100](0100-ssrf-guiado-pelo-contrato.md) (padrão de checagem própria da CLI)
 
 ## Contexto
 

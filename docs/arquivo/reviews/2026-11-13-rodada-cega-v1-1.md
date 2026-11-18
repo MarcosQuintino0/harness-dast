@@ -1,6 +1,6 @@
 # Rodada cega da V1.1 (2026-11-13)
 
-Relatório factual e datado ([ADR 0014](../adr/0014-avaliacao-cega-como-eval.md), [evals/README.md](../../evals/README.md)). Uma rodada, caso `clinica-piloto`, modo sorteado (semente 6: vulnerável), agente novo (modelo Sonnet) com a cópia cega da `feat/v1-1` (versão 1.1.0) e a carta, que pede o modo de caminho ESTRITO. Folha de nota: [evals-2026-11-13/cega-piloto-003-score.md](evals-2026-11-13/cega-piloto-003-score.md). As cinco rodadas da V1 estão em [2026-11-13-rodadas-cegas.md](2026-11-13-rodadas-cegas.md).
+Relatório factual e datado ([ADR 0014](../../decisoes/0014-avaliacao-cega-como-eval.md), [evals/README.md](../../../evals/README.md)). Uma rodada, caso `clinica-piloto`, modo sorteado (semente 6: vulnerável), agente novo (modelo Sonnet) com a cópia cega da `feat/v1-1` (versão 1.1.0) e a carta, que pede o modo de caminho ESTRITO. Folha de nota: [evals-2026-11-13/cega-piloto-003-score.md](evals-2026-11-13/cega-piloto-003-score.md). As cinco rodadas da V1 estão em [2026-11-13-rodadas-cegas.md](2026-11-13-rodadas-cegas.md).
 
 ## Resultado
 

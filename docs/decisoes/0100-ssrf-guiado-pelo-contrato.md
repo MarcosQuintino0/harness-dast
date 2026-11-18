@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
-- **Origem:** F3 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0095](0095-retorno-oast-isolado.md); [ADR 0099](0099-oast-na-varredura.md); desafio de SSRF do crAPI
+- **Origem:** F3 da V1.12 ([plano](../arquivo/plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0095](0095-retorno-oast-isolado.md); [ADR 0099](0099-oast-na-varredura.md); desafio de SSRF do crAPI
 
 ## Contexto
 

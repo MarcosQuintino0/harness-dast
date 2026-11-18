@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-14
-- **Origem:** revisão do consultor e plano do ciclo V1.3 a V1.8 ([`docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md`](../plans/2026-11-14-ciclo-v1-3-a-v1-8.md)), item "Trava por pilha". Estende o [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (novo código de erro e de saída) e usa a pasta de estado do [ADR 0033](0033-diario-de-comandos.md).
+- **Origem:** revisão do consultor e plano do ciclo V1.3 a V1.8 ([`docs/plans/2026-11-14-ciclo-v1-3-a-v1-8.md`](../arquivo/plans/2026-11-14-ciclo-v1-3-a-v1-8.md)), item "Trava por pilha". Estende o [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (novo código de erro e de saída) e usa a pasta de estado do [ADR 0033](0033-diario-de-comandos.md).
 
 ## Contexto
 

@@ -1,6 +1,6 @@
 # `hdast wait`: espera por uma execução
 
-O `wait` aguarda o resultado de um `hdast run` ou o fim de um prazo. Ele consulta arquivos locais e a trava da pilha; **não envia pedidos ao alvo** nem interrompe a execução. A decisão de contrato está no [ADR 0061](../adr/0061-espera-de-execucao.md). O comando foi verificado com testes de contrato locais; a execução integrada é verificada no fechamento da versão.
+O `wait` aguarda o resultado de um `hdast run` ou o fim de um prazo. Ele consulta arquivos locais e a trava da pilha; **não envia pedidos ao alvo** nem interrompe a execução. A decisão de contrato está no [ADR 0061](../decisoes/0061-espera-de-execucao.md). O comando foi verificado com testes de contrato locais; a execução integrada é verificada no fechamento da versão.
 
 ## Como usar
 

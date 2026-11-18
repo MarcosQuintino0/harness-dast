@@ -1,6 +1,6 @@
 # Problemas comuns
 
-Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-codes.md](../reference/exit-codes.md)); a mensagem e a dica (`error.message`, `error.hint`) dizem o específico, leia-as primeiro. Com `--json`, o erro vem em `error.code`.
+Erro, causa provável e o que fazer. Os códigos são os reais da CLI ([exit-codes.md](../referencia/exit-codes.md)); a mensagem e a dica (`error.message`, `error.hint`) dizem o específico, leia-as primeiro. Com `--json`, o erro vem em `error.code`.
 
 ## Por código de saída
 
@@ -54,7 +54,7 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 | Verificação ou mensagem | Causa | O que fazer |
 | --- | --- | --- |
 | `secrets:<apelido>` falha | Variável de ambiente do segredo não definida neste terminal | Defina a variável (o nome está no perfil e na carta) e abra o terminal/Claude Code de novo |
-| Tudo recusado com 403 e `approval_changed` no `audit.jsonl` do proxy, ou `stack status` com `binding: stale` | Perfil ou aprovação mudou depois do `stack up` ([ADR 0081](../adr/0081-pilha-desatualizada.md)); a CLI agora para antes do primeiro pedido com `STACK_STALE` | `stack down` e `stack up <produto>` |
+| Tudo recusado com 403 e `approval_changed` no `audit.jsonl` do proxy, ou `stack status` com `binding: stale` | Perfil ou aprovação mudou depois do `stack up` ([ADR 0081](../decisoes/0081-pilha-desatualizada.md)); a CLI agora para antes do primeiro pedido com `STACK_STALE` | `stack down` e `stack up <produto>` |
 | `zap` falha ou "chave de API errada" | ZAP fora do ar ou chave diferente da pilha | `stack up` de novo; não misture pilha antiga com variáveis `HDAST_ZAP_*` de outra |
 | `target_setup` falha | O GET de `probe.setup_path` respondeu 4xx ou 5xx, ou o alvo não respondeu | Confira o caminho no perfil e se a carta autoriza esse GET; o caminho precisa estar em `scope.allow` |
 | `target_health` falha | Alvo fora do ar ou `probe.health_path` errado | Suba o alvo; confira o caminho no perfil |
@@ -93,9 +93,9 @@ Após esgotar as tentativas ou duas rodadas sem melhora, siga com varredura parc
 | `report` sai com `2` e cita `triage.json` | Campo não permitido, texto longo ou `reason` ausente | Corrija o arquivo (só `fingerprint`, `note`, `suspected_false_positive`, `reason`) |
 | `report --compare` recusa | Outro produto, outra versão de fingerprint ou execução sem `findings.json` | Rode o `report` na execução base antes |
 | `cleanup` recusa sem terminal (saída `2`) | A confirmação só vale digitada, em terminal interativo | Rode você, num terminal; `--dry-run` não exige terminal |
-| `cleanup` recusa o script | O portão de SQL exige amarração por coluna real e variáveis permitidas | Peça à pessoa que escreveu o script ([cleanup.md](../reference/cleanup.md)) |
+| `cleanup` recusa o script | O portão de SQL exige amarração por coluna real e variáveis permitidas | Peça à pessoa que escreveu o script ([cleanup.md](../referencia/cleanup.md)) |
 | Relatório sem achados | Não prova segurança | Leia "O que este relatório não testou" |
-| "Já existe mutação com resultado desconhecido para esta operação e conta" (no `probe`, `authz`, `negative` ou `scan`) | Uma escrita anterior pode ter chegado ao alvo e o resultado não foi confirmado; o harness não a repete às cegas | **Ação humana.** Confira o estado no ambiente de teste e, só depois, remova o arquivo `.jsonl` pendente citado na mensagem, em `<pasta de estado>/mutations/`. O agente não remove. Detalhes em [knowledge.md](../reference/knowledge.md) |
+| "Já existe mutação com resultado desconhecido para esta operação e conta" (no `probe`, `authz`, `negative` ou `scan`) | Uma escrita anterior pode ter chegado ao alvo e o resultado não foi confirmado; o harness não a repete às cegas | **Ação humana.** Confira o estado no ambiente de teste e, só depois, remova o arquivo `.jsonl` pendente citado na mensagem, em `<pasta de estado>/mutations/`. O agente não remove. Detalhes em [knowledge.md](../referencia/knowledge.md) |
 | "Não foi possível gravar o diário de mutações (erro de E/S)" | Pasta de estado sem permissão ou sem espaço | Corrija a pasta indicada e repita; nada foi enviado |
 
 Parar tudo, a qualquer momento: `uv run hdast stop`.

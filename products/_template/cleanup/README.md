@@ -1,6 +1,6 @@
 # Limpeza (cleanup)
 
-> Contrato das variáveis de ligação: `docs/reference/cleanup.md`. Guia do operador: `docs/operations/cleanup.md`.
+> Contrato das variáveis de ligação: `docs/referencia/cleanup.md`. Guia do operador: `docs/como-funciona/operacao/cleanup.md`.
 
 A varredura cria dados no ambiente de teste do produto. A limpeza é o único
 ponto do sistema que **apaga dados de propósito**, por isso é o mais

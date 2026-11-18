@@ -86,7 +86,7 @@ Não acelerar desligando regra, reduzindo força, encurtando o tempo útil de um
 
 ## 4. Estratégia de testes enxuta (vale para todas as versões)
 
-A primeira versão do plano pedia de 24 a 36 varreduras completas por versão, de 8 a 12 horas de laboratório. Esta revisão troca isso por **camadas**: cada mudança é provada no degrau mais barato que a prova, e só sobe se precisar. Ela segue a [escada de testes](../escada-de-testes.md).
+A primeira versão do plano pedia de 24 a 36 varreduras completas por versão, de 8 a 12 horas de laboratório. Esta revisão troca isso por **camadas**: cada mudança é provada no degrau mais barato que a prova, e só sobe se precisar. Ela segue a [escada de testes](../../desenvolver/escada-de-testes.md).
 
 ### 4.1 As camadas
 
@@ -96,7 +96,7 @@ A primeira versão do plano pedia de 24 a 36 varreduras completas por versão, d
 | T2. Controles direcionados | Que cada **classe de falha** continua sendo achada, e o modo seguro continua limpo | Testes de integração `lab_fast`: para cada classe de falha de controle, uma ou duas operações, na Clínica Piloto (dois modos) e no VAmPI | 2 a 5 min por grupo; uns 20 a 30 min no total |
 | T3. Varredura de controle | O **ganho de tempo** e a cobertura **executada** | Uma varredura reduzida e fixa: um subconjunto de 6 a 10 operações por API que contém pelo menos uma operação de cada classe de falha de controle. Mesma política de regras e mesma força da varredura completa. É escolhida uma vez, versionada em `tests/integration/`, e usada por todas as versões | 4 a 6 min por execução |
 | T4. Varredura completa | Que nada quebrou fora do subconjunto | Uma varredura completa por API, só no modo vulnerável, no fechamento da versão | ~25 min por API, rodando sozinha |
-| T5. Rodada cega | Que o **agente** consegue usar a versão sozinho | O [protocolo da rodada cega](../../evals/protocolo-da-rodada-cega.md), uma rodada por API, modo sorteado | ~35 min por rodada |
+| T5. Rodada cega | Que o **agente** consegue usar a versão sozinho | O [protocolo da rodada cega](../../../evals/protocolo-da-rodada-cega.md), uma rodada por API, modo sorteado | ~35 min por rodada |
 
 ### 4.2 Como medir velocidade sem dezenas de varreduras
 
@@ -238,7 +238,7 @@ Uma rodada cega por API produz a estratégia. Depois da coleta, o coordenador ap
 2. **Validador:** Terra 6.1 medium novo, como na seção 4.5.
 3. **Operador cego:** processo novo, sem esta conversa, sem o plano, sem o gabarito e sem resultados anteriores. Recebe só o pedido padrão e o `EVAL-BRIEFING.md`.
 
-O validador nunca orienta o operador cego. Os planos e relatórios do coordenador, inclusive este documento, ficam fora da cópia cega (`evals/runner/exclusions.py` já exclui `docs/plans` e `docs/reviews`).
+O validador nunca orienta o operador cego. Os planos e relatórios do coordenador, inclusive este documento, ficam fora da cópia cega (`evals/runner/exclusions.py` já exclui `docs/arquivo/plans` e `docs/arquivo/reviews`).
 
 ## 8. Organização do trabalho e riscos
 
@@ -264,10 +264,10 @@ Ficam para um ciclo posterior: mais de dois executores, vários produtos no mesm
 - ADRs novos, com contratos, aprovação, migração e falhas.
 - Código, testes, skills e referências coerentes; nenhuma função futura descrita como existente.
 - Gates: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run mypy --platform linux`, `uv run lint-imports`, `uv run vulture`, `uv run pytest`, mais as camadas T2 a T5 que a versão exige.
-- Relatório da versão em `docs/reviews/`, parecer do validador e decisão de avanço.
+- Relatório da versão em `docs/arquivo/reviews/`, parecer do validador e decisão de avanço.
 - Medições em `evals/measurements/`; artefatos redigidos em `C:\harness-dast-artefatos\`.
 
-O estado real continua no [roadmap](../roadmap.md). Este documento não altera a versão instalada, não aprova escopo e não declara nenhuma entrega validada.
+O estado real continua no [roadmap](../../roadmap.md). Este documento não altera a versão instalada, não aprova escopo e não declara nenhuma entrega validada.
 
 ## 10. Metas registradas antes de medir
 

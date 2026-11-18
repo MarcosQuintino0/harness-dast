@@ -1,20 +1,20 @@
 # Relatório da V1.9: conhecimento executável do produto
 
-Data: 2026-11-16. A prova se restringe ao laboratório local (Clínica Piloto e VAmPI, dados sintéticos, Docker); nenhum produto real foi testado. O plano é a [execução V1.9](../plans/2026-11-16-execucao-v1-9-conhecimento.md); o pré-registro das provas é [proof-plan.md](../../evals/measurements/v1-9/proof-plan.md). Não houve rodada cega nem estudo de reutilização nesta entrega: ficam para o fechamento das versões.
+Data: 2026-11-16. A prova se restringe ao laboratório local (Clínica Piloto e VAmPI, dados sintéticos, Docker); nenhum produto real foi testado. O plano é a [execução V1.9](../plans/2026-11-16-execucao-v1-9-conhecimento.md); o pré-registro das provas é [proof-plan.md](../../../evals/measurements/v1-9/proof-plan.md). Não houve rodada cega nem estudo de reutilização nesta entrega: ficam para o fechamento das versões.
 
 ## Passos do briefing
 
 | Passo | Situação | Evidência e limite |
 | --- | --- | --- |
 | 0. Prova pendente da V1.8 | Feito | [Parecer](2026-11-16-v1-9-passo0.md): quatro controles dirigidos das regras 90035 e 40008 passaram, mas não reconstruíram a causa histórica integral. O ritmo `proxy` **não** foi promovido; `init --from-letter` segue em `legacy` (ADR 0075). Lacuna mantida |
-| 1. Inventário e ADRs | Feito | [Inventário](../plans/2026-11-16-v1-9-inventario-contratos.md); ADRs [0076](../adr/0076-conhecimento-e-invalidacao.md) a [0080](../adr/0080-diario-estagios.md), propostos |
+| 1. Inventário e ADRs | Feito | [Inventário](../plans/2026-11-16-v1-9-inventario-contratos.md); ADRs [0076](../../decisoes/0076-conhecimento-e-invalidacao.md) a [0080](../../decisoes/0080-diario-estagios.md), propostos |
 | 2. Domínio e casos de uso | Feito em código e testes | Conhecimento tipado, captura, validação, diff, invalidação por dependência e diário de mutações; observação nunca concede permissão |
 | 3. Par automático com 200 | Feito em código; prova parcial | Testes de unidade com 201, 200 com identificador novo, 200 sem identificador e 200 com identificador existente. No VAmPI o `POST` devolveu 200, mas o par ficou "não testado" (`created_identifier_unavailable`): ver lacuna V3 |
 | 4. Atribuição em massa no VAmPI (V4) | Causa registrada; lacuna mantida | [Investigação](2026-11-16-v1-9-authz-investigacao.md). Oito candidatos testados, nenhum achado. Sem regra específica de produto e sem ampliar a carta |
 | 5. Skills e reutilização | Feito | Skills atualizadas, com testes de contrato e de vazamento |
 | 6. Protocolo do estudo de reutilização | Feito | Protocolo, `evals.runner` e canal de exportação com teste; ensaio a seco nas duas APIs |
 | 7. Prova | Feito; lacunas abaixo | T1 na suíte; T2 e T4 neste relatório |
-| 8. Validação | Pendente | Validador novo (Terra medium) a cargo da coordenação; as revisões independentes de QA estão em `docs/reviews/2026-11-16-v1-9-qa-*.md` |
+| 8. Validação | Pendente | Validador novo (Terra medium) a cargo da coordenação; as revisões independentes de QA estão em `docs/arquivo/reviews/2026-11-16-v1-9-qa-*.md` |
 
 ## Verificador da T2 (correção desta retomada)
 
@@ -22,7 +22,7 @@ O verificador integrado em `ed0a90d` contava leituras de receitas e contas difer
 
 ## T2: resultados por API e modo
 
-Logs, JUnit e metas em `C:\harness-dast-artefatos\v1-9\claude\`; medições revisadas em [evals/measurements/v1-9/claude](../../evals/measurements/v1-9/claude).
+Logs, JUnit e metas em `C:\harness-dast-artefatos\v1-9\claude\`; medições revisadas em [evals/measurements/v1-9/claude](../../../evals/measurements/v1-9/claude).
 
 | Prova | Resultado |
 | --- | --- |
@@ -63,11 +63,11 @@ Registrados em `C:\harness-dast-artefatos\v1-9\gates-claude1` (primeira passagem
 
 ## Correções da validação
 
-O validador independente decidiu `corrigir`. Para cada defeito escrevi antes o teste que o reproduz e confirmei a falha; medições em [evals/measurements/v1-9/claude/fix](../../evals/measurements/v1-9/claude/fix).
+O validador independente decidiu `corrigir`. Para cada defeito escrevi antes o teste que o reproduz e confirmei a falha; medições em [evals/measurements/v1-9/claude/fix](../../../evals/measurements/v1-9/claude/fix).
 
 | # | Achado | Correção e teste |
 | --- | --- | --- |
-| 1 | Pendência sem envio: a recusa do portão (`WindowClosed`/`DeadlineReached`) depois do `begin` do diário deixava a reserva para sempre no `authz` e no `negative` | Com uma única tentativa, a recusa vem antes de qualquer byte da mutação; a reserva é fechada como `failed` e o erro segue. Erro durante ou depois do envio continua desconhecido e bloqueia. Mensagens separadas no diário: "Já existe mutação com resultado desconhecido para esta operação e conta" (com o caminho e a ação humana) e erro de E/S. Testes: `test_v19_journal_refusal.py` (falharam antes) e `test_knowledge_journal.py`. Reconciliação em [knowledge.md](../reference/knowledge.md) e [problemas-comuns.md](../guides/problemas-comuns.md) |
+| 1 | Pendência sem envio: a recusa do portão (`WindowClosed`/`DeadlineReached`) depois do `begin` do diário deixava a reserva para sempre no `authz` e no `negative` | Com uma única tentativa, a recusa vem antes de qualquer byte da mutação; a reserva é fechada como `failed` e o erro segue. Erro durante ou depois do envio continua desconhecido e bloqueia. Mensagens separadas no diário: "Já existe mutação com resultado desconhecido para esta operação e conta" (com o caminho e a ação humana) e erro de E/S. Testes: `test_v19_journal_refusal.py` (falharam antes) e `test_knowledge_journal.py`. Reconciliação em [knowledge.md](../../referencia/knowledge.md) e [problemas-comuns.md](../../usar/problemas-comuns.md) |
 | 2 | `KnowledgeProfiles.load` exigia o motor sem necessidade | `cleanup` ignora o conhecimento (`checked_profiles(..., with_knowledge=False)`); nos `--dry-run`, só entrada `validated` consumível exige o motor, e a só proposta é ignorada. `reusable` passou a exigir ao menos uma entrada validada. Testes em `test_knowledge.py` |
 | 3 | `recipe-gap.json` aceitava qualquer ausência de trio | A lacuna só vale com zero linhas de auditoria `authz:effect_recipe_*`; qualquer leitura de receita sem trio reprova (`recipe_absence`). Testes offline dos dois casos |
 | 4 | Snapshot com folga de 5 s casava com a restauração | Exige `escrita <= instante do snapshot <= leitura posterior`, sem folga. O instante é o `mtime` do arquivo arquivado, gravado depois da resposta da escrita e antes da leitura posterior; não foi preciso gravar o `begin` no diário. Testes com snapshot da restauração depois da leitura posterior e snapshot anterior à escrita |

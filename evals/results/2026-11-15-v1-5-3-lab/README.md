@@ -1,6 +1,6 @@
 # V1.5.3: papéis compartilhados na Clínica Piloto
 
-Data: 2026-11-15. Código e teste de integração: `0e3548b23cee2b3046ab230172c6b7dd753c7dca`. [Plano](../../../docs/plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md) e [relatório](../../../docs/reviews/relatorio-v1.5.3.md).
+Data: 2026-11-15. Código e teste de integração: `0e3548b23cee2b3046ab230172c6b7dd753c7dca`. [Plano](../../../docs/arquivo/plans/2026-11-15-plano-v1-5-3-papeis-compartilhados.md) e [relatório](../../../docs/arquivo/reviews/relatorio-v1.5.3.md).
 
 **Prova automatizada de integração, sem agente cego.** `uv run pytest -q -m "integration and lab_fast" tests/integration/test_lab_authz.py`: **33 passaram, 3 pulados**, em **863,92 s**. Os pulos são verificações específicas do outro modo, sem falta de Docker.
 

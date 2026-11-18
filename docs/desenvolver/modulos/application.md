@@ -1,6 +1,6 @@
 # Pacote `application`
 
-Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
+Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../../decisoes/0004-portas-e-adaptadores-em-tres-camadas.md).
 
 ## Mapa por assunto
 
@@ -63,7 +63,7 @@ Somente `domain` (e a biblioteca padrão).
 
 ## Status
 
-Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml.md)):
+Implementado no M2 ([ADR 0015](../../decisoes/0015-portas-do-perfil-e-carregador-de-yaml.md)):
 
 | Módulo | Conteúdo |
 | --- | --- |
@@ -71,7 +71,7 @@ Implementado no M2 ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml
 | `validate_profile.py` | `ValidateProfile`: carrega o perfil e devolve `ProfileReport` (resumo sem segredos, `runnable` e `issues`). Validade estrutural é erro (`ConfigError`); prontidão para executar é dado. Detecta os valores de exemplo do modelo (hosts `exemplo.com.br`, referência `SEC-0000`, segredos `MEU_PRODUTO_*`), arquivos referenciados ausentes, autorização vencida e janela fechada |
 | `init_product.py` | `InitProduct`: cria a pasta do produto pela porta `ProductScaffolder` |
 
-Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+Implementado no M3 ([ADR 0018](../../decisoes/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
 
 | Módulo | Conteúdo |
 | --- | --- |
@@ -87,7 +87,7 @@ Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-
 | `session_pool.py` | `SessionPool`: abre cada conta usada uma vez e não repete uma abertura que falhou |
 | `preview.py` | Prévia do `--dry-run`: nomes de campos e geradores, nunca valores |
 
-Implementado no M4 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0023](../adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)):
+Implementado no M4 ([ADR 0022](../../decisoes/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0023](../../decisoes/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)):
 
 | Módulo | Conteúdo |
 | --- | --- |
@@ -95,7 +95,7 @@ Implementado no M4 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-ac
 | `scan.py`, `scan_runner.py`, `scan_collect.py`, `scan_health.py`, `scan_tokens.py` | `Scan`: plano, política e limites no ZAP, laço de uma varredura por requisição aprendida, coleta de alertas e evidência redigidos, guarda de saúde do alvo, entrega do token ao Replacer |
 | `report.py` | `Report`: achados, `findings.json` e `report.md`, comparação e código `1` |
 
-Implementado no M5 ([ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
+Implementado no M5 ([ADR 0020](../../decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../../decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
 
 | Módulo | Conteúdo |
 | --- | --- |
@@ -109,16 +109,16 @@ Implementado na V1.1 e na V1.2 (esta lista não é exaustiva; o diretório é a 
 
 | Módulo | Conteúdo |
 | --- | --- |
-| `authz/service.py`, `authz/ports.py`, `authz/runner.py` | `Authz`: o teste de autorização entre contas ([ADR 0027](../adr/0027-teste-de-autorizacao-entre-contas.md)) |
-| `doctor.py`, `doctor_checks.py`, `doctor_report.py` | `Doctor`: confere ambiente e perfil sem tocar o alvo ([ADR 0028](../adr/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) |
-| `secret_admin.py`, `secret_refs.py`, `secret_router.py` | `hdast secret` e o roteamento de `env:` e `keyring:` ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
-| `metrics.py` | Montagem do `metrics.json` ([ADR 0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
-| `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel_live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
-| `command_journal.py` | Diário de comandos por produto ([ADR 0033](../adr/0033-diario-de-comandos.md), Proposto) |
+| `authz/service.py`, `authz/ports.py`, `authz/runner.py` | `Authz`: o teste de autorização entre contas ([ADR 0027](../../decisoes/0027-teste-de-autorizacao-entre-contas.md)) |
+| `doctor.py`, `doctor_checks.py`, `doctor_report.py` | `Doctor`: confere ambiente e perfil sem tocar o alvo ([ADR 0028](../../decisoes/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)) |
+| `secret_admin.py`, `secret_refs.py`, `secret_router.py` | `hdast secret` e o roteamento de `env:` e `keyring:` ([ADR 0030](../../decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
+| `metrics.py` | Montagem do `metrics.json` ([ADR 0031](../../decisoes/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md)) |
+| `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel_live.py` | Painel da execução, índices e página ao vivo ([ADR 0032](../../decisoes/0032-painel-da-execucao.md) e [0034](../../decisoes/0034-indices-do-painel-e-pagina-ao-vivo.md), Propostos) |
+| `command_journal.py` | Diário de comandos por produto ([ADR 0033](../../decisoes/0033-diario-de-comandos.md), Proposto) |
 
 ## Portas por consumidor
 
-Na V1.11 em andamento, `verification.py` coordena a classificação sem tráfego; `confirmation.py` coordena leitura dos artefatos, seleção, controles de envio e persistência aditiva; `human_confirmation.py` e `human_confirmation_ports.py` tratam a declaração interativa separada. A apresentação reúne os registros sem alterar o achado. Veja [verificação](../reference/verification.md).
+Na V1.11 em andamento, `verification.py` coordena a classificação sem tráfego; `confirmation.py` coordena leitura dos artefatos, seleção, controles de envio e persistência aditiva; `human_confirmation.py` e `human_confirmation_ports.py` tratam a declaração interativa separada. A apresentação reúne os registros sem alterar o achado. Veja [verificação](../../referencia/verification.md).
 
 Na organização V1.9.4 foram preservadas 47 declarações (Protocol e modelos de assinatura), distribuídas em 12 módulos; a V1.11 acrescenta portas específicas de confirmação.
 As portas existentes de scan, authz, negative e panel_index continuam especializadas.

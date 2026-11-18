@@ -12,7 +12,7 @@
 Uma API REST pequena em Spring Boot 3.5 / Java 21 que imita um produto de uma healthtech brasileira
 (Java + Oracle): convênios, médicos, pacientes, consultas e receitas, com JWT, proteção XSRF, validações,
 unicidade, propriedade de registros, limite de tentativas de login e um endpoint que simula envio de SMS/e-mail.
-Serve de alvo para o piloto final e para a avaliação cega (`docs/adr/0014-avaliacao-cega-como-eval.md`).
+Serve de alvo para o piloto final e para a avaliação cega (`docs/decisoes/0014-avaliacao-cega-como-eval.md`).
 
 - Banco: **H2 em modo Oracle** por padrão (sobe em segundos, sem Oracle) ou **Oracle Database Free** (perfil `oracle`).
 - Esquema por Flyway (`src/main/resources/db/migration`), válido nos dois bancos.

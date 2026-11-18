@@ -1,7 +1,7 @@
 # Planos e estado
 
 Proposto = intenção; em execução = trabalho pendente; concluído = escopo executado com limites registrados; substituído = outro plano orienta o trabalho.
-O [roadmap](../roadmap.md#estado-atual) prevalece como estado vigente.
+O [roadmap](../../roadmap.md#estado-atual) prevalece como estado vigente.
 
 | Plano | Estado | Evidência e limite |
 | --- | --- | --- |

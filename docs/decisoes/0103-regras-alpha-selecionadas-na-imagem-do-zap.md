@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
-- **Origem:** [plano da V1.12](../plans/2026-11-17-v1-12-mais-achados.md), passo F7; [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`attack.experimental_rules`); [ADR 0099](0099-oast-na-varredura.md) (a imagem não tinha regra de SSRF)
+- **Origem:** [plano da V1.12](../arquivo/plans/2026-11-17-v1-12-mais-achados.md), passo F7; [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`attack.experimental_rules`); [ADR 0099](0099-oast-na-varredura.md) (a imagem não tinha regra de SSRF)
 
 ## Contexto
 

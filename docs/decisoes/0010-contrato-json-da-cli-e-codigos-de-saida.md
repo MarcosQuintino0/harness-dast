@@ -29,9 +29,9 @@ Vamos fixar o contrato da CLI.
 - Mudança incompatível no envelope sobe a versão maior do projeto, exige ADR novo e atualização do teste de contrato.
 - Os campos de sucesso de cada comando são definidos por marco. Novos valores de `error.code` são acrescentados por marco.
 - Habilita o uso no CI sem mudança.
-- A lista de valores de `error.code` está em [../reference/cli.md](../reference/cli.md#valores-de-errorcode).
-- Detalhes: [../reference/exit-codes.md](../reference/exit-codes.md) e [../reference/cli.md](../reference/cli.md).
+- A lista de valores de `error.code` está em [../reference/cli.md](../referencia/cli.md#valores-de-errorcode).
+- Detalhes: [../reference/exit-codes.md](../referencia/exit-codes.md) e [../reference/cli.md](../referencia/cli.md).
 
 ## Histórico
 
-- **2026-11-13, emenda antes do primeiro commit.** Este ADR foi aceito em 2026-11-13, mas nada do repositório havia sido commitado; por isso ele foi emendado no lugar, em vez de substituído por um ADR novo. A revisão de QA independente ([../reviews/2026-11-13-qa-m1-m2.md](../reviews/2026-11-13-qa-m1-m2.md), achados A-03, A-06, A-12 e A-19) levou a quatro mudanças: (1) `--json` aceito também depois do subcomando; (2) `TargetError` e `CleanupError` deixam de usar o código `5` e ganham `6` e `7`, para que `5` signifique só falha de ferramenta externa; (3) novo código `130` com `INTERRUPTED`; (4) `hdast` sem argumentos sai com `0`. A partir do primeiro commit com este ADR, qualquer mudança de rumo exige ADR novo.
+- **2026-11-13, emenda antes do primeiro commit.** Este ADR foi aceito em 2026-11-13, mas nada do repositório havia sido commitado; por isso ele foi emendado no lugar, em vez de substituído por um ADR novo. A revisão de QA independente ([../reviews/2026-11-13-qa-m1-m2.md](../arquivo/reviews/2026-11-13-qa-m1-m2.md), achados A-03, A-06, A-12 e A-19) levou a quatro mudanças: (1) `--json` aceito também depois do subcomando; (2) `TargetError` e `CleanupError` deixam de usar o código `5` e ganham `6` e `7`, para que `5` signifique só falha de ferramenta externa; (3) novo código `130` com `INTERRUPTED`; (4) `hdast` sem argumentos sai com `0`. A partir do primeiro commit com este ADR, qualquer mudança de rumo exige ADR novo.

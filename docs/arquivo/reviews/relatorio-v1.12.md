@@ -59,7 +59,7 @@ Os gates de cada passo (`gates-f1`, `gates-f4`, `gates-f6b`, `gates-f2f3b`, `gat
 
 ## 4. Correção à tabela do ZAP
 
-O ADR 0099 dizia que a imagem não tem regra de SSRF (40046). Isso valia para a `zap-stable` pura. Com a imagem derivada do ADR 0103 a regra existe e liga junto com `scan.oast` e `extra_checks.experimental_rules`. O ADR 0099 (proposto) e a docstring de `OAST_RULES` foram corrigidos na revisão da validação independente; a tabela de [uso do ZAP](../reference/uso-do-zap.md) também.
+O ADR 0099 dizia que a imagem não tem regra de SSRF (40046). Isso valia para a `zap-stable` pura. Com a imagem derivada do ADR 0103 a regra existe e liga junto com `scan.oast` e `extra_checks.experimental_rules`. O ADR 0099 (proposto) e a docstring de `OAST_RULES` foram corrigidos na revisão da validação independente; a tabela de [uso do ZAP](../../referencia/uso-do-zap.md) também.
 
 ## 5. Casos de avaliação
 

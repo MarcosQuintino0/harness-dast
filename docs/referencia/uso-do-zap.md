@@ -6,7 +6,7 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 
 **Fontes da conferência:**
 - código: `src/harness_dast/adapters/zap/`, `src/harness_dast/domain/scan_policy.py`, `src/harness_dast/domain/experimental_rules.py`, `docker/zap/Dockerfile` e `compose.yaml`;
-- execução no laboratório (Clínica Piloto, VAmPI e crAPI): `rule-stats.json` das provas da V1.12, com os `run_id` no [relatório da V1.12](../reviews/relatorio-v1.12.md); e, para a base anterior, a rodada cega da V1.9.3 (`2026-11-17T00-37-09Z-clinica-piloto-e0d5`).
+- execução no laboratório (Clínica Piloto, VAmPI e crAPI): `rule-stats.json` das provas da V1.12, com os `run_id` no [relatório da V1.12](../arquivo/reviews/relatorio-v1.12.md); e, para a base anterior, a rodada cega da V1.9.3 (`2026-11-17T00-37-09Z-clinica-piloto-e0d5`).
 
 **Correção registrada na F9.** O ADR 0099 (F2) afirma que a imagem não tem regra de SSRF. Isso valia para a `zap-stable` 2.17.0 pura. Com a imagem derivada do ADR 0103 a regra de SSRF 40046 existe (complemento beta) e liga junto com `scan.oast` e `extra_checks.experimental_rules`. Os ADRs não foram editados; vale esta tabela. A injeção de comando cega com OAST continua sem regra.
 

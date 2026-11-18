@@ -1,6 +1,6 @@
 # Relatório da versão 1.5.5
 
-Data: 2026-11-16; execução iniciada em 2026-11-15. Branch: `feat/v1-5-5-achar-mais`. [Plano](../plans/2026-11-15-plano-v1-5-5-achar-mais.md). ADRs [0061](../adr/0061-espera-de-execucao.md), [0062](../adr/0062-leitura-atribuicao-massa-conta-escritora.md), [0063](../adr/0063-verificacao-cors.md), [0064](../adr/0064-par-automatico-entre-contas.md) e [0065](../adr/0065-triagem-de-todas-as-origens.md): **Propostos**.
+Data: 2026-11-16; execução iniciada em 2026-11-15. Branch: `feat/v1-5-5-achar-mais`. [Plano](../plans/2026-11-15-plano-v1-5-5-achar-mais.md). ADRs [0061](../../decisoes/0061-espera-de-execucao.md), [0062](../../decisoes/0062-leitura-atribuicao-massa-conta-escritora.md), [0063](../../decisoes/0063-verificacao-cors.md), [0064](../../decisoes/0064-par-automatico-entre-contas.md) e [0065](../../decisoes/0065-triagem-de-todas-as-origens.md): **Propostos**.
 
 Implementação entregue com QA independente, gates verdes e oito cenários aprovados nas duas APIs locais. **Aceites B, D e F parciais no VAmPI; crAPI não executado.** Nenhuma prova contra produto real. PR destinado à `develop`, sem merge pelo Codex. Os caminhos de domínio e aplicação abaixo pertencem a `src/harness_dast/`.
 
@@ -29,7 +29,7 @@ Massa continua limitada a corpos JSON, campos e leitores observáveis; restaura�
 
 ## Qualidade e evidências
 
-[Medições e manifesto públicos](../../evals/results/2026-11-15-v1-5-5-lab/README.md). Saídas externas: `C:\harness-dast-artefatos\v1.5.5\`. A suíte inteira foi repetida após a última alteração de código e testes, em `b8884c1`, sem filtro adicional. Na retomada após reinício da máquina foram conferidos os registros e repetidos somente os gates rápidos exigidos pela documentação final.
+[Medições e manifesto públicos](../../../evals/results/2026-11-15-v1-5-5-lab/README.md). Saídas externas: `C:\harness-dast-artefatos\v1.5.5\`. A suíte inteira foi repetida após a última alteração de código e testes, em `b8884c1`, sem filtro adicional. Na retomada após reinício da máquina foram conferidos os registros e repetidos somente os gates rápidos exigidos pela documentação final.
 
 | Gate | Resultado |
 | --- | --- |
@@ -55,4 +55,4 @@ Cinco subagentes GPT 6.1 Terra usaram worktrees próprias: espera/triagem, autor
 
 O Claude Code deve revisar os cinco ADRs como Propostos, tetos por tentativa, continuidade do contador, vínculo declarativo do dono e aceites parciais B/D/F. Módulos críticos exigem a revisão humana de `CONTRIBUTING.md`; conferir os checks do PR antes de juntar. A orquestração mantém funções/arquivos legados maiores que os limites preferenciais; os fluxos novos foram separados em módulos próprios para preservar as fronteiras.
 
-Sem varredura completa, rodada cega ou crAPI nesta entrega. O dono poderá pedir novas rodadas pelo [protocolo](../../evals/protocolo-da-rodada-cega.md), em **Clínica Piloto e VAmPI**, com fonte limpa, versão/commit anotados, semente nova, cópias novas, transcript completo e só a aprovação prevista como intervenção. Usar os casos atuais; `vampi-estrito` preserva o histórico. Autonomia e economia de tokens ainda serão medidas.
+Sem varredura completa, rodada cega ou crAPI nesta entrega. O dono poderá pedir novas rodadas pelo [protocolo](../../../evals/protocolo-da-rodada-cega.md), em **Clínica Piloto e VAmPI**, com fonte limpa, versão/commit anotados, semente nova, cópias novas, transcript completo e só a aprovação prevista como intervenção. Usar os casos atuais; `vampi-estrito` preserva o histórico. Autonomia e economia de tokens ainda serão medidas.

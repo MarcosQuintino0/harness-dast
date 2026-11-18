@@ -1,4 +1,4 @@
-"""Valores do `tokens.css` do desenho do painel (`docs/design/execution-panel/tokens.css`).
+"""Valores do `tokens.css` do desenho do painel (`docs/arquivo/design/execution-panel/tokens.css`).
 
 Cópia literal, embutida em toda página gerada. Um teste compara este texto com o arquivo do
 desenho e falha se um divergir do outro: mudar um valor exige mudar os dois. Módulo puro.
@@ -6,7 +6,7 @@ desenho e falha se um divergir do outro: mudar um valor exige mudar os dois. Mó
 
 from typing import Final
 
-TOKENS_CSS: Final = """/* Tokens do painel da execução (hdast). Fonte: docs/design/execution-panel/README.md.
+TOKENS_CSS: Final = """/* Tokens do painel da execução (hdast). Fonte: docs/arquivo/design/execution-panel/README.md.
    Um arquivo só, embutido em cada página gerada. Nenhuma tela escreve cor, espaço,
    canto, letra ou tempo direto: usa a variável. */
 

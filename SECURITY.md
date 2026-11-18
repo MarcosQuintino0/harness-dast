@@ -2,7 +2,7 @@
 
 Esta ferramenta ataca sistemas de propósito. A segurança dela tem dois lados: o que ela pode causar no alvo e o que pode vazar ou ser explorado nela.
 
-> **Estado atual: fluxo completo implementado (M1 a M5).** O `ScopeGuard` (camada 1), o proxy de escopo (camadas 2 e 3 no lab), a validade da autorização e a janela, os tetos de carga (impostos no `probe`, no `scan` e no ZAP), a resolução de segredos por referência, a trilha de auditoria, a limpeza com confirmação humana, a trava de emergência (`hdast stop`) e o encadeamento `hdast run` existem e foram verificados contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](docs/reviews/2026-11-13-e2e-lab.md)). Ainda **não** existem as skills e permissões do Claude Code (M6) e a avaliação cega (M6). A execução contra ambiente da empresa continua exigindo o M7. Estado por item: [docs/roadmap.md](docs/roadmap.md#tabela-de-status).
+> **Estado atual: fluxo completo implementado (M1 a M5).** O `ScopeGuard` (camada 1), o proxy de escopo (camadas 2 e 3 no lab), a validade da autorização e a janela, os tetos de carga (impostos no `probe`, no `scan` e no ZAP), a resolução de segredos por referência, a trilha de auditoria, a limpeza com confirmação humana, a trava de emergência (`hdast stop`) e o encadeamento `hdast run` existem e foram verificados contra o ZAP 2.17 real e dois alvos de laboratório ([relatório](docs/arquivo/reviews/2026-11-13-e2e-lab.md)). Ainda **não** existem as skills e permissões do Claude Code (M6) e a avaliação cega (M6). A execução contra ambiente da empresa continua exigindo o M7. Estado por item: [docs/roadmap.md](docs/roadmap.md#tabela-de-status).
 
 ## Política de uso autorizado
 
@@ -12,7 +12,7 @@ Esta ferramenta ataca sistemas de propósito. A segurança dela tem dois lados: 
 - Contas de teste devem ser inválidas em produção.
 - Limites de requisições por segundo, duração máxima e threads do ZAP são sempre fixados; os padrões do ZAP são sem limite. O modelo exige os três campos e impõe tetos absolutos (50 requisições por segundo, 480 minutos, 8 threads); o `scan` os fixa no ZAP antes da primeira varredura e o proxy de escopo impõe a taxa; o relatório mostra a taxa observada no proxy (`coverage.traffic`).
 
-O que a autorização precisa conter e como ela vira perfil: [docs/operations/authorization-and-scope.md](docs/operations/authorization-and-scope.md).
+O que a autorização precisa conter e como ela vira perfil: [docs/como-funciona/operacao/authorization-and-scope.md](docs/como-funciona/operacao/authorization-and-scope.md).
 
 ## Como o escopo é imposto (AD-11, ADR 0008)
 
@@ -20,9 +20,9 @@ Três camadas independentes. Cada uma cobre a falha da outra. Escopo e janela **
 
 | Camada | O que faz | Status |
 | --- | --- | --- |
-| 1. `ScopeGuard` no domínio | Valida toda requisição e todo plano de varredura contra a lista permitida | Implementado: `preflight`, `probe` e `scan` só enviam ou varrem o que o guarda aprova, sobre a URL concreta. Limitações em [docs/reference/target-yml.md](docs/reference/target-yml.md#limitações-conhecidas) |
+| 1. `ScopeGuard` no domínio | Valida toda requisição e todo plano de varredura contra a lista permitida | Implementado: `preflight`, `probe` e `scan` só enviam ou varrem o que o guarda aprova, sobre a URL concreta. Limitações em [docs/referencia/target-yml.md](docs/referencia/target-yml.md#limitações-conhecidas) |
 | 2. ZAP em modo protegido | Contexto do ZAP restrito aos mesmos hosts e caminhos | Implementado (M4): `contextId` em toda varredura; o proxy de escopo nega o que o varredor inventa fora do escopo (centenas de pedidos por execução, contados em `scan.json`) |
-| 3. Rede interna do Docker e proxy de escopo (mitmproxy com o mesmo `ScopeGuard`, [ADR 0017](docs/adr/0017-proxy-de-escopo-com-scopeguard.md)) | O contêiner do ZAP só sai por um proxy que decide host, caminho e método | Implementado e exercitado no lab (varredura ativa real, [relatório](docs/reviews/2026-11-13-e2e-lab.md)); alvo corporativo em IP privado não confirmado ([guia](docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais)). Obrigatória antes de qualquer execução contra ambiente da empresa; opcional contra o lab |
+| 3. Rede interna do Docker e proxy de escopo (mitmproxy com o mesmo `ScopeGuard`, [ADR 0017](docs/decisoes/0017-proxy-de-escopo-com-scopeguard.md)) | O contêiner do ZAP só sai por um proxy que decide host, caminho e método | Implementado e exercitado no lab (varredura ativa real, [relatório](docs/arquivo/reviews/2026-11-13-e2e-lab.md)); alvo corporativo em IP privado não confirmado ([guia](docker/scope-proxy/README.md#o-que-isto-não-garante-riscos-residuais)). Obrigatória antes de qualquer execução contra ambiente da empresa; opcional contra o lab |
 
 As três camadas existem e foram exercitadas por varreduras ativas reais no lab (o proxy negou, sem derrubar a varredura, todo pedido fora de `scope.allow`). As permissões do Claude Code (negar `curl` e leitura de `.env`) reduzem acidentes, mas são uma barreira de conveniência, não isolamento: a garantia vem das três camadas.
 
@@ -31,7 +31,7 @@ Flags de linha de comando só podem **reduzir** escopo e limites, nunca ampliar.
 ## Política de segredos (AD-12, ADR 0009)
 
 - O perfil guarda só referências (`secret_ref: env:NOME`), nunca o valor. O modelo do perfil já recusa valor literal e não o repete na mensagem de erro.
-- O valor vem de variável de ambiente (`env:NOME`), de um `.env` ignorado pelo git ou do cofre de credenciais do sistema operacional (`keyring:NOME`, [ADR 0030](docs/adr/0030-cofre-de-credenciais-do-sistema-keyring.md)). **Nunca** versione `.env`. O cofre só é gravado por uma pessoa (`hdast secret set`, prompt oculto, só em terminal interativo; o agente não o roda) e só aceita backends do próprio sistema: nunca um arquivo em texto claro. Ele protege contra histórico de shell e arquivo esquecido, **não** contra um programa na mesma conta de usuário, que lê o cofre. Os valores do cofre entram no mesmo mascaramento dos de ambiente.
+- O valor vem de variável de ambiente (`env:NOME`), de um `.env` ignorado pelo git ou do cofre de credenciais do sistema operacional (`keyring:NOME`, [ADR 0030](docs/decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md)). **Nunca** versione `.env`. O cofre só é gravado por uma pessoa (`hdast secret set`, prompt oculto, só em terminal interativo; o agente não o roda) e só aceita backends do próprio sistema: nunca um arquivo em texto claro. Ele protege contra histórico de shell e arquivo esquecido, **não** contra um programa na mesma conta de usuário, que lê o cofre. Os valores do cofre entram no mesmo mascaramento dos de ambiente.
 - A CLI resolve o segredo, obtém o token e o entrega ao ZAP. O agente vê apenas apelidos de conta (`user_a`).
 - As permissões do Claude Code negam a leitura de `.env` (`.claude/settings.json`, M6; camada 0, de conveniência).
 - Depois de uma execução completa, os testes de integração procuram as senhas, os tokens Bearer, o token XSRF e a chave do ZAP reais da execução em todos os artefatos da pasta, na auditoria do proxy, no `stdout` e no `stderr` da CLI: zero ocorrências é o critério (`tests/integration/test_lab_run.py`).
@@ -48,7 +48,7 @@ Flags de linha de comando só podem **reduzir** escopo e limites, nunca ampliar.
 - O usuário de banco da limpeza deve poder apagar **somente nas tabelas de teste**.
 - A CLI executa dentro de uma transação, mostra quantas linhas seriam apagadas e só confirma depois do aceite.
 - Os dados criados devem ser identificáveis: o gerador marca o que cria com o identificador da execução sempre que o campo permitir (o identificador, `RunId`, já existe no domínio).
-- Status: implementado (M5). `hdast cleanup` só apaga com uma pessoa digitando o nome do produto num terminal interativo (sem flag, arquivo nem variável que confirme no lugar dela; [ADR 0025](docs/adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL (a amarração exige uma coluna real), tabelas permitidas e teto de linhas definidos pela pessoa dona do produto ([guia](docs/operations/cleanup.md)). O `hdast run` nunca a executa: só mostra o comando.
+- Status: implementado (M5). `hdast cleanup` só apaga com uma pessoa digitando o nome do produto num terminal interativo (sem flag, arquivo nem variável que confirme no lugar dela; [ADR 0025](docs/decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)), portão de SQL (a amarração exige uma coluna real), tabelas permitidas e teto de linhas definidos pela pessoa dona do produto ([guia](docs/como-funciona/operacao/cleanup.md)). O `hdast run` nunca a executa: só mostra o comando.
 
 ## Política de dados
 
@@ -59,7 +59,7 @@ Flags de linha de comando só podem **reduzir** escopo e limites, nunca ampliar.
 - O CI nunca recebe credenciais de produtos da empresa na V1; só testa contra o lab.
 - A ferramenta roda em Windows; sem `PYTHONUTF8=1`, mensagens com caracteres fora do cp1252 podem falhar ao ser impressas (observado na revisão de QA, não varrido por completo).
 
-Cenários de abuso e mitigações: [docs/operations/threat-model.md](docs/operations/threat-model.md).
+Cenários de abuso e mitigações: [docs/como-funciona/operacao/threat-model.md](docs/como-funciona/operacao/threat-model.md).
 
 ## Como reportar uma vulnerabilidade no próprio harness
 

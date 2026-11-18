@@ -2,11 +2,11 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** Achados A-01, A-02, A-07, A-11 e A-13 da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md); detalha o [ADR 0005](0005-perfil-de-produto-versionado.md)
+- **Origem:** Achados A-01, A-02, A-07, A-11 e A-13 da [revisão de QA](../arquivo/reviews/2026-11-13-qa-m1-m2.md); detalha o [ADR 0005](0005-perfil-de-produto-versionado.md)
 
 ## Contexto
 
-O [ADR 0005](0005-perfil-de-produto-versionado.md) diz que o formato do perfil "pode evoluir até o fim do M2". A primeira metade do M2 (domínio) implementou o schema como modelos pydantic. A implementação acrescentou campos que a ilustração do documento de fundação não tinha, fixou tetos de carga e definiu regras de normalização de URL. Mudança de schema é mudança de contrato e exige ADR. A referência campo a campo está em [../reference/target-yml.md](../reference/target-yml.md); este ADR registra a decisão e o porquê.
+O [ADR 0005](0005-perfil-de-produto-versionado.md) diz que o formato do perfil "pode evoluir até o fim do M2". A primeira metade do M2 (domínio) implementou o schema como modelos pydantic. A implementação acrescentou campos que a ilustração do documento de fundação não tinha, fixou tetos de carga e definiu regras de normalização de URL. Mudança de schema é mudança de contrato e exige ADR. A referência campo a campo está em [../reference/target-yml.md](../referencia/target-yml.md); este ADR registra a decisão e o porquê.
 
 ## Decisão
 
@@ -33,7 +33,7 @@ O tipo de autenticação com usuário e senha que devolve token chamava-se `oaut
 
 ### Normalização falha fechada
 
-O `ScopeGuard` decide sobre a forma canônica e recusa qualquer ambiguidade em vez de adivinhá-la (detalhes em [../reference/target-yml.md](../reference/target-yml.md#o-que-o-scopeguard-recusa)). Regra de segurança acrescentada pelo achado A-01: **recusa-se todo segmento de caminho que contenha `;`, que termine em ponto ou espaço ou que comece por espaço**, em forma crua ou codificada. Motivo: Tomcat/Spring e IIS removem `;x=1` e aparam ponto e espaço finais antes de rotear, de modo que `/admin;x=1`, `/admin.` e `/admin%20` chegariam à rota `/admin` e contornariam `deny_paths: /admin`. A alternativa de comparar uma forma "limpa" só na negação foi descartada: exigiria adivinhar a reescrita de cada servidor, e recusar a forma é mais simples e mais seguro. O custo é recusar caminhos legítimos com esses caracteres, aceitável numa ferramenta de teste autorizado.
+O `ScopeGuard` decide sobre a forma canônica e recusa qualquer ambiguidade em vez de adivinhá-la (detalhes em [../reference/target-yml.md](../referencia/target-yml.md#o-que-o-scopeguard-recusa)). Regra de segurança acrescentada pelo achado A-01: **recusa-se todo segmento de caminho que contenha `;`, que termine em ponto ou espaço ou que comece por espaço**, em forma crua ou codificada. Motivo: Tomcat/Spring e IIS removem `;x=1` e aparam ponto e espaço finais antes de rotear, de modo que `/admin;x=1`, `/admin.` e `/admin%20` chegariam à rota `/admin` e contornariam `deny_paths: /admin`. A alternativa de comparar uma forma "limpa" só na negação foi descartada: exigiria adivinhar a reescrita de cada servidor, e recusar a forma é mais simples e mais seguro. O custo é recusar caminhos legítimos com esses caracteres, aceitável numa ferramenta de teste autorizado.
 
 Outras regras de validação do perfil:
 
@@ -66,8 +66,8 @@ Os valores são escolhas iniciais, a calibrar com o piloto (M7). O teto vale par
 - Um teste valida o `products/_template/target.yml` contra o modelo, para o template não divergir de novo (achado A-02).
 - Os tetos podem ser revistos no M7; mudar um teto é mudança de contrato e pede ADR novo.
 - O carregador de YAML e o comando `hdast profile validate` ainda não existem. Dependência: [ADR 0012](0012-dependencias-tzdata-e-pyyaml.md).
-- As limitações da normalização (sem DNS, `%` literal, cabeçalhos e corpo não conferidos, caminhos de IIS) estão em [../reference/target-yml.md](../reference/target-yml.md#limitações-conhecidas).
+- As limitações da normalização (sem DNS, `%` literal, cabeçalhos e corpo não conferidos, caminhos de IIS) estão em [../reference/target-yml.md](../referencia/target-yml.md#limitações-conhecidas).
 
 ## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
 
-A consequência "o carregador de YAML e o comando `hdast profile validate` ainda não existem" valia antes do fim do M2. Os dois existem ([ADR 0015](0015-portas-do-perfil-e-carregador-de-yaml.md)). O schema evoluiu só por adição desde então: [ADR 0021](0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md), [0026](0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) (`scope.path_mode`), [0027](0027-teste-de-autorizacao-entre-contas.md) (`authz`), [0028](0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md) (`probe.setup_path`) e [0030](0030-cofre-de-credenciais-do-sistema-keyring.md) (`keyring:`). A referência vigente é [reference/target-yml.md](../reference/target-yml.md).
+A consequência "o carregador de YAML e o comando `hdast profile validate` ainda não existem" valia antes do fim do M2. Os dois existem ([ADR 0015](0015-portas-do-perfil-e-carregador-de-yaml.md)). O schema evoluiu só por adição desde então: [ADR 0021](0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md), [0026](0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) (`scope.path_mode`), [0027](0027-teste-de-autorizacao-entre-contas.md) (`authz`), [0028](0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md) (`probe.setup_path`) e [0030](0030-cofre-de-credenciais-do-sistema-keyring.md) (`keyring:`). A referência vigente é [reference/target-yml.md](../referencia/target-yml.md).

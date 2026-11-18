@@ -37,7 +37,7 @@ Vamos:
    respostas 4xx e 5xx, decide também se um 403 é de CSRF e, ausente ou desconhecido o código, cai na heurística por status. O
    trecho do alvo (`untrusted_target_data.excerpt`) mantém `errors[].field` e `rule` dentro do teto de 300 caracteres.
 6. **Gerador `br.crm`** (`digits` de 4 a 8, padrão 7; `uf`, padrão `SP`), com a mesma unicidade dos geradores numéricos.
-7. **Binds do script de limpeza** documentados em [reference/cleanup.md](../reference/cleanup.md) (`:run_start`, `:run_id`,
+7. **Binds do script de limpeza** documentados em [reference/cleanup.md](../referencia/cleanup.md) (`:run_start`, `:run_id`,
    `:run_tag`, `:account_1` a `:account_N`), alinhados ao `domain/cleanup_binds.py` e ao ADR 0020; o modelo de produto e o piloto
    passam a usar esses nomes.
 

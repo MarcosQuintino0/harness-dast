@@ -1,7 +1,7 @@
 # Proxy de escopo (`scope-proxy`)
 
-Implementa a **camada 3** de AD-11 (ver [ADR 0008](../../docs/adr/0008-escopo-em-tres-camadas.md)) e substitui o Squid
-([ADR 0017](../../docs/adr/0017-proxy-de-escopo-com-scopeguard.md)). É um proxy de saída com interceptação de TLS
+Implementa a **camada 3** de AD-11 (ver [ADR 0008](../../docs/decisoes/0008-escopo-em-tres-camadas.md)) e substitui o Squid
+([ADR 0017](../../docs/decisoes/0017-proxy-de-escopo-com-scopeguard.md)). É um proxy de saída com interceptação de TLS
 (mitmproxy 12.3.1) que chama o **mesmo `ScopeGuard`** da CLI para **cada** requisição que sai da pilha, inclusive as que
 o ZAP inventa durante uma varredura (caminhos novos, troca de método). Uma única implementação de escopo governa tudo.
 

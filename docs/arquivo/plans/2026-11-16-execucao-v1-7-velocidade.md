@@ -2,7 +2,7 @@
 
 Data: 2026-11-16. Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh; desenvolvedores GPT 6.1 Terra, esforço high). Coordenação geral, revisão e junção: Claude Code, na sessão do dono.
 
-O plano de referência é `docs/plans/2026-11-16-personalization-and-scan-performance.md` (revisão 2). **Leia-o inteiro.** Esta versão executa as seções 3, 4 e 5 dele. Este documento só acrescenta o que é específico desta execução.
+O plano de referência é `docs/arquivo/plans/2026-11-16-personalization-and-scan-performance.md` (revisão 2). **Leia-o inteiro.** Esta versão executa as seções 3, 4 e 5 dele. Este documento só acrescenta o que é específico desta execução.
 
 ## 1. Trabalho em paralelo com a V1.8
 
@@ -17,7 +17,7 @@ Outra sessão do Codex está fazendo a **V1.8 (base da personalização)** ao me
   Mexa o mínimo possível nos arquivos de carta e perfil, porque a V1.8 também vai precisar deles.
 - **ADRs:** use os números **0066 a 0069**. A V1.8 usa de 0070 em diante.
 - **Versão:** `1.7.0`. A V1.7 é juntada primeiro; a V1.8 se ajusta depois dela.
-- **Documentos compartilhados** (`CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md`, `docs/adr/README.md`): escreva só a sua parte, em blocos separados, para facilitar a junção.
+- **Documentos compartilhados** (`CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md`, `docs/decisoes/README.md`): escreva só a sua parte, em blocos separados, para facilitar a junção.
 
 ## 2. Trava do laboratório (obrigatória)
 
@@ -47,7 +47,7 @@ As duas sessões usam o mesmo Docker, e as portas do laboratório são fixas. **
 
 ## 4. Regras de sempre
 
-- Leia antes: `docs/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/escada-de-testes.md`.
+- Leia antes: `docs/como-funciona/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/desenvolver/escada-de-testes.md`.
 - **Nada específico de um produto:** nenhuma regra, dica ou skill com nomes de campo, rota, papel ou recurso.
 - **Parte B no laboratório:**
   - só comandos `hdast` e o suporte de testes;

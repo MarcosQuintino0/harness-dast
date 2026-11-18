@@ -4,11 +4,11 @@ Data: 2026-11-16. Executor: Codex, **um agente só**, GPT 6.1 Sol com esforço h
 
 Worktree: `C:\harness-dast-wt\v1-9-3`. Branch: `feat/v1-9-3-authz-dono` (já criada a partir da `develop`, `06ffb65`). Logs e evidências fora do repositório vão em `C:\harness-dast-artefatos\v1-9-3\`.
 
-Leia antes: `CLAUDE.md` (inteiro, partes A e B), `docs/escada-de-testes.md`, `docs/testing.md`, os ADRs 0027, 0038 a 0043, 0057, 0077 e 0078, e o código de `src/harness_dast/domain/authz_*.py` e `src/harness_dast/application/authz*.py`.
+Leia antes: `CLAUDE.md` (inteiro, partes A e B), `docs/desenvolver/escada-de-testes.md`, `docs/desenvolver/testing.md`, os ADRs 0027, 0038 a 0043, 0057, 0077 e 0078, e o código de `src/harness_dast/domain/authz_*.py` e `src/harness_dast/application/authz*.py`.
 
 ## 1. O problema, com evidência
 
-A falha H5 da Clínica Piloto é uma autorização quebrada em nível de objeto (BOLA). Logado como paciente A, `GET /api/consultas/2` devolve a consulta do paciente B com `200`, quando o certo seria `403`. O estágio `authz` sabe achá-la: achou na medição de 13/11 (`docs/reviews/2026-11-13-lab-v1-1-authz.md`), com o perfil do laboratório, que roteia `buscarConsulta` para `paciente_a` **de propósito** (`lab/pilot/product-profile/target.yml`, linha 82).
+A falha H5 da Clínica Piloto é uma autorização quebrada em nível de objeto (BOLA). Logado como paciente A, `GET /api/consultas/2` devolve a consulta do paciente B com `200`, quando o certo seria `403`. O estágio `authz` sabe achá-la: achou na medição de 13/11 (`docs/arquivo/reviews/2026-11-13-lab-v1-1-authz.md`), com o perfil do laboratório, que roteia `buscarConsulta` para `paciente_a` **de propósito** (`lab/pilot/product-profile/target.yml`, linha 82).
 
 Nas rodadas cegas da 1.5.3 à 1.9.2, ninguém achou a H5. Na última (Sonnet, V1.9.2, execução `2026-11-16T20-49-00Z-clinica-piloto-95bf`, perfil em `C:\rodadas\piloto-sonnet55-v192-reuso-vuln-2026-11-16\workspace\products\clinica-piloto\target.yml`):
 
@@ -112,8 +112,8 @@ O dono quer a próxima rodada cega com o ritmo novo (`scan.pacing: proxy`), sem 
   - `CHANGELOG.md`, em seção V1.9.3;
   - `docs/roadmap.md`;
   - o parágrafo de estado do `CLAUDE.md`, curto, no mesmo estilo dos outros, dizendo o que foi provado e só no laboratório;
-  - o guia de autorização em `docs/guides/`, se existir;
-  - um relatório curto `docs/reviews/relatorio-v1.9.3.md`, com evidência, comandos, resultados e limites.
+  - o guia de autorização em `docs/usar/`, se existir;
+  - um relatório curto `docs/arquivo/reviews/relatorio-v1.9.3.md`, com evidência, comandos, resultados e limites.
 - **Gates**, todos verdes, com a saída guardada em `C:\harness-dast-artefatos\v1-9-3\`:
 
   ```

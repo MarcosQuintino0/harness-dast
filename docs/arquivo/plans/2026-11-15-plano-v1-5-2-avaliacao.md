@@ -1,6 +1,6 @@
 # Plano da versão 1.5.2: avaliação atualizada e correções achadas na rodada cega
 
-Data: 2026-11-15. Origem: a rodada cega de 2026-11-15 ([evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md](../../evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md)). Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh). Revisão e junção: Claude Code, na sessão do dono.
+Data: 2026-11-15. Origem: a rodada cega de 2026-11-15 ([evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md](../../../evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md)). Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh). Revisão e junção: Claude Code, na sessão do dono.
 
 ## Por que esta versão existe
 
@@ -20,9 +20,9 @@ Também ficou claro um defeito de processo: **cada versão que põe uma função
 ## Contexto obrigatório
 
 Leia antes de tudo, nesta ordem:
-1. `docs/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local (Clínica Piloto, VAmPI, crAPI), com dados sintéticos.
+1. `docs/como-funciona/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local (Clínica Piloto, VAmPI, crAPI), com dados sintéticos.
 2. `CLAUDE.md`, partes A e B. Elas valem para você e para os seus subagentes.
-3. `docs/escada-de-testes.md`.
+3. `docs/desenvolver/escada-de-testes.md`.
 4. `evals/README.md`, `evals/runner/` e `evals/cases/clinica-piloto/`.
 5. O README da rodada cega citado acima.
 
@@ -53,7 +53,7 @@ Este trabalho melhora a **avaliação** e corrige **defeitos de qualidade**: ré
   - Documentação, se precisar: GPT 6.1 Terra, medium.
   - QA independente: GPT 6.1 Terra, high, um subagente que não programou e tenta quebrar.
 - **ADRs:** use os números **0053 em diante**. Os números 0049 a 0052 já foram usados no complemento da 1.5. O ADR nasce como "Proposto".
-- **Versão:** 1.5.2. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/adr/README.md` e o `pyproject.toml`, e escreva o relatório `docs/reviews/relatorio-v1.5.2.md` no formato de `relatorio-v1.5.1.md`.
+- **Versão:** 1.5.2. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/decisoes/README.md` e o `pyproject.toml`, e escreva o relatório `docs/arquivo/reviews/relatorio-v1.5.2.md` no formato de `relatorio-v1.5.1.md`.
 - **Testes:**
   - Degrau 2 para tudo: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run mypy --platform linux`, `uv run lint-imports`, `uv run vulture` e `uv run pytest -q`, todos verdes, com a suíte inteira depois da última mudança.
   - Degrau 3 só pelos testes de integração (`tests/integration/`, marcadores `integration` e `lab_fast`), para os itens C, D e E. O Docker fica em `%LOCALAPPDATA%\Programs\DockerDesktop\`. Se ele travar com `sailor-ingest.sock`, renomeie a pasta `%LOCALAPPDATA%\Docker\run`; nunca use "Reset to factory defaults".

@@ -92,4 +92,4 @@ o CRLF reproduz exatamente o hash congelado
 Nenhum arquivo congelado foi modificado.
 
 Os limites dos controles anteriores, concorrência offline observada, nova
-validação e entrega estão no [relatório da rodada 3](../../../../docs/reviews/relatorio-v1.8-rodada3.md).
+validação e entrega estão no [relatório da rodada 3](../../../../docs/arquivo/reviews/relatorio-v1.8-rodada3.md).

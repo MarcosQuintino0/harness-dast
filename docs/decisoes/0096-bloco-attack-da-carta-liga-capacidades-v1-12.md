@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-17
-- **Origem:** [plano da V1.12](../plans/2026-11-17-v1-12-mais-achados.md), passo F1; [ADR 0075](0075-ritmo-proxy-em-perfis-novos.md)
+- **Origem:** [plano da V1.12](../arquivo/plans/2026-11-17-v1-12-mais-achados.md), passo F1; [ADR 0075](0075-ritmo-proxy-em-perfis-novos.md)
 
 ## Contexto
 

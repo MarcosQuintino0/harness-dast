@@ -1,6 +1,6 @@
 # Pacote `observability`
 
-Caminho: `src/harness_dast/observability/`. Referência de arquitetura: [../architecture.md](../architecture.md#logs-e-rastreabilidade).
+Caminho: `src/harness_dast/observability/`. Referência de arquitetura: [../../como-funciona/arquitetura.md](../../como-funciona/arquitetura.md#logs-e-rastreabilidade).
 
 ## Responsabilidade
 

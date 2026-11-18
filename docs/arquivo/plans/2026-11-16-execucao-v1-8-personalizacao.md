@@ -2,7 +2,7 @@
 
 Data: 2026-11-16. Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh; desenvolvedores GPT 6.1 Terra, esforço high). Coordenação geral, revisão e junção: Claude Code, na sessão do dono.
 
-O plano de referência é `docs/plans/2026-11-16-personalization-and-scan-performance.md` (revisão 2). **Leia-o inteiro.** Esta versão executa a **V1.8** dele: as seções 3, 4, 6.1 e 6.2, na parte de contratos. Ela entrega:
+O plano de referência é `docs/arquivo/plans/2026-11-16-personalization-and-scan-performance.md` (revisão 2). **Leia-o inteiro.** Esta versão executa a **V1.8** dele: as seções 3, 4, 6.1 e 6.2, na parte de contratos. Ela entrega:
 - o envelope autorizado;
 - o `strategy.yml` versionado;
 - a compilação e a validação sem tráfego;
@@ -26,7 +26,7 @@ Outra sessão do Codex está fazendo a **V1.7 (velocidade serial)** ao mesmo tem
 - **Versão:** `1.8.0`. A V1.7 é juntada **antes** da sua. No fim do seu trabalho, rode `git fetch origin` e veja se a V1.7 já está na `develop`:
   - **Se estiver:** faça `git rebase origin/develop`, resolva os conflitos preservando as duas versões, rode os gates de novo e só então faça push e abra o PR.
   - **Se ainda não estiver:** abra o PR assim mesmo e diga no relatório que falta o rebase. O Claude Code retoma esta conversa para fazê-lo.
-- **Documentos compartilhados** (`CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md`, `docs/adr/README.md`): escreva só a sua parte, em blocos separados.
+- **Documentos compartilhados** (`CHANGELOG.md`, `CLAUDE.md`, `docs/roadmap.md`, `docs/decisoes/README.md`): escreva só a sua parte, em blocos separados.
 
 ## 2. Trava do laboratório (obrigatória)
 
@@ -56,7 +56,7 @@ As duas sessões usam o mesmo Docker, e as portas do laboratório são fixas. **
 
 ## 4. Regras de sempre
 
-- Leia antes: `docs/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/escada-de-testes.md`.
+- Leia antes: `docs/como-funciona/finalidade-e-uso-responsavel.md`, `CLAUDE.md` (partes A e B), `CONTRIBUTING.md` e `docs/desenvolver/escada-de-testes.md`.
 - **Nada específico de um produto:** nenhuma regra, dica ou skill com nomes de campo, rota, papel ou recurso.
 - **Parte B no laboratório:**
   - só comandos `hdast` e o suporte de testes;

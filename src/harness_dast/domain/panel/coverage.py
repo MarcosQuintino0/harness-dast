@@ -1,6 +1,6 @@
 """Aba Cobertura do painel (`coverage.html`): o que foi e o que não foi testado. Módulo puro.
 
-Fiel a `docs/design/execution-panel/screens/coverage.html` e aos estados "modo amplo", "tudo
+Fiel a `docs/arquivo/design/execution-panel/screens/coverage.html` e aos estados "modo amplo", "tudo
 testado" e "tráfego não medido" de `system/states.html`: um quadro de números, o mapa das
 funções por parte do sistema, a cerca (`panel_fence`) e "o que ficou de fora", cada item com o
 risco de não ter testado e quem destrava. Estado nunca só por cor: forma, palavra da lista

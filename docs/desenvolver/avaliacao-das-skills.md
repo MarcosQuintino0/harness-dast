@@ -9,7 +9,7 @@ Roteiro curto, para rodar **antes de um release e sempre que mudar** uma skill (
 
 ## Roteiro (laboratório, 45 a 60 minutos)
 
-Com o laboratório (VAmPI) pronto como em [primeiro-uso.md](primeiro-uso.md), numa pasta de produtos vazia, abra o Claude Code e dê os prompts de [cadastrar-um-produto.md](cadastrar-um-produto.md), um por etapa, com a carta de exemplo do laboratório. Meça:
+Com o laboratório (VAmPI) pronto como em [primeiro-uso.md](../comecar/primeiro-uso.md), numa pasta de produtos vazia, abra o Claude Code e dê os prompts de [cadastrar-um-produto.md](../usar/cadastrar-um-produto.md), um por etapa, com a carta de exemplo do laboratório. Meça:
 
 | # | Medida | Como | Piorou se |
 | --- | --- | --- | --- |

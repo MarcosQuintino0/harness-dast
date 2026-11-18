@@ -75,9 +75,9 @@ Um ADR (Architecture Decision Record) registra **uma decisão por arquivo**: con
 | [0068](0068-tecnologias-consultivas.md) | Declaração consultiva de tecnologias | Proposto | 2026-11-16 | V1.7 |
 | [0069](0069-estrategia-e-limites-da-prova-de-desempenho.md) | Estratégia e limites da prova de desempenho | Proposto | 2026-11-16 | V1.7 |
 
-Os ADRs 0012 a 0014 nasceram da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
+Os ADRs 0012 a 0014 nasceram da [revisão de QA](../arquivo/reviews/2026-11-13-qa-m1-m2.md) e de um requisito novo do dono do projeto, não do documento de fundação.
 
-A numeração dos ADRs não coincide com a dos cartões AD-xx do documento de fundação. Duas decisões desse documento não viraram ADR próprio e estão documentadas em outro lugar: AD-10 (cobertura como alarme, em [../testing.md](../testing.md)) e AD-14 (revisão em equipe de uma pessoa, em [../../CONTRIBUTING.md](../../CONTRIBUTING.md)). AD-09 (composição e `Protocol`) está dentro do ADR 0004.
+A numeração dos ADRs não coincide com a dos cartões AD-xx do documento de fundação. Duas decisões desse documento não viraram ADR próprio e estão documentadas em outro lugar: AD-10 (cobertura como alarme, em [../testing.md](../desenvolver/testing.md)) e AD-14 (revisão em equipe de uma pessoa, em [../../CONTRIBUTING.md](../../CONTRIBUTING.md)). AD-09 (composição e `Protocol`) está dentro do ADR 0004.
 
 ## Contratos da V1.8
 

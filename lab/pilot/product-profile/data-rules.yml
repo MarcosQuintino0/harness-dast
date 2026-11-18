@@ -1,4 +1,4 @@
-# Regras de dados da Clinica Piloto (schema v1, docs/reference/data-rules-yml.md). Dados sinteticos.
+# Regras de dados da Clinica Piloto (schema v1, docs/referencia/data-rules-yml.md). Dados sinteticos.
 schema_version: 1
 rules:
   - match: { field: cpf }

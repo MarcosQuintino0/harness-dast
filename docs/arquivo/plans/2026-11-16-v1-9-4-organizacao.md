@@ -2,7 +2,7 @@
 
 Data: 2026-11-16. Estado: **implementado na branch, aguardando revisão e integração**.
 Não é fechamento de release: pacote permanece 1.9.3 e as entradas estão em `Unreleased`.
-O [roadmap](../roadmap.md#estado-atual) é o estado vigente; histórico somente no CHANGELOG.
+O [roadmap](../../roadmap.md#estado-atual) é o estado vigente; histórico somente no CHANGELOG.
 
 ## Entrega e critérios de aceite
 

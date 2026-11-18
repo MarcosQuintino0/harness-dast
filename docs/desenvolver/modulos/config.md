@@ -1,6 +1,6 @@
 # Pacote `config`
 
-Caminho: `src/harness_dast/config/`. Referências: [reference/env-vars.md](../reference/env-vars.md) e [reference/target-yml.md](../reference/target-yml.md).
+Caminho: `src/harness_dast/config/`. Referências: [../../referencia/env-vars.md](../../referencia/env-vars.md) e [../../referencia/target-yml.md](../../referencia/target-yml.md).
 
 ## Responsabilidade
 
@@ -28,4 +28,4 @@ O contrato do import-linter em `pyproject.toml` proíbe `config` de importar `cl
 
 ## Status
 
-Settings da ferramenta: parte da fundação do M1; o M3 acrescentou `zap_proxy_url`, `auth_proxy_url` e `zap_ca_file` (veja [../reference/env-vars.md](../reference/env-vars.md)). O carregador de perfil está em `adapters/storage` (M2); os modelos estão em `domain/` ([../reference/target-yml.md](../reference/target-yml.md)). Veja a [tabela de status](../roadmap.md#tabela-de-status).
+Settings da ferramenta: parte da fundação do M1; o M3 acrescentou `zap_proxy_url`, `auth_proxy_url` e `zap_ca_file` (veja [../../referencia/env-vars.md](../../referencia/env-vars.md)). O carregador de perfil está em `adapters/storage` (M2); os modelos estão em `domain/` ([../../referencia/target-yml.md](../../referencia/target-yml.md)). Veja a [tabela de status](../../roadmap.md#tabela-de-status).

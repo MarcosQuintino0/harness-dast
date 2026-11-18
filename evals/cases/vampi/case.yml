@@ -20,7 +20,7 @@ deliver:
 write_files: {}
 # Resultados reais de varredura do VAmPI guardados como fixture: diriam quais alertas o ZAP levanta nele.
 # O ADR 0027 cita o nome do gabarito (answer-keys); ADR aceito e imutavel, entao sai da copia.
-exclude: [tests/fixtures/zap_real, tests/fixtures/zap_alerts, docs/adr/0027-teste-de-autorizacao-entre-contas.md]
+exclude: [tests/fixtures/zap_real, tests/fixtures/zap_alerts, docs/decisoes/0027-teste-de-autorizacao-entre-contas.md]
 
 # O VAmPI e publico: o endpoint de depuracao esta no OpenAPI entregue e `ReDoS` aparece no codigo da
 # ferramenta, entao nao servem de termo. So o gabarito e o que o repositorio nao pode conter.

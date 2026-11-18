@@ -37,10 +37,10 @@ A ferramenta vai receber o Swagger de produtos diferentes.
 ## Contexto obrigatório
 
 Leia antes de tudo:
-1. `docs/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local, com dados sintéticos.
+1. `docs/como-funciona/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local, com dados sintéticos.
 2. `CLAUDE.md`, partes A e B, e `CONTRIBUTING.md`, incluindo a regra de atualizar a avaliação no mesmo PR.
-3. `docs/escada-de-testes.md`.
-4. `docs/reference/authz.md` e os ADRs do teste entre contas: 0027, 0038 a 0043 e 0057.
+3. `docs/desenvolver/escada-de-testes.md`.
+4. `docs/referencia/authz.md` e os ADRs do teste entre contas: 0027, 0038 a 0043 e 0057.
 5. As skills `run-scan`, `fix-reachability`, `test-product` e `triage-findings`.
 6. `evals/README.md`, `evals/protocolo-da-rodada-cega.md` e os casos `evals/cases/clinica-piloto/`, `vampi/` e `crapi/`.
 7. O `README.md` da rodada Terra citada acima.
@@ -71,7 +71,7 @@ Este trabalho torna a ferramenta **mais completa e mais barata de operar**. Ele 
     - a regra "qualquer API": procura nomes da Clínica ou do VAmPI no código, nas skills, nas mensagens e nos testes de comportamento;
     - que nada novo escapa da cerca de escopo, dos limites ou da exigência de escrita autorizada.
 - **ADR:** números **0061 em diante**, com status "Proposto". Comando novo, verificação nova, motivo novo de `not_tested` e mudança de envelope são mudanças de contrato e exigem ADR.
-- **Versão:** 1.5.5. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/adr/README.md`, `docs/reference/` e `pyproject.toml`, e escreva `docs/reviews/relatorio-v1.5.5.md`, curto, no formato do `relatorio-v1.5.4.md`.
+- **Versão:** 1.5.5. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/decisoes/README.md`, `docs/referencia/` e `pyproject.toml`, e escreva `docs/arquivo/reviews/relatorio-v1.5.5.md`, curto, no formato do `relatorio-v1.5.4.md`.
 - **Testes:**
   - Degrau 2 para tudo: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run mypy --platform linux`, `uv run lint-imports`, `uv run vulture` e `uv run pytest -q`, todos verdes, com a suíte inteira depois da última mudança.
   - Degrau 3 para os itens B, C e D, pelos testes de integração (`tests/integration/`, marcadores `integration` e `lab_fast`), na Clínica Piloto **e** no VAmPI, nos modos que cada alvo tem.

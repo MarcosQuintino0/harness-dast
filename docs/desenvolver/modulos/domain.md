@@ -1,6 +1,6 @@
 # Pacote `domain`
 
-Caminho: `src/harness_dast/domain/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
+Caminho: `src/harness_dast/domain/`. Decisão: [ADR 0004](../../decisoes/0004-portas-e-adaptadores-em-tres-camadas.md).
 
 ## Mapa por assunto
 
@@ -8,7 +8,7 @@ Inventário histórico após a organização V1.9.4: **215 módulos de produçã
 Grupos disjuntos somam o total: 135 módulos na raiz e 80 nos três subpacotes abaixo.
 Testes espelham `tests/unit/domain/`; adaptadores concretos continuam em `adapters/`.
 
-Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas; `confirmation_observations.py` avalia cabeçalhos e comparações guardadas; `scan_binding.py` vincula a semente efetiva; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../reference/verification.md).
+Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas; `confirmation_observations.py` avalia cabeçalhos e comparações guardadas; `scan_binding.py` vincula a semente efetiva; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../../referencia/verification.md).
 
 | Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ Regras e modelos puros do negócio: o que é escopo, perfil, achado, regra de da
 
 ## Módulos
 
-Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do `RunId` entram por argumento). Duas exceções literais, registradas no [ADR 0012](../adr/0012-dependencias-tzdata-e-pyyaml.md): `window.py` usa `zoneinfo`, que lê o banco de fusos do disco, e `profile_errors.py` importa `pydantic_core`, dependência do pydantic.
+Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do `RunId` entram por argumento). Duas exceções literais, registradas no [ADR 0012](../../decisoes/0012-dependencias-tzdata-e-pyyaml.md): `window.py` usa `zoneinfo`, que lê o banco de fusos do disco, e `profile_errors.py` importa `pydantic_core`, dependência do pydantic.
 
 ### Existem
 
@@ -53,7 +53,7 @@ Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do
 | `api_summary.py` | `summarize`: resumo compacto da API para o agente (entradas obrigatórias, ids produzidos e consumidos) com orçamento rígido em caracteres | M3 |
 | `pattern_subset.py` | Subconjunto seguro de regex (sem grupos nem alternância): análise, casamento polinomial e síntese. Nunca executa o `pattern` do documento com `re` | M3 |
 | `schema_check.py` | `violations`: o que num valor contraria o esquema (tipo, enum, limites, tamanho, formato, `pattern` suportado), sem repetir o valor | M3 |
-| `unique_values.py` | Esquema de valores únicos por execução: etiqueta do `RunId` + contador, em texto e em dígitos ([ADR 0016](../adr/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md)) | M3 |
+| `unique_values.py` | Esquema de valores únicos por execução: etiqueta do `RunId` + contador, em texto e em dígitos ([ADR 0016](../../decisoes/0016-leitor-de-openapi-proprio-e-esquema-de-unicidade.md)) | M3 |
 | `datagen_catalog.py` | Catálogo fechado de 18 geradores (nome, argumentos, se aceita `unique`) e validação estrita de argumentos | M3 |
 | `datagen.py` | `DataRules` (`data-rules.yml`): validação, precedência da regra mais específica, rejeição de regras ambíguas, conferência contra o OpenAPI | M3 |
 | `implicit_values.py` | Escolha do gerador implícito de um campo sem regra; `FieldNotGeneratable` quando o harness não sabe gerar sozinho | M3 |
@@ -61,9 +61,9 @@ Todos puros: sem I/O, sem relógio e sem aleatoriedade (o instante e o sufixo do
 | `flow.py` | `FlowSpec` (`flows.yml`): validação (vários níveis até `MAX_FLOW_DEPTH`, sem ciclo), ordenação topológica, `extract_value` e `resolve_bindings` | M3 |
 | `versioned.py` | Validação comum de `schema_version: 1` e tradução de erros para `ConfigError` em arquivos como `data-rules.yml` e `flows.yml` | M3 |
 
-Referências: [data-rules.yml](../reference/data-rules-yml.md) e [flows.yml](../reference/flows-yml.md).
+Referências: [data-rules.yml](../../referencia/data-rules-yml.md) e [flows.yml](../../referencia/flows-yml.md).
 
-Módulos do `probe` (M3, [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+Módulos do `probe` (M3, [ADR 0018](../../decisoes/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
 
 | Módulo | Conteúdo |
 | --- | --- |
@@ -82,19 +82,19 @@ Módulos do `probe` (M3, [ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-suc
 
 `scope.py` ganhou `ScopeGuard.evaluate` (decisão como dado) e `auth.py` o bloco `CsrfConfig`.
 
-A referência campo a campo do perfil está em [../reference/target-yml.md](../reference/target-yml.md).
+A referência campo a campo do perfil está em [../../referencia/target-yml.md](../../referencia/target-yml.md).
 
-Também existem, desde o M4 e o M5: `finding.py` (`Finding`, `compute_fingerprint`), `run.py` e `probe_result.py` (`RunManifest`), `routing_headers.py` (cabeçalhos que só o cliente HTTP define) e `scan_config.py` (`effective_fail_on`). A distribuição por marco segue o [roadmap](../roadmap.md).
+Também existem, desde o M4 e o M5: `finding.py` (`Finding`, `compute_fingerprint`), `run.py` e `probe_result.py` (`RunManifest`), `routing_headers.py` (cabeçalhos que só o cliente HTTP define) e `scan_config.py` (`effective_fail_on`). A distribuição por marco segue o [roadmap](../../roadmap.md).
 
 A tabela acima cobre o M1 ao M5. As versões 1.1 e 1.2 acrescentaram famílias de módulos, todas puras e testadas; o contrato de cada uma está no docstring do módulo e no ADR citado. Esta lista não é exaustiva (o diretório é a fonte):
 
 | Família | Módulos | ADR |
 | --- | --- | --- |
-| Cerca com motivo granular e modo amplo | `scope_reason.py`, `scope_labels.py`, `widepath.py`, `wide_guard.py`, `traffic.py` | [0026](../adr/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) |
-| Teste de autorização entre contas | `authz/config.py`, `authz/plan.py`, `authz/compare.py`, `authz/result.py`, `authz/findings.py`, `authz/sensitive.py`, `probe_exchange.py` | [0027](../adr/0027-teste-de-autorizacao-entre-contas.md) |
-| Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report/`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../adr/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
-| Medição da execução | `run_metrics.py`, `rule_stats.py`, `run_summary.py` | [0031](../adr/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) |
-| Painel, diário de comandos e explicação de falha | `panel/`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../adr/0032-painel-da-execucao.md), [0033](../adr/0033-diario-de-comandos.md), [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
+| Cerca com motivo granular e modo amplo | `scope_reason.py`, `scope_labels.py`, `widepath.py`, `wide_guard.py`, `traffic.py` | [0026](../../decisoes/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md) |
+| Teste de autorização entre contas | `authz/config.py`, `authz/plan.py`, `authz/compare.py`, `authz/result.py`, `authz/findings.py`, `authz/sensitive.py`, `probe_exchange.py` | [0027](../../decisoes/0027-teste-de-autorizacao-entre-contas.md) |
+| Relatório agrupado e `report.html` | `finding_group.py`, `known_patterns.py`, `report/`, `html_safe.py`, `markdown_safe.py`, `fix_hints.py` | [0029](../../decisoes/0029-relatorio-agrupado-pagina-html-e-skill-de-um-pedido-so.md) |
+| Medição da execução | `run_metrics.py`, `rule_stats.py`, `run_summary.py` | [0031](../../decisoes/0031-medicao-da-execucao-metrics-json-e-tempo-por-regra-do-zap.md) |
+| Painel, diário de comandos e explicação de falha | `panel/`, `command_journal.py`, `command_translation.py`, `finding_explain.py`, `finding_confidence.py`, `manual_repro.py`, `agent_metrics.py` | [0032](../../decisoes/0032-painel-da-execucao.md), [0033](../../decisoes/0033-diario-de-comandos.md), [0034](../../decisoes/0034-indices-do-painel-e-pagina-ao-vivo.md) (os três Propostos) |
 
 ## Pode importar
 
@@ -115,4 +115,4 @@ Somente a biblioteca padrão e pydantic.
 
 ## Status
 
-Os módulos listados estão implementados e testados e são usados pelos comandos da CLI. O número de cobertura (100% na revisão de 2026-11-13) envelhece: a fonte é o relatório do CI. Módulo planejado que ainda não existe não aparece nesta página. A fonte do estado é a [tabela de status](../roadmap.md#tabela-de-status).
+Os módulos listados estão implementados e testados e são usados pelos comandos da CLI. O número de cobertura (100% na revisão de 2026-11-13) envelhece: a fonte é o relatório do CI. Módulo planejado que ainda não existe não aparece nesta página. A fonte do estado é a [tabela de status](../../roadmap.md#tabela-de-status).

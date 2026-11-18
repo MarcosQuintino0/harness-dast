@@ -24,7 +24,9 @@ USE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-finding
         ".claude/skills/dev-new/SKILL.md",
         "CHANGELOG.md",
         "docs/roadmap.md",
-        "docs/research/study.md",
+        "docs/comecar/primeiro-uso.md",
+        "docs/decisoes/0014-avaliacao-cega-como-eval.md",
+        "docs/decisoes/0083-copia-cega-por-lista-de-permissao.md",
         "tests/unit/test_lab_expectations.py",
         "products/real/target.yml",
         "src/.env.local",
@@ -37,6 +39,25 @@ def test_unapproved_context_is_not_copied(repo: Path, out: Path, relative: str) 
     dirs = make_round(repo, out)
 
     assert not (dirs.workspace / relative).exists()
+
+
+def test_archive_is_omitted_from_the_blind_workspace(repo: Path, out: Path) -> None:
+    for relative in (
+        "roadmap-historico.md",
+        "design/panel.html",
+        "plans/plan.md",
+        "research/study.md",
+        "reviews/report.md",
+        "spikes/experiment.md",
+        "new/nested/notes.md",
+    ):
+        write(repo / "docs" / "arquivo" / relative, "segredo-do-gabarito")
+    write(repo / "docs" / "usar" / "guide.md", "orientação operacional")
+
+    dirs = make_round(repo, out)
+
+    assert not (dirs.workspace / "docs" / "arquivo").exists()
+    assert (dirs.workspace / "docs" / "usar" / "guide.md").is_file()
 
 
 def test_real_operational_skills_and_shared_rules_are_kept_without_version_history() -> None:
@@ -52,6 +73,15 @@ def test_real_operational_skills_and_shared_rules_are_kept_without_version_histo
         assert not re.search(r"(?m)^(?:Estado:|(?:A\s+)?V\d+\.)", text)
         assert "BOLA entre pacientes preservado" not in text
         assert "## Notas de entrega" not in text
+
+
+def test_versioned_case_exclusions_cover_relocated_decisions() -> None:
+    from evals.runner.cases import load_case
+
+    kept = {rel for _, rel in walk_kept(ROOT, exclusions_for(load_case("vampi")))}
+
+    assert "docs/decisoes/0027-teste-de-autorizacao-entre-contas.md" not in kept
+    assert "docs/decisoes/README.md" in kept
 
 
 def test_manifest_counts_exactly_the_copied_repository_files(repo: Path, out: Path) -> None:

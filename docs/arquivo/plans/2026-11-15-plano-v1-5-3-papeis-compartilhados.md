@@ -13,9 +13,9 @@ Evidências da rodada, fora do repositório: `C:\rodadas\piloto-sonnet55-v152b-2
 ## Contexto obrigatório
 
 Leia antes de tudo:
-1. `docs/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local, com dados sintéticos.
+1. `docs/como-funciona/finalidade-e-uso-responsavel.md`: a ferramenta é **defensiva**. Ela roda só em ambientes de teste autorizados e, no desenvolvimento, só no laboratório local, com dados sintéticos.
 2. `CLAUDE.md`, partes A e B, e `CONTRIBUTING.md`, incluindo a regra nova de atualizar a avaliação no mesmo PR.
-3. `docs/escada-de-testes.md`.
+3. `docs/desenvolver/escada-de-testes.md`.
 4. Os ADRs 0027, 0036, 0037, 0038 e 0042 (teste entre contas, carta, aprovação, escrita, escrita em recurso de outra conta) e os adendos deles.
 5. `evals/README.md` e `evals/cases/clinica-piloto/`.
 
@@ -41,7 +41,7 @@ Este trabalho **reduz** alarmes falsos de um teste que já existe. Ele não acre
   - Documentação, se precisar: GPT 6.1 Terra, medium.
   - QA independente: GPT 6.1 Terra, high.
 - **ADR:** use o número **0057**, com status "Proposto".
-- **Versão:** 1.5.3. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/adr/README.md` e `pyproject.toml`, e escreva `docs/reviews/relatorio-v1.5.3.md`, curto.
+- **Versão:** 1.5.3. Atualize `CHANGELOG.md`, `CLAUDE.md` (o parágrafo de estado), `docs/roadmap.md`, `docs/decisoes/README.md` e `pyproject.toml`, e escreva `docs/arquivo/reviews/relatorio-v1.5.3.md`, curto.
 - **Testes:**
   - Degrau 2 para tudo: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run mypy --platform linux`, `uv run lint-imports`, `uv run vulture` e `uv run pytest -q`, todos verdes, com a suíte inteira depois da última mudança.
   - Degrau 3 só para o item D. O Docker fica em `%LOCALAPPDATA%\Programs\DockerDesktop\`; se travar com `sailor-ingest.sock`, renomeie `%LOCALAPPDATA%\Docker\run`. Derrube pilhas que sobraram antes de subir (`docker compose ls -a`). Use `HDAST_ZAP_API_KEY` aleatória no processo e termine sempre com `stack down`.

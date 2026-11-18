@@ -2,7 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** Spike M0 ([2026-11-13-m0-zap.md](../spikes/2026-11-13-m0-zap.md), Q4, Q6, Q7 e seção 6); detalha o [ADR 0008](0008-escopo-em-tres-camadas.md); itens A-08 e A-18 da [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md). Dependência nova (mitmproxy): este ADR é o registro exigido por `CLAUDE.md`.
+- **Origem:** Spike M0 ([2026-11-13-m0-zap.md](../arquivo/spikes/2026-11-13-m0-zap.md), Q4, Q6, Q7 e seção 6); detalha o [ADR 0008](0008-escopo-em-tres-camadas.md); itens A-08 e A-18 da [revisão de QA](../arquivo/reviews/2026-11-13-qa-m1-m2.md). Dependência nova (mitmproxy): este ADR é o registro exigido por `CLAUDE.md`.
 - **Nota de aceitação (2026-11-13):** aceito depois da implementação e da verificação no laboratório (ZAP 2.17 real, proxy de escopo real, VAmPI e Clínica Piloto); veja docs/reviews/2026-11-13-e2e-lab.md. O dono do projeto aprovou o desenho e pediu a conclusão do trabalho.
 
 ## Contexto

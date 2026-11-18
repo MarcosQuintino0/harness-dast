@@ -2,7 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-11-13
-- **Origem:** primeiras rodadas cegas ([2026-11-13-rodadas-cegas](../reviews/2026-11-13-rodadas-cegas.md)): quem lê o relatório é uma pessoa de QA e o dono do produto, não especialistas, e hoje precisa fazer quatro pedidos ao agente. Muda o contrato de [findings.json](../reference/finding-schema.md) (campo novo), cria um arquivo novo de saída e uma skill nova; estende os ADRs [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0025](0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md), que seguem imutáveis.
+- **Origem:** primeiras rodadas cegas ([2026-11-13-rodadas-cegas](../arquivo/reviews/2026-11-13-rodadas-cegas.md)): quem lê o relatório é uma pessoa de QA e o dono do produto, não especialistas, e hoje precisa fazer quatro pedidos ao agente. Muda o contrato de [findings.json](../referencia/finding-schema.md) (campo novo), cria um arquivo novo de saída e uma skill nova; estende os ADRs [0022](0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md) e [0025](0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md), que seguem imutáveis.
 
 ## Contexto
 

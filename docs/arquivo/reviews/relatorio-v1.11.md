@@ -13,7 +13,7 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    precisa de pessoa, declaração humana e calibração separadas; skills e critério
    privado de acerto da triagem sem mudar a nota histórica. Achados, severidade e
    status preservados. Fases 0/D/F operacionais pendentes.
-2. **ADRs.** [0085 a 0091](../adr/README.md#verificação-v111), todos Propostos:
+2. **ADRs.** [0085 a 0091](../../decisoes/README.md#verificação-v111), todos Propostos:
    contrato; declaração humana; reprodução; apresentação/calibração; régua privada;
    vínculo da semente/prova/parada; observações passivas. Nenhuma dependência nova.
 3. **Linha de base (fase 0).** Base `44ef387`, aprovações descartáveis do suporte
@@ -26,7 +26,7 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    visual por uma pessoa continua pendente.
 4. **Calibração (fase D).** Cinco execuções completas com `hdast confirm` em todos os achados
    (retomada pelo Claude Code, seção 11). Matriz por tipo, amostras e limites em
-   [calibração](../reference/verification-calibration.md); o JSON lido pelo relatório e pelo
+   [calibração](../../referencia/verification-calibration.md); o JSON lido pelo relatório e pelo
    painel tem três linhas, todas com amostra abaixo de 10, então só contagens. Resumo: 11
    `reproduced`, todos de recibo de autorização (3 falhas plantadas, 2 médicos que compartilham
    pacientes sem `shared_roles`, 6 respostas sem login do VAmPI sem gabarito); 1 `inconclusive`

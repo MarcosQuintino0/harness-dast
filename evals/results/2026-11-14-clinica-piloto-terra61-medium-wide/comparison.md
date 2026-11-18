@@ -1,6 +1,6 @@
 # Comparação com a avaliação cega existente
 
-A referência principal é `cega-piloto-003`, descrita no [relatório da V1.1](../../../docs/reviews/2026-11-13-rodada-cega-v1-1.md). A rodada atual usa o commit `abc4f3a`, que declara versão 1.5.0, antes do complemento atual. Esta tabela descreve duas observações; não é um experimento controlado de melhoria entre versões.
+A referência principal é `cega-piloto-003`, descrita no [relatório da V1.1](../../../docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md). A rodada atual usa o commit `abc4f3a`, que declara versão 1.5.0, antes do complemento atual. Esta tabela descreve duas observações; não é um experimento controlado de melhoria entre versões.
 
 | Medida | Cega V1.1: Sonnet | Atual: Terra 6.1 medium |
 | --- | --- | --- |

@@ -8,7 +8,7 @@ Convenção usada em todo o relatório: **[Fato]** = verificado em fonte primár
 
 ## A. Explicação para leigos
 
-> Uma versão visual desta explicação está publicada em https://claude.ai/artifact/HNuPLuBbUb4wkkGKcREDeY (link privado; o dono precisa compartilhá-lo para que outras pessoas consigam abrir) e salva localmente em `docs/research/explicacao-para-leigos.html`.
+> Uma versão visual desta explicação está publicada em https://claude.ai/artifact/HNuPLuBbUb4wkkGKcREDeY (link privado; o dono precisa compartilhá-lo para que outras pessoas consigam abrir) e salva localmente em `docs/arquivo/research/explicacao-para-leigos.html`.
 
 ### O que é
 

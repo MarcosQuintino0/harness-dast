@@ -1,6 +1,6 @@
 # Relatório da versão 1.5.4
 
-Data: 2026-11-15. Branch: `feat/v1-5-4-alcance-confiavel`. Plano: [V1.5.4](../plans/2026-11-15-plano-v1-5-4-alcance-confiavel.md). Decisões: ADRs [0058](../adr/0058-recusa-esperada-login.md), [0059](../adr/0059-diagnostico-conflitos.md) e [0060](../adr/0060-regua-sem-vacuidade.md), **Propostos**.
+Data: 2026-11-15. Branch: `feat/v1-5-4-alcance-confiavel`. Plano: [V1.5.4](../plans/2026-11-15-plano-v1-5-4-alcance-confiavel.md). Decisões: ADRs [0058](../../decisoes/0058-recusa-esperada-login.md), [0059](../../decisoes/0059-diagnostico-conflitos.md) e [0060](../../decisoes/0060-regua-sem-vacuidade.md), **Propostos**.
 
 Entrega: itens A a F implementados, QA independente, gates completos e três casos de integração aprovados após corrigir uma asserção do suporte. PR destinado à `develop`, sem merge pelo Codex. `domain/` e `application/` abaixo pertencem a `src/harness_dast/`.
 
@@ -9,10 +9,10 @@ Entrega: itens A a F implementados, QA independente, gates completos e três cas
 | Item | Mudança e arquivos principais | Testes e prova |
 | --- | --- | --- |
 | A. Recusa esperada do login | **Feito.** `domain/{outcome,probe_result,scan_plan}.py`, `application/probe_runner.py` e ADR 0058 distinguem `auth_rejected_expected`; `reached` soma sucessos e recusas esperadas. | Dois contratos sintéticos conferem método/caminho e preservam `auth_error` protegido; CSRF não é reclassificado. Laboratório nos dois modos: login 401 esperado; no seguro a operação protegida continua 403/`auth_error`. |
-| B. Falha localizada | **Feito.** `.claude/skills/fix-reachability/SKILL.md` e `docs/guides/problemas-comuns.md` interrompem só a operação após as tentativas permitidas e registram a pendência. | Contratos de skills e links passaram; paradas de autorização, escopo, janela, aprovação, indisponibilidade, `STACK_BUSY` e 429 sem limite continuam explícitas. |
+| B. Falha localizada | **Feito.** `.claude/skills/fix-reachability/SKILL.md` e `docs/usar/problemas-comuns.md` interrompem só a operação após as tentativas permitidas e registram a pendência. | Contratos de skills e links passaram; paradas de autorização, escopo, janela, aprovação, indisponibilidade, `STACK_BUSY` e 429 sem limite continuam explícitas. |
 | C. Conflitos e dependências | **Feito.** `domain/probe_conflict.py`, `probe_result.py`, `application/{preview,probe_runner}.py` e ADR 0059 expõem `conflict_fields`, `blocked_dependencies` e ranking `blocked_producers`. | Dois contratos, origem/unique, listas, readOnly, resposta hostil, máscara de segredo e grafo com vários produtores. Laboratório: 409 informa o campo e o produtor bloqueia 11 operações, contadas no resultado. |
 | D. Varredura parcial | **Feito.** Skills `fix-reachability`, `test-product`, `run-scan`, dois guias, referências e `domain/{report_*,panel_*}.py` registram operações e motivos do último probe e distinguem cobertura parcial de etapa interrompida. | Testes de JSON, Markdown, HTML, painel e escape; QA reproduziu e confirmou a correção da operação recusada pelo ZAP omitida das lacunas e do parcial indevido no login. |
-| E. Triagem sem vacuidade | **Feito.** `evals/runner/checks_triage.py` e ADR 0060 deixam quatro checks dependentes de achados como `n/a` quando não há `findings.json`. | Casos sem arquivo, arquivo vazio válido e achado alto sem triagem. [Recálculo reproduzível](../../evals/results/2026-11-15-v1-5-4/README.md): Terra 6,29 → 5,79; Sonnet 9,16 → 9,16. |
+| E. Triagem sem vacuidade | **Feito.** `evals/runner/checks_triage.py` e ADR 0060 deixam quatro checks dependentes de achados como `n/a` quando não há `findings.json`. | Casos sem arquivo, arquivo vazio válido e achado alto sem triagem. [Recálculo reproduzível](../../../evals/results/2026-11-15-v1-5-4/README.md): Terra 6,29 → 5,79; Sonnet 9,16 → 9,16. |
 | F. Avaliação no mesmo PR | **Feito.** `evals/{README.md,protocolo-da-rodada-cega.md}`, `runner/checks_reach.py`, testes e evidências acompanham A a E. Nenhuma permissão nova exige alteração da carta. | `tests/unit/evals`, prepare/vazamento e contratos de skills estão na suíte completa verde. A cópia cega continua recebendo as skills sem termos do gabarito. |
 
 ## Decisões de alcance e notas
@@ -25,7 +25,7 @@ O recálculo histórico altera somente (f), sem reclassificar os probes antigos 
 
 ## Qualidade e evidências
 
-Saídas externas: `C:\harness-dast-artefatos\v1.5.4\`. [Validação sanitizada, oito probes e manifesto](../../evals/results/2026-11-15-v1-5-4-lab/README.md) estão versionados. A última mudança de teste precedeu a repetição dos seis gates estáticos e da suíte inteira, sem filtro adicional.
+Saídas externas: `C:\harness-dast-artefatos\v1.5.4\`. [Validação sanitizada, oito probes e manifesto](../../../evals/results/2026-11-15-v1-5-4-lab/README.md) estão versionados. A última mudança de teste precedeu a repetição dos seis gates estáticos e da suíte inteira, sem filtro adicional.
 
 | Gate | Resultado |
 | --- | --- |

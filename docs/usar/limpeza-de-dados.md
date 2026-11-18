@@ -1,6 +1,6 @@
 # Limpeza de dados: quem faz o quê
 
-O `probe` e a varredura criam registros sintéticos no ambiente de teste. Apagá-los é a única ação **destrutiva** do harness, e por isso é uma tarefa **humana**. Referência técnica completa: [operations/cleanup.md](../operations/cleanup.md), [reference/cleanup.md](../reference/cleanup.md) e [ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md).
+O `probe` e a varredura criam registros sintéticos no ambiente de teste. Apagá-los é a única ação **destrutiva** do harness, e por isso é uma tarefa **humana**. Referência técnica completa: [../como-funciona/operacao/cleanup.md](../como-funciona/operacao/cleanup.md), [../referencia/cleanup.md](../referencia/cleanup.md) e [ADR 0025](../decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md).
 
 ## Quem faz cada coisa
 
@@ -47,7 +47,7 @@ Se o ambiente é descartável ou recriado depois de cada execução, a carta de 
 
 ### 1. Prepare o perfil e o script
 
-Bloco `cleanup` do `target.yml` (campos novos em negrito; veja o [exemplo completo](../reference/target-yml.md)):
+Bloco `cleanup` do `target.yml` (campos novos em negrito; veja o [exemplo completo](../referencia/target-yml.md)):
 
 ```yaml
 cleanup:

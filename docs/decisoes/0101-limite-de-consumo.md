@@ -3,7 +3,7 @@
 - **Status:** Proposto
 - Parcialmente substituído pelo ADR 0104 (chave do diário nas tentativas de rejeição)
 - **Data:** 2026-11-17
-- **Origem:** F5 da V1.12 ([plano](../plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`extra_checks.allow_rate_tests`); [ADR 0100](0100-ssrf-guiado-pelo-contrato.md) (padrão de checagem própria da CLI); desafios C3 e C6 do crAPI
+- **Origem:** F5 da V1.12 ([plano](../arquivo/plans/2026-11-17-v1-12-mais-achados.md)); [ADR 0096](0096-bloco-attack-da-carta-liga-capacidades-v1-12.md) (`extra_checks.allow_rate_tests`); [ADR 0100](0100-ssrf-guiado-pelo-contrato.md) (padrão de checagem própria da CLI); desafios C3 e C6 do crAPI
 
 ## Contexto
 

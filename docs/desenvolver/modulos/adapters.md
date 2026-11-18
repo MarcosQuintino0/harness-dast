@@ -1,6 +1,6 @@
 # Pacote `adapters`
 
-Caminho: `src/harness_dast/adapters/`. Decisão: [ADR 0004](../adr/0004-portas-e-adaptadores-em-tres-camadas.md).
+Caminho: `src/harness_dast/adapters/`. Decisão: [ADR 0004](../../decisoes/0004-portas-e-adaptadores-em-tres-camadas.md).
 
 ## Responsabilidade
 
@@ -18,7 +18,7 @@ Subpacotes do desenho aprovado (todos existem; `scope_proxy/`, `docker/` e `syst
 | `zap/` | Cliente da API do ZAP, plano de varredura, mapeamento de alertas | M4 |
 | `reporting/` | Relatório em JSON e Markdown | M4 |
 | `cleanup/` | Executor do SQL de limpeza (Oracle, python-oracledb) | M5 |
-| `scope_proxy/` | Lado Python do proxy de escopo: decisão, auditoria, trava de emergência, política ([ADR 0017](../adr/0017-proxy-de-escopo-com-scopeguard.md)) | M3 a M5 |
+| `scope_proxy/` | Lado Python do proxy de escopo: decisão, auditoria, trava de emergência, política ([ADR 0017](../../decisoes/0017-proxy-de-escopo-com-scopeguard.md)) | M3 a M5 |
 | `docker/` | Sobe, consulta e derruba a pilha (`docker compose`) | M5 |
 
 ## Pode importar
@@ -35,12 +35,12 @@ Subpacotes do desenho aprovado (todos existem; `scope_proxy/`, `docker/` e `syst
 
 ## Convenções
 
-- Dependência nova de terceiros exige ADR ([CONTRIBUTING.md](../../CONTRIBUTING.md)).
+- Dependência nova de terceiros exige ADR ([CONTRIBUTING.md](../../../CONTRIBUTING.md)).
 - Adaptadores não têm piso de cobertura de linha; têm a obrigação de um teste de integração ou de contrato. Todo adaptador de uma porta passa na suíte de contrato dessa porta.
 
 ## Status
 
-Todos os adaptadores abaixo estão implementados; as tabelas seguem a ordem dos marcos (veja a [tabela de status](../roadmap.md#tabela-de-status)). Na V1.2 vieram `storage/command_journal.py` (diário de comandos, [ADR 0033](../adr/0033-diario-de-comandos.md)) e `reporting/panel_files.py` e `panel_index_files.py` (páginas do painel, [ADR 0032](../adr/0032-painel-da-execucao.md) e [0034](../adr/0034-indices-do-painel-e-pagina-ao-vivo.md)). O M2 trouxe ([ADR 0015](../adr/0015-portas-do-perfil-e-carregador-de-yaml.md)):
+Todos os adaptadores abaixo estão implementados; as tabelas seguem a ordem dos marcos (veja a [tabela de status](../../roadmap.md#tabela-de-status)). Na V1.2 vieram `storage/command_journal.py` (diário de comandos, [ADR 0033](../../decisoes/0033-diario-de-comandos.md)) e `reporting/panel_files.py` e `panel_index_files.py` (páginas do painel, [ADR 0032](../../decisoes/0032-painel-da-execucao.md) e [0034](../../decisoes/0034-indices-do-painel-e-pagina-ao-vivo.md)). O M2 trouxe ([ADR 0015](../../decisoes/0015-portas-do-perfil-e-carregador-de-yaml.md)):
 
 | Módulo | Porta | Conteúdo |
 | --- | --- | --- |
@@ -50,20 +50,20 @@ Todos os adaptadores abaixo estão implementados; as tabelas seguem a ordem dos 
 | `storage/product_scaffolder.py` | `ProductScaffolder` | `FileProductScaffolder`: copia `products/_template` para a pasta nova, sem sobrescrever; localiza o modelo a partir do próprio arquivo (`default_template_dir`, raiz do repositório), o que vale para `uv run` e instalação editável |
 | `system_clock.py` | `Clock` | `SystemClock`: hora atual em UTC |
 
-Implementado no M3 ([ADR 0018](../adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
+Implementado no M3 ([ADR 0018](../../decisoes/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)):
 
 | Módulo | Porta | Conteúdo |
 | --- | --- | --- |
 | `http/target_client.py` | `TargetClient` | `HttpxTargetClient`: só envia `ApprovedRequest`; rotas `zap` (pelo proxy do ZAP) e `auth` (direta ou por `HDAST_AUTH_PROXY_URL`); `trust_env=False`; sem seguir redirecionamento; tempo limite; corpo lido até 256 KiB; TLS verificado por padrão; cookies por conta |
 | `zap/api_client.py` | `ZapControl` | `ZapApiClient`: versão, sessão nova, contexto, remoção de regras `hdast-` do Replacer; chave no cabeçalho `X-ZAP-API-KEY`; todo erro vira `ExternalToolError` com dica |
 | `secrets/env_provider.py` | `SecretProvider` | `EnvSecretProvider`: lê a variável de ambiente; ausente ou vazia vira `None` |
-| `secrets/keyring_store.py` | `CredentialStore` | `KeyringCredentialStore`: cofre do sistema (biblioteca `keyring`) sob o serviço `harness-dast`; só backends do sistema (lista fixa); falha vira `SecretBackendError`, sem o valor ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
+| `secrets/keyring_store.py` | `CredentialStore` | `KeyringCredentialStore`: cofre do sistema (biblioteca `keyring`) sob o serviço `harness-dast`; só backends do sistema (lista fixa); falha vira `SecretBackendError`, sem o valor ([ADR 0030](../../decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md)) |
 | `storage/run_store.py` | `RunStore` | `FileRunStore`: `audit.jsonl` só de acréscimo com `fsync`; `manifest.json` e `probe.json` atômicos; `run_id` revalidado |
 | `storage/product_documents.py` | `ProductDocuments` | `data-rules.yml` e `flows.yml` pelo leitor de YAML endurecido; SHA-256 dos arquivos de entrada |
 | `openapi/spec_loader.py` | `SpecLoader` | `FileSpecLoader`: delega a `load_spec` com o caminho já conferido |
 | `system_runtime.py` | `Sleeper`, `EntropySource` | `SystemSleeper`, `SystemEntropy` |
 
-Implementado no M4 e M5 ([ADR 0022](../adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0020](../adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
+Implementado no M4 e M5 ([ADR 0022](../../decisoes/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md), [ADR 0020](../../decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md), [ADR 0024](../../decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)):
 
 | Módulo | Porta | Conteúdo |
 | --- | --- | --- |

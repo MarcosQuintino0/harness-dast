@@ -1,6 +1,6 @@
 # Painel da execução: design final
 
-> **Status: design aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em [`docs/roadmap.md`](../../roadmap.md) (seção "Diferenças entre o painel e o desenho").** Nada nesta pasta é código do produto: são o desenho das telas, o sistema de design e as decisões que ficaram em aberto. As páginas geradas por `hdast panel` (e por `hdast report` e `hdast run`) seguem este desenho; o que o desenho mostra e a CLI ainda não tem está nessa seção. O painel foi medido só em laboratório, nunca contra um produto real.
+> **Status: design aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em [`docs/roadmap.md`](../../../roadmap.md) (seção "Diferenças entre o painel e o desenho").** Nada nesta pasta é código do produto: são o desenho das telas, o sistema de design e as decisões que ficaram em aberto. As páginas geradas por `hdast panel` (e por `hdast report` e `hdast run`) seguem este desenho; o que o desenho mostra e a CLI ainda não tem está nessa seção. O painel foi medido só em laboratório, nunca contra um produto real.
 
 O painel da execução é o conjunto de páginas que a CLI gera para a pessoa de QA e para o dono do produto entenderem um teste: o que foi achado, o que fazer, e o que o agente e a CLI fizeram. Quem lê não domina jargão de segurança, rede ou arquitetura.
 
@@ -78,7 +78,7 @@ São três níveis, do geral para o detalhe. O caminho fica sempre no alto, à e
 
 ## Sobre os números das telas
 
-- **Reais:** os totais da rodada cega de 2026-11-13 na Clínica Piloto (40 funções, 30 tentadas, 27 alcançadas em 4 tentativas, 26 varreduras, 19 min de varredura, 16.854 pedidos, 8.651 barrados, 91 achados, 28 min, 151 mil tokens) e a prova da falha de injeção de SQL. Fonte: [`docs/reviews/2026-11-13-rodada-cega-v1-1.md`](../../reviews/2026-11-13-rodada-cega-v1-1.md).
+- **Reais:** os totais da rodada cega de 2026-11-13 na Clínica Piloto (40 funções, 30 tentadas, 27 alcançadas em 4 tentativas, 26 varreduras, 19 min de varredura, 16.854 pedidos, 8.651 barrados, 91 achados, 28 min, 151 mil tokens) e a prova da falha de injeção de SQL. Fonte: [`docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md`](../../reviews/2026-11-13-rodada-cega-v1-1.md).
 - **Marcados "ex." ou "exemplo" na tela:** tempo e tokens por etapa e por comando, horários, saídas do terminal, tipos de teste, quase todas as linhas do histórico, o segundo produto. A marca existe só no desenho e some na página de verdade.
 - **De exemplo, sem marca:** a distribuição função a função no mapa da Cobertura (os totais batem; a lista exata viria do `scan.json`) e o motivo de "Entrar (login)" e "Alterar meu perfil" não terem sido atacadas.
 

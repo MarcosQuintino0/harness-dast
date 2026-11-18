@@ -1,6 +1,6 @@
 # Variáveis de ambiente `HDAST_*`
 
-Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta" da [configuração em camadas](../architecture.md#configuração-em-camadas)). Segredos de produtos não entram aqui: o perfil usa `secret_ref` ([ADR 0009](../adr/0009-segredos-por-referencia.md)).
+Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta" da [configuração em camadas](../como-funciona/arquitetura.md#configuração-em-camadas)). Segredos de produtos não entram aqui: o perfil usa `secret_ref` ([ADR 0009](../decisoes/0009-segredos-por-referencia.md)).
 
 | Variável | Padrão | Descrição |
 | --- | --- | --- |

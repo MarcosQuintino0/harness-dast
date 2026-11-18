@@ -11,4 +11,4 @@ Nenhuma célula abaixo comprova resultado V1.7. Os exemplos de operação são m
 | CORS | Pendente | Pendente | Sem controle vulnerável conhecido | Pendente | `test_lab_cors.py`; VAmPI sem achado nos dois modos na V1.5.5. |
 | Valores proibidos | Pendente | Pendente | Sem controle conhecido | Sem controle conhecido | `test_lab_negative.py` cobre Clínica; observar pedidos e restauração, não inferir detecção só pela conclusão do comando. |
 
-Controles anteriores: [relatório V1.5.5](../../../docs/reviews/relatorio-v1.5.5.md). Se o baseline A não detectar a falha, registrar **lacuna da referência**, mesmo que B também não detecte. Ausência de resultado, classe, conta, regra ou prova em modo seguro é **inconclusivo** para esse critério. As linhas pendentes não são um aceite.
+Controles anteriores: [relatório V1.5.5](../../../docs/arquivo/reviews/relatorio-v1.5.5.md). Se o baseline A não detectar a falha, registrar **lacuna da referência**, mesmo que B também não detecte. Ausência de resultado, classe, conta, regra ou prova em modo seguro é **inconclusivo** para esse critério. As linhas pendentes não são um aceite.
