@@ -43,13 +43,14 @@ Rode apenas contra **ambientes de teste com dados sintéticos**. Nunca contra pr
 | --- | --- | --- |
 | Python 3.12 ou superior | Rodar a CLI | O uv pode instalar a versão certa. |
 | [uv](https://docs.astral.sh/uv/) | Ambiente virtual e dependências travadas | Equivale a Maven/Gradle para Python: resolve e trava versões. |
-| Docker Desktop | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Windows com Docker Desktop é suportado. `hdast stack up <produto>` sobe tudo ([lab/README.md](lab/README.md)). Necessário para `probe`, `scan` e `run`; não para `version`, `init`, `profile validate` e `spec inspect`. `hdast doctor` confere se o Docker responde, mas não sobe nada. |
+| Docker | ZAP, proxy de escopo e laboratório de alvos vulneráveis | Veja como instalar o [Docker e as imagens da pilha](docs/comecar/docker.md). `hdast stack up <produto>` sobe a pilha. |
 | Claude Code | Agente que usa as skills em `.claude/` | Opcional: os comandos `hdast` funcionam sem ele. As skills e as permissões carregam sozinhas ao abrir o `claude` na raiz do repositório. |
 
 ## Como usar
 
 | Quero... | Vá para |
 | --- | --- |
+| Instalar a CLI e preparar o Docker | [Instalação](docs/comecar/instalar.md) |
 | Instalar e rodar a primeira varredura no laboratório (VAmPI) | [docs/comecar/primeiro-uso.md](docs/comecar/primeiro-uso.md) |
 | Testar um produto de verdade com o Claude Code (carta de autorização, perfil, segredos, prompts prontos por etapa) | [docs/usar/cadastrar-um-produto.md](docs/usar/cadastrar-um-produto.md) e o [modelo de carta](docs/usar/modelo-de-autorizacao.md) |
 | Limpar os dados de teste (só uma pessoa, em terminal) | [docs/usar/limpeza-de-dados.md](docs/usar/limpeza-de-dados.md) |
