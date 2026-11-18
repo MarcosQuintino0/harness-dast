@@ -2,7 +2,7 @@
 
 - **Status:** Aceito (requisito aprovado pelo dono do projeto; implementação planejada para o M6, nada existe ainda)
 - **Data:** 2026-11-13
-- **Origem:** Requisito novo do dono do projeto, registrado após a [revisão de QA](../reviews/2026-11-13-qa-m1-m2.md)
+- **Origem:** Requisito novo do dono do projeto, registrado após a [revisão de QA](../arquivo/reviews/2026-11-13-qa-m1-m2.md)
 
 ## Contexto
 
@@ -67,8 +67,8 @@ Toda falha corrigida vira um **caso permanente** da suíte, para não voltar.
 - Custa tokens a cada rodada: o custo é parte da nota, e o orçamento por rodada precisa ser definido no M6.
 - Cria um ciclo: falha de eval, classificação, correção, caso permanente. A suíte cresce com o projeto.
 - Complementa o "roteiro de avaliação das skills" do desenho original como critério de saída do M6, sem apagá-lo.
-- Descrição da suíte em [../testing.md](../testing.md#avaliação-cega-evals) e marco em [../roadmap.md](../roadmap.md#m6-skills-documentação-de-uso-e-avaliação-cega).
+- Descrição da suíte em [../testing.md](../desenvolver/testing.md#avaliação-cega-evals) e marco em [../roadmap.md](../arquivo/roadmap-historico.md#m6-skills-documentação-de-uso-e-avaliação-cega).
 
 ## Nota de 2026-11-14 (estado; o texto da decisão não mudou)
 
-O status "nada existe ainda" valia em 2026-11-13, antes do M6. A suíte existe em `evals/` ([evals/README.md](../../evals/README.md)): preparação da cópia cega, coleta do rastro, nota automática e comparação de medições. Seis rodadas foram feitas em 2026-11-13 contra o laboratório (cinco da versão 1.0 e uma da 1.1): [rodadas cegas](../reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](../reviews/2026-11-13-rodada-cega-v1-1.md). Continuam em aberto: a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem), o número de repetições por caso e o orçamento por rodada, e a rodada cega com a skill `test-product`.
+O status "nada existe ainda" valia em 2026-11-13, antes do M6. A suíte existe em `evals/` ([evals/README.md](../../evals/README.md)): preparação da cópia cega, coleta do rastro, nota automática e comparação de medições. Seis rodadas foram feitas em 2026-11-13 contra o laboratório (cinco da versão 1.0 e uma da 1.1): [rodadas cegas](../arquivo/reviews/2026-11-13-rodadas-cegas.md) e [rodada da V1.1](../arquivo/reviews/2026-11-13-rodada-cega-v1-1.md). Continuam em aberto: a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem), o número de repetições por caso e o orçamento por rodada, e a rodada cega com a skill `test-product`.

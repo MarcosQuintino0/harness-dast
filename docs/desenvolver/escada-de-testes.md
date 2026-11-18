@@ -2,7 +2,7 @@
 
 Este guia explica como conferir uma mudança no harness-dast sem esperar horas por varreduras do ZAP. É para quem desenvolve o projeto, pessoa ou agente. Os níveis de teste, os dublês e os casos obrigatórios estão em [testing.md](testing.md).
 
-A regra é simples: **cada mudança sobe só até o degrau que ela exige.** A varredura completa e a rodada cega ficam para o fechamento de versão. Origem: proposta aprovada pelo dono em 2026-11-13, depois de a V1.1 gastar horas com varreduras completas a cada conserto. O que ainda falta fazer da proposta está no item V1.1-d do [roadmap](roadmap.md).
+A regra é simples: **cada mudança sobe só até o degrau que ela exige.** A varredura completa e a rodada cega ficam para o fechamento de versão. Origem: proposta aprovada pelo dono em 2026-11-13, depois de a V1.1 gastar horas com varreduras completas a cada conserto. O item V1.1-d registra o estado da proposta à época. [Roadmap histórico](../arquivo/roadmap-historico.md#itens-novos-da-v11-abertos-em-2026-11-13-a-partir-das-medições).
 
 ## Os cinco degraus
 
@@ -62,7 +62,7 @@ Se a mudança não tocou a régua de avaliação, pode pular `tests/unit/evals/`
 Antes de começar:
 
 - O Docker Desktop precisa estar aberto (`uv run hdast doctor` confere).
-- `HDAST_ZAP_API_KEY` definida na sessão, com um valor aleatório que não vai para arquivo versionado ([lab/README.md](../lab/README.md)).
+- `HDAST_ZAP_API_KEY` definida na sessão, com um valor aleatório que não vai para arquivo versionado ([lab/README.md](../../lab/README.md)).
 - O perfil de laboratório numa pasta de produtos e **aprovado por uma pessoa** (`hdast profile approve`, ADR 0037). Um agente nunca aprova: diante de `SCOPE_NOT_APPROVED`, ele para e pede.
 
 ### Pelo nível rápido de integração
@@ -76,7 +76,7 @@ uv run pytest -m lab_fast tests/integration/test_lab_path_scope.py
 
 ### À mão, pelos comandos `hdast`
 
-Quando a mudança não tem teste de integração próprio (por exemplo, uma verificação nova do `authz`), rode só as operações afetadas. Exemplo com a Clínica Piloto (passo a passo da pasta e das contas em [lab/pilot/README.md](../lab/pilot/README.md)):
+Quando a mudança não tem teste de integração próprio (por exemplo, uma verificação nova do `authz`), rode só as operações afetadas. Exemplo com a Clínica Piloto (passo a passo da pasta e das contas em [lab/pilot/README.md](../../lab/pilot/README.md)):
 
 ```bash
 uv run hdast --json stack up clinica-piloto --build
@@ -132,11 +132,11 @@ Só no fechamento de versão, ou quando muda o motor ou a política padrão do Z
 HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full
 ```
 
-Ele roda `hdast run` com todas as operações e a política padrão, no VAmPI e na Clínica Piloto, em modo vulnerável e seguro, e grava as medições. Os resultados e as medições entram no relatório da versão (`docs/reviews/relatorio-v1.N.md`). Escolher operações ou regras olhando o gabarito das falhas plantadas é proibido neste degrau.
+Ele roda `hdast run` com todas as operações e a política padrão, no VAmPI e na Clínica Piloto, em modo vulnerável e seguro, e grava as medições. Os resultados e as medições entram no relatório da versão (`docs/arquivo/reviews/relatorio-v1.N.md`). Escolher operações ou regras olhando o gabarito das falhas plantadas é proibido neste degrau.
 
 ## Degrau 5. Rodada cega
 
-Ao fechar versão ou ao mudar skill, guia ou mensagem que orienta o agente. Roteiro e regras em [testing.md](testing.md) (seção da avaliação cega) e em [guides/avaliacao-das-skills.md](guides/avaliacao-das-skills.md). Quando só uma skill mudou, um caso basta.
+Ao fechar versão ou ao mudar skill, guia ou mensagem que orienta o agente. Roteiro e regras em [testing.md](testing.md) (seção da avaliação cega) e em [avaliacao-das-skills.md](avaliacao-das-skills.md). Quando só uma skill mudou, um caso basta.
 
 ## Regras que não mudam
 
@@ -149,7 +149,7 @@ Ao fechar versão ou ao mudar skill, guia ou mensagem que orienta o agente. Rote
 
 ## Com subagentes
 
-Quando o trabalho é dividido entre agentes (plano do ciclo em [plans/](plans/2026-11-14-ciclo-v1-3-a-v1-8.md)):
+Quando o trabalho é dividido entre agentes (plano do ciclo em [../arquivo/plans/](../arquivo/plans/2026-11-14-ciclo-v1-3-a-v1-8.md)):
 
 - O briefing de cada programador diz o degrau máximo dele. Programadores sobem até o degrau 2. Eles não sobem pilha nem tocam alvo.
 - O coordenador faz o degrau 3 sobre a branch integrada, no fim da versão, só nas operações que a versão mudou.
