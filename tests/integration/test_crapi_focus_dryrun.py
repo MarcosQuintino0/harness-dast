@@ -24,20 +24,20 @@ from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.run import is_run_id
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.scope import OutboundRequest
-from tests.integration.lab_support import REPO, CliResult, LabCli, require_docker
-from tests.integration.run_support import record_metrics
-from tests.integration.v112_proof_support import (
+from tests.integration.lab_proof_support import (
     execute,
     install_focus_spec,
     probe_attempts,
     summary,
 )
-from tests.integration.v112_resource_support import (
+from tests.integration.lab_resource_support import (
     ResourceGuard,
     docker_runner,
     inventory,
     verified_down,
 )
+from tests.integration.lab_support import REPO, CliResult, LabCli, require_docker
+from tests.integration.run_support import record_metrics
 
 pytestmark = pytest.mark.integration
 

@@ -15,7 +15,7 @@ Entrega: itens A a D implementados, QA independente, gates de qualidade e prova 
 
 ## Qualidade e evidências
 
-Saídas externas: `C:\harness-dast-artefatos\v1.5.3\`. [Resumos sanitizados, manifesto e validação](../../../evals/results/2026-11-15-v1-5-3-lab/README.md) estão versionados. A conferência completa final sem filtro fica em `gates/pytest-final.log` na pasta externa.
+Saídas externas: `C:\harness-dast-artefatos\v1.5.3\`. [Resumos sanitizados, manifesto e validação](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-v1-5-3-lab/README.md) estão versionados. A conferência completa final sem filtro fica em `gates/pytest-final.log` na pasta externa.
 
 | Gate | Resultado |
 | --- | --- |

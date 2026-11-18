@@ -22,9 +22,9 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.integration.lab_proof_support import prepare_control_product
 from tests.integration.lab_support import PILOT_PROFILE, REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
-from tests.integration.v112_proof_support import prepare_control_product
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 
