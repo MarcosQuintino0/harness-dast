@@ -392,7 +392,7 @@ Decisão: [ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md) (proposto).
 
 **`profile approval <produto>`**: só lê. `data`: `product`, `state`, `approved_at`, `changed_blocks`, `message`. `state` é `approved`, `not_approved`, `changed` (o perfil mudou desde a aprovação; `changed_blocks` lista quais) ou `invalid` (arquivo ilegível, de versão desconhecida, de outro produto ou com resumos que não conferem: vale como não aprovado). O mesmo objeto vem em `data.approval` do `profile validate`, que não falha por causa dele.
 
-Identificadores de bloco (`changed_blocks`): `environment`, `scope.allow`, `scope.deny_paths`, `scope.path_mode`, `scope.authorization`, `scope.windows`, `limits`, `auth`, `scan`, `authz`, `negative`, `cleanup`.
+Consulte os [identificadores em `changed_blocks`](target-yml.md#blocos-de-proteção-e-aprovação-humana) na referência do perfil.
 
 **Quem confere:** `preflight`, `probe`, `scan`, `authz`, `negative`, `run`, `cleanup` e `stack up`. Sem aprovação ou com o perfil alterado, o erro é `SCOPE_NOT_APPROVED` (saída `3`, a mesma da cerca; nenhum código de saída novo), com a mensagem `O perfil de <produto> mudou desde a aprovação de <instante>. Blocos alterados: scope.allow (o que pode ser alcançado)` (ou "ainda não foi aprovado por uma pessoa") e a dica de que **uma pessoa** precisa rodar `hdast profile approve <produto>`. A conferência acontece ao carregar o perfil, antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` não são bloqueados.
 

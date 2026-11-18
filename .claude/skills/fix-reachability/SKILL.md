@@ -14,7 +14,7 @@ Alcançabilidade inclui operações com `success` e a recusa esperada `auth_reje
 - **Meta:** `summary.reachability` (alcançadas sobre tentadas) de pelo menos 0,9 **e** nenhuma operação em `build_error`. Operações `skipped_scope`, `skipped_denied` e `skipped_destructive` são por desenho e não contam contra a meta.
 - **Máximo:** 6 execuções de `probe` (sem contar `--dry-run`).
 - **Encerre os ajustes** se duas execuções seguidas não melhorarem nada ou ao atingir o máximo; as paradas do fluxo por segurança continuam valendo.
-- Abaixo da meta, prossiga para a varredura com cobertura parcial. Registre no diário e nas lacunas as operações e motivos do último `probe`, o que tentou e as pendências da pessoa; repasse no relatório e na resposta final.
+- Para decidir se o teste pode prosseguir após os ajustes, consulte a [tabela da skill `test-product`](../test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
 
 ## Conhecimento em nova execução
 
@@ -22,7 +22,7 @@ Antes de refazer ajustes de alcance, confira se as regras e fluxos anteriores t�
 
 ## Passos
 
-0. **Aprovação.** Antes do primeiro comando que toca o alvo, com `profile validate` em `runnable: true`, consulte `uv run hdast --json profile approval <produto>` (só lê). Se `state` não for `approved`, **pare** e peça à pessoa que rode `hdast profile approve <produto>` num terminal dela; se for `changed`, diga quais blocos mudaram (`changed_blocks`). `runnable: true` não significa liberado, e `SCOPE_NOT_APPROVED` não é janela fechada. Editar qualquer campo de `environment`, `scope`, `limits`, `auth` (tipo, caminho do login, contas e `login_limit`), `scan`, `authz` ou `cleanup` depois da aprovação exige aprovar de novo; ficam livres só `probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, a codificação do login e `openapi`. Nunca mexa em `scan`, `authz` ou `cleanup` para "ajudar" (desligar regra, declarar operação pública, afrouxar `fail_on`, apontar a limpeza): é alargamento.
+0. **Aprovação.** Antes do primeiro comando que toca o alvo, com `profile validate` em `runnable: true`, consulte `uv run hdast --json profile approval <produto>` (só lê). Se `state` não for `approved`, **pare** e peça à pessoa que rode `hdast profile approve <produto>` num terminal dela; se for `changed`, diga quais blocos mudaram (`changed_blocks`). `runnable: true` não significa liberado, e `SCOPE_NOT_APPROVED` não é janela fechada. Consulte os [blocos de proteção do perfil](../../../docs/referencia/target-yml.md#blocos-de-proteção-e-aprovação-humana). Nunca mexa em `scan`, `authz` ou `cleanup` para "ajudar" (desligar regra, declarar operação pública, afrouxar `fail_on`, apontar a limpeza): é alargamento.
 1. **Preflight.** `uv run hdast --json preflight <produto>`. Precisa de `ready: true` (ZAP no ar, segredos definidos, login, alvo saudável). Não repita sem necessidade: cada login conta no limite do alvo.
 2. **Veja o que seria enviado.** `uv run hdast --json probe <produto> --dry-run` (não toca o alvo; mostra campos e geradores, nunca valores).
 3. **Probe.** `uv run hdast --json probe <produto> --seed 1` (`--seed N` repete a geração; `--only <operationId>` isola uma operação; `--account <apelido>` reduz a uma conta).

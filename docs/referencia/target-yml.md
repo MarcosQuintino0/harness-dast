@@ -29,7 +29,28 @@ O modelo de pasta fica em `products/_template/`. Perfis reais ficam fora deste r
 
 ## Blocos de proteção e aprovação humana
 
-Uma pessoa aprova os blocos de proteção com `hdast profile approve` ([ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md); [referência](cli.md#hdast-profile-approve-e-hdast-profile-approval)); depois disso, mudar qualquer um deles faz os comandos que tocam o alvo recusarem (`SCOPE_NOT_APPROVED`) até uma pessoa aprovar de novo. **Protegidos:** `environment`, `scope` inteiro (`allow`, `deny_paths`, `path_mode`, `authorization`, `windows`), `limits`, em `auth` o tipo, o caminho do login (ou o cabeçalho da chave), as contas (apelido, papel, **nome** do `secret_ref`) e `login_limit`, o bloco `scan` inteiro, o bloco `authz` inteiro, o bloco `extra_checks` (só quando difere do padrão, ADR 0096) e o bloco `cleanup` inteiro (a configuração: caminho do script, **nomes** de `secret_ref`, tabelas, teto de linhas, esquema; nunca valor de segredo nem o conteúdo do script, que a limpeza confere por conta própria na hora de apagar). Critério: entra tudo que amplia o que é tocado, com que conta, com que carga ou por quanto tempo, **e tudo que reduz o que é relatado** (`fail_on`, `threshold`, `disable_rules`, `public_operations`, `disabled_checks`, `volatile_fields`). **Livres para o agente ajustar depois da aprovação:** `openapi`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map`, as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`) e `probe`. Mudar o que entra muda a versão do cálculo (agora 2): aprovações gravadas na versão 1 valem como não aprovadas. A conferência é sobre o perfil já validado, não sobre o texto: comentário, espaço e ordem de chave não pedem nova aprovação. A aprovação mora na pasta de estado (`HDAST_STATE_DIR`), nunca na pasta do produto.
+Uma pessoa aprova o perfil com [`hdast profile approve`](cli.md#hdast-profile-approve-e-hdast-profile-approval). Se um bloco protegido mudar, a CLI recusa os comandos que tocam o alvo com `SCOPE_NOT_APPROVED` até uma pessoa aprovar de novo. Consulte `hdast profile approval <produto>` para ver quais blocos mudaram (`data.changed_blocks` com `--json`).
+
+| Identificador em `changed_blocks` | O que a aprovação cobre |
+| --- | --- |
+| `environment` | Nome do ambiente, endereço base e verificação de TLS |
+| `technologies` | Tecnologias declaradas, quando presentes |
+| `scope.allow` | Regras que permitem operações |
+| `scope.deny_paths` | Caminhos proibidos |
+| `scope.path_mode` | Modo de caminho |
+| `scope.authorization` | Referência e validade da autorização |
+| `scope.windows` | Janelas de execução |
+| `limits` | Limites de carga e duração |
+| `auth` | Tipo, caminho do login ou cabeçalho da chave, contas (apelido, papel e nomes de `secret_ref`) e limite de logins |
+| `scan` | Bloco inteiro da política da varredura, incluindo o limiar de severidade |
+| `authz` | Bloco inteiro do teste de autorização |
+| `negative` | Bloco inteiro do teste de valores proibidos, quando difere do padrão |
+| `extra_checks` | Bloco inteiro das verificações adicionais, quando difere do padrão |
+| `cleanup` | Configuração da limpeza, com caminho do script, nomes de `secret_ref`, tabelas, teto de linhas e esquema. A limpeza confere o conteúdo do script separadamente |
+
+A aprovação compara o perfil validado e normalizado. Comentários, espaços e ordem das chaves do YAML ficam de fora, assim como os valores dos segredos. A versão do cálculo é 2, e perfis com aprovação na versão 1 precisam de nova aprovação. A aprovação fica na pasta de estado (`HDAST_STATE_DIR`). [ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md).
+
+Para ajustar o alcance depois da aprovação, o agente pode atualizar `openapi`, `probe`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map` e as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`).
 
 ## Exemplo completo
 
