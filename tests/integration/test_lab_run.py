@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from harness_dast.domain.run_summary import STAGES
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     VAMPI_OPENAPI,
@@ -147,8 +148,8 @@ def _common_assertions(facts: Facts) -> None:
     summary = scenario.load("run.json")
     assert summary["exit_code"] == scenario.result.code
     assert scenario.result.code in {0, 1, 3}, scenario.result.stdout[-800:]
-    assert [s["name"] for s in summary["stages"]] == ["preflight", "probe", "scan", "report"]
-    assert summary["stages"][0]["status"] == "ok"
+    assert tuple(stage["name"] for stage in summary["stages"]) == STAGES
+    assert summary["stages"][STAGES.index("preflight")]["status"] == "ok"
     assert facts.rules_left == []
     assert facts.secret_hits == []
     scan = scenario.load("scan.json")
@@ -317,7 +318,7 @@ def _find_run_json(run_dirs: list[Path]) -> dict[str, Any]:
     for folder in run_dirs:
         if (folder / "run.json").exists():
             loaded = json.loads((folder / "run.json").read_text(encoding="utf-8"))
-            if loaded["stages"][1]["status"] == "ok":
+            if any(s["name"] == "probe" and s["status"] == "ok" for s in loaded["stages"]):
                 assert isinstance(loaded, dict)
                 return loaded
     pytest.fail("nenhum run.json com o probe concluído")
@@ -335,4 +336,4 @@ def test_stop_during_scan_ends_the_run_cleanly_within_seconds(kill_run: dict[str
     assert summary["stop_requested"] is True
     # Desde o ADR 0025 o relatório sai mesmo com a varredura interrompida, sobre o que foi
     # coletado e sem tráfego novo ao alvo; a saída continua 130.
-    assert summary["stages"][3]["status"] == "ok"
+    assert any(s["name"] == "report" and s["status"] == "ok" for s in summary["stages"])

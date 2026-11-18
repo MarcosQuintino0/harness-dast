@@ -141,9 +141,15 @@ def test_verifica_ausencia_mesmo_se_down_falhar() -> None:
     assert records["verificacao_ausencia"] == "sem recursos"
 
 
-@pytest.mark.parametrize("project", ["hdast-codex", "hdast-crapi-codex"])
+@pytest.mark.parametrize(("base", "network"), [("hdast", "lab_net"), ("hdast-crapi", "crapi_net")])
+@pytest.mark.parametrize("suffix", ["", "-claude"])
 @pytest.mark.parametrize("kind", ["container", "network", "volume"])
-def test_inventario_detecta_nome_reservado_mesmo_sem_rotulo(kind: str, project: str) -> None:
+def test_inventario_detecta_nome_reservado_mesmo_sem_rotulo(
+    kind: str, suffix: str, base: str, network: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HDAST_IT_STACK_SUFFIX", suffix)
+    project = base + suffix
+
     def run(args: tuple[str, ...]) -> str:
         if args[:2] == ("volume", "inspect"):
             return "2026-01-01T00:00:00Z"
@@ -153,7 +159,7 @@ def test_inventario_detecta_nome_reservado_mesmo_sem_rotulo(kind: str, project: 
         if (
             kind == "network"
             and args[:2] == ("network", "ls")
-            and f"name=^{project}_{'lab_net' if project == 'hdast-codex' else 'crapi_net'}$" in args
+            and f"name=^{project}_{network}$" in args
         ):
             return "b" * 64
         if kind == "volume" and args[:2] == ("volume", "ls") and f"name=^{project}_" in args:

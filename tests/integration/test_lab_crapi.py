@@ -20,7 +20,7 @@ pytestmark = pytest.mark.integration
 
 def test_crapi_preflight_e_probe_pela_cli(tmp_path: Path) -> None:
     require_docker()
-    cli = LabCli(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+    cli = LabCli(tmp_path, {})
     for key in tuple(cli.env):
         if key.startswith("CRAPI_"):
             del cli.env[key]

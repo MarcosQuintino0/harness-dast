@@ -24,7 +24,7 @@ um ambiente corporativo (só HTTP no laboratório).
 import json
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -303,14 +303,24 @@ def test_in_vulnerable_mode_the_fence_counts_a_java_stack_trace_and_in_secure_mo
         assert lab.findings["proxy_signals"]["counts"].get("stack_trace_java", 0) == 0
 
 
+def assert_audit_row_has_no_response_text(row: Mapping[str, object]) -> None:
+    """Aceita somente campos de auditoria conhecidos e tempos sem texto de resposta."""
+    assert set(row) <= {
+        "ts", "run_id", "method", "scheme", "host", "port", "path", "query_params",
+        "decision", "reason", "detail", "status", "bytes", "duration_ms", "waited_ms",
+        "grant_wait_ms", "network_ms", "signals", "signal_skip",
+    }  # fmt: skip
+    for key in ("grant_wait_ms", "network_ms"):
+        if key in row:
+            value = row[key]
+            assert type(value) is int, key
+            assert value >= 0, key
+
+
 def test_no_audit_line_and_no_file_of_the_run_contains_response_text(lab: SignalsLab) -> None:
     assert lab.leaked == []
     for row in lab.proxy_rows:
-        assert set(row) <= {
-            "ts", "run_id", "method", "scheme", "host", "port", "path", "query_params",
-            "decision", "reason", "detail", "status", "bytes", "duration_ms", "waited_ms",
-            "signals", "signal_skip",
-        }  # fmt: skip
+        assert_audit_row_has_no_response_text(row)
 
 
 def test_plain_json_200_responses_have_no_signals(lab: SignalsLab) -> None:

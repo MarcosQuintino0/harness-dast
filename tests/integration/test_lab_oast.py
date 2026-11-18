@@ -45,7 +45,6 @@ def test_callback_e_isolamento_com_emissor_sintetico(tmp_path: Path) -> None:
     require_docker()
     key = secrets.token_hex(32)
     cli = LabCli(tmp_path, {**SEEDED, "HDAST_ZAP_API_KEY": key})
-    cli.env["HDAST_STACK_PROJECT_SUFFIX"] = "-codex"
     install_vampi(cli, VAMPI_PROFILE, VAMPI_OPENAPI)
     marker = "lab-" + secrets.token_hex(6)
     lab = OastLab(cli, key, secrets.token_hex(6))
@@ -93,7 +92,6 @@ def test_callback_e_isolamento_a_partir_do_workshop_crapi(tmp_path: Path) -> Non
     token = secrets.token_hex(8)
     extra = {
         "HDAST_ZAP_API_KEY": key,
-        "HDAST_STACK_PROJECT_SUFFIX": "-codex",
         "CRAPI_DB_PASSWORD": secrets.token_hex(16),
         "CRAPI_USER_A_EMAIL": f"a.{token}@example.com",
         "CRAPI_USER_B_EMAIL": f"b.{token}@example.com",
@@ -104,7 +102,6 @@ def test_callback_e_isolamento_a_partir_do_workshop_crapi(tmp_path: Path) -> Non
     for name in tuple(cli.env):
         if name.startswith("CRAPI_") and name not in extra:
             del cli.env[name]
-    cli.env["HDAST_STACK_PROJECT_SUFFIX"] = "-codex"
     cli.install_product(
         "crapi", REPO / "lab/crapi/product-profile", (REPO / "lab/crapi/openapi.json",)
     )
