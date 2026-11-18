@@ -11,8 +11,10 @@ from pathlib import Path
 
 from pydantic import SecretStr
 
+from harness_dast import __version__
 from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
 from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
+from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
@@ -25,6 +27,7 @@ from harness_dast.adapters.system_random import SystemRandom
 from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
+from harness_dast.application.stack_images import StackImages
 from harness_dast.application.stack_models import StackState
 from harness_dast.cli.approval_composition import (
     formal_profiles,
@@ -36,6 +39,11 @@ from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.errors import ConfigError
 
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
+
+
+def build_stack_images() -> StackImages:
+    """Monta a seleção e a conferência das imagens próprias do Compose."""
+    return StackImages(SystemHost(os.environ), __version__)
 
 
 def open_state_store(environ: Mapping[str, str] | None = None) -> FileStackStateStore:
@@ -97,6 +105,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         random=SystemRandom(),
         policies=FileProxyPolicyStore(root, approval_dir, profiles.load),
         compose=DockerComposeCli(os.environ),
+        images=build_stack_images(),
         states=open_state_store(),
         environ=os.environ,
         repo_root=default_repo_root(),

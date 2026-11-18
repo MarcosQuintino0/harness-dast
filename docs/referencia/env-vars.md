@@ -14,6 +14,10 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | `HDAST_STATE_DIR` | `%LOCALAPPDATA%/hdast` (Windows) ou `~/.local/state/hdast` | Pasta do estado da pilha gerenciada (`stack.json` com a chave do ZAP e as senhas descartáveis do alvo, modo 0600; políticas e auditorias por pilha em `stacks/`; aprovações humanas do escopo em `approvals/<produto>.json`, ADR 0037). Fora do repositório e de `runs/` |
 | `HDAST_SCOPE_POLICY_DIR` | (sem valor) | Pasta da política do proxy. O `stack up` define a dele; sem pilha gerenciada, `hdast stop` usa esta variável para achar onde criar o `KILL` |
 | `HDAST_STACK_PROJECT_SUFFIX` | vazio | Sufixo dos projetos Compose, vazio ou hífen seguido de 1 a 20 letras minúsculas/dígitos. Exemplo: `-codex`. A pilha salva os nomes e os reutiliza no encerramento |
+| `HDAST_ZAP_IMAGE` | `ghcr.io/marcosquintino0/hdast-zap:<versão>` | Referência da imagem do ZAP. A tag padrão no `compose.yaml` acompanha a versão de `pyproject.toml` |
+| `HDAST_SCOPE_PROXY_IMAGE` | `ghcr.io/marcosquintino0/hdast-scope-proxy:<versão>` | Referência do proxy de escopo e do `vampi-tls`. A tag padrão acompanha `pyproject.toml` e o rótulo OCI de versão precisa coincidir com a CLI |
+| `HDAST_STACK_BUILD` | vazio | Com `1`, `stack up` constrói e usa `hdast/zap:local` e `hdast/scope-proxy:local`. O `doctor` verifica essas referências e o `stack pull` continua baixando as referências configuradas para download |
+| `HDAST_IMAGE_VERSION` | versão da CLI no build gerenciado | Argumento do build do proxy. O Dockerfile confere a versão do pacote instalado na imagem antes de aplicar o rótulo. Para builds manuais rotulados, informe a versão de `pyproject.toml` |
 | `HDAST_LAB_NETWORK` | derivado do projeto | Nome da rede interna do alvo, definido pela pilha como `<projeto principal>_lab_net` e repassado ao Compose principal e ao anexado |
 | `HDAST_OAST_NETWORK` | derivado do projeto | Nome da rede interna de retorno, definido pela pilha como `<projeto principal>_oast_net` ao montar a ponte do crAPI autorizado; repassado aos dois projetos Compose. Não liga OAST nem amplia autorização |
 | `HDAST_AUDIT_DIR` | (definida pelo `stack up`) | Pasta onde o proxy de escopo grava a auditoria (`audit.jsonl`, uma linha por decisão, sem valores de consulta). O `stack up` a define para o contêiner a partir do estado da pilha; só mexa nela fora do `stack up` se montar o compose à mão |
@@ -29,6 +33,7 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | `HDAST_ZAP_BASE_URL`, `HDAST_ZAP_API_KEY`, `HDAST_ZAP_PROXY_URL`, `HDAST_AUTH_PROXY_URL`, `HDAST_ZAP_CA_FILE`, `HDAST_RUNS_DIR`, `HDAST_PRODUCTS_DIR`, `HDAST_LOG_LEVEL` | Sim, pelos settings da ferramenta (`config/settings.py`) |
 | `HDAST_STATE_DIR`, `HDAST_SCOPE_POLICY_DIR`, `HDAST_AUDIT_DIR`, `HDAST_ZAP_HOST_PORT`, `HDAST_PROXY_HOST_PORT` | Sim, mas fora dos settings: o `stack up`, o `stop` e o compose as leem direto (`application/stack.py`, `adapters/storage/stack_state.py`) |
 | `HDAST_STACK_PROJECT_SUFFIX`, `HDAST_LAB_NETWORK`, `HDAST_OAST_NETWORK` | A pilha valida o sufixo e gera os nomes das redes para os arquivos Compose |
+| `HDAST_STACK_BUILD`, `HDAST_ZAP_IMAGE`, `HDAST_SCOPE_PROXY_IMAGE`, `HDAST_IMAGE_VERSION` | A pilha lê as opções de imagem do ambiente do processo e repassa ao Compose as referências selecionadas e a versão esperada |
 
 ## Precedência com a pilha gerenciada
 

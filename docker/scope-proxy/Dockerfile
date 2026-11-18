@@ -18,11 +18,20 @@ RUN /opt/venv/bin/pip install --require-hashes --only-binary=:all: -r /tmp/requi
 # acima): a CLI inteira (typer, structlog...) não precisa existir neste contêiner.
 COPY pyproject.toml README.md /src/
 COPY src /src/src
+ARG HDAST_IMAGE_VERSION
 RUN /opt/venv/bin/pip install --no-deps /src \
+ && if [ -n "$HDAST_IMAGE_VERSION" ]; then \
+      version=$(/opt/venv/bin/python -c 'from importlib.metadata import version; print(version("harness-dast"))'); \
+      test "$version" = "$HDAST_IMAGE_VERSION" || { \
+        echo "O código do proxy tem outra versão. Rode uv sync na raiz do repositório." >&2; exit 1; \
+      }; \
+    fi \
  && /opt/venv/bin/python -m compileall -q /opt/venv/lib/python3.13/site-packages/harness_dast
 
 # ------------------------------------------------------------- estágio final
 FROM ${PYTHON_IMAGE}
+ARG HDAST_IMAGE_VERSION
+LABEL org.opencontainers.image.version=$HDAST_IMAGE_VERSION
 # Usuário sem privilégios e sem shell de login; o uid vale também nos tmpfs do compose.
 RUN useradd --uid 10001 --user-group --no-create-home --shell /usr/sbin/nologin scopeproxy
 COPY --from=build /opt/venv /opt/venv

@@ -166,8 +166,8 @@ rastreamento de exceção e página de depuração, e entrega só os nomes das c
   script, estilo e binário viram `type`; `HEAD`, 1xx, 204 e 304 também viram `type`; corpo vazio vira `empty`.
 - **Limites da heurística.** Há falso positivo (documentação com exemplo de erro) e falso negativo (mensagem traduzida,
   cortada ou depois dos primeiros 64 KiB). O relatório declara quantas respostas não foram lidas.
-- **A imagem muda.** Sem `hdast stack up --build` a cerca é a antiga e não grava `signals`. O relatório não distingue uma
-  cerca antiga de uma resposta lida sem sinal: depois de atualizar o pacote, reconstrua a imagem.
+- **Versão da imagem.** Depois de atualizar o pacote, baixe as imagens com `hdast stack pull`. Para provar mudanças locais
+  nos sinais, reconstrua com `hdast stack up --build`. [Build local](../../docs/comecar/docker.md#construir-a-partir-do-código-local)
 - Não há medida de custo desta leitura nesta versão (a prova com Docker é do degrau 3, ADR 0049, seção "Como provar").
 
 ## Proteção do endereço resolvido

@@ -6,38 +6,9 @@ Objetivo: instalar, subir o laboratório (VAmPI, uma API vulnerável de propósi
 
 ## 1. Instalar
 
-| Ferramenta | Como | Conferir |
-| --- | --- | --- |
-| Git | <https://git-scm.com> | `git --version` |
-| uv (gerencia o Python e as dependências) | <https://docs.astral.sh/uv/> | `uv --version` |
-| Docker Desktop | <https://www.docker.com/products/docker-desktop/>; abra-o e espere ficar "running" | `docker version` mostra Client e Server |
+Siga a [instalação da CLI](instalar.md) e [prepare o Docker e as imagens](docker.md#baixar-e-conferir-as-imagens). Rode `uv run hdast doctor` na raiz do repositório antes de copiar o perfil. Cada falha vem com a ação para corrigi-la.
 
-Reserve cerca de 4 GiB de memória para o Docker Desktop (o ZAP usa cerca de 1,5 GiB).
-
-## 2. Clonar e preparar
-
-```powershell
-git clone <url-do-repositório> harness-dast
-cd harness-dast
-uv sync
-uv run hdast --json version
-```
-
-Exemplo de saída do último comando. O campo `version` mostra a versão instalada.
-
-```json
-{"schema_version":1,"ok":true,"data":{"version":"<versão instalada>"}}
-```
-
-## 2b. Primeiro passo: o `doctor`
-
-```powershell
-uv run hdast doctor
-```
-
-Confere Python, `uv`, Docker, imagens e as portas 8080 e 3128, sem tocar nenhum alvo e sem subir nada. Esperado: "Tudo pronto para começar." (aviso de imagem ausente é normal na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo. Mais adiante, `hdast doctor vampi` confere também o perfil (veja 4b).
-
-## 3. Copiar o perfil do laboratório
+## 2. Copiar o perfil do laboratório
 
 O perfil do VAmPI vem pronto em `lab/vampi/product-profile/`. A pasta do produto precisa ter o nome do produto (`vampi`).
 
@@ -51,7 +22,7 @@ uv run hdast --json profile validate vampi
 
 Esperado: `"ok":true` e `"runnable":true`, com `issues` vazio. Se `runnable` for `false`, leia `issues` ([problemas-comuns.md](../usar/problemas-comuns.md)).
 
-## 4. Definir as contas do laboratório
+## 3. Definir as contas do laboratório
 
 O VAmPI semeia usuários conhecidos (não são segredos reais). O perfil os lê por `secret_ref`:
 
@@ -63,15 +34,15 @@ $env:VAMPI_ADMIN_USERNAME  = "admin";  $env:VAMPI_ADMIN_PASSWORD  = "pass1"
 
 No dia a dia, com contas de um produto de verdade, prefira o cofre do sistema (você digita cada senha uma vez, sem ela aparecer na tela nem no histórico): troque `env:NOME` por `keyring:NOME` no `target.yml` e rode, num terminal seu, `uv run hdast secret set NOME` para cada nome. `uv run hdast secret list <produto>` mostra o que já existe. Para o VAmPI, de senhas públicas, as variáveis acima bastam.
 
-## 4b. Conferir se está tudo pronto
+## 4. Conferir se está tudo pronto
 
 ```powershell
 uv run hdast doctor vampi
 ```
 
-O `doctor` com o produto não toca o alvo nem sobe nada: confere o mesmo do passo 2b e mais o perfil, a autorização, a janela e se os segredos das contas existem, em variável de ambiente ou no cofre (só diz se existem, nunca o valor; para o cofre, diz o comando `hdast secret set NOME`). Dois **avisos** (não reprovam) olham o perfil: `scope.path_mode: wide` (o modo amplo só é seguro com `deny_paths` completo) e a falta de duas contas do mesmo papel (sem elas, o teste de autorização horizontal não consegue comparar contas). Esperado: "Tudo pronto para começar." (avisos de imagem ausente são normais na primeira vez: o `stack up` as constrói). Cada `FALHA` diz o que fazer; corrija e rode de novo.
+Com o nome do produto, o `doctor` confere também o perfil, a autorização, a janela e a presença dos segredos das contas no ambiente ou no cofre. O modo amplo de caminho e a falta de duas contas do mesmo papel aparecem como avisos. Esperado: "Tudo pronto para começar."
 
-## 4c. Aprovar o perfil (uma vez)
+## 4b. Aprovar o perfil (uma vez)
 
 ```powershell
 uv run hdast profile approve vampi
@@ -85,7 +56,7 @@ Os comandos que tocam o alvo (`stack up`, `preflight`, `probe`, `scan`, `run`) r
 uv run hdast stack up vampi
 ```
 
-Leva cerca de 40 s na primeira vez (constrói imagens). Esperado: uma linha "Pilha ... (produto vampi, alvo vampi)" e os serviços `running`/`healthy`. A pilha tem o ZAP, o proxy de escopo e o VAmPI. Confira:
+Na primeira vez, o Docker pode baixar as imagens auxiliares e do VAmPI. Espere uma linha "Pilha ... (produto vampi, alvo vampi)" e os serviços `running`/`healthy`. Confira com o comando abaixo.
 
 ```powershell
 uv run hdast --json stack status      # "running": true

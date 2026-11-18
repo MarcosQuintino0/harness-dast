@@ -2,7 +2,7 @@
 
 | Pasta | O que tem e para quem é |
 | --- | --- |
-| [`comecar/`](comecar/) | Instalação e primeiro uso no laboratório para quem está começando. |
+| Começar | [Instalar a CLI](comecar/instalar.md), [preparar o Docker](comecar/docker.md) e [primeiro uso no laboratório](comecar/primeiro-uso.md). |
 | [`usar/`](usar/) | Cadastro de produto, carta, personalização, limpeza e problemas comuns para quem opera a ferramenta. |
 | [`como-funciona/`](como-funciona/) | Finalidade, arquitetura e controles de operação para quem quer entender o sistema. |
 | [`referencia/`](referencia/) | Comandos, formatos, campos e códigos de saída para consulta durante o uso ou o desenvolvimento. |

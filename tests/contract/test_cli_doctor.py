@@ -30,7 +30,12 @@ def host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FakeHost:
     products.mkdir()
     fake.directories.add(products)
     monkeypatch.setattr(composition, "SystemHost", lambda _env: fake)
-    for name in ("HDAST_PRODUCTS_DIR", "HDAST_ZAP_HOST_PORT", "HDAST_PROXY_HOST_PORT"):
+    for name in (
+        "HDAST_PRODUCTS_DIR",
+        "HDAST_ZAP_HOST_PORT",
+        "HDAST_PROXY_HOST_PORT",
+        "HDAST_STACK_BUILD",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path / "estado"))
     monkeypatch.setenv("ACME_USER_A_LOGIN", LOGIN)
@@ -77,6 +82,20 @@ def test_doctor_without_product_returns_the_success_envelope_when_the_machine_is
     assert {"python", "docker", "images", "products_dir"} <= {c["id"] for c in data["checks"]}
     assert set(data["checks"][0]) == {"id", "status", "detail", "kind"}
     assert set(data["summary"]) == {"ok", "warn", "fail"}
+
+
+def test_doctor_reports_incompatible_proxy_image_with_preflight_exit_code(
+    host: FakeHost, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    host.versions[host.images["scope-proxy"]] = "0.0.0"
+
+    code, envelope = run_json(capsys, "doctor", "--products-dir", str(products_dir(tmp_path)))
+
+    assert code == ExitCode.PREFLIGHT
+    assert envelope["error"]["code"] == "PREFLIGHT_FAILED"
+    check = next(check for check in envelope["data"]["checks"] if check["id"] == "images")
+    assert check["status"] == "fail"
+    assert "hdast stack pull" in check["detail"]
 
 
 def test_doctor_with_product_checks_profile_authorization_window_and_secrets(

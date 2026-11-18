@@ -31,6 +31,10 @@ Tratamento sugerido: `0` segue; `1` é um resultado de segurança que o time pre
 
 O `run` sai com o código do estágio que falhou (preflight: 3 ou 4; probe: 3, 5 ou 6; scan: 3 a 6; authz, se pedido: 3, 5 ou 6; report: 1 com achado no limiar, 2 em erro), `0` se tudo passou e `130` se foi interrompido. O `run.json` traz o código de cada estágio. A trava de emergência (`hdast stop`) durante um `scan` solto sai com `3` (como janela fechada); durante o `run`, com `130`.
 
+## `hdast stack pull`
+
+Sai com `0` quando as duas imagens são baixadas, `2` se a configuração das imagens é inválida, `5` se o Docker ou o download falha e `8` se a pilha está ocupada. O `stack up` também sai com `5` se faltar uma imagem própria ou se a versão do proxy divergir da CLI. [Referência de `stack`](cli.md#hdast-stack-e-hdast-stop)
+
 ## `hdast wait`
 
 A espera sai com `0` ao consultar com êxito, inclusive quando o prazo termina. Isso não significa que a execução terminou nem que ela teve sucesso: consulte `data.state`, `data.status` e `data.exit_code`; o código da execução só aparece quando terminada. Identificador ou configuração inválida ou execução inexistente sai com `2`; erro interno sai com `10`. Veja [wait.md](wait.md).

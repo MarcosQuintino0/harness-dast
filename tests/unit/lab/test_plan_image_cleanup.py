@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 
 import pytest
-import yaml
 from pydantic import ValidationError
 
+from lab.scripts.inventory_images import compose_references
 from lab.scripts.plan_image_cleanup import (
     ROOT,
     BaselineRow,
@@ -163,15 +163,12 @@ def test_aceita_captura_jsonl_com_bom(tmp_path: Path) -> None:
 
 def test_manifesto_protege_todas_imagens_dos_composes() -> None:
     protected = json.loads((ROOT / "lab/scripts/protected-images.json").read_text())
-    for name in (
+    paths = (
         "compose.yaml",
         "lab/pilot/compose.yaml",
         "lab/crapi/compose.yaml",
         "lab/oast/compose.yaml",
-    ):
-        compose = yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
-        assert {s["image"] for s in compose["services"].values() if "image" in s} <= set(
-            protected["images"]
-        )
+    )
+    assert compose_references([ROOT / name for name in paths]) <= set(protected["images"])
     readme = (ROOT / "lab/README.md").read_text(encoding="utf-8")
     assert all(f"`{ref}`" in readme for ref in protected["images"])

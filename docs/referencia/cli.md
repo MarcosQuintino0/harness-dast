@@ -138,6 +138,7 @@ A saída (JSON e texto) é sempre UTF-8, qualquer que seja a página de código 
 ## `hdast stack` e `hdast stop`
 
 ```bash
+uv run hdast --json stack pull                                        # baixa o ZAP e o proxy de escopo
 uv run hdast --json stack up vampi --products-dir ./meus-produtos      # sobe a pilha para o perfil
 uv run hdast --json stack up clinica-piloto --secure --token-ttl 20     # alvo piloto em modo seguro, token de 20 s
 uv run hdast --json stack up vampi --vulnerable --build                # modo vulnerável do laboratório e imagens reconstruídas
@@ -146,7 +147,11 @@ uv run hdast --json stop                                                # trava 
 uv run hdast --json stack down
 ```
 
-Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de laboratório (sem nenhuma, vale o padrão dele); `--token-ttl` fixa a vida do token do alvo em segundos; `--build` reconstrói as imagens locais antes de subir (necessário depois de mudar `docker/` ou o alvo); `--oracle` e `--timeout` estão abaixo; `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
+`stack pull` baixa as imagens configuradas para `zap` e `scope-proxy` e devolve `data.images`, uma lista das duas referências, no envelope de sucesso. Funciona sem perfil, sem iniciar contêineres e sem `run_id`. Saídas: `0` em sucesso, `2` em configuração inválida (`CONFIG_ERROR`), `5` em falha do Docker ou do download (`EXTERNAL_TOOL_ERROR`) e `8` com a pilha ocupada (`STACK_BUSY`). Uma nova tentativa pode reaproveitar o que já foi baixado.
+
+Antes de trocar a pilha, `stack up` exige as duas imagens próprias no Docker local. A versão de `org.opencontainers.image.version` no proxy precisa ser idêntica à da CLI. Imagem ausente, versão divergente ou rótulo ausente resultam em `EXTERNAL_TOOL_ERROR` (saída `5`). Rode `hdast stack pull` ou habilite o build local com `HDAST_STACK_BUILD=1` ou `--build`. As referências podem ser alteradas pelas [variáveis de ambiente](env-vars.md). As imagens auxiliares continuam a cargo do Compose.
+
+Opções de `stack up` incluem `--vulnerable` ou `--secure` para escolher o modo do alvo de laboratório e `--token-ttl` para fixar a vida do token do alvo em segundos. Use `--build` após alterar o código da cerca, os Dockerfiles ou o alvo. `--oracle` e `--timeout` estão abaixo. `--products-dir` sobrepõe `HDAST_PRODUCTS_DIR`.
 
 `stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = a VALIDADE DA PILHA: menor entre a duração máxima mais 60 minutos de folga para o ajuste do `probe`, o fim da autorização e o fechamento da janela; ela não é o prazo de uma varredura, que conta do início de cada execução e nunca passa de `max_duration_minutes`; passou de `not_after`, o proxy nega tudo e é preciso um novo `stack up`), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
@@ -196,7 +201,7 @@ Conferências, na ordem (cada uma é um item de `data.checks`, com `status` `ok`
 | `uv` | `uv` no PATH | `warn` (os comandos `uv run hdast ...` não funcionariam) |
 | `products_dir` | A pasta de produtos existe (`HDAST_PRODUCTS_DIR` ou `--products-dir`) | `fail` (tipo `config`) |
 | `docker` | O Docker responde (`docker version`, prazo de 20 s) | `fail` |
-| `images` | As imagens do `compose.yaml` (ZAP, pontes, proxy de escopo e, para o VAmPI, o alvo) já estão no Docker | `warn`: serão baixadas ou construídas no primeiro `stack up` |
+| `images` | Presença das imagens do `compose.yaml` e versão OCI do proxy igual à da CLI | `fail` se faltar imagem própria no modo de download ou se a versão do proxy divergir ou estiver ausente. `warn` se faltarem imagens auxiliares ou se o build local estiver habilitado e ainda precisar criar as imagens próprias |
 | `port:<n>` | As portas fixas 8080 (ZAP) e 3128 (proxy) em 127.0.0.1 (ou as de `HDAST_ZAP_HOST_PORT` e `HDAST_PROXY_HOST_PORT`) estão livres; para a Clínica Piloto, também 28080 e 29091. Com pilha gerenciada no ar, porta em uso é esperada | `fail`; porta configurada que não é número de 1 a 65535 é `fail` tipo `config` |
 | `stack` | Só com pilha gerenciada: se ainda vale (`not_after`) | `warn` se venceu |
 | `profile` | Com produto: o perfil é válido e não tem pendências do modelo (`PLACEHOLDER_*`, `FILE_MISSING`) | `fail` (tipo `config`) |
