@@ -23,6 +23,15 @@ def write_json(path: Path, data: Any) -> None:
     write(path, json.dumps(data))
 
 
+def make_legacy_round(out: Path) -> None:
+    """Monta uma rodada sintética sem gabarito lacrado."""
+    fixture = Path("tests/fixtures/legacy_eval_round.json")
+    data = json.loads(fixture.read_text(encoding="utf-8"))
+    write_json(out / "sealed/mode.json", data["mode"])
+    write_json(out / "trace/runs/sample/probe.json", data["probe"])
+    write_json(out / "trace/runs/sample/findings.json", data["findings"])
+
+
 def make_round(repo: Path, out: Path, mode: str = "vulnerable") -> RoundDirs:
     prepare("mini", mode, 7, out, source=repo, cases_dir=CASES)
     return RoundDirs(out)

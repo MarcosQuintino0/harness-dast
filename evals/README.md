@@ -10,8 +10,8 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/decisoes/0014-avaliacao-ceg
 | `cases/<caso>/case.yml` e `authorization.md` | Um caso: alvo, modos, carta, perfil esperado, gabarito em forma de máquina, orçamento |
 | `runner/` | `python -m evals.runner prepare, approve, snapshot, collect, score, classify, measure, compare` |
 | `protocolo-da-rodada-cega.md` | **Como fazer uma rodada cega completa igual às de 2026-11-15**: valores fixos, comandos na ordem, o que anotar (tempo, tokens, custo, falas do agente) e onde arquivar. Siga este protocolo nas rodadas novas |
-| `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](measurements/README.md) |
-| `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](results/README.md) |
+| `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/README.md) |
+| `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/README.md) |
 
 Casos: `clinica-piloto` (alvo próprio), `vampi` e `crapi` (públicos, com possível conhecimento prévio dos modelos), além do recorte [`crapi-foco`](cases/crapi-foco/case.yml). O crAPI só tem modo vulnerável e tem suporte no `hdast stack up`. Veja [O caso crAPI](#o-caso-crapi) e [Criar um caso](#criar-um-caso).
 
@@ -326,12 +326,16 @@ A recusa esperada de credenciais sintéticas na operação de login conta como a
 O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; rodadas antigas devem usar o caso exato da rodada e o lacre ou `--case-file` conforme acima. A régua atual reconhece CORS na H3 da Clínica e V3 do VAmPI pela BOLA de leitura comprovada. V4 continua `detectable: false`: não foi comprovada. O novo par não confirma POST 200 no VAmPI. crAPI mantém caso e permissões anteriores, sem nova prova. Veja o [relatório da versão](../docs/arquivo/reviews/relatorio-v1.5.5.md). Nenhuma rodada cega foi executada nesta versão; o dono poderá pedir depois rodadas em pelo menos duas APIs.
 
 
+## Resultados de rodadas antigas
+
+Os resultados e as medições de rodadas antigas foram retirados do repositório em
+2026-11-18 e continuam disponíveis no histórico do Git, no commit
+[`fd611a9`](https://github.com/MarcosQuintino0/harness-dast/tree/fd611a9/evals).
+O executor ainda pode gravar novas medições em `evals/measurements/`.
+
 ## Retenção de resultados e medições
 
-Inventário versionado em 2026-11-16: `evals/results/` tem 302 arquivos, 15.426.727 bytes (14,71 MiB);
-`evals/measurements/` tem 244 arquivos, 23.608.148 bytes (22,51 MiB). Tamanhos de conteúdo, sem objetos Git.
 Versionar apenas resumo, protocolo/manifesto, nota, métricas comparáveis e evidências sanitizadas necessárias à conclusão.
 Transcripts brutos, estado/lacre, segredos, sessões ZAP, logs completos e dumps ficam só locais, fora do Git, conforme o protocolo.
 Para novas rodadas, máximo de **10 MiB por rodada** somando results e measurements: acima disso, manter evidência volumosa
 em arquivo local controlado e versionar índice, hashes e resumo sanitizado. Não cortar evidência para transformar lacuna em sucesso.
-Resultados antigos permanecem preservados; esta política é documental e não apaga nem reescreve nenhuma rodada.

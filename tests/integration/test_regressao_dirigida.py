@@ -30,6 +30,7 @@ import yaml
 from evals.runner.cases import load_case
 from evals.runner.checks_findings import ACHADA, flaw_status, read_findings
 from evals.runner.models import Flaw
+from tests.integration.lab_resource_support import ResourceGuard, docker_runner, inventory
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     LabCli,
@@ -37,10 +38,9 @@ from tests.integration.lab_support import (
     require_docker,
 )
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
-from tests.integration.test_lab_v155 import _install
+from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
-from tests.integration.v112_resource_support import ResourceGuard, docker_runner, inventory
-from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
+from tests.integration.watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = [pytest.mark.integration, pytest.mark.regressao_dirigida]
 

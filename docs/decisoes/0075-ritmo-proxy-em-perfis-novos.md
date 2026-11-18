@@ -21,7 +21,7 @@ Manter `legacy` na geração evita mudar o ritmo antes da prova, mas mantém a s
 
 ## Resultado da retomada
 
-A [previsão congelada](../../evals/measurements/v1-8/closure/forecast-frozen.json) foi anterior às novas T4 B. Os erros observados foram 15,596637 pontos percentuais na Clínica e 22,432817 no VAmPI, acima do teto de 10 em ambas. **Não promover**: `init --from-letter` e o padrão do modelo permanecem `legacy`; perfis e aprovações existentes permanecem inalterados, inclusive perfis explicitamente `proxy`. A [comparação](../../evals/measurements/v1-8/closure/t4-summary.md) também limita a conclusão sobre pontos de injeção e identidade por pedido. Controles adicionais e validação independente permanecem pendentes; não se declara aceite global.
+A [previsão congelada](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-8/closure/forecast-frozen.json) foi anterior às novas T4 B. Os erros observados foram 15,596637 pontos percentuais na Clínica e 22,432817 no VAmPI, acima do teto de 10 em ambas. **Não promover**: `init --from-letter` e o padrão do modelo permanecem `legacy`; perfis e aprovações existentes permanecem inalterados, inclusive perfis explicitamente `proxy`. A [comparação](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-8/closure/t4-summary.md) também limita a conclusão sobre pontos de injeção e identidade por pedido. Controles adicionais e validação independente permanecem pendentes; não se declara aceite global.
 
 ## Rodada 3
 

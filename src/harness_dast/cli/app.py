@@ -48,6 +48,45 @@ from harness_dast.observability.logging import configure_logging
 
 _log = structlog.get_logger()
 
+START_HERE_PANEL = "Comece por aqui"
+REGISTRATION_AND_SCOPE_PANEL = "Cadastro e escopo"
+TEST_STAGES_PANEL = "Etapas do teste"
+RESULTS_AND_RETEST_PANEL = "Resultados e reteste"
+ADVANCED_PANEL = "Avançado"
+
+
+def _register_commands(app: typer.Typer) -> None:
+    # O Typer exibe os painéis na ordem em que encontra seus primeiros comandos.
+    app.command("doctor", rich_help_panel=START_HERE_PANEL)(doctor_command)
+    app.command("run", rich_help_panel=START_HERE_PANEL)(run_command)
+    app.command("report", rich_help_panel=START_HERE_PANEL)(report_command)
+    app.command("stop", rich_help_panel=START_HERE_PANEL)(stop_command)
+
+    app.command("init", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)(init_command)
+    app.add_typer(build_profile_app(), name="profile", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+    app.add_typer(build_spec_app(), name="spec", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+    app.add_typer(build_secret_app(), name="secret", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+
+    app.command("preflight", rich_help_panel=TEST_STAGES_PANEL)(preflight_command)
+    app.command("probe", rich_help_panel=TEST_STAGES_PANEL)(probe_command)
+    app.command("scan", rich_help_panel=TEST_STAGES_PANEL)(scan_command)
+    app.command("authz", rich_help_panel=TEST_STAGES_PANEL)(authz_command)
+    app.command("negative", rich_help_panel=TEST_STAGES_PANEL)(negative_command)
+    app.command("confirm", rich_help_panel=TEST_STAGES_PANEL)(confirm_command)
+    app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
+    app.command("plan", rich_help_panel=TEST_STAGES_PANEL)(plan_command)
+
+    app.command("retestar", rich_help_panel=RESULTS_AND_RETEST_PANEL)(retestar_command)
+    app.add_typer(build_finding_app(), name="finding", rich_help_panel=RESULTS_AND_RETEST_PANEL)
+    app.command("panel", rich_help_panel=RESULTS_AND_RETEST_PANEL)(panel_command)
+    app.command("cleanup", rich_help_panel=RESULTS_AND_RETEST_PANEL)(cleanup_command)
+
+    app.add_typer(build_strategy_app(), name="strategy", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_knowledge_app(), name="knowledge", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_mutation_app(), name="mutation", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_stack_app(), name="stack", rich_help_panel=ADVANCED_PANEL)
+    app.command("version", rich_help_panel=ADVANCED_PANEL)(version_command)
+
 
 def build_app() -> typer.Typer:
     """Cria a aplicação Typer com os comandos disponíveis.
@@ -78,31 +117,7 @@ def build_app() -> typer.Typer:
         settings = load_settings()
         configure_logging(settings.log_level, state.secrets)
 
-    app.command("version")(version_command)
-    app.command("doctor")(doctor_command)
-    app.command("init")(init_command)
-    app.add_typer(build_profile_app(), name="profile")
-    app.add_typer(build_finding_app(), name="finding")
-    app.add_typer(build_mutation_app(), name="mutation")
-    app.add_typer(build_strategy_app(), name="strategy")
-    app.add_typer(build_knowledge_app(), name="knowledge")
-    app.command("plan")(plan_command)
-    app.add_typer(build_spec_app(), name="spec")
-    app.command("preflight")(preflight_command)
-    app.command("probe")(probe_command)
-    app.command("scan")(scan_command)
-    app.command("confirm")(confirm_command)
-    app.command("authz")(authz_command)
-    app.command("negative")(negative_command)
-    app.command("report")(report_command)
-    app.command("panel")(panel_command)
-    app.command("run")(run_command)
-    app.command("retestar")(retestar_command)
-    app.command("wait")(wait_command)
-    app.command("cleanup")(cleanup_command)
-    app.add_typer(build_stack_app(), name="stack")
-    app.add_typer(build_secret_app(), name="secret")
-    app.command("stop")(stop_command)
+    _register_commands(app)
     return app
 
 

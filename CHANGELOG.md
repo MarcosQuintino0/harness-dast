@@ -7,6 +7,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ## [Unreleased]
 
 - `hdast retestar PRODUTO --run RUN` repete só as operações dos achados escolhidos pelo pipeline do `run` e grava `retest.json` (`reproduced`, `not_reproduced` ou `not_tested`; nunca "corrigido"). O `run` ganha `--only`, repetível, que só reduz e fica em `run.json` ([ADR 0112](docs/decisoes/0112-retestar-e-run-only.md)).
+- `hdast --help` agrupa os comandos em cinco painéis e destaca `doctor`, `run`, `report` e `stop` em **Comece por aqui**.
+- Índice com decisões essenciais e catálogo de ADRs, orientações de contribuição no `AGENTS.md` e adoção da licença MIT. O painel, a estratégia, o conhecimento reutilizável e o `plan` passam a receber apenas correções de defeitos. `knowledge_mutation` e a mutação pendente seguem como parte do núcleo de segurança. [ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
 ## [1.12.2] - 2026-11-18
