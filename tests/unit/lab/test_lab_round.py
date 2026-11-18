@@ -1,6 +1,8 @@
 """Valida a seleção e a trava da rodada com arquivos temporários e sem Docker."""
 
+import json
 import os
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,6 +12,7 @@ from uuid import UUID
 import pytest
 
 from harness_dast.domain.errors import ConfigError, ExitCode
+from tests.integration import lab_round
 from tests.integration.lab_round import (
     INTEGRATION,
     MAP,
@@ -22,6 +25,7 @@ from tests.integration.lab_round import (
     load_map,
     main,
     select_changed,
+    select_level,
 )
 
 
@@ -328,3 +332,173 @@ def test_rejects_file_quando_pertence_a_outro_nivel(capsys: pytest.CaptureFixtur
 
     assert result == ExitCode.USAGE
     assert "não pertence à seleção" in capsys.readouterr().err
+
+
+def _ids(file: str, *params: str, function: str = "test_x") -> list[str]:
+    return [f"{INTEGRATION}/{file}::{function}[{param}]" for param in params]
+
+
+def test_planeja_um_pedaco_por_arquivo_quando_ha_poucos_testes(areas: AreaMap) -> None:
+    ids = [*_ids("test_scope.py", "vulnerable", "secure"), *_ids("test_scan.py", "a")]
+
+    pieces = lab_round.plan_pieces("fast", areas, lambda _selection: ids)
+
+    assert [(p.file, p.keyword, p.name) for p in pieces] == [
+        ("test_scan.py", None, "fast-scan"),
+        ("test_scope.py", None, "fast-scope"),
+    ]
+    assert [p.index for p in pieces] == [0, 1]
+
+
+def test_planeja_pedacos_por_modo_quando_arquivo_e_grande(areas: AreaMap) -> None:
+    params = [f"{mode}-caso{n}" for mode in ("vulnerable", "secure") for n in range(5)]
+    ids = _ids("test_scope.py", *params, function="test_in_secure_mode_x")
+
+    pieces = lab_round.plan_pieces("fast", areas, lambda _selection: ids)
+
+    assert [p.name for p in pieces] == ["fast-scope-vulnerable", "fast-scope-secure"]
+    # As agulhas casam só no identificador de parâmetro, nunca no nome da função.
+    assert pieces[0].keyword == "([vulnerable or -vulnerable- or -vulnerable])"
+    assert "secure" not in (pieces[0].keyword or "")
+
+
+def test_planeja_resto_quando_ha_testes_sem_modo(areas: AreaMap) -> None:
+    ids = [
+        *_ids("test_scope.py", *[f"{m}-{n}" for m in ("vulnerable", "secure") for n in range(5)]),
+        f"{INTEGRATION}/test_scope.py::test_sem_parametro",
+    ]
+
+    pieces = lab_round.plan_pieces("fast", areas, lambda _selection: ids)
+
+    assert [p.name for p in pieces] == [
+        "fast-scope-vulnerable",
+        "fast-scope-secure",
+        "fast-scope-resto",
+    ]
+    assert (pieces[2].keyword or "").startswith("(not (")
+
+
+def test_nao_parte_arquivo_quando_teste_casa_dois_valores(areas: AreaMap) -> None:
+    ids = _ids("test_scope.py", *[f"vulnerable-secure-{n}" for n in range(10)])
+
+    pieces = lab_round.plan_pieces("fast", areas, lambda _selection: ids)
+
+    assert [(p.name, p.keyword) for p in pieces] == [("fast-scope", None)]
+
+
+def test_planeja_os_quatro_niveis_quando_pedido_e_tudo(areas: AreaMap) -> None:
+    by_marker = {
+        "lab_fast": [f"{INTEGRATION}/test_scope.py::test_a"],
+        "lab_prova": [f"{INTEGRATION}/test_scan.py::test_p"],
+        "regressao_dirigida": [f"{INTEGRATION}/test_regressao.py::test_r"],
+        lab_round.CARGA_MARKER: [f"{INTEGRATION}/test_scan_performance_matrix.py::test_b"],
+    }
+    seen: list[str] = []
+
+    def collect(selection: Selection) -> list[str]:
+        seen.append(selection.marker)
+        return by_marker[selection.marker]
+
+    pieces = lab_round.plan_pieces("tudo", areas, collect)
+
+    assert seen == ["lab_fast", "lab_prova", "regressao_dirigida", lab_round.CARGA_MARKER]
+    assert [(p.level, p.file) for p in pieces] == [
+        ("fast", "test_scope.py"),
+        ("prova", "test_scan.py"),
+        ("regressao", "test_regressao.py"),
+        ("carga", "test_scan_performance_matrix.py"),
+    ]
+    assert [p.index for p in pieces] == list(range(len(pieces)))
+
+
+def test_recusa_planejar_quando_teste_esta_em_dois_niveis(areas: AreaMap) -> None:
+    shared = f"{INTEGRATION}/test_scope.py::test_dupla"
+    by_marker = {
+        "lab_fast": [shared],
+        "lab_prova": [shared],
+        "regressao_dirigida": [],
+        lab_round.CARGA_MARKER: [],
+    }
+
+    with pytest.raises(ConfigError, match=r"test_dupla.*fast, prova"):
+        lab_round.plan_pieces("tudo", areas, lambda s: by_marker.get(s.marker, []))
+
+
+def test_lista_testes_repetidos_quando_niveis_se_sobrepoem() -> None:
+    collected: dict[lab_round.PlannedLevel, list[str]] = {
+        "fast": ["a", "b"],
+        "prova": ["b"],
+        "carga": ["b", "c"],
+    }
+
+    assert lab_round.duplicate_tests(collected) == {"b": ["fast", "prova", "carga"]}
+
+
+def test_recusa_pedacos_quando_nivel_e_changed(areas: AreaMap) -> None:
+    with pytest.raises(ConfigError, match="changed"):
+        lab_round.plan_pieces("changed", areas, lambda _selection: [])
+
+
+def test_recusa_pedacos_quando_coleta_vem_vazia(areas: AreaMap) -> None:
+    with pytest.raises(ConfigError, match="não achou testes"):
+        lab_round.plan_pieces("fast", areas, lambda _selection: [])
+
+
+def test_seleciona_benchmark_e_matriz_quando_nivel_e_carga(areas: AreaMap) -> None:
+    selection = select_level("carga", areas)
+
+    assert selection is not None
+    assert selection.marker == lab_round.CARGA_MARKER
+    assert selection.paths == (
+        f"{INTEGRATION}/test_guard_benchmark.py",
+        f"{INTEGRATION}/test_scan_performance_matrix.py",
+    )
+
+
+def test_imprime_pedacos_em_json_quando_pedido(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        lab_round,
+        "collect_node_ids",
+        lambda _selection: [f"{INTEGRATION}/test_lab_fast.py::test_a"],
+    )
+
+    result = main(["--nivel", "fast", "--pedacos-json"])
+
+    assert result == ExitCode.OK
+    pieces = json.loads(capsys.readouterr().out)
+    assert pieces == [
+        {
+            "index": 0,
+            "level": "fast",
+            "file": "test_lab_fast.py",
+            "keyword": None,
+            "name": "fast-lab_fast",
+        }
+    ]
+
+
+def test_coleta_so_linhas_de_teste_quando_pytest_responde(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Done:
+        returncode = 0
+        stdout = "tests/integration/test_a.py::test_x[1]\n\n1 test collected in 0.1s\n"
+
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: Done())
+
+    ids = lab_round.collect_node_ids(Selection("lab_fast", ("tests/integration",)))
+
+    assert ids == ("tests/integration/test_a.py::test_x[1]",)
+
+
+def test_recusa_coleta_quando_pytest_falha(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Failed:
+        returncode = 2
+        stdout = "erro de importação"
+
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: Failed())
+
+    with pytest.raises(ConfigError, match="coleta do pytest falhou"):
+        lab_round.collect_node_ids(Selection("lab_fast", ("tests/integration",)))
