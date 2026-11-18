@@ -12,6 +12,7 @@ from pydantic import JsonValue
 from harness_dast.application.lab_targets import VAMPI
 from harness_dast.application.stage_errors import doctor_failure
 from harness_dast.cli.approval_composition import build_scope_approvals
+from harness_dast.cli.approval_prompt import confirm_product_name
 from harness_dast.cli.demo_runtime import (
     DEMO_MINUTES,
     DOCKER_GUIDE,
@@ -22,7 +23,6 @@ from harness_dast.cli.demo_runtime import (
     open_demo_session,
 )
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
-from harness_dast.cli.approval_prompt import confirm_product_name
 from harness_dast.cli.terminal import is_interactive
 from harness_dast.domain.errors import ConfigError, ExitCode
 

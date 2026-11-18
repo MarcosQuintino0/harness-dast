@@ -11,4 +11,3 @@ import sys
 def is_interactive() -> bool:
     """`True` só se a entrada padrão e a saída de diagnóstico (stderr) são terminais."""
     return sys.stdin.isatty() and sys.stderr.isatty()
-
