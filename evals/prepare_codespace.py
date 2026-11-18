@@ -1,4 +1,7 @@
-"""Prepara os arquivos da rodada cega em um Codespace descartável."""
+"""Prepara a cópia e o lacre da rodada cega em um Codespace descartável.
+
+A subida da pilha cabe ao agente avaliado após a aprovação do coordenador.
+"""
 
 import argparse
 import sys
@@ -27,7 +30,7 @@ def prepare_codespace(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Recebe os parâmetros da rodada e informa o caminho da cópia pronta."""
+    """Recebe os parâmetros da rodada e informa o caminho da cópia cega."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", required=True, help="nome do caso em evals/cases/")
     parser.add_argument("--mode", choices=MODES, default="random")
