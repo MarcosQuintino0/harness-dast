@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 ## [Unreleased]
 
 - `hdast stack pull` baixa as imagens próprias do GHCR. O `stack up` confere a versão OCI do proxy antes de subir e o `doctor` diagnostica as imagens. Há build local explícito e guias de instalação da CLI e do Docker. [ADR 0113](docs/decisoes/0113-imagens-publicadas-e-conferencia-de-versao.md)
+- Hook PreToolUse reforçado para diretório atual, ferramentas MCP, patches, variáveis e opções anteriores ao código inline. O ADR 0111 registra os limites residuais da análise textual.
+- Hook PreToolUse reforçado contra comandos aninhados, caminhos relativos e padrões de busca amplos, com bloqueio de falhas do lançador no Claude Code v2.1.295 ou posterior.
+
+- Hook `PreToolUse` acrescenta uma segunda camada de proteção do Claude Code para comandos humanos, acessos diretos à rede, leitura de segredos e alterações em arquivos de controle. [ADR 0111](docs/decisoes/0111-hook-pretooluse-segunda-camada.md).
 - `hdast --help` agrupa os comandos em cinco painéis e destaca `doctor`, `run`, `report` e `stop` em **Comece por aqui**.
 - Índice com decisões essenciais e catálogo de ADRs, orientações de contribuição no `AGENTS.md` e adoção da licença MIT. O painel, a estratégia, o conhecimento reutilizável e o `plan` passam a receber apenas correções de defeitos. `knowledge_mutation` e a mutação pendente seguem como parte do núcleo de segurança. [ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
