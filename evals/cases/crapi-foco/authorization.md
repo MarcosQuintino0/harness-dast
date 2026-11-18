@@ -36,3 +36,7 @@ de consumo tem teto de 66 pedidos e parada no primeiro bloqueio. A meta total da
 Versão 3 do caso (V1.12.1): explicita os dados locais do contato do mecânico, já usados
 no OpenAPI e na prova de integração OAST. Caminhos, métodos, limites e capacidades
 permanecem os mesmos da versão 2.
+
+Esclarecimento do contato (V1.12.2): o contato com o mecânico se refere a um veículo da
+própria conta, identificado pelo VIN que a lista de veículos devolve. Caminhos, métodos e
+limites seguem os mesmos.

@@ -54,10 +54,15 @@ class OastScanLab:
     exit_codes: dict[str, int] = field(default_factory=dict)
     seconds: dict[str, float] = field(default_factory=dict)
     proxy_rows: int = 0
+    contact_probe: dict[str, Any] = field(default_factory=dict)
 
 
-def _tweak_profile(product: Path, *, oast: bool) -> None:
-    """Escopo mínimo, a operação do C11 liberada e a chave (papel da carta) só na cópia."""
+def tweak_profile(product: Path, *, oast: bool, bind_vin: bool = True) -> None:
+    """Escopo mínimo, a operação do C11 liberada e a chave (papel da carta) só na cópia.
+
+    `bind_vin` liga o `vin` do contato ao veículo da conta (`flows.yml`); sem a ligação o campo
+    leva um valor gerado, o veículo não existe e o `receive_report` do crAPI responde 500.
+    """
     target = product / "target.yml"
     data = yaml.safe_load(target.read_text(encoding="utf-8"))
     rule = data["scope"]["allow"][0]
@@ -97,7 +102,7 @@ def _tweak_profile(product: Path, *, oast: bool) -> None:
     )
     flows = yaml.safe_load((product / "flows.yml").read_text(encoding="utf-8"))
     for binding in flows["bindings"]:
-        if binding["produces"] == {"operation": "get_vehicles", "field": "0.vin"}:
+        if bind_vin and binding["produces"] == {"operation": "get_vehicles", "field": "0.vin"}:
             binding["consumed_by"].append({"operation": OPERATION, "field": "vin"})
     (product / "flows.yml").write_text(yaml.safe_dump(flows, allow_unicode=True), encoding="utf-8")
 
@@ -162,6 +167,8 @@ def _measure(
     out.scan = json.loads((run_dir / "scan.json").read_text(encoding="utf-8"))
     data = json.loads((run_dir / "findings.json").read_text(encoding="utf-8"))
     out.findings = list(data.get("findings", []))
+    probe = json.loads((run_dir / "probe.json").read_text(encoding="utf-8"))
+    out.contact_probe = next(o for o in probe["operations"] if o["operation_id"] == OPERATION)
     out.interactions_after = lab.interaction_count()
     out.oast_messages = _oast_messages(lab)
     out.proxy_rows = len(proxy_audit(cli))
@@ -194,7 +201,7 @@ def lab(
     cli.install_product(
         "crapi", REPO / "lab/crapi/product-profile", (REPO / "lab/crapi/openapi.json",)
     )
-    _tweak_profile(cli.products / "crapi", oast=enabled)
+    tweak_profile(cli.products / "crapi", oast=enabled)
     marker = "lab-" + secrets.token_hex(6)
     probe = OastLab(cli, key, secrets.token_hex(6))
     probe.use_managed_bridge()
@@ -256,6 +263,8 @@ def test_with_the_key_on_the_return_is_observed_and_becomes_an_ssrf_finding(
 ) -> None:
     if not lab.enabled:
         pytest.skip("só vale com scan.oast ligado")
+    assert lab.contact_probe["outcome"] == "success", lab.contact_probe
+    assert 200 <= lab.contact_probe["status"] < 300
     found = [f for f in lab.findings if f.get("plugin_id") == OAST_PLUGIN]
     assert found, "o retorno do C11 não virou achado de SSRF"
     assert found[0]["operation_id"] == OPERATION

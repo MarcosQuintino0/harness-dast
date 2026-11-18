@@ -19,7 +19,7 @@ from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_res
 
 @pytest.fixture
 def store(tmp_path: Path) -> FileRunArtifacts:
-    return FileRunArtifacts(tmp_path)
+    return FileRunArtifacts(tmp_path, sleep=lambda _s: None)
 
 
 def run_dir(tmp_path: Path) -> Path:
@@ -210,7 +210,6 @@ def test_write_survives_a_reader_holding_the_file_for_a_moment(
         real_replace(source, target)
 
     monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", flaky_replace)
-    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
 
     store.write_progress(
         RUN_ID,
@@ -230,7 +229,6 @@ def test_write_gives_up_with_a_config_error_when_the_file_stays_locked(
         raise PermissionError("arquivo em uso por outro processo")
 
     monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", always_locked)
-    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
 
     with pytest.raises(ConfigError):
         store.write_alerts(RUN_ID, [])

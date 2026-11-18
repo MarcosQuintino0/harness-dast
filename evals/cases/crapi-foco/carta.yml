@@ -2,6 +2,7 @@
 # mechanic_api: http://localhost:8000/workshop/api/mechanic/receive_report
 # localhost é o crapi-workshop dentro do contêiner isolado; sem saída à internet.
 # mechanic_code: TRAC_JHN; number_of_repeats: 1 (inteiro).
+# vin: o de um veículo da própria conta, devolvido pela lista de veículos.
 schema_version: 1
 product: crapi
 gates:

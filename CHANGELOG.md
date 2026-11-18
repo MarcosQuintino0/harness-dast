@@ -8,6 +8,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
+## [1.12.2] - 2026-11-18
+
+- A vigia do proxy de escopo não trava mais para sempre por atraso: retrato com mais de 200 ms é reverificado na hora (uma reverificação por vez, com tempo-limite) e só concede se as fontes seguirem íntegras. Lentidão (reverificação lenta ou tempo-limite) nega só aquele pedido, sem travar, e registra no máximo uma linha por segundo `gate_watch_slow_deny` (`slow_deny`). Mudança real, erro de leitura, encerramento, relógio para trás e falha ao iniciar a thread continuam travando. Corrige a trava `gate_watch_latch` com categoria `age` vista numa rajada do ZAP, com aprovação intacta. [ADR 0106](docs/decisoes/0106-vigia-reverifica-retrato-velho.md), proposto, substitui parcialmente o 0081 e o 0093.
+- A gravação de `scan-progress.json` (e dos demais arquivos da execução) repete poucas vezes, com pausa curta, quando o Windows recusa por `PermissionError` (por exemplo `hdast wait` lendo ao mesmo tempo), e o `wait` trata o arquivo momentaneamente preso como andamento indisponível em vez de erro.
+- Caso `crapi-foco`: o 500 do contato do mecânico na rodada cega não vinha da ponte OAST, e sim de um `vin` inventado (o perfil não ligou o VIN da lista de veículos). A autorização do caso passa a dizer, como dado de produto, que o contato se refere a um veículo da própria conta, identificado pelo VIN da lista de veículos, sem ensinar a montar o perfil. Prova de integração nova com a ponte de pé: com o VIN ligado, `probe` 200 e SSRF observado; sem ele, 500.
+
 ## [1.12.1] - 2026-11-17
 
 - Parte 2: `stack up crapi` monta a ponte OAST interna e liga o workshop a ela somente com perfil aprovado e `scan.oast: true`; `stack down` remove ambos. Sem a chave, a montagem segue sem ponte OAST; produto comum não ganha ponte. O domínio registra a falta de retorno verificável em `scan.json.oast_verification`, no relatório e no painel, sem interpretar zero observações como verificação limpa. [ADR 0105](docs/decisoes/0105-lab-oast-bridge-and-verifiability.md), proposto, substitui parcialmente o 0099.
