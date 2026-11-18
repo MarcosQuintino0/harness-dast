@@ -6,6 +6,8 @@ O [ADR 0010](../decisoes/0010-contrato-json-da-cli-e-codigos-de-saida.md) regist
 
 `hdast --help` organiza os comandos em cinco painéis: **Comece por aqui**, **Cadastro e escopo**, **Etapas do teste**, **Resultados e reteste** e **Avançado**. O primeiro reúne `demo`, `doctor`, `setup`, `run`, `report` e `stop`.
 
+**Avançado** reúne `plan`, `panel`, `strategy`, `knowledge`, `mutation`, `stack` e `version`. Os quatro primeiros recebem apenas correções de defeitos. [ADR 0110](../decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
+
 As provas de execução foram feitas em laboratório. Consulte os [relatórios por versão](../arquivo/reviews/README.md).
 
 | Comando | O que faz | Toca o alvo? | Status |
