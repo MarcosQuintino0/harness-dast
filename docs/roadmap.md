@@ -31,12 +31,15 @@ O contrato de autorização entre contas e as lacunas de cobertura estão na [re
 | Q-18 | Registrar a decisão de encaminhamento no proxy antes da resposta, para preservar a auditoria em caso de interrupção. |
 | P-08 | Confirmar o plano do Claude Code na empresa, o contrato de dados e a incidência de bloqueios do provedor. |
 | P-09 | Nomear o segundo revisor humano dos módulos críticos. |
-| P-14 | Definir a licença do projeto e as condições para eventual reúso de código. |
+
+## Itens fechados
+
+- P-14 fechado em 18/11/2026 com a adoção da licença MIT. [ADR 0110](decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 
 ## Reestruturação em andamento
 
 - Fase 0, linha de base. Medição, mapa de dependências e linha de base da cerca no laboratório.
-- Fase 1, enxugar. Documentação em pastas, índice de decisões, CONTRIBUTING dentro do AGENTS, licença MIT, testes com nome de comportamento e resultados de avaliação fora do repositório.
+- Fase 1, enxugar. Documentação em pastas, índice de decisões, orientações de contribuição no `AGENTS.md`, licença MIT, testes com nome de comportamento e resultados de avaliação fora do repositório.
 - Fase 2, simplificar o uso. Imagens Docker prontas e tutorial, `hdast demo`, ajuda em painéis, hooks como segunda trava do agente, `hdast retestar`, `hdast setup` e carta com padrões mínimos.
 - Fase 3, mostrar. README novo, GIFs, capturas e vídeo.
 - Fase 4, usar de verdade. Primeiro uso real (M7), dependente do dono.

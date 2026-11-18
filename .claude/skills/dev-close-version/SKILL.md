@@ -6,7 +6,7 @@ description: "Use ao desenvolver o harness-dast para conferir os aceites e fecha
 # Fechar uma versão
 
 1. Leia o plano da versão e seu estado no [roadmap](../../../docs/roadmap.md).
-   Confira cada aceite com prova existente, lacunas e o roteiro de [CONTRIBUTING](../../../CONTRIBUTING.md).
+   Confira cada aceite com prova existente, lacunas e os critérios da [Parte A do AGENTS.md](../../../AGENTS.md#parte-a-ao-desenvolver-o-projeto).
 2. Siga a [escada](../../../docs/desenvolver/escada-de-testes.md): varredura completa e rodada cega pertencem a este fechamento.
    Use `dev-lab-check` e `dev-blind-eval`; respeite a trava e o briefing. Sem autorização para esses degraus, registre pendência.
 3. Registre provas e limites num relatório novo em `docs/arquivo/reviews/`; não reescreva relatórios datados.

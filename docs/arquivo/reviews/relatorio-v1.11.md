@@ -13,7 +13,7 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    precisa de pessoa, declaração humana e calibração separadas; skills e critério
    privado de acerto da triagem sem mudar a nota histórica. Achados, severidade e
    status preservados. Fases 0/D/F operacionais pendentes.
-2. **ADRs.** [0085 a 0091](../../decisoes/README.md#verificação-v111), todos Propostos:
+2. **ADRs.** [0085 a 0091](../../decisoes/README.md#todas-as-decisões), todos Propostos:
    contrato; declaração humana; reprodução; apresentação/calibração; régua privada;
    vínculo da semente/prova/parada; observações passivas. Nenhuma dependência nova.
 3. **Linha de base (fase 0).** Base `44ef387`, aprovações descartáveis do suporte
