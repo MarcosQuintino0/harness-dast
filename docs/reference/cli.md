@@ -145,6 +145,12 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 
 O host `crapi` também é reconhecido: projeto próprio `hdast-crapi`, cadastro sintético pela API/MailHog local e `stack down` com remoção dos volumes descartáveis. O crAPI só oferece modo vulnerável; `--secure` e `--token-ttl` são recusados antes de alterar serviços. O nome dos projetos pode receber `HDAST_STACK_PROJECT_SUFFIX` (por exemplo `-codex`), com rede interna derivada e nomes salvos no estado para o encerramento. Em 2026-11-17, o suporte descartável completou subida, preflight das duas contas, probe de `get_products`, run curto com força LOW e descida em 229,63 s (`run_id` do run: `2026-11-17T08-24-04Z-crapi-b883`). Essa prova recortada não demonstra cobertura do caso completo nem resolve a ocorrência intermitente anterior de `STACK_STALE`.
 
+Com `scan.oast: true` no perfil aprovado, `stack up crapi` também cria a ponte
+interna de retorno e conecta o workshop; `stack down` retira o alvo antes da ponte.
+Sem a chave, a ponte não sobe. Produtos comuns não recebem essa infraestrutura.
+Ponte indisponível deixa SSRF guiado e OAST do ZAP **não verificáveis**, com motivo
+no resultado e nas apresentações ([ADR 0105](../adr/0105-ponte-oast-na-pilha-e-verificabilidade.md)).
+
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 
 | Campo | Tipo | Descrição |

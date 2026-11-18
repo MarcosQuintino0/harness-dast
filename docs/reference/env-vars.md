@@ -15,6 +15,7 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | `HDAST_SCOPE_POLICY_DIR` | (sem valor) | Pasta da política do proxy. O `stack up` define a dele; sem pilha gerenciada, `hdast stop` usa esta variável para achar onde criar o `KILL` |
 | `HDAST_STACK_PROJECT_SUFFIX` | vazio | Sufixo dos projetos Compose, vazio ou hífen seguido de 1 a 20 letras minúsculas/dígitos. Exemplo: `-codex`. A pilha salva os nomes e os reutiliza no encerramento |
 | `HDAST_LAB_NETWORK` | derivado do projeto | Nome da rede interna do alvo, definido pela pilha como `<projeto principal>_lab_net` e repassado ao Compose principal e ao anexado |
+| `HDAST_OAST_NETWORK` | derivado do projeto | Nome da rede interna de retorno, definido pela pilha como `<projeto principal>_oast_net` ao montar a ponte do crAPI autorizado; repassado aos dois projetos Compose. Não liga OAST nem amplia autorização |
 | `HDAST_AUDIT_DIR` | (definida pelo `stack up`) | Pasta onde o proxy de escopo grava a auditoria (`audit.jsonl`, uma linha por decisão, sem valores de consulta). O `stack up` a define para o contêiner a partir do estado da pilha; só mexa nela fora do `stack up` se montar o compose à mão |
 | `HDAST_ZAP_HOST_PORT` / `HDAST_PROXY_HOST_PORT` | `8080` / `3128` | Portas em `127.0.0.1` do ZAP e do proxy de escopo (ponte `proxy-gateway`) no host; lidas pelo `stack up` e pelo compose |
 | `HDAST_LOG_LEVEL` | `INFO` | Nível mínimo de log: `DEBUG`, `INFO`, `WARNING` ou `ERROR` |
@@ -27,7 +28,7 @@ Configuração da **ferramenta**, lida e validada na partida (camada "ferramenta
 | --- | --- |
 | `HDAST_ZAP_BASE_URL`, `HDAST_ZAP_API_KEY`, `HDAST_ZAP_PROXY_URL`, `HDAST_AUTH_PROXY_URL`, `HDAST_ZAP_CA_FILE`, `HDAST_RUNS_DIR`, `HDAST_PRODUCTS_DIR`, `HDAST_LOG_LEVEL` | Sim, pelos settings da ferramenta (`config/settings.py`) |
 | `HDAST_STATE_DIR`, `HDAST_SCOPE_POLICY_DIR`, `HDAST_AUDIT_DIR`, `HDAST_ZAP_HOST_PORT`, `HDAST_PROXY_HOST_PORT` | Sim, mas fora dos settings: o `stack up`, o `stop` e o compose as leem direto (`application/stack.py`, `adapters/storage/stack_state.py`) |
-| `HDAST_STACK_PROJECT_SUFFIX`, `HDAST_LAB_NETWORK` | A pilha valida o sufixo e gera o nome da rede para os arquivos Compose |
+| `HDAST_STACK_PROJECT_SUFFIX`, `HDAST_LAB_NETWORK`, `HDAST_OAST_NETWORK` | A pilha valida o sufixo e gera os nomes das redes para os arquivos Compose |
 
 ## Precedência com a pilha gerenciada
 

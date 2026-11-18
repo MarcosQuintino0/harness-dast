@@ -31,16 +31,20 @@ crAPI e representar explicitamente quando o retorno não pode ser verificado.
   somente leitura, capacidades removidas e limites de recursos da ponte. O ZAP
   continua saindo para o alvo somente pelo proxy de escopo.
 - **Decisão no domínio.** O adaptador fornece fatos sobre a disponibilidade da
-  ponte; o domínio decide se as duas capacidades dependentes do retorno são
+  ponte pela porta `OastBridge` de `application/scan_ports.py`; o domínio decide
+  em `domain/oast_verification.py` se as duas capacidades dependentes do retorno são
   verificáveis. Chave autorizada sem ponte disponível significa **não verificável**,
   com motivo explícito, para o SSRF guiado e para o OAST do ZAP. Zero observações
   não substitui essa decisão. Nenhum pedido de SSRF guiado deve ser induzido quando
   não há como observar seu retorno.
 - **Contrato aditivo.** `scan.json.oast_verification` informa os estados do ZAP e do
-  SSRF guiado e o motivo da lacuna. Relatório e painel exibem o motivo. Artefatos
-  antigos continuam legíveis; ausência de evidência de disponibilidade não ganha
-  confirmação retroativa. Não mudam carta, schema do perfil, autorização, envelope
-  nem códigos de saída.
+  SSRF guiado (`verifiable` ou `unverifiable`) e o motivo da lacuna. Sua presença
+  registra a solicitação de OAST; `policy` descreve a política efetiva, reduzida
+  quando falta observação. A redução preserva as demais recusas e estreitamentos.
+  Relatório e painel exibem o motivo e a cobertura fica parcial. Artefatos antigos
+  continuam legíveis; OAST ligado sem esse registro é lacuna desconhecida,
+  sem confirmação retroativa. Não mudam carta, schema do perfil, autorização,
+  envelope nem códigos de saída.
 
 ## Alternativas consideradas
 
@@ -65,6 +69,13 @@ Esta decisão substitui a reserva de montagem ao suporte de laboratório do ADR 
 a configuração do Callback continua pertencendo ao scan e condicionada à carta.
 Não adicionamos técnica, dependência ou autorização. O ADR permanece proposto até
 o aceite do dono.
+
+A coordenação permanece no caso de uso `Scan`, arquivo já acima de 300 linhas.
+A preparação OAST ultrapassa 40 linhas para manter explícita a ordem entre redução,
+configuração, observação e fallback específico; as decisões puras e a inspeção
+externa ficam em módulos próprios, com testes separados. Falha geral de política
+continua interrompendo a etapa, enquanto a falha específica do Callback registra
+a lacuna e mantém as demais verificações possíveis.
 
 ## Aceites verificáveis
 
