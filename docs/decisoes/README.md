@@ -166,6 +166,12 @@ somente o diagnóstico sanitizado da vigia; não altera a idade máxima ou as re
 | [0105](0105-lab-oast-bridge-and-verifiability.md) | Ponte OAST no ciclo gerenciado do crAPI autorizado e motivo explícito quando o retorno não é verificável |
 | [0106](0106-vigia-reverifica-retrato-velho.md) | Vigia do proxy: retrato velho (> 200 ms) é reverificado na hora, em passagem única e com tempo-limite, em vez de travar para sempre; mudança, erro, tempo-limite, encerramento e relógio para trás continuam travando (Proposto; substitui parcialmente [0081](0081-pilha-desatualizada.md) e [0093](0093-diagnostico-sanitizado-da-vigia.md) no tratamento da categoria `age`) |
 
+## Pacote 2.1
+
+| ADR | Contrato proposto |
+| --- | --- |
+| [0113](0113-imagens-publicadas-e-conferencia-de-versao.md) | Imagens no GHCR com atestado de origem, download explícito e compatibilidade de versão da cerca |
+
 ## Quando escrever um ADR
 
 - Dependência nova.

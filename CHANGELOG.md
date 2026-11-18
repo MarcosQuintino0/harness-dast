@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- `hdast stack pull` baixa as imagens próprias do GHCR. O `stack up` confere a versão OCI do proxy antes de subir e o `doctor` diagnostica as imagens. Há build local explícito e guias de instalação da CLI e do Docker. [ADR 0113](docs/decisoes/0113-imagens-publicadas-e-conferencia-de-versao.md)
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
 ## [1.12.2] - 2026-11-18
