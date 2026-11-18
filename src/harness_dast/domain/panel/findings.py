@@ -1,6 +1,6 @@
 """Aba Falhas do painel (`findings.html`): o que foi achado e dá para acreditar? Módulo puro.
 
-Fiel a `docs/arquivo/design/execution-panel/screens/findings.html` e aos estados de
+Fiel a `docs/desenvolver/design/execution-panel/screens/findings.html` e aos estados de
 `system/states.html`: falha com prova forte, falha a confirmar, nenhuma falha grave, prova cortada
 por ser grande, pedido com corpo (POST) e achado do teste entre contas (sem reprodução à mão).
 

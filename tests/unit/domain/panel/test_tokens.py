@@ -6,7 +6,9 @@ from pathlib import Path
 from harness_dast.domain.panel.style import COMPONENTS_CSS, STYLE
 from harness_dast.domain.panel.tokens import TOKENS_CSS
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "tokens.css"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "tokens.css"
+)
 
 
 def _declarations(css: str) -> set[tuple[str, str]]:

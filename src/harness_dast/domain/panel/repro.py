@@ -1,6 +1,6 @@
 """Bloco "Como reproduzir à mão" e a prova de uma falha (aba Falhas do painel). Módulo puro.
 
-Fiel a `docs/arquivo/design/execution-panel/screens/findings.html`: três passos (pegar um token,
+Fiel a `docs/desenvolver/design/execution-panel/screens/findings.html`: três passos (pegar um token,
 mandar o pedido, comparar a resposta), o pedido e a resposta que o teste recebeu como TEXTO no
 bloco de terminal, e o comando para colar. Regras de segurança, todas testadas:
 

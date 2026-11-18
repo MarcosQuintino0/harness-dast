@@ -2,7 +2,7 @@
 
 Duas partes: os tokens (`panel_tokens`, cópia do `tokens.css` do desenho: cor, espaço, letra e
 tema claro ou escuro conforme o aparelho) e as regras dos componentes, copiadas das telas do
-desenho (`docs/arquivo/design/execution-panel/screens/`). As telas usam nomes curtos para as cores
+desenho (`docs/desenvolver/design/execution-panel/screens/`). As telas usam nomes curtos para as cores
 (`--s1`, `--ink`, `--run`...); aqui eles são apelidos dos tokens, então o tema vem só dos tokens.
 Sem fonte nem imagem externa.
 """

@@ -1,6 +1,6 @@
 """Aba Etapas do painel (`stages.html`) e o trilho de etapas que o Resumo também usa. Módulo puro.
 
-Fiel a `docs/arquivo/design/execution-panel/screens/stages.html`: o trilho proporcional ao tempo
+Fiel a `docs/desenvolver/design/execution-panel/screens/stages.html`: o trilho proporcional ao tempo
 de cada etapa, o que aconteceu em cada uma, onde o teste travou e os tipos de teste feitos. Etapa
 cortada fica em amarelo e as seguintes em cinza (`system/states.html`). Tempo ou token que não
 foi medido aparece como traço com a explicação, nunca como zero.

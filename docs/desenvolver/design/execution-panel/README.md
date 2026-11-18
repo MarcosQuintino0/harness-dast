@@ -78,7 +78,7 @@ São três níveis, do geral para o detalhe. O caminho fica sempre no alto, à e
 
 ## Sobre os números das telas
 
-- **Reais:** os totais da rodada cega de 2026-11-13 na Clínica Piloto (40 funções, 30 tentadas, 27 alcançadas em 4 tentativas, 26 varreduras, 19 min de varredura, 16.854 pedidos, 8.651 barrados, 91 achados, 28 min, 151 mil tokens) e a prova da falha de injeção de SQL. Fonte: [`docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md`](../../reviews/2026-11-13-rodada-cega-v1-1.md).
+- **Reais:** os totais da rodada cega de 2026-11-13 na Clínica Piloto (40 funções, 30 tentadas, 27 alcançadas em 4 tentativas, 26 varreduras, 19 min de varredura, 16.854 pedidos, 8.651 barrados, 91 achados, 28 min, 151 mil tokens) e a prova da falha de injeção de SQL. Fonte: [`docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md`](../../../arquivo/reviews/2026-11-13-rodada-cega-v1-1.md).
 - **Marcados "ex." ou "exemplo" na tela:** tempo e tokens por etapa e por comando, horários, saídas do terminal, tipos de teste, quase todas as linhas do histórico, o segundo produto. A marca existe só no desenho e some na página de verdade.
 - **De exemplo, sem marca:** a distribuição função a função no mapa da Cobertura (os totais batem; a lista exata viria do `scan.json`) e o motivo de "Entrar (login)" e "Alterar meu perfil" não terem sido atacadas.
 

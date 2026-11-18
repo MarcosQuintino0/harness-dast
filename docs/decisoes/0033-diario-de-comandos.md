@@ -2,7 +2,7 @@
 
 - **Status:** Proposto
 - **Data:** 2026-11-14
-- **Origem:** painel da execução ([`docs/design/execution-panel/`](../arquivo/design/execution-panel/README.md)), aba Terminal: "lista de comandos do agente, com hora, resultado e resposta" é um dado que ainda não existe. Estende o [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (envelope e códigos de saída) sem alterá-lo.
+- **Origem:** painel da execução ([`docs/design/execution-panel/`](../desenvolver/design/execution-panel/README.md)), aba Terminal: "lista de comandos do agente, com hora, resultado e resposta" é um dado que ainda não existe. Estende o [ADR 0010](0010-contrato-json-da-cli-e-codigos-de-saida.md) (envelope e códigos de saída) sem alterá-lo.
 
 ## Contexto
 

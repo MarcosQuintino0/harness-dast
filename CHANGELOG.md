@@ -391,7 +391,7 @@ Versão do painel da execução, das medições e do diário de comandos. Tudo m
 
 - Comando novo `hdast panel PRODUTO [--run ID] [--json]`: gera as páginas HTML do painel do teste em `runs/<run_id>/panel/` (`summary`, `stages`, `findings`, `coverage`, `terminal` e `time-and-tokens`) a partir dos arquivos da execução (`run.json`, `manifest.json`, `probe.json`, `scan.json`, `findings.json`, `authz.json`, `metrics.json`; todos opcionais) e do perfil e do OpenAPI do produto. Sem `--run`, usa a execução mais recente do produto. `hdast report` e `hdast run` também o geram no fim; falha ao gerar o painel nunca derruba esses dois (vai para o log).
 - Sem JavaScript, sem recurso externo, CSP por `<meta>`, todo texto do alvo escapado por `html_safe`; tema escuro com claro conforme o aparelho; dado ausente aparece como "não medido", nunca zero; nunca "seguro" nem "aprovado".
-- Abas Resumo e Etapas fiéis ao desenho (`docs/arquivo/design/execution-panel/`), com os estados "sem falha grave", "parou no meio" e "erro". As outras quatro abas vieram nas entradas seguintes (hoje nenhuma é provisória).
+- Abas Resumo e Etapas fiéis ao desenho (`docs/desenvolver/design/execution-panel/`), com os estados "sem falha grave", "parou no meio" e "erro". As outras quatro abas vieram nas entradas seguintes (hoje nenhuma é provisória).
 - Modelo de visão `PanelView` (`domain/panel_model.py`) com tudo que as seis abas precisam e dois ganchos opcionais, `commands` (diário de comandos) e `explanations` (catálogo de explicação de falha); registro de páginas em `domain/panel_pages.py`.
 - Porta nova `PanelFiles` (leitura dos arquivos da execução e gravação das páginas) e `PanelRefresher` (chamada por `report` e `run`). `Operation` do OpenAPI ganha `summary` (opcional) para o nome simples da função. Nenhum campo novo no perfil, no `findings.json` nem no envelope de `report` e `run`.
 
@@ -460,9 +460,9 @@ Versão do painel da execução, das medições e do diário de comandos. Tudo m
 
 - Os testes deixam de depender do ambiente da máquina: com uma pilha Docker do hdast no ar, 12 a 27 testes de `tests/contract/test_cli_scan_report.py` falhavam (o `probe` saía com código 4) por ler o estado real da pilha. Uma fixture `autouse` em `tests/conftest.py` limpa toda `HDAST_*` e aponta `HDAST_STATE_DIR` para uma pasta vazia por teste; `tests/contract/test_state_isolation.py` prova o isolamento.
 
-### Design do painel guardado em `docs/arquivo/design/execution-panel/` (só documentação)
+### Design do painel guardado em `docs/desenvolver/design/execution-panel/` (só documentação)
 
-- `docs/arquivo/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em `docs/roadmap.md` (seção "Diferenças entre o painel e o desenho"). Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.
+- `docs/desenvolver/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em `docs/roadmap.md` (seção "Diferenças entre o painel e o desenho"). Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.
 
 ## [1.1.0] - 2026-11-13
 

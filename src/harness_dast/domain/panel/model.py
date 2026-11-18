@@ -1,6 +1,6 @@
 """Modelo de visão do painel da execução: tudo que as sete abas precisam de UM teste. Módulo puro.
 
-O painel (`docs/arquivo/design/execution-panel/`) reúne páginas estáticas que a CLI gera para
+O painel (`docs/desenvolver/design/execution-panel/`) reúne páginas estáticas que a CLI gera para
 quem não domina segurança. Este módulo só descreve os dados; `panel_build` os monta a partir dos
 arquivos da execução e `panel_pages` os transforma em HTML. As regras:
 

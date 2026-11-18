@@ -1,6 +1,6 @@
 """Aba Tempo e tokens do painel (`time-and-tokens.html`): quanto tempo e quanto trabalho.
 
-Fiel a `docs/arquivo/design/execution-panel/screens/time-and-tokens.html` e ao estado "teste sem
+Fiel a `docs/desenvolver/design/execution-panel/screens/time-and-tokens.html` e ao estado "teste sem
 medição" de `system/states.html`: números em destaque, a tabela por etapa (tempo em branco,
 tokens em cinza, barras com `role="img"`) e, na coluna da direita, regras do ZAP, funções,
 lacunas e regras desligadas (`panel_rules`). A CLI não mede tokens: eles vêm de

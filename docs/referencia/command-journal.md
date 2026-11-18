@@ -1,6 +1,6 @@
 # Diário de comandos e dados auxiliares do painel
 
-> **Status: implementado como código e testes (V1.2), sem prova com Docker.** Decisão: [ADR 0033](../decisoes/0033-diario-de-comandos.md) (status Proposto). Consumidor: o painel da execução ([`docs/arquivo/design/execution-panel/`](../arquivo/design/execution-panel/README.md)), que ainda não usa estas funções. Nenhum comando novo da CLI: o diário é gravado por todo comando existente.
+> **Status: implementado como código e testes (V1.2), sem prova com Docker.** Decisão: [ADR 0033](../decisoes/0033-diario-de-comandos.md) (status Proposto). Consumidor: o painel da execução ([`docs/desenvolver/design/execution-panel/`](../desenvolver/design/execution-panel/README.md)), que ainda não usa estas funções. Nenhum comando novo da CLI: o diário é gravado por todo comando existente.
 
 ## Diário de comandos
 

@@ -23,7 +23,7 @@ from typing import Final, Literal
 from harness_dast.domain.finding import Finding, TriageNote
 
 ConfidenceStep = Literal["a confirmar", "prova forte", "confirmada"]
-"""Lista fechada de `docs/arquivo/design/execution-panel/system/formats.html`."""
+"""Lista fechada de `docs/desenvolver/design/execution-panel/system/formats.html`."""
 
 _ZAP_FALSE_POSITIVE: Final = "false_positive"
 

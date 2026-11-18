@@ -22,7 +22,9 @@ from harness_dast.domain.report.presentation import Presentation, PresentedFindi
 from harness_dast.domain.verification import VerificationEntry
 from tests.unit.domain.panel.helpers import XSS, view
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 # Classes que a página gera e o desenho da tela só descreve em texto, ou que o CSS define e a tela
 # de exemplo não usa; `ex` (a marca "ex.") existe SÓ no desenho e nunca na página.
 EXTRA_CLASSES = {"crumb", "foot", "vh", "tp", "seg-no", "seg-cut", "nb-cut", "nb-no", "scroll"}

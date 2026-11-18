@@ -153,7 +153,7 @@ As costuras entre as quatro (página com `authz` e com a cerca, doctor, mensagen
 
 ### V1.2: painel da execução (entregue em 1.2.0 como código e testes)
 
-Desenho aprovado em `docs/arquivo/design/execution-panel/`. Peças de dados, cada uma como código e testes unitários e de contrato, **sem Docker e sem prova contra alvo**:
+Desenho aprovado em `docs/desenvolver/design/execution-panel/`. Peças de dados, cada uma como código e testes unitários e de contrato, **sem Docker e sem prova contra alvo**:
 
 | Peça | Situação |
 | --- | --- |
@@ -165,7 +165,7 @@ Desenho aprovado em `docs/arquivo/design/execution-panel/`. Peças de dados, cad
 
 ### V1.2: painel da execução, estado por parte (1.2.0)
 
-O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/arquivo/design/execution-panel/](design/execution-panel/README.md)); a CLI gera as páginas ([ADR 0032](../decisoes/0032-painel-da-execucao.md), proposto). Estado por parte:
+O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/desenvolver/design/execution-panel/](../desenvolver/design/execution-panel/README.md)); a CLI gera as páginas ([ADR 0032](../decisoes/0032-painel-da-execucao.md), proposto). Estado por parte:
 
 | Parte | Existe como código e testes | O que falta |
 | --- | --- | --- |
@@ -180,7 +180,7 @@ O desenho final do painel foi aprovado pelo dono em 2026-11-14 ([docs/arquivo/de
 
 ### Diferenças entre o painel e o desenho
 
-O painel da 1.2.0 segue o desenho de `docs/arquivo/design/execution-panel/`. O que o desenho mostra e a CLI ainda não tem, ou que ficou conferido só em parte (todos itens abertos, sem correção prevista nesta versão):
+O painel da 1.2.0 segue o desenho de `docs/desenvolver/design/execution-panel/`. O que o desenho mostra e a CLI ainda não tem, ou que ficou conferido só em parte (todos itens abertos, sem correção prevista nesta versão):
 
 - **Nomes das regras do ZAP em inglês no painel.** Falta uma tabela de tradução (regra do ZAP para nome em português); hoje a lista de grupos e as regras mais lentas mostram o nome que o ZAP dá.
 - **Chaves em inglês na resposta dos comandos do Terminal.** A resposta resumida mostra `chave: valor` com a chave do envelope da CLI (`run_id`, `operations_sent`...); falta traduzir as chaves como as frases dos comandos.

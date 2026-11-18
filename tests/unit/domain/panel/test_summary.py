@@ -13,7 +13,9 @@ from harness_dast.domain.run_summary import StageRecord
 from harness_dast.domain.traffic import TrafficSummary
 from tests.unit.domain.panel.helpers import findings_report, run_summary, sources, view
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 # Classes que a página gerada acrescenta ao HTML da tela: estados que o desenho só descreve em
 # texto (`crumb`, `foot`, `seg-cut`, `nb-cut`, `nb-no`) e classes que o CSS do desenho já define
 # mas a tela de exemplo não usa (`seg-no`, `vh`, `sm`, `tp`).

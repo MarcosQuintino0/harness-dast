@@ -1,6 +1,6 @@
 """Formatos do painel da execução: número, data, duração e as palavras de estado. Módulo puro.
 
-Segue `docs/arquivo/design/execution-panel/system/formats.html`: milhar com ponto (16.854),
+Segue `docs/desenvolver/design/execution-panel/system/formats.html`: milhar com ponto (16.854),
 tokens como "151 mil" e "1,2 mi", duração em segundos, minutos ou horas, "X de Y" na contagem
 e, quando falta o dado, traço com a palavra, nunca zero. As palavras de estado são uma lista
 fechada: este módulo é o único lugar onde elas são escritas. Nenhuma função aqui lê relógio nem

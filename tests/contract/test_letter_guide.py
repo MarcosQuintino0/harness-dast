@@ -21,7 +21,7 @@ from harness_dast.domain.letter_review import review_letter
 pytestmark = pytest.mark.contract
 
 ROOT = Path(__file__).parents[2]
-GUIDE = ROOT / "docs" / "guides" / "modelo-de-autorizacao.md"
+GUIDE = ROOT / "docs" / "usar" / "modelo-de-autorizacao.md"
 FIXTURES = ROOT / "tests" / "fixtures" / "letter"
 GOLDEN = FIXTURES / "livraria-exemplo.target.golden.yml"
 CASES = ROOT / "evals" / "cases"
@@ -105,7 +105,7 @@ def test_the_copy_delivered_to_the_blind_agent_has_no_answer_of_the_case(
     com o caminho proibido ou a isca do caso entrega a resposta.
     """
     assert _copy_delivered(case_name, tmp_path) > 0
-    assert (tmp_path / "docs" / "guides" / GUIDE.name).exists()
+    assert (tmp_path / "docs" / "usar" / GUIDE.name).exists()
 
     leaks = [
         f"{hit.path} linha {hit.line}: {hit.term}"
