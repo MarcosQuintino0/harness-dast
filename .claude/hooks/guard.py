@@ -16,6 +16,7 @@ from typing import TextIO
 
 HUMAN_COMMANDS = (
     ("profile", "approve"),
+    ("setup",),
     ("secret", "set"),
     ("secret", "delete"),
     ("finding", "acknowledge"),
