@@ -95,7 +95,7 @@ convention = "google"
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
-files = ["src", "tests", "evals"]
+files = ["src", "tests", "evals", ".claude/hooks"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
@@ -207,7 +207,7 @@ modules = [
 
 # --------------------------------------------------------------- vulture
 [tool.vulture]
-paths = ["src"]
+paths = ["src", ".claude/hooks"]
 min_confidence = 60
 # Os validadores pydantic são chamados por reflexão: a exceção é por decorador, não por nome.
 ignore_decorators = ["@field_validator", "@model_validator"]
