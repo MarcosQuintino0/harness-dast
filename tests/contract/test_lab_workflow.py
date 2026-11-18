@@ -52,10 +52,7 @@ def test_workflow_respeita_leitura_prazo_e_credenciais_quando_executa(
     workflow: dict[str, Any],
 ) -> None:
     assert workflow["permissions"] == {"contents": "read"}
-    assert workflow["concurrency"] == {
-        "group": "lab-${{ github.ref }}",
-        "cancel-in-progress": True,
-    }
+    assert workflow["concurrency"]["cancel-in-progress"] is True
     for name, job in workflow["jobs"].items():
         assert all(value == "read" for value in job.get("permissions", {}).values()), name
         assert isinstance(job["timeout-minutes"], int), name
@@ -63,6 +60,16 @@ def test_workflow_respeita_leitura_prazo_e_credenciais_quando_executa(
         for step in _steps(job):
             if str(step.get("uses", "")).startswith("actions/checkout"):
                 assert step["with"]["persist-credentials"] is False, name
+
+
+def test_concorrencia_separa_por_ref_evento_e_nivel_quando_agrupa(workflow: dict[str, Any]) -> None:
+    group = " ".join(workflow["concurrency"]["group"].split())
+
+    assert group.startswith("lab-${{ github.ref }}-${{ github.event_name }}-")
+    assert "${{ inputs.nivel || 'fast' }}" in group
+    # Rótulo que não é `lab` cai num grupo próprio, com o run_id, e não cancela a rodada válida.
+    assert "github.event.action == 'labeled' && github.event.label.name != 'lab'" in group
+    assert "github.run_id" in group
 
 
 def test_workflow_nao_usa_segredos_nem_versoes_soltas_quando_declara_passos(
@@ -120,7 +127,7 @@ def test_pedaco_publica_resultados_por_tres_dias_quando_termina(workflow: dict[s
 
     assert upload["with"]["name"] == "lab-${{ matrix.name }}"
     assert upload["with"]["retention-days"] == 3
-    assert "!cancelled()" in upload["if"]
+    assert upload["if"] == "${{ always() }}"
     assert any("proxy-watch.jsonl" in s.get("run", "") for s in steps)
 
 
@@ -135,8 +142,9 @@ def test_imagens_vao_pelo_cache_e_nunca_por_artefato_quando_compartilhadas(
     assert "actions/cache/save" in builder
     assert not any(ref.startswith("actions/upload-artifact") for ref in _uses(jobs["imagens"]))
     assert "docker load" in " ".join(s.get("run", "") for s in _steps(jobs["pedaco"]))
-    for token in ("docker/**", "lab/pilot/**", "scope_proxy/**", "compose.yaml", "pyproject.toml"):
-        assert token in builder
+    # A chave vem da função única dos insumos, não de um hashFiles parcial.
+    assert "lab_images --chave" in builder
+    assert "hashFiles" not in WORKFLOW.read_text(encoding="utf-8")
 
 
 def test_resumo_falha_com_o_pedaco_quando_roda_sempre(workflow: dict[str, Any]) -> None:
@@ -144,8 +152,36 @@ def test_resumo_falha_com_o_pedaco_quando_roda_sempre(workflow: dict[str, Any]) 
     commands = " ".join(step.get("run", "") for step in _steps(job))
 
     assert set(job["needs"]) == {"planejar", "pedaco"}
+    assert "needs.pedaco.result" in str(job)
+    assert "--resultado-pedaco" in commands
     assert "always()" in job["if"]
     assert ".github/scripts/lab_summary.py" in commands
     assert '--saida "$GITHUB_STEP_SUMMARY"' in commands
     download = next(s for s in _steps(job) if "download-artifact" in str(s.get("uses", "")))
     assert download["with"]["pattern"] == "lab-*"
+
+
+def test_pedaco_grava_estado_sempre_antes_de_publicar_quando_termina(
+    workflow: dict[str, Any],
+) -> None:
+    steps = _steps(workflow["jobs"]["pedaco"])
+    names = [step.get("name") for step in steps]
+    state = steps[names.index("Gravar o estado do pedaço")]
+    upload = steps[names.index("Publicar JUnit, métricas e vigia do pedaço")]
+
+    assert state["if"] == "${{ always() }}"
+    assert upload["if"] == "${{ always() }}"
+    assert state["env"]["STATUS"] == "${{ job.status }}"
+    assert "--gravar-estado" in state["run"]
+    assert names.index(state["name"]) < names.index(upload["name"])
+
+
+def test_pedaco_repassa_os_descartes_do_planejador_quando_roda(workflow: dict[str, Any]) -> None:
+    run = next(
+        s
+        for s in _steps(workflow["jobs"]["pedaco"])
+        if s.get("name") == "Rodar o pedaço pelo lab_round"
+    )
+
+    assert run["env"]["DESELECT"] == "${{ toJSON(matrix.deselect) }}"
+    assert '--deselect "$id"' in run["run"]

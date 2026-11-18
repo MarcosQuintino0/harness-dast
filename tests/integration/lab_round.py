@@ -40,6 +40,7 @@ type Level = Literal["changed", "fast", "prova", "regressao", "carga", "tudo"]
 type PlannedLevel = Literal["fast", "prova", "regressao", "carga"]
 # Níveis que o workflow do GitHub planeja quando o pedido é "tudo".
 PLANNED_LEVELS: tuple[PlannedLevel, ...] = ("fast", "prova", "regressao", "carga")
+ASSIGNMENT_ORDER: tuple[PlannedLevel, ...] = ("carga", "fast", "prova", "regressao")
 type NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 type TestFile = Annotated[str, StringConstraints(pattern=r"^test_[a-zA-Z0-9_]+\.py$")]
 
@@ -83,6 +84,7 @@ class RoundOptions(BaseModel):
     owner: NonEmpty
     file: TestFile | None
     keyword: NonEmpty | None
+    deselect: tuple[NonEmpty, ...] = ()
     pieces_json: bool
 
 
@@ -107,6 +109,7 @@ class Piece(BaseModel):
     file: TestFile
     keyword: NonEmpty | None
     name: NonEmpty
+    deselect: tuple[NonEmpty, ...] = ()
 
 
 def load_map(path: Path) -> AreaMap:
@@ -307,6 +310,21 @@ def _level_pieces(level: str, node_ids: Iterable[str]) -> Iterator[tuple[str, st
             yield file, name, keyword
 
 
+def _collect_levels(
+    levels: Iterable[PlannedLevel],
+    areas: AreaMap,
+    collect: Callable[[Selection], Sequence[str]] | None,
+) -> dict[PlannedLevel, tuple[str, ...]]:
+    gather = collect or collect_node_ids
+    collected: dict[PlannedLevel, tuple[str, ...]] = {}
+    for level in levels:
+        selection = select_level(level, areas)
+        if selection is None:
+            raise ConfigError(f"O nível {level} não tem seleção. Confira o mapa.")
+        collected[level] = tuple(gather(selection))
+    return collected
+
+
 def plan_pieces(
     level: Level,
     areas: AreaMap,
@@ -314,21 +332,25 @@ def plan_pieces(
 ) -> tuple[Piece, ...]:
     """Planeja os pedaços de um nível: um arquivo, partido por modo ou produto se possível.
 
-    `tudo` soma `fast`, `prova`, `regressao` e `carga`. Os arquivos da carga saem de `prova`,
-    porque a carga os roda inteiros e a prova repetiria parte deles.
+    `tudo` soma `fast`, `prova`, `regressao` e `carga`. A união é por identificador de teste:
+    cada teste fica com um só nível (a ordem de `ASSIGNMENT_ORDER` desempata, e a carga vem
+    primeiro porque roda a matriz inteira). Um pedaço que também colheria teste de outro
+    nível, pelo marcador, o descarta com `deselect`, então nada roda nem conta duas vezes.
     """
     if level == "changed":
         raise ConfigError("Os pedaços não existem para o nível changed. Use outro --nivel.")
     levels: tuple[PlannedLevel, ...] = PLANNED_LEVELS if level == "tudo" else (level,)
+    collected = _collect_levels(levels, areas, collect)
+    owner: dict[str, PlannedLevel] = {}
+    for current in ASSIGNMENT_ORDER:
+        for node_id in collected.get(current, ()):
+            owner.setdefault(node_id, current)
     pieces: list[Piece] = []
     for current in levels:
-        selection = select_level(current, areas)
-        if selection is None:  # pragma: no cover - só `changed` devolve vazio.
-            continue
-        ids = (collect or collect_node_ids)(selection)
-        if level == "tudo" and current != "carga":
-            ids = [i for i in ids if Path(i.split("::")[0]).name not in CARGA_FILES]
-        for file, name, keyword in _level_pieces(current, ids):
+        mine = [i for i in collected[current] if owner[i] == current]
+        foreign = [i for i in collected[current] if owner[i] != current]
+        for file, name, keyword in _level_pieces(current, mine):
+            skip = tuple(i for i in foreign if Path(i.split("::")[0]).name == file)
             pieces.append(
                 Piece(
                     index=len(pieces),
@@ -336,6 +358,7 @@ def plan_pieces(
                     file=file,
                     keyword=keyword,
                     name=name,
+                    deselect=skip,
                 )
             )
     if not pieces:
@@ -344,7 +367,10 @@ def plan_pieces(
 
 
 def build_command(
-    selection: Selection, output: Path, keyword: str | None = None
+    selection: Selection,
+    output: Path,
+    keyword: str | None = None,
+    deselect: Iterable[str] = (),
 ) -> tuple[str, ...]:
     """Monta a chamada do pytest no mesmo Python que iniciou a rodada."""
     return (
@@ -355,6 +381,7 @@ def build_command(
         "-m",
         selection.marker,
         *(("-k", keyword) if keyword is not None else ()),
+        *(arg for node_id in deselect for arg in ("--deselect", node_id)),
         f"--junitxml={output / 'junit.xml'}",
         "--durations=30",
         "-rfE",
@@ -455,6 +482,9 @@ def _parse_options(argv: Sequence[str] | None) -> RoundOptions:
     parser.add_argument("--arquivo", dest="file", help="Nome do arquivo de teste da seleção.")
     parser.add_argument("--k", dest="keyword", help="Expressão de seleção do pytest (-k).")
     parser.add_argument(
+        "--deselect", dest="deselect", action="append", default=[], help="Teste a descartar."
+    )
+    parser.add_argument(
         "--pedacos-json",
         dest="pieces_json",
         action="store_true",
@@ -482,7 +512,7 @@ def _run_round(options: RoundOptions) -> int:
     started = datetime.now(UTC)
     stamp = started.strftime("%Y%m%dT%H%M%S.%fZ")
     output = (options.output or ARTIFACTS / "rodadas" / f"{stamp}-{options.level}").absolute()
-    command = build_command(selection, output, options.keyword)
+    command = build_command(selection, output, options.keyword, options.deselect)
     if options.dry_run:
         display = subprocess.list2cmdline(command) if os.name == "nt" else shlex.join(command)
         sys.stdout.write(f"{display}\nCaminhos selecionados\n")

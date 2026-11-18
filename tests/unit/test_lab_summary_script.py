@@ -23,24 +23,35 @@ def _piece(
     name: str,
     cases: str | None,
     watch: Sequence[Mapping[str, object]] | None = None,
+    state: str | None = "success",
 ) -> None:
     directory = artifacts / f"lab-{name}"
     directory.mkdir(parents=True)
     if cases is not None:
         (directory / "junit.xml").write_text(f"<testsuite>{cases}</testsuite>", encoding="utf-8")
+    if state is not None:
+        (directory / "estado.json").write_text(json.dumps({"status": state}), encoding="utf-8")
     if watch is not None:
         (directory / "vigia").mkdir()
         lines = "\n".join(json.dumps(record) for record in watch)
         (directory / "vigia" / "0.jsonl").write_text(lines + "\n", encoding="utf-8")
 
 
-def _run(tmp_path: Path, names: list[str]) -> tuple[int, str]:
+def _run(tmp_path: Path, names: list[str], job_result: str | None = None) -> tuple[int, str]:
     planned = tmp_path / "pedacos.json"
     planned.write_text(json.dumps([{"name": name} for name in names]), encoding="utf-8")
     summary = tmp_path / "summary.md"
-    code = _load().main(
-        ["--artefatos", str(tmp_path / "art"), "--pedacos", str(planned), "--saida", str(summary)]
-    )
+    argv = [
+        "--artefatos",
+        str(tmp_path / "art"),
+        "--pedacos",
+        str(planned),
+        "--saida",
+        str(summary),
+    ]
+    if job_result is not None:
+        argv += ["--resultado-pedaco", job_result]
+    code = _load().main(argv)
     return code, summary.read_text(encoding="utf-8")
 
 
@@ -69,7 +80,7 @@ def test_falha_quando_ha_teste_com_erro_ou_falha(tmp_path: Path) -> None:
 
     assert code == 1
     assert "1 aprovados · 1 falharam · 1 pulados" in report
-    assert "falhou" in report
+    assert "1 testes falharam" in report
 
 
 def test_conta_como_falha_quando_pedaco_nao_tem_junit(tmp_path: Path) -> None:
@@ -80,10 +91,9 @@ def test_conta_como_falha_quando_pedaco_nao_tem_junit(tmp_path: Path) -> None:
     code, report = _run(tmp_path, ["a", "b", "c"])
 
     assert code == 1
-    assert "Pedaços sem resultado" in report
-    assert "<code>b</code>" in report
-    assert "<code>c</code>" in report
-    assert "sem resultado" in report
+    assert "Pedaços com falha" in report
+    assert "<code>b</code>: sem junit" in report
+    assert "<code>c</code>: sem artefato" in report
 
 
 def test_falha_quando_nenhum_teste_passou(tmp_path: Path) -> None:
@@ -93,7 +103,7 @@ def test_falha_quando_nenhum_teste_passou(tmp_path: Path) -> None:
     code, report = _run(tmp_path, ["a"])
 
     assert code == 1
-    assert "só pulados" in report
+    assert "nenhum teste aprovado (1 pulados)" in report
 
 
 def test_lista_so_os_quinze_mais_lentos_quando_ha_mais_testes(tmp_path: Path) -> None:
@@ -135,7 +145,7 @@ def test_ignora_junit_malformado_quando_arquivo_esta_quebrado(tmp_path: Path) ->
     code, report = _run(tmp_path, ["a"])
 
     assert code == 1
-    assert "Pedaços sem resultado" in report
+    assert "sem junit" in report
 
 
 def test_recusa_lista_de_pedacos_quando_json_esta_invalido(tmp_path: Path) -> None:
@@ -153,3 +163,117 @@ def test_recusa_lista_de_pedacos_quando_falta_o_nome(tmp_path: Path, body: str) 
     planned.write_text(body, encoding="utf-8")
 
     assert _load().main(["--artefatos", str(tmp_path), "--pedacos", str(planned)]) == 2
+
+
+def test_falha_quando_job_do_pedaco_nao_terminou_com_sucesso(tmp_path: Path) -> None:
+    art = tmp_path / "art"
+    _piece(art, "a", '<testcase name="ok" time="1"/>', state="failure")
+
+    code, report = _run(tmp_path, ["a"])
+
+    assert code == 1
+    assert "job terminou como failure" in report
+
+
+def test_falha_quando_estado_nao_foi_gravado(tmp_path: Path) -> None:
+    art = tmp_path / "art"
+    _piece(art, "a", '<testcase name="ok" time="1"/>', state=None)
+
+    code, report = _run(tmp_path, ["a"])
+
+    assert code == 1
+    assert "sem estado.json" in report
+
+
+def test_falha_quando_um_pedaco_so_tem_pulados_e_outro_passou(tmp_path: Path) -> None:
+    art = tmp_path / "art"
+    _piece(art, "a", '<testcase name="ok" time="1"/>')
+    _piece(
+        art,
+        "b",
+        '<testcase name="p1"><skipped/></testcase><testcase name="p2"><skipped/></testcase>',
+    )
+
+    code, report = _run(tmp_path, ["a", "b"])
+
+    assert code == 1
+    assert "<code>b</code>: nenhum teste aprovado (2 pulados)" in report
+
+
+@pytest.mark.parametrize("job_result", ["failure", "cancelled", "skipped"])
+def test_falha_quando_resultado_do_job_pedaco_nao_e_sucesso(
+    tmp_path: Path, job_result: str
+) -> None:
+    art = tmp_path / "art"
+    _piece(art, "a", '<testcase name="ok" time="1"/>')
+
+    code, report = _run(tmp_path, ["a"], job_result)
+
+    assert code == 1
+    assert job_result in report
+
+
+def test_aprova_quando_job_pedaco_teve_sucesso(tmp_path: Path) -> None:
+    art = tmp_path / "art"
+    _piece(art, "a", '<testcase name="ok" time="1"/>')
+
+    code, _ = _run(tmp_path, ["a"], "success")
+
+    assert code == 0
+
+
+def test_grava_estado_com_status_e_contagens_quando_pedaco_termina(tmp_path: Path) -> None:
+    junit = tmp_path / "junit.xml"
+    junit.write_text(
+        '<testsuite><testcase name="a"/><testcase name="b"><failure/></testcase>'
+        '<testcase name="c"><skipped/></testcase></testsuite>',
+        encoding="utf-8",
+    )
+    estado = tmp_path / "saida" / "estado.json"
+
+    code = _load().main(
+        [
+            "--gravar-estado",
+            str(estado),
+            "--nome",
+            "p1",
+            "--status",
+            "failure",
+            "--junit",
+            str(junit),
+        ]
+    )
+
+    assert code == 0
+    assert json.loads(estado.read_text(encoding="utf-8")) == {
+        "nome": "p1",
+        "status": "failure",
+        "passed": 1,
+        "failed": 1,
+        "skipped": 1,
+    }
+
+
+def test_grava_estado_zerado_quando_nao_ha_junit(tmp_path: Path) -> None:
+    estado = tmp_path / "estado.json"
+
+    code = _load().main(
+        [
+            "--gravar-estado",
+            str(estado),
+            "--nome",
+            "p",
+            "--status",
+            "cancelled",
+            "--junit",
+            str(tmp_path / "nada.xml"),
+        ]
+    )
+
+    assert code == 0
+    assert json.loads(estado.read_text(encoding="utf-8"))["passed"] == 0
+
+
+def test_recusa_gravar_estado_quando_faltam_argumentos(tmp_path: Path) -> None:
+    assert _load().main(["--gravar-estado", str(tmp_path / "e.json")]) == 2
+    assert _load().main([]) == 2

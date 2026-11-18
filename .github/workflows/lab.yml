@@ -17,8 +17,13 @@ name: Laboratório
 permissions:
   contents: read
 
+# Um grupo por ref, evento e nível: só a rodada do mesmo nível na mesma ref é cancelada. Rótulo
+# que não é `lab` cai num grupo próprio (com o run_id) e não cancela uma rodada válida.
 concurrency:
-  group: lab-${{ github.ref }}
+  group: >-
+    lab-${{ github.ref }}-${{ github.event_name }}-${{ inputs.nivel || 'fast' }}${{
+    (github.event.action == 'labeled' && github.event.label.name != 'lab')
+    && format('-ignorado-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -68,11 +73,12 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      # A chave vem dos mesmos arquivos que os Dockerfiles copiam (lab_images.inputs_hash).
       - name: Calcular a chave das imagens
         id: chave
-        env:
-          HASH: ${{ hashFiles('docker/**', 'lab/pilot/**', 'src/harness_dast/adapters/scope_proxy/**', 'compose.yaml', 'pyproject.toml') }}
-        run: echo "tag=gh-$HASH" >> "$GITHUB_OUTPUT"
+        run: echo "tag=gh-$(uv run python -m tests.integration.lab_images --chave)" >> "$GITHUB_OUTPUT"
       # A imagem fica no cache, nunca como artefato: o armazenamento de artefatos é pequeno.
       - name: Procurar as imagens no cache
         id: cache
@@ -81,10 +87,6 @@ jobs:
           path: ${{ runner.temp }}/lab-images.tar.gz
           key: lab-images-${{ steps.chave.outputs.tag }}
           lookup-only: true
-      - uses: astral-sh/setup-uv@v10.3.3
-        if: steps.cache.outputs.cache-hit != 'true'
-      - run: uv sync --locked
-        if: steps.cache.outputs.cache-hit != 'true'
       - name: Construir as imagens e salvá-las em um arquivo
         if: steps.cache.outputs.cache-hit != 'true'
         env:
@@ -141,6 +143,7 @@ jobs:
           ARQUIVO: ${{ matrix.file }}
           MODO: ${{ matrix.keyword }}
           INDICE: ${{ matrix.index }}
+          DESELECT: ${{ toJSON(matrix.deselect) }}
           HDAST_IT_PREBUILT: '1'
           HDAST_IT_PREBUILT_TAG: ${{ needs.imagens.outputs.tag }}
           V18_GUARD_BENCH_LABEL: after
@@ -151,6 +154,9 @@ jobs:
           if [ -n "$MODO" ]; then
             args+=(--k "$MODO")
           fi
+          while IFS= read -r id; do
+            args+=(--deselect "$id")
+          done < <(printf '%s' "$DESELECT" | python3 -c 'import json,sys; [print(i) for i in json.load(sys.stdin)]')
           if [ "$NIVEL" = carga ]; then
             # Orçamento da matriz V1.7: agora mais 45 min, dentro dos 50 min do passo.
             HDAST_V17_DEADLINE_EPOCH=$(( $(date +%s) + 45 * 60 ))
@@ -168,8 +174,16 @@ jobs:
             n=$((n + 1))
           done < <(find "$LAB_PYTEST" -name proxy-watch.jsonl 2>/dev/null)
           echo "$n arquivos da vigia"
+      - name: Gravar o estado do pedaço
+        if: ${{ always() }}
+        env:
+          NOME: ${{ matrix.name }}
+          STATUS: ${{ job.status }}
+        run: |
+          python3 .github/scripts/lab_summary.py --gravar-estado "$LAB_OUTPUT/estado.json" \
+            --nome "$NOME" --status "$STATUS" --junit "$LAB_OUTPUT/junit.xml"
       - name: Publicar JUnit, métricas e vigia do pedaço
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
           name: lab-${{ matrix.name }}
@@ -197,10 +211,12 @@ jobs:
       - name: Escrever o resumo e falhar se algum pedaço falhou
         env:
           PEDACOS: ${{ needs.planejar.outputs.pedacos }}
+          RESULTADO_PEDACO: ${{ needs.pedaco.result }}
         run: |
           printf '%s' "$PEDACOS" > "$RUNNER_TEMP/pedacos.json"
           mkdir -p "$RUNNER_TEMP/lab-artefatos"
           python3 .github/scripts/lab_summary.py \
             --artefatos "$RUNNER_TEMP/lab-artefatos" \
             --pedacos "$RUNNER_TEMP/pedacos.json" \
+            --resultado-pedaco "$RESULTADO_PEDACO" \
             --saida "$GITHUB_STEP_SUMMARY"
