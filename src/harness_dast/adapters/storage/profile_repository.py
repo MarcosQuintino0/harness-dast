@@ -17,7 +17,8 @@ PROFILE_FILE = "target.yml"
 _INIT_HINT = "Crie o produto com: hdast init <produto>."
 
 
-def _read_text(target: Path) -> str:
+def read_profile_text(target: Path) -> str:
+    """Lê o `target.yml` (UTF-8, com teto de tamanho); falha de leitura vira `ConfigError`."""
     try:
         with target.open("rb") as handle:
             raw = handle.read(MAX_PROFILE_BYTES + 1)
@@ -96,7 +97,7 @@ class FileProfileRepository:
                 f"O {PROFILE_FILE} aponta para fora da pasta do produto.",
                 hint="Remova o link simbólico; o perfil deve ser um arquivo da própria pasta.",
             )
-        profile = ProductProfile.from_data(parse_profile_yaml(_read_text(target)))
+        profile = ProductProfile.from_data(parse_profile_yaml(read_profile_text(target)))
         if profile.product != product:
             raise ConfigError(
                 "O campo product do perfil não confere com o nome da pasta.",

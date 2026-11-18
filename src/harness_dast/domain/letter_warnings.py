@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from typing import Final
 
 from harness_dast.domain.letter_collect import LetterIssue
+from harness_dast.domain.letter_defaults import MinimumDefault
 from harness_dast.domain.profile import ProductProfile
 
 AUTHORIZATION_EXPIRED: Final = "AUTHORIZATION_EXPIRED"
@@ -25,6 +26,7 @@ NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
 OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
 UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
 ATTACK_FLAG_AUTHORIZED: Final = "ATTACK_FLAG_AUTHORIZED"
+MINIMUM_DEFAULT_APPLIED: Final = "MINIMUM_DEFAULT_APPLIED"
 
 _ROOT_WILDCARD: Final = "/**"
 _ONE_YEAR: Final = timedelta(days=365)
@@ -46,6 +48,19 @@ def expired_issue(valid_until: date, today: date) -> LetterIssue | None:
             f"A autorização venceu em {valid_until.isoformat()} e hoje é {today.isoformat()}. "
             "Peça ao dono do produto uma autorização em vigor e atualize a carta; "
             "o agente não muda a data."
+        ),
+    )
+
+
+def default_warning(default: MinimumDefault) -> LetterIssue:
+    """Aviso de que o valor veio do padrão mínimo da CLI (ADR 0114), não da carta nem da pessoa."""
+    return LetterIssue(
+        field=default.field,
+        code=MINIMUM_DEFAULT_APPLIED,
+        message=(
+            f"Padrão mínimo da CLI: {default.field} = {default.value} (resposta 'não sei'); "
+            f"{default.reason}. Se o alvo suporta mais, a pessoa muda a carta e o perfil é "
+            "gerado de novo."
         ),
     )
 

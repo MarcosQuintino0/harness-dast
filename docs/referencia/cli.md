@@ -4,7 +4,7 @@ O [ADR 0010](../decisoes/0010-contrato-json-da-cli-e-codigos-de-saida.md) regist
 
 ## Comandos
 
-`hdast --help` organiza os comandos em cinco painéis: **Comece por aqui**, **Cadastro e escopo**, **Etapas do teste**, **Resultados e reteste** e **Avançado**. O primeiro reúne `doctor`, `run`, `report` e `stop`.
+`hdast --help` organiza os comandos em cinco painéis: **Comece por aqui**, **Cadastro e escopo**, **Etapas do teste**, **Resultados e reteste** e **Avançado**. O primeiro reúne `doctor`, `setup`, `run`, `report` e `stop`.
 
 As provas de execução foram feitas em laboratório. Consulte os [relatórios por versão](../arquivo/reviews/README.md).
 
@@ -14,6 +14,7 @@ As provas de execução foram feitas em laboratório. Consulte os [relatórios p
 | `hdast doctor [produto]` | Responde "está tudo pronto para começar?": Python, `uv`, pasta de produtos, Docker, imagens, portas fixas, validade da pilha atual e, com produto, perfil, autorização, janela e presença das variáveis de segredo | Não (só lê a máquina) | Implementado ([ADR 0028](../decisoes/0028-facilitar-o-uso-doctor-setup-path-allow-local-init-e-prazo-da-pilha.md)). Seção abaixo |
 | `hdast init <produto>` | Cria a pasta do produto a partir do modelo | Não | Implementado (M2) |
 | `hdast profile validate <produto>` | Valida `target.yml` e diz se o perfil já pode ser executado agora | Não | Implementado (M2). Valida só o `target.yml`; `data-rules.yml` e `flows.yml` são conferidos por `spec inspect` |
+| `hdast setup <produto>` | A PESSOA grava as senhas `keyring:` que faltam e aprova o escopo, em ordem: valida o perfil, pede cada senha (prompt oculto), mostra o resumo com os avisos de padrão mínimo e de nenhum caminho proibido, faz uma pausa e pede o nome do produto. Só em terminal interativo, sem `--json` | Não | Implementado ([ADR 0114](../decisoes/0114-padroes-minimos-da-carta-e-setup.md), proposto). Seção abaixo |
 | `hdast profile approve <produto>` | A PESSOA aprova os blocos de proteção do perfil (endereço, o que pode, o que é proibido, modo de caminho, janela, validade, limites, contas e papéis, força): mostra o resumo e exige que ela digite o nome do produto. Só em terminal interativo, sem `--json`. Sem ela, os comandos que tocam o alvo recusam | Não | Implementado (V1.3, [ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md), proposto). Seção abaixo |
 | `hdast profile approval <produto>` | Diz se o escopo está aprovado, alterado desde a aprovação (e quais blocos) ou nunca aprovado; só lê, liberado ao agente | Não | Implementado (V1.3, ADR 0037) |
 | `hdast spec inspect <produto>` | Resume o OpenAPI para o agente e confere regras, encadeamentos, escopo e servidores | Não | Implementado (M3) |
@@ -341,6 +342,27 @@ Exemplo (resumido) para o modelo intocado:
 ```json
 {"schema_version":1,"ok":true,"data":{"product":"demo","runnable":false,"issues":[{"code":"PLACEHOLDER_HOST","field":"environment.base_url","message":"..."},{"code":"FILE_MISSING","field":"openapi","message":"..."}]}}
 ```
+
+## `hdast setup`
+
+```bash
+uv run hdast setup meu-produto        # a PESSOA, num terminal
+```
+
+Decisão: [ADR 0114](../decisoes/0114-padroes-minimos-da-carta-e-setup.md) (proposto). Junta, só na ordem, os dois atos humanos que já existiam (`secret set` e `profile approve`), sem juntar as decisões. Não existe flag, arquivo nem variável de ambiente que o dispense; o agente nunca o roda (`.claude/settings.json` e o hook o negam).
+
+| Passo | O que acontece |
+| --- | --- |
+| 1 | Sem terminal interativo, ou com `--json`: recusa com `CONFIG_ERROR` (saída `2`) e não grava nada |
+| 2 | Valida o perfil como o `profile validate`. Pendência (arquivo ausente, valor de modelo...) para aqui, antes de qualquer senha. A janela de execução fechada não impede: ela só vale na execução |
+| 3 | Para cada `secret_ref: keyring:NOME` que ainda não está no cofre, pede o valor em prompt oculto, duas vezes, pelo mesmo caso de uso do `secret set`. Quem já existe não é pedido de novo. Segredos `env:` são só listados, com o aviso de que vêm do ambiente. Nunca mostra nem registra valores |
+| 4 | Mostra o resumo do `profile approve`. No alto, em destaque: os padrões mínimos da CLI que a carta aplicou e, se for o caso, "nenhum caminho proibido foi declarado" |
+| 5 | Pausa: "Leia o resumo acima. Para aprovar, continue; para sair sem aprovar, Ctrl+C". Ctrl+C aqui não aprova. Depois, o mesmo pedido de digitar o nome do produto do `profile approve` (outra coisa cancela) |
+| 6 | Grava a aprovação pelo mesmo caminho do `profile approve` |
+
+Recusar no passo 5 sai com `0` e `approval.approved: false`, mas as senhas do passo 3 já gravadas ficam no cofre. Perfil já aprovado e inalterado: não pergunta de novo.
+
+`data`: `product`, `secrets_written` (nomes), `secrets_present` (nomes que já existiam), `env_secrets` (nomes `env:`), `defaults` (`campo = valor` dos padrões mínimos aplicados) e `approval` (o mesmo objeto de `profile approve`). Nunca traz valor de segredo. Aceita `--products-dir`.
 
 ## `hdast profile approve` e `hdast profile approval`
 

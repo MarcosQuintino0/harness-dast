@@ -96,6 +96,7 @@ Vale quando você usa o `hdast` para testar um produto. Os comandos que tocam o 
 - Aja sobre o alvo **somente** por comandos `hdast`. Nunca envie HTTP ao alvo por `curl`, `wget`, `httpx`, scripts ou qualquer outro meio.
 - Nunca leia `.env` nem qualquer arquivo ou variável com segredo. Use só apelidos de conta (`user_a`) e `secret_ref`.
 - Nunca escreva, altere ou execute scripts de limpeza (SQL do produto). O hook é de autoria humana. Você pode sugerir rodar `hdast cleanup`; a confirmação é de uma pessoa.
+- Nunca rode `hdast setup`: é o comando humano que grava as senhas que faltam e aprova o escopo (junta `secret set` e `profile approve`); peça à pessoa que o rode num terminal dela.
 - Nunca rode `hdast secret set` nem `hdast secret delete`: só uma pessoa grava ou remove segredo do cofre (cite os NOMES e peça). `hdast secret list` pode.
 - Nunca rode `hdast mutation release`: só uma pessoa libera uma pendência após conferir o alvo, em terminal interativo. `hdast mutation list` pode.
 - Nunca rode `hdast finding acknowledge` nem grave ou edite `human-confirmations.json`: só uma pessoa registra que repetiu e viu um achado, em terminal interativo. `hdast confirm` registra a verificação automática pela CLI, em arquivo separado, e não substitui essa declaração humana.

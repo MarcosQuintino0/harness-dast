@@ -16,12 +16,22 @@ from typing import TextIO
 
 HUMAN_COMMANDS = (
     ("profile", "approve"),
+    ("setup",),
     ("secret", "set"),
     ("secret", "delete"),
     ("finding", "acknowledge"),
     ("mutation", "release"),
     ("cleanup",),
 )
+# Comando humano citado dentro de outro programa (script -c, timeout, nohup, cmd /c...). Um
+# lançador de pseudoterminal poderia simular a pessoa no TTY; por isso o texto inteiro é olhado.
+HUMAN_COMMAND_TEXT = re.compile(
+    r"\b(?:hdast(?:\.exe)?|harness_dast)['\"]?(?:\s+['\"]?--json['\"]?)*\s+['\"]?(?:"
+    + "|".join(r"\s+".join(command) for command in HUMAN_COMMANDS)
+    + r")\b"
+)
+# Só citam texto: mensagem de commit, busca e leitura não executam o comando citado.
+QUOTES_ONLY = frozenset(("git", "gh"))
 NETWORK_CLIENTS = frozenset(
     (
         "curl",
@@ -423,6 +433,18 @@ def _check_command(tokens: list[tuple[str, str]], cwd: str) -> str | None:
     return _check_words(words, cwd) if words else None
 
 
+def _check_human_command(name: str, args: tuple[str, ...]) -> str | None:
+    if name == "hdast":
+        for reserved in HUMAN_COMMANDS:
+            if args[: len(reserved)] == reserved:
+                return f"hdast {' '.join(reserved)} barrado. Somente uma pessoa pode executá-lo."
+    # Shells são analisados por recursão (_check_inline), com a mensagem exata do comando.
+    analyzed = QUOTES_ONLY | READ_ONLY | SHELLS | POWERSHELLS | {"cmd"}
+    if name not in analyzed and HUMAN_COMMAND_TEXT.search(" ".join(args)):
+        return "Comando humano do hdast dentro de outro programa barrado. Uma pessoa deve rodá-lo."
+    return None
+
+
 def _check_words(words: list[str], cwd: str) -> str | None:
     if not words[0]:
         raise ValueError(INVALID_INPUT)
@@ -432,10 +454,8 @@ def _check_words(words: list[str], cwd: str) -> str | None:
         return WRITE_DENIED
     if name == "patch" or (name == "git" and args[:1] in {("apply",), ("am",)}):
         return "Aplicação de patch barrada. Somente uma pessoa pode aplicá-lo."
-    if name == "hdast":
-        for reserved in HUMAN_COMMANDS:
-            if args[: len(reserved)] == reserved:
-                return f"hdast {' '.join(reserved)} barrado. Somente uma pessoa pode executá-lo."
+    if reason := _check_human_command(name, args):
+        return reason
     if name in NETWORK_CLIENTS or (name == "openssl" and args[:1] == ("s_client",)):
         return NETWORK_DENIED
     if _reads_secret_with_command(name, args):

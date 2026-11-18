@@ -38,7 +38,8 @@ class Answer(ProfileModel):
             `letter_review`). Ausente ou nulo conta como "sem resposta".
         source: De onde veio: `carta` (a carta assinada diz isso), `pessoa` (a pessoa
             respondeu na entrevista) ou `desconhecido` ("não sei" / "não está na carta"; sem
-            valor). Resposta desconhecida em campo obrigatório recusa a carta.
+            valor). Resposta desconhecida em campo obrigatório recusa a carta, salvo nos quatro
+            campos com padrão mínimo da CLI (`letter_defaults`, ADR 0114).
         quote: Frase da carta ou da conversa que sustenta a resposta (opcional; obrigatória
             para `path_mode: wide`).
     """
