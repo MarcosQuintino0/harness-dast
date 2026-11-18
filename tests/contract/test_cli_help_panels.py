@@ -65,6 +65,7 @@ def test_start_here_is_the_first_command_panel_in_help() -> None:
     root = get_command(build_app())
     assert isinstance(root, TyperGroup)
     first = next(iter(root.commands.values()))
+    assert isinstance(first, (TyperCommand, TyperGroup))
     assert first.rich_help_panel == START_HERE_PANEL
 
     result = CliRunner().invoke(build_app(), ["--help"])
