@@ -38,6 +38,47 @@ ORACLE_DSN = "127.0.0.1:21521/FREEPDB1"
 USER_SQL = Path(__file__).parents[2] / "lab" / "pilot" / "cleanup" / "create-cleanup-user.sql"
 
 
+def _docker_text(*args: str) -> str:
+    docker = shutil.which("docker") or "docker"
+    try:
+        done = subprocess.run(  # noqa: S603 - comando fixo do teste
+            [docker, *args],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=40,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return f"(falhou: {type(exc).__name__})"
+    return done.stdout + done.stderr
+
+
+def _stack_diagnosis(cli: LabCli) -> str:
+    """Estado, saúde e fim do log dos contêineres do projeto do alvo, com segredos mascarados.
+
+    A CLI repassa só o código de saída do `docker compose up`, e o `stack down` do teste apaga os
+    contêineres; sem isto, a causa de a pilha com Oracle não subir não fica registrada.
+    """
+    state = cli.state_file()
+    project = str(state["projects"][-1]["name"])
+    label = f"label=com.docker.compose.project={project}"
+    names = _docker_text("ps", "-a", "--filter", label, "--format", "{{.Names}}").split()
+    parts = [_docker_text("ps", "-a", "--filter", label)]
+    for name in names:
+        parts.append(f"--- {name}: estado")
+        parts.append(_docker_text("inspect", "--format", "{{json .State}}", name))
+        parts.append(f"--- {name}: fim do log")
+        parts.append(_docker_text("logs", "--tail", "80", name))
+    text = "\n".join(parts)
+    known = [str(v) for v in state.get("target_env", {}).values()]
+    known += [v for k, v in cli.env.items() if k.startswith("PILOT_") and v]
+    for value in sorted(set(known), key=len, reverse=True):
+        if len(value) >= 6:
+            text = text.replace(value, "***")
+    return text
+
+
 def _has_image(name: str) -> bool:
     docker = shutil.which("docker")
     if docker is None:
@@ -92,6 +133,7 @@ def oracle_cli(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
     try:
         up = cli.stack_up("clinica-piloto", "--oracle", timeout=900)
         if up.code != 0:
+            record_metrics("oracle-stack-diagnosis", {"text": _stack_diagnosis(cli)})
             pytest.skip(f"a pilha com Oracle não subiu nesta máquina: {up.stdout[-300:]}")
         yield cli
     finally:
