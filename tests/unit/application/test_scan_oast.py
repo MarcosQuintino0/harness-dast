@@ -10,7 +10,7 @@ from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.oast_ssrf import OastEvent, callback_url, make_token
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.rig import agenda_flows, agenda_profile, agenda_spec
-from tests.fakes.scan_rig import ScanRig
+from tests.fakes.scan_rig import FakeOastBridge, ScanRig
 
 SEED = 11  # FixedEntropy
 TOKEN = make_token(SEED, "registrar", "body", "callback_url")
@@ -37,9 +37,12 @@ def _spec() -> Any:
 class FakeOast:
     """`OastEvents` falso: devolve os eventos que o teste definiu."""
 
-    def __init__(self, events: tuple[OastEvent, ...] = (), *, down: bool = False) -> None:
+    def __init__(
+        self, events: tuple[OastEvent, ...] = (), *, down: bool = False, lost: bool = False
+    ) -> None:
         self.events = events
         self.down = down
+        self.lost = lost
         self.baselines = 0
         self.reads = 0
 
@@ -51,6 +54,8 @@ class FakeOast:
 
     def oast_events(self, since: int) -> tuple[OastEvent, ...]:
         assert since == 5
+        if self.lost:
+            raise ExternalToolError("observador indisponivel")
         self.reads += 1
         return self.events
 
@@ -149,7 +154,7 @@ def test_a_method_the_approved_scope_does_not_allow_is_not_sent() -> None:
     assert [(s.operation_id, s.reason) for s in result.ssrf.skipped] == [
         ("registrar", "method_not_allowed")
     ]
-    assert oast.baselines == 0
+    assert oast.baselines == 2
 
 
 def test_when_the_return_service_is_down_nothing_is_sent_and_the_scan_goes_on() -> None:
@@ -157,10 +162,11 @@ def test_when_the_return_service_is_down_nothing_is_sent_and_the_scan_goes_on() 
     rig, result = _scan(oast, oast=True)
 
     assert result.status == "completed"
-    assert result.ssrf is not None
-    assert result.ssrf.sent == 0
-    assert result.ssrf.note is not None
-    assert "indisponível" in result.ssrf.note
+    assert result.ssrf is None
+    assert result.oast_verification is not None
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert result.oast_verification.reason is not None
+    assert not result.policy.oast
     assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
 
 
@@ -176,4 +182,98 @@ def test_without_the_probe_exchanges_the_step_is_skipped_and_the_scan_goes_on() 
 
     assert result.status == "completed"
     assert result.ssrf is None
-    assert oast.baselines == 0
+    assert oast.baselines == 2
+
+
+def test_ponte_ausente_desliga_regras_e_informa_lacuna() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    scan = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(available=False))
+    result = scan.execute(ScanRequest(product="agenda", run_id=rig.probe_result.run_id))
+    report = rig.report().execute(ReportRequest(product="agenda", run_id=result.run_id)).report
+
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == result.oast_verification.ssrf == "unverifiable"
+    assert not result.policy.oast
+    assert result.ssrf is None
+    assert report.coverage.partial
+    assert report.coverage.oast_gap
+    assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
+
+
+def test_ponte_desconhecida_nao_e_tratada_como_disponivel() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    scan = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(available=None))
+    result = scan.execute(ScanRequest(product="agenda", run_id=rig.probe_result.run_id))
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == "unverifiable"
+    assert not result.policy.oast
+
+
+def test_queda_apos_envio_deixa_ssrf_nao_verificavel() -> None:
+    _, result = _scan(FakeOast(lost=True), oast=True)
+    assert result.oast_verification is not None
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert result.ssrf is not None
+    assert result.ssrf.sent == 1
+
+
+def test_artefato_legado_com_oast_e_lacuna_desconhecida() -> None:
+    from harness_dast.domain.oast_verification import oast_gap
+
+    _, result = _scan(FakeOast(), oast=True)
+    legacy = result.model_copy(update={"oast_verification": None})
+    assert oast_gap(legacy) is not None
+
+
+def test_callback_nao_configurado_desliga_oast_e_registra_lacuna() -> None:
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    rig.zap.oast_config_unavailable = True
+
+    result = rig.scan(oast=FakeOast()).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+
+    assert result.status == "completed"
+    assert result.oast_verification is not None
+    assert result.oast_verification.zap == "unverifiable"
+    assert result.oast_verification.ssrf == "unverifiable"
+    assert result.oast_verification.reason is not None
+    assert "Callback" in result.oast_verification.reason
+    assert not result.policy.oast
+    assert not any(b"oast-gateway" in (r.body or b"") for r in _hook_requests(rig))
+
+
+def test_lacuna_da_ponte_aparece_no_relatorio_e_no_painel() -> None:
+    from harness_dast.domain.panel.build_content import _scan_items
+    from harness_dast.domain.report.html import render_html
+    from harness_dast.domain.report.markdown import render_markdown
+
+    rig = ScanRig(spec=_spec(), flows=agenda_flows(), profile=agenda_profile(scan={"oast": True}))
+    rig.run_probe()
+    result = rig.scan(oast=FakeOast(), bridge=FakeOastBridge(available=False)).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+    report = rig.report().execute(ReportRequest(product="agenda", run_id=result.run_id)).report
+
+    assert result.oast_verification is not None
+    reason = result.oast_verification.reason
+    assert reason is not None
+    assert reason in render_markdown(report)
+    assert reason in render_html(report)
+    assert any(reason in item.text for item in _scan_items(result))
+
+
+def test_leitura_de_json_legado_oast_assinala_estado_desconhecido() -> None:
+    import json
+
+    from harness_dast.domain.oast_verification import oast_gap
+
+    _, result = _scan(FakeOast(), oast=True)
+    data = result.model_dump(mode="json")
+    data.pop("oast_verification")
+    legacy = ScanResult.model_validate_json(json.dumps(data))
+
+    assert oast_gap(legacy) is not None

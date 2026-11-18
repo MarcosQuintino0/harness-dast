@@ -59,6 +59,7 @@ from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
 from harness_dast.application.scan_ports import (
     ExchangeSource,
+    OastBridge,
     OastEvents,
     ProcessSampler,
     ProxyAudit,
@@ -77,6 +78,13 @@ from harness_dast.domain.errors import (
     PreflightError,
 )
 from harness_dast.domain.oast_ssrf import SSRF_MAX_REQUESTS, plan_ssrf
+from harness_dast.domain.oast_verification import (
+    OastVerification,
+    callback_unavailable,
+    combine_oast_availability,
+    decide_oast_verification,
+    mark_ssrf_unobservable,
+)
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
@@ -96,11 +104,18 @@ from harness_dast.domain.scan_plan import (
     resolve_targets,
     select_candidates,
 )
-from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy, build_limits, build_policy
+from harness_dast.domain.scan_policy import (
+    ScanLimits,
+    ScanPolicy,
+    build_limits,
+    build_policy,
+    without_oast,
+)
 from harness_dast.domain.scan_result import (
     AppliedLimits,
     AppliedPolicy,
     HealthSummary,
+    OastUnavailable,
     Phase,
     PlannedScan,
     ScanEntry,
@@ -218,6 +233,7 @@ class Scan:
         oast: OastEvents | None = None,
         exchanges: ExchangeSource | None = None,
         entropy: EntropySource | None = None,
+        bridge: OastBridge | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -253,6 +269,7 @@ class Scan:
         self._oast = oast
         self._exchanges = exchanges
         self._entropy = entropy
+        self._bridge = bridge
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -367,12 +384,13 @@ class Scan:
             raise ConfigError("Perfil mudou durante a preparação do scan; recomece a etapa.")
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
-        runner = ScanRunner(self._deps(prep, request, live, context_id))
         guided: SsrfOutcome | None = None
+        verification = self._bridge_verification(prep)
         try:
-            self._configure(prep)
-            guided = self._guided_ssrf(prep, request, live)
+            prep, verification, guided = self._prepare_oast(prep, request, live, verification)
+            runner = ScanRunner(self._deps(prep, request, live, context_id))
             outcome = runner.run(plan.targets)
+            verification = self._recheck_oast(verification)
         finally:
             removed = live.tokens.remove_all()
             self._drop_policy(prep.policy.name)
@@ -387,6 +405,7 @@ class Scan:
         ).model_copy(
             update={
                 "ssrf": guided.summary if guided is not None else None,
+                "oast_verification": verification,
                 "rate_checks": extra_checks.rate if extra_checks is not None else None,
                 "inventory": extra_checks.inventory if extra_checks is not None else None,
                 "alerts_total": collected.alerts_total if collected else 0,
@@ -551,6 +570,68 @@ class Scan:
             token_cache=self._token_cache,
         )
 
+    def _bridge_verification(self, prep: _Prepared) -> OastVerification | None:
+        if not prep.policy.oast:
+            return None
+        available = self._bridge.inspect() if self._bridge else None
+        return decide_oast_verification(available)
+
+    def _prepare_oast(
+        self,
+        prep: _Prepared,
+        request: ScanRequest,
+        live: _Live,
+        verification: OastVerification | None,
+    ) -> tuple[_Prepared, OastVerification | None, SsrfOutcome | None]:
+        if verification is not None and verification.zap == "unverifiable":
+            prep = self._without_oast(prep)
+        try:
+            self._configure(prep)
+        except OastUnavailable:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            verification = callback_unavailable()
+        if verification is None or verification.zap == "unverifiable":
+            return prep, verification, None
+        callback = self._bridge.callback() if self._bridge else None
+        if callback is not True:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(callback), None
+        if self._oast is None:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(None), None
+        try:
+            self._oast.oast_baseline()
+        except ExternalToolError:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(None), None
+        guided = self._guided_ssrf(prep, request, live)
+        if guided is None or not guided.observable:
+            verification = mark_ssrf_unobservable(verification)
+        return prep, verification, guided
+
+    def _recheck_oast(self, verification: OastVerification | None) -> OastVerification | None:
+        if verification is None or verification.zap != "verifiable":
+            return verification
+        available = self._bridge.inspect() if self._bridge else None
+        callback = self._bridge.callback() if self._bridge else None
+        if available is not True or callback is not True:
+            return decide_oast_verification(combine_oast_availability(available, callback))
+        if self._oast is None:
+            return decide_oast_verification(None)
+        try:
+            self._oast.oast_baseline()
+        except ExternalToolError:
+            return decide_oast_verification(None)
+        return verification
+
+    def _without_oast(self, prep: _Prepared) -> _Prepared:
+        """Reduz a política quando não há caminho de retorno observável."""
+        return replace(prep, policy=without_oast(prep.policy))
+
     def _guided_ssrf(
         self, prep: _Prepared, request: ScanRequest, live: _Live
     ) -> SsrfOutcome | None:
@@ -689,6 +770,8 @@ class Scan:
         try:
             self._zap.remove_stale_rules(REPLACER_RULE_PREFIX)
             self._scanner.apply_policy(prep.policy, prep.zap_limits)
+        except OastUnavailable:
+            raise
         except ExternalToolError as error:
             raise PreflightError(
                 f"Não foi possível preparar o ZAP para a varredura: {error.message}",

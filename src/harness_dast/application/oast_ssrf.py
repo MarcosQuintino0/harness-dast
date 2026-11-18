@@ -59,10 +59,12 @@ class SsrfOutcome:
     Attributes:
         summary: Resumo para o `scan.json`.
         alerts: Alertas no formato do ZAP, um por retorno correlacionado.
+        observable: Se o observador permaneceu disponível durante a etapa.
     """
 
     summary: SsrfSummary
     alerts: tuple[dict[str, str], ...]
+    observable: bool = True
 
 
 class GuidedSsrf:
@@ -103,7 +105,7 @@ class GuidedSsrf:
                 ),
             )
             note = f"Serviço de retorno indisponível; nada foi enviado: {error.message}"
-            return SsrfOutcome(SsrfSummary(enabled=True, skipped=skipped, note=note), ())
+            return SsrfOutcome(SsrfSummary(enabled=True, skipped=skipped, note=note), (), False)
         sent_cases: list[SsrfCase] = []
         statuses: dict[str, int | None] = {}
         refused: list[SsrfSkip] = []
@@ -150,7 +152,7 @@ class GuidedSsrf:
             observation_alert(index, item, base_url=self._base_url)
             for index, item in enumerate(observations, start=1)
         )
-        return SsrfOutcome(summary, alerts)
+        return SsrfOutcome(summary, alerts, wait_note is None)
 
     def _wait(
         self, cases: list[SsrfCase], baseline: int

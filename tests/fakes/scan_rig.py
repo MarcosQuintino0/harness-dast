@@ -9,12 +9,26 @@ from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
-from harness_dast.application.scan_ports import OastEvents, ProcessSampler
+from harness_dast.application.scan_ports import OastBridge, OastEvents, ProcessSampler
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.rig import Rig
 from tests.fakes.scan_ports import FakeProxyAudit, FakeScanZap, InMemoryRunArtifacts
+
+
+class FakeOastBridge:
+    """Ponte com fatos configuráveis para cada cenário."""
+
+    def __init__(self, available: bool | None = True, callback: bool | None = True) -> None:
+        self.available = available
+        self.callback_available = callback
+
+    def inspect(self) -> bool | None:
+        return self.available
+
+    def callback(self) -> bool | None:
+        return self.callback_available
 
 
 class ListSink:
@@ -62,6 +76,7 @@ class ScanRig(Rig):
         process_sampler: ProcessSampler | None = None,
         kill_switch: KillSwitch | None = None,
         oast: OastEvents | None = None,
+        bridge: OastBridge | None = None,
     ) -> Scan:
         return Scan(
             profiles=self.profiles,
@@ -80,6 +95,7 @@ class ScanRig(Rig):
             process_sampler=process_sampler,
             kill_switch=kill_switch,
             oast=oast,
+            bridge=bridge or FakeOastBridge(),
             exchanges=self.artifacts,
             entropy=self.entropy,
         )

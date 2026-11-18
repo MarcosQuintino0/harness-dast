@@ -10,6 +10,7 @@ from pathlib import Path
 
 import structlog
 
+from harness_dast.adapters.docker.oast_bridge import DockerOastBridge
 from harness_dast.adapters.reporting.presentation_files import FilePresentationFiles
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.reporting.sinks import (
@@ -53,6 +54,7 @@ from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
     open_kill_switch,
     open_proxy_audit,
+    open_state_store,
 )
 from harness_dast.config.settings import load_settings
 from harness_dast.domain.errors import ConfigError
@@ -106,6 +108,7 @@ def build_scan(
     root = products_dir_or_default(products_dir)
     runs_dir = load_settings().runs_dir
     services = shared or SharedServices(kill_switch=open_kill_switch())
+    bridge = DockerOastBridge(open_state_store().load, os.environ)
     return Scan(
         profiles=checked_profiles(
             root, None if dry_run else net.network.zap, fresh_stack=not dry_run
@@ -133,6 +136,7 @@ def build_scan(
         oast=net.scanner,
         exchanges=FileRunArtifacts(runs_dir),
         entropy=SystemEntropy(),
+        bridge=bridge,
         basis_for=lambda product, profile, version: basis_for_engine(
             FileStrategyRepository(root), product, profile, version
         ),
