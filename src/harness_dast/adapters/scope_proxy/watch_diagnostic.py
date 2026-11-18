@@ -13,6 +13,7 @@ class WatchCause(StrEnum):
     """Causa observada na primeira trava, sem dados externos."""
 
     AGE = "age"
+    REVERIFY_TIMEOUT = "reverify_timeout"
     CLOCK = "clock"
     NO_SNAPSHOT = "no_snapshot"
     CLOSE = "close"
