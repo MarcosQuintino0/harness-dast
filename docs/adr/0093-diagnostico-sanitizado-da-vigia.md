@@ -1,6 +1,6 @@
 # 0093. Diagnóstico sanitizado da vigia do proxy
 
-- **Status:** Proposto
+- **Status:** Parcialmente substituído pelo ADR 0106
 - **Data:** 2026-11-17
 - **Origem:** investigação V1.12 L de `STACK_STALE` sem mudança observada das fontes
 

@@ -1,6 +1,6 @@
 # 0081. Pilha desatualizada: `STACK_STALE` antes do primeiro pedido
 
-- **Status:** Proposto
+- **Status:** Parcialmente substituído pelo ADR 0106
 - **Data:** 2026-11-16
 - **Origem:** rodadas cegas da V1.9 (Clínica Piloto e VAmPI)
 
