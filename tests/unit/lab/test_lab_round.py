@@ -1,14 +1,18 @@
 """Valida a seleção e a trava da rodada com arquivos temporários e sem Docker."""
 
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from textwrap import dedent
+from uuid import UUID
 
 import pytest
 
 from harness_dast.domain.errors import ConfigError, ExitCode
 from tests.integration.lab_round import (
+    INTEGRATION,
+    MAP,
     AreaMap,
     LabBusy,
     Selection,
@@ -93,6 +97,49 @@ def test_preserva_prova_da_area_quando_outra_mudanca_cai_no_nucleo(areas: AreaMa
     )
 
 
+@pytest.mark.parametrize(
+    ("path", "proof_areas"),
+    [
+        ("tests/integration/lab_proof_support.py", ("authz", "negative", "crapi", "extra")),
+        ("src/harness_dast/adapters/docker/compose.py", ("stack",)),
+        ("compose.yaml", ("stack",)),
+        ("src/harness_dast/adapters/scope_proxy/policy.py", ("scope",)),
+        ("lab/crapi/compose.oast.yaml", ("crapi", "oast", "stack")),
+        ("docker/zap/Dockerfile", ("scan", "stack")),
+    ],
+)
+def test_seleciona_nucleo_e_provas_quando_muda_apoio_compartilhado(
+    path: str, proof_areas: tuple[str, ...]
+) -> None:
+    mapping = load_map(MAP)
+    files = set(mapping.files("fast"))
+    for area in proof_areas:
+        files.update(mapping.areas[area].prova)
+
+    assert select_changed(mapping, [path]) == Selection(
+        "lab_fast or lab_prova", tuple(f"{INTEGRATION}/{name}" for name in sorted(files))
+    )
+
+
+def test_seleciona_so_a_area_quando_muda_o_caso_de_uso_de_valores_proibidos() -> None:
+    mapping = load_map(MAP)
+    negative = mapping.areas["negative"]
+
+    assert select_changed(mapping, ["src/harness_dast/application/negative.py"]) == Selection(
+        "lab_fast or lab_prova",
+        tuple(f"{INTEGRATION}/{name}" for name in sorted(set((*negative.fast, *negative.prova)))),
+    )
+
+
+def test_seleciona_todas_as_provas_quando_muda_apoio_geral() -> None:
+    mapping = load_map(MAP)
+    files = sorted(set(mapping.files("fast")).union(mapping.files("prova")))
+
+    assert select_changed(mapping, ["tests/integration/lab_support.py"]) == Selection(
+        "lab_fast or lab_prova", tuple(f"{INTEGRATION}/{name}" for name in files)
+    )
+
+
 def test_seleciona_area_quando_muda_um_teste_do_mapa(areas: AreaMap) -> None:
     assert select_changed(areas, ["tests/integration/test_scope_proof.py"]) == Selection(
         "lab_fast or lab_prova",
@@ -124,9 +171,11 @@ def test_registra_metadados_quando_aquisicao_da_trava_funciona(tmp_path: Path) -
     started = datetime(2026, 11, 18, tzinfo=UTC)
 
     with lab_lock(path, "T4", started, "prova"):
-        assert path.read_text(encoding="utf-8") == (
-            "dono: T4\nUTC: 2026-11-18T00:00:00+00:00\nnível: prova\n"
-        )
+        line, _, metadata = path.read_text(encoding="utf-8").partition("\n")
+        assert line.startswith("token: ")
+        assert UUID(line.removeprefix("token: ")).version == 4
+        assert metadata == "dono: T4\nUTC: 2026-11-18T00:00:00+00:00\nnível: prova\n"
+    assert not path.exists()
 
 
 def test_libera_trava_propria_quando_rodada_falha(tmp_path: Path) -> None:
@@ -142,6 +191,49 @@ def test_libera_trava_propria_quando_rodada_falha(tmp_path: Path) -> None:
     assert not path.exists()
 
 
+def test_preserva_trava_quando_token_mudou(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "lab.lock"
+    foreign = "token: outra rodada\n"
+    with lab_lock(path, "T4", datetime(2026, 11, 18, tzinfo=UTC), "fast"):
+        path.write_text(foreign, encoding="utf-8")
+
+    assert path.read_text(encoding="utf-8") == foreign
+    assert "mudou de identidade ou token" in capsys.readouterr().err
+
+
+def test_avisa_quando_a_trava_sumiu(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "lab.lock"
+
+    def missing(_path: Path) -> os.stat_result:
+        raise FileNotFoundError(path)
+
+    with lab_lock(path, "T4", datetime(2026, 11, 18, tzinfo=UTC), "fast"):
+        # No Windows a remoção real é recusada enquanto o arquivo está aberto.
+        monkeypatch.setattr(Path, "lstat", missing)
+
+    assert "sumiu durante a rodada" in capsys.readouterr().err
+
+
+def test_libera_so_a_propria_trava_quando_a_escrita_dos_metadados_falha(tmp_path: Path) -> None:
+    path = tmp_path / "lab.lock"
+    other = tmp_path / "outra.lock"
+    other.write_text("dono: outra rodada", encoding="utf-8")
+
+    with (
+        pytest.raises(UnicodeEncodeError),
+        lab_lock(path, "\ud800", datetime(2026, 11, 18, tzinfo=UTC), "fast"),
+    ):
+        pytest.fail("Entrou no laboratório sem gravar os metadados da trava")
+
+    assert not path.exists()
+    assert other.read_text(encoding="utf-8") == "dono: outra rodada"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows bloqueia a renomeação da trava aberta")
 def test_preserva_trava_de_terceiro_quando_a_original_ja_saiu(tmp_path: Path) -> None:
     path = tmp_path / "lab.lock"
     moved = tmp_path / "lab-antigo.lock"
@@ -150,6 +242,18 @@ def test_preserva_trava_de_terceiro_quando_a_original_ja_saiu(tmp_path: Path) ->
         path.write_text("dono: outra rodada\n", encoding="utf-8")
 
     assert path.read_text(encoding="utf-8") == "dono: outra rodada\n"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="O Windows bloqueia a remoção de arquivos abertos")
+def test_windows_bloqueia_remocao_enquanto_a_rodada_mantem_a_trava_aberta(tmp_path: Path) -> None:
+    path = tmp_path / "lab.lock"
+    with (
+        lab_lock(path, "T4", datetime(2026, 11, 18, tzinfo=UTC), "fast"),
+        pytest.raises(PermissionError),
+    ):
+        path.unlink()
+
+    assert not path.exists()
 
 
 def test_monta_comando_quando_recebe_selecao_e_diretorio(tmp_path: Path) -> None:

@@ -14,7 +14,8 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from getpass import getuser
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, BinaryIO, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
@@ -50,6 +51,7 @@ class AreaMap(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     shared: tuple[NonEmpty, ...]
+    all_areas: tuple[NonEmpty, ...] = ()
     areas: Annotated[dict[NonEmpty, LabArea], Field(min_length=1)]
 
     def files(self, level: Literal["fast", "prova"]) -> tuple[str, ...]:
@@ -119,14 +121,19 @@ def select_changed(areas: AreaMap, paths: Iterable[str]) -> Selection | None:
     relevant = {path for path in paths if not _is_documentation(path)}
     if not relevant:
         return None
+    all_proofs = bool(relevant.intersection(areas.all_areas))
     affected: list[LabArea] = []
     covered: set[str] = set()
     for area in areas.areas.values():
-        matches = {path for path in relevant if area.matches(path)}
+        matches = relevant if all_proofs else {path for path in relevant if area.matches(path)}
         if matches:
             affected.append(area)
             covered.update(matches)
-    all_fast = relevant != covered or bool(relevant.intersection(areas.shared))
+    all_fast = (
+        all_proofs
+        or relevant != covered
+        or any(fnmatchcase(path, pattern) for path in relevant for pattern in areas.shared)
+    )
     fast = areas.files("fast") if all_fast else tuple(f for area in affected for f in area.fast)
     prova = tuple(name for area in affected for name in area.prova)
     marker = "lab_fast or lab_prova" if fast and prova else "lab_prova" if prova else "lab_fast"
@@ -196,22 +203,57 @@ def _lock_owner(path: Path) -> str:
         return f"dono indisponível ({exc})"
 
 
+def _owns_lock(path: Path, stream: BinaryIO, token_line: bytes, *, written: bool) -> bool:
+    try:
+        named = path.lstat()
+    except FileNotFoundError:
+        sys.stderr.write(f"A trava {path} sumiu durante a rodada. Confira o laboratório.\n")
+        return False
+    # No POSIX o caminho pode ser renomeado mesmo com o arquivo aberto.
+    same_file = os.name == "nt" or os.path.samestat(os.fstat(stream.fileno()), named)
+    stream.seek(0)
+    current = stream.readline(len(token_line))
+    # Uma falha de escrita pode deixar vazio ou apenas um prefixo no arquivo recém-criado.
+    token_matches = current == token_line if written else token_line.startswith(current)
+    if same_file and token_matches:
+        return True
+    sys.stderr.write(f"A trava {path} mudou de identidade ou token. Confira o laboratório.\n")
+    return False
+
+
 @contextmanager
 def lab_lock(path: Path, owner: str, started: datetime, level: Level) -> Iterator[None]:
-    """Adquire a trava sem substituir uma existente e libera apenas a própria."""
+    """Mantém aberto o arquivo criado exclusivamente até o fim da rodada.
+
+    No Windows, outro processo não pode apagar ou substituir o arquivo aberto pelo
+    Python. A liberação confere o token pelo identificador aberto e, no POSIX,
+    a identidade do caminho. A janela entre fechar e apagar é aceitável porque
+    as outras sessões só criam a trava de forma exclusiva e nunca a substituem.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
+    token_line = f"token: {uuid4()}\n".encode("ascii")
     try:
-        stream = path.open("x", encoding="utf-8")
+        stream = path.open("x+b", buffering=0)
     except FileExistsError as exc:
         raise LabBusy(f"Laboratório ocupado em {path}. {_lock_owner(path)}") from exc
-    identity = os.fstat(stream.fileno())
+    written = owned = False
     try:
         with stream:
-            stream.write(f"dono: {owner}\nUTC: {started.isoformat()}\nnível: {level}\n")
-        yield
+            try:
+                metadata = f"dono: {owner}\nUTC: {started.isoformat()}\nnível: {level}\n"
+                data = token_line + metadata.encode("utf-8")
+                if stream.write(data) != len(data):
+                    raise OSError(f"Escrita incompleta da trava {path}. Confira o armazenamento.")
+                written = True
+                yield
+            finally:
+                owned = _owns_lock(path, stream, token_line, written=written)
     finally:
-        if os.path.samestat(path.lstat(), identity):
-            path.unlink()
+        if owned:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                sys.stderr.write(f"A trava {path} sumiu na liberação. Confira o laboratório.\n")
 
 
 def _run_pytest(command: tuple[str, ...], output: Path, suffix: str) -> int:

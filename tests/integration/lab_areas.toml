@@ -1,11 +1,52 @@
 # Caminhos relativos à raiz, com "/" e globs sensíveis a maiúsculas.
 # Uma mudança compartilhada inclui todo o núcleo e ainda soma as áreas atingidas.
-shared = [
-    "compose.yaml",
+# Estes caminhos afetam também todas as provas.
+all_areas = [
     "tests/conftest.py",
     "tests/integration/conftest.py",
+    "tests/integration/lab_areas.toml",
+    "tests/integration/lab_round.py",
     "tests/integration/lab_support.py",
     "tests/integration/run_support.py",
+]
+
+shared = [
+    "compose.yaml",
+    "docker/**",
+    "lab/*/compose*.yaml",
+    "lab/*/Dockerfile",
+    "lab/scripts/**",
+    "src/harness_dast/adapters/docker/**",
+    "src/harness_dast/adapters/scope_proxy/**",
+    "src/harness_dast/adapters/storage/approval_store.py",
+    "src/harness_dast/adapters/storage/stack*.py",
+    "src/harness_dast/application/scope_approval*.py",
+    "src/harness_dast/application/stack*.py",
+    "src/harness_dast/cli/commands/stack.py",
+    "src/harness_dast/cli/stack*_composition.py",
+    "src/harness_dast/domain/host.py",
+    "src/harness_dast/domain/pathpattern.py",
+    "src/harness_dast/domain/pattern_subset.py",
+    "src/harness_dast/domain/proxy_deadline.py",
+    "src/harness_dast/domain/routing_headers.py",
+    "src/harness_dast/domain/scope*.py",
+    "src/harness_dast/domain/stack*.py",
+    "src/harness_dast/domain/urlnorm.py",
+    "src/harness_dast/domain/wide*.py",
+    "src/harness_dast/domain/window.py",
+    "tests/integration/crapi_support.py",
+    "tests/integration/lab_proof_support.py",
+    "tests/integration/lab_resource_support.py",
+    "tests/integration/oast_cleanup.py",
+    "tests/integration/oast_support.py",
+    "tests/integration/proxy_watch_log.py",
+    "tests/integration/safe_mode_support.py",
+    "tests/integration/test_lab_fast.py",
+    "tests/integration/test_lab_mass_assignment_and_pair.py",
+    "tests/integration/test_lab_strategy.py",
+    "tests/integration/test_lab_vampi.py",
+    "tests/integration/test_scan_performance_matrix.py",
+    "tests/integration/watch_diagnostic_support.py",
 ]
 
 [areas.scope]
@@ -18,12 +59,15 @@ paths = [
     "src/harness_dast/domain/wide*.py",
     "src/harness_dast/domain/pathpattern.py",
     "src/harness_dast/domain/pattern_subset.py",
+    "src/harness_dast/domain/host.py",
+    "src/harness_dast/domain/window.py",
     "src/harness_dast/domain/urlnorm.py",
     "src/harness_dast/domain/proxy_deadline.py",
     "src/harness_dast/domain/routing_headers.py",
     "src/harness_dast/domain/*signal*.py",
     "docker/scope-proxy/**",
     "tests/integration/path_support.py",
+    "tests/integration/proxy_watch_log.py",
     "tests/integration/watch_diagnostic_support.py",
 ]
 fast = ["test_lab_path_scope.py", "test_lab_path_differential.py", "test_lab_fast.py",
@@ -42,9 +86,12 @@ paths = [
     "src/harness_dast/domain/zap*.py",
     "src/harness_dast/domain/rule_*.py",
     "docker/zap/**",
+    "tests/integration/finding_origin_support.py",
     "tests/integration/zap_scan_readback_support.py",
     "tests/integration/performance_*_support.py",
     "tests/integration/rule_diagnostics_support.py",
+    "tests/integration/test_lab_fast.py",
+    "tests/integration/test_lab_strategy.py",
 ]
 fast = ["test_lab_fast.py", "test_lab_include_outcomes.py", "test_lab_multipart_scan.py",
         "test_lab_header_injection.py", "test_lab_error_signals.py", "test_lab_retest.py"]
@@ -61,6 +108,7 @@ paths = [
     "src/harness_dast/cli/authz_composition.py",
     "src/harness_dast/cli/commands/authz.py",
     "src/harness_dast/adapters/storage/authz_draft_writer.py",
+    "tests/integration/lab_proof_support.py",
     "tests/integration/safe_mode_support.py",
 ]
 fast = ["test_lab_authz.py", "test_lab_fast.py", "test_lab_pilot.py"]
@@ -77,6 +125,8 @@ paths = [
     "src/harness_dast/domain/report/*negative*.py",
     "src/harness_dast/cli/negative_composition.py",
     "src/harness_dast/cli/commands/negative.py",
+    "tests/integration/lab_proof_support.py",
+    "tests/integration/lab_resource_support.py",
     "tests/integration/safe_mode_support.py",
 ]
 fast = ["test_lab_negative.py", "test_lab_authz.py"]
@@ -133,9 +183,12 @@ paths = [
     "src/harness_dast/adapters/docker/oast_bridge.py",
     "lab/oast/**",
     "lab/crapi/compose.oast.yaml",
+    "tests/integration/crapi_support.py",
+    "tests/integration/lab_resource_support.py",
     "tests/integration/oast_support.py",
     "tests/integration/oast_cleanup.py",
     "tests/integration/oast-*.compose.yaml",
+    "tests/integration/watch_diagnostic_support.py",
 ]
 fast = ["test_lab_fast.py"]
 prova = ["test_lab_oast.py", "test_lab_oast_scan.py", "test_lab_oast_contact_mechanic.py"]
@@ -146,7 +199,11 @@ paths = [
     "lab/crapi/**",
     "src/harness_dast/adapters/docker/crapi_accounts.py",
     "tests/integration/crapi_support.py",
+    "tests/integration/lab_proof_support.py",
     "tests/integration/lab_resource_support.py",
+    "tests/integration/oast_cleanup.py",
+    "tests/integration/oast_support.py",
+    "tests/integration/watch_diagnostic_support.py",
 ]
 fast = []
 prova = ["test_lab_oast.py", "test_lab_oast_contact_mechanic.py", "test_lab_oast_scan.py",
@@ -185,6 +242,9 @@ paths = [
     "src/harness_dast/adapters/storage/stack*.py",
     "src/harness_dast/cli/commands/stack.py",
     "src/harness_dast/cli/stack*_composition.py",
+    "docker/**",
+    "lab/*/compose*.yaml",
+    "lab/*/Dockerfile",
     "lab/scripts/**",
 ]
 fast = ["test_lab_fast.py", "test_lab_run.py", "test_lab_path_scope.py", "test_lab_pilot.py"]
@@ -204,6 +264,8 @@ paths = [
     "src/harness_dast/cli/strategy_composition.py",
     "tests/integration/strategy_support.py",
     "tests/integration/reuse_evidence_support.py",
+    "tests/integration/safe_mode_support.py",
+    "tests/integration/test_lab_mass_assignment_and_pair.py",
 ]
 fast = ["test_lab_fast.py", "test_lab_retest.py"]
 prova = ["test_lab_strategy.py", "test_strategy_proxy_controls.py",
