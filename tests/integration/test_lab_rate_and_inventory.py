@@ -17,6 +17,7 @@ import pytest
 import yaml
 
 from harness_dast.domain.inventory_checks import DOC_PATHS
+from tests.integration.lab_proof_support import prepare_control_product
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     REPO,
@@ -25,7 +26,6 @@ from tests.integration.lab_support import (
     require_docker,
 )
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
-from tests.integration.v112_proof_support import prepare_control_product
 
 pytestmark = pytest.mark.integration
 

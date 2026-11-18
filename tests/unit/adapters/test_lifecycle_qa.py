@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from tests.integration.lab_support import CliResult
-from tests.integration.v17_lifecycle import Lifecycle, LifecycleError, docker_metadata, snapshot
+from tests.integration.performance_lifecycle_support import (
+    Lifecycle,
+    LifecycleError,
+    docker_metadata,
+    snapshot,
+)
 
 _ID = "a" * 64
 _SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway", "vampi")

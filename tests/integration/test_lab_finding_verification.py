@@ -15,13 +15,12 @@ from harness_dast.domain.redaction import redact_body, redact_header_block
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
-from tests.integration.lab_support import REPO
-from tests.integration.v111_confirmation import (
+from tests.integration.finding_confirmation_support import (
     confirm_individually,
     confirm_legacy,
     verification_summary,
 )
-from tests.integration.v111_support import (
+from tests.integration.finding_verification_support import (
     ARTIFACTS,
     LabRun,
     VerificationArticleParser,
@@ -32,6 +31,7 @@ from tests.integration.v111_support import (
     prepare_root,
     run_id_for,
 )
+from tests.integration.lab_support import REPO
 
 pytestmark = pytest.mark.integration
 

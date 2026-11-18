@@ -8,7 +8,7 @@ from typing import Any
 
 from harness_dast.domain.knowledge import KnowledgeEffect
 from harness_dast.domain.knowledge_mutation import mutation_key
-from tests.integration.v19_reuse_evidence import (
+from tests.integration.reuse_evidence_support import (
     count_bound_evidence,
     find_recipe_triples,
     recipe_absence,

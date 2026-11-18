@@ -17,6 +17,9 @@ from tests.integration.lab_support import (
     require_docker,
     run_audit,
 )
+from tests.integration.performance_lifecycle_support import Lifecycle
+from tests.integration.performance_matrix_support import PILOT, VAMPI
+from tests.integration.performance_resources_support import ResourceSampler
 from tests.integration.run_support import (
     Scenario,
     collect_facts,
@@ -24,10 +27,7 @@ from tests.integration.run_support import (
     throwaway_pilot_env,
 )
 from tests.integration.test_lab_fast import VAMPI_ENV
-from tests.integration.v17_lifecycle import Lifecycle
-from tests.integration.v17_matrix import PILOT, VAMPI
-from tests.integration.v17_resources import ResourceSampler
-from tests.integration.v17_zap_config import FastZapView
+from tests.integration.zap_scan_readback_support import FastZapView
 
 pytestmark = pytest.mark.integration
 

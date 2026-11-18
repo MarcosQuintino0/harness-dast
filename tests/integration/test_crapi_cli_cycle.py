@@ -5,21 +5,21 @@ from typing import Any
 
 import pytest
 
-from tests.integration.lab_support import LabCli, require_docker
-from tests.integration.run_support import record_metrics
-from tests.integration.v112_proof_support import (
+from tests.integration.lab_proof_support import (
     execute,
     prepare_control_product,
     read_scan,
     scan_finished,
     summary,
 )
-from tests.integration.v112_resource_support import (
+from tests.integration.lab_resource_support import (
     ResourceGuard,
     docker_runner,
     inventory,
     verified_down,
 )
+from tests.integration.lab_support import LabCli, require_docker
+from tests.integration.run_support import record_metrics
 
 pytestmark = pytest.mark.integration
 

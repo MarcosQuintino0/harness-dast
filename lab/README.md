@@ -470,7 +470,7 @@ Sob a trava exclusiva, com os projetos `hdast-codex` e `hdast-crapi-codex` livre
 
 ```powershell
 $env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\nova-prova'
-uv run pytest -m integration tests/integration/test_v112_cli_cycle.py tests/integration/test_crapi_focus_dryrun.py
+uv run pytest -m integration tests/integration/test_crapi_cli_cycle.py tests/integration/test_crapi_focus_dryrun.py
 ```
 
 Os testes usam somente produtos e estado temporários, aprovação do suporte/runner e

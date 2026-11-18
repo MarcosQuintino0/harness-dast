@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from tests.integration.v18_origin import collect_origins
+from tests.integration.finding_origin_support import collect_origins
 
 
 def test_collect_origins_separates_sources_and_does_not_copy_evidence(tmp_path: Path) -> None:

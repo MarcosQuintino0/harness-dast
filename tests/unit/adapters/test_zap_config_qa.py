@@ -7,8 +7,8 @@ import httpx
 import pytest
 
 from tests.integration.lab_support import ZapView
-from tests.integration.v17_resources import ResourceSampler
-from tests.integration.v17_zap_config import FastZapView, active_scans, sample_zap
+from tests.integration.performance_resources_support import ResourceSampler
+from tests.integration.zap_scan_readback_support import FastZapView, active_scans, sample_zap
 
 
 class FakeZapView(ZapView):

@@ -11,7 +11,7 @@ from typing import Self
 import httpx
 
 from tests.integration.lab_support import ZapView
-from tests.integration.v17_zap_config import ZapReadbackApiError, sample_zap
+from tests.integration.zap_scan_readback_support import ZapReadbackApiError, sample_zap
 
 _LINE = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s*/")
 _MEMORY = re.compile(r"^([0-9]+(?:\.[0-9]+)?)(B|KiB|MiB|GiB)$")

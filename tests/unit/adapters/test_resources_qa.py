@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.integration.v17_resources import ResourceSampler, parse_sample
+from tests.integration.performance_resources_support import ResourceSampler, parse_sample
 
 
 @pytest.mark.parametrize(

@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.integration.finding_origin_support import collect_origins
 from tests.integration.lab_support import CliResult, LabCli, proxy_audit, require_docker
+from tests.integration.performance_resources_support import ResourceSampler
 from tests.integration.run_support import Scenario, record_metrics
 from tests.integration.test_lab_strategy import _cli
-from tests.integration.test_v17_performance import _install, _record
-from tests.integration.v17_resources import ResourceSampler
-from tests.integration.v17_zap_config import FastZapView
-from tests.integration.v18_origin import collect_origins
+from tests.integration.test_scan_performance_matrix import _install, _record
+from tests.integration.zap_scan_readback_support import FastZapView
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_full]
 

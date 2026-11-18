@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 from tests.integration.lab_support import CliResult, LabCli, manifest, proxy_audit, require_docker
+from tests.integration.reuse_evidence_support import verify_reuse
 from tests.integration.run_support import (
     Scenario,
     collect_facts,
@@ -18,9 +19,8 @@ from tests.integration.run_support import (
     throwaway_pilot_env,
 )
 from tests.integration.strategy_support import load_artifact
-from tests.integration.test_lab_v155 import _install
+from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
-from tests.integration.v19_reuse_evidence import verify_reuse
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 _METRICS_DIR = os.environ.get("HDAST_IT_METRICS_DIR")

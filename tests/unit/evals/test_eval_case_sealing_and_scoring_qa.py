@@ -2,7 +2,6 @@
 
 import copy
 import hashlib
-import json
 import shutil
 from pathlib import Path
 
@@ -13,7 +12,7 @@ from evals.runner.checks_findings import read_findings
 from evals.runner.checks_profile import profile_checks
 from evals.runner.prepare import prepare
 from evals.runner.scoring import Cost, compute
-from tests.unit.evals.support import CASES, GOOD_PROFILE, write_json
+from tests.unit.evals.support import CASES, GOOD_PROFILE, make_legacy_round, write_json
 
 
 @pytest.mark.parametrize("value", [None, "not_found", ["not_found", "unknown"], [True], {}])
@@ -55,23 +54,13 @@ def test_fontes_desconhecidas_nao_entram_e_fingerprints_repetidos_sao_unicos(
 
 
 def test_nota_antiga_exige_gabarito_e_preserva_nota_com_fonte_explicita(tmp_path: Path) -> None:
-    archive = Path("evals/results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main")
     out = tmp_path / "round"
-    shutil.copytree(archive / "trace", out / "trace")
-    shutil.move(out / "trace/executions", out / "trace/runs")
-    shutil.copy2(archive / "transcript.jsonl", out / "transcript.jsonl")
-    for file in (out / "trace").rglob("*.md.txt"):
-        shutil.copy2(file, file.with_suffix(""))
-    (out / "sealed").mkdir()
-    (out / "sealed/mode.json").write_text(
-        '{"case":"clinica-piloto","mode":"vulnerable"}', encoding="utf-8"
-    )
+    make_legacy_round(out)
 
     cost = Cost(tokens=8023944, duration_seconds=1777)
     with pytest.raises(EvalError, match="nao e seguro presumir a carta"):
         compute(out, cost)
     historical = Path("evals/cases/clinica-piloto-historico-terra-wide.yml")
     result = compute(out, cost, case_file=historical)
-    saved = json.loads((archive / "score.json").read_text(encoding="utf-8"))
-    assert result["grade"] == saved["grade"] == 7.18
+    assert result["grade"] == 4.0
     assert result["case_source"]["sha256"] == hashlib.sha256(historical.read_bytes()).hexdigest()

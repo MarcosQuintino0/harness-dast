@@ -9,8 +9,8 @@ from harness_dast.domain.errors import HarnessError, TargetTimeout
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.rig import Rig, agenda_flows, default_handler
 from tests.unit.application.test_knowledge_probe_journal import _probe
+from tests.unit.application.test_mutation_stages import scan_service
 from tests.unit.application.test_scan import ready
-from tests.unit.application.test_v19_mutation_stages import scan_service
 
 
 def test_v19_independent_probe_timeout_blocks_same_scan(tmp_path: Path) -> None:
@@ -44,7 +44,7 @@ def test_v19_independent_probe_timeout_blocks_same_scan(tmp_path: Path) -> None:
 def test_v19_independent_probe_timeout_blocks_same_negative(tmp_path: Path) -> None:
     from harness_dast.application.negative import NegativeRequest
     from tests.fakes.negative_rig import CREATE, NegativeRig
-    from tests.unit.application.test_v19_mutation_stages import negative_service
+    from tests.unit.application.test_mutation_stages import negative_service
 
     first = NegativeRig(allow_writes=True)
     delegate = first.catalog

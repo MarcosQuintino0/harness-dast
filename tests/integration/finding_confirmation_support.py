@@ -11,8 +11,14 @@ from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run import is_run_id
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.verification import VerificationFile
+from tests.integration.finding_verification_support import (
+    ARTIFACTS,
+    LabRun,
+    findings,
+    load_json,
+    report_items,
+)
 from tests.integration.lab_support import read_jsonl
-from tests.integration.v111_support import ARTIFACTS, LabRun, findings, load_json, report_items
 
 
 def verification_summary(report: FindingsReport, verification: VerificationFile) -> dict[str, Any]:

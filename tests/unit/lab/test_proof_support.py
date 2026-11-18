@@ -27,6 +27,15 @@ from harness_dast.domain.probe_result import OperationResult, ProbeResult, Probe
 from harness_dast.domain.scan_policy import build_policy
 from harness_dast.domain.scope import OutboundRequest
 from tests.fakes.rig import Rig
+from tests.integration.lab_proof_support import (
+    control_spec,
+    install_focus_spec,
+    prepare_control_product,
+    probe_attempts,
+    read_scan,
+    scan_finished,
+    summary,
+)
 from tests.integration.lab_support import REPO, CliResult
 from tests.integration.test_crapi_focus_dryrun import (
     EXPECTED,
@@ -38,15 +47,6 @@ from tests.integration.test_crapi_focus_dryrun import (
     _remove_template_examples,
     _run_evidence,
     _transcript,
-)
-from tests.integration.v112_proof_support import (
-    control_spec,
-    install_focus_spec,
-    prepare_control_product,
-    probe_attempts,
-    read_scan,
-    scan_finished,
-    summary,
 )
 
 

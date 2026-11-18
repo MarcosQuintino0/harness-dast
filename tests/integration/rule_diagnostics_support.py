@@ -12,10 +12,8 @@ from tests.integration.lab_support import REPO
 
 def baseline_rules() -> list[int]:
     """Obtém o inventário histórico, sem escolher pelo resultado dos controles."""
-    path = REPO / "evals/measurements/v1-8/round3/t4-comparison.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    counts = data["products"]["clinica-piloto"]["v17_a_vs_new_a"]["counts"]["rules"]["a"]
-    return sorted({int(json.loads(key)[1]) for key in counts})
+    path = REPO / "tests/fixtures/rule_diagnostics_baseline.json"
+    return list(json.loads(path.read_text(encoding="utf-8")))
 
 
 def _shape(value: object) -> str:

@@ -16,8 +16,7 @@ from tests.integration.lab_support import (
     run_audit,
 )
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
-from tests.integration.test_lab_vampi import SEEDED
-from tests.integration.v18_other_support import (
+from tests.integration.safe_mode_support import (
     artifact,
     audit_summary,
     current_audit,
@@ -25,6 +24,7 @@ from tests.integration.v18_other_support import (
     secret_hits,
     start_and_probe,
 )
+from tests.integration.test_lab_vampi import SEEDED
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 PILOT_BASE = "http://clinica-piloto:8080"

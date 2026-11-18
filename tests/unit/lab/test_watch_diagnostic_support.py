@@ -6,8 +6,8 @@ from collections.abc import Callable
 
 import pytest
 
-from tests.integration.v112_resource_support import Inventory, ResourceGuard
-from tests.integration.v112_watch_diagnostic_support import collect_watch, extract_categories
+from tests.integration.lab_resource_support import Inventory, ResourceGuard
+from tests.integration.watch_diagnostic_support import collect_watch, extract_categories
 
 CONTAINER = "a" * 64
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.integration.v112_resource_support import (
+from tests.integration.lab_resource_support import (
     Inventory,
     ResourceGuard,
     ResourceSafetyError,

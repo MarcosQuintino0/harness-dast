@@ -11,7 +11,7 @@ import pytest
 
 from tests.integration.lab_support import LabCli, require_docker
 from tests.integration.test_lab_fast import VAMPI_ENV
-from tests.integration.test_v17_performance import _install
+from tests.integration.test_scan_performance_matrix import _install
 
 pytestmark = pytest.mark.integration
 
@@ -30,7 +30,7 @@ def _docker(*args: str, stdin: str | None = None) -> str:
     return result.stdout.strip()
 
 
-def test_v18_guard_cost(tmp_path: Path) -> None:
+def test_guard_benchmark(tmp_path: Path) -> None:
     """Usa montagens reais, porta válida e diretório exclusivo de evidências."""
     require_docker()
     output_dir = Path(os.environ["HDAST_IT_METRICS_DIR"])
@@ -55,7 +55,9 @@ def test_v18_guard_cost(tmp_path: Path) -> None:
         mounts = json.loads(_docker("inspect", "--format", "{{json .Mounts}}", container))
         bind_destinations = {m["Destination"] for m in mounts if m["Type"] == "bind"}
         assert {"/policy", "/approvals", "/product"} <= bind_destinations
-        script = Path(__file__).with_name("v18_guard_bench.py").read_text(encoding="utf-8-sig")
+        script = (
+            Path(__file__).with_name("guard_benchmark_support.py").read_text(encoding="utf-8-sig")
+        )
         result = json.loads(
             _docker("exec", "-i", container, "/opt/venv/bin/python", "-", stdin=script)
         )

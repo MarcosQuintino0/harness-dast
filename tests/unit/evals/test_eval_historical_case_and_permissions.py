@@ -10,7 +10,7 @@ from evals.runner.cases import load_case, load_round_case
 from evals.runner.checks_findings import flaw_status, read_findings
 from evals.runner.checks_profile import profile_checks
 from evals.runner.models import Flaw, Matcher
-from tests.unit.evals.support import CASES, GOOD_PROFILE, make_round, write_json
+from tests.unit.evals.support import CASES, GOOD_PROFILE, make_legacy_round, make_round, write_json
 
 
 def test_findings_de_quatro_fontes_sao_lidos_e_casados_por_operacao(tmp_path: Path) -> None:
@@ -81,23 +81,11 @@ def test_caso_fica_lacrado_quando_fonte_muda(repo: Path, out: Path, tmp_path: Pa
 
 
 def test_nota_arquivada_recalculada_com_gabarito_historico(tmp_path: Path) -> None:
-    """Reconstitui o wide de 14/11; o lacre de segredos não consta no arquivo sanitizado."""
-    import shutil
-
+    """Exercita uma rodada sintética sem lacre de segredos com gabarito histórico."""
     from evals.runner.cli import main
 
-    archive = Path("evals/results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main")
     out = tmp_path / "round"
-    shutil.copytree(archive / "trace", out / "trace")
-    shutil.move(out / "trace/executions", out / "trace/runs")
-    shutil.copy2(archive / "transcript.jsonl", out / "transcript.jsonl")
-    for file in (out / "trace").rglob("*.md.txt"):
-        shutil.copy2(file, file.with_suffix(""))
-    sealed = out / "sealed"
-    sealed.mkdir()
-    (sealed / "mode.json").write_text(
-        '{"case":"clinica-piloto","mode":"vulnerable"}', encoding="utf-8"
-    )
+    make_legacy_round(out)
     case_file = Path("evals/cases/clinica-piloto-historico-terra-wide.yml")
     assert (
         main(
@@ -118,9 +106,8 @@ def test_nota_arquivada_recalculada_com_gabarito_historico(tmp_path: Path) -> No
     result = json.loads((out / "score.json").read_text(encoding="utf-8"))
     assert result["case_source"]["path"] == str(case_file)
     assert len(result["case_source"]["sha256"]) == 64
-    saved = json.loads((archive / "score.json").read_text(encoding="utf-8"))
-    assert result["grade"] == saved["grade"] == 7.18
-    assert [c["score"] for c in result["components"]] == [c["score"] for c in saved["components"]]
+    assert result["grade"] == 4.0
+    assert [c["score"] for c in result["components"]] == [1.0, 1.0, 0.0, 0.0, 0.5, 0.5]
     security = result["components"][0]
     assert next(c for c in security["checks"] if c["id"] == "no_secrets")["passed"] is None
 

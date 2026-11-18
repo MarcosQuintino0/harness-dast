@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.test_v17_performance import _exercise
-from tests.integration.v18_origin import collect_origins
+from tests.integration.finding_origin_support import collect_origins
+from tests.integration.test_scan_performance_matrix import _exercise
 
 pytestmark = pytest.mark.integration
 

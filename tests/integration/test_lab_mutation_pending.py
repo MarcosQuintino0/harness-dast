@@ -10,20 +10,20 @@ from evals.runner.approve import approve
 from evals.runner.prepare import prepare
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.domain.probe_result import ProbeResult
+from tests.integration.lab_proof_support import execute, install_focus_spec, read_scan, summary
+from tests.integration.lab_resource_support import (
+    ResourceGuard,
+    docker_runner,
+    inventory,
+    verified_down,
+)
 from tests.integration.lab_support import LabCli, read_jsonl, require_docker, run_audit
 from tests.integration.run_support import record_metrics
 from tests.integration.test_crapi_focus_dryrun import (
     _configure_health_path,
     _remove_template_examples,
 )
-from tests.integration.v112_proof_support import execute, install_focus_spec, read_scan, summary
-from tests.integration.v112_resource_support import (
-    ResourceGuard,
-    docker_runner,
-    inventory,
-    verified_down,
-)
-from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
+from tests.integration.watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = pytest.mark.integration
 BLOCKED = {"check_otp_v2", "validate_coupon"}
