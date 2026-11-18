@@ -7,6 +7,7 @@ from pathlib import Path
 from evals.runner.models import Case
 
 SEALED_LAB = "o alvo foi construido por outra pessoa; o agente nao ve como"
+GIT_HISTORY = "historico do repositorio (mensagens de commit revelam o desenho da avaliacao)"
 
 
 @dataclass(frozen=True)
@@ -18,9 +19,7 @@ class Exclusion:
 
 
 ALWAYS: tuple[Exclusion, ...] = (
-    Exclusion(
-        ".git", "historico do repositorio (mensagens de commit revelam o desenho da avaliacao)"
-    ),
+    Exclusion(".git", GIT_HISTORY),
     Exclusion(".venv", "ambiente do coordenador"),
     Exclusion("runs", "execucoes anteriores: dizem o que a ferramenta achou"),
     Exclusion(".env", "segredos do coordenador"),
@@ -37,6 +36,7 @@ ALWAYS: tuple[Exclusion, ...] = (
         "tests/integration", "testes que conhecem as falhas plantadas e o resultado esperado"
     ),
     Exclusion("docs/arquivo", "histórico de laboratório, QA, planos, pesquisas e desenhos"),
+    Exclusion("docs/desenvolver/rodada-cega-codespaces.md", "guia do coordenador"),
     Exclusion(
         "tests/fixtures/letter",
         "carta estruturada da Clinica Piloto: e o perfil esperado do caso, quase pronto",
@@ -104,6 +104,9 @@ CACHE_NAMES = frozenset(
     {"__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".hypothesis", "node_modules"}
 )
 KEPT_PRODUCT = "_template"
+OPERATIONAL_SKILLS = frozenset(
+    {"onboard-product", "fix-reachability", "run-scan", "triage-findings", "test-product"}
+)
 
 
 def exclusions_for(case: Case) -> tuple[Exclusion, ...]:
@@ -128,13 +131,19 @@ def _product_exclusion(rel: str) -> Exclusion | None:
 
 def decide(rel: str, rules: tuple[Exclusion, ...]) -> Exclusion | None:
     """Diz se o caminho relativo sai da copia e por que."""
-    if rel.split("/")[-1] in CACHE_NAMES:
-        return Exclusion(rel, "cache")
     parts = rel.split("/")
+    if parts[-1].casefold() == ".git":
+        return Exclusion(rel, GIT_HISTORY)
+    if parts[-1] in CACHE_NAMES:
+        return Exclusion(rel, "cache")
     if parts[-1] == ".env" or (parts[-1].startswith(".env.") and parts[-1] != ".env.example"):
         return Exclusion(rel, "arquivo local de segredos")
-    if len(parts) >= 3 and parts[:2] == [".claude", "skills"] and parts[2].startswith("dev-"):
-        return Exclusion(rel, "skill de desenvolvimento, fora da tarefa operacional")
+    if (
+        len(parts) >= 3
+        and parts[:2] == [".claude", "skills"]
+        and parts[2] not in OPERATIONAL_SKILLS
+    ):
+        return Exclusion(rel, "skill fora da lista operacional")
     if not any(
         rel == path or rel.startswith(path + "/") or path.startswith(rel + "/")
         for path in ALLOWED_ROOTS
@@ -176,7 +185,8 @@ def applied(root: Path, rules: tuple[Exclusion, ...]) -> list[Exclusion]:
     skills = root / ".claude" / "skills"
     if skills.is_dir():
         found.extend(
-            Exclusion(p.relative_to(root).as_posix(), "skill de desenvolvimento")
-            for p in sorted(skills.glob("dev-*"))
+            hit
+            for entry in sorted(skills.iterdir())
+            if (hit := decide(entry.relative_to(root).as_posix(), rules)) is not None
         )
     return found
