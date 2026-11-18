@@ -16,6 +16,10 @@ O caso de uso de imagens recebe do adaptador as referências resolvidas do Compo
 
 O modo de desenvolvimento, selecionado por `HDAST_STACK_BUILD=1` ou `--build`, constrói com o Compose sob tags locais próprias e confere a imagem antes da subida. O Dockerfile do proxy verifica a versão do pacote instalado durante esse build. Tags locais ficam separadas das referências de download.
 
+## Limite residual
+
+A conferência lê o rótulo `org.opencontainers.image.version` da imagem do proxy. Ela barra versão divergente e imagem sem rótulo, mas não prova a origem: uma imagem construída por terceiros com o rótulo forjado passaria, e uma tag pode ser trocada por um `docker pull` externo entre a conferência e o `up`. Mitigações: o workflow só publica a partir de uma tag `v<versão>` igual à do `pyproject.toml` (sem disparo manual), grava atestado de origem, e o PR seguinte à primeira publicação fixa `tag@sha256:<digest>` no `compose.yaml`. Verificar o atestado no consumidor (por exemplo com `gh attestation verify`) fica para quando houver distribuição além do dono.
+
 ## Alternativas consideradas
 
 - Reconstruir sempre mantinha a cerca alinhada a mudanças locais e exigia que cada instalação tivesse as dependências de build.

@@ -1,7 +1,7 @@
 name: Imagens Docker
 
 on:
-  workflow_dispatch:
+  # Só por tag v*: o disparo manual permitiria publicar a partir de qualquer branch.
   push:
     tags: ['v*']
 
@@ -45,7 +45,7 @@ jobs:
           if not re.fullmatch(r'[0-9][A-Za-z0-9_.-]{0,127}', version):
               raise SystemExit('A versão do pacote precisa ser válida como tag Docker.')
           ref = os.environ['GITHUB_REF']
-          if ref.startswith('refs/tags/') and ref != f'refs/tags/v{version}':
+          if ref != f'refs/tags/v{version}':
               raise SystemExit(f'A tag Git deve ser v{version}, conforme pyproject.toml.')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
               output.write(f'version={version}\n')

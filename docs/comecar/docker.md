@@ -17,6 +17,8 @@ Instale o Docker Engine e o plugin **Docker Compose v2** pelo guia da sua distri
 
 ## Baixar e conferir as imagens
 
+> **Enquanto a primeira publicação no GHCR não acontece**, o `stack pull` ainda não encontra as imagens. Nesse período, comece pela seção [Construir a partir do código local](#construir-a-partir-do-código-local) e depois volte ao `doctor`.
+
 ```bash
 docker version
 docker compose version
