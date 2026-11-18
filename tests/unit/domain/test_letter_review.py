@@ -193,14 +193,18 @@ def test_review_refuses_everything_when_a_gate_is_answered_no(gate: str) -> None
     assert not review.ready
 
 
-@pytest.mark.parametrize("gate", ["test_environment", "synthetic_data", "authorization_in_force"])
+@pytest.mark.parametrize(
+    "gate", ["test_environment", "synthetic_data", "authorization_in_force", "product_owner"]
+)
 def test_review_refuses_everything_when_a_gate_is_unknown(gate: str) -> None:
     data = valid_letter_data()
     data["gates"][gate] = {"source": "desconhecido"}
+    data["scope"]["allow"] = answer([])
 
     review = _review(data)
 
     assert _issues(review) == {f"gates.{gate}": "UNKNOWN"}
+    assert "A pessoa precisa obter a informação com o dono do produto" in review.issues[0].message
     assert review.profile_text is None
 
 
@@ -215,12 +219,20 @@ def test_review_refuses_everything_when_a_gate_is_missing(gate: str) -> None:
     assert _issues(review) == {f"gates.{gate}": "MISSING"}
 
 
+@pytest.mark.parametrize("gate", ["test_environment", "synthetic_data", "authorization_in_force"])
 @pytest.mark.parametrize("value", ["sim", 1, "true", []])
-def test_review_refuses_a_gate_that_is_not_a_boolean(value: object) -> None:
+def test_review_refuses_a_gate_that_is_not_a_boolean(gate: str, value: object) -> None:
     data = valid_letter_data()
-    data["gates"]["test_environment"] = answer(value)
+    data["gates"][gate] = answer(value)
 
-    assert _issues(_review(data)) == {"gates.test_environment": "INVALID_VALUE"}
+    assert _issues(_review(data)) == {f"gates.{gate}": "INVALID_VALUE"}
+
+
+def test_review_refuses_a_product_owner_that_is_not_text() -> None:
+    data = valid_letter_data()
+    data["gates"]["product_owner"] = answer(True)
+
+    assert _issues(_review(data)) == {"gates.product_owner": "INVALID_VALUE"}
 
 
 def test_review_refuses_when_the_letter_is_of_another_product() -> None:
@@ -245,6 +257,7 @@ REQUIRED = [
     "limits.max_duration_minutes",
     "limits.zap_threads_per_host",
     "auth.type",
+    "auth.accounts",
 ]
 
 
@@ -264,8 +277,9 @@ def test_review_reports_an_unknown_answer_on_a_required_field(field: str) -> Non
 
     review = _review(data)
 
-    assert _issues(review)[field] == "UNKNOWN"
-    assert "pessoa" in review.issues[0].message
+    assert _issues(review) == {field: "UNKNOWN"}
+    assert "A pessoa precisa obter a informação com o dono do produto" in review.issues[0].message
+    assert review.profile_text is None
 
 
 @pytest.mark.parametrize("field", REQUIRED)
