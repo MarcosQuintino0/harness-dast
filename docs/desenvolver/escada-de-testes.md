@@ -95,6 +95,8 @@ e usa `-claude` por padrão. Para executar as medições da V1.7, defina previam
 `HDAST_V17_DEADLINE_EPOCH` com o prazo da rodada em segundos Unix. A medição exige
 reserva de tempo e pula quando a variável está ausente.
 
+Quando a mudança pedir apenas a medição do custo da cerca, adicione `lab` ao PR ou selecione `carga` em **Actions → Laboratório → Run workflow** após o workflow chegar à branch padrão. A execução mede a cerca dentro do contêiner, sem enviar pedidos ao alvo. Consulte **Summary** para o resultado e **Artifacts** para JUnit, métricas e diagnósticos. [Benchmark da cerca no GitHub Actions](testing.md#benchmark-da-cerca-no-github-actions)
+
 #### Mudei X, rodo Y
 
 A tabela mostra quantos arquivos cada área seleciona por nível. O

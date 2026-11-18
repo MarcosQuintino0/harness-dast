@@ -1,0 +1,114 @@
+name: Laboratório
+
+'on':
+  workflow_dispatch:
+    inputs:
+      nivel:
+        description: Medição de carga da cerca
+        type: choice
+        options: [carga]
+        default: carga
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  cerca:
+    name: Benchmark da cerca
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'lab') &&
+       (github.event.action == 'synchronize' || github.event.label.name == 'lab'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: lab-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Definir os caminhos da rodada
+        run: |
+          {
+            printf 'LAB_OUTPUT=%s/hdast-lab-out\n' "$RUNNER_TEMP"
+            printf 'LAB_PYTEST=%s/hdast-lab-pytest\n' "$RUNNER_TEMP"
+          } >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - name: Medir a cerca sem enviar pedidos ao alvo
+        timeout-minutes: 38
+        env:
+          HDAST_IT_PREBUILT: '1'
+          V18_GUARD_BENCH_LABEL: after
+        run: |
+          export PYTEST_ADDOPTS="--basetemp=$LAB_PYTEST"
+          uv run python -m tests.integration.lab_round --nivel tudo \
+            --arquivo test_guard_benchmark.py \
+            --saida "$LAB_OUTPUT" --trava "$RUNNER_TEMP/hdast-lab.lock" \
+            --sufixo="-gh${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}"
+      - name: Publicar JUnit, tempos e diagnósticos da vigia
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lab-cerca-${{ github.run_attempt }}
+          path: |
+            ${{ env.LAB_OUTPUT }}/junit.xml
+            ${{ env.LAB_OUTPUT }}/metricas/
+            ${{ env.LAB_PYTEST }}/**/proxy-watch.jsonl
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Resumir a rodada
+        if: ${{ !cancelled() }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from collections import Counter
+          from html import escape
+          from pathlib import Path
+
+          output = Path(os.environ['LAB_OUTPUT'])
+          counts = Counter()
+          timings = []
+          for report in sorted(output.glob('junit.xml')):
+              for case in ET.parse(report).iter('testcase'):
+                  failed = case.find('failure') is not None or case.find('error') is not None
+                  status = 'failed' if failed else 'skipped' if case.find('skipped') is not None else 'passed'
+                  counts[status] += 1
+                  name = '.'.join(filter(None, (case.get('classname'), case.get('name'))))
+                  timings.append((float(case.get('time', '0')), name))
+
+          lines = [
+              '## Benchmark da cerca',
+              '',
+              f"{counts['passed']} aprovados · {counts['failed']} falharam · {counts['skipped']} pulados",
+              '',
+          ]
+          if not timings:
+              lines.append('O JUnit não contém resultados de teste ou não foi gerado.')
+          else:
+              lines.extend(['### Até 15 testes mais lentos', ''])
+              for seconds, name in sorted(timings, reverse=True)[:15]:
+                  lines.append(f'- {seconds:.2f} s · <code>{escape(name)}</code>')
+
+          lines.extend(['', '### Vigia do proxy', ''])
+          records = 0
+          for path in sorted(Path(os.environ['LAB_PYTEST']).glob('*/proxy-watch.jsonl')):
+              for line in path.read_text(encoding='utf-8').splitlines():
+                  records += 1
+                  watch = json.loads(line)
+                  categories = ', '.join(watch['categories'])
+                  if categories or watch['status'] != 'ok':
+                      stack = escape(watch['stack_run_id'])
+                      detail = escape(categories or watch['status'])
+                      lines.append(f'- Pilha <code>{stack}</code> · <code>{detail}</code>')
+          lines.append(f'{records} registros da vigia coletados.')
+
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as summary:
+              summary.write('\n'.join(lines) + '\n')
+          raise SystemExit(0 if counts['passed'] and not counts['failed'] else 1)
+          PY

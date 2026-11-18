@@ -3,6 +3,7 @@
 @AGENTS.md
 
 As regras comuns estão em `AGENTS.md`. A Parte A inclui ambiente local, branches, commits e pull requests. A Parte B orienta a operação.
+O `AGENTS.md` e o [ADR 0118](docs/decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md) definem os limites do laboratório no computador local e nas máquinas efêmeras do GitHub.
 Este complemento específico do Claude não as substitui; instruções de maior prioridade prevalecem.
 
 - O Claude Code descobre skills em `.claude/skills/<nome>/SKILL.md` e subagentes em `.claude/agents/*.md`.

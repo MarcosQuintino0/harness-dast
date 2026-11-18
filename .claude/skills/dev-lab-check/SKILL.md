@@ -1,13 +1,13 @@
 ---
 name: dev-lab-check
-description: "Use ao desenvolver o harness-dast para provar uma mudança de forma dirigida no laboratório local. Não use para testar um produto."
+description: "Use ao desenvolver o harness-dast para provar uma mudança de forma dirigida nos alvos do laboratório. Não use para testar um produto."
 ---
 
 # Conferir no laboratório
 
 1. Leia a [escada](../../../docs/desenvolver/escada-de-testes.md), [lab](../../../lab/README.md)
-   e o plano da versão. Use apenas Clínica Piloto, VAmPI ou crAPI locais, nunca produto real.
-2. Respeite a trava exclusiva `C:\harness-dast-artefatos\lab.lock` conforme o plano vigente.
+   e o plano da versão. Use apenas Clínica Piloto, VAmPI ou crAPI em contêineres com dados sintéticos, no computador local ou em máquinas efêmeras do GitHub, segundo o [ADR 0118](../../../docs/decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md).
+2. Respeite a trava exclusiva conforme o plano vigente. No computador local, use `C:\harness-dast-artefatos\lab.lock`. Em máquina efêmera, use um caminho temporário exclusivo da máquina.
    Se ocupada, não toque em pilhas ou imagens e registre o bloqueio; não remova a trava de outra sessão.
 3. Use pilhas com sufixo próprio e pastas de produtos/estado isoladas. Confira as imagens antes da prova;
    código do proxy/Docker alterado exige reconstrução e conferência segundo a escada.
