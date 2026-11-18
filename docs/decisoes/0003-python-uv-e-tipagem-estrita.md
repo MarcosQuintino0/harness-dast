@@ -26,6 +26,6 @@ A CLI precisa de um ecossistema forte em teste de API e segurança (Schemathesis
 
 ## Consequências
 
-- O mantenedor não domina Python tanto quanto Java. Os padrões de código (veja [CLAUDE.md](../../CLAUDE.md) e [CONTRIBUTING.md](../../CONTRIBUTING.md)) e os gates de CI existem para compensar isso.
+- O mantenedor não domina Python tanto quanto Java. Os padrões de código (veja [CLAUDE.md](../../CLAUDE.md) e [CONTRIBUTING.md](../../AGENTS.md#padrões-de-código)) e os gates de CI existem para compensar isso.
 - Dependência nova exige ADR curto e fica travada no `uv.lock`.
 - A licença do projeto continua indefinida (P-14); esta decisão não a define.

@@ -1,6 +1,6 @@
 # Relatório da V1.9: conhecimento executável do produto
 
-Data: 2026-11-16. A prova se restringe ao laboratório local (Clínica Piloto e VAmPI, dados sintéticos, Docker); nenhum produto real foi testado. O plano é a [execução V1.9](../plans/2026-11-16-execucao-v1-9-conhecimento.md); o pré-registro das provas é [proof-plan.md](../../../evals/measurements/v1-9/proof-plan.md). Não houve rodada cega nem estudo de reutilização nesta entrega: ficam para o fechamento das versões.
+Data: 2026-11-16. A prova se restringe ao laboratório local (Clínica Piloto e VAmPI, dados sintéticos, Docker); nenhum produto real foi testado. O plano é a [execução V1.9](../plans/2026-11-16-execucao-v1-9-conhecimento.md); o pré-registro das provas é [proof-plan.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-9/proof-plan.md). Não houve rodada cega nem estudo de reutilização nesta entrega: ficam para o fechamento das versões.
 
 ## Passos do briefing
 
@@ -18,11 +18,11 @@ Data: 2026-11-16. A prova se restringe ao laboratório local (Clínica Piloto e 
 
 ## Verificador da T2 (correção desta retomada)
 
-O verificador integrado em `ed0a90d` contava leituras de receitas e contas diferentes, sem ordem em relação à escrita, e procurava snapshots sem limitar ao período da rodada. Nenhum commit posterior (`ab9f9ea`, `36dedec`) havia mudado isso (só auditoria e documentação). Agora `tests/integration/v19_reuse_evidence.py` exige, por receita e conta, **leitura anterior < escrita 2xx < leitura posterior** (resultados 200, sem repartir a mesma leitura entre duas escritas) e um snapshot observado e válido do diário **da mesma chave** (produto, operação, conta e método) com horário dentro da janela da rodada. Sete testes offline em `tests/unit/lab/test_v19_reuse_evidence.py` cobrem conta diferente, ordem errada, escrita com falha, leitura compartilhada e snapshot de outra conta ou de rodada anterior. Os valores dos snapshots nunca são exportados.
+O verificador integrado em `ed0a90d` contava leituras de receitas e contas diferentes, sem ordem em relação à escrita, e procurava snapshots sem limitar ao período da rodada. Nenhum commit posterior (`ab9f9ea`, `36dedec`) havia mudado isso (só auditoria e documentação). Agora `tests/integration/reuse_evidence_support.py` exige, por receita e conta, **leitura anterior < escrita 2xx < leitura posterior** (resultados 200, sem repartir a mesma leitura entre duas escritas) e um snapshot observado e válido do diário **da mesma chave** (produto, operação, conta e método) com horário dentro da janela da rodada. Sete testes offline em `tests/unit/lab/test_reuse_evidence.py` cobrem conta diferente, ordem errada, escrita com falha, leitura compartilhada e snapshot de outra conta ou de rodada anterior. Os valores dos snapshots nunca são exportados.
 
 ## T2: resultados por API e modo
 
-Logs, JUnit e metas em `C:\harness-dast-artefatos\v1-9\claude\`; medições revisadas em [evals/measurements/v1-9/claude](../../../evals/measurements/v1-9/claude).
+Logs, JUnit e metas em `C:\harness-dast-artefatos\v1-9\claude\`; medições revisadas em [evals/measurements/v1-9/claude](https://github.com/MarcosQuintino0/harness-dast/tree/fd611a9/evals/measurements/v1-9/claude).
 
 | Prova | Resultado |
 | --- | --- |
@@ -63,11 +63,11 @@ Registrados em `C:\harness-dast-artefatos\v1-9\gates-claude1` (primeira passagem
 
 ## Correções da validação
 
-O validador independente decidiu `corrigir`. Para cada defeito escrevi antes o teste que o reproduz e confirmei a falha; medições em [evals/measurements/v1-9/claude/fix](../../../evals/measurements/v1-9/claude/fix).
+O validador independente decidiu `corrigir`. Para cada defeito escrevi antes o teste que o reproduz e confirmei a falha; medições em [evals/measurements/v1-9/claude/fix](https://github.com/MarcosQuintino0/harness-dast/tree/fd611a9/evals/measurements/v1-9/claude/fix).
 
 | # | Achado | Correção e teste |
 | --- | --- | --- |
-| 1 | Pendência sem envio: a recusa do portão (`WindowClosed`/`DeadlineReached`) depois do `begin` do diário deixava a reserva para sempre no `authz` e no `negative` | Com uma única tentativa, a recusa vem antes de qualquer byte da mutação; a reserva é fechada como `failed` e o erro segue. Erro durante ou depois do envio continua desconhecido e bloqueia. Mensagens separadas no diário: "Já existe mutação com resultado desconhecido para esta operação e conta" (com o caminho e a ação humana) e erro de E/S. Testes: `test_v19_journal_refusal.py` (falharam antes) e `test_knowledge_journal.py`. Reconciliação em [knowledge.md](../../referencia/knowledge.md) e [problemas-comuns.md](../../usar/problemas-comuns.md) |
+| 1 | Pendência sem envio: a recusa do portão (`WindowClosed`/`DeadlineReached`) depois do `begin` do diário deixava a reserva para sempre no `authz` e no `negative` | Com uma única tentativa, a recusa vem antes de qualquer byte da mutação; a reserva é fechada como `failed` e o erro segue. Erro durante ou depois do envio continua desconhecido e bloqueia. Mensagens separadas no diário: "Já existe mutação com resultado desconhecido para esta operação e conta" (com o caminho e a ação humana) e erro de E/S. Testes: `test_journal_refusal.py` (falharam antes) e `test_knowledge_journal.py`. Reconciliação em [knowledge.md](../../referencia/knowledge.md) e [problemas-comuns.md](../../usar/problemas-comuns.md) |
 | 2 | `KnowledgeProfiles.load` exigia o motor sem necessidade | `cleanup` ignora o conhecimento (`checked_profiles(..., with_knowledge=False)`); nos `--dry-run`, só entrada `validated` consumível exige o motor, e a só proposta é ignorada. `reusable` passou a exigir ao menos uma entrada validada. Testes em `test_knowledge.py` |
 | 3 | `recipe-gap.json` aceitava qualquer ausência de trio | A lacuna só vale com zero linhas de auditoria `authz:effect_recipe_*`; qualquer leitura de receita sem trio reprova (`recipe_absence`). Testes offline dos dois casos |
 | 4 | Snapshot com folga de 5 s casava com a restauração | Exige `escrita <= instante do snapshot <= leitura posterior`, sem folga. O instante é o `mtime` do arquivo arquivado, gravado depois da resposta da escrita e antes da leitura posterior; não foi preciso gravar o `begin` no diário. Testes com snapshot da restauração depois da leitura posterior e snapshot anterior à escrita |

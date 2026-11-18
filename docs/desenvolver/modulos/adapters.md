@@ -35,7 +35,7 @@ Subpacotes do desenho aprovado (todos existem; `scope_proxy/`, `docker/` e `syst
 
 ## Convenções
 
-- Dependência nova de terceiros exige ADR ([CONTRIBUTING.md](../../../CONTRIBUTING.md)).
+- Dependência nova de terceiros exige ADR ([Parte A do AGENTS.md](../../../AGENTS.md#dependências-e-adr)).
 - Adaptadores não têm piso de cobertura de linha; têm a obrigação de um teste de integração ou de contrato. Todo adaptador de uma porta passa na suíte de contrato dessa porta.
 
 ## Status

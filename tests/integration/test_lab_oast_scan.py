@@ -24,12 +24,12 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.integration.lab_resource_support import ResourceGuard, docker_runner, inventory
 from tests.integration.lab_support import REPO, LabCli, proxy_audit, require_docker
 from tests.integration.oast_support import PROJECT, OastLab
 from tests.integration.run_support import record_metrics
 from tests.integration.test_lab_oast import finish_proof
-from tests.integration.v112_resource_support import ResourceGuard, docker_runner, inventory
-from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
+from tests.integration.watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 

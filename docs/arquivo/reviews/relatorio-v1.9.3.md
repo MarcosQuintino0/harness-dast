@@ -20,7 +20,7 @@ O código do Codex foi revisado contra o plano e o `CLAUDE.md`: sem nome de prod
 
 ## Prova no laboratório
 
-Teste: `tests/integration/test_v193_authz_owner.py` (perfil que imita o da rodada cega: consultas roteadas ao médico compartilhado, `shared_roles: [medico]`, dois pacientes; no VAmPI, `probe --only` na criação e `authz --check horizontal`). Sob a trava `lab.lock`. Saídas em `C:\harness-dast-artefatos\v1-9-3\fechamento\` (`clinica.log`, `vampi.log`, `metrics\`).
+Teste: `tests/integration/test_authz_owner_lab.py` (perfil que imita o da rodada cega: consultas roteadas ao médico compartilhado, `shared_roles: [medico]`, dois pacientes; no VAmPI, `probe --only` na criação e `authz --check horizontal`). Sob a trava `lab.lock`. Saídas em `C:\harness-dast-artefatos\v1-9-3\fechamento\` (`clinica.log`, `vampi.log`, `metrics\`).
 
 | Alvo e modo | `run_id` | Resultado |
 |---|---|---|
@@ -31,7 +31,7 @@ Teste: `tests/integration/test_v193_authz_owner.py` (perfil que imita o da rodad
 
 Os quatro passaram (Clínica 387 s, VAmPI 99 s). Lacunas aparecem no painel (`panel_has_gaps` verdadeiro nos quatro). O diário do estágio mostra só `GET` em `authz:owner:*`.
 
-**Regressões** (`regressao.log`): `test_lab_authz.py`, `test_v19_authz.py` e `test_lab_v155.py`, nos dois modos; 41 passaram e 3 foram puladas por desenho (testes de um só modo), em 1776 s; nada regrediu (inclusive `shared_role` entre médicos e BOLA entre pacientes no vulnerável).
+**Regressões** (`regressao.log`): `test_lab_authz.py`, `test_authz_directed_observation.py` e `test_lab_mass_assignment_and_pair.py`, nos dois modos; 41 passaram e 3 foram puladas por desenho (testes de um só modo), em 1776 s; nada regrediu (inclusive `shared_role` entre médicos e BOLA entre pacientes no vulnerável).
 
 ## V3 do VAmPI
 

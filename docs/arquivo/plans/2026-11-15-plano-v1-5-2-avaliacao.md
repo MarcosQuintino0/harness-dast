@@ -1,6 +1,6 @@
 # Plano da versão 1.5.2: avaliação atualizada e correções achadas na rodada cega
 
-Data: 2026-11-15. Origem: a rodada cega de 2026-11-15 ([evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md](../../../evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md)). Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh). Revisão e junção: Claude Code, na sessão do dono.
+Data: 2026-11-15. Origem: a rodada cega de 2026-11-15 ([evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-clinica-piloto-sonnet55-medium-wide/README.md)). Executor: Codex (coordenador GPT 6.1 Sol, esforço xhigh). Revisão e junção: Claude Code, na sessão do dono.
 
 ## Por que esta versão existe
 

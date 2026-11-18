@@ -311,7 +311,7 @@ Entrega dos itens A a F do [plano](plans/2026-11-15-plano-v1-5-4-alcance-confiav
 
 ### V1.7: ritmo serial e medição
 
-Implementados os ritmos `legacy` (padrão) e `proxy` (comparação protegida pela aprovação), concessão real, recuo temporário sem repetição e recusa imediata `rate_backoff` com `Retry-After` restante. A declaração de tecnologias é consultiva e não exclui regras; lacunas por regra e dados antigos desconhecidos são refletidos no relatório. Os 12 controles T2 direcionados passaram; em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. Na prova original V1.7, DOM 40026 `skipped` impediu aceite; a retomada V1.8 a reconheceu como exclusão pré-existente, sem cobertura executada. A B da Clínica ocorreu antes do congelamento da previsão; não há previsão prospectiva válida para ela. Os limites condicionais da parcela paralelizável não comprovam 40% e V1.10 permanece fechada. [Protocolo e limites](../referencia/scan-performance.md), [pré-registro](../../evals/measurements/v1.7/preregistro.md) e [QA estático](reviews/qa-v1.7.md). Nenhuma prova contra produto real.
+Implementados os ritmos `legacy` (padrão) e `proxy` (comparação protegida pela aprovação), concessão real, recuo temporário sem repetição e recusa imediata `rate_backoff` com `Retry-After` restante. A declaração de tecnologias é consultiva e não exclui regras; lacunas por regra e dados antigos desconhecidos são refletidos no relatório. Os 12 controles T2 direcionados passaram; em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. Na prova original V1.7, DOM 40026 `skipped` impediu aceite; a retomada V1.8 a reconheceu como exclusão pré-existente, sem cobertura executada. A B da Clínica ocorreu antes do congelamento da previsão; não há previsão prospectiva válida para ela. Os limites condicionais da parcela paralelizável não comprovam 40% e V1.10 permanece fechada. [Protocolo e limites](../referencia/scan-performance.md), [pré-registro](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1.7/preregistro.md) e [QA estático](reviews/qa-v1.7.md). Nenhuma prova contra produto real.
 
 ### V1.8: contratos da personalização
 
@@ -345,7 +345,7 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 
 | Componente | Status |
 | --- | --- |
-| Pilha desatualizada (`STACK_STALE`, saída 4, antes do primeiro pedido; 403 `approval_changed` traduzido; `stack status` com `binding`) | Implementado; ADR 0081 proposto. Provado no laboratório (`tests/integration/test_v191_stack_stale.py`); nada contra produto real |
+| Pilha desatualizada (`STACK_STALE`, saída 4, antes do primeiro pedido; 403 `approval_changed` traduzido; `stack status` com `binding`) | Implementado; ADR 0081 proposto. Provado no laboratório (`tests/integration/test_stack_stale_profile.py`); nada contra produto real |
 | Estudo de reutilização: `export-reuse` aceita `knowledge.captured.yml`; skills mandam capturar depois do `run` | Implementado; ADR 0079 atualizado (ainda proposto). O estudo e as rodadas cegas continuam pendentes |
 | Documentação da avaliação (imagens por `docker compose build`, `claude -p` e confiança do workspace) | Atualizada; relatório em [relatorio-v1.9.1](reviews/relatorio-v1.9.1.md) |
 

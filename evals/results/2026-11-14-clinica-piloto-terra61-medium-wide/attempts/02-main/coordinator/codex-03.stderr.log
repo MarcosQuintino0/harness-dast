@@ -1,4 +1,0 @@
-2026-11-15T01:30:44.156592Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/
-2026-11-15T01:30:44.157677Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/
-2026-11-15T01:30:44.339940Z  WARN codex_core::shell_snapshot: Failed to create shell snapshot for powershell: Shell snapshot not supported yet for PowerShell
-2026-11-15T01:46:43.497654Z  WARN sqlx::query: slow statement: execution time exceeded alert threshold summary="UPDATE thread_turns SET final_agent_item_id …" db.statement="\n\n\nUPDATE thread_turns\nSET final_agent_item_id = ?\nWHERE thread_id = ?\n  AND turn_id = ?\n  AND rollout_end_ordinal IS NULL\n  AND status = 'inProgress'\n                    \n" rows_affected=1 rows_returned=0 elapsed=3.7631845s elapsed_secs=3.7631845 slow_threshold=1s

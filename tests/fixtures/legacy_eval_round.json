@@ -1,0 +1,27 @@
+{
+  "mode": {
+    "case": "clinica-piloto",
+    "mode": "vulnerable"
+  },
+  "probe": {
+    "dry_run": false,
+    "finished_at": "2026-11-13T10:00:00Z",
+    "summary": {
+      "operations_total": 10,
+      "operations_sent": 9,
+      "successes": 9,
+      "by_outcome": {
+        "success": 9
+      }
+    }
+  },
+  "findings": {
+    "findings": [
+      {
+        "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "title": "SQL Injection",
+        "operation_id": "buscarPacientesPorNome"
+      }
+    ]
+  }
+}

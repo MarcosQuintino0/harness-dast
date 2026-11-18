@@ -13,7 +13,7 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    precisa de pessoa, declaração humana e calibração separadas; skills e critério
    privado de acerto da triagem sem mudar a nota histórica. Achados, severidade e
    status preservados. Fases 0/D/F operacionais pendentes.
-2. **ADRs.** [0085 a 0091](../../decisoes/README.md#verificação-v111), todos Propostos:
+2. **ADRs.** [0085 a 0091](../../decisoes/README.md#todas-as-decisões), todos Propostos:
    contrato; declaração humana; reprodução; apresentação/calibração; régua privada;
    vínculo da semente/prova/parada; observações passivas. Nenhuma dependência nova.
 3. **Linha de base (fase 0).** Base `44ef387`, aprovações descartáveis do suporte
@@ -41,7 +41,7 @@ As fases 0, D e F foram executadas na retomada pelo Claude Code (seção 11); se
    campos fora do esquema e leitura entre pacientes, por recibo); SQL em consulta ficou
    `inconclusive`; SQL em caminho, travessia, hash e cabeçalho ficaram `not_verifiable`,
    nunca descartados. Também passaram os 4 testes de integração de autorização da V1.9.3
-   (`tests/integration/test_v193_authz_owner.py`, Clínica e VAmPI nos dois modos). O roteiro
+   (`tests/integration/test_authz_owner_lab.py`, Clínica e VAmPI nos dois modos). O roteiro
    `regressao_dirigida` não existe nesta branch.
 6. **Validador.** Novo Terra medium em worktree própria: [parecer inicial corrigir](2026-11-17-v1-11-validacao.md)
    por JSON duplicado; `26c56b7` corrigiu. [Reteste: continuar](2026-11-17-v1-11-validacao-reteste.md)
