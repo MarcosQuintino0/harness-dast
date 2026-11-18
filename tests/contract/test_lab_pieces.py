@@ -13,6 +13,7 @@ from tests.integration.lab_round import (
     Piece,
     PlannedLevel,
     collect_node_ids,
+    duplicate_tests,
     load_map,
     plan_pieces,
     select_level,
@@ -33,10 +34,8 @@ def collected() -> dict[PlannedLevel, tuple[str, ...]]:
 
 
 def _selected(piece: Piece, ids: Sequence[str]) -> list[str]:
-    """Testes que o pytest rodaria para o pedaço: marcador, arquivo, `-k` e `--deselect`."""
-    chosen = [
-        i for i in ids if Path(i.split("::")[0]).name == piece.file and i not in piece.deselect
-    ]
+    """Testes que o pytest rodaria para o pedaço: marcador, arquivo e `-k`."""
+    chosen = [i for i in ids if Path(i.split("::")[0]).name == piece.file]
     if piece.keyword is None:
         return chosen
     expression = Expression.compile(piece.keyword)
@@ -50,6 +49,16 @@ def _matcher(node_id: str) -> Callable[..., bool]:
         return name.lower() in last
 
     return match
+
+
+def test_nenhum_teste_pertence_a_dois_niveis_quando_coletados(
+    collected: dict[PlannedLevel, tuple[str, ...]],
+) -> None:
+    repeated = duplicate_tests(collected)
+
+    assert not repeated, "; ".join(
+        f"{node_id} está em {', '.join(levels)}" for node_id, levels in repeated.items()
+    )
 
 
 def test_pedacos_de_tudo_somam_a_uniao_dos_niveis_sem_perda_nem_duplicacao(

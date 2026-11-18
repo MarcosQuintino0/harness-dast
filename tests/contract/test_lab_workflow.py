@@ -174,14 +174,3 @@ def test_pedaco_grava_estado_sempre_antes_de_publicar_quando_termina(
     assert state["env"]["STATUS"] == "${{ job.status }}"
     assert "--gravar-estado" in state["run"]
     assert names.index(state["name"]) < names.index(upload["name"])
-
-
-def test_pedaco_repassa_os_descartes_do_planejador_quando_roda(workflow: dict[str, Any]) -> None:
-    run = next(
-        s
-        for s in _steps(workflow["jobs"]["pedaco"])
-        if s.get("name") == "Rodar o pedaço pelo lab_round"
-    )
-
-    assert run["env"]["DESELECT"] == "${{ toJSON(matrix.deselect) }}"
-    assert '--deselect "$id"' in run["run"]

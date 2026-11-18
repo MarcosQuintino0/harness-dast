@@ -49,13 +49,14 @@ def _input_files(repo: Path) -> list[str]:
 def inputs_hash(repo: Path) -> str:
     """Hash dos arquivos que os builds copiam; é a identidade das imagens do checkout.
 
-    Normaliza o fim de linha para que Windows e Linux cheguem ao mesmo valor.
+    Usa os bytes reais, sem converter fim de linha: o Docker copia os bytes como estão, e um
+    script com CRLF é outra imagem. No Windows o valor pode diferir do CI (Linux, checkout em
+    LF); isso é aceitável, porque o cache só é usado no CI.
     """
     digest = hashlib.sha256()
     for relative in _input_files(repo):
         digest.update(relative.encode("utf-8") + b"\0")
-        content = (repo / relative).read_bytes().replace(b"\r\n", b"\n")
-        digest.update(content + b"\0")
+        digest.update((repo / relative).read_bytes() + b"\0")
     return digest.hexdigest()
 
 

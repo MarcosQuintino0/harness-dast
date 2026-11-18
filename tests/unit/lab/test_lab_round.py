@@ -391,7 +391,7 @@ def test_planeja_os_quatro_niveis_quando_pedido_e_tudo(areas: AreaMap) -> None:
         "lab_fast": [f"{INTEGRATION}/test_scope.py::test_a"],
         "lab_prova": [f"{INTEGRATION}/test_scan.py::test_p"],
         "regressao_dirigida": [f"{INTEGRATION}/test_regressao.py::test_r"],
-        "integration or e2e": [f"{INTEGRATION}/test_scan_performance_matrix.py::test_b"],
+        lab_round.CARGA_MARKER: [f"{INTEGRATION}/test_scan_performance_matrix.py::test_b"],
     }
     seen: list[str] = []
 
@@ -401,7 +401,7 @@ def test_planeja_os_quatro_niveis_quando_pedido_e_tudo(areas: AreaMap) -> None:
 
     pieces = lab_round.plan_pieces("tudo", areas, collect)
 
-    assert seen == ["lab_fast", "lab_prova", "regressao_dirigida", "integration or e2e"]
+    assert seen == ["lab_fast", "lab_prova", "regressao_dirigida", lab_round.CARGA_MARKER]
     assert [(p.level, p.file) for p in pieces] == [
         ("fast", "test_scope.py"),
         ("prova", "test_scan.py"),
@@ -411,23 +411,27 @@ def test_planeja_os_quatro_niveis_quando_pedido_e_tudo(areas: AreaMap) -> None:
     assert [p.index for p in pieces] == list(range(len(pieces)))
 
 
-def test_atribui_teste_a_um_so_pedaco_quando_dois_niveis_o_coletam(areas: AreaMap) -> None:
+def test_recusa_planejar_quando_teste_esta_em_dois_niveis(areas: AreaMap) -> None:
     shared = f"{INTEGRATION}/test_scope.py::test_dupla"
-    only_prova = f"{INTEGRATION}/test_scope.py::test_so_prova"
     by_marker = {
         "lab_fast": [shared],
-        "lab_prova": [shared, only_prova],
-        "regressao_dirigida": [shared],
-        "integration or e2e": [shared],
+        "lab_prova": [shared],
+        "regressao_dirigida": [],
+        lab_round.CARGA_MARKER: [],
     }
 
-    pieces = lab_round.plan_pieces("tudo", areas, lambda s: by_marker[s.marker])
+    with pytest.raises(ConfigError, match=r"test_dupla.*fast, prova"):
+        lab_round.plan_pieces("tudo", areas, lambda s: by_marker.get(s.marker, []))
 
-    # A carga tem prioridade e leva o teste; os outros níveis o descartam.
-    assert [(p.level, p.deselect) for p in pieces] == [
-        ("prova", (shared,)),
-        ("carga", ()),
-    ]
+
+def test_lista_testes_repetidos_quando_niveis_se_sobrepoem() -> None:
+    collected: dict[lab_round.PlannedLevel, list[str]] = {
+        "fast": ["a", "b"],
+        "prova": ["b"],
+        "carga": ["b", "c"],
+    }
+
+    assert lab_round.duplicate_tests(collected) == {"b": ["fast", "prova", "carga"]}
 
 
 def test_recusa_pedacos_quando_nivel_e_changed(areas: AreaMap) -> None:
@@ -444,7 +448,7 @@ def test_seleciona_benchmark_e_matriz_quando_nivel_e_carga(areas: AreaMap) -> No
     selection = select_level("carga", areas)
 
     assert selection is not None
-    assert selection.marker == "integration or e2e"
+    assert selection.marker == lab_round.CARGA_MARKER
     assert selection.paths == (
         f"{INTEGRATION}/test_guard_benchmark.py",
         f"{INTEGRATION}/test_scan_performance_matrix.py",
@@ -471,7 +475,6 @@ def test_imprime_pedacos_em_json_quando_pedido(
             "file": "test_lab_fast.py",
             "keyword": None,
             "name": "fast-lab_fast",
-            "deselect": [],
         }
     ]
 
@@ -499,21 +502,3 @@ def test_recusa_coleta_quando_pytest_falha(monkeypatch: pytest.MonkeyPatch) -> N
 
     with pytest.raises(ConfigError, match="coleta do pytest falhou"):
         lab_round.collect_node_ids(Selection("lab_fast", ("tests/integration",)))
-
-
-def test_monta_comando_com_deselect_quando_pedaco_descarta_testes(tmp_path: Path) -> None:
-    selection = Selection("lab_fast", ("tests/integration/test_a.py",))
-
-    command = build_command(selection, tmp_path, None, ("x::a[1]", "x::b"))
-
-    assert command[command.index("--deselect") + 1] == "x::a[1]"
-    assert command.count("--deselect") == 2
-
-
-def test_dry_run_repassa_deselect_quando_informado(capsys: pytest.CaptureFixture[str]) -> None:
-    result = main(
-        ["--nivel", "fast", "--arquivo", "test_lab_fast.py", "--deselect", "x::a", "--dry-run"]
-    )
-
-    assert result == ExitCode.OK
-    assert "--deselect x::a" in capsys.readouterr().out

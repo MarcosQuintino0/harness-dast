@@ -288,9 +288,19 @@ def test_hash_changes_quando_arquivo_de_insumo_muda(checkout: Path) -> None:
     assert lab_images.inputs_hash(checkout) != before
 
 
-def test_hash_ignores_line_endings_and_caches_quando_so_isso_muda(checkout: Path) -> None:
+def test_hash_changes_quando_arquivos_so_diferem_em_lf_e_crlf(checkout: Path) -> None:
+    script = checkout / "docker" / "entrypoint.sh"
+    script.parent.mkdir()
+    script.write_bytes(b"echo ok\n")
+    lf = lab_images.inputs_hash(checkout)
+
+    script.write_bytes(b"echo ok\r\n")
+
+    assert lab_images.inputs_hash(checkout) != lf
+
+
+def test_hash_ignores_caches_quando_so_eles_mudam(checkout: Path) -> None:
     before = lab_images.inputs_hash(checkout)
-    (checkout / "README.md").write_bytes(b"leia-me\r\n")
     cache = checkout / "src" / "__pycache__"
     cache.mkdir()
     (cache / "x.pyc").write_bytes(b"lixo")
