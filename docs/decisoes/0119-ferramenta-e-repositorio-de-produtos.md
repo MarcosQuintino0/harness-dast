@@ -1,88 +1,90 @@
-# 0119. Ferramenta distribuída por versão e repositório de produtos separado
+# 0119. Código mexido só roda no laboratório e o agente de teste só edita produtos
 
 - **Status:** Proposto
 - **Data:** 2026-11-18
-- **Origem:** pergunta do dono durante a reestruturação: o agente que edita o perfil de um produto pode editar a própria ferramenta? E como levar a ferramenta para o GitLab da empresa sem o laboratório?
+- **Origem:** pergunta do dono durante a reestruturação. O agente que edita o perfil de um produto pode editar a ferramenta? E como levar a ferramenta, com o código-fonte inteiro, para o GitLab da empresa sem que alguém estrague o que importa?
 
 ## Contexto
 
 Hoje a mesma pasta serve para desenvolver a ferramenta e para operar contra produtos:
 
-- Os perfis ficam em `products/<produto>/`, dentro do clone, ignorados pelo Git. A pasta pode mudar com `HDAST_PRODUCTS_DIR`. A aprovação fica fora do clone, em `<estado>/approvals/<produto>.json` (ADR 0037).
-- A aprovação guarda a impressão digital dos blocos de proteção (`domain/scope_fingerprint.py`). Se o agente alterar escopo, limites, autorização ou outro bloco protegido, a CLI recusa com `SCOPE_NOT_APPROVED` até uma pessoa aprovar de novo. Editar dados e fluxos não alarga nada e não pede aprovação. **O perfil já está protegido.**
-- O `guard.py` e o `settings.json` barram escrita em aprovações, confirmações humanas, `.claude/settings.json`, hooks, `.mcp.json` e scripts de limpeza.
-  O agente que opera continua podendo editar `src/`, `docker/`, `compose.yaml` e as skills.
-- O `stack up` usa as imagens publicadas (ADR 0113). Com `HDAST_STACK_BUILD=1` ou `--build`, ele constrói o ZAP e o proxy de escopo a partir do código do clone. Até a primeira publicação, na tag `v1.12.2`, construir localmente era o caminho normal.
-  Na rodada cega de 2026-11-18 no Codespaces, o próprio agente avaliado ligou o `HDAST_STACK_BUILD=1` quando o `stack pull` falhou.
-  Um agente que alterasse a cerca em `docker/scope-proxy/` teria a mudança construída na subida seguinte. A conferência da imagem lê só o rótulo de versão, que pode ser forjado (limite residual do ADR 0113).
-- O repositório também traz o laboratório, as avaliações cegas e seus gabaritos, o Codespaces, os vídeos e a documentação de desenvolvimento. Para usar na empresa, nada disso é necessário, e parte não deveria ir (gabaritos, histórico de rodadas).
-- O dono quer rodar de novo o teste de um produto com um clique: um job por produto numa pipeline, ou um botão no painel. A CI deste repositório testa a ferramenta, e misturar nela jobs de produtos exporia dados de produtos num repositório público.
-
-Sem decisão, operar continua dentro do código da ferramenta. Levar para a empresa passaria a significar clonar o laboratório junto.
+- Os perfis ficam em `products/<produto>/`, dentro do clone e ignorados pelo Git, ou na pasta indicada por `HDAST_PRODUCTS_DIR`. A aprovação fica fora do clone, em `<estado>/approvals/<produto>.json` (ADR 0037).
+- A aprovação guarda a impressão digital dos blocos de proteção (`domain/scope_fingerprint.py`). Se escopo, limites, autorização ou outro bloco protegido mudar, a CLI recusa com `SCOPE_NOT_APPROVED` até uma pessoa aprovar de novo. **O perfil já está protegido.**
+- O `guard.py` e o `settings.json` barram escrita em aprovações, confirmações humanas, `.claude/settings.json`, hooks, `.mcp.json` e scripts de limpeza. É uma lista do que é proibido: o agente que opera ainda pode editar `src/`, `docker/`, `compose.yaml` e as skills.
+- O `stack up` usa as imagens publicadas (ADR 0113). Com `HDAST_STACK_BUILD=1` ou `--build`, ele constrói a cerca a partir do clone. A conferência da imagem lê só o rótulo de versão, que pode ser forjado.
+  Na rodada cega de 2026-11-18 no Codespaces, o agente avaliado ligou o `HDAST_STACK_BUILD=1` sozinho quando o `stack pull` falhou.
+- O domínio já distingue os endereços do laboratório (`Host.is_lab_address`, `application/lab_targets.py`) dos alvos de verdade.
+- O dono quer levar o código-fonte inteiro para a empresa, para que outros possam evoluir a ferramenta, sem que uma mudança descuidada chegue a um teste de produto. Ele também quer rodar de novo o teste de um produto com um clique, num job de pipeline.
 
 ## Decisão
 
-Vamos separar **a ferramenta** de **os produtos**.
+Vamos separar **onde se desenvolve** de **onde se testa**, e pôr no código a regra de que só a versão lançada testa produto.
 
-1. **Este repositório continua sendo o da ferramenta**, com o laboratório, as avaliações e o Codespaces. Eles provam a ferramenta e servem de portfólio. A CI dele continua só testando a ferramenta.
-2. **A ferramenta é distribuída por versão.** Cada tag `v<versão>` publica:
-   - o pacote Python (wheel anexado ao release);
-   - as imagens do ZAP e do proxy de escopo no registro, com atestado (ADR 0113).
-   O `compose.yaml` do pacote referencia as imagens por `tag@sha256:<digest>`. A distribuição não leva `lab/`, `evals/`, `.devcontainer/`, `tests/` nem `docs/desenvolver/`.
-3. **Operar acontece num repositório de produtos**, criado a partir de um modelo novo (`hdast-produtos`), um por time. Ele contém:
-   - `products/<produto>/`: perfil, regras de dados, fluxos, carta e OpenAPI;
-   - `hdast-version`: a versão da ferramenta e os digests das imagens;
-   - as instruções de operação (a Parte B do `AGENTS.md`), as cinco skills de uso daquela versão, o `guard.py` e o `settings.json`;
-   - a pipeline, com um job por produto.
+1. **O código-fonte inteiro vai para a empresa.**
+   - O repositório da ferramenta é importado como está, com o laboratório, os testes e a CI.
+   - A `main` fica protegida: só entra por merge request com a CI verde.
+   - Um `CODEOWNERS` cobre o núcleo de segurança e exige a revisão do responsável: cerca, escopo, aprovação, impressão digital, carta, `guard.py` e `settings.json`.
+   - A versão sai só por tag criada a partir da `main`.
+2. **Manifesto de integridade por versão.** Na tag, a CI gera um manifesto com:
+   - o hash de cada arquivo da ferramenta: `src/`, `docker/`, `compose.yaml`, hooks, `settings.json` e skills de uso;
+   - o digest das imagens.
 
-   O agente trabalha só nesse repositório. O código da ferramenta não está lá para ser editado.
-4. **Sem código-fonte, a CLI não constrói a cerca.** Quando a ferramenta roda instalada como pacote, `--build` e `HDAST_STACK_BUILD=1` falham com mensagem clara. A subida usa só as imagens fixadas por digest.
-5. **Uma pipeline por produto, no repositório de produtos.** Os jobs são manuais ou agendados (GitLab CI na empresa, GitHub Actions no repositório pessoal). Cada job:
-   - instala a versão de `hdast-version`;
-   - lê as senhas das variáveis protegidas da CI, pelo `secret_ref`;
-   - roda `hdast run` e publica o relatório como artefato.
-
-   Ele só roda com uma aprovação válida para a impressão digital atual do perfil, e qualquer mudança nos blocos de proteção faz o job falhar até uma pessoa aprovar de novo. Onde a aprovação fica para a CI ler (arquivo versionado sob proteção de branch e de revisão, ou outro meio) é um contrato novo e terá ADR próprio antes de implementar.
-6. **Uma skill de uso nova, `create-pipeline`.** Ela gera o job de um produto a partir de um modelo. Ela não grava aprovação, não liga capacidade de ataque e não muda escopo. O painel pode, depois, disparar o mesmo job.
+   O manifesto é publicado com atestado de origem.
+3. **Código mexido só roda no laboratório.**
+   - Antes de qualquer comando que toque um alvo, a CLI confere os próprios arquivos contra o manifesto da sua versão.
+   - Se houver diferença, ou não houver manifesto, ela aceita só alvos do laboratório e recusa os demais com `TOOL_MODIFIED`, citando os arquivos diferentes.
+   - Fora do laboratório, a cerca é sempre a imagem do manifesto, por digest, e o build local fica restrito ao laboratório.
+   - A regra fica no núcleo testado, junto da decisão de escopo.
+4. **O agente de teste trabalha numa pasta de produtos.**
+   - Pode ser um repositório por time: `hdast-produtos`, com `products/`, `runs/`, `hdast-version`, as instruções de operação (Parte B), as cinco skills de uso, `guard.py`, `settings.json`, `CODEOWNERS` e a pipeline.
+   - O QA abre o Claude Code nessa pasta.
+   - A ferramenta fica instalada a partir da tag, fora dela.
+   - Nessa pasta, o `guard.py` e o `settings.json` trabalham por lista permitida: escrita só em `products/` e `runs/`.
+5. **Um job por produto, no repositório de produtos.**
+   - O job baixa a ferramenta da tag num runner limpo e lê as senhas das variáveis protegidas, pelo `secret_ref` `env:`, que já existe.
+   - Ele só roda com uma aprovação válida para a impressão digital atual.
+   - Uma skill de uso nova, `create-pipeline`, gera o job sem gravar aprovação, sem ligar capacidade de ataque e sem mudar escopo.
+   - Onde a aprovação fica para a pipeline ler terá ADR próprio.
 
 ## Alternativas consideradas
 
-- **Manter tudo junto e barrar `src/` e `docker/` no `guard.py` durante a operação.** Quem desenvolve precisa dessas pastas abertas, e a fronteira entre desenvolver e operar no mesmo clone dependeria de modo ou de prompt. Isso contraria a regra de que a trava fica em código.
-- **Levar agora o laboratório para outro repositório.** A segunda opinião da reestruturação recomendou mantê-lo junto, porque ele prova a ferramenta a cada mudança. A distribuição por versão resolve a empresa sem dividir o desenvolvimento.
-- **A empresa clonar este repositório inteiro.** Levaria laboratório, gabaritos, histórico e Codespaces, e o agente continuaria operando junto do código.
-- **Jobs de produtos na CI deste repositório.** Misturaria o teste da ferramenta com a operação e exporia dados de produtos num repositório público.
+- **Distribuir só o pacote e as imagens, sem o código-fonte.** Fecha a brecha, mas impede a empresa de evoluir a ferramenta. O dono quer o código lá.
+- **Manter `products/` dentro do repositório da ferramenta e barrar o resto pelo guard.** O agente de teste operaria dentro do código, e a proteção dependeria só da lista do guard sobre centenas de arquivos. Com uma pasta própria, o Claude Code já limita o agente à pasta aberta, e o guard só reforça.
+- **Confiar só na revisão do repositório.** Ela protege a `main`, mas não impede rodar uma cópia local mexida contra um produto. A trava de integridade cobre esse caso.
+- **Jobs de produtos na CI da ferramenta.** Misturaria o teste da ferramenta com a operação e poria dados de produtos no mesmo repositório do código.
 
 ## Consequências
 
-- A brecha de operar junto do código fecha pela estrutura. A cerca que roda é a imagem publicada e conferida por digest.
-- Cada versão nova da ferramenta vira um passo explícito no repositório de produtos (trocar `hdast-version`), com a impressão digital conferida de novo.
+- Quem desenvolve continua livre: com código mexido, o laboratório funciona normalmente. Para testar um produto, a mudança precisa virar versão.
+- O agente de teste não alcança o código da ferramenta. Se a cópia instalada mudar, a CLI recusa o alvo real.
+- **Limite:** uma conferência que roda dentro do próprio código pode ser desligada por quem edita esse código. Contra o agente valem a pasta separada e o guard. Contra uma pessoa com má intenção valem a revisão do repositório e a pipeline em runner limpo. A trava de integridade pega o descuido, não a fraude de quem tem acesso de escrita.
 - Nasce trabalho novo:
-  - publicar o pacote;
-  - fixar os digests;
-  - criar o modelo do repositório de produtos;
-  - recusar o build sem código-fonte;
-  - criar a skill `create-pipeline`;
-  - escrever o ADR do armazenamento da aprovação para a CI.
-- A rodada cega continua usando uma cópia preparada do repositório da ferramenta. Ela pode passar a usar o modelo do repositório de produtos, o que deixaria a avaliação mais perto do uso real.
-- O GitLab da empresa recebe só o modelo do repositório de produtos e o espelho das imagens e do pacote.
+  - o manifesto e o atestado;
+  - a trava na CLI;
+  - o modo de lista permitida do guard;
+  - o modelo do repositório de produtos;
+  - o `CODEOWNERS`;
+  - o guia de importação no GitLab, com a CI adaptada;
+  - a skill `create-pipeline`;
+  - o ADR do armazenamento da aprovação.
 
 ## Plano em fases
 
-| Fase | Entrega | Onde | Depende de |
-| --- | --- | --- | --- |
-| A | Imagens publicadas e `compose.yaml` com `tag@sha256` | Este repositório | Tag `v1.12.2` (publicada em 2026-11-18) |
-| B | Wheel no release e instalação por `uv tool install` | Este repositório | A |
-| C | `--build` e `HDAST_STACK_BUILD=1` recusados sem código-fonte, com teste | Este repositório | B |
-| D | Modelo `hdast-produtos`: `products/`, `hdast-version`, Parte B, cinco skills, guard e settings | Repositório novo | B |
-| E | ADR do armazenamento da aprovação para a CI | Este repositório | D |
-| F | Skill `create-pipeline` e job de exemplo (GitHub Actions e GitLab CI) | Modelo | E |
-| G | Rodada cega dentro do modelo de produtos | Codespaces | D |
+| Fase | Entrega | Depende de |
+| --- | --- | --- |
+| A | Imagens publicadas por tag e `compose.yaml` com `tag@sha256` | Tag `v1.12.2` (publicada em 2026-11-18) |
+| B | Manifesto de integridade gerado e atestado na tag | A |
+| C | Trava na CLI: código diferente do manifesto só roda no laboratório; build local só no laboratório | B |
+| D | Modelo `hdast-produtos` com guard e settings em lista permitida | C |
+| E | `CODEOWNERS` do núcleo e guia de importação no GitLab, com a CI adaptada | — |
+| F | ADR de onde a aprovação fica para a pipeline; skill `create-pipeline` | D |
+| G | Rodada cega dentro do `hdast-produtos` | D |
 
 ## Aceites verificáveis
 
-- O pacote instalado não contém `lab/`, `evals/`, `tests/`, `.devcontainer/` nem `docs/desenvolver/`.
-- Com a ferramenta instalada como pacote, `hdast stack up --build` e `HDAST_STACK_BUILD=1` falham com mensagem que manda usar as imagens publicadas.
-- O `compose.yaml` distribuído só referencia imagens por digest.
-- No modelo de produtos, o agente não acha código da ferramenta para editar. O `guard.py` e o `settings.json` do modelo barram escrita fora de `products/` e dos arquivos de trabalho.
+- Com um arquivo de `src/` ou `docker/` alterado, `hdast run <produto real>` falha com `TOOL_MODIFIED` e cita o arquivo. O mesmo comando contra a Clínica Piloto, o VAmPI ou o crAPI roda.
+- Fora do laboratório, `--build` e `HDAST_STACK_BUILD=1` são recusados.
+- Sem manifesto, a CLI trata a cópia como modificada.
+- No modelo `hdast-produtos`, o guard barra escrita fora de `products/` e `runs/`, por ferramenta de edição e por shell.
 - Um job de produto falha quando a impressão digital do perfil não tem aprovação válida.
-- A CI deste repositório não ganha nenhum job de produto.
+- O `CODEOWNERS` cobre todos os arquivos do núcleo de segurança, e um teste de contrato confere a lista.
