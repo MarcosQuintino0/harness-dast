@@ -12,14 +12,15 @@ import shutil
 import subprocess
 import sys
 import warnings
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from unittest.mock import patch
 
 import httpx
 import pytest
+from pydantic import BaseModel, Field, ValidationError
 
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
@@ -30,7 +31,7 @@ from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ConfigError
 from harness_dast.observability.logging import SecretRegistry
 from tests.fakes.approvals import approval_for
-from tests.integration.proxy_watch_log import read_latch_categories
+from tests.integration.proxy_watch_log import WatchResult, read_docker_latch_categories
 
 REPO = Path(__file__).resolve().parents[2]
 PILOT_PROFILE = REPO / "lab" / "pilot" / "product-profile"
@@ -100,15 +101,45 @@ class TypedName:
         return self.typed.strip() == plan.product
 
 
+class StackCommand(Protocol):
+    """Executa um comando da CLI de gerenciamento da pilha."""
+
+    def __call__(self, *args: str, timeout: int) -> CliResult: ...
+
+
+class WatchStackProject(BaseModel):
+    """Nome do projeto Compose usado para localizar o proxy."""
+
+    name: str = Field(min_length=1)
+
+
+class WatchStackState(BaseModel):
+    """Campos de stack.json necessários para coletar a causa da trava."""
+
+    run_id: str = Field(min_length=1)
+    projects: tuple[WatchStackProject, ...] = Field(min_length=1)
+
+
 class LabCli:
     """Chama `python -m harness_dast --json ...` num ambiente isolado em pastas temporárias."""
 
-    def __init__(self, root: Path, extra_env: Mapping[str, str]) -> None:
+    def __init__(
+        self,
+        root: Path,
+        extra_env: Mapping[str, str],
+        *,
+        watch_reader: Callable[
+            [Mapping[str, str], str], WatchResult
+        ] = read_docker_latch_categories,
+        stack_command: StackCommand | None = None,
+    ) -> None:
         """Cria o ambiente.
 
         Args:
             root: Pasta temporária da sessão (estado, execuções e produtos ficam dentro).
             extra_env: Variáveis adicionais (credenciais descartáveis dos alvos).
+            watch_reader: Leitor das categorias da vigia.
+            stack_command: Executor de descida e recriação, por padrão a CLI real.
         """
         self.root = root
         self.products = root / "products"
@@ -138,6 +169,8 @@ class LabCli:
             env["HDAST_STACK_PROJECT_SUFFIX"] = suffix
         self.env = env
         self.freeze_approvals = False
+        self._watch_reader = watch_reader
+        self._stack_command = stack_command if stack_command is not None else self.run
 
     def approve_installed_products(self) -> None:
         """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
@@ -244,8 +277,10 @@ class LabCli:
         `down`. Ela vai, sanitizada, para `proxy-watch.jsonl` na pasta do teste e, quando há
         trava, vira um aviso do pytest, para a próxima trava falsa chegar com a causa.
         """
-        self._record_watch_latch()
-        self.run("stack", "down", timeout=240)
+        try:
+            self._record_watch_latch()
+        finally:
+            self._stack_command("stack", "down", timeout=240)
 
     def restack(self, product: str, *flags: str, timeout: int = 900) -> CliResult:
         """Derruba e sobe de novo a pilha, depois de o teste editar o perfil (ADR 0081).
@@ -255,19 +290,16 @@ class LabCli:
         fazer. O alvo também é recriado, então quem chama refaz o `probe`.
         """
         self.stack_down()
-        return self.run("stack", "up", product, *flags, timeout=timeout)
+        return self._stack_command("stack", "up", product, *flags, timeout=timeout)
 
     def _record_watch_latch(self) -> None:
         state_path = self.state / "stack.json"
-        if not state_path.is_file():
-            return
         try:
-            state = self.state_file()
-            project = str(state["projects"][0]["name"])
-            run_id = str(state["run_id"])
-        except (ValueError, KeyError, IndexError, TypeError):
+            state = WatchStackState.model_validate_json(state_path.read_bytes())
+        except (OSError, ValidationError):
             return
-        found = read_latch_categories(self.env, project)
+        run_id = state.run_id
+        found = self._watch_reader(self.env, state.projects[0].name)
         with (self.root / "proxy-watch.jsonl").open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"stack_run_id": run_id, **found}) + "\n")
         if found["categories"]:
@@ -279,7 +311,7 @@ class LabCli:
 
 
 class ProxyWatchLatch(UserWarning):
-    """Aviso de que a vigia do proxy travou (`approval_changed`) durante a pilha do teste."""
+    """Aviso com as categorias coletadas de uma trava da vigia na pilha do teste."""
 
 
 def stack_suffix() -> str:
