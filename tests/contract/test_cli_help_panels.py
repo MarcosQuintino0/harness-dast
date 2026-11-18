@@ -1,7 +1,5 @@
 """Contrato dos painéis da ajuda principal do hdast."""
 
-import re
-
 from typer.core import TyperCommand, TyperGroup
 from typer.main import get_command
 from typer.testing import CliRunner
@@ -62,12 +60,20 @@ def test_every_root_command_has_a_help_panel() -> None:
 
 
 def test_start_here_is_the_first_command_panel_in_help() -> None:
+    # As bordas desenhadas pelo Rich mudam com o terminal (no CI não há TTY); por isso o
+    # teste confere a ordem de registro e a posição relativa dos nomes, não o desenho.
+    root = get_command(build_app())
+    assert isinstance(root, TyperGroup)
+    first = next(iter(root.commands.values()))
+    assert first.rich_help_panel == START_HERE_PANEL
+
     result = CliRunner().invoke(build_app(), ["--help"])
 
     assert result.exit_code == 0, result.output
-    panels = re.findall(r"^[┌╭+][─-]+ (.+?) [─-]+", result.output, re.MULTILINE)
-    command_panels = [panel for panel in panels if panel != "Options"]
-    assert command_panels[:1] == ["Comece por aqui"]
+    others = (REGISTRATION_AND_SCOPE_PANEL, TEST_STAGES_PANEL, RESULTS_AND_RETEST_PANEL)
+    start = result.output.find(START_HERE_PANEL)
+    assert start != -1, result.output
+    assert all(start < result.output.find(panel) for panel in others)
 
 
 def test_root_command_names_match_the_fixed_contract() -> None:
