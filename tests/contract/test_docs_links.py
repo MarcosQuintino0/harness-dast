@@ -101,6 +101,14 @@ def broken_links(path: Path, root: Path) -> list[str]:
             destination = path if file_part == "" else (path.parent / file_part.split("?")[0])
             where = f"{path.relative_to(root).as_posix()}:{number}"
             if not destination.exists():
+                # O roteiro versionado gera a imagem de abertura depois da gravação.
+                if (
+                    path == root / "README.md"
+                    and match.group(0).startswith("!")
+                    and target == "docs/media/demo.gif"
+                    and (root / "docs/media/demo.tape").is_file()
+                ):
+                    continue
                 problems.append(f"{where}: arquivo não existe: {target}")
             elif (
                 anchor
@@ -158,3 +166,21 @@ def test_the_checker_skips_generated_folders(tmp_path: Path) -> None:
 )
 def test_slugify_follows_the_github_rule(title: str, slug: str) -> None:
     assert slugify(title) == slug
+
+
+def test_readme_allows_only_the_generated_demo_image(tmp_path: Path) -> None:
+    media = tmp_path / "docs" / "media"
+    media.mkdir(parents=True)
+    (media / "demo.tape").write_text("Output demo.gif\n", encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "![hdast demo](docs/media/demo.gif)\n"
+        "[download](docs/media/demo.gif)\n"
+        "![outra imagem](docs/media/outra.gif)\n",
+        encoding="utf-8",
+    )
+
+    assert broken_links(readme, tmp_path) == [
+        "README.md:2: arquivo não existe: docs/media/demo.gif",
+        "README.md:3: arquivo não existe: docs/media/outra.gif",
+    ]

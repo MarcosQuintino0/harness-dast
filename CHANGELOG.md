@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- README de primeiro uso, índice da documentação atualizado e roteiros VHS para a demo e o reteste no VAmPI local.
 - `hdast demo` executa o VAmPI local em uma sessão temporária depois de aprovação digitada. A pilha é desmontada por padrão e o relatório HTML fica disponível para abrir no navegador. [ADR 0115](docs/decisoes/0115-hdast-demo.md)
 
 - Padrões mínimos da carta: "não sei" (`desconhecido`) em `limits.requests_per_second`, `limits.max_duration_minutes`, `limits.zap_threads_per_host` e `auth.login_max_per_minute` usa o mínimo fixado na CLI (1, 30, 1 e 1) e gera o aviso `MINIMUM_DEFAULT_APPLIED` em `data.warnings`; o valor também fica num comentário do cabeçalho do `target.yml`. Os portões, inclusive `scope.deny_paths`, continuam parando o cadastro com "não sei". Nada alarga: `path_mode`, força e o bloco `attack` seguem no mais estreito. [ADR 0114](docs/decisoes/0114-padroes-minimos-da-carta-e-setup.md).
