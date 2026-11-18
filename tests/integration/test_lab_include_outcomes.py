@@ -114,6 +114,10 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     started = time.monotonic()
     live = cli.run(*base, "--max-minutes", "5", timeout=900)
     seconds["scan"] = round(time.monotonic() - started, 1)
+    scan_file = cli.runs / run_id / "scan.json"
+    output = (live.stdout + live.stderr)[-1200:]
+    assert live.code in {0, 3}, f"O scan terminou com código {live.code}.\n{output}"
+    assert scan_file.is_file(), f"O scan não gerou {scan_file}.\n{output}"
     return OutcomesLab(
         mode=mode,
         run_id=run_id,
@@ -124,7 +128,7 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
         without_field=without.data,
         with_field=with_field.data,
         live_exit=live.code,
-        live=json.loads((cli.runs / run_id / "scan.json").read_text(encoding="utf-8")),
+        live=json.loads(scan_file.read_text(encoding="utf-8")),
         proxy_rows=proxy_audit(cli),
         seconds=seconds,
     )

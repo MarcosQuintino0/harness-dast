@@ -7,7 +7,7 @@ da execução. As credenciais são descartáveis, sorteadas aqui a cada subida. 
 """
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -66,9 +66,16 @@ def _probe(cli: LabCli, *flags: str) -> PilotRun:
     return PilotRun(result, zap, pilot_state(), run_audit(cli, run_id))
 
 
-def _start(root: Path, *flags: str, env: dict[str, str] | None = None) -> LabCli:
+def _start(
+    root: Path,
+    *flags: str,
+    env: dict[str, str] | None = None,
+    prepare: Callable[[LabCli], None] | None = None,
+) -> LabCli:
     cli = LabCli(root, {**throwaway_pilot_env(), **(env or {})})
     cli.install_product("clinica-piloto", PILOT_PROFILE)
+    if prepare is not None:
+        prepare(cli)
     up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
     if up.code != 0:
         cli.stack_down()
@@ -274,6 +281,13 @@ def test_cli_and_proxy_audits_agree_and_nothing_left_the_scope(pilot_session: Pi
     assert {(r["host"], r["port"]) for r in proxy} == {("clinica-piloto", 8080)}
 
 
+def _raise_login_limit(cli: LabCli) -> None:
+    target = cli.products / "clinica-piloto" / "target.yml"
+    text = target.read_text(encoding="utf-8")
+    assert "max_per_minute: 5\n" in text
+    target.write_text(text.replace("max_per_minute: 5\n", "max_per_minute: 60\n"), encoding="utf-8")
+
+
 @pytest.fixture(scope="module")
 def tuned_pilot(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
     """Piloto com token de 5 s e 60 logins por minuto, para provar o vencimento no meio."""
@@ -283,11 +297,8 @@ def tuned_pilot(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
         "--token-ttl",
         "5",
         env={"PILOT_LOGIN_MAX_PER_MINUTE": "60"},
+        prepare=_raise_login_limit,
     )
-    target = cli.products / "clinica-piloto" / "target.yml"
-    text = target.read_text(encoding="utf-8")
-    assert "max_per_minute: 5\n" in text
-    target.write_text(text.replace("max_per_minute: 5\n", "max_per_minute: 60\n"), encoding="utf-8")
     try:
         yield cli
     finally:

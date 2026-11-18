@@ -1,7 +1,8 @@
 """`scan` do envio de arquivo (ADR 0052, T52b) contra a Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build`, `preflight`, `probe --only
-enviarDocumento` e `scan --run <id> --only enviarDocumento --max-minutes 5`.
+Nível RÁPIDO: duas subidas por modo, antes e depois da edição do perfil. Cada subida tem
+`preflight` e `probe --only enviarDocumento`. A segunda inclui a prova de que o scan pula a
+operação.
 
 O perfil é uma CÓPIA descartável com `scan.allow_upload_scan: true` acrescentado só nela: ali isso
 faz o papel da carta autorizando a varredura de upload (o perfil do laboratório versionado não o
@@ -118,12 +119,40 @@ def _measure(cli: LabCli, mode: str) -> UploadScan:
     without = cli.run(*base, "--dry-run")
     assert without.code == 0, without.stdout[-800:]
     _enable_upload_scan(cli.products / "clinica-piloto" / "target.yml")
+    run_id = _probe_after_restack(cli, flags, seconds)
+    return _measure_skip(cli, mode, run_id, without.data, seconds)
+
+
+def _probe_after_restack(cli: LabCli, flags: list[str], seconds: dict[str, float]) -> str:
+    started = time.monotonic()
+    up = cli.restack("clinica-piloto", "--build", *flags)
+    assert up.code == 0, (up.stdout + up.stderr)[-1200:]
+    seconds["restack"] = round(time.monotonic() - started, 1)
+    preflight = cli.run("preflight", "clinica-piloto")
+    assert preflight.code == 0, (preflight.stdout + preflight.stderr)[-1200:]
+    started = time.monotonic()
+    probe = cli.run("probe", "clinica-piloto", "--only", OPERATION, timeout=900)
+    assert probe.code == 0, (probe.stdout + probe.stderr)[-1200:]
+    seconds["probe_with_permission"] = round(time.monotonic() - started, 1)
+    return str(probe.envelope["run_id"])
+
+
+def _measure_skip(
+    cli: LabCli, mode: str, run_id: str, without: dict[str, Any], seconds: dict[str, float]
+) -> UploadScan:
+    base = ["scan", "clinica-piloto", "--run", run_id, "--only", OPERATION]
     with_permission = cli.run(*base, "--dry-run")
     assert with_permission.code == 0, with_permission.stdout[-800:]
+    assert with_permission.data["planned"] == [], "O plano incluiu operações para o varredor"
+    assert _skipped(with_permission.data).get(OPERATION) == "multipart_not_scannable"
     started = time.monotonic()
     live = cli.run(*base, "--max-minutes", "5", timeout=900)
     seconds["scan"] = round(time.monotonic() - started, 1)
-    scan = json.loads((cli.runs / run_id / "scan.json").read_text(encoding="utf-8"))
+    scan_file = cli.runs / run_id / "scan.json"
+    output = (live.stdout + live.stderr)[-1200:]
+    assert live.code == 0, f"O scan terminou com código {live.code}.\n{output}"
+    assert scan_file.is_file(), f"O scan não gerou {scan_file}.\n{output}"
+    scan = json.loads(scan_file.read_text(encoding="utf-8"))
     history = ZapHistory(cli.state_file())
     messages = [m for m in history.all_messages(PILOT_BASE) if _is_upload_multipart(m)]
     needles = secret_values(cli, history, PILOT_BASE)
@@ -131,7 +160,7 @@ def _measure(cli: LabCli, mode: str) -> UploadScan:
     return UploadScan(
         mode=mode,
         run_id=run_id,
-        dry_without_permission=without.data,
+        dry_without_permission=without,
         dry_with_permission=with_permission.data,
         scan_exit=live.code,
         scan=scan,
