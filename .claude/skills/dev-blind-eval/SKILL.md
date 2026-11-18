@@ -7,6 +7,7 @@ description: "Use ao desenvolver o harness-dast para preparar e registrar uma ro
 
 1. Leia [evals/README](../../../evals/README.md) e o [protocolo](../../../evals/protocolo-da-rodada-cega.md).
    Respeite o briefing e a trava do laboratório; este roteiro não autoriza uma rodada por si só.
+   Para preparar a rodada numa máquina descartável, siga o [guia do Codespaces](../../../docs/desenvolver/rodada-cega-codespaces.md).
 2. Prepare uma cópia por lista de permissão. Confira o manifesto de raízes/contagens e a varredura de vazamentos.
    Não entregue `dev-*`, resultados, pesquisa, histórico, gabaritos nem conversa do coordenador ao agente avaliado.
 3. Lance um processo novo, sem contexto, com o pedido padronizado do protocolo. Segredos ficam no lacre;

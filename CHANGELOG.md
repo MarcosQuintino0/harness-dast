@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Configuração de Codespaces descartáveis com Python 3.12, `uv` e Docker, e preparo da cópia cega com a base Git da rodada no lacre do coordenador. [Guia do Codespaces](docs/desenvolver/rodada-cega-codespaces.md)
 - O benchmark da cerca ganha um workflow manual ou por PR com rótulo `lab`, com JUnit, tempos e diagnóstico da vigia. O job manual de integração sai de `ci.yml`. [ADR 0118](docs/decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)
 - O laboratório pode construir ZAP, proxy e Clínica Piloto uma vez por sessão com `HDAST_IT_PREBUILT=1`. A rodada registra o tempo de cada subida e aceita filtros por arquivo e expressão do pytest. [ADR 0117](docs/decisoes/0117-reuso-de-imagens-no-laboratorio.md)
 - O laboratório ganha o nível `lab_prova` e o comando `tests.integration.lab_round`. A rodada local seleciona o núcleo e as provas por área e registra métricas, JUnit e log sob uma trava exclusiva. [ADR 0116](docs/decisoes/0116-niveis-do-laboratorio.md)
