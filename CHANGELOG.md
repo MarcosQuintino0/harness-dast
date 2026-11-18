@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- O laboratório roda em paralelo no GitHub Actions (`lab.yml`), por execução manual com o nível `fast`, `prova`, `regressao`, `carga` ou `tudo`, ou por PR com o rótulo `lab` (nível `fast`). O `planejar` monta a matriz de pedaços (arquivo e modo) pelo `lab_round --pedacos-json`; o `imagens` constrói as imagens uma vez e as passa pelo cache; cada pedaço roda numa máquina própria; o `resumo` junta os JUnits (`.github/scripts/lab_summary.py`) e falha se algum pedaço falhar ou ficar sem resultado. Nova opção `HDAST_IT_PREBUILT_TAG` reaproveita imagens já carregadas só se as três tiverem a identidade `inputs-<hash>` dos insumos do checkout (`lab_images --chave`, hash dos bytes reais e também a chave do cache), e o nível `carga` do `lab_round` junta o benchmark da cerca e a matriz V1.7. O job manual de integração sai de `ci.yml`. [ADR 0118](docs/decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)
+- Configuração de Codespaces descartáveis com Python 3.12, `uv` e Docker, e preparo da cópia cega com a base Git da rodada no lacre do coordenador. [Guia do Codespaces](docs/desenvolver/rodada-cega-codespaces.md)
+- O laboratório pode construir ZAP, proxy e Clínica Piloto uma vez por sessão com `HDAST_IT_PREBUILT=1`. A rodada registra o tempo de cada subida e aceita filtros por arquivo e expressão do pytest. [ADR 0117](docs/decisoes/0117-reuso-de-imagens-no-laboratorio.md)
+- O laboratório ganha o nível `lab_prova` e o comando `tests.integration.lab_round`. A rodada local seleciona o núcleo e as provas por área e registra métricas, JUnit e log sob uma trava exclusiva. [ADR 0116](docs/decisoes/0116-niveis-do-laboratorio.md)
 - README de primeiro uso, índice da documentação atualizado e roteiros VHS para a demo e o reteste no VAmPI local.
 - `hdast demo` executa o VAmPI local em uma sessão temporária depois de aprovação digitada. A pilha é desmontada por padrão e o relatório HTML fica disponível para abrir no navegador. [ADR 0115](docs/decisoes/0115-hdast-demo.md)
 

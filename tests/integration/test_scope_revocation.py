@@ -79,7 +79,7 @@ def test_revogacao_durante_probe_trava_concessoes_no_proxy(
     run_id = ""
     exit_code: int | None = None
     try:
-        up = cli.run("stack", "up", "vampi", "--build", timeout=900)
+        up = cli.stack_up("vampi", timeout=900)
         assert up.code == 0, "nao foi possivel subir a pilha de laboratorio"
         audit_name = up.data.get("audit_file")
         assert isinstance(audit_name, str)

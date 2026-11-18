@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from harness_dast.domain.run_summary import STAGES
 from tests.integration.lab_support import (
     PILOT_PROFILE,
     VAMPI_OPENAPI,
@@ -62,7 +63,7 @@ def _scenario(
 ) -> Facts:
     """Sobe a pilha no modo pedido, roda `hdast run`, coleta os fatos e derruba a pilha."""
     try:
-        assert cli.run("stack", "up", product, mode, timeout=600).code == 0
+        assert cli.stack_up(product, mode, timeout=600).code == 0
         scenario = run_scenario(name, cli, "--max-minutes", RUN_MINUTES, *flags, product=product)
         facts = collect_facts(scenario, base, pilot=pilot)
         _report_if_the_run_stopped_before_it(scenario, product)
@@ -147,8 +148,8 @@ def _common_assertions(facts: Facts) -> None:
     summary = scenario.load("run.json")
     assert summary["exit_code"] == scenario.result.code
     assert scenario.result.code in {0, 1, 3}, scenario.result.stdout[-800:]
-    assert [s["name"] for s in summary["stages"]] == ["preflight", "probe", "scan", "report"]
-    assert summary["stages"][0]["status"] == "ok"
+    assert tuple(stage["name"] for stage in summary["stages"]) == STAGES
+    assert summary["stages"][STAGES.index("preflight")]["status"] == "ok"
     assert facts.rules_left == []
     assert facts.secret_hits == []
     scan = scenario.load("scan.json")
@@ -257,7 +258,7 @@ def kill_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     cli = LabCli(tmp_path_factory.mktemp("vampi-kill"), VAMPI_ENV)
     cli.install_product("vampi", VAMPI_PROFILE, (VAMPI_OPENAPI,))
     try:
-        assert cli.run("stack", "up", "vampi", timeout=600).code == 0
+        assert cli.stack_up("vampi", timeout=600).code == 0
         process = popen_run(cli, "vampi", "--max-minutes", RUN_MINUTES)
         progress = _wait_for_scanning(cli, process)
         started = time.time()
@@ -308,6 +309,13 @@ def _wait_for_scanning(cli: LabCli, process: Any) -> dict[str, Any]:
                 assert isinstance(loaded, dict)
                 return loaded
         time.sleep(2)
+    if process.poll() is not None:
+        # Sem a saída do comando, uma saída precoce não diz o motivo (código 4 no GitHub).
+        stdout, stderr = process.communicate(timeout=30)
+        pytest.fail(
+            f"o run terminou com código {process.returncode} antes da varredura.\n"
+            f"{stdout[-1500:]}\n{stderr[-800:]}"
+        )
     pytest.fail("o run não chegou à varredura a tempo")
 
 
@@ -317,7 +325,7 @@ def _find_run_json(run_dirs: list[Path]) -> dict[str, Any]:
     for folder in run_dirs:
         if (folder / "run.json").exists():
             loaded = json.loads((folder / "run.json").read_text(encoding="utf-8"))
-            if loaded["stages"][1]["status"] == "ok":
+            if any(s["name"] == "probe" and s["status"] == "ok" for s in loaded["stages"]):
                 assert isinstance(loaded, dict)
                 return loaded
     pytest.fail("nenhum run.json com o probe concluído")
@@ -335,4 +343,4 @@ def test_stop_during_scan_ends_the_run_cleanly_within_seconds(kill_run: dict[str
     assert summary["stop_requested"] is True
     # Desde o ADR 0025 o relatório sai mesmo com a varredura interrompida, sobre o que foi
     # coletado e sem tráfego novo ao alvo; a saída continua 130.
-    assert summary["stages"][3]["status"] == "ok"
+    assert any(s["name"] == "report" and s["status"] == "ok" for s in summary["stages"])

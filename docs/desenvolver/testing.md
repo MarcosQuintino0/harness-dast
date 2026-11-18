@@ -8,7 +8,7 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 | --- | --- | --- | --- | --- |
 | Unitário | Regras de `domain`, `config`, `observability` e `cli`. Inclui testes baseados em propriedades (hypothesis) para escopo, caminhos, janelas e sobrescritas. Casos de uso com portas falsas (`tests/fakes/`) | Nenhuma | A cada commit e no CI | **Existe.** `tests/unit/` espelha `src/` (`domain`, `application`, `adapters`, `cli`, `config`, `observability`, `evals`, `lab`) |
 | Suíte de QA independente (`*_qa.py`) | Testes escritos por um revisor que não escreveu o código, a partir da especificação: ataques de parser differential, propriedades com oráculo próprio, limites, redação de logs. Convivem com os unitários | Nenhuma | A cada commit e no CI | **Existe** (revisão de 2026-11-13; veja abaixo) |
-| Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release (não roda no pull request) | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seção abaixo |
+| Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release. A rodada completa também roda no GitHub Actions, por PR com rótulo `lab` ou manualmente | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seções abaixo |
 | Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** `tests/contract/` tem um arquivo por comando (`test_cli_*.py`: envelope, códigos de saída, `--json`), o modelo de perfil (`test_template_profile.py`), a conformidade dos documentos (`test_docs_conformance_qa.py`), os links dos documentos (`test_docs_links.py`), as skills e os guias (`test_skills_and_guides.py`) e o isolamento do estado (`test_state_isolation.py`). A suíte única que todo adaptador de `Scanner` precisa passar ainda não existe (só há o adaptador do ZAP) |
 | Ponta a ponta | `hdast run` contra o VAmPI e a Clínica Piloto do lab: achado conhecido presente, zero requisição fora do escopo, nenhum segredo nos artefatos, regras removidas, trava de emergência e limpeza no Oracle | Docker, lab | Antes de release | **Existe**, dentro de `tests/integration/test_lab_run.py` e `test_cleanup_oracle.py`; não há marcador `e2e` separado |
 | Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Roteiro escrito ([avaliacao-das-skills.md](avaliacao-das-skills.md)); a confirmar se alguma pessoa o executou |
@@ -19,25 +19,68 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 Até que degrau testar cada mudança (checagens, unitários, ataque direcionado, varredura completa, rodada cega) e os comandos de cada um: [escada-de-testes.md](escada-de-testes.md).
 
 ```bash
-uv run pytest                  # só os testes que não exigem Docker
-uv run pytest -m integration   # exige Docker; horas (cada varredura leva 12 a 30 min)
-uv run pytest -m integration tests/integration/test_lab_vampi.py   # só alcançabilidade (minutos)
-uv run pytest -m lab_fast                 # nível RÁPIDO (ciclo conserta-e-roda): poucos endpoints, uma pilha por grupo
-HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full   # nível COMPLETO: todos os endpoints, política padrão, vulnerável e seguro; grava as medidas
+uv run pytest
+uv run python -m tests.integration.lab_round --nivel changed --dry-run
+uv run python -m tests.integration.lab_round --nivel changed
 ```
 
 Por padrão, `pytest` exclui os marcadores `integration` e `e2e` (configurado em `pyproject.toml`). Os marcadores `integration`, `contract` e `e2e` existem. Passar `-m` na linha de comando substitui o filtro padrão.
 
 Antes de abrir um pull request, rode as seis verificações listadas na [Parte A do AGENTS.md](../../AGENTS.md#antes-de-terminar-rode).
 
-### Dois níveis de integração contra o lab
+<a id="dois-níveis-de-integração-contra-o-lab"></a>
 
-| Nível | Marcador | O que roda | Para quê |
+### Níveis de integração contra o lab
+
+| Rodada | Marcador | O que roda | Quando |
 | --- | --- | --- | --- |
-| Rápido | `lab_fast` (e `integration`) | `test_lab_fast.py`: sonda e varre 2 operações do piloto (uma escrita com XSRF, uma leitura com parâmetro, escolhidas pelo mecanismo e não por falha plantada) e confere XSRF em toda escrita do varredor, token em toda requisição, zero segredo nos artefatos, regras do Replacer removidas e as negações do proxy contadas; uma varredura do VAmPI a 5 req/s prova que o limitador de taxa segura (média ate 5,25 e pico até 6 req/s na auditoria do proxy); parada de emergência durante o `run`; limpeza no Oracle depois de `run` mais uma varredura de duas escritas; `test_lab_path_scope.py` (V1.1: 44 formas de caminho do ADR 0026 contra uma isca (caminho proibido do laboratório) pelo proxy real nos modos estrito e amplo, `detail` granular, caminho byte a byte e atraso do endpoint lento) e `test_lab_path_differential.py` (cerca x servidor: o que o Spring e o Flask roteiam de fato contra as leituras de `domain/widepath.py`, mais a coerção numérica do parâmetro) | Ciclo conserta-e-roda e rodadas que não dão nota |
-| Completo | `lab_full` (e `integration`) | `test_lab_run.py`: `hdast run` com todos os endpoints, política padrão do ZAP, VAmPI e piloto em modo vulnerável e seguro, comparação entre execuções | Comparação com o gabarito; uma vez por alvo e modo, no fim |
+| `changed` | `lab_fast` e/ou `lab_prova` | Núcleo e provas das áreas atingidas. Arquivo de apoio comum ou caminho sem área aciona o núcleo inteiro | Ciclo local, conforme a [tabela de áreas](escada-de-testes.md#mudei-x-rodo-y) |
+| `fast` | `lab_fast` | Núcleo completo, incluindo cerca, autorização, dados, scan, reteste e parada | Fechamento e mudanças sem área conhecida |
+| `prova` | `lab_prova` | Provas de versão, incluindo controles, OAST, estratégia, desempenho e limpeza | Fechamento. No ciclo local, `changed` seleciona as provas afetadas |
+| `regressao` | `regressao_dirigida` | Cenários dirigidos da Clínica Piloto e do VAmPI | Ao conferir a regressão do laboratório |
+| `tudo` | `integration or e2e` | Toda a integração e ponta a ponta, inclusive `lab_full` e os casos marcados apenas como `integration` | Quando o plano pedir a suíte inteira |
 
-O nível rápido NÃO valida: cobertura de todas as operações, a política padrão sobre o alvo inteiro, a comparação com o gabarito e o comportamento de varreduras longas (renovação de token, prazo, saúde do alvo sob carga). Escolher regras ou endpoints olhando o gabarito das falhas plantadas é proibido no nível completo. Os testes de alcançabilidade (`test_lab_vampi.py`, `test_lab_pilot.py`) e `test_cleanup_oracle.py` só levam `integration`.
+O degrau completo usa `lab_full` com a política padrão e todas as operações dos alvos
+previstos no plano de versão. A prova mede cobertura, comparação com o gabarito e
+comportamento sob varredura longa. Escolher regras ou operações pelo gabarito é proibido
+nesse degrau. [Varredura completa](escada-de-testes.md#degrau-4-varredura-completa)
+
+O [mapa de áreas](../../tests/integration/lab_areas.toml) lista os arquivos dos níveis
+`fast` e `prova`. Ao acrescentar um teste com um desses marcadores, atualize a área e a
+tabela da escada. O teste de contrato compara o mapa com a coleta do pytest.
+
+#### Imagens construídas uma vez por sessão
+
+No PowerShell, ative `HDAST_IT_PREBUILT=1` e rode pelo comando de rodada, que mantém a trava exclusiva do laboratório. Para limitar a seleção, use `--arquivo` com o nome de um arquivo do nível e `--k` com uma expressão do pytest. Neste exemplo, os colchetes selecionam o ID do parâmetro da fixture.
+
+```powershell
+$env:HDAST_IT_PREBUILT = '1'
+uv run python -m tests.integration.lab_round --nivel fast --arquivo test_lab_multipart.py --k '[secure]'
+Remove-Item Env:HDAST_IT_PREBUILT
+```
+
+A sessão constrói ZAP, proxy e Clínica Piloto com os arquivos Compose do checkout antes de iniciar os testes. Cada projeto tem até 30 minutos de build. As duas imagens próprias recebem tags exclusivas da sessão e a Clínica usa sua tag local padrão. O teste passa `HDAST_STACK_BUILD=reuse` para que o Compose também suba o alvo anexado com `--no-build`. A CLI confere a presença das imagens próprias e a versão do proxy em cada subida. As tags continuam no Docker após a execução.
+
+`metricas/stack-up.jsonl` registra produto, segundos, modo de build e código de saída de cada subida pela infraestrutura de teste. Esses tempos não incluem o build inicial no modo pré-construído e não comprovam o comportamento da primeira construção com cache frio. Para comparar com o fluxo anterior, retire `HDAST_IT_PREBUILT` e repita a seleção. Imagens auxiliares podem ser baixadas durante a subida. A coleta com `--collect-only` não constrói imagens.
+
+### Laboratório no GitHub Actions
+
+O workflow `lab.yml` roda o laboratório em máquinas efêmeras do GitHub, em paralelo, só contra os alvos do próprio projeto ([ADR 0118](../decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)). Ele cobre o núcleo (`lab_fast`), as provas (`lab_prova`), a regressão dirigida e a carga.
+
+**Como disparar.** Antes do merge, adicione o rótulo `lab` ao PR: roda o nível `fast` e repete a cada novo commit enquanto o rótulo estiver lá. Com o arquivo na branch padrão, abra **Actions → Laboratório → Run workflow** e escolha `nivel`: `fast` (padrão), `prova`, `regressao`, `carga` ou `tudo` (soma os quatro). Não há gatilho de `push`. A aprovação de PRs de fora é configuração do dono, citada no ADR.
+
+**O que acontece.**
+
+| Job | O que faz |
+| --- | --- |
+| `planejar` | `lab_round --nivel <nivel> --pedacos-json` coleta os testes do nível e monta a matriz: um pedaço por arquivo, partido por modo (`vulnerable` e `secure`) ou produto quando o arquivo é grande. |
+| `imagens` | Constrói uma vez as imagens do checkout (ZAP, proxy e Clínica) e as guarda no `actions/cache`. A chave é `python -m tests.integration.lab_images --chave`: um hash dos bytes reais (sem converter CRLF) de `src/**`, `docker/**`, `lab/pilot/**`, `README.md`, `pyproject.toml`, `uv.lock` e `compose.yaml`, os arquivos que os Dockerfiles copiam (um teste confere). Cada imagem recebe também a tag `inputs-<hash>`, e o reuso só vale se as três tiverem a identidade do checkout atual; senão reconstrói e avisa. Imagem nunca vai como artefato. |
+| `pedaco` | Até 20 máquinas ao mesmo tempo. Cada uma restaura o cache, faz `docker load` e roda `lab_round --nivel <nivel> --arquivo <arquivo> [--k <modo>]` com `HDAST_IT_PREBUILT_TAG`, trava em `$RUNNER_TEMP` e sufixo `-gh<run>a<tentativa>p<índice>`. |
+| `resumo` | Sempre roda. Cada pedaço grava `estado.json` (status do job e contagens). O resumo falha se faltar artefato, JUnit ou estado, se o job do pedaço não terminou em `success`, se o pedaço não teve nenhum teste aprovado (só pulados também falha) ou se `needs.pedaco.result` não foi `success`. |
+
+O nível `carga` roda o benchmark da cerca (`test_guard_benchmark.py`, sem pedidos ao alvo) e a matriz V1.7 (`test_scan_performance_matrix.py`, com `HDAST_V17_DEADLINE_EPOCH` calculado no passo). A regressão usa o marcador `regressao_dirigida`. Nenhum teste pode estar em dois níveis (`lab_fast`, `lab_prova`, `regressao_dirigida` e carga): a carga roda só o que é apenas `integration` nos dois arquivos dela, e o planejamento falha com o id e os níveis se algum teste se repetir. Um teste de contrato confere isso pela coleta real e que a soma dos pedaços é a união dos níveis, sem perda nem duplicação. A concorrência separa por ref, evento e nível: só a rodada do mesmo nível na mesma ref é cancelada, e um rótulo que não seja `lab` não cancela nada.
+
+**Onde ver.** Em **Summary** da execução: pedaços, aprovados, falhas e pulados, tempo por pedaço, os 15 testes mais lentos e as travas da vigia. Em **Artifacts**, `lab-<pedaço>` guarda por três dias o JUnit, as métricas, o `pytest.log` e o `proxy-watch.jsonl`. Para ver os pedaços sem rodar, use `uv run python -m tests.integration.lab_round --nivel tudo --pedacos-json` localmente (só coleta; não sobe pilha). A prova do workflow é a própria execução no GitHub. No ciclo diário, use `lab_round --nivel changed` no computador local.
 
 ## Dublês: quando usar e quando evitar
 
@@ -106,7 +149,7 @@ A "janela fechada no meio da execução" depende de quem executa (a conferência
 - **Imagem do ZAP:** atualizar a imagem é uma mudança como outra qualquer, em pull request próprio, com integração e ponta a ponta.
 - **Defeito corrigido:** chega com o teste que o reproduzia.
 
-Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e existem em `tests/integration/` (níveis `lab_fast` e `lab_full`, fora do `uv run pytest` padrão).
+Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e existem em `tests/integration/`, fora do `uv run pytest` padrão.
 
 ## Avaliação das skills
 

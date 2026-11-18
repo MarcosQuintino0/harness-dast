@@ -1,0 +1,22 @@
+{
+  "name": "harness-dast",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {}
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb"
+  },
+  "postCreateCommand": "uv sync --locked",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "remote.autoForwardPorts": false
+      }
+    }
+  }
+}

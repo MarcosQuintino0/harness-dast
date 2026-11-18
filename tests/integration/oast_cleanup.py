@@ -5,7 +5,6 @@ mesma prova componham um único resultado sanitizado, mesmo com falhas independe
 """
 
 import json
-import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -13,12 +12,10 @@ from dataclasses import dataclass, field
 from functools import partial
 
 from harness_dast.domain.errors import HarnessError
+from tests.integration.crapi_support import crapi_project, project
 
 Runner = Callable[[tuple[str, ...]], str]
 OWNER_LABEL = "io.hdast.oast.owner"
-_SUFFIX = os.environ.get("HDAST_IT_STACK_SUFFIX") or "-codex"
-PROJECT = "hdast" + _SUFFIX
-CRAPI_PROJECT = "hdast-crapi" + _SUFFIX
 FAILURES = (
     OSError,
     subprocess.SubprocessError,
@@ -82,7 +79,7 @@ class OastCleanup:
         )
         if owner != self.owner:
             raise ValueError("rede não pertence à prova")
-        project = self.run(
+        project_name = self.run(
             (
                 "network",
                 "inspect",
@@ -91,7 +88,7 @@ class OastCleanup:
                 found[0],
             )
         )
-        if project != PROJECT:
+        if project_name != project():
             raise ValueError("rede não pertence ao projeto exclusivo")
         return found[0]
 
@@ -133,7 +130,7 @@ class OastCleanup:
 
     def _gateway(self) -> None:
         containers = self._containers(
-            f"label=com.docker.compose.project={PROJECT}",
+            f"label=com.docker.compose.project={project()}",
             "label=com.docker.compose.service=oast-gateway",
         )
         self._remove_containers("gateway", containers)
@@ -149,7 +146,7 @@ class OastCleanup:
         if not isinstance(members, dict):
             raise TypeError("membros da rede inválidos")
         workshops = self._containers(
-            f"label=com.docker.compose.project={CRAPI_PROJECT}",
+            f"label=com.docker.compose.project={crapi_project()}",
             "label=com.docker.compose.service=crapi-workshop",
         )
         for container in workshops:
@@ -184,7 +181,7 @@ class OastCleanup:
 
     def _verify_gateway_absent(self) -> None:
         if self._containers(
-            f"label=com.docker.compose.project={PROJECT}",
+            f"label=com.docker.compose.project={project()}",
             "label=com.docker.compose.service=oast-gateway",
         ):
             raise ValueError("gateway ainda existe")
@@ -215,7 +212,7 @@ class OastCleanup:
         ):
             raise ValueError("inventário confiável ausente; requer intervenção humana")
         allowed = {
-            PROJECT: {
+            project(): {
                 "zap",
                 "zap-gateway",
                 "proxy-gateway",
@@ -224,7 +221,7 @@ class OastCleanup:
                 "vampi-tls",
                 "oast-gateway",
             },
-            CRAPI_PROJECT: {
+            crapi_project(): {
                 "crapi-identity",
                 "crapi-community",
                 "crapi-workshop",
@@ -235,10 +232,10 @@ class OastCleanup:
                 "api.mypremiumdealership.com",
             },
         }
-        for project, services in allowed.items():
-            for container in self._containers(f"label=com.docker.compose.project={project}"):
+        for project_name, services in allowed.items():
+            for container in self._containers(f"label=com.docker.compose.project={project_name}"):
                 self._verify_stack_container(container, services)
-            self._verify_stack_storage(project)
+            self._verify_stack_storage(project_name)
 
     def _verify_stack_container(self, container: str, services: set[str]) -> None:
         service = self.run(
@@ -289,10 +286,10 @@ class OastCleanup:
         found: set[str] = set()
         networks: set[str] = set()
         volumes: set[str] = set()
-        for project in (PROJECT, CRAPI_PROJECT):
-            found.update(self._containers(f"label=com.docker.compose.project={project}"))
-            networks.update(self._project_networks(project))
-            volumes.update(self._project_volumes(project))
+        for project_name in (project(), crapi_project()):
+            found.update(self._containers(f"label=com.docker.compose.project={project_name}"))
+            networks.update(self._project_networks(project_name))
+            volumes.update(self._project_volumes(project_name))
         self.stack_containers = found
         self.stack_networks = networks
         self.stack_volumes = volumes
@@ -322,8 +319,8 @@ class OastCleanup:
         if self.gateway_intended:
             self._attempt("rede_final_inspect", self._network, ownership=True)
             self._verify_oast("oast_final_restante")
-        for project in (PROJECT, CRAPI_PROJECT):
-            self._verify_project(project)
+        for project_name in (project(), crapi_project()):
+            self._verify_project(project_name)
 
     def _verify_project(self, project: str) -> None:
         label = f"label=com.docker.compose.project={project}"
@@ -355,8 +352,8 @@ class OastCleanup:
         )
 
     @staticmethod
-    def _project_network_suffixes(project: str) -> tuple[str, ...]:
-        if project == PROJECT:
+    def _project_network_suffixes(project_name: str) -> tuple[str, ...]:
+        if project_name == project():
             return ("zap_net", "lab_net", "egress_net", "host_net", "oast_net")
         return ("crapi_net", "publish_net")
 

@@ -51,7 +51,7 @@ def _retest(cli: LabCli, previous: str) -> tuple[dict[str, Any], str]:
 
 
 def _up(cli: LabCli, *flags: str) -> None:
-    up = cli.run("stack", "up", "vampi", *flags, timeout=600)
+    up = cli.stack_up("vampi", *flags, timeout=600)
     assert up.code == 0, up.stdout[-800:] + up.stderr[-800:]
 
 

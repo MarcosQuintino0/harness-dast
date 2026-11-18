@@ -1,8 +1,7 @@
 """Sinais de erro interno vistos pela cerca (ADR 0049) contra a Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build` (obrigatório: sem ele a cerca é a
-antiga e o teste mediria a imagem velha), `probe`, `scan` de até duas operações de leitura
-e `report`. A busca por CRM tem resposta base de sucesso e exercita o ZAP em um caminho com
+Nível RÁPIDO: uma pilha por modo com a cerca deste checkout, `probe`, `scan` de até duas
+operações de leitura e `report`. A busca por CRM tem resposta base de sucesso em um caminho com
 parâmetro; não exige que suas mutações produzam sinais.
 Prova o CONTRATO, não a sorte do ZAP: o pedido que provoca o erro sai do próprio `probe`. A CÓPIA
 descartável do `data-rules.yml` ganha uma regra que fixa `nome` de `buscarPacientesPorNome` numa
@@ -24,7 +23,7 @@ um ambiente corporativo (só HTTP no laboratório).
 import json
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -128,7 +127,7 @@ def _leaks(cli: LabCli) -> tuple[list[str], list[str], list[str]]:
 
 def _measure(cli: LabCli, mode: str) -> SignalsLab:
     flags = ["--secure"] if mode == "secure" else []
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     assert cli.run("preflight", "clinica-piloto").code == 0
     started = time.monotonic()
@@ -303,14 +302,24 @@ def test_in_vulnerable_mode_the_fence_counts_a_java_stack_trace_and_in_secure_mo
         assert lab.findings["proxy_signals"]["counts"].get("stack_trace_java", 0) == 0
 
 
+def assert_audit_row_has_no_response_text(row: Mapping[str, object]) -> None:
+    """Aceita somente campos de auditoria conhecidos e tempos sem texto de resposta."""
+    assert set(row) <= {
+        "ts", "run_id", "method", "scheme", "host", "port", "path", "query_params",
+        "decision", "reason", "detail", "status", "bytes", "duration_ms", "waited_ms",
+        "grant_wait_ms", "network_ms", "signals", "signal_skip",
+    }  # fmt: skip
+    for key in ("grant_wait_ms", "network_ms"):
+        if key in row:
+            value = row[key]
+            assert type(value) is int, key
+            assert value >= 0, key
+
+
 def test_no_audit_line_and_no_file_of_the_run_contains_response_text(lab: SignalsLab) -> None:
     assert lab.leaked == []
     for row in lab.proxy_rows:
-        assert set(row) <= {
-            "ts", "run_id", "method", "scheme", "host", "port", "path", "query_params",
-            "decision", "reason", "detail", "status", "bytes", "duration_ms", "waited_ms",
-            "signals", "signal_skip",
-        }  # fmt: skip
+        assert_audit_row_has_no_response_text(row)
 
 
 def test_plain_json_200_responses_have_no_signals(lab: SignalsLab) -> None:

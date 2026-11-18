@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.lab_support import LabCli, require_docker
+from tests.integration.lab_support import LabCli, require_docker, stack_suffix
 from tests.integration.test_lab_fast import VAMPI_ENV
 from tests.integration.test_scan_performance_matrix import _install
 
@@ -39,13 +39,13 @@ def test_guard_benchmark(tmp_path: Path) -> None:
     cli = LabCli(tmp_path, VAMPI_ENV)
     _install(cli, "vampi", "B")
     try:
-        up = cli.run("stack", "up", "vampi", "--build", "--vulnerable", timeout=900)
+        up = cli.stack_up("vampi", "--vulnerable", timeout=900)
         assert up.code == 0
         containers = _docker(
             "ps",
             "-q",
             "--filter",
-            "label=com.docker.compose.project=hdast",
+            f"label=com.docker.compose.project=hdast{stack_suffix()}",
             "--filter",
             "label=com.docker.compose.service=scope-proxy",
         ).splitlines()

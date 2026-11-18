@@ -1,6 +1,6 @@
 """Alcance do `multipart` no `probe` (ADR 0052, T52c) contra a Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build` (sem ele a cerca é a antiga), `preflight`
+Nível RÁPIDO: uma pilha por modo com a cerca deste checkout, `preflight`
 e `probe --only enviarDocumento`. A operação de envio do laboratório é igual nos dois modos e não
 tem falha plantada: serve só para provar que o corpo chegou ao alvo como `multipart/form-data` de
 verdade (o parser do alvo leu o campo `arquivo` e devolveu 201).
@@ -36,6 +36,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 PILOT_BASE = "http://clinica-piloto:8080"
 OPERATION = "enviarDocumento"
 UPLOAD_PATH = "/api/documentos/enviar"
+LOGIN_PATH = "/api/auth/login"
 MODES = ("vulnerable", "secure")
 # Conteúdo constante do arquivo sintético de texto e assinatura do PNG sintético: nada disso pode
 # ir para os artefatos.
@@ -87,7 +88,7 @@ def _measure(cli: LabCli, mode: str) -> MultipartLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0
@@ -192,7 +193,13 @@ def test_the_proxy_released_the_upload_inside_the_fence_once_per_send(lab: Multi
         if r["phase"] == "result" and r["method"] == "POST" and r["path"] == UPLOAD_PATH
     ]
     assert len(rows) == len(sent) == 1
-    denied = [r for r in lab.proxy_rows if r["decision"] != "allow"]
+    # O limite de logins do perfil faz a cerca recusar logins com `rate_backoff` (429); isso é
+    # carga, não escopo. Qualquer outra recusa continua proibida.
+    throttled = [r for r in lab.proxy_rows if r["reason"] == "rate_backoff"]
+    assert all(r["path"] == LOGIN_PATH and r["status"] == 429 for r in throttled), throttled
+    denied = [
+        r for r in lab.proxy_rows if r["decision"] != "allow" and r["reason"] != "rate_backoff"
+    ]
     assert denied == []
 
 

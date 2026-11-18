@@ -37,7 +37,7 @@ def test_v19_preserva_varredura_completa(tmp_path: Path, product: str) -> None:
     _install(cli, product, "A")
     stages: list[dict[str, object]] = []
     try:
-        up = cli.run("stack", "up", product, "--build", timeout=900)
+        up = cli.stack_up(product, timeout=900)
         assert up.code == 0, up.stdout + up.stderr
         started = time.monotonic()
         _command(cli, stages, "preflight", product)

@@ -137,3 +137,6 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0113 | [Imagens publicadas e conferência de versão da cerca](0113-imagens-publicadas-e-conferencia-de-versao.md) | Proposto |
 | 0114 | [Padrões mínimos da carta e o comando humano `hdast setup`](0114-padroes-minimos-da-carta-e-setup.md) | Proposto |
 | 0115 | [Demonstração local com `hdast demo`](0115-hdast-demo.md) | Proposto |
+| 0116 | [Núcleo de integração, provas de versão e seleção por área](0116-niveis-do-laboratorio.md) | Proposto |
+| 0117 | [Reuso de imagens no laboratório](0117-reuso-de-imagens-no-laboratorio.md) | Proposto |
+| 0118 | [Laboratório em máquinas efêmeras do GitHub](0118-laboratorio-em-maquinas-efemeras-do-github.md) | Proposto |

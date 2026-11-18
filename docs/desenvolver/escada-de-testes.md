@@ -65,14 +65,63 @@ Antes de começar:
 - `HDAST_ZAP_API_KEY` definida na sessão, com um valor aleatório que não vai para arquivo versionado ([lab/README.md](../../lab/README.md)).
 - O perfil de laboratório numa pasta de produtos e **aprovado por uma pessoa** (`hdast profile approve`, ADR 0037). Um agente nunca aprova: diante de `SCOPE_NOT_APPROVED`, ele para e pede.
 
-### Pelo nível rápido de integração
+### Pelo comando de rodada
 
-O caminho mais curto e repetível. Já existe e confere o mecanismo em poucas operações (detalhes em [testing.md](testing.md#dois-níveis-de-integração-contra-o-lab)):
+Comece conferindo a seleção. `changed` usa as mudanças desde o ancestral comum com
+`origin/chore/reestruturacao` (ajustável por `--base`) mais os arquivos preparados, as
+edições locais e os arquivos novos. Uma mudança só de documentação encerra com aviso.
+Arquivos compartilhados e mudanças sem área acendem todo o núcleo. A seleção também
+soma as provas das áreas identificadas. [Níveis de integração](testing.md#níveis-de-integração-contra-o-lab)
 
 ```bash
-uv run pytest -m lab_fast
-uv run pytest -m lab_fast tests/integration/test_lab_path_scope.py
+uv run python -m tests.integration.lab_round --nivel changed --dry-run
+uv run python -m tests.integration.lab_round --nivel changed
 ```
+
+`--dry-run` mostra o comando do pytest e a seleção. No fechamento, use `--nivel fast`
+para o núcleo inteiro e `--nivel prova` para as provas de versão. `--nivel regressao`
+seleciona a regressão dirigida e `--nivel tudo` seleciona toda a integração e ponta
+a ponta, incluindo `lab_full`.
+
+A rodada segura a trava exclusiva `C:\harness-dast-artefatos\lab.lock` e registra dono
+(`--dono`, por padrão o usuário do sistema), horário UTC e nível. Se outra pessoa já
+ocupa o laboratório, o comando informa o dono e sai. `--trava` permite apontar para
+o caminho compartilhado acordado pela equipe.
+
+A saída padrão é `C:\harness-dast-artefatos\rodadas\<UTC>-<nivel>\`. Use `--saida`
+para escolher uma pasta vazia. Ali ficam `junit.xml`, `pytest.log` com `--durations=30`
+e `-rfE`, e a subpasta `metricas`. `--sufixo` define `HDAST_IT_STACK_SUFFIX`
+e usa `-claude` por padrão. Para executar as medições da V1.7, defina previamente
+`HDAST_V17_DEADLINE_EPOCH` com o prazo da rodada em segundos Unix. A medição exige
+reserva de tempo e pula quando a variável está ausente.
+
+Para tirar peso do computador local, a rodada completa do núcleo, as provas, a regressão dirigida e a carga também rodam no GitHub Actions: adicione `lab` ao PR (nível `fast`) ou, com o workflow na branch padrão, use **Actions → Laboratório → Run workflow** e escolha o nível (`fast`, `prova`, `regressao`, `carga` ou `tudo`). Os pedaços rodam em paralelo; consulte **Summary** para o resultado e **Artifacts** (`lab-<pedaço>`) para JUnit, métricas e diagnósticos. [Laboratório no GitHub Actions](testing.md#laboratório-no-github-actions)
+
+#### Mudei X, rodo Y
+
+A tabela mostra quantos arquivos cada área seleciona por nível. O
+[mapa de áreas](../../tests/integration/lab_areas.toml) contém todos os globs
+e arquivos de teste. Quando mais de uma área muda, `changed` reúne seus arquivos.
+
+<!-- lab-areas:start -->
+
+| Mudei... | Exemplo de caminho | Núcleo (`lab_fast`) | Provas (`lab_prova`) |
+| --- | --- | ---: | ---: |
+| Cerca e proxy | `src/harness_dast/adapters/scope_proxy/**` | 6 | 2 |
+| Scan e ZAP | `src/harness_dast/application/scan*.py` | 6 | 5 |
+| Autorização e JWT | `src/harness_dast/application/authz/**` | 3 | 4 |
+| Valores proibidos e restauração | `src/harness_dast/application/negative*.py` | 2 | 1 |
+| Probe, sessões e dados | `src/harness_dast/application/probe*.py` | 7 | 2 |
+| Run, parada, reteste e limpeza | `src/harness_dast/application/run*.py` | 3 | 2 |
+| OAST | `src/harness_dast/application/oast_*.py` | 1 | 3 |
+| crAPI | `lab/crapi/**` | 0 | 4 |
+| Clínica Piloto | `lab/pilot/**` | 12 | 12 |
+| VAmPI | `lab/vampi/**` | 4 | 11 |
+| Imagens e pilha | `compose.yaml` | 4 | 3 |
+| Estratégia e reuso | `src/harness_dast/application/strategy*.py` | 2 | 5 |
+| Verificações extras | `src/harness_dast/application/extra_checks.py` | 2 | 3 |
+
+<!-- lab-areas:end -->
 
 ### À mão, pelos comandos `hdast`
 
@@ -113,7 +162,7 @@ Roteiro **não cego** que prova em poucos minutos que nada regrediu no laborató
 - VAmPI vulnerável: V1 e V3.
 
 ```bash
-uv run pytest -m regressao_dirigida
+uv run python -m tests.integration.lab_round --nivel regressao
 ```
 
 Roda `probe` e `authz` em cada cenário e um `scan --only` só nas operações em que o ZAP detecta a falha (`tests/integration/test_regressao_dirigida.py`). Exige Docker, a trava do laboratório quando há outras frentes e uma pilha por vez. O tempo por cenário vai para `HDAST_IT_METRICS_DIR` (`regressao-dirigida-<cenário>`). A H11 (injeção em cabeçalho, ADR 0092) fica fora até a trilha F poder detectá-la. Roteiro de regressão, não nota: não substitui o degrau 4 nem a rodada cega.

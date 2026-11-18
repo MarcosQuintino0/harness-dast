@@ -11,7 +11,7 @@ from tests.integration.run_support import record_metrics, throwaway_pilot_env
 from tests.integration.test_lab_mass_assignment_and_pair import _install, _summary
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
@@ -26,11 +26,8 @@ def test_v19_authz_observacao_dirigida(tmp_path: Path, product: str, mode: str) 
     cli = LabCli(tmp_path, env)
     _install(cli, product)
     try:
-        up = cli.run(
-            "stack",
-            "up",
+        up = cli.stack_up(
             product,
-            "--build",
             *(["--secure"] if mode == "secure" else []),
             timeout=900,
         )

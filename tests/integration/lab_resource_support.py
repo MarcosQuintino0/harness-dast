@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from harness_dast.domain.errors import HarnessError
+from tests.integration.crapi_support import crapi_project, project
 from tests.integration.lab_support import REPO
-from tests.integration.oast_cleanup import CRAPI_PROJECT, PROJECT, OastCleanup
+from tests.integration.oast_cleanup import OastCleanup
 
 
 @dataclass(frozen=True)
@@ -63,15 +64,15 @@ def inventory(run: Callable[[tuple[str, ...]], str]) -> Inventory:
     containers = set(inspector.stack_containers)
     networks = set(inspector.stack_networks)
     volumes = set(inspector.stack_volumes)
-    for project in (PROJECT, CRAPI_PROJECT):
-        containers.update(inspector._containers(f"name=^/{project}-"))
-        for suffix in inspector._project_network_suffixes(project):
-            networks.update(inspector._named_networks(project, suffix))
-        named = run(("volume", "ls", "-q", "--filter", f"name=^{project}_"))
+    for project_name in (project(), crapi_project()):
+        containers.update(inspector._containers(f"name=^/{project_name}-"))
+        for suffix in inspector._project_network_suffixes(project_name):
+            networks.update(inspector._named_networks(project_name, suffix))
+        named = run(("volume", "ls", "-q", "--filter", f"name=^{project_name}_"))
         for name in named.splitlines():
             if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]*", name):
                 raise ResourceSafetyError("Nome de volume inválido; intervenção humana.")
-            if name.startswith(project + "_"):
+            if name.startswith(project_name + "_"):
                 volumes.add(name)
     identities = set()
     for name in volumes:

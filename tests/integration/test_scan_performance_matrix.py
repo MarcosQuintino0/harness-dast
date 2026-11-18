@@ -163,8 +163,10 @@ def _record(
 
 
 def _remaining(maximum: int) -> int:
-    deadline = float(os.environ["HDAST_V17_DEADLINE_EPOCH"])
-    remaining = int(deadline - time.time())
+    deadline = os.environ.get("HDAST_V17_DEADLINE_EPOCH")
+    if deadline is None:
+        pytest.skip("A medição V1.7 tem orçamento e requer HDAST_V17_DEADLINE_EPOCH.")
+    remaining = int(float(deadline) - time.time())
     if remaining < 1:
         pytest.fail("Orçamento V1.7 esgotado; interromper a prova")
     return min(maximum, remaining)
@@ -184,10 +186,7 @@ def _exercise(
     lifecycle = Lifecycle(Path(os.environ["HDAST_IT_METRICS_DIR"]), name, product)
     lifecycle.before_up()
     try:
-        assert (
-            cli.run("stack", "up", product, "--build", f"--{mode}", timeout=_remaining(900)).code
-            == 0
-        )
+        assert cli.stack_up(product, f"--{mode}", timeout=_remaining(900)).code == 0
         lifecycle.after_up()
         zap_view = FastZapView(cli.state_file())
         if layer == "t4":
@@ -281,7 +280,7 @@ def test_v17_t4(tmp_path: Path, product: str, variant: str) -> None:
     _exercise(tmp_path, product, variant, "t4", 1)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("variant", ["A", "B"])
@@ -289,7 +288,7 @@ def test_v17_t2_sql(tmp_path: Path, product: str, mode: str, variant: str) -> No
     _exercise(tmp_path, product, variant, "t2", 1, mode)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("variant", ["A", "B"])
 def test_v17_t2_path(tmp_path: Path, mode: str, variant: str) -> None:

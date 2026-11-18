@@ -116,7 +116,7 @@ def _scan_flags(*operations: str) -> list[str]:
 
 def _run_pilot(cli: LabCli, mode: str, lab: dict[str, Any]) -> list[str]:
     _blind_profile(cli)
-    up = ["stack", "up", "clinica-piloto", "--build"] + (["--secure"] if mode == "secure" else [])
+    up = ["stack", "up", "clinica-piloto"] + (["--secure"] if mode == "secure" else [])
     _step(cli, lab, "stack_up", *up)
     _step(cli, lab, "preflight", "preflight", "clinica-piloto")
     probe = _step(cli, lab, "probe", "probe", "clinica-piloto")
@@ -133,7 +133,7 @@ def _run_pilot(cli: LabCli, mode: str, lab: dict[str, Any]) -> list[str]:
 
 def _run_vampi(cli: LabCli, lab: dict[str, Any]) -> list[str]:
     _install(cli, "vampi")
-    _step(cli, lab, "stack_up", "stack", "up", "vampi", "--build")
+    _step(cli, lab, "stack_up", "stack", "up", "vampi")
     _step(cli, lab, "preflight", "preflight", "vampi")
     # V3: a criação não devolve o título; só a leitura de dono fecha o par (ver test_v193).
     first = _step(cli, lab, "probe_authz", "probe", "vampi", "--only", VAMPI_CREATE_OPERATION)
@@ -168,7 +168,7 @@ def lab(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
     cli = LabCli(tmp_path_factory.mktemp(f"regressao-{name}"), env)
     state: dict[str, Any] = {"seconds": {}, "exit_codes": {}}
     guard = None
-    if cli.env.get("HDAST_STACK_PROJECT_SUFFIX") == "-codex":
+    if cli.env.get("HDAST_STACK_PROJECT_SUFFIX"):
         guard = ResourceGuard(lambda: inventory(docker_runner(cli.env)))
     started = time.monotonic()
     completed = False

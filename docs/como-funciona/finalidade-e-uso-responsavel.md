@@ -24,7 +24,7 @@ Preparar um teste dinâmico dá trabalho: ler o Swagger, entender o login, achar
 
 Só contra **ambientes de teste de produtos nossos**, com **dados sintéticos**, e só com **autorização por escrito do dono do produto**: a carta de autorização. Ela diz o sistema, o ambiente, o que pode e o que não pode ser testado, a janela de horário, os limites de carga e a validade.
 
-Nunca contra produção, nunca com dados pessoais reais, nunca contra sistema de terceiros. O desenvolvimento e as provas do projeto acontecem num laboratório local, com sistemas vulneráveis de propósito (Clínica Piloto, VAmPI e crAPI), que só escutam no próprio computador.
+Nunca contra produção, nunca com dados pessoais reais, nunca contra sistema de terceiros. O desenvolvimento e as provas usam somente a Clínica Piloto, o VAmPI e o crAPI em contêineres com dados sintéticos. A pilha fica na própria máquina, seja no computador local ou em uma máquina efêmera do GitHub Actions ou do Codespaces. [ADR 0118](../decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)
 
 ## Como conferir se uma execução está autorizada
 
@@ -38,7 +38,7 @@ Se as três estiverem certas e a aprovação estiver `approved`, a execução po
 
 ## No laboratório
 
-Nos alvos do laboratório local, a aprovação humana tem dois substitutos, ambos em código e fora do alcance do agente que está trabalhando:
+Nos alvos do laboratório, a aprovação humana tem dois substitutos, ambos em código e fora do alcance do agente que está trabalhando:
 
 - **Testes de integração** (`tests/integration/`, marcadores `integration`, `lab_fast` e `lab_full`). O suporte dos testes instala os perfis do laboratório numa pasta de estado descartável e grava a aprovação ali (`approve_installed_products`). Assim o teste roda sem pessoa, e o perfil versionado e a aprovação de verdade não são tocados.
 - **Avaliação cega** ([evals/README.md](../../evals/README.md)). O agente avaliado escreve o perfil e para no primeiro comando que toca o alvo (`SCOPE_NOT_APPROVED`), como faria num produto real. O coordenador da rodada, fora do agente, roda `python -m evals.runner approve --out <rodada>`. Esse verificador confere o perfil contra a carta do caso e só aprova se nenhum bloco de proteção alarga a carta. Depois a rodada continua, e o agente avaliado segue respeitando a aprovação.
@@ -71,6 +71,6 @@ Elas valem para pessoas e para agentes, e nenhuma flag as afrouxa:
 
 ## Para agentes de IA que trabalham neste projeto
 
-- **Ao desenvolver**, você escreve código e testes de uma ferramenta defensiva de teste autorizado. As provas rodam só contra o laboratório local. Siga a parte A do [AGENTS.md](../../AGENTS.md) e a [escada de testes](../desenvolver/escada-de-testes.md).
+- **Ao desenvolver**, você escreve código e testes de uma ferramenta defensiva de teste autorizado. As provas são restritas aos alvos de laboratório e aos ambientes descritos acima. Siga a parte A do [AGENTS.md](../../AGENTS.md) e a [escada de testes](../desenvolver/escada-de-testes.md).
 - **Ao operar**, você conduz o fluxo autorizado por comandos `hdast` e a CLI executa dentro das travas acima. Antes de tocar o alvo, confira a carta, o perfil e a aprovação como descrito em "Como conferir se uma execução está autorizada". Siga a parte B do [AGENTS.md](../../AGENTS.md).
 - **Em qualquer dúvida sobre autorização, escopo ou janela, pare e pergunte.** A ferramenta falha fechada, e você também.

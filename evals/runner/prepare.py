@@ -187,6 +187,7 @@ def prepare(
     cases_dir: Path = CASES_DIR,
     reuse_from: Path | None = None,
     reuse_package: Path | None = None,
+    separate_git: bool = False,
 ) -> PrepareResult:
     """Cria `<out>/workspace` e `<out>/sealed`.
 
@@ -241,5 +242,5 @@ def prepare(
             f"(veja {dirs.sealed / 'leak-report.json'}). "
             "Acrescente o caminho em `exclude` do case.yml ou use --allow-leaks conscientemente."
         )
-    gitutil.init_baseline(dirs.workspace)
+    gitutil.init_baseline(dirs.workspace, separate_git=separate_git)
     return PrepareResult(dirs.workspace, dirs.sealed, tuple(excluded), leaks)

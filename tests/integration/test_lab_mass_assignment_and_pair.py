@@ -21,7 +21,7 @@ from tests.integration.lab_support import (
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 def _install(cli: LabCli, product: str) -> None:
@@ -125,8 +125,8 @@ def test_mass_e_par_automatico_nas_duas_apis(tmp_path: Path, product: str, mode:
     cli = LabCli(tmp_path, env)
     _install(cli, product)
     try:
-        flags = ["--build", *(["--secure"] if mode == "secure" else [])]
-        up = cli.run("stack", "up", product, *flags, timeout=900)
+        flags = [*(["--secure"] if mode == "secure" else [])]
+        up = cli.stack_up(product, *flags, timeout=900)
         assert up.code == 0, up.stdout[-1500:] + up.stderr[-1500:]
         assert cli.run("preflight", product).code == 0
         probe = cli.run("probe", product, timeout=900)

@@ -26,7 +26,7 @@ from tests.integration.safe_mode_support import (
 )
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 PILOT_BASE = "http://clinica-piloto:8080"
 VAMPI_BASE = "http://vampi:5000"
 

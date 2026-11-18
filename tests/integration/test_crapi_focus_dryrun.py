@@ -307,7 +307,6 @@ def test_crapi_foco_ensaio_sem_agente(tmp_path: Path) -> None:
         raise
     records["prepare"] = {"exclusoes": list(prepared.excluded), "vazamentos": len(prepared.leaks)}
     cli = LabCli(tmp_path / "isolado", {})
-    cli.env["HDAST_STACK_PROJECT_SUFFIX"] = "-codex"
     cli.products = prepared.workspace / "products"
     cli.runs = prepared.workspace / "runs"
     cli.state = out / "state"

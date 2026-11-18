@@ -22,7 +22,7 @@ from tests.integration.strategy_support import load_artifact
 from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 _METRICS_DIR = os.environ.get("HDAST_IT_METRICS_DIR")
 
 
@@ -48,7 +48,7 @@ def _run(
 
 
 def _up(cli: LabCli, stages: list[dict[str, object]], product: str, mode: str, name: str) -> None:
-    flags = ["--build", *(["--secure"] if mode == "secure" else [])]
+    flags = [*(["--secure"] if mode == "secure" else [])]
     _run(cli, stages, name, "stack", "up", product, *flags)
 
 

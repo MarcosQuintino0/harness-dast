@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from harness_dast.application.stack import MAIN_PROJECT
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.widepath import interpretations, literal_segments
 from tests.integration.lab_support import (
@@ -27,6 +28,7 @@ from tests.integration.lab_support import (
     VAMPI_PROFILE,
     LabCli,
     require_docker,
+    stack_suffix,
 )
 from tests.integration.path_support import artifacts_dir, direct, pilot_state, pilot_token
 from tests.integration.run_support import throwaway_pilot_env
@@ -263,7 +265,7 @@ def test_vampi_every_route_flask_reaches_is_among_the_model_readings(
     gaps: list[str] = []
     report: list[dict[str, object]] = []
     try:
-        assert cli.run("stack", "up", "vampi", timeout=600).code == 0
+        assert cli.stack_up("vampi", timeout=600).code == 0
         for resource in (
             Resource("usuarios", ("users", "v1"), 2),
             Resource("livros", ("books", "v1"), 2),
@@ -275,7 +277,8 @@ def test_vampi_every_route_flask_reaches_is_among_the_model_readings(
                     shutil.which("docker") or "docker",
                     "exec",
                     "-i",
-                    "hdast-vampi-1",
+                    # O projeto Compose leva o sufixo da rodada (pilhas isoladas por máquina).
+                    f"{MAIN_PROJECT}{stack_suffix()}-vampi-1",
                     "python",
                     "-c",
                     VAMPI_DRIVER,

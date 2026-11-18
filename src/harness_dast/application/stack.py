@@ -267,6 +267,9 @@ class StackManager:
         main_env: dict[str, str],
         build_local: bool,
     ) -> None:
+        # Sem opção explícita, o Compose ainda pode construir a imagem do alvo anexado.
+        reuse_target_image = self._environ.get("HDAST_STACK_BUILD") == "reuse"
+        attached_build = build_local if build_local or reuse_target_image else None
         for index, project in enumerate(state.projects):
             env = self._up_env(project, state, _target_options(target, request), ports)
             if index == 0:
@@ -274,9 +277,8 @@ class StackManager:
             self._compose.up(
                 project,
                 env,
-                # As imagens próprias já passaram pela conferência. O alvo anexado (quando há)
-                # pode precisar do build declarado no Compose dele para funcionar no laboratório.
-                build=(build_local or None) if index else False,
+                # As imagens próprias já passaram pela conferência.
+                build=attached_build if index else False,
                 timeout_seconds=request.timeout_seconds,
             )
 

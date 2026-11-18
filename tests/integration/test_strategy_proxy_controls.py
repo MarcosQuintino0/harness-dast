@@ -6,7 +6,7 @@ import pytest
 
 from tests.integration import test_lab_strategy as strategy_cases
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
