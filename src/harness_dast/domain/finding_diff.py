@@ -7,8 +7,9 @@ aviso e o campo `operation_scanned_now` existem para que ninguém leia o contrá
 """
 
 from collections.abc import Collection, Sequence
-from typing import Final
+from typing import Final, Literal
 
+from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.report.model import ComparisonInfo, FindingsReport, GoneFinding
@@ -18,6 +19,51 @@ COMPARISON_NOTICE: Final = (
     "varrida agora, a varredura pode ter sido cortada ou o varredor pode não ter repetido o "
     "ataque. Confirme com uma nova rodada controlada antes de dar o problema por resolvido."
 )
+
+RetestStatus = Literal["reproduced", "not_reproduced", "not_tested"]
+
+
+class RetestResult(ApiModel):
+    """Resultado do reteste de um achado anterior, limitado à execução atual."""
+
+    fingerprint: str
+    result: RetestStatus
+
+
+def classify_retest(
+    previous: Sequence[Finding],
+    current: Sequence[Finding],
+    scanned_operations: Collection[str],
+) -> tuple[RetestResult, ...]:
+    """Classifica cada achado anterior pela evidência registrada na execução atual.
+
+    Args:
+        previous: Achados selecionados de uma execução comparável.
+        current: Achados atuais do mesmo produto e da mesma versão de fingerprint.
+        scanned_operations: Identificadores das operações efetivamente varridas agora.
+
+    Returns:
+        Um resultado para cada item anterior, na ordem recebida, inclusive se o
+        fingerprint se repetir. Ausência do fingerprint só conta como não reprodução
+        quando a operação está na cobertura registrada.
+    """
+    observed = {item.fingerprint for item in current}
+    return tuple(
+        RetestResult(
+            fingerprint=item.fingerprint, result=_retest_status(item, observed, scanned_operations)
+        )
+        for item in previous
+    )
+
+
+def _retest_status(
+    finding: Finding, observed: set[str], scanned_operations: Collection[str]
+) -> RetestStatus:
+    if finding.fingerprint in observed:
+        return "reproduced"
+    if finding.operation_id is not None and finding.operation_id in scanned_operations:
+        return "not_reproduced"
+    return "not_tested"
 
 
 def ensure_comparable(baseline: FindingsReport, product: str) -> None:
@@ -56,8 +102,8 @@ def compare_findings(
     Returns:
         Os achados atuais com `comparison`, os achados da base não observados e o resumo.
     """
-    before = {item.fingerprint: item for item in baseline.findings}
-    now = {item.fingerprint for item in current}
+    before = {item.fingerprint for item in baseline.findings}
+    retest = classify_retest(baseline.findings, current, scanned_operations)
     marked = tuple(
         item.model_copy(
             update={"comparison": "persistent" if item.fingerprint in before else "new"}
@@ -72,10 +118,10 @@ def compare_findings(
             proposed_severity=item.proposed_severity,
             method=item.method,
             path_template=item.path_template,
-            operation_scanned_now=item.operation_id in scanned_operations,
+            operation_scanned_now=classified.result == "not_reproduced",
         )
-        for item in baseline.findings
-        if item.fingerprint not in now
+        for item, classified in zip(baseline.findings, retest, strict=True)
+        if classified.result != "reproduced"
     )
     persistent = sum(1 for item in marked if item.comparison == "persistent")
     info = ComparisonInfo(
