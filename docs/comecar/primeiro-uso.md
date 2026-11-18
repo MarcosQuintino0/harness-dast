@@ -1,8 +1,20 @@
-# Primeiro uso: do zero até a primeira varredura no laboratório
+# Primeiro uso com o VAmPI local
 
-Objetivo: instalar, subir o laboratório (VAmPI, uma API vulnerável de propósito, só na sua máquina), rodar uma varredura e ler o relatório. Leva cerca de 30 minutos, quase todos esperando a varredura. Os exemplos usam PowerShell no Windows; no Git Bash, troque `$env:X = "v"` por `export X=v`.
+Siga a [instalação da CLI](instalar.md) e [prepare as imagens da demo](docker.md#preparar-as-imagens-da-demo). Depois, rode o comando abaixo num terminal seu, na raiz do repositório.
 
-> Só o laboratório local. Para um produto de verdade, veja [cadastrar-um-produto.md](../usar/cadastrar-um-produto.md) e leia o aviso de uso autorizado do [README](../../README.md).
+```bash
+uv run hdast demo
+```
+
+O comando confere o Docker, as imagens e as portas. Quando aparecer o resumo do VAmPI, digite `demo` para aprovar. Reserve cerca de cinco minutos mais a subida e a parada da pilha. Ao terminar, o comando mostra o caminho do `report.html`, se ele foi gerado, e oferece abri-lo no navegador. A pilha é desmontada automaticamente. O relatório fica na pasta temporária indicada na saída.
+
+Use `uv run hdast demo --keep` para manter a pilha de pé. O comando mostra a pasta de estado que você usará para derrubá-la. [Referência da demo](../referencia/cli.md#hdast-demo)
+
+Para cadastrar um produto real, siga o [guia de cadastro](../usar/cadastrar-um-produto.md) e o aviso de uso autorizado do [README](../../README.md).
+
+## Roteiro manual do laboratório
+
+Os passos abaixo mostram as etapas individuais com o VAmPI local. Reserve cerca de 30 minutos. Os exemplos usam PowerShell no Windows. No Git Bash, troque `$env:X = "v"` por `export X=v`.
 
 ## 1. Instalar
 

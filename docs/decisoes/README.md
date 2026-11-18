@@ -134,3 +134,4 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0110 | [Reestruturação da documentação, licença MIT e congelamento de extras](0110-reestruturacao-documentacao-licenca-e-extras.md) | Proposto |
 | 0111 | [Hook PreToolUse como segunda camada das permissões do Claude Code](0111-hook-pretooluse-segunda-camada.md) | Proposto |
 | 0113 | [Imagens publicadas e conferência de versão da cerca](0113-imagens-publicadas-e-conferencia-de-versao.md) | Proposto |
+| 0115 | [Demonstração local com `hdast demo`](0115-hdast-demo.md) | Proposto |
