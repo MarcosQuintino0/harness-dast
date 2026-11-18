@@ -4,25 +4,55 @@ Caminho: `src/harness_dast/domain/`. Decisão: [ADR 0004](../../decisoes/0004-po
 
 ## Mapa por assunto
 
-Inventário histórico após a organização V1.9.4: **215 módulos de produção**, sem contar 4 arquivos `__init__.py`; a V1.11 acrescenta módulos e esses totais não são inventário atual.
-Grupos disjuntos somam o total: 135 módulos na raiz e 80 nos três subpacotes abaixo.
-Testes espelham `tests/unit/domain/`; adaptadores concretos continuam em `adapters/`.
+O pacote tem **155 arquivos Python na raiz** (154 módulos e `__init__.py`). O mapa soma **239 módulos de produção** (154 na raiz e 85 em subpacotes), com um grupo por módulo. A contagem exclui os 4 arquivos `__init__.py`. Os testes espelham `tests/unit/domain/`.
 
-Na V1.11, `verification.py` define o envelope e a classificação offline; `confirmation.py` seleciona e julga receitas fixas; `confirmation_observations.py` avalia cabeçalhos e comparações guardadas; `scan_binding.py` vincula a semente efetiva; `human_confirmation.py` define o registro humano. São regras puras, separadas do envio e armazenamento. Detalhes e limites em [verificação](../../referencia/verification.md).
+Os grupos congelados recebem apenas correções de defeitos. O diário de execução e a proteção de mutações pendentes seguem no núcleo. [ADR 0110](../../decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 
-| Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
-| --- | --- | --- | --- |
-| `authz/` | 35 | Regras/modelos de autorização, leitura de dono e lacunas | Nova regra de autorização neste subpacote |
-| `panel/` | 29 | Modelos de visão, agregação e renderização pura; apresentação preservada (ADR 0084) | Composição e apresentação do painel neste subpacote |
-| `report/` | 16 | Modelos, composição e formatos de relatório | Montagem e formatos do relatório neste subpacote |
-| Contrato da API, entradas e alcance | 35 | `account_routing.py`, `api_model.py`, `api_schema.py`, `api_summary.py`, `auth.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Execução, pilha, métricas e diário | 12 | `agent_metrics.py`, `audit.py`, `command_journal.py`, `command_translation.py`, `errors.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Limpeza | 6 | `cleanup_binds.py`, `cleanup_confirmation.py`, `cleanup_gate.py`, `cleanup_plan.py`, `cleanup_sql.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Achados, sinais, redação e reprodução | 21 | `cors.py`, `curl_repro.py`, `error_signal_catalog.py`, `finding.py`, `finding_build.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Estratégia, conhecimento e mutações | 14 | `envelope.py`, `knowledge.py`, `knowledge_checks.py`, `knowledge_evidence.py`, `knowledge_mutation.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Escopo, autorização da execução e tráfego | 15 | `host.py`, `overrides.py`, `pathpattern.py`, `proxy_deadline.py`, `scope.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Perfil, carta e referências a segredo | 15 | `letter.py`, `letter_collect.py`, `letter_negative.py`, `letter_outcomes.py`, `letter_review.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
-| Varredura e valores proibidos | 17 | `negative_config.py`, `negative_findings.py`, `negative_plan.py`, `negative_request.py`, `negative_result.py` e demais módulos do assunto | Estender o módulo específico; nova responsabilidade recebe módulo e teste espelhado |
+| Responsabilidade | Raiz | Subpacotes | Módulos principais | Onde entra código novo |
+| --- | ---: | ---: | --- | --- |
+| Carta, perfil e escopo | 37 | 0 | `letter.py`, `letter_review.py`, `profile.py`, `scope.py`, `scope_approval.py` | Estenda os campos da carta em `letter*.py`, a validação em `profile.py` e as decisões da cerca em `scope.py` e seus auxiliares. |
+| Contrato da API e alcance | 31 | 0 | `api_model.py`, `api_schema.py`, `datagen.py`, `request_builder.py`, `probe_plan.py`, `probe_result.py` | Modele o contrato em `api_model.py` e `api_schema.py`, regras de dados em `datagen.py` e elegibilidade do `probe` em `probe_plan.py`. |
+| Varredura e achados | 19 | 0 | `scan_plan.py`, `scan_policy.py`, `finding.py`, `finding_build.py`, `redaction.py` | Estenda seleção e política em `scan_plan.py` e `scan_policy.py`, identidade em `finding.py` e proteção de evidência em `redaction.py`. |
+| Checagens complementares | 10 | 0 | `extra_checks_config.py`, `extra_check_result.py`, `cors.py`, `experimental_rules.py`, `inventory_checks.py` | Modele a configuração em `extra_checks_config.py` e mantenha as regras puras no módulo da checagem. |
+| Autorização entre contas | 1 | 36 | `authz/config.py`, `authz/plan.py`, `authz/compare.py`, `probe_exchange.py` | Coloque regras de acesso e comparação em `authz/` e o contrato das trocas registradas pelo `probe` em `probe_exchange.py`. |
+| Valores proibidos | 8 | 0 | `negative_config.py`, `negative_plan.py`, `negative_values.py`, `negative_verdict.py` | Coloque seleção de casos em `negative_plan.py`, geração em `negative_values.py` e classificação em `negative_verdict.py`. |
+| Verificação | 5 | 0 | `verification.py`, `confirmation.py`, `confirmation_observations.py`, `scan_binding.py`, `human_confirmation.py` | Coloque classificação offline em `verification.py`, avaliação de observações em `confirmation_observations.py` e o registro humano em `human_confirmation.py`. |
+| Reteste | 1 | 0 | `retest.py` | Mantenha a seleção de achados e as regras de resultado em `retest.py`. |
+| Relatório e triagem | 6 | 18 | `report/build.py`, `report/presentation.py`, `finding_diff.py`, `triage.py` | Coloque composição e formatos em `report/`, comparação em `finding_diff.py` e anotações em `triage.py`. |
+| Limpeza | 6 | 0 | `cleanup_plan.py`, `cleanup_gate.py`, `cleanup_sql.py` | Coloque as regras do plano, do portão e da validação SQL nos respectivos módulos `cleanup_*.py`. |
+| Diário, execução e pilha | 10 | 0 | `audit.py`, `command_journal.py`, `run.py`, `run_summary.py`, `stack_lock.py` | Modele registros em `audit.py` e `command_journal.py`, identidade e carga em `run.py` e vínculo ou exclusividade em `stack_binding.py` ou `stack_lock.py`. |
+| Mutações pendentes | 2 | 0 | `knowledge_mutation.py`, `mutation_snapshot.py` | Coloque a identidade da mutação em `knowledge_mutation.py` e a projeção do estado anterior em `mutation_snapshot.py`. |
+| Erros e leitura comum | 2 | 0 | `errors.py`, `strict_json.py` | Acrescente erros compartilhados à hierarquia `HarnessError` e regras comuns de decodificação a `strict_json.py`. |
+| Painel **(congelado)** | 5 | 31 | `panel/build.py`, `panel/index_build.py`, `manual_repro.py`, `agent_metrics.py` | Corrija a composição em `panel/` e os contratos auxiliares no módulo correspondente. |
+| Estratégia e `plan` **(congelado)** | 7 | 0 | `strategy.py`, `strategy_capture.py`, `strategy_plan.py`, `strategy_preview.py` | Corrija modelos e validação em `strategy*.py` e os dados da prévia em `strategy_preview.py`. |
+| Conhecimento reutilizável **(congelado)** | 4 | 0 | `knowledge.py`, `knowledge_checks.py`, `knowledge_evidence.py`, `knowledge_receipts.py` | Corrija modelos, conferências e recibos nos respectivos módulos `knowledge*.py`. |
+| **Total** | **154** | **85** | | |
+
+<details>
+<summary>Inventário por grupo</summary>
+
+- **Carta, perfil e escopo** inclui `auth.py`, `host.py`, `letter.py`, `letter_attack.py`, `letter_collect.py`, `letter_defaults.py`, `letter_negative.py`, `letter_outcomes.py`, `letter_review.py`, `letter_sections.py`, `letter_shared_roles.py`, `letter_technology.py`, `letter_upload.py`, `letter_warnings.py`, `letter_writes.py`, `letter_yaml.py`, `overrides.py`, `pathpattern.py`, `placeholders.py`, `profile.py`, `profile_errors.py`, `proxy_deadline.py`, `routing_headers.py`, `scope.py`, `scope_approval.py`, `scope_approval_summary.py`, `scope_fingerprint.py`, `scope_labels.py`, `scope_reason.py`, `secret_ref.py`, `setup_notes.py`, `technology.py`, `urlnorm.py`, `wide_guard.py`, `widepath.py`, `window.py`, `zap_scope.py`.
+- **Contrato da API e alcance** inclui `account_routing.py`, `api_model.py`, `api_schema.py`, `api_summary.py`, `datagen.py`, `datagen_catalog.py`, `excerpt.py`, `flow.py`, `http_messages.py`, `implicit_values.py`, `login_hint.py`, `multipart_encoding.py`, `multipart_schema.py`, `outcome.py`, `pattern_subset.py`, `probe_config.py`, `probe_conflict.py`, `probe_plan.py`, `probe_policy.py`, `probe_result.py`, `request_builder.py`, `request_encoding.py`, `retry.py`, `retry_after.py`, `schema_check.py`, `spec_examples.py`, `spec_hints.py`, `synthetic_files.py`, `unique_values.py`, `versioned.py`, `zap_messages.py`.
+- **Varredura e achados** inclui `curl_repro.py`, `error_signal_catalog.py`, `finding.py`, `finding_build.py`, `finding_group.py`, `finding_taxonomy.py`, `internal_error_signals.py`, `redaction.py`, `scan_config.py`, `scan_plan.py`, `scan_policy.py`, `scan_result.py`, `scan_rule_coverage.py`, `scan_tokens.py`, `signal_findings.py`, `signal_operations.py`, `signal_result.py`, `traffic.py`, `zap_alert.py`.
+- **Checagens complementares** inclui `cors.py`, `experimental_rules.py`, `extra_check_result.py`, `extra_checks_config.py`, `inventory_checks.py`, `oast_bridge.py`, `oast_ssrf.py`, `oast_verification.py`, `rate_attempts.py`, `rate_page.py`.
+- **Autorização entre contas** inclui `authz/*.py`, `probe_exchange.py`.
+- **Valores proibidos** inclui `negative_config.py`, `negative_findings.py`, `negative_plan.py`, `negative_request.py`, `negative_result.py`, `negative_tally.py`, `negative_values.py`, `negative_verdict.py`.
+- **Verificação** inclui `confirmation.py`, `confirmation_observations.py`, `human_confirmation.py`, `scan_binding.py`, `verification.py`.
+- **Reteste** inclui `retest.py`.
+- **Relatório e triagem** inclui `report/*.py`, `finding_diff.py`, `fix_hints.py`, `html_safe.py`, `known_patterns.py`, `markdown_safe.py`, `triage.py`.
+- **Limpeza** inclui `cleanup_binds.py`, `cleanup_confirmation.py`, `cleanup_gate.py`, `cleanup_plan.py`, `cleanup_sql.py`, `cleanup_where.py`.
+- **Diário, execução e pilha** inclui `audit.py`, `command_journal.py`, `rule_stats.py`, `run.py`, `run_metrics.py`, `run_ref.py`, `run_summary.py`, `stack_binding.py`, `stack_lock.py`, `wait.py`.
+- **Mutações pendentes** inclui `knowledge_mutation.py`, `mutation_snapshot.py`.
+- **Erros e leitura comum** inclui `errors.py`, `strict_json.py`.
+- **Painel** (congelado) inclui `panel/*.py`, `agent_metrics.py`, `command_translation.py`, `finding_confidence.py`, `finding_explain.py`, `manual_repro.py`.
+- **Estratégia e `plan`** (congelado) inclui `envelope.py`, `strategy.py`, `strategy_basis.py`, `strategy_capture.py`, `strategy_control.py`, `strategy_plan.py`, `strategy_preview.py`.
+- **Conhecimento reutilizável** (congelado) inclui `knowledge.py`, `knowledge_checks.py`, `knowledge_evidence.py`, `knowledge_receipts.py`.
+
+Os curingas de subpacote cobrem os módulos Python da pasta indicada, excluindo `__init__.py`.
+
+</details>
+
+**Como conferir este mapa** · `rg --files src/harness_dast/domain -g '*.py' -g '!__init__.py'`
 
 ## Responsabilidade
 
