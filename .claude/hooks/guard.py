@@ -1,6 +1,12 @@
-"""Decide se uma chamada do Claude Code pode prosseguir, sem executá-la."""
+"""Decide chamadas do Claude Code sem executá-las.
 
+O módulo reúne a validação de entrada e a análise de shell para manter o hook
+autônomo, executável com a biblioteca padrão e sem dependências do projeto.
+"""
+
+import fnmatch
 import io
+import itertools
 import json
 import posixpath
 import re
@@ -39,8 +45,26 @@ PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
 SHELLS = frozenset(("sh", "bash", "dash", "zsh", "ksh"))
 POWERSHELLS = frozenset(("powershell", "pwsh"))
 FILE_READERS = frozenset(("cat", "type", "get-content"))
-FILE_WRITERS = frozenset(("set-content", "out-file", "mv", "rm", "remove-item"))
+READ_ONLY = frozenset(
+    ("cat", "type", "get-content", "head", "tail", "less", "grep", "rg", "ls", "dir")
+)
 ENV_LISTERS = frozenset(("get-childitem", "gci", "dir", "ls"))
+# Subcomandos do git que não reescrevem arquivos da pasta de trabalho: citar um caminho
+# protegido neles (inclusive numa mensagem de commit) não altera o arquivo.
+GIT_NO_WORKTREE_WRITE = frozenset(
+    (
+        ("diff",),
+        ("log",),
+        ("show",),
+        ("status",),
+        ("commit",),
+        ("add",),
+        ("push",),
+        ("fetch",),
+        ("grep",),
+        ("blame",),
+    )
+)
 SHELL_TOOLS = frozenset(("Bash", "PowerShell"))
 WRITE_TOOLS = frozenset(("Edit", "Write", "NotebookEdit"))
 SEARCH_TOOLS = frozenset(("Glob", "Grep"))
@@ -62,6 +86,7 @@ UV_VALUE_OPTIONS = frozenset(
         "--with",
         "--with-editable",
         "--with-requirements",
+        "--from",
     )
 )
 
@@ -91,10 +116,13 @@ def _reads_secret(path: str) -> bool:
 
 
 def _writes_control(path: str) -> bool:
-    path = f"/{_normalize_path(path).strip('/')}/"
-    return path.endswith(
-        ("/human-confirmations.json/", "/.claude/settings.json/", "/.mcp.json/")
-    ) or ("/hdast/approvals/" in path or "/.claude/hooks/" in path)
+    parts = _normalize_path(path).strip("/").split("/")
+    if "approvals" in parts or "human-confirmations.json" in parts or ".mcp.json" in parts:
+        return True
+    return any(
+        part == ".claude" and next_part in {"settings.json", "hooks"}
+        for part, next_part in itertools.pairwise(parts)
+    )
 
 
 def _executable(word: str) -> str:
@@ -118,6 +146,10 @@ def _normalize_command(words: list[str]) -> tuple[str, ...]:
     name, args = _executable(command), tuple(arguments)
     if name == "uv" and args[:1] == ("run",):
         inner = _skip_uv_options(args[1:])
+        if inner:
+            return _normalize_command(list(inner))
+    if name == "uvx":
+        inner = _skip_uv_options(args)
         if inner:
             return _normalize_command(list(inner))
     if PYTHON.fullmatch(name) and args[:2] == ("-m", "harness_dast"):
@@ -155,7 +187,7 @@ def _inline_code(name: str, args: tuple[str, ...]) -> str | None:
         return " ".join(args[1:])
     if PYTHON.fullmatch(name) and flag == "-c":
         return code
-    if name == "node" and flag in {"-e", "--eval"}:
+    if name in {"node", "ruby", "perl"} and flag in {"-e", "--eval"}:
         return code
     return None
 
@@ -168,19 +200,64 @@ def _check_redirection(operator: str, path: str) -> str | None:
     return None
 
 
-def _copy_target(args: tuple[str, ...]) -> str:
-    for index, arg in enumerate(args):
-        option, _, path = arg.partition("=")
-        if option in {"-t", "--target-directory", "-destination"}:
-            return path or next(iter(args[index + 1 :]), "")
-    return args[-1] if args else ""
+def _mentions_control(text: str) -> bool:
+    # Examina também caminhos dentro de literais de linguagens e argumentos nomeados.
+    parts = re.split(r"""[\s'"\x60(),;=]+""", text)
+    return any(_writes_control(part) for part in parts if part)
 
 
-def _writes_control_with_command(name: str, args: tuple[str, ...]) -> bool:
-    if name in {"cp", "copy-item"}:
-        return _writes_control(_copy_target(args))
-    in_place = name == "sed" and any(arg.startswith(("-i", "--in-place")) for arg in args)
-    return (name in FILE_WRITERS or in_place) and any(_writes_control(arg) for arg in args)
+def _clearly_read_only(name: str, args: tuple[str, ...]) -> bool:
+    if name in READ_ONLY:
+        return True
+    if name == "gh":
+        # O gh fala com o GitHub; só o checkout reescreve arquivos locais.
+        return args[:2] != ("pr", "checkout")
+    return (
+        name == "git"
+        and args[:1] in GIT_NO_WORKTREE_WRITE
+        and not any(arg == "--output" or arg.startswith("--output=") for arg in args)
+    )
+
+
+def _mentions_secret(text: str) -> bool:
+    return bool(re.search(r"(?i)(?<![\w])\.env(?!\.example(?![\w.-]))|\bstack\.json\b", text))
+
+
+def _check_substitutions(command: str) -> str | None:
+    # Apenas substituições fora de aspas simples são executadas pelo shell.
+    quote = ""
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if char == "'" and quote != '"':
+            quote = "" if quote else "'"
+        elif char == '"' and quote != "'":
+            quote = "" if quote else '"'
+        elif quote != "'" and (command.startswith("$(", index) or char == "`"):
+            end = _substitution_end(command, index)
+            offset = 2 if char == "$" else 1
+            if reason := _check_shell(command[index + offset : end]):
+                return reason
+            index = end
+        index += 1
+    return None
+
+
+def _substitution_end(command: str, start: int) -> int:
+    if command[start] == "`":
+        end = command.find("`", start + 1)
+        if end < 0:
+            raise ValueError(INVALID_INPUT)
+        return end
+    depth = 1
+    for index in range(start + 2, len(command)):
+        if command[index] == "(":
+            depth += 1
+        elif command[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError(INVALID_INPUT)
 
 
 def _reads_secret_with_command(name: str, args: tuple[str, ...]) -> bool:
@@ -192,14 +269,39 @@ def _reads_secret_with_command(name: str, args: tuple[str, ...]) -> bool:
 
 
 def _check_inline(name: str, args: tuple[str, ...]) -> str | None:
+    if name in POWERSHELLS and any(
+        arg.split(":", 1)[0] in {"-encodedcommand", "-enc", "-e"} for arg in args
+    ):
+        return "Comando PowerShell codificado barrado. Uma pessoa deve executá-lo."
+    if name == "cmd" and args[:1] in {("/c",), ("/k",)}:
+        return _check_shell(" ".join(args[1:]))
+    if name == "start-process":
+        return _check_start_process(args)
     code = _inline_code(name, args)
     if code is None:
         return None
+    if _mentions_secret(code):
+        return SENSITIVE_READ_DENIED
     if name in POWERSHELLS and POWERSHELL_NETWORK.search(code):
         return NETWORK_DENIED
     if name in SHELLS or name in POWERSHELLS:
         return _check_shell(code)
+    if _mentions_control(code):
+        return WRITE_DENIED
     return NETWORK_DENIED if INLINE_NETWORK.search(code) else None
+
+
+def _check_start_process(args: tuple[str, ...]) -> str | None:
+    values = [
+        arg.strip(",")
+        for arg in args
+        if arg.strip(",") not in {"-filepath", "-argumentlist", "-args"}
+    ]
+    if not values:
+        raise ValueError(INVALID_INPUT)
+    if reason := _check_words(values):
+        return reason
+    return _check_shell(" ".join(values))
 
 
 def _check_command(tokens: list[tuple[str, str]]) -> str | None:
@@ -230,12 +332,16 @@ def _check_words(words: list[str]) -> str | None:
         return NETWORK_DENIED
     if _reads_secret_with_command(name, args):
         return SENSITIVE_READ_DENIED
-    if _writes_control_with_command(name, args):
+    if reason := _check_inline(name, args):
+        return reason
+    if not _clearly_read_only(name, args) and any(_mentions_control(arg) for arg in args):
         return WRITE_DENIED
-    return _check_inline(name, args)
+    return None
 
 
 def _check_shell(command: str) -> str | None:
+    if reason := _check_substitutions(command):
+        return reason
     found_command = False
     for words in _shell_commands(command):
         found_command = True
@@ -253,17 +359,24 @@ def _require_text(data: dict[str, object], key: str) -> str:
     return value
 
 
+def _secret_pattern(pattern: str) -> bool:
+    parts = _normalize_path(pattern).split("/")
+    if not any(char in pattern for char in "*?["):
+        return _reads_secret(pattern)
+    candidates = (".env", ".env.local", ".env.production", "stack.json")
+    return (parts[-1].startswith(".env.") and _reads_secret(parts[-1])) or any(
+        fnmatch.fnmatchcase(name, parts[-1]) for name in candidates
+    )
+
+
 def _check_search(tool: str, data: dict[str, object]) -> str | None:
     pattern = _require_text(data, "pattern")
     base = _require_text(data, "path") if "path" in data else ""
-    selector = ""
-    if tool == "Glob":
-        selector = pattern
-    elif "glob" in data:
-        # O padrão de Grep é uma expressão de conteúdo. Os filtros selecionam arquivos.
+    selector = pattern if tool == "Glob" else ""
+    if tool == "Grep" and "glob" in data:
         selector = _require_text(data, "glob")
     paths = (base, selector, f"{base}/{selector}")
-    return SENSITIVE_READ_DENIED if any(_reads_secret(path) for path in paths) else None
+    return SENSITIVE_READ_DENIED if any(_secret_pattern(path) for path in paths) else None
 
 
 def _check_call(event: object) -> str | None:

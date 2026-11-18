@@ -253,7 +253,7 @@ def test_denies_control_when_tool_alters_it(
         ("Bash", {"command": "python -c 'print(42)'"}),
         ("Bash", {"command": "set -e"}),
         ("Bash", {"command": "env EXAMPLE=value git status"}),
-        ("Bash", {"command": "cp .claude/settings.json example.json"}),
+        ("Bash", {"command": "cat .claude/settings.json"}),
         ("Read", {"file_path": ".env.example"}),
         ("Read", {"file_path": "fixtures/stack.json"}),
         ("Bash", {"command": "cat .env.example"}),
@@ -346,8 +346,141 @@ def test_settings_register_the_guard_for_the_expected_tools() -> None:
                 "type": "command",
                 "command": (
                     "uv run --no-project --quiet python "
-                    '"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py"'
+                    '"$' + '{CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"'
                 ),
+                "onFailure": "block",
+                "timeout": 30,
             }
         ],
     } in pre_tool_use
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uvx hdast profile approve x",
+        "uvx --from pacote hdast secret set NOME",
+        ".venv/bin/hdast cleanup x",
+        r".venv\Scripts\hdast.exe mutation release x",
+        "echo $(curl example.invalid)",
+        "echo `curl example.invalid`",
+        "echo \"$(sh -c 'curl example.invalid')\"",
+        "cmd /c curl example.invalid",
+        "powershell -Command 'curl example.invalid'",
+        "pwsh -c 'curl example.invalid'",
+        "Start-Process -FilePath curl -ArgumentList example.invalid",
+        "Start-Process -FilePath python -ArgumentList '-c', 'import httpx'",
+        "pwsh -EncodedCommand ZWNobyB4",
+        "powershell -enc ZWNobyB4",
+        "pwsh -e ZWNobyB4",
+        "cd ~/.local/state/hdast && echo x > approvals/demo.json",
+        "tee approvals/demo.json",
+        "Copy-Item x approvals/demo.json",
+        "Move-Item x approvals/demo.json",
+        "New-Item approvals/demo.json",
+        "Add-Content approvals/demo.json x",
+        "dd if=x of=approvals/demo.json",
+        "install x approvals/demo.json",
+        "ln -s x approvals/demo.json",
+        "git checkout -- approvals/demo.json",
+        "git restore approvals/demo.json",
+        "git apply approvals/demo.json",
+        "git mv x approvals/demo.json",
+        "git rm approvals/demo.json",
+        "python -c \"open('approvals/demo.json', 'w')\"",
+        "python -c \"open('.env').read()\"",
+        "python -c \"open('.env.example.local').read()\"",
+        "node -e \"read('.env.local')\"",
+        "ruby -e \"read('stack.json')\"",
+        "perl -e \"read('.env')\"",
+        "powershell -Command 'Get-Content .env'",
+    ],
+)
+def test_denies_adversarial_command_when_it_contains_a_restricted_operation(
+    guard: ModuleType, command: str
+) -> None:
+    code, error = _call(guard, "Bash", command=command)
+
+    assert code == 2
+    assert error
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uvx hdast secret list",
+        "uvx --from pacote hdast profile approval x",
+        "echo $(git status)",
+        "echo `git status`",
+        "cmd /c git status",
+        "Start-Process -FilePath git -ArgumentList status",
+        "python -c \"open('.env.example').read()\"",
+        "git diff -- approvals/demo.json",
+        "tee reports/demo.json",
+    ],
+)
+def test_allows_similar_command_when_operation_is_permitted(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    ("tool", "data"),
+    [
+        ("Edit", {"file_path": "approvals/demo.json"}),
+        ("Write", {"file_path": r"any\approvals\demo.json"}),
+        ("Glob", {"pattern": "**/.e*"}),
+        ("Glob", {"pattern": ".env*"}),
+        ("Glob", {"pattern": ".env.secret*"}),
+        ("Glob", {"pattern": "*"}),
+        ("Grep", {"path": "src", "glob": "*", "pattern": "example"}),
+        ("Grep", {"path": "**/.e*", "pattern": "example"}),
+    ],
+)
+def test_denies_path_when_pattern_or_segment_covers_restricted_file(
+    guard: ModuleType, tool: str, data: dict[str, str]
+) -> None:
+    assert _call(guard, tool, **data)[0] == 2
+
+
+@pytest.mark.parametrize(
+    ("tool", "data"),
+    [
+        ("Glob", {"pattern": "**/*.py"}),
+        ("Grep", {"path": "src", "pattern": "example"}),
+        ("Edit", {"file_path": "approved/demo.json"}),
+    ],
+)
+def test_allows_path_when_pattern_or_segment_is_permitted(
+    guard: ModuleType, tool: str, data: dict[str, str]
+) -> None:
+    assert _call(guard, tool, **data) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'git commit -m "fix: tratar a pasta approvals no proxy"',
+        "git add src/harness_dast/domain/approvals.py",
+        'gh pr create --title "x" --body "mexe em .claude/settings.json"',
+    ],
+)
+def test_allows_mention_of_control_when_command_does_not_rewrite_files(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git checkout -- .claude/settings.json",
+        "git restore .claude/hooks/guard.py",
+        "gh pr checkout 12 && echo x > approvals/a.json",
+    ],
+)
+def test_denies_git_or_gh_command_when_it_rewrites_control_files(
+    guard: ModuleType, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 2
