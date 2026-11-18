@@ -10,8 +10,7 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/decisoes/0014-avaliacao-ceg
 | `cases/<caso>/case.yml` e `authorization.md` | Um caso: alvo, modos, carta, perfil esperado, gabarito em forma de máquina, orçamento |
 | `runner/` | `python -m evals.runner prepare, approve, snapshot, collect, score, classify, measure, compare` |
 | `protocolo-da-rodada-cega.md` | **Como fazer uma rodada cega completa igual às de 2026-11-15**: valores fixos, comandos na ordem, o que anotar (tempo, tokens, custo, falas do agente) e onde arquivar. Siga este protocolo nas rodadas novas |
-| `measurements/` | Medições salvas para comparar versões (só laboratório, só resumos). Veja [measurements/README.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/README.md) |
-| `results/` | Evidências detalhadas e sanitizadas de laboratório, intervenções e comparações. Veja [results/README.md](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/README.md) |
+| `results/<AAAA-MM-DD>-<estudo>/README.md` | Ficha resumida e sanitizada do estudo, que pode ser versionada. Veja [como arquivar](protocolo-da-rodada-cega.md#39-arquivar) |
 
 Casos: `clinica-piloto` (alvo próprio), `vampi` e `crapi` (públicos, com possível conhecimento prévio dos modelos), além do recorte [`crapi-foco`](cases/crapi-foco/case.yml). O crAPI só tem modo vulnerável e tem suporte no `hdast stack up`. Veja [O caso crAPI](#o-caso-crapi) e [Criar um caso](#criar-um-caso).
 
@@ -47,7 +46,7 @@ Remove-Item env:HDAST_ZAP_API_KEY, env:PILOT_*          # nada disto vale para a
 ### 2. Preparar o workspace e lacrar o modo
 
 ```powershell
-$out = "C:\rodadas\piloto-001"                       # pasta NOVA e vazia, fora do repositório
+$out = "C:\harness-dast-artefatos\rodadas-cegas\piloto-001"  # pasta nova e vazia, fora do repositório
 uv run python -m evals.runner prepare --case clinica-piloto --mode random --seed 1 --out $out
 ```
 
@@ -155,9 +154,8 @@ uv run python -m evals.runner classify --out $out
 ### 6. Medir tempo e tokens por etapa (opcional, depois do transcript)
 
 ```powershell
-uv run python -m evals.runner measure --out $out [--label "texto"]
-uv run python -m evals.runner measure --out $out --save v1-1 [--date 2026-11-14]   # copia o resumo para evals/measurements/
-uv run python -m evals.runner compare evals\measurements\<pastaA> evals\measurements\<pastaB> [--json]
+uv run python -m evals.runner measure --out $out --label "piloto-001"
+uv run python -m evals.runner measure --out $out --save piloto-001 --measurements-dir "$out\measurements"
 ```
 
 `measure` lê só `<out>\transcript.jsonl` (o mesmo arquivo do passo 4; o `trace\runs\*\metrics.json`, se existir, entra como resumo opcional) e grava `<out>\agent-metrics.json` (`schema_version` 1). Não chama modelo e não substitui o `score`: o `--tokens` e o `--duration-seconds` do `score` continuam manuais. O arquivo traz:
@@ -182,7 +180,9 @@ uns\*\metrics.json`, ADR 0031): por execução, só o resumo tipado: segundos de
 
 Uma chamada com vários comandos `hdast` tem a etapa do mais adiantado. O tempo de **espera** é o intervalo até o resultado de uma ferramenta em aberto (inclui a espera de permissão) e vai para a etapa da chamada; o de **pensar** é todo outro intervalo e vai para a etapa da mensagem seguinte. Os segundos das etapas somam a duração total. Limites: o carimbo de tempo é o da chegada do evento, então o "pensando" inclui a latência da API; chamadas paralelas na mesma mensagem dividem o tempo por ordem de chegada; uma chamada composta (`a && b | tail`) conta como falha se o shell devolveu saída diferente de 0, mesmo que só um dos comandos tenha falhado; `profile validate` que não foi rodado (o agente só usou `spec inspect`) deixa o cadastro valer até o próximo comando de outra etapa.
 
-`--save <rótulo>` copia para `evals/measurements/<AAAA-MM-DD>-<caso>-<rótulo>/` só os resumos e recusa sobrescrever (a data vem de `--date` ou do relógio da CLI). `compare` imprime a tabela de diferenças (B menos A); campo ausente aparece como `n/d`. O `compare` lê o `metrics.json` das execuções por um modelo tolerante (ADR 0031, `schema_version` 1; campo ausente ou de tipo errado, arquivo malformado ou versão desconhecida viram `n/d`, nunca erro nem zero) e mostra os segundos de cada etapa da CLI, o total de lacunas do proxy e as 10 regras do ZAP com maior diferença de tempo (por `plugin_id` e nome; com várias execuções na medição, os valores são somados).
+Ao usar `--save <rótulo>`, passe sempre `--measurements-dir` apontando para um diretório externo, como `C:\harness-dast-artefatos\rodadas-cegas\piloto-001\measurements`. Sem essa opção, o executor usa `evals/measurements/` dentro do clone. O resumo fica em `<diretório>/<AAAA-MM-DD>-<caso>-<rótulo>/`. A data vem de `--date` ou do relógio da CLI. O executor recusa sobrescrever a pasta.
+
+Passe ao `compare` os caminhos completos das duas pastas de medição externas. Ele imprime as diferenças (B menos A), incluindo os segundos por etapa da CLI, o total de lacunas do proxy e as 10 regras do ZAP com maior diferença de tempo por `plugin_id` e nome. Com várias execuções na medição, os valores são somados. Campo ausente ou inválido, arquivo malformado ou versão desconhecida de `metrics.json` aparece como `n/d` (ADR 0031).
 
 Repetições e orçamento por rodada ainda não estão fixados (pendência do roadmap). Cada caso traz um orçamento inicial em `budget` (tokens e segundos); trate-o como ponto de partida.
 
@@ -331,11 +331,7 @@ O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; roda
 Os resultados e as medições de rodadas antigas foram retirados do repositório em
 2026-11-18 e continuam disponíveis no histórico do Git, no commit
 [`fd611a9`](https://github.com/MarcosQuintino0/harness-dast/tree/fd611a9/evals).
-O executor ainda pode gravar novas medições em `evals/measurements/`.
 
 ## Retenção de resultados e medições
 
-Versionar apenas resumo, protocolo/manifesto, nota, métricas comparáveis e evidências sanitizadas necessárias à conclusão.
-Transcripts brutos, estado/lacre, segredos, sessões ZAP, logs completos e dumps ficam só locais, fora do Git, conforme o protocolo.
-Para novas rodadas, máximo de **10 MiB por rodada** somando results e measurements: acima disso, manter evidência volumosa
-em arquivo local controlado e versionar índice, hashes e resumo sanitizado. Não cortar evidência para transformar lacuna em sucesso.
+Mantenha os artefatos das novas rodadas no diretório externo da rodada. Quando valer a pena versionar o resultado, registre a ficha resumida e sanitizada em `docs/arquivo/reviews/<AAAA-MM-DD>-<estudo>.md`. Inclua o método, a versão avaliada, a nota, as métricas comparáveis, os limites do resultado e a referência aos artefatos externos. [Protocolo de arquivamento](protocolo-da-rodada-cega.md#39-arquivar).

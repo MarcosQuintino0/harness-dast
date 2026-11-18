@@ -1,6 +1,44 @@
 # Cadastrar um produto e operar com o agente
 
-Para quem vai testar um produto **real** (ou de teste da empresa) com o Claude Code. Para o primeiro contato com a ferramenta, use antes o [primeiro-uso.md](../comecar/primeiro-uso.md).
+Peça ao Claude Code para conduzir o teste da API no ambiente de teste do produto. Entregue o Swagger (a descrição da API), a [carta](../referencia/glossario.md#carta) (autorização escrita do dono) e os dados das contas de teste sem as senhas. Para experimentar no laboratório, siga o [primeiro uso](../comecar/primeiro-uso.md).
+
+A [cerca de escopo](../referencia/glossario.md#cerca-de-escopo) é a proteção que só deixa passar requisições permitidas. O [alcance](../referencia/glossario.md#alcance) (*reachability*) mede quantas das operações tentadas pelo `probe` tiveram sucesso ou a recusa de login esperada. Uma operação é uma ação da API definida por método e caminho.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor QA as Pessoa (QA)
+    participant IA as Agente (Claude Code)
+    participant CLI as CLI hdast
+    QA->>IA: Pedido com Swagger, carta e contas sem senha
+    IA->>CLI: doctor e init --from-letter com --check
+    opt A carta deixou perguntas em aberto
+        IA->>QA: Pergunta o que falta em uma rodada
+        QA-->>IA: Respostas para completar o cadastro
+    end
+    IA->>CLI: init --from-letter e profile validate
+    CLI-->>IA: Resultado da validação e avisos da carta
+    Note over IA,CLI: O cadastro só segue com perfil válido.
+    IA-->>QA: Resumo do escopo
+    QA->>CLI: hdast setup em terminal próprio
+    CLI-->>QA: Mostra o resumo e pede o nome do produto
+    QA->>CLI: Digita o nome do produto para aprovar
+    Note over QA,CLI: Trava humana. Só a pessoa aprova.
+    IA->>CLI: profile approval
+    alt Aprovação válida e demais travas atendidas
+        IA->>CLI: stack up, preflight e probe
+        CLI-->>IA: Resultado por operação
+        opt Alcance abaixo da meta
+            IA->>CLI: Repete o probe após os ajustes de dados permitidos
+            IA-->>QA: Se ainda abaixo da meta, registra e informa a cobertura parcial
+        end
+        IA->>CLI: run (varredura, autorização e valores proibidos)
+        CLI-->>IA: report.html
+        IA-->>QA: Relatório e pontos para revisão humana
+    else Trava impede prosseguir
+        IA-->>QA: Informa o motivo da parada
+    end
+```
 
 ## 1. O que pedir ao dono do produto
 
@@ -30,12 +68,10 @@ O perfil nunca tem senha. Ele tem uma referência, e o valor fica fora do reposi
 **Cofre do sistema (recomendado no dia a dia): `secret_ref: "keyring:NOME"`.** Você grava uma vez, num terminal seu, e vale em todo terminal e em toda sessão; nada fica no histórico do shell:
 
 ```powershell
-uv run hdast setup meu-produto                        # grava só as senhas que faltam e pede a aprovação do escopo
-uv run hdast secret set MEU_PRODUTO_USER_A_SENHA      # ou uma por vez: prompt oculto, duas vezes
-uv run hdast secret list meu-produto                  # mostra quais existem (nunca o valor)
+uv run hdast secret list meu-produto
 ```
 
-Os nomes são os que a carta lista. O agente **não** roda `setup`, `secret set` nem `secret delete` (a permissão os nega e o comando só funciona em terminal interativo): quando faltar um segredo, ele cita o NOME e pede que você rode o comando. No Windows o valor vai para o Gerenciador de Credenciais.
+O comando mostra quais segredos já existem, sem exibir os valores. Guarde as senhas nas referências indicadas pela carta durante a [aprovação do escopo](#5-a-entrevista-e-a-aprovação-do-escopo). Para gravar uma senha separadamente, use `uv run hdast secret set NOME` no seu terminal. Só a pessoa grava ou remove segredos do cofre. No Windows, o cofre usa o Gerenciador de Credenciais.
 
 **Variável de ambiente: `secret_ref: "env:NOME"`** (CI, contêiner, ou se preferir), definida no terminal de onde abre o Claude Code:
 
@@ -48,7 +84,7 @@ Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; n
 
 ## 4. Abrir o Claude Code
 
-Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido e os segredos já guardados (cofre ou variáveis), rode `claude`. O Claude Code carrega as skills de `.claude/skills/` e aplica as permissões da camada 0 de `.claude/settings.json`. A mesma configuração registra uma segunda camada, o hook `PreToolUse`, que verifica chamadas de shell e de ferramentas de arquivo.
+Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido, rode `claude`. Se usar referências `env:`, defina as variáveis no terminal antes de abrir o agente. O Claude Code carrega as skills de `.claude/skills/` e aplica as permissões da camada 0 de `.claude/settings.json`. A mesma configuração registra uma segunda camada, o hook `PreToolUse`, que verifica chamadas de shell e de ferramentas de arquivo.
 
 Com `uv` no PATH e Python 3.12 disponível, o hook usa `uv run --no-project --quiet python "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"` em Windows e Linux. O Claude Code v2.1.295 ou posterior bloqueia falhas do lançador e tempo esgotado com `onFailure: block`. `--no-project` evita sincronizar as dependências do projeto a cada chamada. Ao detectar uma ação reservada, entrada inválida ou falha de processamento, o hook devolve código `2` e o Claude Code comunica o motivo ao agente. [ADR 0111](../decisoes/0111-hook-pretooluse-segunda-camada.md).
 
@@ -70,9 +106,9 @@ Ao cadastrar, o agente lê a carta e o Swagger, monta um `carta.yml` com o que a
 5. **Janela, validade e referência** da autorização.
 6. **Limites:** requisições por segundo, duração máxima, threads. "Não sei" aqui usa o mínimo da CLI (1 req/s, 30 min, 1 thread; e 1 login por minuto no limite de logins), com aviso. É o único campo em que "não sei" vira valor.
 7. **Contas:** apelido, papel e o **nome** do segredo (nunca a senha); se há duas contas do mesmo papel (o teste de autorização entre contas precisa).
-8. **Escrita do teste entre contas:** a carta autoriza o teste de autorização entre contas a **escrever** no ambiente (atribuição em massa, métodos de escrita)? O teste de leitura roda por padrão no `run`; só a escrita depende disto. "Não sei" vale não, e "sim" só vale com a frase da carta que o diz. Quem responde é o dono do produto.
+8. **Escrita do teste entre contas:** a carta autoriza o teste a **escrever** no ambiente? Isso inclui verificar [atribuição em massa](../referencia/glossario.md#atribuição-em-massa), quando a API grava automaticamente campos que a conta não deveria poder alterar. O teste de leitura roda por padrão no `run`. "Não sei" vale não, e "sim" só vale com a frase da carta que o diz. Quem responde é o dono do produto.
 9. **Força do ataque:** leve, média ou forte. Mais força testa mais variações e demora mais; o limite por segundo e a janela continuam valendo. Sem escolha, vale o padrão do perfil.
-10. **Dados de exemplo** que existem no ambiente (um id, um nome de arquivo, um código válido). Sem eles, algumas funções não são alcançadas.
+10. **Dados de exemplo** que existem no ambiente (um id, um nome de arquivo, um código válido). Eles ajudam o `probe` a marcar uma [operação como alcançada](../referencia/glossario.md#operação-alcançada) após uma resposta de sucesso ou uma recusa esperada de login.
 
 **Pedido curto.** Você pode pedir em poucas linhas: o Swagger, as contas com papel (só o login, **nunca a senha**) e, se quiser, documentos `.md` de regra de negócio. Se colar uma senha, o agente avisa, não a usa e sugere trocar a senha da conta de teste. O agente pergunta só o que falta, numa rodada, em três grupos: **portões** ("não sei" para o cadastro: os quatro portões, endereço, o que pode, o que é proibido, referência, validade, janelas, tipo de login e contas), **padrão seguro** ("não sei" usa o mínimo da CLI e o agente diz qual) e **opcionais** (segunda conta do mesmo papel, dados de exemplo: "não sei" segue e o relatório anota).
 
@@ -84,11 +120,15 @@ Carta com autorização já vencida (`valid_until` no passado) é recusada com `
 
 Se a carta disser que contas de algum papel compartilham legitimamente seus recursos, registre os papéis em `attack.authz_shared_roles` com `source: carta` e a frase em `quote`. A CLI os leva a `authz.shared_roles`; isso deixa de comparar essas contas em `horizontal` e `horizontal_write`, com `shared_role` em `not_tested`. Não infira compartilhamento. Quando possível, distribua leituras distintas de cada tipo de objeto entre duas contas de um papel não compartilhado; cada operação aceita uma conta.
 
-**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo (endereço, funções, o que é proibido, janela, limites, força, política da varredura, teste de autorização e limpeza, se houver) e pede que **você** rode `hdast setup <produto>` (grava as senhas `keyring:` que faltam, mostra o resumo com os avisos de padrão mínimo e de nenhum caminho proibido, faz uma pausa e pede o nome do produto) ou, só a aprovação, `hdast profile approve <produto>`. Sem essa aprovação, os comandos que tocam o alvo recusam (`SCOPE_NOT_APPROVED`). O agente não roda esses comandos, e nenhuma permissão os libera: leia o resumo antes de aprovar. Depois dela, editar qualquer campo travado (`environment`, `scope`, `limits`, contas, `scan`, `authz`, `cleanup`) pede aprovar de novo; só o que serve para alcançar as operações (`probe`, `auth.csrf`, `auth.account_map`, `auth.default_account`, `auth.token_expired`, codificação do login, `openapi`) fica livre.
+**Aprovação do escopo (você, num terminal seu).** Quando `profile validate` der `runnable: true`, o agente mostra o resumo e pede que **você** rode `hdast setup <produto>`. O comando grava as senhas `keyring:` que faltam e mostra o escopo e os avisos antes de pedir que você digite o nome do produto. Se só precisar aprovar, use `hdast profile approve <produto>`. Os dois comandos são reservados à pessoa. Sem aprovação válida, a CLI bloqueia o teste com `SCOPE_NOT_APPROVED`.
+
+Antes de testar e após alterar o perfil, consulte `hdast profile approval <produto>`. Prossiga com `state: approved`. Se o estado for `changed`, leia os blocos alterados na saída (`data.changed_blocks` com `--json`) e peça nova aprovação à pessoa. A lista completa está na [referência do perfil](../referencia/target-yml.md#blocos-de-proteção-e-aprovação-humana).
 
 ## 6. Os prompts
 
-**Atalho: um pedido só (skill `test-product`).** A skill conduz as quatro etapas abaixo em sequência (começa pela entrevista da seção 5) e só para quando precisa de você: falta dado na carta, falta a sua aprovação do escopo, a alcançabilidade não chegou à meta depois das tentativas permitidas, há achado alto para você confirmar, ou qualquer dúvida de autorização, escopo ou janela. As travas são as mesmas.
+**Um pedido só (skill `test-product`).** O agente conduz as quatro etapas abaixo. Veja [quando seguir com cobertura parcial e quando parar](../../.claude/skills/test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
+
+Um [achado](../referencia/glossario.md#achado) é um sinal de problema que aparece no relatório para revisão.
 
 ```text
 Use a skill test-product no produto "<produto>". A pasta de produtos é <pasta>.
@@ -118,11 +158,8 @@ as decisões em decision-log.md na pasta do produto.
 **Etapa 2. Alcançar os endpoints (skill `fix-reachability`)**
 
 ```text
-Use a skill fix-reachability no produto "<produto>". Rode preflight e probe
-e ajuste só data-rules.yml, flows.yml e o mapa de contas. Meta: 90% das
-operações tentadas com sucesso; no máximo 6 execuções do probe; pare e me
-diga o que falta quando uma causa não for de dados (401/403 persistente,
-429, 5xx). Registre cada rodada no diário de decisões.
+Use a skill fix-reachability no produto "<produto>". Siga o critério de
+parada da skill e registre cada rodada no diário de decisões.
 ```
 
 **Etapa 3. Varrer (skill `run-scan`)**
@@ -147,7 +184,9 @@ suspeitas de falso positivo com o motivo e o que a varredura não cobre.
 
 ## 7. Depois da varredura
 
+- No resumo, uma [operação varrida](../referencia/glossario.md#operação-varrida) é uma ação da API que o ZAP chegou a testar. Uma [lacuna de cobertura](../referencia/glossario.md#lacuna-de-cobertura) indica o que ficou sem teste ou prova e por quê.
 - Abra `runs/<run_id>/report.html` no navegador (uma página só, sem internet, para ler e compartilhar; comece pelo resumo e por "O que fazer agora"). O mesmo conteúdo está em `report.md` e `findings.json` (comece por "O que este relatório não testou").
+- Nos testes de autorização, [BOLA](../referencia/glossario.md#bola) indica acesso indevido a um recurso. [BFLA](../referencia/glossario.md#bfla) indica acesso indevido a uma função.
 - Depois de o time do produto aplicar uma correção, rode `uv run hdast retestar PRODUTO --run RUN_ANTERIOR`: ele repete só as operações dos achados e grava `retest.json` com `reproduced`, `not_reproduced` ou `not_tested`. "Não reproduzido nesta execução" não prova que a correção funcionou ([referência](../referencia/cli.md#hdast-retestar)).
 - Para remover os dados de teste, siga [limpeza-de-dados.md](limpeza-de-dados.md): você roda, não o agente.
 - Problemas: [problemas-comuns.md](problemas-comuns.md). Parar tudo: `uv run hdast stop`.

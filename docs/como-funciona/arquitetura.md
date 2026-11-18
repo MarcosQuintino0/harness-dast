@@ -34,7 +34,7 @@ Status: o plano determinístico está implementado de ponta a ponta (`init`, `pr
 
 ### Componentes e fronteira de confiança
 
-O agente escreve arquivos de perfil e chama a CLI. Só o ZAP alcança o alvo, e só através do proxy de escopo.
+O agente escreve arquivos de perfil e chama a CLI. O tráfego da varredura e da autenticação passa pelo proxy de escopo.
 
 ```mermaid
 flowchart LR
@@ -49,7 +49,7 @@ flowchart LR
     PORTS --> AD["adapters"]
   end
   subgraph DK["Docker - rede interna"]
-    ZAP["OWASP ZAP"] --> EP["Proxy de escopo - mesmo ScopeGuard"]
+    ZAP["OWASP ZAP"] --> EP["Proxy de escopo - aplica o ScopeGuard"]
   end
   PROD[("products/PRODUTO - perfil e regras")]
   RUNS[("runs/RUN_ID - auditoria, achados, relatorio")]
@@ -57,8 +57,9 @@ flowchart LR
   CC -- "somente comandos hdast" --> CLI
   CC -- "escreve" --> PROD
   CLI -- "valida" --> PROD
-  AD -- "API e proxy" --> ZAP
-  EP --> TGT
+  AD -- "API e proxy via zap-gateway" --> ZAP
+  AD -- "Login e CSRF via proxy-gateway" --> EP
+  EP -- "Requisições permitidas" --> TGT
   AD --> RUNS
 ```
 
@@ -66,35 +67,19 @@ flowchart LR
 
 O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. O `run` encadeia, na ordem, `preflight`, `probe`, `scan`, `authz`, `negative` e `report` num processo. Os estágios `authz` e `negative` rodam por padrão. Veja a [referência da CLI](../referencia/cli.md#hdast-run).
 
-O mecanismo do `probe` foi confirmado no spike do M0. O login e a busca do token CSRF saem direto e as operações saem pelo proxy do ZAP. [Relato](../arquivo/spikes/2026-11-13-m0-zap.md), [ADR 0007](../decisoes/0007-zap-alimentado-por-requisicoes-validas.md), [ADR 0018](../decisoes/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md).
+### Caminho de uma requisição
+
+O agente chama a CLI e recebe seus resultados. Somente a pilha controlada pela CLI envia requisições à API durante o teste. O ZAP fica numa rede interna e usa o proxy de escopo para chegar à API. O login e a busca do token CSRF usam a ponte que leva da CLI ao mesmo proxy, preservando as credenciais fora do histórico do ZAP. [Configuração da pilha](../../compose.yaml), [documentação do proxy](../../docker/scope-proxy/README.md).
 
 ```mermaid
-sequenceDiagram
-  actor QA
-  participant CC as Claude Code
-  participant H as hdast
-  participant Z as ZAP
-  participant T as Ambiente de testes
-  QA->>CC: testar o produto agenda
-  CC->>H: spec inspect
-  H-->>CC: resumo do OpenAPI
-  CC->>CC: escreve target.yml e data-rules.yml
-  CC->>H: preflight
-  H->>T: login das contas de teste
-  H-->>CC: pronto ou erros de configuracao
-  loop ate a alcancabilidade estabilizar
-    CC->>H: probe
-    H->>Z: requisicoes validas
-    Z->>T: trafego dentro do escopo
-    H-->>CC: status por operacao, ja redigido
-    CC->>CC: ajusta regras de dados
-  end
-  CC->>H: scan
-  H->>Z: varredura com limites fixos
-  Z->>T: varredura ativa
-  CC->>H: report
-  H-->>CC: achados com evidencia
-  QA->>H: cleanup com confirmacao humana
+flowchart LR
+  AG["Agente (Claude Code)"] -->|"Somente comandos hdast"| CLI["CLI hdast"]
+  CLI -->|"Via zap-gateway"| ZAP["ZAP na rede interna"]
+  ZAP --> PROXY["Proxy de escopo"]
+  CLI -->|"Login e token CSRF via proxy-gateway"| PROXY
+  PROXY --> GUARD{"Pedido permitido pela cerca?"}
+  GUARD -->|"Sim"| ALVO["API do ambiente de teste"]
+  GUARD -->|"Não"| NEGADA["Proxy recusa o pedido sem enviá-lo à API"]
 ```
 
 ### Regra de dependência entre camadas

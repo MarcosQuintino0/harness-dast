@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-A versão do pacote é **1.12.1**, conforme o [`pyproject.toml`](../pyproject.toml). A V1.12 entrou pelo PR #36 (`b50f843`) e a V1.12.1 pelo PR #37 (`b232855`).
+A versão do pacote é **1.12.2**, conforme o [`pyproject.toml`](../pyproject.toml). A V1.12 entrou pelo PR #36 (`b50f843`) e a V1.12.1 pelo PR #37 (`b232855`).
 
 As provas de execução se limitam ao laboratório, com Clínica Piloto, VAmPI e crAPI. O piloto M7 em produto real segue pendente. Os relatórios registram o alcance e as lacunas de cada prova. [V1.12](arquivo/reviews/relatorio-v1.12.md), [V1.12.1](arquivo/reviews/relatorio-v1.12.1.md).
 
@@ -37,6 +37,8 @@ O contrato de autorização entre contas e as lacunas de cobertura estão na [re
 - P-14 fechado em 18/11/2026 com a adoção da licença MIT. [ADR 0110](decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 
 ## Reestruturação em andamento
+
+As decisões da reestruturação registradas nos ADRs 0110 a 0115 estão implementadas e aguardam o aceite do dono. [Catálogo de decisões](decisoes/README.md).
 
 - Fase 0, linha de base. Medição, mapa de dependências e linha de base da cerca no laboratório.
 - Fase 1, enxugar. Documentação em pastas, índice de decisões, orientações de contribuição no `AGENTS.md`, licença MIT, testes com nome de comportamento e resultados de avaliação fora do repositório.
