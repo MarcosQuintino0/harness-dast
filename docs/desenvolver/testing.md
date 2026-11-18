@@ -8,7 +8,7 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 | --- | --- | --- | --- | --- |
 | Unitário | Regras de `domain`, `config`, `observability` e `cli`. Inclui testes baseados em propriedades (hypothesis) para escopo, caminhos, janelas e sobrescritas. Casos de uso com portas falsas (`tests/fakes/`) | Nenhuma | A cada commit e no CI | **Existe.** `tests/unit/` espelha `src/` (`domain`, `application`, `adapters`, `cli`, `config`, `observability`, `evals`, `lab`) |
 | Suíte de QA independente (`*_qa.py`) | Testes escritos por um revisor que não escreveu o código, a partir da especificação: ataques de parser differential, propriedades com oráculo próprio, limites, redação de logs. Convivem com os unitários | Nenhuma | A cada commit e no CI | **Existe** (revisão de 2026-11-13; veja abaixo) |
-| Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release. O benchmark da cerca também roda por PR com rótulo `lab` | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seções abaixo |
+| Integração | A CLI real (`python -m harness_dast`) contra o ZAP 2.17, o proxy de escopo e os alvos de laboratório reais, em Docker | Docker | Manual, antes de release. A rodada completa também roda no GitHub Actions, por PR com rótulo `lab` ou manualmente | **Existe** (`tests/integration/`, marcador `integration`; pulados sem Docker). Seções abaixo |
 | Contrato | Envelope JSON e códigos de saída de cada comando; schema do perfil; suíte única que todo adaptador de `Scanner` precisa passar | Nenhuma ou Docker | Em todo pull request | **Parcial.** `tests/contract/` tem um arquivo por comando (`test_cli_*.py`: envelope, códigos de saída, `--json`), o modelo de perfil (`test_template_profile.py`), a conformidade dos documentos (`test_docs_conformance_qa.py`), os links dos documentos (`test_docs_links.py`), as skills e os guias (`test_skills_and_guides.py`) e o isolamento do estado (`test_state_isolation.py`). A suíte única que todo adaptador de `Scanner` precisa passar ainda não existe (só há o adaptador do ZAP) |
 | Ponta a ponta | `hdast run` contra o VAmPI e a Clínica Piloto do lab: achado conhecido presente, zero requisição fora do escopo, nenhum segredo nos artefatos, regras removidas, trava de emergência e limpeza no Oracle | Docker, lab | Antes de release | **Existe**, dentro de `tests/integration/test_lab_run.py` e `test_cleanup_oracle.py`; não há marcador `e2e` separado |
 | Avaliação das skills | Roteiro manual: o agente, partindo de um Swagger do lab, chega a um perfil válido e à alcançabilidade esperada | Claude Code | Antes de release e ao mudar skill | Roteiro escrito ([avaliacao-das-skills.md](avaliacao-das-skills.md)); a confirmar se alguma pessoa o executou |
@@ -63,11 +63,24 @@ A sessão constrói ZAP, proxy e Clínica Piloto com os arquivos Compose do chec
 
 `metricas/stack-up.jsonl` registra produto, segundos, modo de build e código de saída de cada subida pela infraestrutura de teste. Esses tempos não incluem o build inicial no modo pré-construído e não comprovam o comportamento da primeira construção com cache frio. Para comparar com o fluxo anterior, retire `HDAST_IT_PREBUILT` e repita a seleção. Imagens auxiliares podem ser baixadas durante a subida. A coleta com `--collect-only` não constrói imagens.
 
-### Benchmark da cerca no GitHub Actions
+### Laboratório no GitHub Actions
 
-Antes do merge, adicione o rótulo `lab` ao PR. O GitHub também executa o workflow quando o PR recebe novos commits enquanto estiver com o rótulo. Quando `lab.yml` estiver na branch padrão, abra **Actions → Laboratório → Run workflow** e selecione `carga`. A configuração de aprovação de PRs externos cabe ao dono do repositório, conforme o [ADR 0118](../decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md).
+O workflow `lab.yml` roda o laboratório em máquinas efêmeras do GitHub, em paralelo, só contra os alvos do próprio projeto ([ADR 0118](../decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)). Ele cobre o núcleo (`lab_fast`), as provas (`lab_prova`), a regressão dirigida e a carga.
 
-O job **Benchmark da cerca** constrói as imagens uma vez na sessão e mede a decisão da cerca dentro do proxy, sem enviar pedidos ao alvo. Em **Summary**, veja a contagem de testes, os tempos e as travas da vigia. Em **Artifacts**, abra `lab-cerca-<tentativa>` até três dias depois para consultar o JUnit, as métricas e os diagnósticos coletados. No ciclo diário, use `lab_round --nivel changed` no computador local.
+**Como disparar.** Antes do merge, adicione o rótulo `lab` ao PR: roda o nível `fast` e repete a cada novo commit enquanto o rótulo estiver lá. Com o arquivo na branch padrão, abra **Actions → Laboratório → Run workflow** e escolha `nivel`: `fast` (padrão), `prova`, `regressao`, `carga` ou `tudo` (soma os quatro). Não há gatilho de `push`. A aprovação de PRs de fora é configuração do dono, citada no ADR.
+
+**O que acontece.**
+
+| Job | O que faz |
+| --- | --- |
+| `planejar` | `lab_round --nivel <nivel> --pedacos-json` coleta os testes do nível e monta a matriz: um pedaço por arquivo, partido por modo (`vulnerable` e `secure`) ou produto quando o arquivo é grande. |
+| `imagens` | Constrói uma vez as imagens do checkout (ZAP, proxy e Clínica) e as guarda no `actions/cache`, com chave pelo hash de `docker/**`, `lab/pilot/**`, o código do proxy, `compose.yaml` e `pyproject.toml`. Imagem nunca vai como artefato. |
+| `pedaco` | Até 20 máquinas ao mesmo tempo. Cada uma restaura o cache, faz `docker load` e roda `lab_round --nivel <nivel> --arquivo <arquivo> [--k <modo>]` com `HDAST_IT_PREBUILT_TAG`, trava em `$RUNNER_TEMP` e sufixo `-gh<run>a<tentativa>p<índice>`. |
+| `resumo` | Sempre roda. Junta os JUnits e falha se algum pedaço falhou ou ficou sem resultado. |
+
+O nível `carga` roda o benchmark da cerca (`test_guard_benchmark.py`, sem pedidos ao alvo) e a matriz V1.7 (`test_scan_performance_matrix.py`, com `HDAST_V17_DEADLINE_EPOCH` calculado no passo). A regressão usa o marcador `regressao_dirigida`.
+
+**Onde ver.** Em **Summary** da execução: pedaços, aprovados, falhas e pulados, tempo por pedaço, os 15 testes mais lentos e as travas da vigia. Em **Artifacts**, `lab-<pedaço>` guarda por três dias o JUnit, as métricas, o `pytest.log` e o `proxy-watch.jsonl`. Para ver os pedaços sem rodar, use `uv run python -m tests.integration.lab_round --nivel tudo --pedacos-json` localmente (só coleta; não sobe pilha). A prova do workflow é a própria execução no GitHub. No ciclo diário, use `lab_round --nivel changed` no computador local.
 
 ## Dublês: quando usar e quando evitar
 

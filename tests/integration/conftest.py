@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from tests.integration.lab_images import PREBUILT_MODE, build_session_images
+from tests.integration.lab_images import PREBUILT_MODE, prepare_session_images
 from tests.integration.lab_support import REPO
 
 
@@ -15,7 +15,7 @@ def _lab_prebuilt_images() -> dict[str, str]:
     """Prepara imagens uma vez por sessão de execução, quando solicitadas."""
     if os.environ.get(PREBUILT_MODE) != "1":
         return {}
-    images = build_session_images(REPO, f"pytest-{uuid4().hex}", os.environ)
+    images = prepare_session_images(REPO, os.environ, f"pytest-{uuid4().hex}")
     return {PREBUILT_MODE: "1", **images}
 
 

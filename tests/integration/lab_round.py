@@ -1,13 +1,14 @@
 """Seleciona testes do laboratório e registra a rodada sob uma trava exclusiva."""
 
 import argparse
+import json
 import os
 import shlex
 import shutil
 import subprocess
 import sys
 import tomllib
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -25,9 +26,20 @@ ROOT = Path(__file__).resolve().parents[2]
 INTEGRATION = "tests/integration"
 MAP = ROOT / INTEGRATION / "lab_areas.toml"
 ARTIFACTS = Path("C:/harness-dast-artefatos")
-LEVELS = ("changed", "fast", "prova", "regressao", "tudo")
+LEVELS = ("changed", "fast", "prova", "regressao", "carga", "tudo")
+CARGA_FILES = ("test_guard_benchmark.py", "test_scan_performance_matrix.py")
+# Cada dimensão parte um arquivo em pedaços; o teste que não casa com nenhum valor vai ao resto.
+SPLIT_DIMENSIONS = (
+    ("vulnerable", "secure"),
+    ("clinica-piloto", "vampi"),
+    ("pilot", "vampi"),
+)
+MIN_SPLIT = 8  # arquivo ou balde com até 8 testes não vale o custo de outra pilha.
 
-type Level = Literal["changed", "fast", "prova", "regressao", "tudo"]
+type Level = Literal["changed", "fast", "prova", "regressao", "carga", "tudo"]
+type PlannedLevel = Literal["fast", "prova", "regressao", "carga"]
+# Níveis que o workflow do GitHub planeja quando o pedido é "tudo".
+PLANNED_LEVELS: tuple[PlannedLevel, ...] = ("fast", "prova", "regressao", "carga")
 type NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 type TestFile = Annotated[str, StringConstraints(pattern=r"^test_[a-zA-Z0-9_]+\.py$")]
 
@@ -71,6 +83,7 @@ class RoundOptions(BaseModel):
     owner: NonEmpty
     file: TestFile | None
     keyword: NonEmpty | None
+    pieces_json: bool
 
 
 class LabBusy(HarnessError):
@@ -82,6 +95,18 @@ class LabBusy(HarnessError):
 class Selection:
     marker: str
     paths: tuple[str, ...]
+
+
+class Piece(BaseModel):
+    """Um pedaço da rodada: um arquivo, num nível, com a expressão `-k` do modo, se houver."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    index: int
+    level: PlannedLevel
+    file: TestFile
+    keyword: NonEmpty | None
+    name: NonEmpty
 
 
 def load_map(path: Path) -> AreaMap:
@@ -149,6 +174,8 @@ def select_level(level: Level, areas: AreaMap, changes: Iterable[str] = ()) -> S
         return _select_files(f"lab_{level}", areas.files(level))
     if level == "regressao":
         return Selection("regressao_dirigida", (INTEGRATION,))
+    if level == "carga":
+        return _select_files("integration or e2e", CARGA_FILES)
     return Selection("integration or e2e", ("tests",))
 
 
@@ -189,6 +216,131 @@ def restrict_to_file(selection: Selection, filename: str) -> Selection:
     if not allowed or not (ROOT / path).is_file():
         raise ConfigError(f"O arquivo {filename} não pertence à seleção. Confira --nivel.")
     return Selection(selection.marker, (path.as_posix(),))
+
+
+def collect_node_ids(selection: Selection) -> tuple[str, ...]:
+    """Coleta os identificadores dos testes da seleção, sem executá-los."""
+    command = (
+        sys.executable,
+        "-m",
+        "pytest",
+        *selection.paths,
+        "-m",
+        selection.marker,
+        "--collect-only",
+        "-q",
+    )
+    result = subprocess.run(  # noqa: S603 - pytest local, sem shell e só em coleta.
+        command, cwd=ROOT, capture_output=True, check=False, encoding="utf-8", errors="replace"
+    )
+    if result.returncode not in (0, 5):
+        raise ConfigError(
+            f"A coleta do pytest falhou com código {result.returncode}. "
+            f"Rode a coleta à mão e corrija o erro. {result.stdout[-500:]}"
+        )
+    return tuple(line for line in result.stdout.splitlines() if "::" in line)
+
+
+@dataclass(frozen=True)
+class _Bucket:
+    ids: tuple[str, ...]
+    labels: tuple[str, ...]
+    exprs: tuple[str, ...]
+
+
+def _needles(value: str) -> tuple[str, ...]:
+    """Trechos que só aparecem no identificador de parâmetro, nunca em nome de função."""
+    return (f"[{value}", f"-{value}-", f"-{value}]")
+
+
+def _matches(node_id: str, value: str) -> bool:
+    bracket = node_id[node_id.find("[") :].lower() if "[" in node_id else ""
+    return any(needle in bracket for needle in _needles(value))
+
+
+def _expression(values: Iterable[str]) -> str:
+    return " or ".join(needle for value in values for needle in _needles(value))
+
+
+def _partition(bucket: _Bucket, values: tuple[str, ...]) -> list[_Bucket] | None:
+    """Parte o balde por um conjunto de valores, ou devolve `None` se a partição for ambígua."""
+    counts = [sum(_matches(i, v) for v in values) for i in bucket.ids]
+    present = tuple(v for v in values if any(_matches(i, v) for i in bucket.ids))
+    if max(counts, default=0) > 1 or len(present) < 2:
+        return None
+    parts = [
+        _Bucket(
+            tuple(i for i in bucket.ids if _matches(i, v)),
+            (*bucket.labels, v),
+            (*bucket.exprs, _expression((v,))),
+        )
+        for v in present
+    ]
+    rest = tuple(i for i, count in zip(bucket.ids, counts, strict=True) if count == 0)
+    if rest:
+        expr = f"not ({_expression(present)})"
+        parts.append(_Bucket(rest, (*bucket.labels, "resto"), (*bucket.exprs, expr)))
+    return parts
+
+
+def _split_file(node_ids: Sequence[str]) -> list[_Bucket]:
+    """Parte um arquivo por modo e produto, enquanto o balde for maior que `MIN_SPLIT`."""
+    buckets = [_Bucket(tuple(node_ids), (), ())]
+    for values in SPLIT_DIMENSIONS:
+        refined: list[_Bucket] = []
+        for bucket in buckets:
+            parts = _partition(bucket, values) if len(bucket.ids) > MIN_SPLIT else None
+            refined.extend(parts or [bucket])
+        buckets = refined
+    return buckets
+
+
+def _level_pieces(level: str, node_ids: Iterable[str]) -> Iterator[tuple[str, str, str | None]]:
+    by_file: dict[str, list[str]] = {}
+    for node_id in node_ids:
+        by_file.setdefault(Path(node_id.split("::")[0]).name, []).append(node_id)
+    for file, ids in sorted(by_file.items()):
+        stem = file.removeprefix("test_").removesuffix(".py")
+        for bucket in _split_file(ids):
+            name = "-".join((level, stem, *bucket.labels))
+            keyword = " and ".join(f"({expr})" for expr in bucket.exprs) or None
+            yield file, name, keyword
+
+
+def plan_pieces(
+    level: Level,
+    areas: AreaMap,
+    collect: Callable[[Selection], Sequence[str]] | None = None,
+) -> tuple[Piece, ...]:
+    """Planeja os pedaços de um nível: um arquivo, partido por modo ou produto se possível.
+
+    `tudo` soma `fast`, `prova`, `regressao` e `carga`. Os arquivos da carga saem de `prova`,
+    porque a carga os roda inteiros e a prova repetiria parte deles.
+    """
+    if level == "changed":
+        raise ConfigError("Os pedaços não existem para o nível changed. Use outro --nivel.")
+    levels: tuple[PlannedLevel, ...] = PLANNED_LEVELS if level == "tudo" else (level,)
+    pieces: list[Piece] = []
+    for current in levels:
+        selection = select_level(current, areas)
+        if selection is None:  # pragma: no cover - só `changed` devolve vazio.
+            continue
+        ids = (collect or collect_node_ids)(selection)
+        if level == "tudo" and current != "carga":
+            ids = [i for i in ids if Path(i.split("::")[0]).name not in CARGA_FILES]
+        for file, name, keyword in _level_pieces(current, ids):
+            pieces.append(
+                Piece(
+                    index=len(pieces),
+                    level=current,
+                    file=file,
+                    keyword=keyword,
+                    name=name,
+                )
+            )
+    if not pieces:
+        raise ConfigError("A coleta não achou testes para o nível. Confira o mapa e os marcadores.")
+    return tuple(pieces)
 
 
 def build_command(
@@ -302,6 +454,12 @@ def _parse_options(argv: Sequence[str] | None) -> RoundOptions:
     parser.add_argument("--dono", dest="owner", default=getuser())
     parser.add_argument("--arquivo", dest="file", help="Nome do arquivo de teste da seleção.")
     parser.add_argument("--k", dest="keyword", help="Expressão de seleção do pytest (-k).")
+    parser.add_argument(
+        "--pedacos-json",
+        dest="pieces_json",
+        action="store_true",
+        help="Imprime os pedaços do nível em JSON, sem rodar. Com tudo, soma os quatro níveis.",
+    )
     try:
         return RoundOptions.model_validate(vars(parser.parse_args(argv)))
     except ValidationError as exc:
@@ -310,6 +468,10 @@ def _parse_options(argv: Sequence[str] | None) -> RoundOptions:
 
 def _run_round(options: RoundOptions) -> int:
     areas = load_map(MAP)
+    if options.pieces_json:
+        pieces = plan_pieces(options.level, areas)
+        sys.stdout.write(json.dumps([piece.model_dump(mode="json") for piece in pieces]) + "\n")
+        return 0
     changes = changed_paths(ROOT, options.base) if options.level == "changed" else ()
     selection = select_level(options.level, areas, changes)
     if selection is None:

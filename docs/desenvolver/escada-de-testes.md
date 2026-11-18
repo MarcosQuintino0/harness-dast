@@ -95,7 +95,7 @@ e usa `-claude` por padrão. Para executar as medições da V1.7, defina previam
 `HDAST_V17_DEADLINE_EPOCH` com o prazo da rodada em segundos Unix. A medição exige
 reserva de tempo e pula quando a variável está ausente.
 
-Quando a mudança pedir apenas a medição do custo da cerca, adicione `lab` ao PR ou selecione `carga` em **Actions → Laboratório → Run workflow** após o workflow chegar à branch padrão. A execução mede a cerca dentro do contêiner, sem enviar pedidos ao alvo. Consulte **Summary** para o resultado e **Artifacts** para JUnit, métricas e diagnósticos. [Benchmark da cerca no GitHub Actions](testing.md#benchmark-da-cerca-no-github-actions)
+Para tirar peso do computador local, a rodada completa do núcleo, as provas, a regressão dirigida e a carga também rodam no GitHub Actions: adicione `lab` ao PR (nível `fast`) ou, com o workflow na branch padrão, use **Actions → Laboratório → Run workflow** e escolha o nível (`fast`, `prova`, `regressao`, `carga` ou `tudo`). Os pedaços rodam em paralelo; consulte **Summary** para o resultado e **Artifacts** (`lab-<pedaço>`) para JUnit, métricas e diagnósticos. [Laboratório no GitHub Actions](testing.md#laboratório-no-github-actions)
 
 #### Mudei X, rodo Y
 

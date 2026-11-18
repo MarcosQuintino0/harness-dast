@@ -1,114 +1,206 @@
+# Laboratório em máquinas efêmeras do GitHub (ADR 0118). Só os alvos do próprio projeto
+# (Clínica Piloto, VAmPI e crAPI, em contêineres e com dados sintéticos). Sem segredos,
+# sem gatilho de push: só execução manual ou PR com o rótulo `lab`.
 name: Laboratório
 
 'on':
   workflow_dispatch:
     inputs:
       nivel:
-        description: Medição de carga da cerca
+        description: Nível da rodada (tudo soma os quatro anteriores)
         type: choice
-        options: [carga]
-        default: carga
+        options: [fast, prova, regressao, carga, tudo]
+        default: fast
   pull_request:
     types: [labeled, synchronize]
 
 permissions:
   contents: read
 
+concurrency:
+  group: lab-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  cerca:
-    name: Benchmark da cerca
+  planejar:
+    name: Planejar os pedaços
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (contains(github.event.pull_request.labels.*.name, 'lab') &&
        (github.event.action == 'synchronize' || github.event.label.name == 'lab'))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    concurrency:
-      group: lab-${{ github.ref }}
-      cancel-in-progress: true
+    timeout-minutes: 15
+    outputs:
+      matriz: ${{ steps.plano.outputs.matriz }}
+      pedacos: ${{ steps.plano.outputs.pedacos }}
     steps:
-      - name: Definir os caminhos da rodada
-        run: |
-          {
-            printf 'LAB_OUTPUT=%s/hdast-lab-out\n' "$RUNNER_TEMP"
-            printf 'LAB_PYTEST=%s/hdast-lab-pytest\n' "$RUNNER_TEMP"
-          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
-      - name: Medir a cerca sem enviar pedidos ao alvo
-        timeout-minutes: 38
+      - name: Gerar a matriz de pedaços pelo lab_round
+        id: plano
         env:
-          HDAST_IT_PREBUILT: '1'
-          V18_GUARD_BENCH_LABEL: after
+          NIVEL: ${{ inputs.nivel || 'fast' }}
         run: |
-          export PYTEST_ADDOPTS="--basetemp=$LAB_PYTEST"
-          uv run python -m tests.integration.lab_round --nivel tudo \
-            --arquivo test_guard_benchmark.py \
-            --saida "$LAB_OUTPUT" --trava "$RUNNER_TEMP/hdast-lab.lock" \
-            --sufixo="-gh${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}"
-      - name: Publicar JUnit, tempos e diagnósticos da vigia
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: lab-cerca-${{ github.run_attempt }}
-          path: |
-            ${{ env.LAB_OUTPUT }}/junit.xml
-            ${{ env.LAB_OUTPUT }}/metricas/
-            ${{ env.LAB_PYTEST }}/**/proxy-watch.jsonl
-          retention-days: 3
-          if-no-files-found: warn
-      - name: Resumir a rodada
-        if: ${{ !cancelled() }}
-        run: |
-          python - <<'PY'
+          uv run python -m tests.integration.lab_round --nivel "$NIVEL" --pedacos-json \
+            > "$RUNNER_TEMP/pedacos.json"
+          uv run python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           import os
-          import xml.etree.ElementTree as ET
-          from collections import Counter
-          from html import escape
           from pathlib import Path
 
-          output = Path(os.environ['LAB_OUTPUT'])
-          counts = Counter()
-          timings = []
-          for report in sorted(output.glob('junit.xml')):
-              for case in ET.parse(report).iter('testcase'):
-                  failed = case.find('failure') is not None or case.find('error') is not None
-                  status = 'failed' if failed else 'skipped' if case.find('skipped') is not None else 'passed'
-                  counts[status] += 1
-                  name = '.'.join(filter(None, (case.get('classname'), case.get('name'))))
-                  timings.append((float(case.get('time', '0')), name))
-
-          lines = [
-              '## Benchmark da cerca',
-              '',
-              f"{counts['passed']} aprovados · {counts['failed']} falharam · {counts['skipped']} pulados",
-              '',
-          ]
-          if not timings:
-              lines.append('O JUnit não contém resultados de teste ou não foi gerado.')
-          else:
-              lines.extend(['### Até 15 testes mais lentos', ''])
-              for seconds, name in sorted(timings, reverse=True)[:15]:
-                  lines.append(f'- {seconds:.2f} s · <code>{escape(name)}</code>')
-
-          lines.extend(['', '### Vigia do proxy', ''])
-          records = 0
-          for path in sorted(Path(os.environ['LAB_PYTEST']).glob('*/proxy-watch.jsonl')):
-              for line in path.read_text(encoding='utf-8').splitlines():
-                  records += 1
-                  watch = json.loads(line)
-                  categories = ', '.join(watch['categories'])
-                  if categories or watch['status'] != 'ok':
-                      stack = escape(watch['stack_run_id'])
-                      detail = escape(categories or watch['status'])
-                      lines.append(f'- Pilha <code>{stack}</code> · <code>{detail}</code>')
-          lines.append(f'{records} registros da vigia coletados.')
-
-          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as summary:
-              summary.write('\n'.join(lines) + '\n')
-          raise SystemExit(0 if counts['passed'] and not counts['failed'] else 1)
+          pieces = json.loads(Path(os.environ["RUNNER_TEMP"], "pedacos.json").read_text())
+          print("matriz=" + json.dumps({"include": pieces}, separators=(",", ":")))
+          print("pedacos=" + json.dumps(pieces, separators=(",", ":")))
           PY
+          echo "$(grep -o '"index"' "$RUNNER_TEMP/pedacos.json" | wc -l) pedaços no nível $NIVEL"
+
+  imagens:
+    name: Imagens do checkout
+    needs: planejar
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      tag: ${{ steps.chave.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Calcular a chave das imagens
+        id: chave
+        env:
+          HASH: ${{ hashFiles('docker/**', 'lab/pilot/**', 'src/harness_dast/adapters/scope_proxy/**', 'compose.yaml', 'pyproject.toml') }}
+        run: echo "tag=gh-$HASH" >> "$GITHUB_OUTPUT"
+      # A imagem fica no cache, nunca como artefato: o armazenamento de artefatos é pequeno.
+      - name: Procurar as imagens no cache
+        id: cache
+        uses: actions/cache/restore@v5.0.5
+        with:
+          path: ${{ runner.temp }}/lab-images.tar.gz
+          key: lab-images-${{ steps.chave.outputs.tag }}
+          lookup-only: true
+      - uses: astral-sh/setup-uv@v10.3.3
+        if: steps.cache.outputs.cache-hit != 'true'
+      - run: uv sync --locked
+        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Construir as imagens e salvá-las em um arquivo
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          TAG: ${{ steps.chave.outputs.tag }}
+        run: |
+          refs=$(uv run python -m tests.integration.lab_images "$TAG")
+          echo "$refs"
+          # shellcheck disable=SC2086
+          docker save $refs | gzip -1 > "$RUNNER_TEMP/lab-images.tar.gz"
+          ls -lh "$RUNNER_TEMP/lab-images.tar.gz"
+      - name: Guardar as imagens no cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5.0.5
+        with:
+          path: ${{ runner.temp }}/lab-images.tar.gz
+          key: lab-images-${{ steps.chave.outputs.tag }}
+
+  pedaco:
+    name: ${{ matrix.name }}
+    needs: [planejar, imagens]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.planejar.outputs.matriz) }}
+    env:
+      LAB_OUTPUT: ${{ runner.temp }}/hdast-lab-out
+      LAB_PYTEST: ${{ runner.temp }}/hdast-lab-pytest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - name: Liberar disco para as imagens do laboratório
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h /
+      - name: Restaurar as imagens do cache
+        uses: actions/cache/restore@v5.0.5
+        with:
+          path: ${{ runner.temp }}/lab-images.tar.gz
+          key: lab-images-${{ needs.imagens.outputs.tag }}
+          fail-on-cache-miss: true
+      - name: Carregar as imagens no Docker
+        run: |
+          gunzip -c "$RUNNER_TEMP/lab-images.tar.gz" | docker load
+          rm -f "$RUNNER_TEMP/lab-images.tar.gz"
+      - name: Rodar o pedaço pelo lab_round
+        timeout-minutes: 50
+        env:
+          NIVEL: ${{ matrix.level }}
+          ARQUIVO: ${{ matrix.file }}
+          MODO: ${{ matrix.keyword }}
+          INDICE: ${{ matrix.index }}
+          HDAST_IT_PREBUILT: '1'
+          HDAST_IT_PREBUILT_TAG: ${{ needs.imagens.outputs.tag }}
+          V18_GUARD_BENCH_LABEL: after
+        run: |
+          args=(--nivel "$NIVEL" --arquivo "$ARQUIVO" --saida "$LAB_OUTPUT"
+            --trava "$RUNNER_TEMP/hdast-lab.lock"
+            "--sufixo=-gh${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}p${INDICE}")
+          if [ -n "$MODO" ]; then
+            args+=(--k "$MODO")
+          fi
+          if [ "$NIVEL" = carga ]; then
+            # Orçamento da matriz V1.7: agora mais 45 min, dentro dos 50 min do passo.
+            HDAST_V17_DEADLINE_EPOCH=$(( $(date +%s) + 45 * 60 ))
+            export HDAST_V17_DEADLINE_EPOCH
+          fi
+          export PYTEST_ADDOPTS="--basetemp=$LAB_PYTEST"
+          uv run python -m tests.integration.lab_round "${args[@]}"
+      - name: Reunir os diagnósticos da vigia
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$LAB_OUTPUT/vigia"
+          n=0
+          while IFS= read -r arquivo; do
+            cp "$arquivo" "$LAB_OUTPUT/vigia/$n.jsonl"
+            n=$((n + 1))
+          done < <(find "$LAB_PYTEST" -name proxy-watch.jsonl 2>/dev/null)
+          echo "$n arquivos da vigia"
+      - name: Publicar JUnit, métricas e vigia do pedaço
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: lab-${{ matrix.name }}
+          path: ${{ env.LAB_OUTPUT }}
+          retention-days: 3
+          if-no-files-found: warn
+
+  resumo:
+    name: Resumo da rodada
+    needs: [planejar, pedaco]
+    if: ${{ always() && needs.planejar.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # Se nenhum pedaço publicou artefato, o resumo ainda lista todos como sem resultado.
+      - name: Baixar os artefatos dos pedaços
+        continue-on-error: true
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: lab-*
+          path: ${{ runner.temp }}/lab-artefatos
+      - name: Escrever o resumo e falhar se algum pedaço falhou
+        env:
+          PEDACOS: ${{ needs.planejar.outputs.pedacos }}
+        run: |
+          printf '%s' "$PEDACOS" > "$RUNNER_TEMP/pedacos.json"
+          mkdir -p "$RUNNER_TEMP/lab-artefatos"
+          python3 .github/scripts/lab_summary.py \
+            --artefatos "$RUNNER_TEMP/lab-artefatos" \
+            --pedacos "$RUNNER_TEMP/pedacos.json" \
+            --saida "$GITHUB_STEP_SUMMARY"
