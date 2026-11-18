@@ -1,6 +1,6 @@
 """Valores que o esquema proíbe (`hdast negative`, ADR 0051) na Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build`, `preflight` e um `probe` completo. Depois,
+Nível RÁPIDO: uma pilha por modo, com imagens locais, `preflight` e um `probe` completo. Depois,
 `hdast negative --run <id>` em duas rodadas sobre o mesmo `probe`:
 
 1. leitura (padrão do perfil: `negative.allow_writes` ausente), só `GET`;
@@ -251,7 +251,7 @@ def _scan_for_invalid_values(cli: LabCli) -> tuple[list[str], list[str]]:
 def _probe_after_restack(cli: LabCli, flags: list[str], seconds: dict[str, float]) -> str:
     """Sobe a pilha de novo (o perfil mudou, ADR 0081), confere o `preflight` e refaz o `probe`."""
     started = time.monotonic()
-    up = cli.restack("clinica-piloto", "--build", *flags)
+    up = cli.restack("clinica-piloto", *flags)
     assert up.code == 0, (up.stdout + up.stderr)[-1200:]
     seconds["restack"] = round(time.monotonic() - started, 1)
     preflight = cli.run("preflight", "clinica-piloto")
@@ -267,7 +267,7 @@ def _measure(cli: LabCli, mode: str) -> NegativeLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0

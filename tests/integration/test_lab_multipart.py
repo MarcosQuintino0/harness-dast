@@ -1,6 +1,6 @@
 """Alcance do `multipart` no `probe` (ADR 0052, T52c) contra a Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build` (sem ele a cerca é a antiga), `preflight`
+Nível RÁPIDO: uma pilha por modo com a cerca deste checkout, `preflight`
 e `probe --only enviarDocumento`. A operação de envio do laboratório é igual nos dois modos e não
 tem falha plantada: serve só para provar que o corpo chegou ao alvo como `multipart/form-data` de
 verdade (o parser do alvo leu o campo `arquivo` e devolveu 201).
@@ -87,7 +87,7 @@ def _measure(cli: LabCli, mode: str) -> MultipartLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0

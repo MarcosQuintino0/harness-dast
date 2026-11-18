@@ -5,6 +5,7 @@ all_areas = [
     "tests/conftest.py",
     "tests/integration/conftest.py",
     "tests/integration/lab_areas.toml",
+    "tests/integration/lab_images.py",
     "tests/integration/lab_round.py",
     "tests/integration/lab_support.py",
     "tests/integration/run_support.py",

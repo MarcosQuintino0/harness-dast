@@ -90,7 +90,7 @@ def oracle_cli(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
     cli = LabCli(tmp_path_factory.mktemp("oracle-run"), env)
     cli.install_product("clinica-piloto", PILOT_PROFILE, ())
     try:
-        up = cli.run("stack", "up", "clinica-piloto", "--oracle", timeout=900)
+        up = cli.stack_up("clinica-piloto", "--oracle", timeout=900)
         if up.code != 0:
             pytest.skip(f"a pilha com Oracle não subiu nesta máquina: {up.stdout[-300:]}")
         yield cli

@@ -69,6 +69,8 @@ class RoundOptions(BaseModel):
     output: Path | None
     lock: Path
     owner: NonEmpty
+    file: TestFile | None
+    keyword: NonEmpty | None
 
 
 class LabBusy(HarnessError):
@@ -180,7 +182,18 @@ def changed_paths(repo: Path, base: str) -> set[str]:
     return {path for output in changes for path in output.split("\0") if path}
 
 
-def build_command(selection: Selection, output: Path) -> tuple[str, ...]:
+def restrict_to_file(selection: Selection, filename: str) -> Selection:
+    """Seleciona um arquivo da rodada, preservando o filtro de marcadores."""
+    path = Path(INTEGRATION) / filename
+    allowed = any(path == Path(item) or Path(item) in path.parents for item in selection.paths)
+    if not allowed or not (ROOT / path).is_file():
+        raise ConfigError(f"O arquivo {filename} não pertence à seleção. Confira --nivel.")
+    return Selection(selection.marker, (path.as_posix(),))
+
+
+def build_command(
+    selection: Selection, output: Path, keyword: str | None = None
+) -> tuple[str, ...]:
     """Monta a chamada do pytest no mesmo Python que iniciou a rodada."""
     return (
         sys.executable,
@@ -189,6 +202,7 @@ def build_command(selection: Selection, output: Path) -> tuple[str, ...]:
         *selection.paths,
         "-m",
         selection.marker,
+        *(("-k", keyword) if keyword is not None else ()),
         f"--junitxml={output / 'junit.xml'}",
         "--durations=30",
         "-rfE",
@@ -286,6 +300,8 @@ def _parse_options(argv: Sequence[str] | None) -> RoundOptions:
     parser.add_argument("--saida", dest="output", type=Path)
     parser.add_argument("--trava", dest="lock", type=Path, default=ARTIFACTS / "lab.lock")
     parser.add_argument("--dono", dest="owner", default=getuser())
+    parser.add_argument("--arquivo", dest="file", help="Nome do arquivo de teste da seleção.")
+    parser.add_argument("--k", dest="keyword", help="Expressão de seleção do pytest (-k).")
     try:
         return RoundOptions.model_validate(vars(parser.parse_args(argv)))
     except ValidationError as exc:
@@ -299,10 +315,12 @@ def _run_round(options: RoundOptions) -> int:
     if selection is None:
         sys.stdout.write("Sem mudanças de código ou testes. Nenhuma rodada de laboratório.\n")
         return 0
+    if options.file is not None:
+        selection = restrict_to_file(selection, options.file)
     started = datetime.now(UTC)
     stamp = started.strftime("%Y%m%dT%H%M%S.%fZ")
     output = (options.output or ARTIFACTS / "rodadas" / f"{stamp}-{options.level}").absolute()
-    command = build_command(selection, output)
+    command = build_command(selection, output, options.keyword)
     if options.dry_run:
         display = subprocess.list2cmdline(command) if os.name == "nt" else shlex.join(command)
         sys.stdout.write(f"{display}\nCaminhos selecionados\n")

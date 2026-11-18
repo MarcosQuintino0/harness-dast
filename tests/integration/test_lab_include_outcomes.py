@@ -1,6 +1,6 @@
 """Varrer as operações que deram "não encontrado" (ADR 0050) na Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build`, `preflight` e um `probe` completo. A
+Nível RÁPIDO: uma pilha por modo, com imagens locais, `preflight` e um `probe` completo. A
 operação que o teste varre é ESCOLHIDA pelo que o `probe` mostrou (a primeira de leitura com
 resultado `not_found` em `probe.json`), nunca por uma lista fixa. Para o `probe` dar 404, a CÓPIA
 descartável do `data-rules.yml` aponta um parâmetro de caminho para um registro que não existe.
@@ -96,7 +96,7 @@ def _probe_after_restack(
 ) -> tuple[str, dict[str, Any]]:
     """Sobe a pilha de novo (ADR 0081), refaz o `probe` e devolve o `run_id` novo."""
     started = time.monotonic()
-    up = cli.restack("clinica-piloto", "--build", *flags)
+    up = cli.restack("clinica-piloto", *flags)
     assert up.code == 0, (up.stdout + up.stderr)[-1200:]
     seconds["restack"] = round(time.monotonic() - started, 1)
     preflight = cli.run("preflight", "clinica-piloto")
@@ -119,7 +119,7 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0

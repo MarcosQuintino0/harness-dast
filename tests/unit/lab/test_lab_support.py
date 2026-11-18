@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from harness_dast.domain.errors import ConfigError
 from tests.integration.lab_support import CliResult, LabCli, ProxyWatchLatch, stack_suffix
 from tests.integration.proxy_watch_log import WatchResult, extract_categories
 
@@ -164,7 +165,7 @@ def test_runs_down_before_up_quando_pilha_recriada(tmp_path: Path) -> None:
 
     assert command.commands == [
         (("stack", "down"), 240),
-        (("stack", "up", "vampi", "--secure"), 600),
+        (("stack", "up", "vampi", "--build", "--secure"), 600),
     ]
 
 
@@ -175,6 +176,49 @@ def test_returns_up_result_quando_pilha_recriada(tmp_path: Path) -> None:
     result = cli.restack("vampi")
 
     assert result == command.up_result
+
+
+def test_measures_stack_up_quando_reutiliza_imagens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    command = FakeStackCommand(tmp_path)
+    metrics = tmp_path / "metrics"
+    monkeypatch.setenv("HDAST_IT_METRICS_DIR", str(metrics))
+    monkeypatch.setenv("HDAST_IT_PREBUILT", "1")
+    monkeypatch.setenv("HDAST_ZAP_IMAGE", "hdast/zap:sessao")
+    monkeypatch.setenv("HDAST_SCOPE_PROXY_IMAGE", "hdast/scope-proxy:sessao")
+    cli = LabCli(tmp_path, {"HDAST_STACK_BUILD": "1"}, stack_command=command)
+
+    cli.run("stack", "up", "vampi", "--build", "--secure")
+    cli.restack("vampi", "--secure")
+
+    assert cli.env["HDAST_STACK_BUILD"] == "reuse"
+    assert cli.env["HDAST_ZAP_IMAGE"] == "hdast/zap:sessao"
+    assert cli.env["HDAST_SCOPE_PROXY_IMAGE"] == "hdast/scope-proxy:sessao"
+    assert [args for args, _ in command.commands] == [
+        ("stack", "up", "vampi", "--secure"),
+        ("stack", "down"),
+        ("stack", "up", "vampi", "--secure"),
+    ]
+    rows = [
+        json.loads(line)
+        for line in (metrics / "stack-up.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(rows) == 2
+    for row in rows:
+        assert row["product"] == "vampi"
+        assert row["prebuilt"] is True
+        assert row["exit_code"] == 0
+        assert row["seconds"] >= 0
+
+
+def test_rejects_prebuilt_mode_quando_referencias_ausentes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HDAST_IT_PREBUILT", "1")
+
+    with pytest.raises(ConfigError, match="HDAST_ZAP_IMAGE"):
+        LabCli(tmp_path, {}, stack_command=FakeStackCommand(tmp_path))
 
 
 def test_returns_empty_suffix_quando_variavel_ausente(monkeypatch: pytest.MonkeyPatch) -> None:

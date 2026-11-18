@@ -218,9 +218,7 @@ def test_verificacao_aditiva_apos_varredura_completa(product: str, mode: str) ->
         assert lab.command("profile", "validate", product)[0] == 0
         attempted_up = True
         assert (
-            lab.command(
-                "stack", "up", product, f"--{mode}", "--build", "--timeout", "600", timeout=850
-            )[0]
+            lab.command("stack", "up", product, f"--{mode}", "--timeout", "600", timeout=850)[0]
             == 0
         )
         code, envelope = lab.command("run", product)

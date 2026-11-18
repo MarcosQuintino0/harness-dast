@@ -49,6 +49,20 @@ O [mapa de áreas](../../tests/integration/lab_areas.toml) lista os arquivos dos
 `fast` e `prova`. Ao acrescentar um teste com um desses marcadores, atualize a área e a
 tabela da escada. O teste de contrato compara o mapa com a coleta do pytest.
 
+#### Imagens construídas uma vez por sessão
+
+No PowerShell, ative `HDAST_IT_PREBUILT=1` e rode pelo comando de rodada, que mantém a trava exclusiva do laboratório. Para limitar a seleção, use `--arquivo` com o nome de um arquivo do nível e `--k` com uma expressão do pytest. Neste exemplo, os colchetes selecionam o ID do parâmetro da fixture.
+
+```powershell
+$env:HDAST_IT_PREBUILT = '1'
+uv run python -m tests.integration.lab_round --nivel fast --arquivo test_lab_multipart.py --k '[secure]'
+Remove-Item Env:HDAST_IT_PREBUILT
+```
+
+A sessão constrói ZAP, proxy e Clínica Piloto com os arquivos Compose do checkout antes de iniciar os testes. Cada projeto tem até 30 minutos de build. As duas imagens próprias recebem tags exclusivas da sessão e a Clínica usa sua tag local padrão. O teste passa `HDAST_STACK_BUILD=reuse` para que o Compose também suba o alvo anexado com `--no-build`. A CLI confere a presença das imagens próprias e a versão do proxy em cada subida. As tags continuam no Docker após a execução.
+
+`metricas/stack-up.jsonl` registra produto, segundos, modo de build e código de saída de cada subida pela infraestrutura de teste. Esses tempos não incluem o build inicial no modo pré-construído e não comprovam o comportamento da primeira construção com cache frio. Para comparar com o fluxo anterior, retire `HDAST_IT_PREBUILT` e repita a seleção. Imagens auxiliares podem ser baixadas durante a subida. A coleta com `--collect-only` não constrói imagens.
+
 ## Dublês: quando usar e quando evitar
 
 - **Falsos em memória** (em `tests/fakes/`) são o padrão para testar casos de uso. Têm comportamento, não só retorno fixo.

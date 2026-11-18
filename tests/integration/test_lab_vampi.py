@@ -56,7 +56,7 @@ class VampiRun:
 def _start(root: Path) -> LabCli:
     cli = LabCli(root, SEEDED)
     cli.install_product("vampi", VAMPI_PROFILE, (VAMPI_OPENAPI,))
-    up = cli.run("stack", "up", "vampi", timeout=420)
+    up = cli.stack_up("vampi", timeout=420)
     assert up.code == 0, up.stdout + up.stderr
     return cli
 

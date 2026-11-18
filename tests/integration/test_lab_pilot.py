@@ -76,7 +76,7 @@ def _start(
     cli.install_product("clinica-piloto", PILOT_PROFILE)
     if prepare is not None:
         prepare(cli)
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     if up.code != 0:
         cli.stack_down()
     assert up.code == 0, up.stdout + up.stderr

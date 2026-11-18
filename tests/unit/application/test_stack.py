@@ -289,6 +289,28 @@ def test_up_checks_the_proxy_version_after_local_build(tmp_path: Path) -> None:
     assert not rig.compose.running
 
 
+@pytest.mark.parametrize(
+    ("value", "explicit_build", "expected"),
+    [
+        (None, False, None),
+        ("0", False, None),
+        ("true", False, None),
+        ("reuse", False, False),
+        ("reuse", True, True),
+        ("1", False, True),
+    ],
+)
+def test_selects_pilot_build_quando_configurado(
+    tmp_path: Path, value: str | None, explicit_build: bool, expected: bool | None
+) -> None:
+    env = {} if value is None else {"HDAST_STACK_BUILD": value}
+    rig = Rig(tmp_path, env)
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto", build=explicit_build))
+
+    assert rig.compose.builds["hdast-pilotrun"] is expected
+
+
 def test_sufixo_isola_projetos_e_rede_tambem_no_down(tmp_path: Path) -> None:
     rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
 

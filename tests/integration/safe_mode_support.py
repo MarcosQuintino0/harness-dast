@@ -20,7 +20,7 @@ def enable_proxy(path: Path) -> None:
 
 def start_and_probe(cli: LabCli, product: str, *probe_flags: str) -> tuple[str, list[str]]:
     """Sobe modo seguro e cria probe próprio sobre o perfil já preparado."""
-    up = cli.run("stack", "up", product, "--build", "--secure", timeout=900)
+    up = cli.stack_up(product, "--secure", timeout=900)
     assert up.code == 0, up.stdout + up.stderr
     preflight = cli.run("preflight", product)
     assert preflight.code == 0, preflight.stdout + preflight.stderr

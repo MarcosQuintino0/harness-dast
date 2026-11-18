@@ -26,11 +26,8 @@ def test_v19_authz_observacao_dirigida(tmp_path: Path, product: str, mode: str) 
     cli = LabCli(tmp_path, env)
     _install(cli, product)
     try:
-        up = cli.run(
-            "stack",
-            "up",
+        up = cli.stack_up(
             product,
-            "--build",
             *(["--secure"] if mode == "secure" else []),
             timeout=900,
         )

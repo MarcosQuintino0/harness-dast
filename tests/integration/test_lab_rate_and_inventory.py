@@ -126,7 +126,7 @@ def test_crapi_limite_de_consumo_e_inventario_com_e_sem_as_chaves(tmp_path: Path
     _crapi_product(cli.products, enabled=True)
     records: dict[str, Any] = {}
     try:
-        assert cli.run("stack", "up", "crapi", timeout=600).code == 0
+        assert cli.stack_up("crapi", timeout=600).code == 0
         assert cli.run("preflight", "crapi").code == 0
         on = _run_cycle(cli, "crapi", CRAPI_ONLY)
         records["on"] = _summary(on)
@@ -151,7 +151,7 @@ def test_crapi_limite_de_consumo_e_inventario_com_e_sem_as_chaves(tmp_path: Path
         # Mudar o perfil muda a aprovação: o proxy de escopo exige pilha nova.
         cli.stack_down()
         set_flags(cli.products / "crapi" / "target.yml", enabled=False)
-        assert cli.run("stack", "up", "crapi", timeout=600).code == 0
+        assert cli.stack_up("crapi", timeout=600).code == 0
         # O `probe` do OTP (que responde 500) deixa a intenção no diário e não se repete às cegas:
         # a execução sem as chaves usa só a lista de posts, e nenhum pedido de checagem sai.
         off = _run_cycle(cli, "crapi", CRAPI_ONLY[:1])
@@ -172,7 +172,7 @@ def test_clinica_piloto_no_modo_seguro_com_as_duas_chaves(tmp_path: Path) -> Non
     set_flags(product / "target.yml", enabled=True)
     records: dict[str, Any] = {}
     try:
-        assert cli.run("stack", "up", "clinica-piloto", "--secure", timeout=900).code == 0
+        assert cli.stack_up("clinica-piloto", "--secure", timeout=900).code == 0
         assert cli.run("preflight", "clinica-piloto").code == 0
         cycle = _run_cycle(cli, "clinica-piloto", ("listarPacientes", "listarConvenios"))
         records.update(_summary(cycle))

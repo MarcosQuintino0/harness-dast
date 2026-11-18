@@ -108,7 +108,7 @@ def _measure(cli: LabCli, mode: str) -> UploadScan:
     seconds: dict[str, float] = {}
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0
@@ -125,7 +125,7 @@ def _measure(cli: LabCli, mode: str) -> UploadScan:
 
 def _probe_after_restack(cli: LabCli, flags: list[str], seconds: dict[str, float]) -> str:
     started = time.monotonic()
-    up = cli.restack("clinica-piloto", "--build", *flags)
+    up = cli.restack("clinica-piloto", *flags)
     assert up.code == 0, (up.stdout + up.stderr)[-1200:]
     seconds["restack"] = round(time.monotonic() - started, 1)
     preflight = cli.run("preflight", "clinica-piloto")

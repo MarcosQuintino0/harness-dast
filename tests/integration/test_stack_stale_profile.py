@@ -45,7 +45,7 @@ def cli(tmp_path: Path) -> Iterator[LabCli]:
 def test_editar_campo_livre_com_a_pilha_de_pe_falha_antes_do_primeiro_pedido_e_recriar_cura(
     cli: LabCli,
 ) -> None:
-    up = cli.run("stack", "up", PRODUCT, timeout=600)
+    up = cli.stack_up(PRODUCT, timeout=600)
     assert up.code == 0, up.stdout[-500:]
     fresh = cli.run("stack", "status")
     assert fresh.data["binding"] == "fresh"
@@ -71,7 +71,7 @@ def test_editar_campo_livre_com_a_pilha_de_pe_falha_antes_do_primeiro_pedido_e_r
     assert not any(cli.runs.iterdir()), "nada foi tentado: nenhuma execução foi aberta"
 
     assert cli.run("stack", "down", timeout=240).code == 0
-    assert cli.run("stack", "up", PRODUCT, timeout=600).code == 0
+    assert cli.stack_up(PRODUCT, timeout=600).code == 0
     assert cli.run("stack", "status").data["binding"] == "fresh"
     ready = cli.run("preflight", PRODUCT)
 

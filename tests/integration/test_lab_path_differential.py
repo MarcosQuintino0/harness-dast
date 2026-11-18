@@ -263,7 +263,7 @@ def test_vampi_every_route_flask_reaches_is_among_the_model_readings(
     gaps: list[str] = []
     report: list[dict[str, object]] = []
     try:
-        assert cli.run("stack", "up", "vampi", timeout=600).code == 0
+        assert cli.stack_up("vampi", timeout=600).code == 0
         for resource in (
             Resource("usuarios", ("users", "v1"), 2),
             Resource("livros", ("books", "v1"), 2),
