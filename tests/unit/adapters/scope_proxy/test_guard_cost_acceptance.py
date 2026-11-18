@@ -8,6 +8,7 @@ from threading import Event, Thread
 import pytest
 
 import harness_dast.adapters.scope_proxy.approval_watch as watch_module
+import harness_dast.adapters.scope_proxy.gate_watch as gate_watch_module
 from harness_dast.adapters.scope_proxy.approval_watch import file_signature
 from harness_dast.adapters.scope_proxy.decision import Reason
 from harness_dast.adapters.scope_proxy.gate_watch import GateWatch
@@ -71,7 +72,8 @@ def test_vigia_real_registra_primeira_recusa_sem_identificar_fonte(
     assert events == [WatchCause.ACCESS]
 
 
-def test_leitura_lenta_nao_renova_snapshot_ao_terminar() -> None:
+def test_leitura_lenta_nao_renova_snapshot_ao_terminar(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(gate_watch_module, "_INTERVAL", 3600.0)
     now = [0.0]
     calls = [0]
 
@@ -84,22 +86,33 @@ def test_leitura_lenta_nao_renova_snapshot_ao_terminar() -> None:
     watch = GateWatch(detect, lambda: now[0])
     try:
         watch.run_once()
-        assert watch.check() is Reason.APPROVAL_CHANGED
-        now[0] = 0.202
-        watch.run_once()
-        assert watch.check() is Reason.APPROVAL_CHANGED
+        assert calls[0] == 2
+        # O retrato leva a hora de INICIO da leitura lenta: ja nasce velho e exige nova leitura.
+        assert watch.check() is None
+        assert calls[0] == 3
     finally:
         watch.close()
 
 
-def test_limite_de_idade_aceita_200_ms_e_recusa_acima() -> None:
+def test_limite_de_idade_aceita_200_ms_sem_ler_e_reverifica_acima(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gate_watch_module, "_INTERVAL", 3600.0)
     now = [0.0]
-    watch = GateWatch(lambda: None, lambda: now[0])
+    calls = [0]
+
+    def detect() -> Reason | None:
+        calls[0] += 1
+        return None
+
+    watch = GateWatch(detect, lambda: now[0])
     try:
         now[0] = 0.2
         assert watch.check() is None
+        assert calls[0] == 1
         now[0] = 0.201
-        assert watch.check() is Reason.APPROVAL_CHANGED
+        assert watch.check() is None
+        assert calls[0] == 2
     finally:
         watch.close()
 

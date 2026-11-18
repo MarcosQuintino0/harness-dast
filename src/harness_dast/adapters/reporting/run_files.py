@@ -14,12 +14,13 @@ Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json`,
 import json
 import os
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Final, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from harness_dast.adapters.reporting.permission_retry import retry_on_permission_error
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
@@ -37,8 +38,6 @@ from harness_dast.domain.signal_result import ProxySignals
 
 SCAN_FILE: Final = "scan.json"
 PROGRESS_FILE: Final = "scan-progress.json"
-REPLACE_ATTEMPTS: Final = 6
-REPLACE_PAUSE_SECONDS: Final = 0.05
 ALERTS_FILE: Final = "alerts.raw.json"
 EVIDENCE_FILE: Final = "evidence.json"
 TRIAGE_FILE: Final = "triage.json"
@@ -82,13 +81,15 @@ _M = TypeVar("_M", bound=BaseModel)
 class FileRunArtifacts:
     """Lê e grava os arquivos de uma execução no sistema de arquivos."""
 
-    def __init__(self, runs_dir: Path) -> None:
+    def __init__(self, runs_dir: Path, sleep: Callable[[float], None] = time.sleep) -> None:
         """Cria o armazém.
 
         Args:
             runs_dir: Pasta das execuções (`HDAST_RUNS_DIR`).
+            sleep: Pausa entre novas tentativas de gravação; entra por parâmetro nos testes.
         """
         self._runs_dir = runs_dir
+        self._sleep = sleep
 
     def read_manifest(self, run_id: str) -> RunManifest:
         """Lê `manifest.json`."""
@@ -295,31 +296,16 @@ class FileRunArtifacts:
         temporary = directory / f".{name}.tmp"
         try:
             directory.mkdir(parents=True, exist_ok=True)
-            temporary.write_text(text + "\n", encoding="utf-8", newline="\n")
-            _replace_with_retry(temporary, target)
+            retry_on_permission_error(
+                lambda: temporary.write_text(text + "\n", encoding="utf-8", newline="\n"),
+                self._sleep,
+            )
+            retry_on_permission_error(lambda: os.replace(temporary, target), self._sleep)
         except OSError:
             raise ConfigError(
                 f"Não foi possível gravar {name} da execução.",
                 hint="Confira HDAST_RUNS_DIR, o espaço em disco e a permissão de escrita.",
             ) from None
-
-
-def _replace_with_retry(source: Path, target: Path) -> None:
-    """`os.replace` que tolera um leitor passando pelo arquivo.
-
-    No Windows, trocar um arquivo que outro processo tem aberto (`hdast stop`, a pessoa ou o
-    coordenador acompanhando `scan-progress.json`, antivírus) levanta `PermissionError`; sem isto
-    uma leitura de cortesia derrubava a varredura inteira. Tenta poucas vezes e só então desiste.
-    """
-    for attempt in range(REPLACE_ATTEMPTS):
-        try:
-            os.replace(source, target)
-        except PermissionError:
-            if attempt == REPLACE_ATTEMPTS - 1:
-                raise
-            time.sleep(REPLACE_PAUSE_SECONDS * (attempt + 1))
-        else:
-            return
 
 
 def _corrupt(name: str, command: str) -> ConfigError:
