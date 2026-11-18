@@ -34,6 +34,7 @@ from harness_dast.cli.commands.report import report_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.secret import build_secret_app
+from harness_dast.cli.commands.setup import setup_command
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.strategy import build_strategy_app
@@ -57,6 +58,7 @@ ADVANCED_PANEL = "Avançado"
 def _register_commands(app: typer.Typer) -> None:
     # O Typer exibe os painéis na ordem em que encontra seus primeiros comandos.
     app.command("doctor", rich_help_panel=START_HERE_PANEL)(doctor_command)
+    app.command("setup", rich_help_panel=START_HERE_PANEL)(setup_command)
     app.command("run", rich_help_panel=START_HERE_PANEL)(run_command)
     app.command("report", rich_help_panel=START_HERE_PANEL)(report_command)
     app.command("stop", rich_help_panel=START_HERE_PANEL)(stop_command)

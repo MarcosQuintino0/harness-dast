@@ -33,6 +33,7 @@ EXPECTED_COMMANDS = frozenset(
         "run",
         "scan",
         "secret",
+        "setup",
         "spec",
         "stack",
         "stop",
