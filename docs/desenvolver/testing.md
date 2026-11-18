@@ -19,25 +19,35 @@ Este documento define como o projeto é testado. Regras resumidas para agentes e
 Até que degrau testar cada mudança (checagens, unitários, ataque direcionado, varredura completa, rodada cega) e os comandos de cada um: [escada-de-testes.md](escada-de-testes.md).
 
 ```bash
-uv run pytest                  # só os testes que não exigem Docker
-uv run pytest -m integration   # exige Docker; horas (cada varredura leva 12 a 30 min)
-uv run pytest -m integration tests/integration/test_lab_vampi.py   # só alcançabilidade (minutos)
-uv run pytest -m lab_fast                 # nível RÁPIDO (ciclo conserta-e-roda): poucos endpoints, uma pilha por grupo
-HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full   # nível COMPLETO: todos os endpoints, política padrão, vulnerável e seguro; grava as medidas
+uv run pytest
+uv run python -m tests.integration.lab_round --nivel changed --dry-run
+uv run python -m tests.integration.lab_round --nivel changed
 ```
 
 Por padrão, `pytest` exclui os marcadores `integration` e `e2e` (configurado em `pyproject.toml`). Os marcadores `integration`, `contract` e `e2e` existem. Passar `-m` na linha de comando substitui o filtro padrão.
 
 Antes de abrir um pull request, rode as seis verificações listadas na [Parte A do AGENTS.md](../../AGENTS.md#antes-de-terminar-rode).
 
-### Dois níveis de integração contra o lab
+<a id="dois-níveis-de-integração-contra-o-lab"></a>
 
-| Nível | Marcador | O que roda | Para quê |
+### Níveis de integração contra o lab
+
+| Rodada | Marcador | O que roda | Quando |
 | --- | --- | --- | --- |
-| Rápido | `lab_fast` (e `integration`) | `test_lab_fast.py`: sonda e varre 2 operações do piloto (uma escrita com XSRF, uma leitura com parâmetro, escolhidas pelo mecanismo e não por falha plantada) e confere XSRF em toda escrita do varredor, token em toda requisição, zero segredo nos artefatos, regras do Replacer removidas e as negações do proxy contadas; uma varredura do VAmPI a 5 req/s prova que o limitador de taxa segura (média ate 5,25 e pico até 6 req/s na auditoria do proxy); parada de emergência durante o `run`; limpeza no Oracle depois de `run` mais uma varredura de duas escritas; `test_lab_path_scope.py` (V1.1: 44 formas de caminho do ADR 0026 contra uma isca (caminho proibido do laboratório) pelo proxy real nos modos estrito e amplo, `detail` granular, caminho byte a byte e atraso do endpoint lento) e `test_lab_path_differential.py` (cerca x servidor: o que o Spring e o Flask roteiam de fato contra as leituras de `domain/widepath.py`, mais a coerção numérica do parâmetro) | Ciclo conserta-e-roda e rodadas que não dão nota |
-| Completo | `lab_full` (e `integration`) | `test_lab_run.py`: `hdast run` com todos os endpoints, política padrão do ZAP, VAmPI e piloto em modo vulnerável e seguro, comparação entre execuções | Comparação com o gabarito; uma vez por alvo e modo, no fim |
+| `changed` | `lab_fast` e/ou `lab_prova` | Núcleo e provas das áreas atingidas. Arquivo de apoio comum ou caminho sem área aciona o núcleo inteiro | Ciclo local, conforme a [tabela de áreas](escada-de-testes.md#mudei-x-rodo-y) |
+| `fast` | `lab_fast` | Núcleo completo, incluindo cerca, autorização, dados, scan, reteste e parada | Fechamento e mudanças sem área conhecida |
+| `prova` | `lab_prova` | Provas de versão, incluindo controles, OAST, estratégia, desempenho e limpeza | Fechamento. No ciclo local, `changed` seleciona as provas afetadas |
+| `regressao` | `regressao_dirigida` | Cenários dirigidos da Clínica Piloto e do VAmPI | Ao conferir a regressão do laboratório |
+| `tudo` | `integration or e2e` | Toda a integração e ponta a ponta, inclusive `lab_full` e os casos marcados apenas como `integration` | Quando o plano pedir a suíte inteira |
 
-O nível rápido NÃO valida: cobertura de todas as operações, a política padrão sobre o alvo inteiro, a comparação com o gabarito e o comportamento de varreduras longas (renovação de token, prazo, saúde do alvo sob carga). Escolher regras ou endpoints olhando o gabarito das falhas plantadas é proibido no nível completo. Os testes de alcançabilidade (`test_lab_vampi.py`, `test_lab_pilot.py`) e `test_cleanup_oracle.py` só levam `integration`.
+O degrau completo usa `lab_full` com a política padrão e todas as operações dos alvos
+previstos no plano de versão. A prova mede cobertura, comparação com o gabarito e
+comportamento sob varredura longa. Escolher regras ou operações pelo gabarito é proibido
+nesse degrau. [Varredura completa](escada-de-testes.md#degrau-4-varredura-completa)
+
+O [mapa de áreas](../../tests/integration/lab_areas.toml) lista os arquivos dos níveis
+`fast` e `prova`. Ao acrescentar um teste com um desses marcadores, atualize a área e a
+tabela da escada. O teste de contrato compara o mapa com a coleta do pytest.
 
 ## Dublês: quando usar e quando evitar
 
@@ -106,7 +116,7 @@ A "janela fechada no meio da execução" depende de quem executa (a conferência
 - **Imagem do ZAP:** atualizar a imagem é uma mudança como outra qualquer, em pull request próprio, com integração e ponta a ponta.
 - **Defeito corrigido:** chega com o teste que o reproduzia.
 
-Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e existem em `tests/integration/` (níveis `lab_fast` e `lab_full`, fora do `uv run pytest` padrão).
+Os itens de regressão contra o lab dependem do `lab/` e do `compose.yaml` e existem em `tests/integration/`, fora do `uv run pytest` padrão.
 
 ## Avaliação das skills
 

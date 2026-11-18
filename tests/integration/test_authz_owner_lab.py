@@ -13,7 +13,7 @@ from tests.integration.run_support import record_metrics, throwaway_pilot_env
 from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 def _blind_profile(cli: LabCli) -> None:

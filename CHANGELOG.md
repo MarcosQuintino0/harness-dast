@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- O laboratório ganha o nível `lab_prova` e o comando `tests.integration.lab_round`. A rodada local seleciona o núcleo e as provas por área e registra métricas, JUnit e log sob uma trava exclusiva. [ADR 0116](docs/decisoes/0116-niveis-do-laboratorio.md)
 - README de primeiro uso, índice da documentação atualizado e roteiros VHS para a demo e o reteste no VAmPI local.
 - `hdast demo` executa o VAmPI local em uma sessão temporária depois de aprovação digitada. A pilha é desmontada por padrão e o relatório HTML fica disponível para abrir no navegador. [ADR 0115](docs/decisoes/0115-hdast-demo.md)
 

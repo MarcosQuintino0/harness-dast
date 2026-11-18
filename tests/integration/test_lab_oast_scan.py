@@ -32,7 +32,7 @@ from tests.integration.run_support import record_metrics
 from tests.integration.test_lab_oast import finish_proof
 from tests.integration.watch_diagnostic_support import collect_watch, docker_logs
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 OPERATION = "contact_mechanic"
 FIELD = "mechanic_api"

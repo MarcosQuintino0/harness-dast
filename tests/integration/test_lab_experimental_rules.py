@@ -26,7 +26,7 @@ from tests.integration.lab_proof_support import prepare_control_product
 from tests.integration.lab_support import PILOT_PROFILE, REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 OPERATION = "validate_coupon"
 COUPON_PATH = "/community/api/v2/coupon/validate-coupon"

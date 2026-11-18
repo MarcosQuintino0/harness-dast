@@ -14,7 +14,7 @@ from tests.integration.oast_support import OastLab, install_vampi
 from tests.integration.run_support import record_metrics
 from tests.integration.test_lab_vampi import SEEDED
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 def finish_proof(lab: OastLab, marker: str, evidence: dict[str, object]) -> None:

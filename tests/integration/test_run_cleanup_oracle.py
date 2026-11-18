@@ -30,7 +30,7 @@ from tests.integration.lab_support import (
 )
 from tests.integration.run_support import MemorySampler, pilot_requests_by_endpoint, record_metrics
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 ORACLE_IMAGE = "gvenzl/oracle-free:23-slim-faststart"
 PILOT_IMAGE = "hdast-clinica-piloto:1.0.0"

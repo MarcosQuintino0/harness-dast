@@ -117,6 +117,7 @@ markers = [
     "contract: envelope JSON, códigos de saída e contratos de portas",
     "e2e: hdast run contra o lab; exige Docker",
     "lab_fast: nivel RAPIDO da integracao (poucos endpoints, pilha reaproveitada); exige Docker",
+    "lab_prova: provas de versão, rodadas no fechamento e quando a área muda; exige Docker",
     "lab_full: nivel COMPLETO da integracao (todos os endpoints, politica padrao); exige Docker",
     "regressao_dirigida: roteiro nao cego e rapido que prova que H1 a H10 (Clinica) e V1 e V3 (VAmPI) seguem achadas; exige Docker",
 ]

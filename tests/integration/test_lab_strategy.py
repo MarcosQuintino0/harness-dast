@@ -47,7 +47,7 @@ def _cli(root: Path, product: str) -> LabCli:
     return LabCli(root, env)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("pacing", ["legacy"])

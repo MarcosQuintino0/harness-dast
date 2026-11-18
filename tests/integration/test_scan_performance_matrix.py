@@ -283,7 +283,7 @@ def test_v17_t4(tmp_path: Path, product: str, variant: str) -> None:
     _exercise(tmp_path, product, variant, "t4", 1)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("variant", ["A", "B"])
@@ -291,7 +291,7 @@ def test_v17_t2_sql(tmp_path: Path, product: str, mode: str, variant: str) -> No
     _exercise(tmp_path, product, variant, "t2", 1, mode)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("variant", ["A", "B"])
 def test_v17_t2_path(tmp_path: Path, mode: str, variant: str) -> None:
