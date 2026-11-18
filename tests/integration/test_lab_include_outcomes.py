@@ -62,6 +62,7 @@ class OutcomesLab:
     live_exit: int
     live: dict[str, Any]
     proxy_rows: list[dict[str, Any]]
+    scan_proxy_rows: list[dict[str, Any]]
     seconds: dict[str, float] = field(default_factory=dict)
 
     def planned(self, data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -137,6 +138,8 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
     base = ["scan", "clinica-piloto", "--run", run_id, "--only", operation]
     with_field = cli.run(*base, "--dry-run")
     assert with_field.code == 0, with_field.stdout[-800:]
+    # Só as linhas que o scan acrescentou: o probe novo também passa pela cerca na mesma pilha.
+    proxy_before = len(proxy_audit(cli))
     started = time.monotonic()
     live = cli.run(*base, "--max-minutes", "5", timeout=900)
     seconds["scan"] = round(time.monotonic() - started, 1)
@@ -155,14 +158,15 @@ def _measure(cli: LabCli, mode: str) -> OutcomesLab:
         with_field=with_field.data,
         live_exit=live.code,
         live=json.loads(scan_file.read_text(encoding="utf-8")),
-        proxy_rows=proxy_audit(cli),
+        proxy_rows=(all_rows := proxy_audit(cli)),
+        scan_proxy_rows=all_rows[proxy_before:],
         seconds=seconds,
     )
 
 
 def _observations(lab: OutcomesLab) -> dict[str, Any]:
     entry = [e for e in lab.live["entries"] if e["operation_id"] == lab.operation]
-    rows = [r for r in lab.proxy_rows if r["path"].startswith(lab.path_template.split("{")[0])]
+    rows = [r for r in lab.scan_proxy_rows if r["path"].startswith(lab.path_template.split("{")[0])]
     return {
         "mode": lab.mode,
         "seconds": lab.seconds,
@@ -242,7 +246,7 @@ def test_every_proxy_row_of_the_scan_was_decided_by_the_fence_and_none_was_a_del
     lab: OutcomesLab,
 ) -> None:
     prefix = lab.path_template.split("{")[0]
-    rows = [r for r in lab.proxy_rows if r["path"].startswith(prefix)]
+    rows = [r for r in lab.scan_proxy_rows if r["path"].startswith(prefix)]
     assert rows
     assert {r["decision"] for r in rows} <= {"allow", "deny"}
     assert any(r["decision"] == "allow" for r in rows)
