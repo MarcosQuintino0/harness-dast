@@ -53,7 +53,7 @@ def test_v19_investiga_regra_dirigida(
         "sources": source_hashes(),
     }
     try:
-        up = cli.run("stack", "up", product, "--build", timeout=900)
+        up = cli.stack_up(product, timeout=900)
         record["up_exit"] = up.code
         assert up.code == 0, up.stdout + up.stderr
         assert cli.run("preflight", product, timeout=420).code == 0

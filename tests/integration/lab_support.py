@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ from harness_dast.domain.cleanup_plan import CleanupPlan
 from harness_dast.domain.errors import ConfigError
 from harness_dast.observability.logging import SecretRegistry
 from tests.fakes.approvals import approval_for
+from tests.integration.lab_images import IMAGE_ENV_KEYS, PREBUILT_MODE
 from tests.integration.proxy_watch_log import WatchResult, read_docker_latch_categories
 
 REPO = Path(__file__).resolve().parents[2]
@@ -157,12 +159,22 @@ class LabCli:
                 "HDAST_STATE_DIR": str(self.state),
                 "HDAST_RUNS_DIR": str(self.runs),
                 "HDAST_PRODUCTS_DIR": str(self.products),
-                # A prova de desenvolvimento precisa exercitar a cerca deste checkout.
-                "HDAST_STACK_BUILD": "1",
                 "PYTHONIOENCODING": "utf-8",
             }
         )
         env.update(extra_env)
+        self._prebuilt = os.environ.get(PREBUILT_MODE) == "1"
+        if self._prebuilt:
+            for key in IMAGE_ENV_KEYS:
+                image = os.environ.get(key)
+                if not image:
+                    raise ConfigError(f"Imagem de sessão ausente em {key}. Rode pelo pytest.")
+                env[key] = image
+            env["HDAST_STACK_BUILD"] = "reuse"
+            env["COMPOSE_DISABLE_ENV_FILE"] = "1"
+        else:
+            # A prova de desenvolvimento precisa exercitar a cerca deste checkout.
+            env.setdefault("HDAST_STACK_BUILD", "1")
         # Fonte única do sufixo: o `oast_support`, o `oast_cleanup` e o `crapi_support` leem o
         # mesmo valor, para procurar os contêineres no projeto que a CLI realmente subiu.
         if suffix := stack_suffix():
@@ -170,7 +182,7 @@ class LabCli:
         self.env = env
         self.freeze_approvals = False
         self._watch_reader = watch_reader
-        self._stack_command = stack_command if stack_command is not None else self.run
+        self._stack_command = stack_command if stack_command is not None else self._run
 
     def approve_installed_products(self) -> None:
         """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
@@ -216,6 +228,11 @@ class LabCli:
 
     def run(self, *args: str, timeout: int = CLI_TIMEOUT) -> CliResult:
         """Executa a CLI e devolve código, envelope e saídas (antes, aprova os produtos)."""
+        if args[:2] == ("stack", "up") and len(args) >= 3:
+            return self.stack_up(args[2], *args[3:], timeout=timeout)
+        return self._run(*args, timeout=timeout)
+
+    def _run(self, *args: str, timeout: int) -> CliResult:
         self.approve_installed_products()
         done = subprocess.run(  # noqa: S603 - interpretador atual e módulo do próprio projeto
             [sys.executable, "-m", "harness_dast", "--json", *args],
@@ -282,6 +299,32 @@ class LabCli:
         finally:
             self._stack_command("stack", "down", timeout=240)
 
+    def stack_up(self, product: str, *flags: str, timeout: int = STACK_UP_TIMEOUT) -> CliResult:
+        """Sobe a pilha do checkout e, se configurado, registra o tempo da subida."""
+        flags = tuple(flag for flag in flags if flag != "--build")
+        build = () if self._prebuilt else ("--build",)
+        started = time.monotonic()
+        result = None
+        try:
+            result = self._stack_command("stack", "up", product, *build, *flags, timeout=timeout)
+            return result
+        finally:
+            self._record_stack_up(product, time.monotonic() - started, result)
+
+    def _record_stack_up(self, product: str, seconds: float, result: CliResult | None) -> None:
+        metrics = os.environ.get("HDAST_IT_METRICS_DIR")
+        if metrics:
+            destination = Path(metrics)
+            destination.mkdir(parents=True, exist_ok=True)
+            row = {
+                "product": product,
+                "seconds": round(seconds, 3),
+                "prebuilt": self._prebuilt,
+                "exit_code": None if result is None else result.code,
+            }
+            with (destination / "stack-up.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(row) + "\n")
+
     def restack(self, product: str, *flags: str, timeout: int = 900) -> CliResult:
         """Derruba e sobe de novo a pilha, depois de o teste editar o perfil (ADR 0081).
 
@@ -290,7 +333,7 @@ class LabCli:
         fazer. O alvo também é recriado, então quem chama refaz o `probe`.
         """
         self.stack_down()
-        return self._stack_command("stack", "up", product, *flags, timeout=timeout)
+        return self.stack_up(product, *flags, timeout=timeout)
 
     def _record_watch_latch(self) -> None:
         state_path = self.state / "stack.json"

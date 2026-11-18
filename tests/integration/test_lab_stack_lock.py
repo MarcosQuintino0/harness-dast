@@ -57,7 +57,7 @@ def cli(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
     lab = LabCli(tmp_path_factory.mktemp("stack-lock"), throwaway_pilot_env())
     lab.install_product(PRODUCT, PILOT_PROFILE)
     try:
-        assert lab.run("stack", "up", PRODUCT, timeout=600).code == 0
+        assert lab.stack_up(PRODUCT, timeout=600).code == 0
         yield lab
     finally:
         lab.stack_down()

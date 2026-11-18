@@ -48,7 +48,7 @@ def _run(
 
 
 def _up(cli: LabCli, stages: list[dict[str, object]], product: str, mode: str, name: str) -> None:
-    flags = ["--build", *(["--secure"] if mode == "secure" else [])]
+    flags = [*(["--secure"] if mode == "secure" else [])]
     _run(cli, stages, name, "stack", "up", product, *flags)
 
 

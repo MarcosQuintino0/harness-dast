@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- O laboratório pode construir ZAP, proxy e Clínica Piloto uma vez por sessão com `HDAST_IT_PREBUILT=1`. A rodada registra o tempo de cada subida e aceita filtros por arquivo e expressão do pytest. [ADR 0117](docs/decisoes/0117-reuso-de-imagens-no-laboratorio.md)
 - O laboratório ganha o nível `lab_prova` e o comando `tests.integration.lab_round`. A rodada local seleciona o núcleo e as provas por área e registra métricas, JUnit e log sob uma trava exclusiva. [ADR 0116](docs/decisoes/0116-niveis-do-laboratorio.md)
 - README de primeiro uso, índice da documentação atualizado e roteiros VHS para a demo e o reteste no VAmPI local.
 - `hdast demo` executa o VAmPI local em uma sessão temporária depois de aprovação digitada. A pilha é desmontada por padrão e o relatório HTML fica disponível para abrir no navegador. [ADR 0115](docs/decisoes/0115-hdast-demo.md)

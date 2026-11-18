@@ -76,7 +76,7 @@ def test_crapi_jwt_e_achado_pelo_authz(tmp_path: Path) -> None:
     _prepare_crapi_product(cli.products)
     records: dict[str, Any] = {}
     try:
-        assert cli.run("stack", "up", "crapi", timeout=600).code == 0
+        assert cli.stack_up("crapi", timeout=600).code == 0
         assert cli.run("preflight", "crapi").code == 0
         probe = cli.run("probe", "crapi", "--only", "get_dashboard")
         assert probe.code == 0, probe.stdout[-500:]
@@ -100,7 +100,7 @@ def test_clinica_piloto_no_modo_seguro_nao_tem_achado_de_jwt(tmp_path: Path) -> 
     cli.install_product("clinica-piloto", PILOT_PROFILE)
     records: dict[str, Any] = {}
     try:
-        assert cli.run("stack", "up", "clinica-piloto", "--secure", timeout=900).code == 0
+        assert cli.stack_up("clinica-piloto", "--secure", timeout=900).code == 0
         assert cli.run("preflight", "clinica-piloto").code == 0
         probe = cli.run(
             "probe", "clinica-piloto", "--only", "listarConsultas", "--only", "listarConvenios"

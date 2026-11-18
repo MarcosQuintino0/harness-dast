@@ -63,7 +63,7 @@ def _scenario(
 ) -> Facts:
     """Sobe a pilha no modo pedido, roda `hdast run`, coleta os fatos e derruba a pilha."""
     try:
-        assert cli.run("stack", "up", product, mode, timeout=600).code == 0
+        assert cli.stack_up(product, mode, timeout=600).code == 0
         scenario = run_scenario(name, cli, "--max-minutes", RUN_MINUTES, *flags, product=product)
         facts = collect_facts(scenario, base, pilot=pilot)
         _report_if_the_run_stopped_before_it(scenario, product)
@@ -258,7 +258,7 @@ def kill_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     cli = LabCli(tmp_path_factory.mktemp("vampi-kill"), VAMPI_ENV)
     cli.install_product("vampi", VAMPI_PROFILE, (VAMPI_OPENAPI,))
     try:
-        assert cli.run("stack", "up", "vampi", timeout=600).code == 0
+        assert cli.stack_up("vampi", timeout=600).code == 0
         process = popen_run(cli, "vampi", "--max-minutes", RUN_MINUTES)
         progress = _wait_for_scanning(cli, process)
         started = time.time()

@@ -186,10 +186,7 @@ def _exercise(
     lifecycle = Lifecycle(Path(os.environ["HDAST_IT_METRICS_DIR"]), name, product)
     lifecycle.before_up()
     try:
-        assert (
-            cli.run("stack", "up", product, "--build", f"--{mode}", timeout=_remaining(900)).code
-            == 0
-        )
+        assert cli.stack_up(product, f"--{mode}", timeout=_remaining(900)).code == 0
         lifecycle.after_up()
         zap_view = FastZapView(cli.state_file())
         if layer == "t4":

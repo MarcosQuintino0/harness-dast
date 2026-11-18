@@ -1,8 +1,7 @@
 """Sinais de erro interno vistos pela cerca (ADR 0049) contra a Clínica Piloto, nos dois modos.
 
-Nível RÁPIDO: uma pilha por modo, COM `stack up --build` (obrigatório: sem ele a cerca é a
-antiga e o teste mediria a imagem velha), `probe`, `scan` de até duas operações de leitura
-e `report`. A busca por CRM tem resposta base de sucesso e exercita o ZAP em um caminho com
+Nível RÁPIDO: uma pilha por modo com a cerca deste checkout, `probe`, `scan` de até duas
+operações de leitura e `report`. A busca por CRM tem resposta base de sucesso em um caminho com
 parâmetro; não exige que suas mutações produzam sinais.
 Prova o CONTRATO, não a sorte do ZAP: o pedido que provoca o erro sai do próprio `probe`. A CÓPIA
 descartável do `data-rules.yml` ganha uma regra que fixa `nome` de `buscarPacientesPorNome` numa
@@ -128,7 +127,7 @@ def _leaks(cli: LabCli) -> tuple[list[str], list[str], list[str]]:
 
 def _measure(cli: LabCli, mode: str) -> SignalsLab:
     flags = ["--secure"] if mode == "secure" else []
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     assert cli.run("preflight", "clinica-piloto").code == 0
     started = time.monotonic()

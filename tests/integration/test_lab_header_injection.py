@@ -83,7 +83,7 @@ def _measure(cli: LabCli, mode: str, enabled: bool) -> HeaderLab:
     _set_inject_headers(cli.products / "clinica-piloto" / "target.yml", enabled)
     flags = ["--secure"] if mode == "secure" else []
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", *flags, timeout=900)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0

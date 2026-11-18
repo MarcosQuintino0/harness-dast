@@ -301,3 +301,30 @@ def test_dry_run_quando_saida_e_trava_sao_temporarias(
     assert "test_lab_fast.py" in capsys.readouterr().out
     assert not output.exists()
     assert not lock.exists()
+
+
+def test_dry_run_quando_seleciona_arquivo_e_modo(capsys: pytest.CaptureFixture[str]) -> None:
+    result = main(
+        [
+            "--nivel",
+            "fast",
+            "--arquivo",
+            "test_lab_multipart.py",
+            "--k",
+            "[secure]",
+            "--dry-run",
+        ]
+    )
+
+    assert result == ExitCode.OK
+    command, _, selected = capsys.readouterr().out.splitlines()
+    assert "-m lab_fast -k" in command
+    assert "[secure]" in command
+    assert selected.strip() == "tests/integration/test_lab_multipart.py"
+
+
+def test_rejects_file_quando_pertence_a_outro_nivel(capsys: pytest.CaptureFixture[str]) -> None:
+    result = main(["--nivel", "fast", "--arquivo", "test_stack_stale_profile.py", "--dry-run"])
+
+    assert result == ExitCode.USAGE
+    assert "não pertence à seleção" in capsys.readouterr().err

@@ -110,7 +110,7 @@ def stack(
             encoding="utf-8",
         )
     try:
-        assert cli.run("stack", "up", "clinica-piloto", timeout=600).code == 0
+        assert cli.stack_up("clinica-piloto", timeout=600).code == 0
         yield Stack(mode, cli, pilot_token(cli.env))
     finally:
         cli.stack_down()

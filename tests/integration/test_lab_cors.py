@@ -32,9 +32,9 @@ def test_cors_em_alvos_do_laboratorio(tmp_path: Path, product: str, mode: str) -
     else:
         cli.install_product(product, VAMPI_PROFILE, (VAMPI_OPENAPI,))
         operation = "api_views.users.me"
-    flags = ("--build", "--secure") if mode == "secure" else ("--build",)
+    flags = ("--secure",) if mode == "secure" else ()
     try:
-        up = cli.run("stack", "up", product, *flags, timeout=600)
+        up = cli.stack_up(product, *flags, timeout=600)
         assert up.code == 0, up.stdout + up.stderr
         preflight = cli.run("preflight", product)
         assert preflight.code == 0, preflight.stdout + preflight.stderr

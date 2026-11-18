@@ -39,7 +39,7 @@ def test_guard_benchmark(tmp_path: Path) -> None:
     cli = LabCli(tmp_path, VAMPI_ENV)
     _install(cli, "vampi", "B")
     try:
-        up = cli.run("stack", "up", "vampi", "--build", "--vulnerable", timeout=900)
+        up = cli.stack_up("vampi", "--vulnerable", timeout=900)
         assert up.code == 0
         containers = _docker(
             "ps",
