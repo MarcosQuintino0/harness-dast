@@ -87,8 +87,8 @@ def test_pendencia_existente_explica_resultado_desconhecido_e_como_reconciliar(
         FileMutationJournal(tmp_path).begin(key, "unknown")
 
     assert "Já existe mutação com resultado desconhecido" in caught.value.message
-    assert str(tmp_path / (key + ".jsonl")) in (caught.value.hint or "")
-    assert "remova" in (caught.value.hint or "")
+    assert f"hdast mutation release {key}" in (caught.value.hint or "")
+    assert "pessoa" in (caught.value.hint or "")
 
 
 def test_falha_de_io_no_diario_nao_se_passa_por_pendencia(tmp_path: Path) -> None:

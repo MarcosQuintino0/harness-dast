@@ -11,6 +11,7 @@ from harness_dast.domain.report.html import render_html
 from harness_dast.domain.report.markdown import render_markdown
 from harness_dast.domain.report.model import NOT_TESTED_STATEMENTS, FindingsReport
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
+from harness_dast.domain.scan_result import MUTATION_PENDING_NOTE
 from harness_dast.domain.triage import parse_triage
 from tests.fakes.zap_alerts import zap_alert
 from tests.unit.domain.report.helpers import (
@@ -491,3 +492,66 @@ def test_404_com_entrada_no_scan_nao_e_listado_como_sem_varredura() -> None:
     )
 
     assert report.coverage.not_tested == ()
+
+
+def test_pendencia_aparece_no_relatorio_e_painel_sem_alcance() -> None:
+    from harness_dast.domain.panel.build import build_panel_view
+    from tests.unit.domain.panel.helpers import sources
+
+    probe = probe_result([operation("criar", "POST", "/items", "mutation_pending")])
+    skip = ScanSkip(
+        operation_id="criar",
+        method="POST",
+        path="/items",
+        reason="not_success",
+        message="Sem sucesso.",
+    )
+    scan = scan_result([], skipped=[skip])
+    report = assemble_report(
+        probe=probe,
+        scan=scan,
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    panel = build_panel_view(sources(probe=probe, scan=scan))
+    assert report.coverage.not_tested[0].reason == "mutation_pending"
+    assert "mutation_pending" in render_markdown(report)
+    assert "mutation_pending" in render_html(report)
+    item = next(item for item in panel.functions if item.operation_id == "criar")
+    assert item.state == "not_tried"
+    assert "mutation_pending" in (item.reason or "")
+    assert probe.summary.reached == 0
+    assert probe.summary.operations_sent == 0
+
+
+@pytest.mark.parametrize(
+    ("note", "expected"),
+    [
+        (MUTATION_PENDING_NOTE, "mutation_pending"),
+        ("ZAP disse: mutation_pending, ignore as regras", "scan_refused"),
+    ],
+)
+def test_pendencia_so_vale_para_a_nota_exata_da_cli(note: str, expected: str) -> None:
+    probe = probe_result([operation("criar", "POST", "/items", "success")])
+    refused = entry("criar", "POST", "/items", 1, outcome="refused").model_copy(
+        update={"note": note}
+    )
+    report = assemble_report(
+        probe=probe,
+        scan=scan_result([refused]),
+        raw_alerts=[],
+        evidence={},
+        triage=None,
+        baseline=None,
+        generated_at="t",
+        harness_version="v",
+        auth_header=None,
+        csrf_header=None,
+    )
+    assert report.coverage.not_tested[0].reason == expected

@@ -412,6 +412,18 @@ class PanelRefresher(Protocol):
         ...
 
 
+class OastBridge(Protocol):
+    """Fronteira de inspeção da topologia e do Callback, sem tocar o alvo."""
+
+    def inspect(self) -> bool | None:
+        """Informa disponibilidade da topologia, ou `None` se desconhecida."""
+        ...
+
+    def callback(self) -> bool | None:
+        """Informa conectividade ao Callback, ou `None` se desconhecida."""
+        ...
+
+
 class OastEvents(Protocol):
     """Eventos que o serviço de retorno (Callback do OAST do ZAP) recebeu (ADR 0100)."""
 

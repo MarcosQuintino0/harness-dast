@@ -277,6 +277,8 @@ def _not_covered(report: FindingsReport) -> str:
         else ""
     )
     statements = "".join(f"<li>{h.plain(text)}</li>" for text in report.not_tested_statements)
+    if cov.oast_gap:
+        statements += f"<li>{h.plain(cov.oast_gap)}</li>"
     if cov.rule_coverage_gaps is None and cov.scans_run:
         statements += (
             "<li>Cobertura por regra indisponível: "

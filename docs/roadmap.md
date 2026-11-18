@@ -4,7 +4,7 @@ Fonte: documento de fundação técnica aprovado em 2026-11-13. O tamanho de cad
 
 ## Estado atual
 
-Versão publicada mais recente: **1.9.3**, em 2026-11-16. A organização V1.9.4 está implementada nesta branch, sem carimbo de release; aceite e integração dependem da revisão.
+Versão do pacote nesta branch: **1.12.1**, em 2026-11-17. A organização V1.9.4 foi incorporada às versões posteriores; provas e limites da correção estão no relatório abaixo. Publicar uma release não faz parte desta entrega.
 M0 a M6 têm entregas de código e provas locais, com os limites por componente abaixo; M7 não foi realizado.
 Existem CLI, ZAP, limpeza Oracle, painel, carta, aprovação humana, `negative`, estratégia, conhecimento, diário de mutações
 e leitura de dono no `authz` (ADR 0082). Não existem outros motores ou bancos de limpeza nem prova contra produto real.
@@ -17,9 +17,15 @@ Esta seção consolida o vigente. As seções de provas por versão e as notas t
 na data da entrega: uma prova posterior pode completar uma lacuna anterior. [Histórico](../CHANGELOG.md),
 [provas datadas](reviews/README.md) e [estado dos planos](plans/README.md) preservam essa distinção.
 
+## V1.12.1: mutação pendente por operação e conta
+
+Implementação na branch `fix/v1-12-1-mutacao-pendente`, pacote 1.12.1 e ADR 0104 proposto. A pendência bloqueia só a operação e conta, sem reenvio ou sucesso implícito, em `probe`, `authz`, `negative`, `extra_checks` e sementes históricas do `scan`. Relatório e painel mostram `mutation_pending`.
+
+A CLI oferece listagem segura e liberação humana interativa, com confirmação, trava exclusiva e auditoria no registro arquivado. Registros antigos continuam bloqueantes; corrupção e falhas de persistência falham de modo fechado. O caso `crapi-foco` é v3, com endereço local explícito do mecânico e o mesmo escopo e gabarito da v2. O significado de `options.include_outcomes` foi esclarecido, sem alterar o contrato. Validação e limites no [relatório da V1.12.1](reviews/relatorio-v1.12.1.md).
+
 ## V1.12: mais achados (provada só no laboratório)
 
-Entregue na branch `feat/v1-12-mais-achados`, versão 1.12.0, sem PR, merge nem release. Os ADRs 0092 a 0103 estão propostos.
+Base desta correção: V1.12.0, integrada à `develop` em `b50f843` (PR #36). Os ADRs 0092 a 0103 estão propostos.
 
 - **Carta:** o bloco `attack` liga `pacing`, `inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules` e `inventory`; só a carta liga, pela CLI (ADR 0096).
 - **Capacidades:** JWT no `authz` (ADR 0098); injeção em cabeçalhos e cookies (0097); OAST na varredura e SSRF guiado pelo contrato (0099, 0100); limite de consumo (0101); inventário de versões e documentação (0102); imagem derivada `hdast/zap` com regras alpha e beta selecionadas (0103). Tabela do que o ZAP faz em [uso do ZAP](reference/uso-do-zap.md).
@@ -63,7 +69,7 @@ As skills previstas para o M6 são `onboard-product`, `fix-reachability`, `run-s
 
 Legenda: **Implementado** = existe em código ou configuração e tem teste ou verificação registrada; **Parcial** = existe uma parte, a outra não; **Planejado (Mx)** = nada existe, marco previsto; **Pendente** = depende de decisão ou de spike.
 
-Estado consolidado inclui a V1.11 e a V1.12, provadas só no laboratório. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
+Estado consolidado inclui a V1.11, a V1.12 e a correção V1.12.1. Provas datadas em [reviews](reviews/README.md) distinguem implementação, validação local e lacunas; itens sem confirmação continuam marcados como tal.
 
 ### V1.11: verificação de achados (provada só no laboratório)
 
@@ -328,7 +334,7 @@ Bloco independente da V1.7, integrada antes da V1.8 pelo rebase sobre `a267ae2`.
 | Conhecimento de contas, dados, fluxos e autenticação | Implementado com referências aos documentos existentes, proveniência, prazo e vínculos; ADR 0076 proposto |
 | Observação de efeito | Proposta, sem execução automática ou comprovação de efeito remoto |
 | Invalidação seletiva | Comparação por dependência; consumo recusa partes obrigatórias pendentes. Dupla verificação detecta mudança persistente, sem garantia contra ABA |
-| Diário de mutações | Implementado em probe/authz/negative e por lote mutante do scan; pendência compartilhada impede repetição. Sem recuperação automática ou garantia de metadados do diretório após perda de energia |
+| Diário de mutações | Implementado em probe/authz/negative/extra_checks e por lote mutante do scan; pendência compartilhada impede repetição só da operação e conta, com `mutation_pending`. V1.12.1: `mutation list` seguro e `mutation release` exclusivamente humano, com TTY, confirmação, trava e auditoria; compatibilidade com registros antigos. Sem recuperação automática de corrupção ou garantia de metadados do diretório após perda de energia |
 | Par criado com 2xx | Implementado com leituras ou inventários anteriores e marcador novo derivado do contrato; suporta ID gerado pelo servidor quando há inventário compatível. Novidade global em APIs com ocultação/upsert continua limitada |
 | Atribuição em massa no cadastro VAmPI | Lacuna mantida: oito candidatos testados, nenhum achado na prova; sem regra específica de produto ou ampliação da carta |
 | Canal do estudo de reutilização | Implementado com propostas declaradas, validação de receitas e manifesto; não transfere aprovação nem estado efêmero. Estudo real e rodadas cegas posteriores ao merge |

@@ -18,7 +18,7 @@ import structlog
 
 from harness_dast.application.account_session import AccountSession
 from harness_dast.application.authz.sender import Reply, StopRun
-from harness_dast.application.common_ports import MutationJournal
+from harness_dast.application.common_ports import Clock, MutationJournal
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
@@ -42,6 +42,7 @@ from harness_dast.domain.inventory_checks import (
     read_docs,
     sibling_alert,
 )
+from harness_dast.domain.knowledge_mutation import MutationPending
 from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.rate_attempts import (
@@ -146,6 +147,8 @@ class ExtraContext:
     only: frozenset[str]
     product: str
     mutation_journal: MutationJournal | None = None
+    run_id: str = ""
+    clock: Clock | None = None
 
 
 def _settings(
@@ -157,6 +160,8 @@ def _settings(
         sessions=pool,
         max_requests=cap,
         product=ctx.product,
+        run_id=ctx.run_id,
+        clock=ctx.clock,
         mutation_journal=ctx.mutation_journal,
         prefix=prefix,
         rejection_attempts=attempts,
@@ -359,13 +364,20 @@ class RateChecks:
         status: int | None = None
         count = 0
         while count < ATTEMPTS_PER_OPERATION and self._sender.sent < RATE_MAX_REQUESTS:
-            reply = self._sender.send(exchange, case.path, case.body)
+            try:
+                reply = self._sender.send(exchange, case.path, case.body)
+            except MutationPending:
+                self._attempt_result(case, "inconclusive", count, "mutation_pending")
+                return
             if reply.problem is not None:
                 self._refused("attempts", case.operation_id, reply.problem, count + 1)
                 return
             count += 1
             status = reply.status
             current = AttemptReply(status, reply.retry_after, reply_text(reply.body))
+            if status is not None and status >= 500:
+                self._attempt_result(case, "inconclusive", count, f"server_error_http_{status}")
+                return
             if count == 1:
                 problem = first_reply_problem(current)
                 if problem is not None:

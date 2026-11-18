@@ -170,3 +170,37 @@ def test_carta_liga_as_capacidades_da_v1_12_com_frase_e_gera_o_perfil(
     denied = data["scope"]["deny_paths"]
     assert "/identity/api/auth/v2/check-otp" not in denied
     assert "/identity/api/auth/v3/check-otp" in denied
+
+
+def test_caso_v3_descreve_contato_coerente_sem_alargar_escopo() -> None:
+    from tests.integration.test_lab_oast_scan import MECHANIC_API
+
+    root = REPO_ROOT / "evals/cases/crapi-foco"
+    letter_text = (root / "carta.yml").read_text(encoding="utf-8")
+    authorization = (root / "authorization.md").read_text(encoding="utf-8")
+    letter = yaml.safe_load(letter_text)
+    case = yaml.safe_load((root / "case.yml").read_text(encoding="utf-8"))
+    spec = json.loads((REPO_ROOT / "lab/crapi/openapi.json").read_text(encoding="utf-8"))
+    path = "/workshop/api/merchant/contact_mechanic"
+    example = spec["paths"][path]["post"]["requestBody"]["content"]["application/json"]["example"]
+    assert "vers\u00e3o 3" in case["title"]
+    assert example["mechanic_api"] == MECHANIC_API
+    assert example["mechanic_api"] in letter_text
+    assert example["mechanic_api"] in authorization
+    assert example["mechanic_code"] == "TRAC_JHN"
+    assert "TRAC_JHN" in letter_text
+    assert "TRAC_JHN" in authorization
+    assert type(example["number_of_repeats"]) is int
+    assert example["number_of_repeats"] == 1
+    assert "number_of_repeats: 1" in letter_text
+    assert "`number_of_repeats`" in authorization
+    actual = letter["scope"]["allow"]["value"]
+    expected = case["expected"]["allow"]
+    actual_pairs = {
+        (method, path) for rule in actual for method in rule["methods"] for path in rule["paths"]
+    }
+    expected_pairs = {
+        (method, path) for rule in expected for method in rule["methods"] for path in rule["paths"]
+    }
+    assert actual_pairs == expected_pairs
+    assert letter["scope"]["deny_paths"]["value"] == case["expected"]["deny_paths"]

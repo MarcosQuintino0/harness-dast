@@ -16,6 +16,7 @@ from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_confidence import confidence_step
 from harness_dast.domain.manual_repro import build_manual_repro
 from harness_dast.domain.negative_result import NegativeFinding, NegativeResult
+from harness_dast.domain.oast_verification import oast_gap
 from harness_dast.domain.panel.format import (
     FunctionStateKind,
     capitalize_first,
@@ -37,7 +38,7 @@ from harness_dast.domain.report.labels import seeded_scans_notice
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.report.traffic import path_shape_warning
 from harness_dast.domain.scan_plan import ScanSkip
-from harness_dast.domain.scan_result import ScanEntry, ScanResult
+from harness_dast.domain.scan_result import MUTATION_PENDING_NOTE, ScanEntry, ScanResult
 
 OTHER_AREA: Final = "Outras"
 STRONG: Final = 2
@@ -81,6 +82,7 @@ _OUTCOME_WORDS: Final = {
     "redirect": "o sistema mandou para outro endereço (não seguido)",
     "timeout": "o sistema não respondeu a tempo",
     "skipped_dependency": "depende de outra função que não respondeu",
+    "mutation_pending": "mutation_pending: mutação pendente de reconciliação",
     "build_error": "a ferramenta não conseguiu montar o pedido",
 }
 _BLIND: Final = (
@@ -334,6 +336,8 @@ def _decide(
             "stopped": "Parada antes do fim.",
         }
         return ("severe" if severe else "tested", cut.get(entry.outcome))
+    if entry is not None and entry.note == MUTATION_PENDING_NOTE:
+        return "not_tried", entry.note
     if entry is not None:
         return "failed", "O ZAP recusou iniciar a varredura desta função."
     if result is None:
@@ -358,6 +362,8 @@ def _decide_probe(
         return "forbidden", "Recusa esperada de login; a varredura não ataca login."
     if result.outcome in _FORBIDDEN_OUTCOMES:
         return "forbidden", _FORBIDDEN_OUTCOMES[result.outcome]
+    if result.outcome == "mutation_pending":
+        return "not_tried", "mutation_pending: mutação pendente de reconciliação."
     if result.outcome == "dry_run":
         return "not_tried", "Só simulação (dry-run): nada foi enviado."
     if skip is not None:
@@ -473,6 +479,9 @@ def _scan_items(scan: ScanResult | None) -> list[PanelLeftOut]:
     if scan is None:
         return []
     items: list[PanelLeftOut] = []
+    gap = oast_gap(scan)
+    if gap:
+        items.append(PanelLeftOut(kind="scan", text=gap))
     cut = [item for item in scan.entries if item.outcome in ("truncated", "stopped")]
     if cut:
         items.append(

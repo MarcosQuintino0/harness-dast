@@ -59,7 +59,7 @@ def test_twenty_identical_rejections_are_a_finding_and_the_twenty_first_is_never
 
 
 def test_a_status_change_after_some_attempts_is_a_limit_and_stops_there() -> None:
-    sender, checks = _attempts(lambda n: Reply(400) if n < 6 else Reply(503))
+    sender, checks = _attempts(lambda n: Reply(400) if n < 6 else Reply(429))
 
     outcome, alerts, _ = _run(checks)
 
@@ -158,3 +158,34 @@ def test_inventory_family_with_a_refused_control_is_skipped_not_judged() -> None
 
     assert [s.reason for s in summary.skipped] == ["refused_scope"]
     assert sender.sent == 1
+
+
+def test_limite_continua_outra_operacao_quando_mutacao_pendente() -> None:
+    from harness_dast.domain.knowledge_mutation import MutationPending
+
+    sender, checks = _attempts(lambda n: MutationPending("pendente") if n == 1 else Reply(429))
+    other = AttemptCase("other", "/auth/other", "otp", "{}")
+    summary, alerts = checks.run(NO_PAGES, AttemptPlan(cases=(CASE, other), skipped=()))
+    assert summary.results[0].detail == "mutation_pending"
+    assert summary.results[0].outcome == "inconclusive"
+    assert summary.results[1].subject == "other"
+    assert summary.results[1].outcome == "limited"
+    assert alerts == ()
+    assert sender.sent == 2
+
+
+def test_5xx_apos_rejeicoes_permanece_inconclusivo() -> None:
+    _, checks = _attempts(lambda n: Reply(400) if n < 3 else Reply(503))
+    summary, alerts = checks.run(NO_PAGES, AttemptPlan(cases=(CASE,), skipped=()))
+    assert summary.results[0].outcome == "inconclusive"
+    assert summary.results[0].requests == 3
+    assert alerts == ()
+
+
+def test_pendencia_apos_envios_preserva_contagem() -> None:
+    from harness_dast.domain.knowledge_mutation import MutationPending
+
+    _, checks = _attempts(lambda n: Reply(400) if n < 3 else MutationPending("pendente"))
+    summary, _ = checks.run(NO_PAGES, AttemptPlan(cases=(CASE,), skipped=()))
+    assert summary.results[0].detail == "mutation_pending"
+    assert summary.results[0].requests == 2

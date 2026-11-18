@@ -192,6 +192,22 @@ class ScanLimits(BaseModel):
     max_rule_minutes: int
 
 
+def without_oast(policy: ScanPolicy) -> ScanPolicy:
+    """Reduz a política efetiva preservando restrições e demais escolhas já aplicadas."""
+    dependent = {rule.plugin_id for rule in OAST_RULES}
+    dependent.update(rule.plugin_id for rule in EXPERIMENTAL_RULES if rule.needs_oast)
+    return policy.model_copy(
+        update={
+            "oast": False,
+            "oast_rules": (),
+            "experimental_rules": tuple(
+                rule for rule in policy.experimental_rules if rule not in dependent
+            ),
+            "disabled_rules": tuple(sorted(set(policy.disabled_rules) | dependent)),
+        }
+    )
+
+
 def build_policy(config: ScanConfig, *, experimental_rules: bool = False) -> ScanPolicy:
     """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam).
 

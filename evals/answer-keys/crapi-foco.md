@@ -26,3 +26,5 @@ Alarmes falsos de regras experimentais e de limite de consumo devem ser lidos co
 achados marcados `[experimental]` ou de severidade média, sem ser contados como acerto
 além dos desafios acima.
 Os 900 segundos são orçamento, não duração medida.
+
+**Régua (V1.12.1).** Até a versão 3 do caso, C11 e C15 estavam `detectable: true` sem critério `match`, e a régua nunca as dava como achadas. Agora C15 casa com a técnica `authz_tampered_token`, C11 com o título do SSRF guiado em `contact_mechanic`, e os controles C1 e C12 têm critério só para o relatório dizer se foram reportados. A detectabilidade não mudou.

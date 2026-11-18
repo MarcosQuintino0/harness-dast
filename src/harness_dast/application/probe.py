@@ -266,6 +266,7 @@ class Probe:
             clock=self._clock,
             journal=self._mutation_journal,
             journal_product=profile.product,
+            journal_run_id=run.run_id.value,
         )
         budget = self._login_budget or LoginBudget(profile.login_limit, self._clock, self._sleeper)
         dispatcher = OperationDispatcher(

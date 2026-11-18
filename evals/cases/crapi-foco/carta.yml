@@ -1,3 +1,7 @@
+# Caso crapi-foco v3 (V1.12.1). Dados do contato, sem ampliação de escopo:
+# mechanic_api: http://localhost:8000/workshop/api/mechanic/receive_report
+# localhost é o crapi-workshop dentro do contêiner isolado; sem saída à internet.
+# mechanic_code: TRAC_JHN; number_of_repeats: 1 (inteiro).
 schema_version: 1
 product: crapi
 gates:

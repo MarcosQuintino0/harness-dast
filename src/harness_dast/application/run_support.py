@@ -16,10 +16,19 @@ from harness_dast.application.common_ports import (
     Sleeper,
     TargetClient,
 )
+from harness_dast.application.mutation_guard import (
+    MutationJournalBlocked,
+    begin_mutation,
+    finish_mutation,
+)
 from harness_dast.domain.audit import decision_entry, result_entry
 from harness_dast.domain.errors import HarnessError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
-from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.knowledge_mutation import (
+    MutationPending,
+    mutation_key,
+    safe_mutation_metadata,
+)
 from harness_dast.domain.probe_policy import TokenBucket
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope import ScopeGuard
@@ -181,6 +190,7 @@ class GuardedSender:
         clock: Clock,
         journal: MutationJournal | None = None,
         journal_product: str = "",
+        journal_run_id: str | None = None,
     ) -> None:
         """Cria o emissor.
 
@@ -193,6 +203,7 @@ class GuardedSender:
             clock: Relógio injetado (duração).
             journal: Diario opcional de mutacoes.
             journal_product: Produto associado as chaves.
+            journal_run_id: Execução associada à intenção.
         """
         self._guard = guard
         self._client = client
@@ -202,6 +213,7 @@ class GuardedSender:
         self._clock = clock
         self._journal = journal
         self._journal_product = journal_product
+        self._journal_run_id = journal_run_id
 
     def send(self, request: HttpRequest) -> HttpResponse:
         """Envia a requisição.
@@ -225,11 +237,21 @@ class GuardedSender:
         except ScopeViolation as error:
             self._trail.decide(request, error.message)
             raise
-        seq = self._trail.decide(request, None)
         started = self._clock.now()
         key = self._mutation_key(request)
         if key is not None and self._journal is not None:
-            self._journal.begin(key, "unknown")
+            metadata = safe_mutation_metadata(
+                request.operation_id, request.account, request.method, self._journal_run_id, started
+            )
+            try:
+                begin_mutation(self._journal, key, metadata=metadata)
+            except MutationPending:
+                self._trail.decide(request, "mutation_pending")
+                raise
+            except MutationJournalBlocked:
+                self._trail.decide(request, "mutation_journal_unavailable")
+                raise
+        seq = self._trail.decide(request, None)
         try:
             response = self._client.send(approved)
         except HarnessError as error:
@@ -237,7 +259,7 @@ class GuardedSender:
             raise
         self._trail.finish(seq, request, status=response.status, error=None, ms=self._ms(started))
         if key is not None and self._journal is not None and response.status < 500:
-            self._journal.finish(key, "observed")
+            finish_mutation(self._journal, key, "observed")
         return response
 
     def _mutation_key(self, request: HttpRequest) -> str | None:

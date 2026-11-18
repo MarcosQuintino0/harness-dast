@@ -1,6 +1,6 @@
 schema_version: 1
 name: crapi-foco
-title: crAPI foco (versão 2, V1.12)
+title: crAPI foco (versão 3, V1.12.1)
 product: crapi
 modes: [vulnerable]
 target: { kind: crapi, state_url: null }
@@ -46,12 +46,24 @@ secrets:
   password_prefix: "Aa1#"
   generate: [CRAPI_USER_A_EMAIL, CRAPI_USER_A_PASSWORD, CRAPI_USER_B_EMAIL, CRAPI_USER_B_PASSWORD]
 flaws:
-  - { id: C1, title: Localização de veículo entre contas, detectable: false }
+  - id: C1
+    title: Localização de veículo entre contas
+    detectable: false
+    match: { technique: authz_horizontal, path_contains: /location }
   - { id: C3, title: Força bruta do OTP na v2, detectable: false }
   - { id: C10, title: Propriedades internas do vídeo, detectable: false }
-  - { id: C11, title: SSRF no contato do mecânico, detectable: true }
-  - { id: C12, title: Injeção NoSQL no cupom, detectable: false }
-  - { id: C15, title: Validação de JWT, detectable: true }
+  - id: C11
+    title: SSRF no contato do mecânico
+    detectable: true
+    match: { titles: ["Server-Side Request Forgery"], operation_id: contact_mechanic }
+  - id: C12
+    title: Injeção NoSQL no cupom
+    detectable: false
+    match: { titles: ["NoSQL Injection"], path_contains: validate-coupon }
+  - id: C15
+    title: Validação de JWT
+    detectable: true
+    match: { technique: authz_tampered_token }
   - { id: C6, title: Limite de taxa no contato do mecânico, detectable: false }
 forbidden:
   methods: [DELETE, PATCH]

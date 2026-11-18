@@ -23,7 +23,13 @@ from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
-from harness_dast.domain.scan_result import ScanProgress, ScanRefused, ScanResult, ScanStatus
+from harness_dast.domain.scan_result import (
+    OastUnavailable,
+    ScanProgress,
+    ScanRefused,
+    ScanResult,
+    ScanStatus,
+)
 from harness_dast.domain.scan_tokens import ReplacerRule
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import ProxyRow
@@ -93,6 +99,7 @@ class FakeScanZap(FakeZap):
     refuse: frozenset[str] = frozenset()
     failures: dict[str, ExternalToolError | BaseException] = field(default_factory=dict)
     ignore_disable: bool = False
+    oast_config_unavailable: bool = False
     applied: list[tuple[ScanPolicy, ScanLimits]] = field(default_factory=list)
     options_before_first_scan: bool = False
     let_through: dict[str, int] = field(default_factory=dict)
@@ -152,6 +159,8 @@ class FakeScanZap(FakeZap):
 
     def apply_policy(self, policy: ScanPolicy, limits: ScanLimits) -> None:
         self._fail("apply_policy")
+        if policy.oast and self.oast_config_unavailable:
+            raise OastUnavailable("Callback indisponivel")
         self.applied.append((policy, limits))
         if self.ignore_disable:
             raise ExternalToolError("Regras que deviam estar desligadas continuam ligadas: 40044.")

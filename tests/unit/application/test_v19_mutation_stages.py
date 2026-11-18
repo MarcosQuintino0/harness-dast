@@ -142,8 +142,8 @@ def test_negative_reserva_invalida_bloqueia_antes_da_escrita(tmp_path: Path) -> 
     result = negative_service(rig, journal).execute(
         NegativeRequest(product="agenda", run_id=probe.run_id)
     )
-    assert result.status == "stopped_zap"
-    assert any(n.reason == "mutation_outcome_unknown" for n in result.not_tested)
+    assert result.status == "completed"
+    assert any(n.reason == "mutation_pending" for n in result.not_tested)
     assert rig.sent("POST") == []
 
 
@@ -154,8 +154,8 @@ def test_negative_500_mantem_pendencia_sem_reenviar(tmp_path: Path) -> None:
     result = negative_service(rig, journal).execute(
         NegativeRequest(product="agenda", run_id=probe.run_id)
     )
-    assert result.status == "stopped_zap"
-    assert any(n.reason == "mutation_outcome_unknown" for n in result.not_tested)
+    assert result.status == "completed"
+    assert any(n.reason == "mutation_pending" for n in result.not_tested)
     assert any(f.technique == "input_server_error" for f in result.findings)
     assert len(rig.sent("POST")) == 1
     assert len(list(tmp_path.glob("*.jsonl"))) == 1
@@ -199,9 +199,9 @@ def test_negative_preserva_achado_quando_500_bloqueia_restauracao(tmp_path: Path
     result = negative_service(rig, FileMutationJournal(tmp_path)).execute(
         NegativeRequest(product="agenda", run_id=probe.run_id)
     )
-    assert result.status == "stopped_zap"
+    assert result.status == "completed"
     assert any(f.technique == "input_server_error" and f.restored is False for f in result.findings)
-    assert {"possible_unrestored_change", "mutation_outcome_unknown"} <= {
+    assert {"possible_unrestored_change", "mutation_pending"} <= {
         n.reason for n in result.not_tested
     }
     assert len(rig.sent("PUT")) == 1
@@ -225,10 +225,13 @@ def test_negative_grava_projecao_baseline_antes_do_envio_incerto(tmp_path: Path)
     result = negative_service(rig, FileMutationJournal(tmp_path)).execute(
         NegativeRequest(product="agenda", run_id=probe.run_id)
     )
-    assert result.status == "stopped_zap"
+    assert result.status == "completed"
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
     record = json.loads(pending[0].read_text(encoding="utf-8"))
+    assert record["metadata"]["run_id"] == probe.run_id
+    assert record["metadata"]["operation_id"] == "criarProduto"
+    assert record["metadata"]["account"] == prior.account
     assert record["previous_state"] == "unknown"
     assert record["snapshot"] == {"field": "preco", "value": 5, "source": "request_baseline"}
 
@@ -241,7 +244,8 @@ def test_scan_pendencia_recusa_antes_de_iniciar_zap(tmp_path: Path) -> None:
     result = scan_service(rig, journal).execute(
         ScanRequest(product="agenda", run_id=rig.probe_result.run_id, only=("criar",))
     )
-    assert result.status == "stopped_zap"
+    assert result.status == "completed"
+    assert any("mutation_pending" in (item.note or "") for item in result.entries)
     assert rig.artifacts.scans[rig.probe_result.run_id] == result
     assert rig.zap.started == []
 
@@ -255,7 +259,11 @@ def test_scan_falha_apos_envio_mantem_intencao(tmp_path: Path) -> None:
     )
     assert result.status == "stopped_zap"
     assert len(rig.zap.started) == 1
-    assert len(list(tmp_path.glob("*.jsonl"))) == 1
+    pending = journal.inspect().pending
+    assert len(pending) == 1
+    assert pending[0].metadata is not None
+    assert pending[0].metadata.run_id == rig.probe_result.run_id
+    assert pending[0].metadata.operation_id == "criar"
 
 
 class BrokenArtifacts(InMemoryRunArtifacts):
@@ -310,3 +318,20 @@ def test_scan_recusado_mantem_intencao_sem_prova_independente(tmp_path: Path) ->
     assert "pendente" in (result.entries[0].note or "")
     assert rig.zap.started == []
     assert len(list(tmp_path.glob("*.jsonl"))) == 1
+
+
+def test_negative_pula_conta_pendente_e_continua_outra_conta(tmp_path: Path) -> None:
+    rig = NegativeRig(allow_writes=True)
+    other = CREATE.model_copy(update={"account": "pac_a"})
+    probe = rig.seed(CREATE, other)
+    journal = FileMutationJournal(tmp_path)
+    journal.begin(mutation_key("agenda", CREATE.operation_id, CREATE.account, "POST"), "unknown")
+
+    result = negative_service(rig, journal).execute(
+        NegativeRequest(product="agenda", run_id=probe.run_id)
+    )
+
+    assert result.status == "completed"
+    assert any(note.reason == "mutation_pending" for note in result.not_tested)
+    assert rig.sent("POST")
+    assert {request.account for request in rig.sent("POST")} == {"pac_a"}

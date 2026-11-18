@@ -24,6 +24,7 @@ Decisão: [ADR 0010](../adr/0010-contrato-json-da-cli-e-codigos-de-saida.md). C�
 | `hdast panel <produto> [--run ID]` ou `hdast panel --index` | Gera as páginas HTML do painel da execução (`summary`, `stages`, `findings`, `coverage`, `authorization`, `terminal`, `time-and-tokens`) em `runs/<run_id>/panel/` e refaz os índices `runs/index.html` e `runs/history-<produto>.html`; `report` e `run` também os geram no fim, e o `run` grava `panel/live.html` durante o teste. Sem `--run`, usa a execução mais recente do produto. `--index` sozinho só refaz os índices | Não | Implementado ([ADR 0032](../adr/0032-painel-da-execucao.md), proposto); as sete abas estão documentadas. Seção abaixo |
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../adr/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
+| `hdast mutation list` / `hdast mutation release <id>` | Lista intenções pendentes sem corpo ou segredo; só uma pessoa em terminal interativo pode liberar depois de conferir o alvo. O agente pode listar, mas nunca liberar | Não | V1.12.1, [ADR 0104](../adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto |
 | `hdast run <produto>` | Encadeia preflight, probe, scan (usa `scan.include_outcomes` do perfil; `--no-include-outcomes` o reduz a só `success`), authz e negative (ligados por padrão; `--no-authz` e `--no-negative` os pulam) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast wait --product PRODUTO [--lock ID] [--timeout SEGUNDOS]` ou `hdast wait --run ID` | Espera uma execução terminar ou o prazo vencer; só lê estado local | Não | Em desenvolvimento (V1.5.5); [referência](wait.md) |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
@@ -49,6 +50,14 @@ Veja as [receitas e limites](verification.md), inclusive a restrição de autori
 `hdast finding acknowledge <produto> <fingerprint> --run <run_id>` registra a declaração de uma pessoa que repetiu e viu um achado. O fingerprint é um argumento posicional completo. O comando não toca o alvo: confere o achado em `findings.json`, pede quem confirmou, o que viu e a digitação do fingerprint. Exige terminal interativo em entrada e saídas e recusa `--json`; nenhuma flag substitui a digitação. O agente nunca o executa nem grava o registro diretamente.
 
 O arquivo aditivo `human-confirmations.json` v1 preserva declarações anteriores e contém produto, execução e entradas com `fingerprint`, `person`, `confirmed_at` em UTC e `observation` redigida. Arquivo inválido ou de outro contexto é recusado. Nenhum achado, severidade ou status muda. TTY e nome declarado não autenticam a identidade da pessoa. Contrato: [ADR 0086](../adr/0086-confirmacao-humana-de-achados.md), proposto.
+
+## `hdast mutation`
+
+`hdast mutation list [--json]` lê o diário local da pasta de estado e mostra as pendências com identificador, operação, apelido da conta, método, `run_id` e horário. O envelope contém `data.pending`, uma lista de `{id, metadata}`; `metadata` é `null` nos registros antigos sem contexto. Não exibe snapshot, segredo ou corpo. `data.invalid` lista as entradas inválidas como `{id, reason}` (`reason` genérico, sem conteúdo); elas seguem bloqueando o envio e não impedem a listagem das válidas nem a liberação de outro id.
+
+`hdast mutation release <id>` pede que uma pessoa confira o estado no alvo e digite o identificador completo da pendência. Exige TTY em entrada e saídas, recusa `--json` e não tem confirmação automática. Mantém a trava exclusiva de execução durante o prompt e o arquivamento: com outra execução ativa recusa com `STACK_BUSY` (saída 8), antes de perguntar. O agente nunca executa esse comando nem modifica o diário diretamente. A liberação arquiva a entrada em `mutations/completed/`, com desfecho `human_release`, horário e evento `mutation_human_release` na segunda linha do diário; não toca o alvo nem prova que a mutação deu certo. Consulte [diário e reconciliação](knowledge.md#reconciliar-uma-pendência-do-diário).
+
+Uma intenção pendente pula somente a mesma operação e conta com motivo `mutation_pending`, sem reenviá-la ou contar alcance/sucesso. As demais seguem. Erro de E/S ou diário inválido continua interrompendo o estágio.
 
 ## `hdast panel`
 
@@ -100,7 +109,7 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `authz`, `negative`, `fail_on`, `compare`, `max_minutes` efetivos |
+| `options` | `seed`, `skip_scan`, `authz`, `negative`, `include_outcomes`, `fail_on`, `compare`, `max_minutes` efetivos. `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
 | `stages` | Sempre os seis (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
 | `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...). A pasta `panel/` não aparece aqui: é uma pasta, e o `run` a gera depois de gravar este arquivo |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
@@ -135,6 +144,12 @@ Opções de `stack up`: `--vulnerable` ou `--secure` escolhem o modo do alvo de 
 `stack up clinica-piloto --oracle` sobe também o Oracle Free do piloto (perfil `oracle`, banco só em `127.0.0.1:21521`, cerca de 80 s a mais) e gera as senhas; o usuário de banco da limpeza é criado por uma pessoa (`lab/pilot/cleanup/create-cleanup-user.sql`). `stack up <produto>` exige autorização válida e janela aberta (saída `3` se não). Gera `policy.json` (escopo e limites **iguais** aos do perfil; `not_after` = a VALIDADE DA PILHA: menor entre a duração máxima mais 60 minutos de folga para o ajuste do `probe`, o fim da autorização e o fechamento da janela; ela não é o prazo de uma varredura, que conta do início de cada execução e nunca passa de `max_duration_minutes`; passou de `not_after`, o proxy nega tudo e é preciso um novo `stack up`), grava o estado, e sobe com `docker compose up -d --wait --force-recreate` (prazo `--timeout`, padrão 300 s). Reconhece o alvo pelo host de `environment.base_url`: `vampi` (compose raiz, perfil `lab`) e `clinica-piloto` (projeto `hdast-pilotrun`, anexado à `hdast_lab_net`, API em `127.0.0.1:28080` e gestão em `127.0.0.1:29091`). Sem pilha gerenciada anterior nada é derrubado; com uma, ela é derrubada antes (aviso em `warnings`). Falha do Docker sai com `5` (`EXTERNAL_TOOL_ERROR`).
 
 O host `crapi` também é reconhecido: projeto próprio `hdast-crapi`, cadastro sintético pela API/MailHog local e `stack down` com remoção dos volumes descartáveis. O crAPI só oferece modo vulnerável; `--secure` e `--token-ttl` são recusados antes de alterar serviços. O nome dos projetos pode receber `HDAST_STACK_PROJECT_SUFFIX` (por exemplo `-codex`), com rede interna derivada e nomes salvos no estado para o encerramento. Em 2026-11-17, o suporte descartável completou subida, preflight das duas contas, probe de `get_products`, run curto com força LOW e descida em 229,63 s (`run_id` do run: `2026-11-17T08-24-04Z-crapi-b883`). Essa prova recortada não demonstra cobertura do caso completo nem resolve a ocorrência intermitente anterior de `STACK_STALE`.
+
+Com `scan.oast: true` no perfil aprovado, `stack up crapi` também cria a ponte
+interna de retorno e conecta o workshop; `stack down` retira o alvo antes da ponte.
+Sem a chave, a ponte não sobe. Produtos comuns não recebem essa infraestrutura.
+Ponte indisponível deixa SSRF guiado e OAST do ZAP **não verificáveis**, com motivo
+no resultado e nas apresentações ([ADR 0105](../adr/0105-lab-oast-bridge-and-verifiability.md)).
 
 `data` de `stack up` e `stack status` (nunca contém a chave do ZAP nem senhas):
 
@@ -394,6 +409,7 @@ Garantias, todas em código testado: toda requisição passa pelo `ScopeGuard` A
 | `not_found` | 404 ou 410: falta encadeamento (`flows.yml`) ou o recurso não existe |
 | `rate_limited` | 429 depois das esperas permitidas |
 | `server_error` | 5xx |
+| `mutation_pending` | Mutação anterior com efeito desconhecido para a mesma operação e conta; nenhum pedido reenviado, alcance não comprovado. Consulte `hdast mutation list`; somente uma pessoa pode conferir o alvo e liberar por `hdast mutation release <id>` |
 | `client_error` | Demais 4xx (405, 415...) |
 | `redirect` | 3xx, nunca seguido; `redirect_in_scope` diz se o destino estaria no escopo |
 | `timeout` | Sem resposta no tempo limite (15 s) |

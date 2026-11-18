@@ -23,6 +23,7 @@ from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.finding import build_finding_app
 from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.knowledge import build_knowledge_app
+from harness_dast.cli.commands.mutation import build_mutation_app
 from harness_dast.cli.commands.negative import negative_command
 from harness_dast.cli.commands.panel import panel_command
 from harness_dast.cli.commands.plan import plan_command
@@ -81,6 +82,7 @@ def build_app() -> typer.Typer:
     app.command("init")(init_command)
     app.add_typer(build_profile_app(), name="profile")
     app.add_typer(build_finding_app(), name="finding")
+    app.add_typer(build_mutation_app(), name="mutation")
     app.add_typer(build_strategy_app(), name="strategy")
     app.add_typer(build_knowledge_app(), name="knowledge")
     app.command("plan")(plan_command)

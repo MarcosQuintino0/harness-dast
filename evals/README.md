@@ -40,7 +40,7 @@ docker compose -f lab/pilot/compose.yaml build pilot    # hdast-clinica-piloto:1
 Remove-Item env:HDAST_ZAP_API_KEY, env:PILOT_*          # nada disto vale para a rodada
 ```
 
-(`docker compose build` não sobe contêiner nem cria pilha: `docker compose ls -a` continua vazio.) Isso deixa no Docker as imagens `hdast-clinica-piloto:1.0.0` e `hdast/scope-proxy:local`; as do ZAP e da ponte vêm do registro, fixadas por digest, e são baixadas no primeiro `stack up`. Como o `stack up` da rodada (do agente) reconstrói a imagem do proxy (`build=True` no projeto principal), o `scope-proxy` construído aqui só acelera o primeiro uso.
+(`docker compose build` não sobe contêiner nem cria pilha: `docker compose ls -a` continua vazio.) Isso deixa no Docker as imagens `hdast-clinica-piloto:1.0.0` e `hdast/scope-proxy:local`. A ponte vem do registro, fixada por digest. O ZAP derivado `hdast/zap:2.17.0-alpha54-beta64` é construído localmente de uma base fixada por digest, com os complementos conferidos por SHA-256 (ADR 0103). O `stack up` reconstrói o projeto principal (`build=True`), incluindo ZAP e proxy; a preparação prévia só acelera o primeiro uso.
 
 **VAmPI:** a imagem é fixada por digest (`erev0s/vampi:latest@sha256:...` no `compose.yaml`) e **não tem build**: o primeiro `stack up vampi` a baixa. Só o `scope-proxy` precisa do comando acima.
 
@@ -221,9 +221,20 @@ Resumo: o modo continua descobrível por quem **violar uma regra** (docker, env,
 
 ## O caso crAPI
 
-O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; a operação completa ainda não está provada.
+O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; aquele ensaio não provou o ciclo completo. As provas dirigidas posteriores estão nos relatórios das versões e não demonstram cobertura integral do caso.
 
-O recorte `crapi-foco` (versão 2, V1.12) entrega OpenAPI e carta estruturada para `init --from-letter`, força baixa e orçamento de 900 segundos. A carta liga na seção `attack` o ritmo `proxy` e as cinco capacidades da V1.12, cada uma com frase de autorização (ADR 0096), e autoriza só POST na verificação de OTP da v2. `detectable: true` em C11 e C15, pelas provas do laboratório; C1, C3, C6, C10 e C12 são `false` (o C3 só falhava por 5xx do alvo, o que a checagem agora trata como inconclusivo). A rodada cega ainda não foi feita e a duração total não foi medida. Cabeçalho (H11) é da Clínica Piloto, onde continua `detectable: false`.
+Na V1.12.1, parte 2 ([ADR 0105](../docs/adr/0105-lab-oast-bridge-and-verifiability.md), proposto),
+o `stack up crapi` também monta a ponte OAST isolada e conecta o workshop quando
+o perfil aprovado contém `scan.oast: true`, gerado pela carta com `attack.oast`.
+O agente avaliado usa somente a CLI; o coordenador não precisa intervir durante
+o `run`. `stack down` remove o alvo antes da ponte. Sem a chave, a ponte não sobe.
+Se a ponte estiver ausente, SSRF guiado e OAST do ZAP ficam **não verificáveis**,
+com motivo no `scan.json`, relatório e painel: zero retornos não é resultado limpo.
+Produtos comuns não recebem a ponte. As provas dirigidas desta correção e seus
+limites ficam no [relatório da V1.12.1](../docs/reviews/relatorio-v1.12.1.md);
+não constituem nova rodada cega nem alteram notas históricas.
+
+O recorte `crapi-foco` (versão 3, V1.12.1) entrega OpenAPI e carta estruturada para `init --from-letter`, força baixa e orçamento de 900 segundos. A carta liga na seção `attack` o ritmo `proxy` e as cinco capacidades da V1.12, cada uma com frase de autorização (ADR 0096), e autoriza só POST na verificação de OTP da v2. `detectable: true` em C11 e C15, pelas provas do laboratório; C1, C3, C6, C10 e C12 são `false` (o C3 só falhava por 5xx do alvo, o que a checagem agora trata como inconclusivo). A v3 explicita os dados locais de `mechanic_api` sem mudar permissões. A parte 2 corrige a falta da ponte observada na rodada cega, sem publicar nova rodada ou recalcular notas históricas. Cabeçalho (H11) é da Clínica Piloto, onde continua `detectable: false`.
 
 **Fluxo histórico de 2026-11-13, anterior à pilha gerenciada:** a sequência abaixo explica o ensaio arquivado, não é o procedimento atual.
 

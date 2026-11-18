@@ -31,6 +31,7 @@ Outcome = Literal[
     "skipped_denied",
     "skipped_destructive",
     "skipped_dependency",
+    "mutation_pending",
     "build_error",
     "dry_run",
 ]
@@ -42,7 +43,8 @@ Outcome = Literal[
   CSRF), `not_found` (404/410), `rate_limited` (429), `server_error` (5xx), `client_error`
   (demais 4xx), `redirect` (3xx; nunca seguido) e `timeout`.
 - Não enviadas: `skipped_scope`, `skipped_denied`, `skipped_destructive`, `skipped_dependency`,
-  `build_error` e `dry_run`.
+  `mutation_pending` (mutação anterior de resultado desconhecido; a operação e a conta
+  ficam bloqueadas até uma pessoa liberar, ADR 0104), `build_error` e `dry_run`.
 """
 
 SENT_OUTCOMES: Final = frozenset(

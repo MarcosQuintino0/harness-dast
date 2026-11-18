@@ -33,7 +33,8 @@ def test_v19_independent_probe_timeout_blocks_same_scan(tmp_path: Path) -> None:
         ScanRequest(product="agenda", run_id=scan.probe_result.run_id, only=("criar",))
     )
 
-    assert scanned.status == "stopped_zap"
+    assert scanned.status == "completed"
+    assert any("mutation_pending" in (entry.note or "") for entry in scanned.entries)
     assert not scan.zap.started
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
@@ -66,8 +67,8 @@ def test_v19_independent_probe_timeout_blocks_same_negative(tmp_path: Path) -> N
         NegativeRequest(product="agenda", run_id=probe.run_id)
     )
 
-    assert scanned.status == "stopped_zap"
-    assert any(n.reason == "mutation_outcome_unknown" for n in scanned.not_tested)
+    assert scanned.status == "completed"
+    assert any(n.reason == "mutation_pending" for n in scanned.not_tested)
     assert second.sent("POST") == []
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
@@ -95,8 +96,8 @@ def test_v19_independent_probe_timeout_blocks_same_authz(tmp_path: Path) -> None
     second = make_rig("api/widgets", exposed=True)
     checked = execute(second, "api/widgets", journal=FileMutationJournal(tmp_path))
 
-    assert checked.status == "stopped_zap"
-    assert any(n.reason == "mutation_outcome_unknown" for n in checked.not_tested)
+    assert checked.status == "completed"
+    assert any(n.reason == "mutation_pending" for n in checked.not_tested)
     assert not [r for r in second.target.requests if r.operation_id == "authz:pair:createSynthetic"]
     pending = list(tmp_path.glob("*.jsonl"))
     assert len(pending) == 1
@@ -119,3 +120,29 @@ def test_v19_independent_unrelated_account_does_not_block_scan(tmp_path: Path) -
     assert result.status == "completed"
     assert len(scan.zap.started) == 1
     assert len(list(tmp_path.glob("*.jsonl"))) == 1
+
+
+def test_authz_continua_outras_checagens_com_operacao_pendente(tmp_path: Path) -> None:
+    from harness_dast.domain.knowledge_mutation import mutation_key
+    from tests.fakes.authz.write_rig import exchange
+    from tests.unit.application.authz.test_created_pair import execute, make_rig
+
+    rig = make_rig("api/widgets", exposed=True)
+    journal = FileMutationJournal(tmp_path)
+    journal.begin(mutation_key("agenda", "createSynthetic", "pac_a", "POST"), "unknown")
+    extra = exchange("obterPerfil", "GET", "/api/me", "/api/me", account="pac_a")
+    result = execute(
+        rig,
+        "api/widgets",
+        checks=("horizontal", "anonymous_access"),
+        journal=journal,
+        extra_exchanges=(extra,),
+    )
+    assert result.status == "completed"
+    assert any(note.reason == "mutation_pending" for note in result.not_tested)
+    assert any(check.check == "anonymous_access" and check.tested > 0 for check in result.checks)
+    assert not [
+        r
+        for r in rig.target.requests
+        if r.operation_id == "authz:pair:createSynthetic" and r.account == "pac_a"
+    ]

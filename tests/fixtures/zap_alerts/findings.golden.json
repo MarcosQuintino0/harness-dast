@@ -27,6 +27,7 @@
     "scan_stop_message": null,
     "scans_run": 4,
     "rule_coverage_gaps": null,
+    "oast_gap": null,
     "truncated_scans": [
       {
         "operation_id": "list_books",

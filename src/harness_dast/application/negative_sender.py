@@ -12,14 +12,14 @@ from dataclasses import dataclass
 from typing import Literal
 
 from harness_dast.application.authz.sender import Reply, StopRun
-from harness_dast.application.common_ports import MutationJournal
+from harness_dast.application.common_ports import Clock, MutationJournal
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.mutation_guard import begin_mutation, finish_mutation
 from harness_dast.application.run_support import DeadlineReached, WindowClosed
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.errors import PreflightError, ScopeViolation
 from harness_dast.domain.http_messages import HttpRequest
-from harness_dast.domain.knowledge_mutation import mutation_key
+from harness_dast.domain.knowledge_mutation import mutation_key, safe_mutation_metadata
 from harness_dast.domain.mutation_snapshot import MutationSnapshot
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
@@ -38,9 +38,7 @@ class NegativeSettings:
         sessions: Sessões das contas (um login por conta).
         max_requests: Teto de requisições do estágio; as repetições do despachante (429, novo
             login) também contam e nunca o ultrapassam. `None` não limita.
-        rejection_attempts: Tentativas de valor errado do limite de consumo (ADR 0101): o diário
-            usa uma intenção própria por operação e um 5xx (exceto 502, 503 e 504, falha de
-            transporte) conta como rejeição conhecida.
+        rejection_attempts: Tentativas de valor errado usam a mesma chave de operação e conta.
     """
 
     base_url: str
@@ -52,6 +50,8 @@ class NegativeSettings:
     credential_fields: frozenset[str] = frozenset()
     prefix: str = PREFIX
     rejection_attempts: bool = False
+    run_id: str = ""
+    clock: Clock | None = None
 
 
 class NegativeSender:
@@ -182,15 +182,8 @@ class NegativeSender:
         )
 
     def _is_settled(self, status: int) -> bool:
-        """Se a resposta é um desfecho conhecido da mutação (o diário a libera como `observed`).
-
-        Um 5xx deixa a mutação pendente (efeito incerto), salvo na tentativa de valor errado do
-        limite de consumo, em que o 5xx comum é a rejeição esperada. `502`, `503` e `504` são
-        falha de transporte (o pedido pode nem ter chegado) e continuam pendentes sempre.
-        """
-        if status < 500:
-            return True
-        return self._s.rejection_attempts and status not in TRANSPORT_FAILURE_STATUSES
+        """Respostas 5xx deixam o efeito da mutacao desconhecido."""
+        return status < 500
 
     def _begin_mutation(
         self, exchange: ExchangeRecord, snapshot: MutationSnapshot | None
@@ -198,15 +191,21 @@ class NegativeSender:
         journal = self._s.mutation_journal
         if journal is None:
             return None
-        # Tentativa de valor errado (limite de consumo, ADR 0101): é uma intenção própria, não a
-        # repetição do pedido do `probe`, e o 5xx faz parte da rejeição esperada.
-        operation = (
-            f"rejection-attempt:{exchange.operation_id}"
-            if self._s.rejection_attempts
-            else exchange.operation_id
+        key = mutation_key(
+            self._s.product, exchange.operation_id, exchange.account, exchange.method
         )
-        key = mutation_key(self._s.product, operation, exchange.account, exchange.method)
-        begin_mutation(journal, key, snapshot)
+        metadata = (
+            safe_mutation_metadata(
+                exchange.operation_id,
+                exchange.account,
+                exchange.method,
+                self._s.run_id,
+                self._s.clock.now(),
+            )
+            if self._s.clock is not None
+            else None
+        )
+        begin_mutation(journal, key, snapshot, metadata)
         return key
 
     def _finish_mutation(

@@ -1,0 +1,199 @@
+"""Contrato de inspeção e recusa não interativa de mutações."""
+
+import json
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+import typer
+
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
+from harness_dast.cli.app import build_app, run_app
+from harness_dast.cli.stack_lock_composition import hold_stack
+from harness_dast.domain.errors import StackBusy
+from harness_dast.domain.knowledge_mutation import MutationMetadata
+from harness_dast.domain.mutation_snapshot import MutationSnapshot
+
+
+def test_lista_pendencias_em_envelope_sem_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    FileMutationJournal(tmp_path / "mutations").begin("a" * 64, "unknown")
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["data"]["pending"] == [{"id": "a" * 64, "metadata": None}]
+    assert envelope["data"]["invalid"] == []
+
+
+def test_lista_mostra_validas_e_aponta_invalidas_sem_conteudo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    journal_dir = tmp_path / "mutations"
+    FileMutationJournal(journal_dir).begin("a" * 64, "unknown")
+    (journal_dir / ("b" * 64 + ".jsonl")).write_text(
+        '{"intent":"mutation","previous_state":"SEGREDO"}\n{"outcome":"failed"}\n',
+        encoding="utf-8",
+    )
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    text = capsys.readouterr().out
+    data = json.loads(text)["data"]
+    assert [item["id"] for item in data["pending"]] == ["a" * 64]
+    assert data["invalid"] == [{"id": "b" * 64, "reason": "invalid_or_unreadable"}]
+    assert "SEGREDO" not in text
+
+
+def test_lista_so_os_metadados_permitidos(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    metadata = MutationMetadata(
+        operation_id="createItem",
+        account="user_a",
+        method="POST",
+        run_id="run-1",
+        started_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    snapshot = MutationSnapshot(field="price", value=129.75, source="observed")
+    FileMutationJournal(tmp_path / "mutations").begin("a" * 64, "present", snapshot, metadata)
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    text = capsys.readouterr().out
+    item = json.loads(text)["data"]["pending"][0]
+    assert item == {"id": "a" * 64, "metadata": metadata.model_dump(mode="json")}
+    assert "snapshot" not in text
+    assert "129.75" not in text
+
+
+def test_release_recusa_json_e_preserva_pendencia(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    assert run_app(build_app(), ["--json", "mutation", "release", "a" * 64]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "CONFIG_ERROR"
+    assert len(journal.inspect().pending) == 1
+
+
+def test_release_recusa_ausencia_de_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: False)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 2
+    assert "terminal interativo" in capsys.readouterr().err
+    assert len(journal.inspect().pending) == 1
+
+
+@pytest.mark.parametrize("args", [["mutation", "release"], ["mutation", "release", "../bad"]])
+def test_release_recusa_id_ausente_ou_invalido_sem_pedir_confirmacao(
+    args: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    asked: list[bool] = []
+
+    def confirm(_: str) -> bool:
+        asked.append(True)
+        return False
+
+    monkeypatch.setattr(command, "_confirm", confirm)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    assert run_app(build_app(), args) == 2
+    assert asked == []
+    assert len(journal.inspect().pending) == 1
+
+
+def test_lista_aponta_diario_corrompido_sem_conteudo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    directory = tmp_path / "mutations"
+    directory.mkdir()
+    (directory / ("a" * 64 + ".jsonl")).write_text("segredo-malformado", encoding="utf-8")
+    assert run_app(build_app(), ["--json", "mutation", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "a" * 64 in out
+    assert "segredo-malformado" not in out
+
+
+def test_release_interativo_confirma_por_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(typer, "prompt", lambda *args, **kwargs: "a" * 64)
+    assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
+    assert journal.inspect().pending == ()
+    assert "liberada" in capsys.readouterr().out
+
+
+def test_release_recusa_execucao_concorrente_antes_do_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    asked: list[str] = []
+
+    def confirm(key: str) -> bool:
+        asked.append(key)
+        return True
+
+    monkeypatch.setattr(command, "_confirm", confirm)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+    with hold_stack("probe", "agenda"):
+        assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 8
+    assert asked == []
+    assert len(journal.inspect().pending) == 1
+
+
+def test_release_sem_terminal_recusa_antes_da_trava_ocupada(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: False)
+    with hold_stack("probe", "agenda"):
+        assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 2
+    assert "terminal interativo" in capsys.readouterr().err
+
+
+def test_release_mantem_trava_durante_confirmacao(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import harness_dast.cli.commands.mutation as command
+
+    monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(command, "is_interactive", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    journal = FileMutationJournal(tmp_path / "mutations")
+    journal.begin("a" * 64, "unknown")
+
+    def confirm(_: str) -> bool:
+        with pytest.raises(StackBusy), hold_stack("probe", "agenda"):
+            pass
+        return False
+
+    monkeypatch.setattr(command, "_confirm", confirm)
+    assert run_app(build_app(), ["mutation", "release", "a" * 64]) == 0
+    assert len(journal.inspect().pending) == 1

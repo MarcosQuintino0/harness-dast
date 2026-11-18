@@ -6,6 +6,7 @@ from harness_dast.domain.scan_policy import (
     DEFAULT_DISABLED_RULES,
     OAST_RULES,
     build_policy,
+    without_oast,
 )
 
 LOG4SHELL = 40043
@@ -51,3 +52,23 @@ def test_oast_does_not_change_the_other_policy_fields() -> None:
         with_oast.threshold,
         with_oast.injectable_mask,
     )
+
+
+def test_oast_reduction_preserves_narrowed_strategy_policy() -> None:
+    base = build_policy(ScanConfig(oast=True), experimental_rules=True)
+    narrowed = base.model_copy(
+        update={
+            "disabled_rules": (*base.disabled_rules, 90001, 40033),
+            "experimental_rules": tuple(rule for rule in base.experimental_rules if rule != 40033),
+            "strength": "LOW",
+        }
+    )
+
+    reduced = without_oast(narrowed)
+
+    assert {90001, 40033, 40046, 40043, 90023, 90036} <= set(reduced.disabled_rules)
+    assert 40046 not in reduced.experimental_rules
+    assert reduced.strength == "LOW"
+    assert reduced.oast is False
+    assert reduced.oast_rules == ()
+    assert reduced.url_path_injection == narrowed.url_path_injection

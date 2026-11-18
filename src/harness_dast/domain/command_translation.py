@@ -17,6 +17,8 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "profile approve": "Pediu a uma pessoa que revisasse e aprovasse a cerca e os limites.",
     "profile approval": "Conferiu se uma pessoa já aprovou a cerca e os limites do perfil.",
     "finding acknowledge": "Pediu a uma pessoa que registrasse o que viu em um achado.",
+    "mutation list": "Listou as mutações pendentes de conferência, sem mostrar seus corpos.",
+    "mutation release": "Pediu a uma pessoa que conferisse o alvo e liberasse uma pendência.",
     "strategy validate": "Conferiu a estratégia e seus arquivos locais, sem tocar o alvo.",
     "strategy diff": "Comparou a estratégia com o comportamento anterior, sem tocar o alvo.",
     "strategy migrate": "Criou uma cópia de estratégia para revisão, sem mudar a aprovação.",

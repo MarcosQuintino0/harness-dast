@@ -7,7 +7,7 @@ import pytest
 from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.application.probe import Probe, ProbeRequest
-from harness_dast.domain.errors import ConfigError, HarnessError, TargetTimeout
+from harness_dast.domain.errors import HarnessError, TargetTimeout
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from tests.fakes.probe_ports import InMemorySpecs
 from tests.fakes.rig import Rig, agenda_flows, default_handler
@@ -46,9 +46,13 @@ def test_timeout_apos_intencao_impede_repeticao_em_novo_probe(tmp_path: Path) ->
     assert first.operations[0].outcome == "timeout"
     count = len([request for request in rig.target.requests if request.operation_id == "criar"])
     other = Rig(flows=agenda_flows())
-    with pytest.raises(ConfigError):
-        _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+    result = _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+    assert result.operations[0].outcome == "mutation_pending"
     assert count == 1
+    pending = FileMutationJournal(tmp_path).inspect().pending
+    assert pending[0].metadata is not None
+    assert pending[0].metadata.run_id == first.run_id
+    assert pending[0].metadata.operation_id == "criar"
     assert all(request.operation_id != "criar" for request in other.target.requests)
 
 
@@ -69,9 +73,25 @@ def test_resposta_observada_ou_erro_interno_define_repeticao(
     _probe(first, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
     other = Rig(flows=agenda_flows())
     if bloqueia:
-        with pytest.raises(ConfigError):
-            _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+        result = _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
+        assert result.operations[0].outcome == "mutation_pending"
         assert all(item.operation_id != "criar" for item in other.target.requests)
     else:
         result = _probe(other, tmp_path).execute(ProbeRequest(product="agenda", only=("criar",)))
         assert result.operations[0].outcome == "success"
+
+
+def test_probe_continua_outras_operacoes_e_conta_quando_mutacao_pendente(tmp_path: Path) -> None:
+    from harness_dast.domain.knowledge_mutation import mutation_key
+
+    journal = FileMutationJournal(tmp_path)
+    journal.begin(mutation_key("agenda", "criar", "user_a", "POST"), "unknown")
+    rig = Rig(flows=agenda_flows())
+    result = _probe(rig, tmp_path).execute(ProbeRequest(product="agenda"))
+    blocked = next(op for op in result.operations if op.operation_id == "criar")
+    assert blocked.outcome == "mutation_pending"
+    assert blocked.attempts == 0
+    assert any(op.outcome == "success" for op in result.operations)
+    assert result.summary.reached == sum(
+        op.outcome in {"success", "auth_rejected_expected"} for op in result.operations
+    )
