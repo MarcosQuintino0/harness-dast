@@ -10,7 +10,7 @@ A pilha gerenciada reconstruía as imagens próprias no `stack up` para carregar
 
 ## Decisão
 
-Vamos distribuir `hdast-zap` e `hdast-scope-proxy` no GHCR para `linux/amd64` e `linux/arm64`. A tag das duas imagens vem de `project.version` de `pyproject.toml`. A tag Git de publicação tem o prefixo `v`. O workflow se limita a disparo manual e push de tag, grava `org.opencontainers.image.version` e `org.opencontainers.image.revision` e atesta o digest do índice publicado.
+Vamos distribuir `hdast-zap` e `hdast-scope-proxy` no GHCR para `linux/amd64` e `linux/arm64`. A tag das duas imagens vem de `project.version` de `pyproject.toml`. O workflow é disparado apenas pelo push de tags Git que começam com `v` e exige a tag `v<versão>` correspondente ao pacote. Ele grava `org.opencontainers.image.version` e `org.opencontainers.image.revision` e atesta o digest do índice publicado. [Workflow de imagens](../../.github/workflows/images.yml).
 
 O caso de uso de imagens recebe do adaptador as referências resolvidas do Compose e os metadados OCI locais. `stack pull` baixa as duas referências sem perfil e devolve `data.images` com as referências. Usa os códigos de saída existentes (`0`, `2`, `5` e `8`). Antes de alterar a pilha, `stack up` exige as duas imagens locais e igualdade exata entre o rótulo de versão do proxy e a versão instalada da CLI. O `doctor` aplica a mesma comparação. `vampi-tls` usa a mesma referência do proxy.
 
