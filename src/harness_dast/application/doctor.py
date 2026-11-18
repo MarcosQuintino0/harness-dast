@@ -9,8 +9,8 @@ Dois avisos olham só o perfil (`doctor_checks`): o modo amplo de caminho e a fa
 do mesmo papel para o `authz`.
 
 Cada conferência vira um `DoctorCheck` (dado, não exceção). `fail` impede começar; `warn` é
-algo a saber (imagem que será baixada, `uv` fora do PATH). A autorização e a janela usam a mesma
-regra do `preflight` (`preflight_checks`), e os segredos também.
+algo a saber (imagem auxiliar que será baixada, `uv` fora do PATH). A autorização, a janela e os
+segredos usam as regras do `preflight` (`preflight_checks`).
 """
 
 from collections.abc import Mapping
@@ -47,6 +47,13 @@ from harness_dast.application.preflight_checks import (
 )
 from harness_dast.application.preflight_report import PreflightCheck
 from harness_dast.application.stack import BASE_SERVICES, DEFAULT_PROXY_PORT, DEFAULT_ZAP_PORT
+from harness_dast.application.stack_images import (
+    IMAGE_RECOVERY,
+    OWN_SERVICES,
+    PROXY_SERVICE,
+    StackImages,
+    use_local_build,
+)
 from harness_dast.application.validate_profile import ProfileReport
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.profile import ProductProfile
@@ -97,6 +104,7 @@ class Doctor:
         self,
         *,
         host: HostInspector,
+        images: StackImages,
         profiles: ProfileRepository,
         validator: ProfileValidator,
         secrets: SecretProvider,
@@ -110,7 +118,8 @@ class Doctor:
         """Cria o caso de uso com as portas de que precisa.
 
         Args:
-            host: Olhos sobre a máquina (Docker, imagens, portas, pastas).
+            host: Olhos sobre a máquina (Docker, portas, pastas).
+            images: Seleção e conferência das imagens da pilha.
             profiles: Fonte dos perfis.
             validator: Validação do perfil.
             secrets: Provedor de segredos (só se pergunta se a variável existe).
@@ -122,6 +131,7 @@ class Doctor:
             products_dir: Pasta de produtos efetiva (`--products-dir` ou `HDAST_PRODUCTS_DIR`).
         """
         self._host = host
+        self._images = images
         self._profiles = profiles
         self._validator = validator
         self._secrets = secrets
@@ -216,9 +226,10 @@ class Doctor:
         return _check("docker", "ok", f"Docker {version} respondendo.")
 
     def _images_check(self, profile: ProductProfile | None) -> DoctorCheck:
+        local = use_local_build(self._environ)
         try:
-            images = self._host.compose_images(self._services(profile))
-            missing = [image for image in images if not self._host.image_present(image)]
+            refs = self._images.references(self._services(profile), local=local)
+            inspected = self._images.inspect(refs)
         except ExternalToolError as error:
             return _check(
                 "images", "fail", f"{error.message} Aguarde e rode hdast doctor novamente."
@@ -226,17 +237,27 @@ class Doctor:
         except ConfigError as error:
             hint = error.hint or ""
             return _check("images", "fail", f"{error.message} {hint}".strip())
+
+        proxy = inspected[refs[PROXY_SERVICE]]
+        version_note = ""
+        if proxy is not None:
+            try:
+                version = self._images.require_proxy_version(proxy)
+            except ExternalToolError as error:
+                return _check("images", "fail", f"{error.message} {error.hint or ''}".strip())
+            version_note = f" O proxy de escopo tem a versão da CLI ({version})."
+
+        missing = [image for image, info in inspected.items() if info is None]
         if not missing:
-            return _check("images", "ok", f"As {len(images)} imagens da pilha já estão no Docker.")
-        shown = ", ".join(_short_image(image) for image in missing[:_MAX_LISTED_IMAGES])
-        more = len(missing) - _MAX_LISTED_IMAGES
-        suffix = f" e mais {more}" if more > 0 else ""
+            return _check(
+                "images", "ok", f"As {len(inspected)} imagens já estão no Docker.{version_note}"
+            )
+        status, hint = _missing_image_hint(refs, missing, local=local)
         return _check(
             "images",
-            "warn",
-            f"Faltam {len(missing)} de {len(images)} imagens ({shown}{suffix}). Serão baixadas "
-            "ou construídas no primeiro 'hdast stack up' (precisa de internet e leva alguns "
-            "minutos).",
+            status,
+            f"Faltam {len(missing)} de {len(inspected)} imagens ({_list_images(missing)}). "
+            f"{hint}{version_note}",
         )
 
     @staticmethod
@@ -368,6 +389,17 @@ def _parse_port(raw: str) -> int | None:
     return port if 1 <= port <= _MAX_PORT else None
 
 
-def _short_image(reference: str) -> str:
-    """Nome da imagem sem o digest (que é longo e não ajuda quem lê)."""
-    return reference.split("@", 1)[0]
+def _list_images(missing: list[str]) -> str:
+    shown = ", ".join(image.split("@", 1)[0] for image in missing[:_MAX_LISTED_IMAGES])
+    more = len(missing) - _MAX_LISTED_IMAGES
+    return shown + (f" e mais {more}" if more > 0 else "")
+
+
+def _missing_image_hint(
+    refs: Mapping[str, str], missing: list[str], *, local: bool
+) -> tuple[DoctorStatus, str]:
+    if any(refs[service] in missing for service in OWN_SERVICES):
+        if local:
+            return "warn", "As imagens próprias serão construídas no próximo hdast stack up."
+        return "fail", IMAGE_RECOVERY
+    return "warn", "As imagens auxiliares serão baixadas no próximo hdast stack up."

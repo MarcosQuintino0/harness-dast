@@ -102,7 +102,7 @@ Para o modo corrigido do alvo, repita com `stack up clinica-piloto --secure`: um
 
 ### A imagem do proxy
 
-O código da cerca é copiado para dentro da imagem do proxy de escopo. Se você mudou `adapters/scope_proxy/`, `domain/` da cerca ou `docker/` e subiu a pilha sem `--build`, o teste roda a cerca **antiga** e passa sem provar nada. Depois de qualquer mudança nesses lugares, suba com `--build`. A pilha principal já impõe reconstrução no caso de uso `StackUp` (`application/stack.py`). Isso não dispensa conferir as demais imagens e reconstruir o alvo quando seu código mudar.
+O código da cerca entra na imagem do proxy de escopo. Para provar mudanças em `adapters/scope_proxy/`, no `domain/` da cerca ou em `docker/`, inicie a pilha com `HDAST_STACK_BUILD=1` ou `hdast stack up <produto> --build`. A conferência do rótulo OCI também roda com o build local. Dois checkouts da mesma versão podem ter código diferente, por isso a prova de desenvolvimento exige reconstruir. Se o código do alvo mudou, reconstrua também a imagem dele. [Build local](../comecar/docker.md#construir-a-partir-do-código-local)
 
 ### Regressão dirigida (V1.12, L5)
 
@@ -159,7 +159,7 @@ Quando o trabalho é dividido entre agentes (plano do ciclo em [../arquivo/plans
 
 | Item | Ganho esperado | Estado |
 | --- | --- | --- |
-| Conferir imagens antes da prova | Fecha o risco de passar com código antigo | Parcial: a pilha principal força reconstrução; conferir também as imagens dos alvos |
+| Conferir imagens antes da prova | Evita passar com uma cerca diferente da esperada | A pilha confere a versão do proxy. Mudanças locais exigem build explícito e os alvos ainda precisam ser conferidos |
 | Desligar a regra de SSRF 40046 no perfil de laboratório (ligada no fechamento) | Até 500 s a menos na varredura no modo amplo | Aberto; a causa ainda é dedução (planejado para a V1.7) |
 | Testes em paralelo (`pytest-xdist`, pede ADR) | De 223 s para 52 s, medido | Aberto |
 | Pular `tests/unit/evals/` no laço local | Cerca de 53 s de processador | Descrito acima; sem atalho de comando |

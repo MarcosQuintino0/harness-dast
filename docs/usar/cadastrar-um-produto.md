@@ -47,15 +47,16 @@ Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; n
 
 ## 4. Abrir o Claude Code
 
-Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido e os segredos já guardados (cofre ou variáveis), rode `claude`. As skills em `.claude/skills/` e as permissões de `.claude/settings.json` carregam sozinhas. As permissões negam `curl`, `wget`, `hdast cleanup`, `hdast secret set`, `hdast secret delete` e leitura de `.env`: são conveniência (camada 0); a trava de verdade é o código da CLI ([detalhes](../../README.md#como-usar)).
+Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido e os segredos já guardados (cofre ou variáveis), rode `claude`. O Claude Code carrega as skills de `.claude/skills/` e aplica as permissões da camada 0 de `.claude/settings.json`. A mesma configuração registra uma segunda camada, o hook `PreToolUse`, que verifica chamadas de shell e de ferramentas de arquivo.
 
-O que as permissões **não** garantem (o formato de regras do Claude Code não expressa):
+Com `uv` no PATH e Python 3.12 disponível, o hook usa `uv run --no-project --quiet python "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"` em Windows e Linux. O Claude Code v2.1.295 ou posterior bloqueia falhas do lançador e tempo esgotado com `onFailure: block`. `--no-project` evita sincronizar as dependências do projeto a cada chamada. Ao detectar uma ação reservada, entrada inválida ou falha de processamento, o hook devolve código `2` e o Claude Code comunica o motivo ao agente. [ADR 0111](../decisoes/0111-hook-pretooluse-segunda-camada.md).
 
-- `hdast cleanup` é negado em qualquer forma, **inclusive `--dry-run`**: a regra casa pelo texto do comando e não distingue flag. Quem roda a simulação é você ([limpeza-de-dados.md](limpeza-de-dados.md)).
-- Regra de comando casa o texto escrito, não o programa: `python`/`node` com biblioteca HTTP, caminho absoluto de `curl` ou `sh -c '...'` não são negados. A defesa contra HTTP direto ao alvo é a rede do laboratório (o alvo só é alcançável pelo proxy de escopo) e a avaliação cega, que procura isso no transcript.
+- O hook barra os comandos humanos, inclusive `hdast cleanup --dry-run`. Quem roda a simulação é você. [Limpeza de dados](limpeza-de-dados.md).
+- O hook detecta clientes de rede conhecidos por caminho absoluto, dentro de `sh -c` e em formas listadas de código inline. Scripts que montam endereços em tempo de execução podem escapar. O isolamento de rede é a barreira física contra HTTP direto ao alvo e a avaliação cega verifica o transcript.
+- Aprovações, confirmações humanas e arquivos que configuram o hook exigem alterações por uma pessoa. Skills e agentes continuam disponíveis para edição durante o desenvolvimento.
 - A negação de escrita em `cleanup/` cobre `products/*/cleanup/` dentro do repositório. A pasta de produtos real fica **fora** dele (`HDAST_PRODUCTS_DIR`): proteja o script de limpeza com as permissões do sistema de arquivos e a revisão do time do produto.
-- O ambiente do terminal (as senhas das contas de teste) é herdado pelo processo do agente; as regras negam `printenv` e a leitura de `.env`, mas não impedem toda forma de ler uma variável.
-- As regras valem também para quem desenvolve o projeto neste repositório (por exemplo, WebFetch e `curl` ficam negados).
+- O processo do agente herda o ambiente do terminal. O hook barra formas conhecidas de listar variáveis e ler arquivos de segredo. Aplique também as regras da Parte B de `AGENTS.md`.
+- As duas camadas também se aplicam ao Claude Code durante o desenvolvimento. A CLI continua impondo escopo e autorização durante a operação. [Como usar o harness](../../README.md#como-usar).
 
 ## 5. A entrevista e a aprovação do escopo
 

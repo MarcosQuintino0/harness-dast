@@ -14,6 +14,12 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 ROOT = Path(__file__).resolve().parents[2]
 ImageId = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 NonEmpty = Annotated[str, Field(min_length=1)]
+IMAGE_DEFAULT = re.compile(
+    r"\$\{HDAST_(?:ZAP|SCOPE_PROXY)_IMAGE:-([a-zA-Z0-9][a-zA-Z0-9._/:@-]*)\}"
+)
+OWN_IMAGE = re.compile(
+    r"^(?:(?:harness|hdast)(?:[/-]|:|$)|ghcr\.io/marcosquintino0/hdast-(?:zap|scope-proxy)(?:[:@]|$))"
+)
 
 
 class Image(BaseModel):
@@ -94,7 +100,7 @@ def compose_paths(root: Path) -> list[Path]:
 
 
 def compose_references(paths: list[Path]) -> set[str]:
-    """Lê referências e nomes padrão de builds sem interpolar variáveis."""
+    """Lê referências e padrões versionados sem consultar o ambiente."""
     references: set[str] = set()
     for path in paths:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -103,15 +109,22 @@ def compose_references(paths: list[Path]) -> set[str]:
             raise ValueError(f"Compose com include/extends requer revisão: {path}")
         for name, service in compose.services.items():
             if service.image:
-                if "$" in service.image:
-                    raise ValueError(f"Imagem interpolada em {path}; não é possível classificá-la")
-                references.add(service.image)
+                references.add(_declared_image(service.image, path))
             elif service.build is not None:
                 project = compose.name or path.parent.name
                 if "$" in project or not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", project):
                     raise ValueError(f"Nome de projeto indeterminado em {path}")
                 references.add(f"{project}-{name}:latest")
     return references
+
+
+def _declared_image(expression: str, path: Path) -> str:
+    default = IMAGE_DEFAULT.fullmatch(expression)
+    if default:
+        return default[1]
+    if "$" in expression:
+        raise ValueError(f"Imagem interpolada em {path}; não é possível classificá-la")
+    return expression
 
 
 def json_lines(text: str) -> list[object]:
@@ -184,7 +197,7 @@ def classify(images: list[Image], used: set[str], references: set[str]) -> list[
     rows: list[dict[str, object]] = []
     for image in images:
         names = (image.tags or []) + (image.digests or [])
-        own = any(re.match(r"^(?:harness|hdast)(?:[/-]|:|$)", name) for name in names)
+        own = any(OWN_IMAGE.match(name) for name in names)
         if names and not own:
             continue
         matches = sorted(

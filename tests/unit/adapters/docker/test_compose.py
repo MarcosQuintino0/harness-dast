@@ -67,6 +67,16 @@ def test_up_com_build_ganha_prazo_extra_e_sem_build_fica_como_antes() -> None:
 
     assert with_build.calls[0][2] == without.calls[0][2] + BUILD_SECONDS
     assert without.calls[0][2] == 130
+    assert "--no-build" in without.calls[0][0]
+
+
+def test_build_prepara_as_imagens_proprias_sem_subir_servicos() -> None:
+    runner = Recorder(CommandResult(0, "", ""))
+
+    cli(runner).build(PROJECT, {}, ("zap", "scope-proxy"))
+
+    assert runner.calls[0][0][-3:] == ["build", "zap", "scope-proxy"]
+    assert runner.calls[0][2] == BUILD_SECONDS
 
 
 def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:

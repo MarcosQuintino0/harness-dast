@@ -45,6 +45,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "stack up": "Subiu o ambiente de ataque (ZAP e cerca) para este teste.",
     "stack down": "Desligou o ambiente de ataque.",
     "stack status": "Conferiu se o ambiente de ataque está no ar.",
+    "stack pull": "Baixou as imagens prontas do ZAP e da cerca de escopo.",
     "stop": "Mandou parar o teste em andamento.",
     "panel": "Montou as páginas do painel deste teste.",
 }

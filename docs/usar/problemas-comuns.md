@@ -51,6 +51,8 @@ Na dúvida, rode `uv run hdast doctor [produto]` (não toca o alvo). Ele lista P
 
 ## `preflight` e `stack`
 
+Para instalação, falhas de download, portas ocupadas e versão do proxy, consulte [Problemas comuns do Docker](../comecar/docker.md#problemas-comuns).
+
 | Verificação ou mensagem | Causa | O que fazer |
 | --- | --- | --- |
 | `secrets:<apelido>` falha | Variável de ambiente do segredo não definida neste terminal | Defina a variável (o nome está no perfil e na carta) e abra o terminal/Claude Code de novo |

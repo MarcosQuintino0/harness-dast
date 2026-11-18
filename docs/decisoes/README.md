@@ -132,4 +132,6 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0105 | [Ponte OAST na pilha do laboratório e verificabilidade do retorno](0105-lab-oast-bridge-and-verifiability.md) | Proposto |
 | 0106 | [Vigia do proxy reverifica o retrato velho em vez de travar](0106-vigia-reverifica-retrato-velho.md) | Proposto |
 | 0110 | [Reestruturação da documentação, licença MIT e congelamento de extras](0110-reestruturacao-documentacao-licenca-e-extras.md) | Proposto |
+| 0111 | [Hook PreToolUse como segunda camada das permissões do Claude Code](0111-hook-pretooluse-segunda-camada.md) | Proposto |
 | 0112 | [`hdast retestar` e `run --only`](0112-retestar-e-run-only.md) | Proposto |
+| 0113 | [Imagens publicadas e conferência de versão da cerca](0113-imagens-publicadas-e-conferencia-de-versao.md) | Proposto |
