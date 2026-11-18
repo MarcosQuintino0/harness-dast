@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- `hdast retestar PRODUTO --run RUN` repete só as operações dos achados escolhidos pelo pipeline do `run` e grava `retest.json` (`reproduced`, `not_reproduced` ou `not_tested`; nunca "corrigido"). O `run` ganha `--only`, repetível, que só reduz e fica em `run.json` ([ADR 0112](docs/decisoes/0112-retestar-e-run-only.md)).
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
 ## [1.12.2] - 2026-11-18

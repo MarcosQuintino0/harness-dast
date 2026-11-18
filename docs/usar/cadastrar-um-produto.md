@@ -144,5 +144,6 @@ suspeitas de falso positivo com o motivo e o que a varredura não cobre.
 ## 7. Depois da varredura
 
 - Abra `runs/<run_id>/report.html` no navegador (uma página só, sem internet, para ler e compartilhar; comece pelo resumo e por "O que fazer agora"). O mesmo conteúdo está em `report.md` e `findings.json` (comece por "O que este relatório não testou").
+- Depois de o time do produto aplicar uma correção, rode `uv run hdast retestar PRODUTO --run RUN_ANTERIOR`: ele repete só as operações dos achados e grava `retest.json` com `reproduced`, `not_reproduced` ou `not_tested`. "Não reproduzido nesta execução" não prova que a correção funcionou ([referência](../referencia/cli.md#hdast-retestar)).
 - Para remover os dados de teste, siga [limpeza-de-dados.md](limpeza-de-dados.md): você roda, não o agente.
 - Problemas: [problemas-comuns.md](problemas-comuns.md). Parar tudo: `uv run hdast stop`.
