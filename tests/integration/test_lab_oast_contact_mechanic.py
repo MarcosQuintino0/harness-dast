@@ -27,7 +27,7 @@ from tests.integration.run_support import record_metrics
 from tests.integration.test_lab_oast import finish_proof
 from tests.integration.test_lab_oast_scan import OPERATION, tweak_profile
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 @dataclass

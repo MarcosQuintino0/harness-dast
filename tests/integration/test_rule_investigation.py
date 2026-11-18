@@ -17,7 +17,7 @@ from tests.integration.run_support import ZapHistory, record_metrics
 from tests.integration.test_lab_strategy import _cli
 from tests.integration.test_scan_performance_matrix import _install
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 
 @pytest.mark.parametrize(
