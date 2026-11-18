@@ -51,6 +51,7 @@ O nível rápido NÃO valida: cobertura de todas as operações, a política pad
 ## Organização e nomes
 
 - `tests/unit/` espelha `src/harness_dast/`.
+- `tests/unit/claude_hooks/test_guard.py` carrega o hook de `.claude/hooks/` por `importlib`. As entradas JSON são sintéticas e os comandos são apenas inspecionados. A suíte também confere as negações legadas e o registro em `.claude/settings.json`. O mypy e o vulture incluem o diretório do hook em suas checagens.
 - Arquivo: `test_NOME_DO_MODULO.py`.
 - Função: `test_COMPORTAMENTO_quando_CONDICAO`. Exemplo: `test_rejects_request_when_redirect_leaves_scope`.
 - Estrutura de cada teste: preparar, agir, verificar. Uma razão para falhar por teste.

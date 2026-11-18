@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Hook `PreToolUse` acrescenta uma segunda camada de proteção do Claude Code para comandos humanos, acessos diretos à rede, leitura de segredos e alterações em arquivos de controle. [ADR 0111](docs/decisoes/0111-hook-pretooluse-segunda-camada.md).
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 
 ## [1.12.2] - 2026-11-18
