@@ -78,13 +78,13 @@ def _register_commands(app: typer.Typer) -> None:
     app.command("negative", rich_help_panel=TEST_STAGES_PANEL)(negative_command)
     app.command("confirm", rich_help_panel=TEST_STAGES_PANEL)(confirm_command)
     app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
-    app.command("plan", rich_help_panel=TEST_STAGES_PANEL)(plan_command)
 
     app.command("retestar", rich_help_panel=RESULTS_AND_RETEST_PANEL)(retestar_command)
     app.add_typer(build_finding_app(), name="finding", rich_help_panel=RESULTS_AND_RETEST_PANEL)
-    app.command("panel", rich_help_panel=RESULTS_AND_RETEST_PANEL)(panel_command)
     app.command("cleanup", rich_help_panel=RESULTS_AND_RETEST_PANEL)(cleanup_command)
 
+    app.command("plan", rich_help_panel=ADVANCED_PANEL)(plan_command)
+    app.command("panel", rich_help_panel=ADVANCED_PANEL)(panel_command)
     app.add_typer(build_strategy_app(), name="strategy", rich_help_panel=ADVANCED_PANEL)
     app.add_typer(build_knowledge_app(), name="knowledge", rich_help_panel=ADVANCED_PANEL)
     app.add_typer(build_mutation_app(), name="mutation", rich_help_panel=ADVANCED_PANEL)

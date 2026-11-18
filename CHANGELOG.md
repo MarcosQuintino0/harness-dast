@@ -22,6 +22,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 - Índice com decisões essenciais e catálogo de ADRs, orientações de contribuição no `AGENTS.md` e adoção da licença MIT. O painel, a estratégia, o conhecimento reutilizável e o `plan` passam a receber apenas correções de defeitos. `knowledge_mutation` e a mutação pendente seguem como parte do núcleo de segurança. [ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 - Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
 - Guias de primeiro uso e cadastro alinhados à cobertura parcial, à aprovação humana e à versão vigente. Glossário, diagramas do percurso e da cerca, e instruções para guardar as medições de rodadas cegas fora do clone.
+- `plan` e `panel` passam para **Avançado** na ajuda da CLI. Os mapas de `domain` e `application` passam a listar os módulos atuais por responsabilidade, com contagens e indicação de onde acrescentar código.
 
 ## [1.12.2] - 2026-11-18
 

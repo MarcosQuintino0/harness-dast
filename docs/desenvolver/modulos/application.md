@@ -4,23 +4,55 @@ Caminho: `src/harness_dast/application/`. Decisão: [ADR 0004](../../decisoes/00
 
 ## Mapa por assunto
 
-Inventário histórico após a organização V1.9.4: **88 módulos de produção**, sem contar 2 arquivos `__init__.py`; não inclui as adições da V1.11.
-Contagens por grupo são disjuntas e somam o total. A raiz mantém 71 módulos; subpacotes preservam a camada.
-Testes espelham `tests/unit/application/`; adaptadores concretos continuam em `adapters/`.
+O pacote tem **89 arquivos Python na raiz** (88 módulos e `__init__.py`). O mapa soma **105 módulos de produção** (88 na raiz e 17 em subpacotes), com um grupo por módulo. A contagem exclui os 2 arquivos `__init__.py`. Os testes espelham `tests/unit/application/`.
 
-Na V1.11, `verification.py` coordena a classificação offline, `confirmation.py` conduz a reprodução protegida, `human_confirmation.py` registra a declaração humana e `report_presentation.py` monta a visão consultiva. Suas fronteiras ficam em `confirmation_ports.py`, `human_confirmation_ports.py` e `report_presentation_ports.py`. As decisões de nível e vínculo de semente pertencem ao domínio.
+Os grupos congelados recebem apenas correções de defeitos. O diário de execução e a proteção de mutações pendentes seguem no núcleo. [ADR 0110](../../decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)
 
-| Assunto ou subpacote | Módulos | Responsabilidade e exemplos | Onde entra código novo |
-| --- | --- | --- | --- |
-| `authz/` | 17 | Coordenação, envio, verificações e portas de autorização; entrada em service.py. | Nova regra ou coordenação desse assunto entra neste subpacote |
-| Cadastro técnico e alcance | 11 | `account_session.py`, `dispatcher.py`, `inspect_report.py`, `inspect_spec.py`, `login_budget.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Perfil, aprovação, segredos e limpeza | 8 | `cleanup.py`, `init_from_letter.py`, `init_product.py`, `scope_approval.py`, `secret_admin.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Portas por capacidade e portas comuns | 15 | `cleanup_ports.py`, `common_ports.py`, `doctor_ports.py`, `init_ports.py`, `knowledge_ports.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Relatório, painel e medição | 7 | `command_journal.py`, `metrics.py`, `panel.py`, `panel_hooks.py`, `panel_index.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Execução e coordenação comum | 7 | `cors_check.py`, `lab_targets.py`, `preview.py`, `run.py`, `run_support.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Pilha, diagnóstico e espera | 8 | `doctor.py`, `doctor_checks.py`, `doctor_report.py`, `stack.py`, `stack_freshness.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Estratégia, conhecimento e mutações | 6 | `knowledge.py`, `knowledge_capture.py`, `knowledge_observations.py`, `mutation_guard.py`, `strategy.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
-| Varredura e valores proibidos | 9 | `negative.py`, `negative_restore.py`, `negative_runner.py`, `negative_sender.py`, `scan.py` e demais módulos do grupo | Manter no módulo específico; nova capacidade recebe arquivo próprio e teste espelhado |
+| Responsabilidade | Raiz | Subpacotes | Módulos principais | Onde entra código novo |
+| --- | ---: | ---: | --- | --- |
+| Carta, perfil, aprovação e segredos | 12 | 0 | `init_from_letter.py`, `validate_profile.py`, `scope_approval.py`, `setup_product.py`, `secret_admin.py` | Coloque a coordenação do cadastro em `init_from_letter.py`, os passos humanos em `setup_product.py` e as portas junto de cada consumidor. |
+| Contrato da API, sessão e alcance | 14 | 0 | `inspect_spec.py`, `preflight.py`, `probe.py`, `probe_runner.py`, `account_session.py` | Coloque inspeção em `inspect_spec.py`, prontidão em `preflight.py`, coordenação do alcance em `probe.py` e sessão em `account_session.py`. |
+| Varredura | 6 | 0 | `scan.py`, `scan_runner.py`, `scan_collect.py`, `scan_ports.py` | Coloque coordenação em `scan.py`, andamento em `scan_runner.py`, coleta em `scan_collect.py` e portas de varredura e relatório em `scan_ports.py`. |
+| Checagens complementares | 3 | 0 | `cors_check.py`, `extra_checks.py`, `oast_ssrf.py` | Coloque a coordenação no módulo que executa a checagem. As decisões puras pertencem a `domain`. |
+| Autorização entre contas | 0 | 17 | `authz/service.py`, `authz/runner.py`, `authz/ports.py` | Coloque a coordenação em `authz/service.py`, a execução em `authz/runner.py` e os contratos consumidos em `authz/ports.py`. |
+| Valores proibidos | 5 | 0 | `negative.py`, `negative_runner.py`, `negative_restore.py`, `negative_ports.py` | Coloque coordenação em `negative.py`, iteração em `negative_runner.py` e restauração em `negative_restore.py`. |
+| Verificação | 5 | 0 | `verification.py`, `confirmation.py`, `human_confirmation.py` | Coloque coordenação offline em `verification.py`, verificação automática em `confirmation.py` e persistência do registro humano em `human_confirmation.py`. |
+| Reteste | 2 | 0 | `retest.py`, `retest_ports.py` | Coloque o encadeamento em `retest.py` e os contratos de artefatos em `retest_ports.py`. |
+| Relatório | 3 | 0 | `report.py`, `report_presentation.py`, `report_presentation_ports.py` | Coloque a coordenação em `report.py` e a leitura de dados consultivos em `report_presentation.py` e suas portas. |
+| Limpeza | 2 | 0 | `cleanup.py`, `cleanup_ports.py` | Coloque a coordenação da transação e da confirmação em `cleanup.py` e as fronteiras em `cleanup_ports.py`. |
+| Diário, execução e portas comuns | 8 | 0 | `run.py`, `run_support.py`, `command_journal.py`, `common_ports.py` | Coloque o encadeamento em `run.py`, as peças comuns em `run_support.py` e as portas compartilhadas em `common_ports.py`. |
+| Pilha e diagnóstico | 13 | 0 | `stack.py`, `stack_images.py`, `doctor.py`, `doctor_stack.py` | Coloque o ciclo de vida em `stack.py`, as imagens em `stack_images.py` e o diagnóstico em `doctor.py` e seus auxiliares. |
+| Mutações pendentes | 2 | 0 | `mutation_guard.py`, `mutation_release.py` | Coloque a coordenação da parada em `mutation_guard.py` e a liberação humana em `mutation_release.py`. |
+| Painel **(congelado)** | 6 | 0 | `panel.py`, `panel_index.py`, `panel_live.py` | Corrija a geração, os índices e a atualização ao vivo nos módulos `panel*.py`. A ligação dos dados ao painel fica em `panel_hooks.py`. |
+| Estratégia e `plan` **(congelado)** | 3 | 0 | `strategy.py`, `strategy_capture.py`, `strategy_ports.py` | Corrija a coordenação da prévia em `strategy.py`, a captura em `strategy_capture.py` e suas portas em `strategy_ports.py`. |
+| Conhecimento reutilizável **(congelado)** | 4 | 0 | `knowledge.py`, `knowledge_capture.py`, `knowledge_observations.py` | Corrija a validação, a captura ou a extração de observações nos respectivos módulos `knowledge*.py`. |
+| **Total** | **88** | **17** | | |
+
+<details>
+<summary>Inventário por grupo</summary>
+
+- **Carta, perfil, aprovação e segredos** inclui `init_from_letter.py`, `init_ports.py`, `init_product.py`, `scope_approval.py`, `scope_approval_ports.py`, `secret_admin.py`, `secret_ports.py`, `secret_refs.py`, `secret_router.py`, `setup_ports.py`, `setup_product.py`, `validate_profile.py`.
+- **Contrato da API, sessão e alcance** inclui `account_session.py`, `dispatcher.py`, `inspect_report.py`, `inspect_spec.py`, `login_budget.py`, `preflight.py`, `preflight_checks.py`, `preflight_report.py`, `preview.py`, `probe.py`, `probe_ports.py`, `probe_runner.py`, `runner_settings.py`, `session_pool.py`.
+- **Varredura** inclui `scan.py`, `scan_collect.py`, `scan_health.py`, `scan_ports.py`, `scan_runner.py`, `scan_tokens.py`.
+- **Checagens complementares** inclui `cors_check.py`, `extra_checks.py`, `oast_ssrf.py`.
+- **Autorização entre contas** inclui `authz/*.py`.
+- **Valores proibidos** inclui `negative.py`, `negative_ports.py`, `negative_restore.py`, `negative_runner.py`, `negative_sender.py`.
+- **Verificação** inclui `confirmation.py`, `confirmation_ports.py`, `human_confirmation.py`, `human_confirmation_ports.py`, `verification.py`.
+- **Reteste** inclui `retest.py`, `retest_ports.py`.
+- **Relatório** inclui `report.py`, `report_presentation.py`, `report_presentation_ports.py`.
+- **Limpeza** inclui `cleanup.py`, `cleanup_ports.py`.
+- **Diário, execução e portas comuns** inclui `command_journal.py`, `common_ports.py`, `metrics.py`, `run.py`, `run_support.py`, `stage_errors.py`, `wait.py`, `wait_ports.py`.
+- **Pilha e diagnóstico** inclui `doctor.py`, `doctor_checks.py`, `doctor_ports.py`, `doctor_report.py`, `doctor_stack.py`, `lab_accounts.py`, `lab_targets.py`, `stack.py`, `stack_freshness.py`, `stack_images.py`, `stack_lock.py`, `stack_models.py`, `stack_ports.py`.
+- **Mutações pendentes** inclui `mutation_guard.py`, `mutation_release.py`.
+- **Painel** (congelado) inclui `panel.py`, `panel_hooks.py`, `panel_index.py`, `panel_index_ports.py`, `panel_live.py`, `panel_ports.py`.
+- **Estratégia e `plan`** (congelado) inclui `strategy.py`, `strategy_capture.py`, `strategy_ports.py`.
+- **Conhecimento reutilizável** (congelado) inclui `knowledge.py`, `knowledge_capture.py`, `knowledge_observations.py`, `knowledge_ports.py`.
+
+Os curingas de subpacote cobrem os módulos Python da pasta indicada, excluindo `__init__.py`.
+
+</details>
+
+**Como conferir este mapa** · `rg --files src/harness_dast/application -g '*.py' -g '!__init__.py'`
 
 ## Responsabilidade
 

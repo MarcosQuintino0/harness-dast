@@ -80,6 +80,16 @@ def test_start_here_is_the_first_command_panel_in_help() -> None:
     assert all(start < result.output.find(panel) for panel in others)
 
 
+def test_frozen_extras_are_in_the_advanced_panel() -> None:
+    root = get_command(build_app())
+    assert isinstance(root, TyperGroup)
+
+    for name in ("plan", "panel", "strategy", "knowledge"):
+        command = root.commands[name]
+        assert isinstance(command, (TyperCommand, TyperGroup))
+        assert command.rich_help_panel == ADVANCED_PANEL, name
+
+
 def test_root_command_names_match_the_fixed_contract() -> None:
     root = get_command(build_app())
 
