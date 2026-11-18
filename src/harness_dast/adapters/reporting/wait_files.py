@@ -1,11 +1,13 @@
 """Leitura local da execução e da trava para `wait`."""
 
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
 from pydantic import ValidationError
 
+from harness_dast.adapters.reporting.permission_retry import retry_on_permission_error
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.reporting.wait_marker import FileWaitMarker
 from harness_dast.application.stack_models import StackLockInfo
@@ -18,8 +20,14 @@ from harness_dast.domain.wait import WaitResult
 class FileWaitReader:
     """Lê resultado atômico e observa trava sem alterá-la."""
 
-    def __init__(self, runs_dir: Path, lock: Callable[[], StackLockInfo | None]) -> None:
-        """Recebe pasta e consulta à trava."""
+    def __init__(
+        self,
+        runs_dir: Path,
+        lock: Callable[[], StackLockInfo | None],
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        """Recebe pasta, consulta à trava e a pausa entre leituras repetidas."""
+        self._sleep = sleep
         self._runs_dir = runs_dir
         self._lock = lock
         self._artifacts = FileRunArtifacts(runs_dir)
@@ -71,7 +79,14 @@ class FileWaitReader:
                 return None
             if path.stat().st_size > 1_000_000:
                 raise ConfigError("Progresso da execução inválido ou ilegível.")
-            progress = ScanProgress.model_validate_json(path.read_text(encoding="utf-8"))
+            try:
+                text = retry_on_permission_error(
+                    lambda: path.read_text(encoding="utf-8"), self._sleep
+                )
+            except PermissionError:
+                # Arquivo preso por quem o grava ou por antivírus: sem andamento por ora.
+                return None
+            progress = ScanProgress.model_validate_json(text)
             if progress.run_id != run_id or not 0 <= progress.progress <= 100:
                 raise ConfigError("Progresso da execução inválido ou ilegível.")
         except (OSError, UnicodeError, ValueError, ValidationError):
