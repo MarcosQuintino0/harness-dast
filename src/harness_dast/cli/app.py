@@ -19,6 +19,7 @@ from harness_dast.application.common_ports import Clock, CommandJournalStore
 from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
 from harness_dast.cli.commands.confirm import confirm_command
+from harness_dast.cli.commands.demo import demo_command
 from harness_dast.cli.commands.doctor import doctor_command
 from harness_dast.cli.commands.finding import build_finding_app
 from harness_dast.cli.commands.init import init_command
@@ -56,6 +57,7 @@ ADVANCED_PANEL = "Avançado"
 
 def _register_commands(app: typer.Typer) -> None:
     # O Typer exibe os painéis na ordem em que encontra seus primeiros comandos.
+    app.command("demo", rich_help_panel=START_HERE_PANEL)(demo_command)
     app.command("doctor", rich_help_panel=START_HERE_PANEL)(doctor_command)
     app.command("run", rich_help_panel=START_HERE_PANEL)(run_command)
     app.command("report", rich_help_panel=START_HERE_PANEL)(report_command)
@@ -112,8 +114,8 @@ def build_app() -> typer.Typer:
         # opção continua declarada para aparecer na ajuda e para o caso de uso direto.
         state = get_state(ctx)
         state.json_mode = state.json_mode or json_output
-        settings = load_settings()
-        configure_logging(settings.log_level, state.secrets)
+        if ctx.invoked_subcommand != "demo":
+            configure_logging(load_settings().log_level, state.secrets)
 
     _register_commands(app)
     return app

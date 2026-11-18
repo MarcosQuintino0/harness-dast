@@ -67,11 +67,13 @@ def checked_profiles(
     return KnowledgeProfiles(profiles, FileKnowledgeStore(products_dir), deps, SystemClock(), zap)
 
 
-def build_scope_approvals(products_dir: Path, prompt: ApprovalPrompt) -> ScopeApprovals:
+def build_scope_approvals(
+    products_dir: Path, prompt: ApprovalPrompt, *, environ: Mapping[str, str] | None = None
+) -> ScopeApprovals:
     """Monta o caso de uso `hdast profile approve|approval` (sem rede)."""
     return ScopeApprovals(
         profiles=FileProfileRepository(products_dir),
-        store=open_approval_store(),
+        store=open_approval_store(environ),
         prompt=prompt,
         clock=SystemClock(),
     )

@@ -15,7 +15,7 @@ from harness_dast.application.validate_profile import ProfileReport
 from harness_dast.cli.approval_composition import build_scope_approvals
 from harness_dast.cli.composition import build_validate_profile, products_dir_or_default
 from harness_dast.cli.output import build_success, emit, get_state
-from harness_dast.cli.terminal import is_interactive
+from harness_dast.cli.terminal import confirm_typed_name, is_interactive
 
 _PRODUCTS_DIR = typer.Option(
     "--products-dir",
@@ -93,13 +93,7 @@ class TerminalApprovalPrompt:
             "blocos do perfil exige nova aprovação sua.",
             err=True,
         )
-        answer = typer.prompt(
-            f"Digite '{product}' para aprovar (outra coisa cancela)",
-            default="",
-            show_default=False,
-            err=True,
-        )
-        return str(answer).strip() == product
+        return confirm_typed_name(product)
 
 
 def _render_approve(report: ApproveReport) -> str:
