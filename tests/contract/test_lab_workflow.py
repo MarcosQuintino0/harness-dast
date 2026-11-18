@@ -11,6 +11,7 @@ from tests.integration.lab_round import Piece
 
 WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/lab.yml"
 LABEL_GATE = "contains(github.event.pull_request.labels.*.name, 'lab')"
+LAB_LABELS = '["lab","lab-regressao","lab-prova","lab-carga","lab-tudo"]'
 pytestmark = pytest.mark.contract
 
 
@@ -81,10 +82,24 @@ def test_concorrencia_separa_por_ref_evento_e_nivel_quando_agrupa(workflow: dict
     group = " ".join(workflow["concurrency"]["group"].split())
 
     assert group.startswith("lab-${{ github.ref }}-${{ github.event_name }}-")
-    assert "${{ inputs.nivel || 'fast' }}" in group
-    # Rótulo que não é `lab` cai num grupo próprio, com o run_id, e não cancela a rodada válida.
-    assert "github.event.action == 'labeled' && github.event.label.name != 'lab'" in group
+    assert "inputs.nivel || (github.event.action == 'labeled' && github.event.label.name)" in group
+    # Rótulo fora da lista cai num grupo próprio, com o run_id, e não cancela a rodada válida.
+    assert f"!contains(fromJSON( '{LAB_LABELS}'), github.event.label.name)" in group
     assert "github.run_id" in group
+
+
+def test_rotulo_escolhe_o_nivel_e_commit_novo_repete_so_o_fast_quando_vem_do_pr(
+    workflow: dict[str, Any],
+) -> None:
+    gate = " ".join(workflow["jobs"]["planejar"]["if"].split())
+    planner = _steps(workflow["jobs"]["planejar"])
+    script = next(str(step["run"]) for step in planner if step.get("id") == "plano")
+
+    assert f"contains(fromJSON( '{LAB_LABELS}'), github.event.label.name)" in gate
+    assert "github.event.action == 'synchronize' && contains(github.event.pull_request" in gate
+    for label, level in (("lab-regressao", "regressao"), ("lab-prova", "prova"),
+                         ("lab-carga", "carga"), ("lab-tudo", "tudo")):  # fmt: skip
+        assert f"{label}) NIVEL={level} ;;" in script
 
 
 def test_workflow_nao_usa_segredos_nem_versoes_soltas_quando_declara_passos(

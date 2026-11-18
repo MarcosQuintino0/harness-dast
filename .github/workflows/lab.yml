@@ -17,22 +17,28 @@ name: Laboratório
 permissions:
   contents: read
 
-# Um grupo por ref, evento e nível: só a rodada do mesmo nível na mesma ref é cancelada. Rótulo
-# que não é `lab` cai num grupo próprio (com o run_id) e não cancela uma rodada válida.
+# Um grupo por ref, evento e nível: só a rodada do mesmo nível na mesma ref é cancelada. No PR, o
+# rótulo escolhe o nível (`lab` = fast, `lab-regressao`, `lab-prova`, `lab-carga`, `lab-tudo`);
+# rótulo fora dessa lista cai num grupo próprio (com o run_id) e não cancela uma rodada válida.
 concurrency:
   group: >-
-    lab-${{ github.ref }}-${{ github.event_name }}-${{ inputs.nivel || 'fast' }}${{
-    (github.event.action == 'labeled' && github.event.label.name != 'lab')
+    lab-${{ github.ref }}-${{ github.event_name }}-${{
+    inputs.nivel || (github.event.action == 'labeled' && github.event.label.name) || 'lab' }}${{
+    (github.event.action == 'labeled' && !contains(fromJSON(
+    '["lab","lab-regressao","lab-prova","lab-carga","lab-tudo"]'), github.event.label.name))
     && format('-ignorado-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   planejar:
     name: Planejar os pedaços
+    # Novo commit no PR repete só o nível `fast`, e só se o PR tiver o rótulo `lab`.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (contains(github.event.pull_request.labels.*.name, 'lab') &&
-       (github.event.action == 'synchronize' || github.event.label.name == 'lab'))
+      (github.event.action == 'labeled' && contains(fromJSON(
+       '["lab","lab-regressao","lab-prova","lab-carga","lab-tudo"]'), github.event.label.name)) ||
+      (github.event.action == 'synchronize' &&
+       contains(github.event.pull_request.labels.*.name, 'lab'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -47,8 +53,21 @@ jobs:
       - name: Gerar a matriz de pedaços pelo lab_round
         id: plano
         env:
-          NIVEL: ${{ inputs.nivel || 'fast' }}
+          NIVEL_MANUAL: ${{ inputs.nivel }}
+          ACAO: ${{ github.event.action }}
+          ROTULO: ${{ github.event.label.name }}
         run: |
+          NIVEL=fast
+          if [ -n "$NIVEL_MANUAL" ]; then
+            NIVEL="$NIVEL_MANUAL"
+          elif [ "$ACAO" = labeled ]; then
+            case "$ROTULO" in
+              lab-regressao) NIVEL=regressao ;;
+              lab-prova) NIVEL=prova ;;
+              lab-carga) NIVEL=carga ;;
+              lab-tudo) NIVEL=tudo ;;
+            esac
+          fi
           uv run python -m tests.integration.lab_round --nivel "$NIVEL" --pedacos-json \
             > "$RUNNER_TEMP/pedacos.json"
           uv run python - <<'PY' >> "$GITHUB_OUTPUT"

@@ -67,7 +67,7 @@ A sessão constrói ZAP, proxy e Clínica Piloto com os arquivos Compose do chec
 
 O workflow `lab.yml` roda o laboratório em máquinas efêmeras do GitHub, em paralelo, só contra os alvos do próprio projeto ([ADR 0118](../decisoes/0118-laboratorio-em-maquinas-efemeras-do-github.md)). Ele cobre o núcleo (`lab_fast`), as provas (`lab_prova`), a regressão dirigida e a carga.
 
-**Como disparar.** Antes do merge, adicione o rótulo `lab` ao PR: roda o nível `fast` e repete a cada novo commit enquanto o rótulo estiver lá. Com o arquivo na branch padrão, abra **Actions → Laboratório → Run workflow** e escolha `nivel`: `fast` (padrão), `prova`, `regressao`, `carga` ou `tudo` (soma os quatro). Não há gatilho de `push`. A aprovação de PRs de fora é configuração do dono, citada no ADR.
+**Como disparar.** Antes do merge, o rótulo do PR escolhe o nível: `lab` roda o `fast`, e `lab-regressao`, `lab-prova`, `lab-carga` e `lab-tudo` rodam o nível de mesmo nome, uma vez por rótulo adicionado. Novo commit repete só o `fast`, e só se o PR tiver o rótulo `lab`. Com o arquivo na branch padrão, abra **Actions → Laboratório → Run workflow** e escolha `nivel`: `fast` (padrão), `prova`, `regressao`, `carga` ou `tudo` (soma os quatro). Não há gatilho de `push`. A aprovação de PRs de fora é configuração do dono, citada no ADR.
 
 **O que acontece.**
 
