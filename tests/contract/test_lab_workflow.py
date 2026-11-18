@@ -26,6 +26,13 @@ def _steps(job: dict[str, Any]) -> list[dict[str, Any]]:
     return list(job["steps"])
 
 
+def _minutes(value: object) -> int:
+    """Maior prazo declarado: número fixo ou expressão `cond && N || M` com números literais."""
+    numbers = [int(n) for n in re.findall(r"\d+", str(value))]
+    assert numbers, f"prazo sem número: {value!r}"
+    return max(numbers)
+
+
 def _uses(job: dict[str, Any]) -> list[str]:
     return [str(step["uses"]) for step in _steps(job) if "uses" in step]
 
@@ -71,8 +78,7 @@ def test_workflow_respeita_leitura_prazo_e_credenciais_quando_executa(
     assert workflow["concurrency"]["cancel-in-progress"] is True
     for name, job in workflow["jobs"].items():
         assert all(value == "read" for value in job.get("permissions", {}).values()), name
-        assert isinstance(job["timeout-minutes"], int), name
-        assert job["timeout-minutes"] > 0, name
+        assert _minutes(job["timeout-minutes"]) > 0, name
         for step in _steps(job):
             if str(step.get("uses", "")).startswith("actions/checkout"):
                 assert step["with"]["persist-credentials"] is False, name
@@ -148,7 +154,8 @@ def test_pedaco_roda_so_pelo_lab_round_quando_executa(workflow: dict[str, Any]) 
     assert "HDAST_V17_DEADLINE_EPOCH=$(( $(date +%s) +" in script
     assert run["env"]["HDAST_IT_PREBUILT"] == "1"
     assert run["env"]["HDAST_IT_PREBUILT_TAG"] == "${{ needs.imagens.outputs.tag }}"
-    assert run["timeout-minutes"] < job["timeout-minutes"]
+    assert _minutes(run["timeout-minutes"]) < _minutes(job["timeout-minutes"])
+    assert "matrix.level == 'carga'" in str(job["timeout-minutes"])
 
 
 def test_pedaco_publica_resultados_por_tres_dias_quando_termina(workflow: dict[str, Any]) -> None:

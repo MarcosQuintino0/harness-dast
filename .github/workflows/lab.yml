@@ -127,7 +127,8 @@ jobs:
     name: ${{ matrix.name }}
     needs: [planejar, imagens]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # A carga (matriz V1.7) pede 30 min de reserva por caso t4; os outros níveis cabem em 60.
+    timeout-minutes: ${{ matrix.level == 'carga' && 150 || 60 }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -174,7 +175,7 @@ jobs:
             fi
           done
       - name: Rodar o pedaço pelo lab_round
-        timeout-minutes: 50
+        timeout-minutes: ${{ matrix.level == 'carga' && 140 || 50 }}
         env:
           NIVEL: ${{ matrix.level }}
           ARQUIVO: ${{ matrix.file }}
@@ -190,8 +191,13 @@ jobs:
           if [ -n "$MODO" ]; then
             args+=(--k "$MODO")
           fi
-          # Orçamento da matriz V1.7 (carga e provas t2): agora mais 45 min, dentro dos 50 do passo.
-          HDAST_V17_DEADLINE_EPOCH=$(( $(date +%s) + 45 * 60 ))
+          # Orçamento da matriz V1.7: agora mais 135 min na carga (dentro dos 140 do passo) e
+          # mais 45 min nos outros níveis (provas t2, dentro dos 50).
+          minutos=45
+          if [ "$NIVEL" = carga ]; then
+            minutos=135
+          fi
+          HDAST_V17_DEADLINE_EPOCH=$(( $(date +%s) + minutos * 60 ))
           export HDAST_V17_DEADLINE_EPOCH
           export PYTEST_ADDOPTS="--basetemp=$LAB_PYTEST"
           uv run python -m tests.integration.lab_round "${args[@]}"
