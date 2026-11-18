@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Modelo curto de carta de autorização para o dono do produto, com referências de credencial. As skills de cadastro orientam avisar sobre senhas coladas, descartar o valor e sugerir a troca da senha.
 - Hook PreToolUse reforçado para diretório atual, ferramentas MCP, patches, variáveis e opções anteriores ao código inline. O ADR 0111 registra os limites residuais da análise textual.
 - Hook PreToolUse reforçado contra comandos aninhados, caminhos relativos e padrões de busca amplos, com bloqueio de falhas do lançador no Claude Code v2.1.295 ou posterior.
 

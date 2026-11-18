@@ -4,7 +4,7 @@ Para quem vai testar um produto **real** (ou de teste da empresa) com o Claude C
 
 ## 1. O que pedir ao dono do produto
 
-A [carta de autorização](modelo-de-autorizacao.md) preenchida e assinada, mais:
+A [carta curta de autorização](carta-curta.md) preenchida e assinada, mais:
 
 - o Swagger/OpenAPI do ambiente de teste (arquivo ou URL);
 - contas de teste, uma por papel necessário, com as senhas por canal seguro entregues a **você**;
@@ -43,7 +43,7 @@ $env:MEU_PRODUTO_USER_A_LOGIN = "..."          # os nomes são os que a carta li
 $env:MEU_PRODUTO_USER_A_SENHA = "..."
 ```
 
-Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; não peça ao agente que leia `.env`. O cofre protege contra o histórico e contra arquivo esquecido, não contra um programa que rode na sua conta: a conta de teste continua tendo de ser descartável. O harness mascara segredos em relatórios, logs e auditoria, mas **o ambiente do terminal é visível ao processo do agente**: use contas de teste dedicadas, sem poder fora do ambiente de teste.
+Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; não peça ao agente que leia `.env`. Se colar uma senha por engano, troque a senha da conta de teste. O cofre protege contra o histórico e contra arquivo esquecido, não contra um programa que rode na sua conta: a conta de teste continua tendo de ser descartável. O harness mascara segredos em relatórios, logs e auditoria, mas **o ambiente do terminal é visível ao processo do agente**: use contas de teste dedicadas, sem poder fora do ambiente de teste.
 
 ## 4. Abrir o Claude Code
 
