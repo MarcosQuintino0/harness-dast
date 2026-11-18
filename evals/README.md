@@ -1,6 +1,6 @@
 # Avaliação cega (evals)
 
-Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-como-eval.md) (marco M6). Um agente novo, cujo único contexto é uma **cópia do repositório sem o que revela as falhas**, recebe o pedido que uma pessoa real faria (cadastrar o produto, alcançar os endpoints, varrer, triar) e é medido por regras, não por opinião.
+Suíte da **avaliação cega** do [ADR 0014](../docs/decisoes/0014-avaliacao-cega-como-eval.md) (marco M6). Um agente novo, cujo único contexto é uma **cópia do repositório sem o que revela as falhas**, recebe o pedido que uma pessoa real faria (cadastrar o produto, alcançar os endpoints, varrer, triar) e é medido por regras, não por opinião.
 
 **O que esta suíte faz:** prepara a cópia cega, coleta o rastro e dá a nota. **O que ela não faz:** chamar modelo nenhum. Quem executa o agente é o coordenador (uma pessoa, ou um agente coordenador que lança um subagente novo na cópia). Código: `evals/runner/`; testes: `tests/unit/evals/` (com artefatos de exemplo, sem Docker).
 
@@ -15,7 +15,7 @@ Suíte da **avaliação cega** do [ADR 0014](../docs/adr/0014-avaliacao-cega-com
 
 Casos: `clinica-piloto` (alvo próprio), `vampi` e `crapi` (públicos, com possível conhecimento prévio dos modelos), além do recorte [`crapi-foco`](cases/crapi-foco/case.yml). O crAPI só tem modo vulnerável e tem suporte no `hdast stack up`. Veja [O caso crAPI](#o-caso-crapi) e [Criar um caso](#criar-um-caso).
 
-**Primeira avaliação cega (2026-11-13):** cinco rodadas com agente novo, resultado em [docs/reviews/2026-11-13-rodadas-cegas.md](../docs/reviews/2026-11-13-rodadas-cegas.md). Depois veio a rodada da V1.1 (Clínica Piloto, modo vulnerável, nota 8,51): [docs/reviews/2026-11-13-rodada-cega-v1-1.md](../docs/reviews/2026-11-13-rodada-cega-v1-1.md). Todas com o modelo Sonnet; a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem) segue em aberto. O parágrafo seguinte descreve os ensaios anteriores, não cegos.
+**Primeira avaliação cega (2026-11-13):** cinco rodadas com agente novo, resultado em [docs/arquivo/reviews/2026-11-13-rodadas-cegas.md](../docs/arquivo/reviews/2026-11-13-rodadas-cegas.md). Depois veio a rodada da V1.1 (Clínica Piloto, modo vulnerável, nota 8,51): [docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md](../docs/arquivo/reviews/2026-11-13-rodada-cega-v1-1.md). Todas com o modelo Sonnet; a forma fiel (`claude -p` dentro da cópia, para as permissões da cópia valerem) segue em aberto. O parágrafo seguinte descreve os ensaios anteriores, não cegos.
 
 **Estado de verificação (2026-11-13):** o arranjo foi provado com Docker em ensaios **não cegos** (o programador fez o papel do agente, com perfil copiado de `lab/`): `clinica-piloto` modo vulnerável (nota 9,53), `vampi` modo seguro (10,0) e `crapi` (veja o fim do documento). Os ensaios sujos (escopo mais largo que a carta, `curl` ao alvo) foram pegos (3,0 e 0,0). Ainda **não** houve rodada com um agente cego de verdade.
 
@@ -66,10 +66,12 @@ O `prepare` **falha** (saída 2) se algum termo de `leak_terms` do caso ficar na
 | Caminho | Por quê |
 | --- | --- |
 | `evals/`, `tests/unit/evals/`, `tests/integration/` | Gabaritos, casos, executor e testes que conhecem as falhas plantadas |
-| `docs/reviews/`, `docs/spikes/`, `docs/adr/0014-*`, `lab/README.md` | Dizem o que a V1 achou e perdeu e o desenho da avaliação; o `lab/README.md` lista as fraquezas do VAmPI |
+| `docs/arquivo/`, `docs/roadmap.md`, `docs/comecar/primeiro-uso.md` | Histórico, resultados e perfis prontos de laboratório |
+| ADRs 0014, 0083, 0088 e 0089 em `docs/decisoes/` e os dois arquivos `verification-calibration.*` em `docs/referencia/` | Desenho da avaliação, fronteira da cópia, critérios privados e calibração |
+| `lab/README.md` | Lista as fraquezas do VAmPI |
 | `lab/pilot/src/`, `pom.xml`, `README.md`, `.env*`, `scripts/`, `documentos/`, `cleanup/` | Código e notas do alvo. O `Dockerfile` é trocado por um stub de uma linha que usa a imagem já construída |
 | `lab/*/product-profile/`, `lab/pilot/openapi.json`, `lab/vampi/openapi3.yml` | Perfis prontos: **escrever o perfil é parte da prova**. O OpenAPI chega em `inputs/` como o dono do produto entregaria |
-| `docs/guides/primeiro-uso.md` | Aponta os perfis prontos do laboratório |
+| `docs/comecar/primeiro-uso.md` | Aponta os perfis prontos do laboratório |
 | `.git/`, `runs/`, `.venv/`, caches, `reports/`, `research_notes/`, `products/<real>`, `.claude/settings.local.json` | Histórico, execuções antigas, ambiente e perfis do coordenador |
 
 O que **fica** é definido por lista de permissão em `runner/exclusions.py`: código da CLI, recursos de build,
@@ -214,16 +216,16 @@ O modo sorteado (vulnerável ou seguro) é o que o agente cego não pode saber. 
 | Nome e porta do contêiner, imagem, `hdast stack status`, saída de `stack up` | Idênticos nos dois modos (conferido: `hdast-pilotrun-pilot-1`, `target_urls` com 28080 e 29091) | Sem vazamento |
 | Respostas do alvo vistas por `probe`, `run`, `report` (`/api/saude`, `/v3/api-docs`, cabeçalhos) | Sem campo de modo nos artefatos conferidos | O **comportamento** (SQLi explorável ou não) é justamente o que se mede; por desenho |
 | Porta de gestão `29091` (`/internal/eval/state` tem `hardening_applied`) | O agente só alcança o alvo por `hdast`, e o escopo do perfil não inclui `/internal`; HTTP direto zera a rodada | Aberto só para quem violar a regra de HTTP |
-| `hdast stack up --secure` / `--vulnerable` (documentado em `docs/reference/cli.md`) | O agente **pode escolher** o modo | Não é vazamento, é interferência: o resultado deixa de refletir o sorteio. **Fechado em parte**: `stack up` com `--secure` ou `--vulnerable` no transcript zera a rodada (`no_peek`) |
+| `hdast stack up --secure` / `--vulnerable` (documentado em `docs/referencia/cli.md`) | O agente **pode escolher** o modo | Não é vazamento, é interferência: o resultado deixa de refletir o sorteio. **Fechado em parte**: `stack up` com `--secure` ou `--vulnerable` no transcript zera a rodada (`no_peek`) |
 | Mensagens de commit do `.git` do repositório | Removido da cópia; a base da rodada é um commit neutro | Fechado |
 
 Resumo: o modo continua descobrível por quem **violar uma regra** (docker, env, sealed), e agora toda violação desse tipo é detectada e zera a rodada; sem violar regra, não há canal além do comportamento do alvo.
 
 ## O caso crAPI
 
-O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/adr/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; aquele ensaio não provou o ciclo completo. As provas dirigidas posteriores estão nos relatórios das versões e não demonstram cobertura integral do caso.
+O [OWASP crAPI](../lab/crapi/README.md) passou a ser um alvo de `application/lab_targets.py` na trilha L da V1.12 ([ADR 0094](../docs/decisoes/0094-crapi-na-pilha.md)). A CLI sobe o projeto anexado, cadastra as contas pela API e consulta o MailHog local; `stack down` encerra os dois projetos e remove os volumes descartáveis do crAPI. Não execute o seed manual depois dessa subida. A integração real inicial subiu e encerrou a pilha, mas o `preflight` parou com `STACK_STALE`; aquele ensaio não provou o ciclo completo. As provas dirigidas posteriores estão nos relatórios das versões e não demonstram cobertura integral do caso.
 
-Na V1.12.1, parte 2 ([ADR 0105](../docs/adr/0105-lab-oast-bridge-and-verifiability.md), proposto),
+Na V1.12.1, parte 2 ([ADR 0105](../docs/decisoes/0105-lab-oast-bridge-and-verifiability.md), proposto),
 o `stack up crapi` também monta a ponte OAST isolada e conecta o workshop quando
 o perfil aprovado contém `scan.oast: true`, gerado pela carta com `attack.oast`.
 O agente avaliado usa somente a CLI; o coordenador não precisa intervir durante
@@ -231,7 +233,7 @@ o `run`. `stack down` remove o alvo antes da ponte. Sem a chave, a ponte não so
 Se a ponte estiver ausente, SSRF guiado e OAST do ZAP ficam **não verificáveis**,
 com motivo no `scan.json`, relatório e painel: zero retornos não é resultado limpo.
 Produtos comuns não recebem a ponte. As provas dirigidas desta correção e seus
-limites ficam no [relatório da V1.12.1](../docs/reviews/relatorio-v1.12.1.md);
+limites ficam no [relatório da V1.12.1](../docs/arquivo/reviews/relatorio-v1.12.1.md);
 não constituem nova rodada cega nem alteram notas históricas.
 
 O recorte `crapi-foco` (versão 3, V1.12.1) entrega OpenAPI e carta estruturada para `init --from-letter`, força baixa e orçamento de 900 segundos. A carta liga na seção `attack` o ritmo `proxy` e as cinco capacidades da V1.12, cada uma com frase de autorização (ADR 0096), e autoriza só POST na verificação de OTP da v2. `detectable: true` em C11 e C15, pelas provas do laboratório; C1, C3, C6, C10 e C12 são `false` (o C3 só falhava por 5xx do alvo, o que a checagem agora trata como inconclusivo). A v3 explicita os dados locais de `mechanic_api` sem mudar permissões. A parte 2 corrige a falta da ponte observada na rodada cega, sem publicar nova rodada ou recalcular notas históricas. Cabeçalho (H11) é da Clínica Piloto, onde continua `detectable: false`.
@@ -313,7 +315,7 @@ forneça o caso exato da rodada com base nas evidências disponíveis. O score r
 e o SHA-256 do arquivo. Um caso explicitamente fornecido não substitui lacre existente. Para
 a rodada Terra de 14/11, o caso reconstruído é `evals/cases/clinica-piloto-historico-terra-wide.yml`;
 as alterações vêm do patch arquivado junto ao resultado. A nota depende também da versão do
-executor, do rastro e dos parâmetros. Veja [ADR 0053](../docs/adr/0053-avaliacao-v1-5-2.md).
+executor, do rastro e dos parâmetros. Veja [ADR 0053](../docs/decisoes/0053-avaliacao-v1-5-2.md).
 
 ### Alcance e cobertura parcial na V1.5.4
 
@@ -321,7 +323,7 @@ A recusa esperada de credenciais sintéticas na operação de login conta como a
 
 ### Casos e régua da V1.5.5
 
-O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; rodadas antigas devem usar o caso exato da rodada e o lacre ou `--case-file` conforme acima. A régua atual reconhece CORS na H3 da Clínica e V3 do VAmPI pela BOLA de leitura comprovada. V4 continua `detectable: false`: não foi comprovada. O novo par não confirma POST 200 no VAmPI. crAPI mantém caso e permissões anteriores, sem nova prova. Veja o [relatório da versão](../docs/reviews/relatorio-v1.5.5.md). Nenhuma rodada cega foi executada nesta versão; o dono poderá pedir depois rodadas em pelo menos duas APIs.
+O caso histórico `vampi-estrito` preserva a carta e o gabarito anteriores; rodadas antigas devem usar o caso exato da rodada e o lacre ou `--case-file` conforme acima. A régua atual reconhece CORS na H3 da Clínica e V3 do VAmPI pela BOLA de leitura comprovada. V4 continua `detectable: false`: não foi comprovada. O novo par não confirma POST 200 no VAmPI. crAPI mantém caso e permissões anteriores, sem nova prova. Veja o [relatório da versão](../docs/arquivo/reviews/relatorio-v1.5.5.md). Nenhuma rodada cega foi executada nesta versão; o dono poderá pedir depois rodadas em pelo menos duas APIs.
 
 
 ## Retenção de resultados e medições

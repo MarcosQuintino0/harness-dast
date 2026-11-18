@@ -5,7 +5,7 @@ description: "Use ao desenvolver o harness-dast para validar uma mudança no có
 
 # Testar uma mudança
 
-1. Leia a [escada de testes](../../../docs/escada-de-testes.md) e [testing](../../../docs/testing.md).
+1. Leia a [escada de testes](../../../docs/desenvolver/escada-de-testes.md) e [testing](../../../docs/desenvolver/testing.md).
    Escolha o degrau pela mudança e pelos limites do briefing vigente.
 2. Rode o teste focado durante o ajuste e os seis gates da Parte A de [AGENTS](../../../AGENTS.md) antes de entregar.
 3. Confira o roteiro de [CONTRIBUTING](../../../CONTRIBUTING.md), o contrato afetado e o CHANGELOG.

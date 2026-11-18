@@ -48,7 +48,7 @@ def test_prepara_copia_sem_gabarito_quando_caso_foco(focus_round: RoundDirs) -> 
     ).read_bytes()
     assert (ws / "inputs/openapi.json").is_file()
     assert not (ws / "evals").exists()
-    assert not (ws / "docs/adr").exists()
+    assert not (ws / "docs/decisoes").exists()
     assert not (ws / "lab/crapi/README.md").exists()
     assert not (ws / "lab/crapi/seed.py").exists()
     skills = {p.name for p in (ws / ".claude/skills").iterdir() if p.is_dir()}

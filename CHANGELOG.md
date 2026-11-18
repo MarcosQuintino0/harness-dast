@@ -6,25 +6,27 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Documentação reorganizada por finalidade, com índice atualizado, roadmap vigente e histórico arquivado. A cópia cega exclui o arquivo histórico e os casos em pastas declaram as exclusões nos caminhos atuais.
+
 ## [1.12.2] - 2026-11-18
 
-- A vigia do proxy de escopo não trava mais para sempre por atraso: retrato com mais de 200 ms é reverificado na hora (uma reverificação por vez, com tempo-limite) e só concede se as fontes seguirem íntegras. Lentidão (reverificação lenta ou tempo-limite) nega só aquele pedido, sem travar, e registra no máximo uma linha por segundo `gate_watch_slow_deny` (`slow_deny`). Mudança real, erro de leitura, encerramento, relógio para trás e falha ao iniciar a thread continuam travando. Corrige a trava `gate_watch_latch` com categoria `age` vista numa rajada do ZAP, com aprovação intacta. [ADR 0106](docs/adr/0106-vigia-reverifica-retrato-velho.md), proposto, substitui parcialmente o 0081 e o 0093.
+- A vigia do proxy de escopo não trava mais para sempre por atraso: retrato com mais de 200 ms é reverificado na hora (uma reverificação por vez, com tempo-limite) e só concede se as fontes seguirem íntegras. Lentidão (reverificação lenta ou tempo-limite) nega só aquele pedido, sem travar, e registra no máximo uma linha por segundo `gate_watch_slow_deny` (`slow_deny`). Mudança real, erro de leitura, encerramento, relógio para trás e falha ao iniciar a thread continuam travando. Corrige a trava `gate_watch_latch` com categoria `age` vista numa rajada do ZAP, com aprovação intacta. [ADR 0106](docs/decisoes/0106-vigia-reverifica-retrato-velho.md), proposto, substitui parcialmente o 0081 e o 0093.
 - A gravação de `scan-progress.json` (e dos demais arquivos da execução) repete poucas vezes, com pausa curta, quando o Windows recusa por `PermissionError` (por exemplo `hdast wait` lendo ao mesmo tempo), e o `wait` trata o arquivo momentaneamente preso como andamento indisponível em vez de erro.
 - Caso `crapi-foco`: o 500 do contato do mecânico na rodada cega não vinha da ponte OAST, e sim de um `vin` inventado (o perfil não ligou o VIN da lista de veículos). A autorização do caso passa a dizer, como dado de produto, que o contato se refere a um veículo da própria conta, identificado pelo VIN da lista de veículos, sem ensinar a montar o perfil. Prova de integração nova com a ponte de pé: com o VIN ligado, `probe` 200 e SSRF observado; sem ele, 500.
 
 ## [1.12.1] - 2026-11-17
 
-- Parte 2: `stack up crapi` monta a ponte OAST interna e liga o workshop a ela somente com perfil aprovado e `scan.oast: true`; `stack down` remove ambos. Sem a chave, a montagem segue sem ponte OAST; produto comum não ganha ponte. O domínio registra a falta de retorno verificável em `scan.json.oast_verification`, no relatório e no painel, sem interpretar zero observações como verificação limpa. [ADR 0105](docs/adr/0105-lab-oast-bridge-and-verifiability.md), proposto, substitui parcialmente o 0099.
+- Parte 2: `stack up crapi` monta a ponte OAST interna e liga o workshop a ela somente com perfil aprovado e `scan.oast: true`; `stack down` remove ambos. Sem a chave, a montagem segue sem ponte OAST; produto comum não ganha ponte. O domínio registra a falta de retorno verificável em `scan.json.oast_verification`, no relatório e no painel, sem interpretar zero observações como verificação limpa. [ADR 0105](docs/decisoes/0105-lab-oast-bridge-and-verifiability.md), proposto, substitui parcialmente o 0099.
 - Parte 2 validada no laboratório: SSRF guiado com retorno e achado pelo ciclo da CLI (212,7 s de run), ciclo desligado sem ponte nem tráfego OAST (215,6 s), regressão dirigida com 14 aprovações em 788,97 s e seis gates locais verdes (11.200 testes aprovados). CI Linux/Windows verde, diff com 94% de cobertura. A intermitência anterior `STACK_STALE/age` permanece registrada; provas OAST válidas em execuções distintas, sem alegação de rodada combinada inteiramente verde. Detalhes no relatório da versão.
 - Pendência de mutação pula somente a operação e conta afetadas em `probe`, `authz`, `negative`, `extra_checks`, SSRF guiado/OAST existente e `scan` sobre semente histórica. `mutation_pending` aparece na cobertura, relatório e painel, sem contar alcance ou sucesso e sem reenviar o pedido. Corrupção e falhas do diário continuam interrompendo a execução.
-- `hdast mutation list` apresenta contexto não sensível, inclusive registros antigos sem metadados; `hdast mutation release <id>` exige pessoa em terminal interativo, confirmação após conferir o alvo e a trava exclusiva de execução. Arquiva com `human_release` e evento de auditoria `mutation_human_release`. O agente não pode liberar. [ADR 0104](docs/adr/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto.
+- `hdast mutation list` apresenta contexto não sensível, inclusive registros antigos sem metadados; `hdast mutation release <id>` exige pessoa em terminal interativo, confirmação após conferir o alvo e a trava exclusiva de execução. Arquiva com `human_release` e evento de auditoria `mutation_human_release`. O agente não pode liberar. [ADR 0104](docs/decisoes/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md), proposto.
 - `hdast mutation list` mostra as pendências válidas e aponta entradas corrompidas só por id (`data.invalid`), e `release` valida apenas o id pedido; entrada inválida segue bloqueando o envio. Relatório e painel reconhecem `mutation_pending` por nota exata da CLI, não por trecho de texto do alvo. ADR 0104 registra a mudança da chave das tentativas de rejeição do 0101 e a restauração `unrestored` do PUT/PATCH após 5xx no `negative`.
 - Caso `crapi-foco` v3 informa o `mechanic_api` local do workshop, código do mecânico e inteiro de repetição, preservando caminhos, métodos, limites e detectabilidade da v2. A régua do caso ganhou critérios de reconhecimento: C11 e C15 eram detectáveis sem `match` e nunca contavam como achadas, o que zerou o item (c) da primeira rodada cega da V1.12. Um teste novo exige critério em toda falha detectável de todo caso. Referência do envelope e skill `run-scan` esclarecem que `options.include_outcomes: true` usa a lista do perfil, inclusive quando vazia; contrato preservado.
-- Pacote e `uv.lock` em 1.12.1, sem dependência nova. Na parte 1, prova crAPI aprovada (run de 47,703 s, sem reenvio dos POSTs pendentes), regressão dirigida verde em 750,99 s e seis gates locais verdes (11.128 testes aprovados). Provas e limites de cada parte no [relatório da V1.12.1](docs/reviews/relatorio-v1.12.1.md).
+- Pacote e `uv.lock` em 1.12.1, sem dependência nova. Na parte 1, prova crAPI aprovada (run de 47,703 s, sem reenvio dos POSTs pendentes), regressão dirigida verde em 750,99 s e seis gates locais verdes (11.128 testes aprovados). Provas e limites de cada parte no [relatório da V1.12.1](docs/arquivo/reviews/relatorio-v1.12.1.md).
 
 ## [1.12.0] - 2026-11-17
 
-Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínica Piloto, VAmPI e crAPI), sem produto real; rodada cega e validação independente pendentes. Relatório em `docs/reviews/relatorio-v1.12.md`. A tabela do que usamos do ZAP foi revisada para o estado final (`docs/reference/uso-do-zap.md`), com a correção da afirmação do ADR 0099 sobre a regra de SSRF.
+Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínica Piloto, VAmPI e crAPI), sem produto real; rodada cega e validação independente pendentes. Relatório em `docs/arquivo/reviews/relatorio-v1.12.md`. A tabela do que usamos do ZAP foi revisada para o estado final (`docs/referencia/uso-do-zap.md`), com a correção da afirmação do ADR 0099 sobre a regra de SSRF.
 
 ### Caso cego `crapi-foco`, versão 2
 
@@ -68,7 +70,7 @@ Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínic
 - Limpeza: procedimento no guia, contrato na referência e política em operations; seis gates obrigatórios e projetos locais ignorados.
 - Regras A/B canônicas em AGENTS, importação curta no Claude e cinco skills de desenvolvimento, separadas das cinco de uso.
 - Cópia cega por lista de permissão, manifesto de arquivos e proteção de AGENTS (ADR 0083); contexto menor explicitado no protocolo.
-- Sete arquivos de pesquisa consolidados em docs/research e política documental de retenção de evals, sem apagar resultados.
+- Sete arquivos de pesquisa consolidados em docs/arquivo/research e política documental de retenção de evals, sem apagar resultados.
 - Grupo panel: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
 - Grupo authz: módulos e testes em subpacotes da mesma camada, imports atualizados e sem reexportações de compatibilidade.
 - Portas da aplicação divididas por consumidor em 12 módulos, com módulo comum para contratos compartilhados; 47 declarações, assinaturas e docstrings preservadas.
@@ -92,7 +94,7 @@ Versão do pacote e do `uv.lock` em 1.12.0. Provada só no laboratório (Clínic
 
 ## [1.11.0] - 2026-11-17
 
-- Provas 0, D e F executadas só no laboratório (Clínica Piloto vulnerável e segura, VAmPI vulnerável e seguro), com aprovações descartáveis do suporte de integração em estado de teste, sem `profile approve` e sem estado real. Linha de base `44ef387`: Clínica vulnerável `80a9` (98 ZAP, 4 autorização, 29 sinais), segura `ab47` (63 ZAP, 1 autorização) e VAmPI vulnerável `1fd0` (30 ZAP, 3 autorização, 4 sinais). Calibração com `hdast confirm` em todos os achados de cinco execuções completas: só recibos de autorização chegaram a `reproduced` (3 falhas plantadas, 2 médicos que compartilham pacientes sem `shared_roles`, 6 respostas sem login do VAmPI); o único SQL elegível a receita ativa ficou `inconclusive`; nenhum `likely_false_positive` ocorreu. Matriz e limites em `docs/reference/verification-calibration.md`; relatório em `docs/reviews/relatorio-v1.11.md`.
+- Provas 0, D e F executadas só no laboratório (Clínica Piloto vulnerável e segura, VAmPI vulnerável e seguro), com aprovações descartáveis do suporte de integração em estado de teste, sem `profile approve` e sem estado real. Linha de base `44ef387`: Clínica vulnerável `80a9` (98 ZAP, 4 autorização, 29 sinais), segura `ab47` (63 ZAP, 1 autorização) e VAmPI vulnerável `1fd0` (30 ZAP, 3 autorização, 4 sinais). Calibração com `hdast confirm` em todos os achados de cinco execuções completas: só recibos de autorização chegaram a `reproduced` (3 falhas plantadas, 2 médicos que compartilham pacientes sem `shared_roles`, 6 respostas sem login do VAmPI); o único SQL elegível a receita ativa ficou `inconclusive`; nenhum `likely_false_positive` ocorreu. Matriz e limites em `docs/referencia/verification-calibration.md`; relatório em `docs/arquivo/reviews/relatorio-v1.11.md`.
 
 Carimbo da candidata na branch, sem publicação e com aceites operacionais pendentes.
 
@@ -118,7 +120,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 
 ### Documentação
 
-- ADR 0082, guia de autorização, referência de `authz`, protocolo da rodada cega, skills (uma frase) e [relatório da V1.9.3](docs/reviews/relatorio-v1.9.3.md). Provada só no laboratório (Clínica Piloto e VAmPI); nada contra produto real.
+- ADR 0082, guia de autorização, referência de `authz`, protocolo da rodada cega, skills (uma frase) e [relatório da V1.9.3](docs/arquivo/reviews/relatorio-v1.9.3.md). Provada só no laboratório (Clínica Piloto e VAmPI); nada contra produto real.
 
 ## [1.9.2] - 2026-11-16
 
@@ -131,15 +133,15 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 
 ### Corrigido
 
-- Pilha travada depois de editar o perfil: o proxy gerenciado prende o hash do `target.yml` e da aprovação no `stack up` e, mudando um deles, nega tudo com 403 `approval_changed`, sem a CLI dizer nada. Agora `preflight`, `probe`, `scan`, `authz`, `negative` e `run` falham **antes do primeiro pedido** com o código novo `STACK_STALE` (saída 4, sem valor de saída novo), que manda recriar a pilha (`stack down` e `stack up <produto>`). Um 403 `approval_changed` no meio da execução vira o mesmo erro, não achado nem recusa de escopo comum. `stack status` ganha `binding`, `stale_parts` e `stale_message`. O proxy continua falhando fechado com o hash completo ([ADR 0081](docs/adr/0081-pilha-desatualizada.md)).
+- Pilha travada depois de editar o perfil: o proxy gerenciado prende o hash do `target.yml` e da aprovação no `stack up` e, mudando um deles, nega tudo com 403 `approval_changed`, sem a CLI dizer nada. Agora `preflight`, `probe`, `scan`, `authz`, `negative` e `run` falham **antes do primeiro pedido** com o código novo `STACK_STALE` (saída 4, sem valor de saída novo), que manda recriar a pilha (`stack down` e `stack up <produto>`). Um 403 `approval_changed` no meio da execução vira o mesmo erro, não achado nem recusa de escopo comum. `stack status` ganha `binding`, `stale_parts` e `stale_message`. O proxy continua falhando fechado com o hash completo ([ADR 0081](docs/decisoes/0081-pilha-desatualizada.md)).
 - Skills `fix-reachability`, `run-scan`, `onboard-product` e `test-product`: depois de editar `target.yml` com a pilha de pé, recriar a pilha.
-- Estudo de reutilização: `export-reuse` recusava porque o agente nunca ativava o conhecimento. As skills `run-scan` e `test-product` agora mandam `knowledge capture <produto> --run <run_id>` depois do `run`; o `export-reuse` aceita `knowledge.captured.yml` na falta do `knowledge.yml` (o ativo vence) e a recusa diz qual arquivo falta ou excede o limite ([ADR 0079](docs/adr/0079-exportacao-conhecimento-estudo.md)). A captura não ativa nada nem concede permissão.
+- Estudo de reutilização: `export-reuse` recusava porque o agente nunca ativava o conhecimento. As skills `run-scan` e `test-product` agora mandam `knowledge capture <produto> --run <run_id>` depois do `run`; o `export-reuse` aceita `knowledge.captured.yml` na falta do `knowledge.yml` (o ativo vence) e a recusa diz qual arquivo falta ou excede o limite ([ADR 0079](docs/decisoes/0079-exportacao-conhecimento-estudo.md)). A captura não ativa nada nem concede permissão.
 
 ### Documentação
 
 - `evals/README.md`: o passo 1 deixa de usar `stack up --build` (exige aprovação) e passa a `docker compose build` com variáveis descartáveis só para a interpolação; o VAmPI é imagem por digest, sem build.
 - Protocolo da rodada cega: origem do conhecimento do estudo de reutilização e a observação de que, no `claude -p` em workspace novo, o `permissions.allow` do `settings.json` é ignorado e as permissões vêm do `--allowedTools` (as negações valem).
-- `docs/guides/problemas-comuns.md` e referências da CLI e dos códigos de saída: `STACK_STALE`.
+- `docs/usar/problemas-comuns.md` e referências da CLI e dos códigos de saída: `STACK_STALE`.
 
 ### Documentação
 
@@ -161,7 +163,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 - Par automático aceita 2xx mediante identificador novo nas leituras ou inventários anteriores das duas contas e leitura da dona com marcador novo. O marcador é gerado genericamente dentro do contrato; não exige alterar as regras de dados do laboratório. Sem as provas, o par fica não testado. Ausência visível não prova inexistência global em APIs com ocultação ou paginação oculta. Atribuição em massa sem leitura de efeito vinculada continua inconclusiva.
 - Canal do estudo de reutilização com arquivos permitidos, receitas validadas, detecção de segredos/vazamento, manifesto, declaração na carta e chegada como propostas em contexto novo. O estudo e as rodadas cegas ficam para depois do merge, conforme o briefing.
 - Provas T2 e T4 da V1.9 no laboratório: reutilização do conhecimento em novo contexto e authz dirigido nas duas APIs e modos; uma varredura completa por API com ritmo `legacy` (Clínica 98 achados do ZAP e 4 de authz; VAmPI 31 e 3). O verificador da T2 amarra leitura anterior, escrita, leitura posterior e snapshot à mesma receita, conta, mutação e período da rodada. Lacunas registradas no relatório: par com 200 no VAmPI e atribuição em massa V4.
-- Quatro provas dirigidas das regras 90035/40008 passaram, sem nova T4 nesse diagnóstico. A causa histórica não foi integralmente demonstrada; `init --from-letter` e o padrão do modelo continuam `legacy`. Detalhes em [passo zero](docs/reviews/2026-11-16-v1-9-passo0.md).
+- Quatro provas dirigidas das regras 90035/40008 passaram, sem nova T4 nesse diagnóstico. A causa histórica não foi integralmente demonstrada; `init --from-letter` e o padrão do modelo continuam `legacy`. Detalhes em [passo zero](docs/arquivo/reviews/2026-11-16-v1-9-passo0.md).
 
 ## [1.8.0] - 2026-11-16
 
@@ -172,7 +174,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 - Vínculos das escolhas com ambiente, autorização, contas, planejamento, documentos e motor. A execução ativa confere fontes e versão observada antes do primeiro pedido ao alvo; indisponibilidade ou divergência recusa. Consultas secas e cleanup sem provedor recusam escolha preenchida; `choices: []` e perfis legados seguem operacionais. A versão não autentica a identidade da instância.
 - Revalidação local da aprovação, perfil e stop por vigia com hash completo, retirando o I/O do caminho de concessão. Cada concessão recusa snapshot com idade superior a 200 ms desde o início da última verificação bem-sucedida; erro, encerramento ou mudança observada trava a saída. Autorização, janela e prazo continuam verificados por concessão. A imagem principal é reconstruída na subida para impedir reutilização de código antigo.
 - O custo mediano de `_detect` no bind real caiu de 5,775922 para 0,026176 ms. As quatro T4 da rodada 3 passaram; A ficou mais rápida que a V1.7 nas duas APIs e B ficou dentro da nova previsão congelada. Não houve promoção no init: as contagens de SSTI na Clínica e Parameter Tampering no VAmPI divergiram sem explicação suficiente. Modelo, init e perfis existentes seguem `legacy` (ADR 0075).
-- A regra DOM XSS 40026 permanece sem navegador e é exclusão pré-existente igual à linha de base nas comparações. Skills, referência e testes de cópia cega atualizados. O [relatório da rodada 3](docs/reviews/relatorio-v1.8-rodada3.md) complementa o [fechamento anterior](docs/reviews/relatorio-v1.8-fechamento.md) e o [registro inicial](docs/reviews/relatorio-v1.8.md), preservando as falhas e os limites das provas. Sem rodada cega nesta versão, conforme o briefing, e sem prova em produto real.
+- A regra DOM XSS 40026 permanece sem navegador e é exclusão pré-existente igual à linha de base nas comparações. Skills, referência e testes de cópia cega atualizados. O [relatório da rodada 3](docs/arquivo/reviews/relatorio-v1.8-rodada3.md) complementa o [fechamento anterior](docs/arquivo/reviews/relatorio-v1.8-fechamento.md) e o [registro inicial](docs/arquivo/reviews/relatorio-v1.8.md), preservando as falhas e os limites das provas. Sem rodada cega nesta versão, conforme o briefing, e sem prova em produto real.
 
 ## [1.7.0] - 2026-11-16
 
@@ -183,8 +185,8 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 - `metrics.json` recebe tempos de fila, identidade, concessão, resposta e recursos da CLI. Valores ausentes ficam nulos; tempos sobrepostos não são tempo de parede. O atraso efetivo do ZAP continua indisponível.
 - A carta pode gerar uma declaração consultiva de tecnologias com origem e frase, protegida pela aprovação. Todas as regras continuam ativas, pois uma declaração errada pode não produzir sinal observável.
 - `scan.json` e relatório expõem lacunas por regra; cobertura histórica desconhecida e recusas `rate_backoff` levam a cobertura parcial. Durante recuo 429, o proxy recusa imediatamente com o tempo remanescente em `Retry-After`, sem reter a conexão pelo recuo.
-- As orientações distinguem cobertura desconhecida de execução interrompida e descrevem recusas do proxy sem atribuir o recuo temporário ao escopo. Gates locais finais: 9.604 testes aprovados; o [parecer independente](docs/reviews/validacao-v1.7.md) pede correção para o aceite integral. [Relatório da versão](docs/reviews/relatorio-v1.7.md).
-- Os 12 controles T2 direcionados passaram. Em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. DOM XSS 40026 `skipped` impede aceite e previsão completa; na T4 a B da Clínica ocorreu antes do congelamento, sem previsão prospectiva válida. [Protocolo e limites](docs/reference/scan-performance.md); sem rodada cega nem prova em produto real.
+- As orientações distinguem cobertura desconhecida de execução interrompida e descrevem recusas do proxy sem atribuir o recuo temporário ao escopo. Gates locais finais: 9.604 testes aprovados; o [parecer independente](docs/arquivo/reviews/validacao-v1.7.md) pede correção para o aceite integral. [Relatório da versão](docs/arquivo/reviews/relatorio-v1.7.md).
+- Os 12 controles T2 direcionados passaram. Em três pares T3 por API, reduções descritivas de mediana foram 45,0995% na Clínica e 60,9604% no VAmPI. DOM XSS 40026 `skipped` impede aceite e previsão completa; na T4 a B da Clínica ocorreu antes do congelamento, sem previsão prospectiva válida. [Protocolo e limites](docs/referencia/scan-performance.md); sem rodada cega nem prova em produto real.
 
 ## [1.5.5] - 2026-11-15
 
@@ -193,7 +195,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 - `hdast wait` acompanha uma execução em uma chamada bloqueante; sua saída 0 indica consulta bem-sucedida, inclusive no prazo, e o código da execução terminada fica em `data.exit_code`.
 - `authz` amplia a conferência de atribuição em massa com leitura pela conta que escreveu, verifica CORS em uma amostra limitada de GETs e tenta formar pares horizontais com recursos criados durante a execução, somente com escrita autorizada pela carta.
 - As skills pedem uma conferência final de anotações dos achados altos. A avaliação preserva o caso histórico `vampi-estrito`; a régua e os casos atuais devem refletir somente o que for comprovado.
-- Gates e QA concluídos: 9.424 testes passaram e oito cenários de laboratório foram aprovados na Clínica Piloto e no VAmPI. Aceites B/D/F parciais: V3 comprovada; V4 do VAmPI não comprovada e POST 200 inconclusivo para o par novo. Sem rodada cega, varredura completa ou crAPI. Veja [provas e limites](docs/reviews/relatorio-v1.5.5.md).
+- Gates e QA concluídos: 9.424 testes passaram e oito cenários de laboratório foram aprovados na Clínica Piloto e no VAmPI. Aceites B/D/F parciais: V3 comprovada; V4 do VAmPI não comprovada e POST 200 inconclusivo para o par novo. Sem rodada cega, varredura completa ou crAPI. Veja [provas e limites](docs/arquivo/reviews/relatorio-v1.5.5.md).
 
 ## [1.5.4] - 2026-11-15
 
@@ -202,7 +204,7 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 - O `probe` distingue a recusa esperada do login do perfil (`auth_rejected_expected`) de falhas de autenticação em operações protegidas. Alcance e sucesso 2xx são contados separadamente; a exclusão do login no `scan` e no `negative` permanece.
 - Conflitos mostram campos candidatos pela resposta ou pelo contrato e pelas regras de dados; o resumo prioriza produtores pela quantidade de dependências bloqueadas, sem nomes específicos de produto.
 - Falhas localizadas interrompem só a operação. Depois das tentativas de alcance, as skills seguem para a varredura parcial e registram operações e motivos que ficaram fora; relatório e painel mostram essas lacunas.
-- Sem `findings.json`, quatro verificações de triagem dependentes de achados ficam `n/a` e saem da média. Reavaliações históricas e limites no [relatório da versão](docs/reviews/relatorio-v1.5.4.md).
+- Sem `findings.json`, quatro verificações de triagem dependentes de achados ficam `n/a` e saem da média. Reavaliações históricas e limites no [relatório da versão](docs/arquivo/reviews/relatorio-v1.5.4.md).
 
 ## [1.5.3] - 2026-11-15
 
@@ -210,11 +212,11 @@ Carimbo da candidata na branch, sem publicação e com aceites operacionais pend
 
 - A carta pode declarar `attack.authz_shared_roles` com a frase do dono; o perfil gerado recebe `authz.shared_roles`. A lista preenchida muda a aprovação; a lista vazia preserva a impressão digital anterior.
 - `horizontal` e `horizontal_write` deixam de comparar contas do mesmo papel listado e registram `shared_role` em `not_tested`. As demais verificações não mudam. As skills orientam obter pares úteis de papéis não compartilhados sem inferir a regra do produto.
-- Caso da avaliação, régua, dicas e skills atualizados no mesmo PR. Integração nos dois modos: sem alarme horizontal entre médicos, BOLA entre pacientes preservado no vulnerável e zero achado de autorização no seguro. Gates, evidências e limites no [relatório da versão](docs/reviews/relatorio-v1.5.3.md).
+- Caso da avaliação, régua, dicas e skills atualizados no mesmo PR. Integração nos dois modos: sem alarme horizontal entre médicos, BOLA entre pacientes preservado no vulnerável e zero achado de autorização no seguro. Gates, evidências e limites no [relatório da versão](docs/arquivo/reviews/relatorio-v1.5.3.md).
 
 ## [1.5.2] - 2026-11-15
 
-Atualiza a avaliação e corrige os defeitos observados na rodada cega, sem acrescentar técnica de ataque. Evidências e limites no [relatório da versão](docs/reviews/relatorio-v1.5.2.md).
+Atualiza a avaliação e corrige os defeitos observados na rodada cega, sem acrescentar técnica de ataque. Evidências e limites no [relatório da versão](docs/arquivo/reviews/relatorio-v1.5.2.md).
 
 ### Avaliação e autorização (ADR 0053)
 
@@ -268,7 +270,7 @@ Completa a V1.5 ("achar mais: entrada e erros") com as quatro partes ativas que 
 
 - O orçamento do `negative` era furado pelas repetições de 429; uma escrita cuja linha de base perdeu um campo obrigatório dava falsa segurança (agora `omitted_required_field`); o `negative` repetia os caminhos de saúde e de preparação; o plano do `scan` não normalizava o método; e-mail e CPF passavam inteiros no caminho dos sinais; orçamento negativo na função de plano; o painel ao vivo levantava erro sem estágios.
 
-Relatório: [docs/reviews/relatorio-v1.5.1.md](docs/reviews/relatorio-v1.5.1.md).
+Relatório: [docs/arquivo/reviews/relatorio-v1.5.1.md](docs/arquivo/reviews/relatorio-v1.5.1.md).
 
 ## [1.5.0] - 2026-11-14
 
@@ -286,7 +288,7 @@ Relatório: [docs/reviews/relatorio-v1.5.1.md](docs/reviews/relatorio-v1.5.1.md)
 
 - `AGENTS.md` orienta o uso com Codex. A preparação da cópia cega exclui os planos e briefings do coordenador e continua verificando vazamentos.
 
-Detalhes e limites em [docs/reviews/relatorio-v1.5.md](docs/reviews/relatorio-v1.5.md).
+Detalhes e limites em [docs/arquivo/reviews/relatorio-v1.5.md](docs/arquivo/reviews/relatorio-v1.5.md).
 
 ## [1.4.0] - 2026-11-14
 
@@ -334,9 +336,9 @@ Versão do "achar mais: autorização". O teste de autorização entre contas pa
 
 ### Documentos e testes
 
-- Guia novo [docs/escada-de-testes.md](docs/escada-de-testes.md): até que degrau testar cada mudança e os comandos do ataque direcionado.
+- Guia novo [docs/desenvolver/escada-de-testes.md](docs/desenvolver/escada-de-testes.md): até que degrau testar cada mudança e os comandos do ataque direcionado.
 - Teste de integração novo `tests/integration/test_lab_authz.py` (`lab_fast`): o `authz` completo na Clínica Piloto, vulnerável e seguro, com a escrita ligada numa cópia descartável do perfil.
-- Relatório da versão: [docs/reviews/relatorio-v1.4.md](docs/reviews/relatorio-v1.4.md).
+- Relatório da versão: [docs/arquivo/reviews/relatorio-v1.4.md](docs/arquivo/reviews/relatorio-v1.4.md).
 
 ## [1.3.0] - 2026-11-14
 
@@ -377,7 +379,7 @@ Versão do uso seguro e fácil: uma trava por pilha, a carta de autorização em
 ### Correções
 
 - A redação de segredos apagava a versão do protocolo (`HTTP/1.1`) da linha de requisição quando o endereço terminava em `token`, `basic` ou `bearer`. Era perda de evidência, não vazamento.
-- Do QA independente (aprovado com ressalvas): `scan`, `authz` e `cleanup` inteiros entram na impressão digital (editar `fail_on`, `disable_rules`, `public_operations`, tetos de tempo ou o alvo da limpeza mantinha "aprovado"); a recusa da trava diz a verdade sobre `stop` e sobre PID reaproveitado; carta com autorização vencida é recusada; português das mensagens novas e das skills; o teste de vazamento cobre toda a cópia cega e tirou exemplos que citavam a isca; `.claude/settings.json` nega ao agente gravar na pasta de aprovações. Relatório: [docs/reviews/relatorio-v1.3.md](docs/reviews/relatorio-v1.3.md).
+- Do QA independente (aprovado com ressalvas): `scan`, `authz` e `cleanup` inteiros entram na impressão digital (editar `fail_on`, `disable_rules`, `public_operations`, tetos de tempo ou o alvo da limpeza mantinha "aprovado"); a recusa da trava diz a verdade sobre `stop` e sobre PID reaproveitado; carta com autorização vencida é recusada; português das mensagens novas e das skills; o teste de vazamento cobre toda a cópia cega e tirou exemplos que citavam a isca; `.claude/settings.json` nega ao agente gravar na pasta de aprovações. Relatório: [docs/arquivo/reviews/relatorio-v1.3.md](docs/arquivo/reviews/relatorio-v1.3.md).
 
 ## [1.2.0] - 2026-11-14
 
@@ -389,7 +391,7 @@ Versão do painel da execução, das medições e do diário de comandos. Tudo m
 
 - Comando novo `hdast panel PRODUTO [--run ID] [--json]`: gera as páginas HTML do painel do teste em `runs/<run_id>/panel/` (`summary`, `stages`, `findings`, `coverage`, `terminal` e `time-and-tokens`) a partir dos arquivos da execução (`run.json`, `manifest.json`, `probe.json`, `scan.json`, `findings.json`, `authz.json`, `metrics.json`; todos opcionais) e do perfil e do OpenAPI do produto. Sem `--run`, usa a execução mais recente do produto. `hdast report` e `hdast run` também o geram no fim; falha ao gerar o painel nunca derruba esses dois (vai para o log).
 - Sem JavaScript, sem recurso externo, CSP por `<meta>`, todo texto do alvo escapado por `html_safe`; tema escuro com claro conforme o aparelho; dado ausente aparece como "não medido", nunca zero; nunca "seguro" nem "aprovado".
-- Abas Resumo e Etapas fiéis ao desenho (`docs/design/execution-panel/`), com os estados "sem falha grave", "parou no meio" e "erro". As outras quatro abas vieram nas entradas seguintes (hoje nenhuma é provisória).
+- Abas Resumo e Etapas fiéis ao desenho (`docs/desenvolver/design/execution-panel/`), com os estados "sem falha grave", "parou no meio" e "erro". As outras quatro abas vieram nas entradas seguintes (hoje nenhuma é provisória).
 - Modelo de visão `PanelView` (`domain/panel_model.py`) com tudo que as seis abas precisam e dois ganchos opcionais, `commands` (diário de comandos) e `explanations` (catálogo de explicação de falha); registro de páginas em `domain/panel_pages.py`.
 - Porta nova `PanelFiles` (leitura dos arquivos da execução e gravação das páginas) e `PanelRefresher` (chamada por `report` e `run`). `Operation` do OpenAPI ganha `summary` (opcional) para o nome simples da função. Nenhum campo novo no perfil, no `findings.json` nem no envelope de `report` e `run`.
 
@@ -413,7 +415,7 @@ Versão do painel da execução, das medições e do diário de comandos. Tudo m
 - Toda invocação do `hdast` grava uma linha em `<pasta de estado>/journal/<produto>.jsonl` (`HDAST_STATE_DIR`; fora do repositório e de `runs/`; comandos sem produto em `_sem-produto.jsonl`): início e fim, subcomando, flags (valor sensível `***`, texto livre redigido), produto, `run_id`, código de saída, estado (`ok`, `parcial`, `erro`), código do erro e um resumo curto do envelope (contagens e identificadores; nunca corpo do alvo). `secret set` e `secret delete` registram só o subcomando e o NOME. O registro é feito em `run_app`, o ponto único de todo comando; falha ao gravar vira aviso no log e nunca derruba o comando. Linha com `schema_version`; leitura tolerante (linha corrompida é pulada e contada).
 - `application.command_journal.load_journal_for_run(store, product, run_id)` devolve os comandos de um teste (do fim do teste anterior até o fim dele). Porta `CommandJournalStore`, adaptador `adapters/storage/command_journal.py`. `domain/command_translation.py`: frase em português simples de cada comando, com teste que falha se a CLI tiver comando sem tradução.
 - `domain/finding_explain.py`: catálogo fixo de explicação de falha (título, o que houve, por que importa, o que fazer com quem faz, nome técnico) por regra do ZAP, CWE e técnica do `authz`, com explicação genérica honesta para tipo desconhecido. `domain/finding_confidence.py`: degrau de confiança (`a confirmar`, `prova forte`, `confirmada`; o terceiro só com confirmação de pessoa, que o `triage.json` ainda não registra). `domain/manual_repro.py`: dados de "Como reproduzir à mão" com `$BASE_URL`, `$TOKEN`, apelido da conta e CPF, e-mail e telefone mascarados.
-- Os testes que rodavam `run_app` passam a gravar o diário na pasta de estado isolada pela fixture de `tests/conftest.py`. Referência: [docs/reference/command-journal.md](docs/reference/command-journal.md).
+- Os testes que rodavam `run_app` passam a gravar o diário na pasta de estado isolada pela fixture de `tests/conftest.py`. Referência: [docs/referencia/command-journal.md](docs/referencia/command-journal.md).
 
 #### Índices e página ao vivo (ADR 0034)
 
@@ -458,13 +460,13 @@ Versão do painel da execução, das medições e do diário de comandos. Tudo m
 
 - Os testes deixam de depender do ambiente da máquina: com uma pilha Docker do hdast no ar, 12 a 27 testes de `tests/contract/test_cli_scan_report.py` falhavam (o `probe` saía com código 4) por ler o estado real da pilha. Uma fixture `autouse` em `tests/conftest.py` limpa toda `HDAST_*` e aponta `HDAST_STATE_DIR` para uma pasta vazia por teste; `tests/contract/test_state_isolation.py` prova o isolamento.
 
-### Design do painel guardado em `docs/design/execution-panel/` (só documentação)
+### Design do painel guardado em `docs/desenvolver/design/execution-panel/` (só documentação)
 
-- `docs/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em `docs/roadmap.md` (seção "Diferenças entre o painel e o desenho"). Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.
+- `docs/desenvolver/design/execution-panel/`: desenho final do painel da execução, aprovado pelo dono em 2026-11-14 e implementado na 1.2.0, com as diferenças listadas em `docs/roadmap.md` (seção "Diferenças entre o painel e o desenho"). Telas em HTML parado (produtos, histórico, resumo, ao vivo, etapas, falhas, cobertura, terminal, tempo e tokens), sistema de design (cores, tipografia, espaço, `tokens.css`, componentes, movimento, estados, formatos) e, no `README.md`, as decisões tomadas, os dados que ainda não existem e o que pede ADR. Nenhum código da CLI mudou.
 
 ## [1.1.0] - 2026-11-13
 
-A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/reviews/2026-11-13-lab-v1-1-cerca.md](docs/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/reviews/2026-11-13-lab-v1-1-authz.md](docs/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).
+A V1.1 (ADRs 0026 a 0030) foi medida em laboratório neste dia: relatórios em [docs/arquivo/reviews/2026-11-13-lab-v1-1-cerca.md](docs/arquivo/reviews/2026-11-13-lab-v1-1-cerca.md) e [docs/arquivo/reviews/2026-11-13-lab-v1-1-authz.md](docs/arquivo/reviews/2026-11-13-lab-v1-1-authz.md). Versão do pacote: 0.1.0 para 1.1.0 (`pyproject.toml`, `uv.lock`).
 
 ### V1.1, laboratório: o que foi provado e o que a medição achou
 
@@ -537,11 +539,11 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (primeira avaliação cega)
 
-- **Cinco rodadas cegas** com agente novo ([docs/reviews/2026-11-13-rodadas-cegas.md](docs/reviews/2026-11-13-rodadas-cegas.md)): Clínica Piloto 9,53 e 10,0; VAmPI 4,5 e, depois da correção, 10,0; crAPI 8,17. Nenhuma violação de segurança.
+- **Cinco rodadas cegas** com agente novo ([docs/arquivo/reviews/2026-11-13-rodadas-cegas.md](docs/arquivo/reviews/2026-11-13-rodadas-cegas.md)): Clínica Piloto 9,53 e 10,0; VAmPI 4,5 e, depois da correção, 10,0; crAPI 8,17. Nenhuma violação de segurança.
 
 ### Corrigido (primeira avaliação cega)
 
-- **Semear o alvo antes do login**: a dica do erro de login, `docs/reference/target-yml.md` e `docs/guides/problemas-comuns.md` dizem que o `preflight` chama `probe.health_path` antes dos logins.
+- **Semear o alvo antes do login**: a dica do erro de login, `docs/referencia/target-yml.md` e `docs/usar/problemas-comuns.md` dizem que o `preflight` chama `probe.health_path` antes dos logins.
 - **Régua da avaliação**: quatro acusações falsas corrigidas com teste (nomes de segredo sem agrupamento, `docker ps`, diário citando a flag de modo, diário citando a limpeza).
 - **Skill `onboard-product`**: a pasta `cleanup/` do modelo é inerte e não deve ser apagada.
 
@@ -558,15 +560,15 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 - Caso `vampi`: termos de vazamento que apareciam no OpenAPI entregue e no código da ferramenta deixaram o `prepare` falhando; fixtures reais de varredura do VAmPI saem da cópia.
 - `adapters/reporting/run_files.py`: gravar `scan-progress.json` (e os demais artefatos) tolera um leitor passando pelo arquivo (tentativas curtas de `os.replace`). No Windows, ler o arquivo durante a varredura derrubava o `scan` com `CONFIG_ERROR`.
 
-### Adicionado (marco M6: skills, guias e avaliação cega; [ADR 0014](docs/adr/0014-avaliacao-cega-como-eval.md))
+### Adicionado (marco M6: skills, guias e avaliação cega; [ADR 0014](docs/decisoes/0014-avaliacao-cega-como-eval.md))
 
 - **Skills e subagentes** em `.claude/`: `onboard-product`, `fix-reachability`, `run-scan` e `triage-findings` (frontmatter com `name` e `description`, passos numerados, tabela "se der X, faça Y" por código de saída e seção "Nunca" com as travas da Parte B do `CLAUDE.md`; todas exigem o diário de decisões `decision-log.md`), e os subagentes só de leitura `spec-analyst` e `findings-triager`.
 - **Permissões** em `.claude/settings.json` (camada 0, de conveniência): permite `hdast`; nega `curl`, `wget`, `hdast cleanup` (qualquer forma, inclusive `--dry-run`: a sintaxe de regras não distingue flag), leitura de `.env*` (exceto `.env.example`) e de `stack.json`, `printenv`, WebFetch, WebSearch, comandos web do PowerShell e escrita em `products/*/cleanup/`.
-- **Guias** em `docs/guides/`: primeiro uso, cadastrar um produto (com prompts prontos por etapa), modelo de carta de autorização, limpeza de dados, problemas comuns e roteiro de avaliação das skills.
+- **Guias** em `docs/usar/`: primeiro uso, cadastrar um produto (com prompts prontos por etapa), modelo de carta de autorização, limpeza de dados, problemas comuns e roteiro de avaliação das skills.
 - **Suíte de avaliação cega** em `evals/`: `python -m evals.runner prepare|snapshot|collect|score|classify` (sem chamar modelo), casos `clinica-piloto` e `vampi` com carta e gabarito em forma de máquina, cópia cega do repositório com lista de exclusões e busca de termos do gabarito, nota 0 a 10 com segurança eliminatória. Testes em `tests/unit/evals/` com artefatos de exemplo, sem Docker. `evals/` entra no mypy e no ruff.
 - Teste de contrato `tests/contract/test_skills_and_guides.py`: todo comando `hdast` e toda flag citados em skills, subagentes e guias existem na CLI real; forma das skills, ferramentas dos subagentes, permissões e ausência de termos do gabarito.
 
-### Corrigido (parecer de QA M2 a M5; [resposta](docs/reviews/2026-11-13-qa-m2-m5-resposta.md), [ADR 0025](docs/adr/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md))
+### Corrigido (parecer de QA M2 a M5; [resposta](docs/arquivo/reviews/2026-11-13-qa-m2-m5-resposta.md), [ADR 0025](docs/decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md))
 
 - **Limpeza (contrato muda):** a confirmação só vale digitada por uma pessoa num terminal interativo; `hdast cleanup` sem `--dry-run` recusa sem TTY (saída 2) com mensagem que não ensina atalho; a flag `--confirm TOKEN` foi removida e o `--dry-run` não emite mais token. O portão de SQL só aceita como amarração uma coluna real contra uma variável permitida (recusa `SYSDATE >= :run_start`, pseudo-colunas e literais) e faixa só contra `:run_start` (Q-01, Q-03, Q-07). A limpeza grava `finished` e `cleanup.json` também em exceção inesperada (Q-10).
 - Parâmetro `in: header` de roteamento do OpenAPI (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Upgrade`, `TE`, `Expect`, `Proxy-*`, `X-Forwarded-*`...) nunca é enviado; `approve()` também recusa (Q-02).
@@ -579,11 +581,11 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (marco M5, `hdast run`, trava de emergência e verificação no ZAP real)
 
-- Comando `hdast run <produto>` (`--seed`, `--skip-scan`, `--fail-on`, `--compare`, `--max-minutes`): `preflight`, `probe`, `scan` e `report` em UM processo (cache de tokens e orçamento de login compartilhados), para no primeiro estágio que falha com o código dele, nunca roda a limpeza (mostra o comando) e sempre grava `run.json` (`domain/run_summary.py`). Ctrl+C e `hdast stop` encerram com saída 130. Caso de uso `RunPipeline` em `application/run.py`; tradução do estado das etapas em `application/stage_errors.py` ([ADR 0024](docs/adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)).
+- Comando `hdast run <produto>` (`--seed`, `--skip-scan`, `--fail-on`, `--compare`, `--max-minutes`): `preflight`, `probe`, `scan` e `report` em UM processo (cache de tokens e orçamento de login compartilhados), para no primeiro estágio que falha com o código dele, nunca roda a limpeza (mostra o comando) e sempre grava `run.json` (`domain/run_summary.py`). Ctrl+C e `hdast stop` encerram com saída 130. Caso de uso `RunPipeline` em `application/run.py`; tradução do estado das etapas em `application/stage_errors.py` ([ADR 0024](docs/decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)).
 - Porta `KillSwitch` (`FileKillSwitch`): o `RunGate` consulta o arquivo `KILL` antes de cada envio e a cada consulta do `scan`; `hdast stop` passa a informar o que estava rodando (`scans_running`, lido de `scan-progress.json`).
-- `scan.json` e `findings.json` ganham `traffic`, lido da auditoria do proxy de escopo (liberados, negados por motivo, taxa média e de pico, limite do perfil); o `report.md` diz quantas tentativas fora do escopo o proxy barrou (porta `ProxyAudit`, [ADR 0023](docs/adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)).
+- `scan.json` e `findings.json` ganham `traffic`, lido da auditoria do proxy de escopo (liberados, negados por motivo, taxa média e de pico, limite do perfil); o `report.md` diz quantas tentativas fora do escopo o proxy barrou (porta `ProxyAudit`, [ADR 0023](docs/decisoes/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md)).
 - `hdast stack up clinica-piloto --oracle`: Oracle Free do piloto pela pilha gerenciada, com a porta do banco só em `127.0.0.1:21521` e senhas geradas; `lab/pilot/cleanup/create-cleanup-user.sql` (usuário de limpeza com SELECT e DELETE nas cinco tabelas). O perfil do piloto e o modelo de produto ganham o bloco `cleanup` completo (`connection`, `user`, `password`, `allowed_tables`, `max_rows`, `db_schema`).
-- Testes de integração de ponta a ponta (`tests/integration/test_lab_run.py`, `test_run_cleanup_oracle.py`, `run_support.py`) e relatório factual do lab: [docs/reviews/2026-11-13-e2e-lab.md](docs/reviews/2026-11-13-e2e-lab.md).
+- Testes de integração de ponta a ponta (`tests/integration/test_lab_run.py`, `test_run_cleanup_oracle.py`, `run_support.py`) e relatório factual do lab: [docs/arquivo/reviews/2026-11-13-e2e-lab.md](docs/arquivo/reviews/2026-11-13-e2e-lab.md).
 
 ### Corrigido (verificação do `scan` e do `report` contra o ZAP 2.17 real)
 
@@ -591,27 +593,27 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 - `ascan/action/disableScanners` recusava o pedido inteiro: o id 10095 (Backup File Disclosure) é regra passiva e não existe no varredor ativo. Removido da lista padrão; a política agora confere os ids que a imagem tem antes de desligar e cita os que faltam.
 - CSRF por cookie duplicado durante a varredura: a regra `REQ_HEADER_STR` não acrescentava o cookie `XSRF-TOKEN` ausente e cerca de 6% das escritas do varredor (as das regras PHP, CVE-2012-1823) saíam sem ele e eram recusadas com `XSRF_INVALIDO`. A regra do cookie agora é um `REQ_HEADER` sobre `Cookie` (acrescenta quando falta): 547 de 547 escritas medidas com o par igual e zero recusas.
 - `max_rule_minutes` podia passar do teto da execução; `--only` com `operation_id` desconhecido agora é erro de configuração em vez de plano vazio.
-- Ids de regras e formas de resposta do `ascan/*`, `context/*`, `core/view/message(s)`, `alert/view/alerts` e do Replacer conferidos contra o ZAP real (lista em [docs/reference/relatorio.md](docs/reference/relatorio.md#o-que-foi-verificado-contra-o-zap-real)).
+- Ids de regras e formas de resposta do `ascan/*`, `context/*`, `core/view/message(s)`, `alert/view/alerts` e do Replacer conferidos contra o ZAP real (lista em [docs/referencia/relatorio.md](docs/referencia/relatorio.md#o-que-foi-verificado-contra-o-zap-real)).
 - Mapeamento CWE para OWASP API Security Top 10 2023 conferido contra as páginas oficiais (nenhuma entrada errada; fontes no docstring de `domain/finding_taxonomy.py`).
 
 ### Alterado
 
-- ADRs 0017 a 0022 passam a "Aceito" (o aceite veio depois da implementação e da verificação no lab). Novos: [0023](docs/adr/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) e [0024](docs/adr/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md).
+- ADRs 0017 a 0022 passam a "Aceito" (o aceite veio depois da implementação e da verificação no lab). Novos: [0023](docs/decisoes/0023-verificacao-do-scan-no-zap-real-csrf-trafego-e-regras.md) e [0024](docs/decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md).
 - Auxiliares da composição (`products_dir_or_default`, `harness_version`, `build_spec_loader`) deixaram de ser privados; nenhum módulo importa mais `_helper` de outro.
 - Perfis de laboratório: `max_duration_minutes` do VAmPI 30 (a varredura completa passa de 15 min).
 - README, SECURITY, docs de operação, testes, módulos e roadmap atualizados para o fluxo completo.
 
 ### Adicionado (marco M4, `hdast scan` e `hdast report`)
 
-- Comando `hdast scan <produto> --run <run_id>` (`--only`, `--include-outcome`, `--dry-run`, `--max-minutes`, `--threads`, `--account`): varre com o ZAP, uma varredura por requisição aprendida (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider), só as operações que o `probe` alcançou. Nunca `DELETE`, o login ou caminho negado; `PUT`/`PATCH` só sobre recurso criado na execução ou com `scan.mutating_methods`. Limites (`threadPerHost`, `delayInMs`, tetos de duração) e política (`hdast-scan`, força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regras destrutivas ou pesadas desligadas) fixados ANTES da primeira varredura; prazo total, janela e autorização conferidos a cada consulta; guarda de saúde do alvo (saída 6); corte do ZAP reconhecido por `progress < 100` e marcado `truncated`; token entregue pelo Replacer (renovação por adicionar-e-remover, uma conta por vez, CSRF por cookie duplicado, regras SEMPRE removidas, inclusive em erro e Ctrl+C). Artefatos `scan.json`, `scan-progress.json`, `alerts.raw.json` e `evidence.json`, todos redigidos. Referência: `docs/reference/scan.md` ([ADR 0022](docs/adr/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)).
-- Comando `hdast report <produto> --run <run_id>` (`--compare`, `--fail-on`): sem rede, transforma os alertas em achados (`Finding` congelado, fingerprint SHA-256 versão 1 sobre produto, método, modelo de caminho da requisição aprendida resolvida por `sourceMessageId`, vetor, parâmetro, regra e CWE; deduplicação; severidade e confiança como propostas pelo ZAP; status `needs_triage`) e grava `findings.json` e `report.md` (português, escapado, com a seção fixa "O que este relatório não testou"). Triagem do agente em `triage.json` separado (não apaga nem reclassifica), comparação entre execuções (`new`, `persistent`, "não observado nesta execução", nunca "corrigido") e `curl` reproduzível com marcadores no lugar dos segredos. O `report` é o dono do código de saída `1`. Referência: `docs/reference/relatorio.md` e `docs/reference/finding-schema.md`.
+- Comando `hdast scan <produto> --run <run_id>` (`--only`, `--include-outcome`, `--dry-run`, `--max-minutes`, `--threads`, `--account`): varre com o ZAP, uma varredura por requisição aprendida (método, URL e corpo exatos, sempre com `contextId`, sem recursão e sem spider), só as operações que o `probe` alcançou. Nunca `DELETE`, o login ou caminho negado; `PUT`/`PATCH` só sobre recurso criado na execução ou com `scan.mutating_methods`. Limites (`threadPerHost`, `delayInMs`, tetos de duração) e política (`hdast-scan`, força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regras destrutivas ou pesadas desligadas) fixados ANTES da primeira varredura; prazo total, janela e autorização conferidos a cada consulta; guarda de saúde do alvo (saída 6); corte do ZAP reconhecido por `progress < 100` e marcado `truncated`; token entregue pelo Replacer (renovação por adicionar-e-remover, uma conta por vez, CSRF por cookie duplicado, regras SEMPRE removidas, inclusive em erro e Ctrl+C). Artefatos `scan.json`, `scan-progress.json`, `alerts.raw.json` e `evidence.json`, todos redigidos. Referência: `docs/referencia/scan.md` ([ADR 0022](docs/decisoes/0022-scan-e-report-plano-por-requisicao-achado-e-triagem.md)).
+- Comando `hdast report <produto> --run <run_id>` (`--compare`, `--fail-on`): sem rede, transforma os alertas em achados (`Finding` congelado, fingerprint SHA-256 versão 1 sobre produto, método, modelo de caminho da requisição aprendida resolvida por `sourceMessageId`, vetor, parâmetro, regra e CWE; deduplicação; severidade e confiança como propostas pelo ZAP; status `needs_triage`) e grava `findings.json` e `report.md` (português, escapado, com a seção fixa "O que este relatório não testou"). Triagem do agente em `triage.json` separado (não apaga nem reclassifica), comparação entre execuções (`new`, `persistent`, "não observado nesta execução", nunca "corrigido") e `curl` reproduzível com marcadores no lugar dos segredos. O `report` é o dono do código de saída `1`. Referência: `docs/referencia/relatorio.md` e `docs/referencia/finding-schema.md`.
 - Perfil, aditivo e opcional na schema v1: bloco `scan` (`strength`, `threshold`, `url_path_injection`, `mutating_methods`, `disable_rules`, `max_scan_minutes`, `max_rule_minutes`, `token_refresh_seconds`, `fail_on`).
 - Portas `ScanControl`, `RunArtifacts` e `ReportSink` (em `application/scan_ports.py`); adaptadores `adapters/zap/scan_client.py` e `adapters/reporting/`; módulos puros `domain/scan_*.py`, `redaction.py`, `finding*.py`, `triage.py`, `report_*.py` e `markdown_safe.py`. Sem dependência nova.
-- Testes: unitários com falsos para os dois casos de uso, ZAP falso em HTTP real com as formas do spike (`tests/fakes/zap_scan_server.py`), contratos dos dois comandos, arquivos de referência de `findings.json` e `report.md` a partir de fixtures reconstruídas do spike (`tests/fixtures/zap_alerts/`). **Não verificado contra o ZAP real**: a lista do que conferir está em `docs/reference/relatorio.md`.
+- Testes: unitários com falsos para os dois casos de uso, ZAP falso em HTTP real com as formas do spike (`tests/fakes/zap_scan_server.py`), contratos dos dois comandos, arquivos de referência de `findings.json` e `report.md` a partir de fixtures reconstruídas do spike (`tests/fixtures/zap_alerts/`). **Não verificado contra o ZAP real**: a lista do que conferir está em `docs/referencia/relatorio.md`.
 
 ### Adicionado (marco M5, `hdast cleanup`)
 
-- Comando `hdast cleanup <produto> --run <run_id>` (`--dry-run`, `--confirm <token>`): executa o SQL de limpeza escrito por pessoa em UMA transação no Oracle de testes e só confirma depois do aceite humano (digitar o nome do produto, ou token de uso único emitido por um `--dry-run` anterior, no stderr, nunca no JSON). Código de saída `7` (`CLEANUP_FAILED`) passa a ser produzido ([ADR 0020](docs/adr/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md)). Guia: `docs/operations/cleanup.md`.
+- Comando `hdast cleanup <produto> --run <run_id>` (`--dry-run`, `--confirm <token>`): executa o SQL de limpeza escrito por pessoa em UMA transação no Oracle de testes e só confirma depois do aceite humano (digitar o nome do produto, ou token de uso único emitido por um `--dry-run` anterior, no stderr, nunca no JSON). Código de saída `7` (`CLEANUP_FAILED`) passa a ser produzido ([ADR 0020](docs/decisoes/0020-limpeza-portao-de-sql-confirmacao-humana-e-teto-de-linhas.md)). Guia: `docs/como-funciona/operacao/cleanup.md`.
 - Portão de SQL em `domain/cleanup_*.py` (defesa em profundidade, não prova): só `DELETE FROM <tabela> WHERE ...` em tabelas de `allowed_tables`, com condição de amarração às variáveis `:run_start`, `:run_id`, `:run_tag` e `:account_N`; recusa DDL, `TRUNCATE`, `UPDATE`, PL/SQL, `COMMIT`, link de banco, `&variável`, funções fora de uma lista fechada e Unicode que imita ASCII.
 - Perfil, aditivo e opcional na schema v1: `cleanup.user`, `cleanup.password`, `cleanup.allowed_tables`, `cleanup.max_rows` e `cleanup.db_schema`; a limpeza se recusa a rodar sem os quatro primeiros. `cleanup.connection` passa a ser o DSN.
 - Dependência de runtime `oracledb` (python-oracledb) 26.1.0 (UPL-1.0 OU Apache-2.0), modo thin; proibida no `domain` pelo import-linter.
@@ -621,11 +623,11 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (integração do `probe` com o piloto: vários níveis, conta por operação, orçamento de login)
 
-- Encadeamento em vários níveis em `flows.yml` (grafo sem ciclos; ciclo e auto-referência continuam recusados; cadeia de no máximo `MAX_FLOW_DEPTH` = 6 operações). `--only` traz os produtores em qualquer nível ([ADR 0021](docs/adr/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md)).
+- Encadeamento em vários níveis em `flows.yml` (grafo sem ciclos; ciclo e auto-referência continuam recusados; cadeia de no máximo `MAX_FLOW_DEPTH` = 6 operações). `--only` traz os produtores em qualquer nível ([ADR 0021](docs/decisoes/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md)).
 - Perfil, aditivo e opcional na schema v1: `auth.default_account` e `auth.account_map` (conta por `operationId` e/ou caminho e método), `auth.login_limit.max_per_minute`, `auth.token_expired` e `probe.error_codes`. `spec inspect` devolve `operation_accounts` e o `issue` `ACCOUNT_MAP_MISMATCH`; `probe --account` impõe uma conta a todas as operações.
 - Orçamento de login (janela deslizante de 60 s consultada antes de todo POST de login), um login por conta por execução, cache de tokens por processo compartilhado por `preflight` e `probe`, novo login por token vencido no máximo uma vez por requisição e `Retry-After` no login.
 - Classificação exata pelo código de erro do corpo; o trecho do alvo preserva `errors[].field` e `rule` dentro do teto de 300 caracteres.
-- Gerador `br.crm` (`NNNNNNN-UF`, único por execução). Contrato das variáveis de ligação da limpeza em `docs/reference/cleanup.md`.
+- Gerador `br.crm` (`NNNNNNN-UF`, único por execução). Contrato das variáveis de ligação da limpeza em `docs/referencia/cleanup.md`.
 - Perfis de laboratório em `lab/vampi/product-profile/` e `lab/pilot/product-profile/` (atualizado), e testes de integração `tests/integration/test_lab_vampi.py` e `test_lab_pilot.py` contra o ZAP 2.17 e o proxy de escopo reais.
 
 ### Corrigido (verificação contra o ZAP real e o piloto)
@@ -635,13 +637,13 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (pilha gerenciada e trava de emergência)
 
-- Comandos `hdast stack up <produto>` (`--vulnerable/--secure`, `--token-ttl`, `--build`, `--timeout`), `hdast stack status`, `hdast stack down` e `hdast stop` ([ADR 0019](docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)). A política do proxy de escopo é gerada do perfil (nunca mais larga) e relida pelo validador do contêiner; a chave do ZAP é sorteada e guardada num arquivo de estado fora do repositório (`HDAST_STATE_DIR`), de onde `preflight`, `probe` e `stop` a leem quando o ambiente não a define.
+- Comandos `hdast stack up <produto>` (`--vulnerable/--secure`, `--token-ttl`, `--build`, `--timeout`), `hdast stack status`, `hdast stack down` e `hdast stop` ([ADR 0019](docs/decisoes/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)). A política do proxy de escopo é gerada do perfil (nunca mais larga) e relida pelo validador do contêiner; a chave do ZAP é sorteada e guardada num arquivo de estado fora do repositório (`HDAST_STATE_DIR`), de onde `preflight`, `probe` e `stop` a leem quando o ambiente não a define.
 - Serviço `proxy-gateway` no `compose.yaml` (porta `127.0.0.1:3128`, variável `HDAST_PROXY_HOST_PORT`): o login e o token CSRF passam pelo proxy de escopo, não pelo ZAP, por padrão na pilha gerenciada (`HDAST_AUTH_PROXY_URL`).
 - Anexação dos alvos de laboratório `vampi` e `clinica-piloto` (projeto `hdast-pilotrun`, credenciais descartáveis) e `ZapApiClient.stop_all_scans`.
 
 ### Adicionado (marco M3, `spec inspect`, `preflight` e `probe`)
 
-- Comandos `hdast spec inspect <produto>` (resumo do OpenAPI e verificações cruzadas; `--budget`), `hdast preflight <produto>` (lista de verificações como dado) e `hdast probe <produto>` (`--seed`, `--only`, `--dry-run`, `--include-delete`, `--account`), com envelope JSON, códigos de saída 3 a 6 e resultado parcial em `data` quando terminam em falha ([ADR 0018](docs/adr/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)).
+- Comandos `hdast spec inspect <produto>` (resumo do OpenAPI e verificações cruzadas; `--budget`), `hdast preflight <produto>` (lista de verificações como dado) e `hdast probe <produto>` (`--seed`, `--only`, `--dry-run`, `--include-delete`, `--account`), com envelope JSON, códigos de saída 3 a 6 e resultado parcial em `data` quando terminam em falha ([ADR 0018](docs/decisoes/0018-probe-httpx-csrf-criterio-de-sucesso-e-trilha-de-execucao.md)).
 - Dependência de runtime `httpx` 0.28.1 (BSD-3-Clause), usada no cliente do alvo e no cliente da API do ZAP; proibida no `domain` pelo import-linter.
 - Schema v1 do perfil, aditivo e opcional: `auth.csrf` (`fetch_path`, `cookie_name`, `header_name`, `methods`), `probe.success.json_field_absent_or_not_equal`, `probe.health_path` e `environment.verify_tls`.
 - Invariante de envio: `ApprovedRequest` só é criado por `approve(guard, request)`; o cliente HTTP só aceita esse tipo. Redirecionamentos não são seguidos, o tempo e o tamanho da resposta são limitados e TLS é verificado por padrão.
@@ -662,8 +664,8 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (marco M1, fundação)
 
-- Documentação técnica: `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md` e este changelog; `docs/architecture.md`, `docs/roadmap.md` (tabela única de status), `docs/testing.md`; `docs/modules/`, `docs/reference/` e `docs/operations/`.
-- `docs/adr/` com índice, template e os ADRs 0001 a 0011.
+- Documentação técnica: `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md` e este changelog; `docs/como-funciona/arquitetura.md`, `docs/roadmap.md` (tabela única de status), `docs/desenvolver/testing.md`; `docs/desenvolver/modulos/`, `docs/referencia/` e `docs/como-funciona/operacao/`.
+- `docs/decisoes/` com índice, template e os ADRs 0001 a 0011.
 - Pacote `harness_dast` em layout `src/` com os pacotes `domain`, `application`, `adapters`, `cli`, `config` e `observability`; `application` e os subpacotes de `adapters` são só esqueleto.
 - Hierarquia de erros, envelope JSON versionado, tratador único de erros e o comando `hdast version`.
 - Settings da ferramenta (`HDAST_*`) e logger estruturado (structlog) com redação de segredos.
@@ -675,7 +677,7 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Adicionado (marco M2, segunda metade: perfil, `init` e `profile validate`)
 
-- `application/ports.py` (`Clock`, `ProfileRepository`, `ProductScaffolder`) e os casos de uso `ValidateProfile` e `InitProduct` ([ADR 0015](docs/adr/0015-portas-do-perfil-e-carregador-de-yaml.md)).
+- `application/ports.py` (`Clock`, `ProfileRepository`, `ProductScaffolder`) e os casos de uso `ValidateProfile` e `InitProduct` ([ADR 0015](docs/decisoes/0015-portas-do-perfil-e-carregador-de-yaml.md)).
 - `adapters/storage/`: leitor de YAML endurecido (recusa âncora, alias, chave `<<`, chave repetida ou não textual, tag fora do esquema básico, aninhamento excessivo e arquivo acima de 256 KiB; mensagens só com linha e coluna), repositório de perfis em arquivos (nome de produto como slug, caminho resolvido dentro de `products_dir`, arquivos referenciados dentro da pasta do produto), criador de pasta de produto a partir de `products/_template` e `adapters/system_clock.py`.
 - Comandos `hdast init <produto>` e `hdast profile validate <produto>`, com `--products-dir` (sobrepõe `HDAST_PRODUCTS_DIR`) e envelope JSON; `cli/composition.py`.
 - `tests/fakes/` com relógio, repositório de perfis e criador de produtos em memória.
@@ -692,9 +694,9 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 - `domain/secret_ref.py`, `domain/auth.py`, `domain/profile.py` e `domain/profile_errors.py`: modelos do perfil de produto (schema v1) e tradução de erros sem eco de valores.
 - Suíte de QA independente (`tests/**/*_qa.py`) e testes de contrato do CLI.
 - ADRs 0012 (dependências `tzdata` e `pyyaml`), 0013 (schema v1 do perfil) e 0014 (avaliação cega como suíte de evals, planejada para o M6).
-- `docs/reviews/` com o relatório de revisão de QA de 2026-11-13 e a resposta às constatações.
+- `docs/arquivo/reviews/` com o relatório de revisão de QA de 2026-11-13 e a resposta às constatações.
 - Dependências de runtime `tzdata` (banco de fusos IANA no Windows) e `pyyaml` (leitura do perfil; hoje só um teste a usa).
-- `docs/reference/target-yml.md` reescrito como referência do schema v1 implementado.
+- `docs/referencia/target-yml.md` reescrito como referência do schema v1 implementado.
 
 ### Alterado
 
@@ -705,7 +707,7 @@ Código e testes, provados em laboratório contra o proxy e o ZAP reais (primeir
 
 ### Corrigido (revisão de QA independente, 2026-11-13)
 
-Achados do [relatório](docs/reviews/2026-11-13-qa-m1-m2.md); decisão por achado na [resposta](docs/reviews/2026-11-13-qa-m1-m2-resposta.md).
+Achados do [relatório](docs/arquivo/reviews/2026-11-13-qa-m1-m2.md); decisão por achado na [resposta](docs/arquivo/reviews/2026-11-13-qa-m1-m2-resposta.md).
 
 - A-01 (bloqueante): `deny_paths` era contornável por `/admin;x=1`, `/admin%20`, `/admin.` e `/admin;/x`. O `ScopeGuard` agora recusa segmentos com `;`, que terminam em ponto ou espaço ou começam por espaço, em forma crua ou codificada.
 - A-02: o template do perfil não carregava; foi alinhado ao schema real e passou a ser validado por teste.
@@ -730,7 +732,7 @@ Observação: este registro reflete o código lido em 2026-11-13 durante a escri
 - Windows com Docker Desktop suportado desde o início (P-11).
 - Encadeamento de chamadas limitado a um nível na V1 (P-12).
 - Comando `hdast` e pacote `harness_dast` (P-13).
-- Requisito novo do dono do projeto: avaliação cega por agentes de teste como suíte de evals, no M6 ([ADR 0014](docs/adr/0014-avaliacao-cega-como-eval.md)).
+- Requisito novo do dono do projeto: avaliação cega por agentes de teste como suíte de evals, no M6 ([ADR 0014](docs/decisoes/0014-avaliacao-cega-como-eval.md)).
 
 ### Pendente
 

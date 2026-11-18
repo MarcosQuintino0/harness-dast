@@ -1,6 +1,7 @@
 """Páginas dos índices: Produtos (`index.html`) e Histórico de um produto. Módulo puro.
 
-Fiéis a `docs/design/execution-panel/screens/products.html` e `product-history.html`: mesma
+Fiéis a `docs/desenvolver/design/execution-panel/screens/products.html` e `product-history.html`:
+mesma
 estrutura, classes e textos fixos; só os dados mudam e as marcas "ex." somem. Execução sem
 dados aparece como linha "sem dados", nunca some. Link só para arquivo que existe: sem painel
 gerado, a data fica como texto com um aviso. Todo texto de arquivo passa por `html_safe`.

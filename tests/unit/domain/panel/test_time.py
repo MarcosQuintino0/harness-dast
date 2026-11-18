@@ -18,7 +18,9 @@ from tests.unit.domain.panel.measure_helpers import (
 from tests.unit.domain.panel.test_pages import markup
 from tests.unit.domain.panel.test_summary import EXTRA_CLASSES, analyse, main_text
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 
 
 def time_html(panel_view: PanelView | None = None) -> str:

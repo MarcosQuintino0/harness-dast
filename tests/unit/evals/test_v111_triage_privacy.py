@@ -12,7 +12,7 @@ def test_copia_real_omite_regua_gabarito_e_adr_privado(tmp_path: Path) -> None:
     copy_workspace(load_case("vampi"), ROOT, workspace)
 
     assert not (workspace / "evals").exists()
-    assert not (workspace / "docs/adr/0089-criterio-privado-triagem.md").exists()
+    assert not (workspace / "docs/decisoes/0089-criterio-privado-triagem.md").exists()
     assert (workspace / ".claude/skills/triage-findings/SKILL.md").is_file()
 
 
@@ -30,8 +30,8 @@ def test_calibracao_e_adr_de_apresentacao_sao_excluidos_mesmo_antes_de_existirem
     from evals.runner.exclusions import ALWAYS, decide
 
     for path in (
-        "docs/reference/verification-calibration.md",
-        "docs/reference/verification-calibration.json",
-        "docs/adr/0088-apresentacao-e-calibracao-de-verificacao.md",
+        "docs/referencia/verification-calibration.md",
+        "docs/referencia/verification-calibration.json",
+        "docs/decisoes/0088-apresentacao-e-calibracao-de-verificacao.md",
     ):
         assert decide(path, ALWAYS) is not None

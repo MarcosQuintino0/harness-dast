@@ -244,6 +244,13 @@ def test_rendering_is_deterministic() -> None:
 
 
 def test_design_files_exist_for_every_registered_page() -> None:
-    folder = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+    folder = (
+        Path(__file__).parents[4]
+        / "docs"
+        / "desenvolver"
+        / "design"
+        / "execution-panel"
+        / "screens"
+    )
 
     assert all((folder / name).is_file() for name in EXPECTED_FILES)

@@ -4,7 +4,7 @@
 Escrito a partir do docstring do módulo: só `DELETE FROM <tabela permitida> WHERE <condição>`,
 com ao menos uma condição de AMARRAÇÃO à execução ligada por `AND` e só variáveis do contrato.
 Os testes que falham de propósito demonstram defeitos; veja o parecer em
-docs/reviews/2026-11-13-qa-m2-m5.md.
+docs/arquivo/reviews/2026-11-13-qa-m2-m5.md.
 """
 
 import pytest

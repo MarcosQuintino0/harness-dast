@@ -12,4 +12,4 @@ description: "Use ao desenvolver o harness-dast para preparar e registrar uma ro
 3. Lance um processo novo, sem contexto, com o pedido padronizado do protocolo. Segredos ficam no lacre;
    o agente recebe apenas nomes e as entradas autorizadas. Não dê dicas nem responda além do previsto.
 4. Colete transcript e intervenções, nota, medidas, versão/commit e manifesto. Registre limites de comparação histórica.
-5. Siga a retenção de evals e registre a prova em `docs/reviews/`, sem alterar casos ou resultados de rodadas em andamento.
+5. Siga a retenção de evals e registre a prova em `docs/arquivo/reviews/`, sem alterar casos ou resultados de rodadas em andamento.

@@ -15,7 +15,9 @@ from harness_dast.domain.run_summary import StageRecord
 from tests.unit.domain.panel.helpers import run_summary, sources, view
 from tests.unit.domain.panel.test_summary import EXTRA_CLASSES, analyse, main_text
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 
 
 def stages_html(panel_view: PanelView | None = None) -> str:

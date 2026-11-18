@@ -9,7 +9,7 @@
 #   docker compose --profile lab up -d --build  # inclui o alvo de laboratório (VAmPI)
 #   docker compose --profile lab down           # parada
 # O caminho normal é `hdast stack up <produto>`, que gera a política do perfil, sorteia a chave
-# do ZAP e sobe tudo (docs/reference/cli.md); estes comandos servem à operação manual.
+# do ZAP e sobe tudo (docs/referencia/cli.md); estes comandos servem à operação manual.
 #
 # Variáveis opcionais (caminhos relativos a este arquivo):
 #   HDAST_SCOPE_POLICY_DIR  diretório com policy.json (e o arquivo-sinal KILL)

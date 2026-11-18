@@ -88,7 +88,7 @@ convention = "google"
 "tests/**" = ["S101", "D"]
 # O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
 "evals/**" = ["D1"]
-# CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
+# CSS copiado do desenho do painel (docs/desenvolver/design/execution-panel/): linhas longas de propósito, para
 # a cópia continuar idêntica ao original.
 "src/harness_dast/domain/panel/style.py" = ["E501"]
 "src/harness_dast/domain/panel/tokens.py" = ["E501"]

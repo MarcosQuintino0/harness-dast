@@ -22,7 +22,11 @@ ALL_SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
 SKILL_FILES = [p for p in ALL_SKILL_FILES if not p.parent.name.startswith("dev-")]
 DEV_SKILL_FILES = [p for p in ALL_SKILL_FILES if p.parent.name.startswith("dev-")]
 AGENT_FILES = sorted((ROOT / ".claude" / "agents").glob("*.md"))
-GUIDE_FILES = sorted((ROOT / "docs" / "guides").glob("*.md"))
+GUIDE_FILES = [
+    *sorted((ROOT / "docs" / "comecar").glob("*.md")),
+    *sorted((ROOT / "docs" / "usar").glob("*.md")),
+    ROOT / "docs" / "desenvolver" / "avaliacao-das-skills.md",
+]
 EXTRA_FILES = [ROOT / "evals" / "README.md", ROOT / "README.md"]
 CHECKED_FILES = [*ALL_SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
 STAGE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findings")
@@ -371,7 +375,7 @@ def test_test_product_never_turns_wide_path_mode_on_by_itself() -> None:
     assert "carta" in text.split("scope.path_mode: wide")[1][:200]
 
 
-@pytest.mark.parametrize("name", ["docs/guides/primeiro-uso.md", "README.md"])
+@pytest.mark.parametrize("name", ["docs/comecar/primeiro-uso.md", "README.md"])
 def test_guides_start_with_doctor_and_mention_authz_and_the_wide_mode_rule(name: str) -> None:
     text = (ROOT / name).read_text(encoding="utf-8")
 

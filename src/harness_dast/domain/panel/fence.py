@@ -1,7 +1,7 @@
 """Quadro "A cerca" da aba Cobertura: quantos pedidos passaram, quantos foram barrados e por quê.
 
-Fiel ao painel "A cerca" de `docs/design/execution-panel/screens/coverage.html` e aos estados
-"modo amplo" e "tráfego não medido" de `system/states.html`. Os motivos vêm dos rótulos de
+Fiel ao painel "A cerca" de `docs/desenvolver/design/execution-panel/screens/coverage.html` e aos
+estados "modo amplo" e "tráfego não medido" de `system/states.html`. Os motivos vêm dos rótulos de
 `scope_labels` (nunca duplicados aqui) e o aviso de cobertura parcial é o de `report_traffic`.
 Sem a auditoria do proxy não há como saber quantos pedidos foram barrados: o quadro mostra o
 traço e a explicação, nunca zero. Módulo puro.

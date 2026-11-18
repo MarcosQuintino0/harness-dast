@@ -36,7 +36,7 @@ def _write_atomic(runs_dir: Path, run_id: str, name: str, text: str) -> str:
 
 
 class JsonFindingsSink:
-    """Grava `findings.json` (esquema versionado em `docs/reference/finding-schema.md`)."""
+    """Grava `findings.json` (esquema versionado em `docs/referencia/finding-schema.md`)."""
 
     def __init__(self, runs_dir: Path) -> None:
         """Cria o destino.

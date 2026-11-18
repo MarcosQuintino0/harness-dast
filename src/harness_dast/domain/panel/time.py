@@ -1,11 +1,12 @@
 """Aba Tempo e tokens do painel (`time-and-tokens.html`): quanto tempo e quanto trabalho.
 
-Fiel a `docs/design/execution-panel/screens/time-and-tokens.html` e ao estado "teste sem medição"
-de `system/states.html`: números em destaque, a tabela por etapa (tempo em branco, tokens em
-cinza, barras com `role="img"`) e, na coluna da direita, regras do ZAP, funções, lacunas e regras
-desligadas (`panel_rules`). A CLI não mede tokens: eles vêm de `agent-metrics.json`, quando a
-avaliação cega o grava na pasta da execução. Sem ele, traço e a explicação, nunca zero. As
-frases de "onde foi o tempo" saem dos números do teste, nunca de um texto fixo. Módulo puro.
+Fiel a `docs/desenvolver/design/execution-panel/screens/time-and-tokens.html` e ao estado "teste sem
+medição" de `system/states.html`: números em destaque, a tabela por etapa (tempo em branco,
+tokens em cinza, barras com `role="img"`) e, na coluna da direita, regras do ZAP, funções,
+lacunas e regras desligadas (`panel_rules`). A CLI não mede tokens: eles vêm de
+`agent-metrics.json`, quando a avaliação cega o grava na pasta da execução. Sem ele, traço e
+a explicação, nunca zero. As frases de "onde foi o tempo" saem dos números do teste, nunca de um
+texto fixo. Módulo puro.
 """
 
 from typing import Final

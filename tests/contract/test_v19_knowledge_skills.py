@@ -50,7 +50,7 @@ def test_reuso_exige_prova_e_reavaliacao_de_dependencias() -> None:
 
 def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
     onboarding = _section("onboard-product")
-    reference = (ROOT / "docs/reference/knowledge.md").read_text(encoding="utf-8")
+    reference = (ROOT / "docs/referencia/knowledge.md").read_text(encoding="utf-8")
 
     for command in ("knowledge capture", "knowledge validate", "knowledge diff"):
         assert command in onboarding
@@ -73,7 +73,7 @@ def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
 
 def test_novos_textos_nao_vazam_termos_dos_casos() -> None:
     paths = [
-        ROOT / "docs/reference/knowledge.md",
+        ROOT / "docs/referencia/knowledge.md",
         *(ROOT / ".claude/skills" / n / "SKILL.md" for n in SKILLS),
     ]
     terms = []

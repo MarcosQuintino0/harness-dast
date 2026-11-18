@@ -1,6 +1,6 @@
 # Contribuindo
 
-Este documento vale para pessoas e para agentes de IA. Regras resumidas para agentes estão em [AGENTS.md](AGENTS.md). A estratégia de testes está em [docs/testing.md](docs/testing.md).
+Este documento vale para pessoas e para agentes de IA. Regras resumidas para agentes estão em [AGENTS.md](AGENTS.md). A estratégia de testes está em [docs/testing.md](docs/desenvolver/testing.md).
 
 Muitos itens abaixo são verificados por ferramenta no CI (`.github/workflows/ci.yml`) e no pre-commit. O estado de cada gate está em [docs/roadmap.md](docs/roadmap.md#gates-de-qualidade).
 
@@ -84,7 +84,7 @@ O autor passa por esta lista antes de pedir revisão; o revisor passa por ela de
 Um item só está concluído quando:
 
 1. Atende ao critério de aceite, demonstrado contra o lab quando aplicável.
-2. Os critérios de "suficientemente testado" de [docs/testing.md](docs/testing.md) estão cumpridos.
+2. Os critérios de "suficientemente testado" de [docs/testing.md](docs/desenvolver/testing.md) estão cumpridos.
 3. Todos os gates do CI estão verdes, sem exceção nova não justificada.
 4. Não há código morto, `TODO` órfão nem `type: ignore` sem explicação.
 5. A documentação afetada está atualizada e há ADR, se a mudança pedir.
@@ -97,12 +97,12 @@ Código que funciona mas não cumpre a lista não está concluído.
 ## Como adicionar uma dependência
 
 1. Confirme que a biblioteca padrão ou uma dependência atual não resolve.
-2. Escreva um ADR curto (use [docs/adr/template.md](docs/adr/template.md)): por que precisa, qual a alternativa, licença, estado de manutenção.
+2. Escreva um ADR curto (use [docs/adr/template.md](docs/decisoes/template.md)): por que precisa, qual a alternativa, licença, estado de manutenção.
 3. Adicione com `uv add NOME` (ou `uv add --dev NOME` para desenvolvimento). Isso atualiza `pyproject.toml` e `uv.lock`; versões ficam travadas.
-4. Se a dependência fala com um sistema externo, isole-a em `adapters/` atrás de uma porta (veja [docs/modules/adapters.md](docs/modules/adapters.md)).
+4. Se a dependência fala com um sistema externo, isole-a em `adapters/` atrás de uma porta (veja [docs/modules/adapters.md](docs/desenvolver/modulos/adapters.md)).
 5. Registre no [CHANGELOG.md](CHANGELOG.md).
 
-Auditoria de vulnerabilidades das dependências (`pip-audit`, sobre o `uv.lock`) e varredura de segredos (`gitleaks`) já rodam no CI; o `gitleaks` roda também no pre-commit. Exemplos de ADR de dependência: [ADR 0012](docs/adr/0012-dependencias-tzdata-e-pyyaml.md).
+Auditoria de vulnerabilidades das dependências (`pip-audit`, sobre o `uv.lock`) e varredura de segredos (`gitleaks`) já rodam no CI; o `gitleaks` roda também no pre-commit. Exemplos de ADR de dependência: [ADR 0012](docs/decisoes/0012-dependencias-tzdata-e-pyyaml.md).
 
 ## Quando um ADR é obrigatório
 
@@ -112,8 +112,8 @@ Auditoria de vulnerabilidades das dependências (`pip-audit`, sobre o `uv.lock`)
 - Qualquer mudança que altere uma fronteira ou camada.
 - Aprendizado de um spike que mude um rumo.
 
-ADR aceito é imutável; para mudar de rumo, escreva um ADR novo que o substitua. (A imutabilidade vale desde o primeiro pull request, em 2026-11-13; a exceção do período anterior está em [docs/adr/README.md](docs/adr/README.md#ciclo-de-vida). Mudança de rumo de ADR aceito ou nota sobre ele, depois de aceito, entra como seção datada no fim do arquivo, sem mexer no texto da decisão.) Ciclo de vida e índice em [docs/adr/README.md](docs/adr/README.md).
+ADR aceito é imutável; para mudar de rumo, escreva um ADR novo que o substitua. (A imutabilidade vale desde o primeiro pull request, em 2026-11-13; a exceção do período anterior está em [docs/adr/README.md](docs/decisoes/README.md#ciclo-de-vida). Mudança de rumo de ADR aceito ou nota sobre ele, depois de aceito, entra como seção datada no fim do arquivo, sem mexer no texto da decisão.) Ciclo de vida e índice em [docs/adr/README.md](docs/decisoes/README.md).
 
 ## Documentação
 
-Atualizar a documentação afetada faz parte da Definition of Done. Diagramas ficam em Mermaid dentro do Markdown. Não descreva comando ou recurso planejado como se existisse: use sempre um marcador de status (`Implementado`, `Parcial`, `Planejado (M2)`, ...) e confira com o código antes de escrever "existe" ou "não existe". Mantenha a tabela de status só em [docs/roadmap.md](docs/roadmap.md#tabela-de-status). Relatórios de revisão em `docs/reviews/` são registros datados e não são editados depois; a resposta a eles é um documento à parte ([docs/reviews/README.md](docs/reviews/README.md)).
+Atualizar a documentação afetada faz parte da Definition of Done. Diagramas ficam em Mermaid dentro do Markdown. Não descreva comando ou recurso planejado como se existisse: use sempre um marcador de status (`Implementado`, `Parcial`, `Planejado (M2)`, ...) e confira com o código antes de escrever "existe" ou "não existe". Mantenha a tabela de status só em [docs/roadmap.md](docs/roadmap.md#tabela-de-status). Relatórios de revisão em `docs/reviews/` são registros datados e não são editados depois; a resposta a eles é um documento à parte ([docs/reviews/README.md](docs/arquivo/reviews/README.md)).

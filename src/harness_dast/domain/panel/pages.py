@@ -3,7 +3,7 @@
 Para acrescentar uma aba: crie o módulo `panel_NOME.py` com `render_NOME(view) -> str` (o
 conteúdo do `<main>`, já escapado) e troque a função da linha correspondente em `PAGES`; a
 casca, o menu e a gravação do arquivo vêm daqui. Os nomes dos arquivos são os do desenho
-(`docs/design/execution-panel/screens/`) e os links do menu nunca quebram.
+(`docs/desenvolver/design/execution-panel/screens/`) e os links do menu nunca quebram.
 """
 
 from collections.abc import Callable, Mapping

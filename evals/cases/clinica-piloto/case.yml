@@ -26,7 +26,7 @@ write_files:
 # O ADR 0027 cita campos e o gabarito deste caso; ADR aceito e imutavel, entao sai da copia.
 # O CHANGELOG e o roadmap citam a isca e os contadores deste caso (historico das medicoes).
 exclude:
-  - docs/adr/0027-teste-de-autorizacao-entre-contas.md
+  - docs/decisoes/0027-teste-de-autorizacao-entre-contas.md
   - CHANGELOG.md
   - docs/roadmap.md
 

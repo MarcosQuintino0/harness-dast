@@ -1,9 +1,10 @@
 """Quadros da direita da aba Tempo e tokens: regras do ZAP, funções, lacunas e regras desligadas.
 
 Fiéis a "Tipos de teste que mais demoraram" e "Funções que mais demoraram" de
-`docs/design/execution-panel/screens/time-and-tokens.html` (sem a marca "exemplo": os números são
-do `metrics.json`). O nome da regra é o que o ZAP dá a ela: texto de fora, sempre escapado. Sem
-`metrics.json` (teste anterior à medição) cada quadro mostra o traço e a explicação, nunca zero.
+`docs/desenvolver/design/execution-panel/screens/time-and-tokens.html` (sem a marca "exemplo": os
+números são do `metrics.json`). O nome da regra é o que o ZAP dá a ela: texto de fora, sempre
+escapado. Sem `metrics.json` (teste anterior à medição) cada quadro mostra o traço e a explicação,
+nunca zero.
 Módulo puro.
 """
 
