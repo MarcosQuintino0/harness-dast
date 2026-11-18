@@ -36,6 +36,21 @@ def test_alias_digest_e_containers() -> None:
     assert rows[0]["tamanho"] == "2.00 KiB"
 
 
+def test_inventario_reconhece_o_padrao_do_ghcr_sem_usar_o_ambiente(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref = "ghcr.io/marcosquintino0/hdast-zap:1.12.2"
+    path = tmp_path / "compose.yaml"
+    path.write_text(
+        f"services:\n  zap:\n    image: ${{HDAST_ZAP_IMAGE:-{ref}}}\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("HDAST_ZAP_IMAGE", "outro/zap:1")
+
+    rows = classify([image(A, [ref])], set(), compose_references([path]))
+
+    assert [row["categoria"] for row in rows] == ["em_uso"]
+
+
 def test_imagens_proprias_alheias_e_sem_proveniencia() -> None:
     rows = classify(
         [image(A, ["harness/old:v1"]), image(B, ["other/app:v1"]), image(D, None)], set(), set()
