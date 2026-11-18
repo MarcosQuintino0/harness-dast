@@ -24,7 +24,7 @@ from tests.integration.strategy_support import (
     record_control,
     set_lab_pacing,
 )
-from tests.integration.test_lab_v155 import _install
+from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
 
 pytestmark = pytest.mark.integration

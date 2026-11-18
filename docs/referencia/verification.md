@@ -28,4 +28,4 @@ A prova de ataque e controle guarda método, receita, digest do alvo, status, du
 
 Uma pessoa pode registrar sua observação pelo procedimento [finding acknowledge](cli.md#hdast-finding-acknowledge). O agente não executa o comando nem escreve `human-confirmations.json`. A interação exige TTY e confirmação digitada, mas não autentica identidade ou veracidade.
 
-A [calibração](verification-calibration.md) está bloqueada, sem medições. Contagem e tamanho da amostra aparecem quando medidos; porcentagem só com pelo menos 10. Nenhuma taxa deve ser inferida de testes offline. Os ADRs 0085 a 0091 permanecem propostos; o [índice](../decisoes/README.md#verificação-v111) reúne os contratos.
+A [calibração](verification-calibration.md) está bloqueada, sem medições. Contagem e tamanho da amostra aparecem quando medidos; porcentagem só com pelo menos 10. Nenhuma taxa deve ser inferida de testes offline. Os ADRs 0085 a 0091 permanecem propostos; o [índice](../decisoes/README.md#todas-as-decisões) reúne os contratos.

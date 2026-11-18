@@ -8,7 +8,7 @@ Não autorizar a promoção de `proxy` no `init` nem declarar a equivalência gl
 
 ## Desempenho e previsão
 
-A previsão foi congelada antes das novas T4; o conhecimento de B anteriores implica risco declarado de seleção. A clarificação também precedeu as T4. A divergência de hash CRLF/LF foi tratada por equivalência de conteúdo com normalização exclusiva de finais de linha; os arquivos congelados não foram reescritos. Veja [protocolo e medições](../../../evals/measurements/v1-8/round3/README.md) e [matriz](../../../evals/measurements/v1-8/round3/t4-comparison.json).
+A previsão foi congelada antes das novas T4; o conhecimento de B anteriores implica risco declarado de seleção. A clarificação também precedeu as T4. A divergência de hash CRLF/LF foi tratada por equivalência de conteúdo com normalização exclusiva de finais de linha; os arquivos congelados não foram reescritos. Veja [protocolo e medições](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-8/round3/README.md) e [matriz](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-8/round3/t4-comparison.json).
 
 | API | A histórica (s) | A nova (s) | B nova (s) | Erro ganho com A nova / histórica |
 | --- | ---: | ---: | ---: | ---: |
@@ -32,7 +32,7 @@ As duas A ficaram abaixo de 1,05 da histórica e os quatro erros ficaram até 10
 
 - `uv run pytest -q tests/unit/adapters/scope_proxy/test_gate_watch.py tests/unit/adapters/scope_proxy/test_guard_cost_acceptance.py tests/unit/adapters/scope_proxy/test_approval_watch.py`: **15 passaram**.
 - `uv run pytest -q tests/unit/test_v18_round3_comparison.py`: **3 passaram**.
-- Após fast-forward e aquisição exclusiva de `lab.lock`, `uv run pytest -q -o addopts='' tests/integration/test_v18_revocation.py 'tests/integration/test_lab_strategy.py::test_strategy_preserva_controles_direcionados[legacy-secure-clinica-piloto]'`: **2 passaram em 374,97 s**. Corrida `2026-11-16T11-42-59Z-vampi-42ff`, saída 4, recusa observada em 1,015 s incluindo ritmo de 1 pedido/s e polling. T2 `2026-11-16T11-44-45Z-clinica-piloto-e90e`. Evidências sanitizadas em `C:\harness-dast-artefatos\v1-8\round3\validator3`.
+- Após fast-forward e aquisição exclusiva de `lab.lock`, `uv run pytest -q -o addopts='' tests/integration/test_scope_revocation.py 'tests/integration/test_lab_strategy.py::test_strategy_preserva_controles_direcionados[legacy-secure-clinica-piloto]'`: **2 passaram em 374,97 s**. Corrida `2026-11-16T11-42-59Z-vampi-42ff`, saída 4, recusa observada em 1,015 s incluindo ritmo de 1 pedido/s e polling. T2 `2026-11-16T11-44-45Z-clinica-piloto-e90e`. Evidências sanitizadas em `C:\harness-dast-artefatos\v1-8\round3\validator3`.
 - Após os testes, `docker compose ls -a` não listou pilhas; removi apenas a minha trava depois de conferir sua identificação. Não refiz T4, rodada cega ou suíte completa.
 
 A vigia espera 50 ms após cada checagem, além da E/S, e a concessão trava se o snapshot tiver mais de 200 ms desde o início da última checagem bem-sucedida. Os unitários com relógio controlado e leitura bloqueada sustentam esse contrato; a corrida real sustenta revogação observada e latch. Nenhum dos dois garante visibilidade do sistema de arquivos em prazo rígido ou cancela concessões já encaminhadas. A revisão humana exigida por `CONTRIBUTING.md` não é substituída por este parecer.

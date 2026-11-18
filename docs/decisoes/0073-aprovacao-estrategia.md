@@ -13,7 +13,7 @@ Vamos distinguir automática (neutra e dentro do envelope), proposta pendente (i
 
 Na pilha gerenciada, o proxy vincula os hashes SHA-256 da aprovação e do perfil, além de autorização e janela, e os revalida a cada concessão junto de prazo e parada. Os diretórios são montados somente para leitura e suas raízes devem permanecer estáveis; substituir a própria raiz montada pode não ser observado. Mudança ou falha das fontes produz recusa auditável `approval_changed`. Uma concessão já enviada não é cancelada. Alterar ou renovar qualquer arquivo vinculado exige recriar a pilha; não exige nova aprovação se o fingerprint permanecer válido. `stack up` reconstrói obrigatoriamente a imagem principal, que precisa conhecer esse vínculo.
 
-A [prova da coordenação](../../evals/measurements/v1-8/closure/coordinator/revocation-passed.json) observou concessão seguida de recusa após remoção da aprovação temporária, sem concessão posterior. A reprodução independente também passou em cinco testes, conforme o [parecer de fechamento](../arquivo/reviews/2026-11-16-v1-8-validacao-fechamento.md); essa prova não elimina as limitações acima.
+A [prova da coordenação](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/v1-8/closure/coordinator/revocation-passed.json) observou concessão seguida de recusa após remoção da aprovação temporária, sem concessão posterior. A reprodução independente também passou em cinco testes, conforme o [parecer de fechamento](../arquivo/reviews/2026-11-16-v1-8-validacao-fechamento.md); essa prova não elimina as limitações acima.
 
 ## Alternativas consideradas
 

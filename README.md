@@ -130,11 +130,10 @@ A CLI implementa o fluxo de validação, varredura e relatório, com autorizaç�
 | [Primeiro uso](docs/comecar/primeiro-uso.md) e [guias de uso](docs/usar/) | Guias para quem opera: instalação, cadastro, carta de autorização, limpeza e problemas comuns |
 | [evals/README.md](evals/README.md) | Suíte de avaliação cega: casos, rodada do começo ao fim, regra de nota |
 | [docs/arquivo/reviews/](docs/arquivo/reviews/README.md) | Relatórios de revisão independente (registros datados) e a resposta a cada um |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Branches, commits, revisão, Definition of Done |
 | [SECURITY.md](SECURITY.md) | Política de uso, escopo, segredos, limpeza, como reportar falhas |
-| [AGENTS.md](AGENTS.md) | Regras para agentes de IA que desenvolvem ou operam o projeto |
+| [AGENTS.md](AGENTS.md) | Regras para agentes de IA, com configuração do ambiente, branches, commits e pull requests na Parte A |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de mudanças |
 
 ## Licença
 
-A licença do projeto **ainda não foi definida** (pendência P-14, a decidir no M1). Até lá, não há arquivo `LICENSE` e nenhuma permissão de uso, cópia ou redistribuição é concedida por este repositório.
+O projeto é distribuído sob a [licença MIT](LICENSE).

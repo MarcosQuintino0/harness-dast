@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DOC_FILES = [
     ROOT / "README.md",
     ROOT / "SECURITY.md",
-    ROOT / "CONTRIBUTING.md",
+    ROOT / "AGENTS.md",
     *sorted((ROOT / "docs" / "referencia").glob("*.md")),
     *sorted((ROOT / "docs" / "como-funciona" / "operacao").glob("*.md")),
     *sorted((ROOT / "docs" / "desenvolver" / "modulos").glob("*.md")),
