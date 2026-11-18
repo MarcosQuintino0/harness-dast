@@ -12,7 +12,11 @@ from pydantic import ValidationError
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_build import AlertResolver, OperationRef, build_findings
-from harness_dast.domain.finding_diff import compare_findings, ensure_comparable
+from harness_dast.domain.finding_diff import (
+    compare_findings,
+    ensure_comparable,
+    fully_scanned_operations,
+)
 from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.internal_error_signals import classify_internal_error_signals
 from harness_dast.domain.negative_result import NegativeResult
@@ -306,8 +310,9 @@ def assemble_report(
     comparison: ComparisonInfo | None = None
     if baseline is not None:
         ensure_comparable(baseline, probe.product)
-        scanned = {entry.operation_id for entry in scan.entries if entry.outcome != "refused"}
-        findings, gone, comparison = compare_findings(findings, baseline, scanned)
+        findings, gone, comparison = compare_findings(
+            findings, baseline, fully_scanned_operations(scan.entries)
+        )
     return FindingsReport(
         run_id=probe.run_id,
         product=probe.product,

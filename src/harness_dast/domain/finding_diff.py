@@ -6,13 +6,14 @@ aviso e o campo `operation_scanned_now` existem para que ninguém leia o contrá
 é puro.
 """
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.report.model import ComparisonInfo, FindingsReport, GoneFinding
+from harness_dast.domain.scan_result import ScanEntry
 
 COMPARISON_NOTICE: Final = (
     "'Não observado nesta execução' não significa 'corrigido': a operação pode não ter sido "
@@ -28,6 +29,21 @@ class RetestResult(ApiModel):
 
     fingerprint: str
     result: RetestStatus
+
+
+def entry_was_fully_scanned(entry: ScanEntry) -> bool:
+    """Diz se a entrada do `scan.json` prova que a operação foi atacada até o fim.
+
+    Só `completed` com requisições enviadas conta. `refused`, `stopped` (janela, prazo ou
+    parada), `truncated` e entradas sem requisição não provam teste: ausência do achado
+    nessas operações é `not_tested`, nunca `not_reproduced`.
+    """
+    return entry.outcome == "completed" and not entry.truncated and entry.requests > 0
+
+
+def fully_scanned_operations(entries: Iterable[ScanEntry]) -> frozenset[str]:
+    """Operações com ao menos uma entrada que prova teste completo (`entry_was_fully_scanned`)."""
+    return frozenset(entry.operation_id for entry in entries if entry_was_fully_scanned(entry))
 
 
 def classify_retest(

@@ -1,9 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
+from harness_dast.domain import finding_diff
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import Finding
-from harness_dast.domain.finding_diff import COMPARISON_NOTICE
+from harness_dast.domain.finding_diff import COMPARISON_NOTICE, classify_retest
 from harness_dast.domain.retest import (
     RetestReport,
     build_retest_report,
@@ -11,6 +12,7 @@ from harness_dast.domain.retest import (
     reproduced_at_threshold,
     select_for_retest,
 )
+from harness_dast.domain.scan_result import ScanEntry
 from tests.fakes.verification_data import finding
 
 
@@ -171,3 +173,49 @@ def test_a_not_reproduced_finding_never_trips_the_threshold() -> None:
 def test_retest_report_rejects_malformed_json(raw: str) -> None:
     with pytest.raises(ValidationError):
         RetestReport.model_validate_json(raw)
+
+
+def _entry(**changes: object) -> ScanEntry:
+    base: dict[str, object] = {
+        "operation_id": "getPet",
+        "method": "GET",
+        "path": "/pets/{id}",
+        "message_id": 1,
+        "scan_id": "0",
+        "outcome": "completed",
+        "progress": 100,
+        "requests": 120,
+    }
+    return ScanEntry.model_validate({**base, **changes})
+
+
+def _status_from_entry(scan_entry: ScanEntry) -> str:
+    previous = _make("a")
+    [result] = classify_retest([previous], [], finding_diff.fully_scanned_operations([scan_entry]))
+    return result.result
+
+
+def test_retest_is_not_reproduced_when_the_entry_completed_with_requests() -> None:
+    assert _status_from_entry(_entry()) == "not_reproduced"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"outcome": "stopped", "progress": 0, "requests": 0, "scan_id": None},
+        {"outcome": "stopped", "progress": 40, "requests": 30},
+        {"outcome": "truncated", "truncated": True, "progress": 45},
+        {"outcome": "completed", "requests": 0},
+        {"outcome": "refused", "progress": 0, "requests": 0},
+    ],
+)
+def test_retest_is_not_tested_when_the_entry_does_not_prove_a_full_scan(
+    changes: dict[str, object],
+) -> None:
+    assert _status_from_entry(_entry(**changes)) == "not_tested"
+
+
+def test_an_operation_with_one_partial_and_one_complete_entry_counts_as_tested() -> None:
+    entries = [_entry(outcome="stopped", requests=0), _entry(message_id=2)]
+
+    assert finding_diff.fully_scanned_operations(entries) == {"getPet"}
