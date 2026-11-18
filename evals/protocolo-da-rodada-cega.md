@@ -108,7 +108,7 @@ Se o agente perguntar algo durante a rodada, não responda com conteúdo. Qualqu
 
 ## 3. Passo a passo
 
-Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como nas rodadas de 2026-11-15. Onde o comando depende da ferramenta do agente, há um exemplo para o Claude Code (verificado) e um para o Codex. `<out>` é a pasta da rodada, por exemplo `C:\rodadas\piloto-sonnet55-v153-vuln-2026-11-15`. O nome segue o padrão `<caso>-<modelo>-<versão>-<modo>-<AAAA-MM-DD>`.
+Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como nas rodadas de 2026-11-15. Onde o comando depende da ferramenta do agente, há um exemplo para o Claude Code (verificado) e um para o Codex. `<out>` é a pasta externa da rodada, por exemplo `C:\harness-dast-artefatos\rodadas-cegas\piloto-sonnet55-v153-vuln-2026-11-15`. O nome segue o padrão `<caso>-<modelo>-<versão>-<modo>-<AAAA-MM-DD>`.
 
 ### 3.1 Antes de começar
 
@@ -122,7 +122,7 @@ Os exemplos usam PowerShell para lançar o agente e Git Bash para o resto, como 
 ### 3.2 Preparar a cópia
 
 ```bash
-OUT="C:/rodadas/piloto-sonnet55-v153-vuln-2026-11-15"
+OUT="C:/harness-dast-artefatos/rodadas-cegas/piloto-sonnet55-v153-vuln-2026-11-15"
 PYTHONIOENCODING=utf-8 uv run python -m evals.runner prepare --case clinica-piloto --mode vulnerable --seed 18 --out "$OUT"
 cd "$OUT/workspace" && git status --short
 ```
@@ -146,7 +146,7 @@ Para qualquer ferramenta, o bloco faz o mesmo, num PowerShell novo e em segundo 
 Exemplo verificado, com o Claude Code:
 
 ```powershell
-$out = "C:\rodadas\piloto-sonnet55-v153-vuln-2026-11-15"
+$out = "C:\harness-dast-artefatos\rodadas-cegas\piloto-sonnet55-v153-vuln-2026-11-15"
 $e = Get-Content "$out\sealed\agent-env.json" | ConvertFrom-Json
 $e.PSObject.Properties | ForEach-Object { Set-Item "env:$($_.Name)" $_.Value }
 Set-Location "$out\workspace"
@@ -332,13 +332,16 @@ Na rodada V1.5.3 ele deu 2 segmentos, 47 entradas de falas e um custo de US$ 0,5
 
 | Para onde | O quê |
 | --- | --- |
-| `C:\harness-dast-artefatos\rodadas-cegas\<rodada>\` (fora do repositório) | `trace/`, os `.json`, os `.md` (score, classify, falas), os `.txt` de início e fim, os `transcript*.jsonl` e os `stderr-*.log`. Nunca copie `sealed/` nem `state/` |
-| `evals/measurements/` (repositório) | `uv run python -m evals.runner measure --out <out> --label <rótulo> --save <rótulo> --date <AAAA-MM-DD>`. O rótulo segue o padrão `sonnet55-v153-vulneravel`; para repetir no mesmo dia, use o sufixo `-r2`, `-r3` |
-| `evals/results/<AAAA-MM-DD>-<estudo>/README.md` (repositório) | O resumo do estudo, no formato das [rodadas da tarde](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md): método, tabela de rodadas, falhas por versão, tempo e tokens, o que não foi achado e por quê, limites. Acrescente uma linha no [índice](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/README.md) |
+| `C:\harness-dast-artefatos\rodadas-cegas\<rodada>\` (fora do repositório) | `trace/`, `measurements/`, `ficha.json`, notas e classificações, falas do agente, horários, transcripts e logs. Preserve `sealed/` e `state/` no local de origem |
+| `docs/arquivo/reviews/<AAAA-MM-DD>-<estudo>.md` (repositório) | Ficha resumida e sanitizada, com método, commit, modelo, modo, nota, duração, tokens, intervenções e limites por rodada. Indique o diretório externo que guarda os artefatos |
 
-Os transcripts ficam **fora** do repositório. O detector de segredos acusa alarme falso em trechos deles, e o detector não deve ser afrouxado para caber um arquivo. O `measure --save` já confere os segredos da rodada e recusa gravar se algum aparecer.
+Use o diretório externo definido em `$out` também para a medição salva. Passe sempre `--measurements-dir` ao salvar.
 
-O repositório recebe as medições e o README por uma branch curta (`evals/<assunto>`), num PR para a `develop`. A branch é apagada depois do merge.
+```powershell
+uv run python -m evals.runner measure --out $out --save sonnet55-v153-vulneravel --date 2026-11-15 --measurements-dir "$out\measurements"
+```
+
+Para repetir no mesmo dia, use o sufixo `-r2`, `-r3` no rótulo. O executor verifica os resumos antes de gravá-los e recusa a gravação se encontrar um segredo. A ficha resumida do estudo entra por PR para a `develop`.
 
 ## 4. O que anotar de cada rodada
 
@@ -390,7 +393,7 @@ Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura
 - **Uma rodada é uma amostra.** Para ter média, faça várias rodadas por modo, com sementes diferentes e a mesma ferramenta, o mesmo modelo e o mesmo esforço.
 - **Guarde todas.** Inclua as que falharam ou pararam. Uma rodada descartada some da análise; marque o motivo em vez de apagar.
 - **Não misture agentes.** Rodadas de ferramentas, modelos ou esforços diferentes entram em estudos separados (ver a [nota sobre `model`](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/README.md)). Comparar dois agentes é comparar dois estudos feitos com o mesmo caso e este protocolo.
-- **Use o mesmo caso que a linha de base.** Compare com `evals.runner compare`. A rodada de referência hoje é `evals/measurements/2026-11-15-clinica-piloto-sonnet55-v153-vulneravel` (Claude Code, Sonnet 5.5, medium).
+- **Use o mesmo caso que a linha de base.** Passe os diretórios externos das duas medições a `evals.runner compare`. Para usar a [rodada histórica de referência](https://github.com/MarcosQuintino0/harness-dast/tree/fd611a9/evals/measurements/2026-11-15-clinica-piloto-sonnet55-v153-vulneravel) (Claude Code, Sonnet 5.5, medium), recupere a medição do histórico do Git para uma pasta externa antes da comparação.
 - **Nome da rodada e rótulo.** Use o apelido do modelo: por exemplo `piloto-terra61-v153-vuln-<data>` e o rótulo `terra61-v153-vulneravel`.
 
 ## 6. O que o coordenador nunca faz
