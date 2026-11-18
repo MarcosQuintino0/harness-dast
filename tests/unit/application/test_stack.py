@@ -108,12 +108,51 @@ def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path
     assert state is not None
     assert [p.name for p in state.projects] == ["hdast-codex", "hdast-crapi-codex"]
     assert state.projects[1].remove_volumes is True
+    assert state.projects[0].files == ("compose.yaml",)
+    assert state.projects[1].files == ("compose.yaml",)
+    assert "oast-gateway" not in state.projects[0].services
     assert rig.accounts.credentials == state.target_env
     assert rig.accounts.paths.signup == "/sample/0"
     assert rig.accounts.credentials["CRAPI_USER_A_PASSWORD"].startswith("Aa1#")
     assert all(value not in report.model_dump_json() for value in state.target_env.values())
     rig.manager.down()
     assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
+
+
+def test_crapi_oast_sobe_ponte_isolada_e_desce_em_ordem(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+    profile = lab_profile("crapi", "crapi", 80)
+    rig.profiles.add(
+        profile.model_copy(update={"scan": profile.scan.model_copy(update={"oast": True})})
+    )
+
+    rig.manager.up(StackUpRequest(product="crapi"))
+
+    state = rig.states.state
+    assert state is not None
+    assert state.projects[0].files == ("compose.yaml", "lab/oast/compose.yaml")
+    assert "oast-gateway" in state.projects[0].services
+    assert state.projects[1].files == ("compose.yaml", "compose.oast.yaml")
+    assert all(
+        env["HDAST_OAST_NETWORK"] == "hdast-codex_oast_net" for env in rig.compose.envs.values()
+    )
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
+
+
+def test_produto_comum_oast_nao_recebe_ponte_de_laboratorio(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    profile = valid_profile("demo")
+    rig.profiles.add(
+        profile.model_copy(update={"scan": profile.scan.model_copy(update={"oast": True})})
+    )
+
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    state = rig.states.state
+    assert state is not None
+    assert state.projects[0].files == ("compose.yaml",)
+    assert "oast-gateway" not in state.projects[0].services
 
 
 def test_crapi_seguro_recusa_antes_de_derrubar_pilha_anterior(tmp_path: Path) -> None:

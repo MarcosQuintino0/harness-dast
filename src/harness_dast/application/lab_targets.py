@@ -10,6 +10,9 @@ from urllib.parse import urlsplit
 PILOT_PROJECT = "hdast-pilotrun"
 """Projeto compose do alvo piloto: distinto de `hdast-pilot` (usado à mão, com Oracle)."""
 CRAPI_PROJECT = "hdast-crapi"
+OAST_GATEWAY_FILE = "lab/oast/compose.yaml"
+OAST_GATEWAY_SERVICE = "oast-gateway"
+CRAPI_OAST_FILE = "compose.oast.yaml"
 
 PILOT_API_PORT = 28080
 PILOT_MANAGEMENT_PORT = 29091

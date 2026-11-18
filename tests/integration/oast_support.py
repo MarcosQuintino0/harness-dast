@@ -175,6 +175,18 @@ class OastLab:
             self.cleanup.capture_stack()
         return result
 
+    def use_managed_bridge(self) -> None:
+        """Seleciona a rede que a CLI cria, sem subir nem conectar recursos."""
+        self.network = PROJECT + "_oast_net"
+        self.cleanup.network = self.network
+        self.cli.env["HDAST_OAST_NETWORK"] = self.network
+        self.cleanup.managed_bridge = True
+
+    def managed_workshop(self) -> None:
+        """Localiza o workshop já iniciado pela CLI para conferir sua topologia."""
+        self.client = self.crapi_compose("ps", "-q", "crapi-workshop")
+        assert re.fullmatch(r"[0-9a-f]{12,64}", self.client)
+
     def crapi_compose(self, *args: str) -> str:
         """Usa o overlay do workshop com ambiente sintético de teste."""
         return self.docker(

@@ -48,6 +48,7 @@ class OastCleanup:
         self.gateway_intended = False
         self.client_intended = False
         self.workshop_intended = False
+        self.managed_bridge = False
         self.workshop_before: set[str] = set()
         self.stack_containers: set[str] | None = None
         self.stack_networks: set[str] | None = None
@@ -257,7 +258,7 @@ class OastCleanup:
             and not (service in {"oast-gateway", "crapi-workshop"} and self._owned(container))
         ):
             raise ValueError("contêiner não registrado na pilha")
-        if service == "oast-gateway" and not self._owned(container):
+        if service == "oast-gateway" and not self.managed_bridge and not self._owned(container):
             raise ValueError("gateway não pertence à prova")
         if (
             service == "crapi-workshop"
@@ -356,7 +357,7 @@ class OastCleanup:
     @staticmethod
     def _project_network_suffixes(project: str) -> tuple[str, ...]:
         if project == PROJECT:
-            return ("zap_net", "lab_net", "egress_net", "host_net")
+            return ("zap_net", "lab_net", "egress_net", "host_net", "oast_net")
         return ("crapi_net", "publish_net")
 
     @staticmethod

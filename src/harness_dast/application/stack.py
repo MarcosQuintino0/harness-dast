@@ -28,7 +28,10 @@ from harness_dast.application.lab_accounts import account_paths
 from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
     CRAPI,
+    CRAPI_OAST_FILE,
     CRAPI_PROJECT,
+    OAST_GATEWAY_FILE,
+    OAST_GATEWAY_SERVICE,
     PILOT_API_PORT,
     PILOT_MANAGEMENT_PORT,
     PILOT_ORACLE_ENV_FIXED,
@@ -57,6 +60,7 @@ from harness_dast.application.stack_ports import (
     ZapScanStopper,
 )
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.oast_bridge import should_mount_oast_bridge
 from harness_dast.domain.proxy_deadline import compute_policy_deadline
 from harness_dast.domain.run import RunId
 from harness_dast.domain.scan_result import ScanProgress
@@ -192,7 +196,8 @@ class StackManager:
             paths = account_paths(self._specs.load(profile.product, profile))
         suffix = _project_suffix(self._environ)
         oracle = self._oracle_requested(request, target)
-        projects = self._projects(target, oracle=oracle, suffix=suffix)
+        bridge = should_mount_oast_bridge(profile.environment.base_url, requested=profile.scan.oast)
+        projects = self._projects(target, oracle=oracle, suffix=suffix, bridge=bridge)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
         warnings = self._tear_down_previous()
         run_id = RunId.create(
@@ -389,22 +394,26 @@ class StackManager:
         }
 
     def _projects(
-        self, target: LabTarget | None, *, oracle: bool, suffix: str
+        self, target: LabTarget | None, *, oracle: bool, suffix: str, bridge: bool
     ) -> tuple[ComposeProject, ...]:
         services = BASE_SERVICES + (target.main_services if target else ())
         main = ComposeProject(
             name=MAIN_PROJECT + suffix,
             workdir=str(self._root),
-            files=("compose.yaml",),
+            files=("compose.yaml",) + ((OAST_GATEWAY_FILE,) if bridge else ()),
             profiles=target.main_profiles if target else (),
-            services=services,
+            services=services + ((OAST_GATEWAY_SERVICE,) if bridge else ()),
         )
         if target is None or target.attached_workdir is None:
             return (main,)
         attached = ComposeProject(
             name=(CRAPI_PROJECT if target is CRAPI else PILOT_PROJECT) + suffix,
             workdir=str(self._root / target.attached_workdir),
-            files=target.attached_files + ((PILOT_ORACLE_FILE,) if oracle else ()),
+            files=(
+                target.attached_files
+                + ((PILOT_ORACLE_FILE,) if oracle else ())
+                + ((CRAPI_OAST_FILE,) if bridge else ())
+            ),
             profiles=(PILOT_ORACLE_PROFILE,) if oracle else (),
             remove_volumes=target is CRAPI,
         )
@@ -417,7 +426,10 @@ class StackManager:
         options: dict[str, str],
         ports: tuple[str, str],
     ) -> dict[str, str]:
-        network_env = {"HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net"}
+        network_env = {
+            "HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net",
+            "HDAST_OAST_NETWORK": f"{state.projects[0].name}_oast_net",
+        }
         if project == state.projects[0]:
             return {
                 **network_env,
@@ -495,6 +507,7 @@ def _common_env(state: StackState) -> dict[str, str]:
         names = CRAPI.credential_env
     return {
         "HDAST_LAB_NETWORK": f"{state.projects[0].name}_lab_net",
+        "HDAST_OAST_NETWORK": f"{state.projects[0].name}_oast_net",
         **{name: _PLACEHOLDER for name in names},
         **state.target_env,
         KEY_ENV: state.zap_api_key,

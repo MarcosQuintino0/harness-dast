@@ -132,6 +132,7 @@ class LabCli:
         if suffix := os.environ.get("HDAST_IT_STACK_SUFFIX"):
             env["HDAST_STACK_PROJECT_SUFFIX"] = suffix
         self.env = env
+        self.freeze_approvals = False
 
     def approve_installed_products(self) -> None:
         """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
@@ -141,6 +142,8 @@ class LabCli:
         não é regravada, preservando a identidade do arquivo observada pelo proxy. O teste
         que edita o perfil depois de instalar não precisa lembrar de aprovar de novo.
         """
+        if self.freeze_approvals:
+            return
         store = FileApprovalStore(default_state_dir(self.env))
         repository = FileProfileRepository(self.products)
         for folder in sorted(self.products.iterdir()):

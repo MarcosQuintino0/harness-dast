@@ -1,6 +1,6 @@
 """OAST na varredura (V1.12, F2 e F3, ADR 0099 e 0100): C11 do crAPI, só no laboratório.
 
-Nível RÁPIDO: uma pilha crAPI por cenário, `probe` e `scan` só da operação do C11
+Nível RÁPIDO: uma pilha crAPI por cenário e `run` completo com escopo mínimo para a operação do C11
 (`contact_mechanic`, o campo `mechanic_api`), com o retorno pela ponte interna do ADR 0095. O papel
 da carta é feito na CÓPIA descartável do perfil: escopo mínimo (login, veículos, saúde e a
 operação, `GET` e `POST`), a operação fora do `deny_paths` e `scan.oast: true` (cenário ligado).
@@ -8,7 +8,7 @@ operação, `GET` e `POST`), a operação fora do `deny_paths` e `scan.oast: tru
 - ligado: o ZAP aponta o Callback para a ponte, a CLI manda a URL de retorno no campo e o retorno
   observado vira achado de SSRF com a prova do evento;
 - desligado: nenhum tráfego de OAST (contador e histórico do ZAP em zero) e nenhum achado de OAST;
-- nos dois: o ZAP continua numa rede interna e nada sai da máquina (rota externa recusada).
+- ligado: o ZAP continua numa rede interna e a rota externa do workshop é recusada.
 
 Medidas (não asserções) vão para `HDAST_IT_METRICS_DIR/lab-oast-scan-*`.
 """
@@ -25,9 +25,11 @@ import pytest
 import yaml
 
 from tests.integration.lab_support import REPO, LabCli, proxy_audit, require_docker
-from tests.integration.oast_support import OastLab
+from tests.integration.oast_support import PROJECT, OastLab
 from tests.integration.run_support import record_metrics
 from tests.integration.test_lab_oast import finish_proof
+from tests.integration.v112_resource_support import ResourceGuard, docker_runner, inventory
+from tests.integration.v112_watch_diagnostic_support import collect_watch, docker_logs
 
 pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
 
@@ -107,32 +109,55 @@ def _oast_messages(lab: OastLab) -> int:
     return sum(1 for m in messages if isinstance(m, dict) and str(m.get("type")) == OAST_TYPE)
 
 
-def _measure(cli: LabCli, lab: OastLab, enabled: bool, evidence: dict[str, object]) -> OastScanLab:
+def _measure(
+    cli: LabCli, lab: OastLab, enabled: bool, evidence: dict[str, object], guard: ResourceGuard
+) -> OastScanLab:
     out = OastScanLab(enabled=enabled)
+    cli.approve_installed_products()
+    approval_file = cli.state / "approvals" / "crapi.json"
+    approved_bytes = approval_file.read_bytes()
+    cli.freeze_approvals = True
+    guard.before_up()
     up = lab.stack_up("crapi")
     assert up.code == 0, up.stdout[-500:]
+    guard.capture()
     evidence["stack_run_id"] = up.data.get("run_id")
-    lab.start(synthetic=False, configure=False)
-    lab.attach_workshop()
-    lab.topology(workshop=True)
+    evidence["approval_unchanged_after_up"] = approval_file.read_bytes() == approved_bytes
+    assert evidence["approval_unchanged_after_up"] is True
+    if enabled:
+        lab.managed_workshop()
+        lab.topology(workshop=True)
+    else:
+        assert not lab.docker(
+            "ps",
+            "-aq",
+            "--filter",
+            f"label=com.docker.compose.project={PROJECT}",
+            "--filter",
+            "label=com.docker.compose.service=oast-gateway",
+        )
+        assert not lab.docker("network", "ls", "-q", "--filter", f"name=^{lab.network}$")
     out.interactions_before = lab.interaction_count()
-    started = time.monotonic()
-    probe = cli.run("probe", "crapi", "--only", OPERATION, timeout=900)
-    out.seconds["probe"] = round(time.monotonic() - started, 1)
-    out.exit_codes["probe"] = probe.code
-    assert probe.code == 0, probe.stdout[-800:]
-    out.run_id = str(probe.envelope["run_id"])
+    status = cli.run("stack", "status")
+    evidence["binding_before_run"] = status.data.get("binding")
+    assert status.code == 0
+    assert status.data.get("binding") == "fresh"
+    assert not status.data.get("stale_parts")
+    evidence["approval_unchanged_before_run"] = approval_file.read_bytes() == approved_bytes
+    assert evidence["approval_unchanged_before_run"] is True
     started = time.monotonic()
     done = cli.run(
-        "scan", "crapi", "--run", out.run_id, "--only", OPERATION, "--max-minutes", "6",
-        timeout=1200,
+        "run", "crapi", "--max-minutes", "6", timeout=1200,
     )  # fmt: skip
-    out.seconds["scan"] = round(time.monotonic() - started, 1)
-    out.exit_codes["scan"] = done.code
-    assert done.code in {0, 3}, done.stdout[-800:]
-    report = cli.run("report", "crapi", "--run", out.run_id)
-    out.exit_codes["report"] = report.code
-    assert report.code in {0, 1}, report.stdout[-500:]
+    out.seconds["run"] = round(time.monotonic() - started, 1)
+    out.exit_codes["run"] = done.code
+    evidence["run_id"] = done.envelope.get("run_id")
+    evidence["seconds"] = out.seconds
+    evidence["exit_codes"] = out.exit_codes
+    evidence["approval_unchanged_after_run"] = approval_file.read_bytes() == approved_bytes
+    assert evidence["approval_unchanged_after_run"] is True
+    assert done.code in {0, 1}, done.stdout[-800:]
+    out.run_id = str(done.envelope["run_id"])
     run_dir = cli.runs / out.run_id
     out.scan = json.loads((run_dir / "scan.json").read_text(encoding="utf-8"))
     data = json.loads((run_dir / "findings.json").read_text(encoding="utf-8"))
@@ -140,8 +165,9 @@ def _measure(cli: LabCli, lab: OastLab, enabled: bool, evidence: dict[str, objec
     out.interactions_after = lab.interaction_count()
     out.oast_messages = _oast_messages(lab)
     out.proxy_rows = len(proxy_audit(cli))
-    lab.assert_no_external_route()
-    evidence["external"] = "ENETUNREACH"
+    if enabled:
+        lab.assert_no_external_route()
+        evidence["external"] = "ENETUNREACH"
     return out
 
 
@@ -171,6 +197,7 @@ def lab(
     _tweak_profile(cli.products / "crapi", oast=enabled)
     marker = "lab-" + secrets.token_hex(6)
     probe = OastLab(cli, key, secrets.token_hex(6))
+    probe.use_managed_bridge()
     probe.assert_project_unused()
     probe.assert_crapi_unused()
     evidence: dict[str, object] = {
@@ -179,12 +206,17 @@ def lab(
         "oast": enabled,
         "interaction": "not_confirmed",
     }
+    run_docker = docker_runner(cli.env)
+    guard = ResourceGuard(lambda: inventory(run_docker))
     try:
-        measured = _measure(cli, probe, enabled, evidence)
+        measured = _measure(cli, probe, enabled, evidence, guard)
         ssrf = measured.scan.get("ssrf") or {}
+        verification = measured.scan.get("oast_verification")
+        policy = measured.scan["policy"]
         evidence.update(
             {
                 "run_id": measured.run_id,
+                "interaction": "confirmed" if ssrf.get("observed", 0) > 0 else "not_confirmed",
                 "seconds": measured.seconds,
                 "interactions": [measured.interactions_before, measured.interactions_after],
                 "mensagens_oast_no_zap": measured.oast_messages,
@@ -194,12 +226,24 @@ def lab(
                 "pedidos_no_proxy": measured.proxy_rows,
                 "achados_oast": len(_oast_findings(measured)),
                 "exit_codes": measured.exit_codes,
+                "oast_verification": (
+                    {"zap": verification["zap"], "ssrf": verification["ssrf"]}
+                    if verification is not None
+                    else None
+                ),
+                "policy_oast": {"oast": policy["oast"], "oast_rules": policy["oast_rules"]},
             }
         )
         yield measured
     finally:
-        finish_proof(probe, marker, evidence)
-        record_metrics(f"lab-oast-scan-{'on' if enabled else 'off'}", evidence)
+        try:
+            if probe.stack_intended:
+                evidence["watch_diagnostic"] = collect_watch(
+                    guard, run_docker, docker_logs(cli.env)
+                )
+            finish_proof(probe, marker, evidence)
+        finally:
+            record_metrics(f"lab-oast-scan-{'on' if enabled else 'off'}", evidence)
 
 
 def _oast_findings(item: OastScanLab) -> list[dict[str, Any]]:
@@ -222,6 +266,8 @@ def test_with_the_key_on_the_return_is_observed_and_becomes_an_ssrf_finding(
     assert ssrf["observed"] >= 1
     assert 1 <= ssrf["sent"] <= ssrf["cap"] == 10
     assert lab.scan["policy"]["oast"] is True
+    assert lab.scan["oast_verification"]["zap"] == "verifiable"
+    assert lab.scan["oast_verification"]["ssrf"] == "verifiable"
     assert lab.interactions_after > lab.interactions_before
     assert lab.oast_messages >= 1
 
@@ -232,6 +278,7 @@ def test_with_the_key_off_there_is_no_oast_traffic_and_no_oast_finding(lab: Oast
     assert lab.interactions_before == lab.interactions_after == 0
     assert lab.oast_messages == 0
     assert lab.scan.get("ssrf") is None
+    assert lab.scan["oast_verification"] is None
     assert lab.scan["policy"]["oast"] is False
     assert lab.scan["policy"]["oast_rules"] == []
     assert _oast_findings(lab) == []
