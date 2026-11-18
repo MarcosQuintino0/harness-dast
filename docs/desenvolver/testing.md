@@ -28,7 +28,7 @@ HDAST_IT_METRICS_DIR=./medidas uv run pytest -m lab_full   # nível COMPLETO: to
 
 Por padrão, `pytest` exclui os marcadores `integration` e `e2e` (configurado em `pyproject.toml`). Os marcadores `integration`, `contract` e `e2e` existem. Passar `-m` na linha de comando substitui o filtro padrão.
 
-Antes de abrir um pull request, rode os cinco comandos de qualidade listados em [CONTRIBUTING.md](../../CONTRIBUTING.md#ambiente-local).
+Antes de abrir um pull request, rode as seis verificações listadas na [Parte A do AGENTS.md](../../AGENTS.md#antes-de-terminar-rode).
 
 ### Dois níveis de integração contra o lab
 

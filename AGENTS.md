@@ -53,10 +53,10 @@ Authz não cobre identificador no corpo nem `DELETE`; `horizontal_write` exige d
 ### Dependências e ADR
 - Dependência nova exige ADR curto (por quê, alternativa, licença, manutenção). Versões travadas no `uv.lock`.
 - Também exigem ADR: porta nova e mudança de contrato (envelope JSON, schema do perfil, códigos de saída). ADR aceito é imutável; mudança de rumo é ADR novo.
-- Não adicione `LICENSE` nem declare licença: está indefinida (P-14).
+- A licença do projeto é MIT ([ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)).
 
 ### Definition of Done
-Critério de aceite atendido; "suficientemente testado" cumprido; todos os gates verdes; sem código morto, `TODO` órfão ou `type: ignore` sem explicação; documentação, ADR e `CHANGELOG.md` atualizados; revisão conforme `CONTRIBUTING.md`.
+O critério de aceite e os critérios de "suficientemente testado" estão atendidos, e todos os gates passam. Remova código morto, resolva `TODO` órfão e explique cada `type: ignore`. Atualize a documentação, o ADR e o `CHANGELOG.md`.
 
 ### Antes de terminar, rode
 ```bash
@@ -69,9 +69,25 @@ uv run pytest
 ```
 Só diga que terminou se todos passarem. Informe o que não rodou.
 
+### Ambiente local
+- Instale as dependências com `uv sync`.
+- Instale os hooks com `uv run pre-commit install --install-hooks` e `uv run pre-commit install --hook-type commit-msg`.
+- Rode os seis gates acima antes de abrir um pull request.
+
 ### Git
 - **Nunca** faça `git add`, `git commit` ou `git push` sem o dono pedir. Nunca use `--no-verify`.
 - Branch curta com prefixo `feat/ fix/ docs/ chore/ spike/`. Commits em Conventional Commits com escopo do pacote. Código de `spike/` nunca entra na `main`.
+- As branches de curta duração partem da `develop` e voltam para ela por PR; a `main` só recebe a `develop` com o ok do dono.
+- O hook `commit-msg` usa o Commitizen para validar mensagens como `docs(adr): registra decisão sobre o proxy de saída`.
+
+### Pull requests
+- Trate um assunto por PR. Divida mudanças acima de cerca de 400 linhas.
+- Use um título no formato de Conventional Commit.
+- Descreva a mudança, a motivação e a verificação feita. Cite o item do roadmap.
+
+### Extras congelados
+- O painel (`domain/panel` e módulos relacionados), a estratégia (`strategy*`), o conhecimento reutilizável (`knowledge*`, exceto `knowledge_mutation`) e o `plan` recebem apenas correções de defeitos até nova decisão.
+- `knowledge_mutation` e a mutação pendente fazem parte do núcleo de segurança e seguem em evolução ([ADR 0110](docs/decisoes/0110-reestruturacao-documentacao-licenca-e-extras.md)).
 
 ## Parte B. Ao OPERAR a ferramenta contra um alvo
 

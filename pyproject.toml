@@ -5,6 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "harness-dast"
 version = "1.12.2"
+license = "MIT"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"

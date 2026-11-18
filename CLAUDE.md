@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-As regras comuns estão em `AGENTS.md`, inclusive as partes A (desenvolver) e B (operar).
+As regras comuns estão em `AGENTS.md`. A Parte A inclui ambiente local, branches, commits e pull requests. A Parte B orienta a operação.
 Este complemento específico do Claude não as substitui; instruções de maior prioridade prevalecem.
 
 - O Claude Code descobre skills em `.claude/skills/<nome>/SKILL.md` e subagentes em `.claude/agents/*.md`.
