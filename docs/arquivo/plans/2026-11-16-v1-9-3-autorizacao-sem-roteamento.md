@@ -82,7 +82,7 @@ Nenhuma regra com nome de produto em `src/` ou `.claude/`: nada de "consulta", "
 
 - **Unidade, espelhando `src/`:** escolha do par (papel compartilhado, papel sem par, papel público, ordem), cada fonte de identificador (válida, ausente, vazia, ambígua, malformada, tipo errado, coleção com filtro na consulta), veredito (protegido, achado, inconclusivo, sem linha de base) e orçamento.
 - **Defeito reproduzido:** um teste com o perfil roteando a leitura por identificador para um papel compartilhado e com duas contas de outro papel com coleção própria. Ele falha antes da mudança e passa depois.
-- **Integração (degrau do laboratório):** um teste novo em `tests/integration/`, seguindo `test_v19_authz.py`/`test_lab_authz.py`, com um perfil que **imita o da rodada cega**. Use uma cópia do perfil do laboratório com o `account_map` das consultas no médico e `shared_roles: [medico]`, sem editar `lab/pilot/product-profile`. Aceite: H5 achada no vulnerável e zero achado de autorização no seguro.
+- **Integração (degrau do laboratório):** um teste novo em `tests/integration/`, seguindo `test_authz_directed_observation.py`/`test_lab_authz.py`, com um perfil que **imita o da rodada cega**. Use uma cópia do perfil do laboratório com o `account_map` das consultas no médico e `shared_roles: [medico]`, sem editar `lab/pilot/product-profile`. Aceite: H5 achada no vulnerável e zero achado de autorização no seguro.
 - **VAmPI:** rode o teste de autorização existente para conferir que nada regrediu. Se a V3 entrar (3.2, item 3), prove-a também.
 - **Escada de testes:** sem varredura completa do ZAP e sem rodada cega. As rodadas cegas ficam com o Claude Code.
 

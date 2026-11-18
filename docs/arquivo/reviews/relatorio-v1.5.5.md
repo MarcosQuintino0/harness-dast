@@ -13,7 +13,7 @@ Implementação entregue com QA independente, gates verdes e oito cenários apro
 | C. CORS | **Feito.** `domain/cors.py`, `application/cors_check.py`, cabeçalhos no cliente HTTP, `AuthzConfig` e integração ao `authz`. | Classes sintéticas, duplicados, credenciais, dedupe e teto físico de pedidos. Laboratório: um GET por cenário; um alto na Clínica vulnerável, zero na segura e nos dois modos do VAmPI. |
 | D. Par novo | **Feito em parte.** `authz_created_pair.py`, `authz_plan_created_pair.py`, `authz_flow_bindings.py`, contador do `RequestBuilder` e `exchanges.json`. | Dois contratos e QA com contas/papel genéricos, vínculo e inteiro único 1..100. Clínica: POST 201 pela dona, GET dona 200, GET par 200 no vulnerável e 403 no seguro; médicos pulados. VAmPI: POST 200 é `create_unconfirmed`, sem comparação desse recurso. Sua BOLA observada veio do GET já provado pelo probe. |
 | E. Triagem | **Feito.** Skills `triage-findings`/`test-product` conferem todos os altos; `domain/report_build.py` reconhece todas as origens ao calcular `triage_orphans`. | Contratos das skills e três testes de origem, preservando órfãos reais e severidades. Sem agente cego nesta entrega. Notas adicionais continuam em `triage.json`, sem apresentação junto a cada achado dessas seções. |
-| F. Avaliação | **Feito em parte.** Casos Clínica/VAmPI, histórico `vampi-estrito`, `runner/metrics_stages.py` e `test_release_v155.py`. | H3 reconhece CORS; V3 tem match de BOLA comprovada; V4 continua `detectable: false`. Prepare sem vazamento e approve fiel à carta conferidos. crAPI mantém caso e permissões anteriores: faltam pilha externa, semeadura e prova para alterar sua régua. |
+| F. Avaliação | **Feito em parte.** Casos Clínica/VAmPI, histórico `vampi-estrito`, `runner/metrics_stages.py` e `test_eval_case_permissions_and_grading.py`. | H3 reconhece CORS; V3 tem match de BOLA comprovada; V4 continua `detectable: false`. Prepare sem vazamento e approve fiel à carta conferidos. crAPI mantém caso e permissões anteriores: faltam pilha externa, semeadura e prova para alterar sua régua. |
 
 ## Contratos e limites
 
@@ -29,7 +29,7 @@ Massa continua limitada a corpos JSON, campos e leitores observáveis; restaura�
 
 ## Qualidade e evidências
 
-[Medições e manifesto públicos](../../../evals/results/2026-11-15-v1-5-5-lab/README.md). Saídas externas: `C:\harness-dast-artefatos\v1.5.5\`. A suíte inteira foi repetida após a última alteração de código e testes, em `b8884c1`, sem filtro adicional. Na retomada após reinício da máquina foram conferidos os registros e repetidos somente os gates rápidos exigidos pela documentação final.
+[Medições e manifesto públicos](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-v1-5-5-lab/README.md). Saídas externas: `C:\harness-dast-artefatos\v1.5.5\`. A suíte inteira foi repetida após a última alteração de código e testes, em `b8884c1`, sem filtro adicional. Na retomada após reinício da máquina foram conferidos os registros e repetidos somente os gates rápidos exigidos pela documentação final.
 
 | Gate | Resultado |
 | --- | --- |

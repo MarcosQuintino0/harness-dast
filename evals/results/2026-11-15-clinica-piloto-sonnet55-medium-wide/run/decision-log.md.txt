@@ -1,9 +1,0 @@
-# Diário de decisões: varredura e triagem (run 2026-11-15T15-47-45Z-clinica-piloto-1c2b)
-
-1. **Pré-condições:** perfil aprovado por uma pessoa (`approved`), autorização e janela válidas, doctor sem falha (2ª tentativa, Docker lento nas imagens), 4 contas com segredos definidos. Alcançabilidade 0,9032 (meta 0,9) na 6ª execução de probe; parei no máximo permitido.
-2. **`hdast run`** (padrão: authz e negative só leitura; nada de escrita autorizado pela carta): completou em ~21,6 min (limite 30), exit 0, `partial: false`, 26 varreduras sem truncar. Cerca: 13000 permitidos, 3873 negados (2949 `path_not_allowed`, 898 forma de caminho malformada, 26 origem), 0 fora do allow. Pico de 19 rps (limite 20).
-3. **Achados:** 97 (6 alta, 59 baixa, 32 informativa). Authz: 0 achados; negative: 0 achados (7 pedidos, 0 aceitos).
-4. **Alta, `buscarMedicoPorCrm` (GET /api/medicos/crm/{crm}) e `buscarPacientesPorNome` (GET /api/pacientes/busca?nome):** `'` gera 500 com `BadSqlGrammarException`, e o SQL montado por concatenação vem na resposta, junto de stack trace. Anotei como provável verdadeiro positivo; a pessoa confirma.
-5. **Alta, 4 achados time-based em `buscarConvenioPorCodigo`** (MySQL, Oracle, PostgreSQL, MsSQL): a evidência é um 404 que ecoa o payload, sem atraso visível, e quatro dialetos juntos não fazem sentido. Anotei como suspeita de falso positivo, com o motivo, e pedi conferir os tempos. Não mudei severidade nem apaguei nada.
-6. **Baixa/informativa:** cookie XSRF-TOKEN sem HttpOnly (esperado no padrão de cookie duplicado), X-Content-Type-Options ausente (correção global), identificações de sessão (sem ação).
-7. **Não cobertos:** ver o relatório; resumo na resposta final. Não rodei `cleanup` (carta: sem limpeza; `cleanup_command` nulo). Pilha deixada de pé.

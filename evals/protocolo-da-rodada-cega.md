@@ -41,7 +41,7 @@ retrabalho poupado. Um operador instruído por fora desse canal torna o estudo a
 Na execução futura, registre modelo, caso, sementes, intervenções, diferenças de
 alcance e detecção, tempo e tokens, sem executar rodadas em paralelo nem expor o lacre.
 
-Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Claude Code ou o Codex. Ele registra **exatamente** como foram feitas as rodadas da tarde de 2026-11-15, as que mediram a V1.5.3 com 8 de 10 falhas achadas ([resultado](results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md)). Siga igual, para que as rodadas novas possam ser comparadas com essas.
+Este documento é para quem coordena uma rodada cega completa: uma pessoa, o Claude Code ou o Codex. Ele registra **exatamente** como foram feitas as rodadas da tarde de 2026-11-15, as que mediram a V1.5.3 com 8 de 10 falhas achadas ([resultado](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md)). Siga igual, para que as rodadas novas possam ser comparadas com essas.
 
 **O agente avaliado não precisa ser o Claude.** Pode ser qualquer IA que trabalhe como agente de código: Claude Code, Codex ou outra. O protocolo fixa o caso, o pedido e o que se mede; a ferramenta, o modelo e o esforço são escolhidos por estudo e anotados em cada rodada. As rodadas de 2026-11-15 usaram o Claude Code, e os comandos dele aparecem como **exemplo verificado**. A rodada de 2026-11-14 usou o Codex e serve de exemplo para um agente de outro fornecedor.
 
@@ -82,7 +82,7 @@ Dentro de um estudo, todas as rodadas usam a mesma ferramenta, o mesmo modelo e 
 - **Mesma conversa depois da aprovação.** A ferramenta precisa retomar a conversa pelo identificador (seção 3.5). Se não conseguir, a rodada não segue este protocolo; registre isso.
 - **Acesso total fora do Claude Code.** As negações que o `prepare` grava em `.claude/settings.json` valem só para o Claude Code. Com outra ferramenta, o agente roda com acesso total, como o Codex com `-s danger-full-access`, sem caixa de areia e sem negações equivalentes. Nada impede o agente de olhar o Docker, a pasta `sealed/` ou de mandar HTTP ao alvo: a regra é cobrada **depois**, pela nota. O critério (a) lê o transcript e zera a rodada que fizer qualquer uma dessas coisas. Por isso o transcript completo é obrigatório. Ao comparar com rodadas do Claude Code, que têm as negações, diga no README do estudo que a outra ferramenta rodou com acesso total.
 - **Horário de cada evento.** Se a ferramenta não grava o horário em cada evento (o `codex exec --json` não grava), o coordenador grava o horário de chegada de cada linha num arquivo à parte. Na rodada de 2026-11-14 esse arquivo foi o `timed-events.jsonl`.
-- **Formato do transcript.** O executor (`collect`, `score`, `measure`) lê o formato JSONL do Claude Code: eventos `assistant` e `user` com blocos `tool_use` e `tool_result`, `usage` por mensagem e `timestamp`. O transcript de outra ferramenta precisa ser **convertido** para esse formato antes do `collect`. O conversor da rodada do Codex está em [normalize_native.py.txt](results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main/coordinator/normalize_native.py.txt) e serve de ponto de partida. Sem a conversão, as verificações de segurança ficam `n/a` e o `measure` sai vazio, então a rodada não entra na comparação.
+- **Formato do transcript.** O executor (`collect`, `score`, `measure`) lê o formato JSONL do Claude Code: eventos `assistant` e `user` com blocos `tool_use` e `tool_result`, `usage` por mensagem e `timestamp`. O transcript de outra ferramenta precisa ser **convertido** para esse formato antes do `collect`. O conversor da rodada do Codex está em [normalize_native.py.txt](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-14-clinica-piloto-terra61-medium-wide/attempts/02-main/coordinator/normalize_native.py.txt) e serve de ponto de partida. Sem a conversão, as verificações de segurança ficam `n/a` e o `measure` sai vazio, então a rodada não entra na comparação.
 
 ## 2. O que o agente recebe, e só isso
 
@@ -334,7 +334,7 @@ Na rodada V1.5.3 ele deu 2 segmentos, 47 entradas de falas e um custo de US$ 0,5
 | --- | --- |
 | `C:\harness-dast-artefatos\rodadas-cegas\<rodada>\` (fora do repositório) | `trace/`, os `.json`, os `.md` (score, classify, falas), os `.txt` de início e fim, os `transcript*.jsonl` e os `stderr-*.log`. Nunca copie `sealed/` nem `state/` |
 | `evals/measurements/` (repositório) | `uv run python -m evals.runner measure --out <out> --label <rótulo> --save <rótulo> --date <AAAA-MM-DD>`. O rótulo segue o padrão `sonnet55-v153-vulneravel`; para repetir no mesmo dia, use o sufixo `-r2`, `-r3` |
-| `evals/results/<AAAA-MM-DD>-<estudo>/README.md` (repositório) | O resumo do estudo, no formato das [rodadas da tarde](results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md): método, tabela de rodadas, falhas por versão, tempo e tokens, o que não foi achado e por quê, limites. Acrescente uma linha no [índice](results/README.md) |
+| `evals/results/<AAAA-MM-DD>-<estudo>/README.md` (repositório) | O resumo do estudo, no formato das [rodadas da tarde](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/2026-11-15-clinica-piloto-rodadas-da-tarde/README.md): método, tabela de rodadas, falhas por versão, tempo e tokens, o que não foi achado e por quê, limites. Acrescente uma linha no [índice](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/results/README.md) |
 
 Os transcripts ficam **fora** do repositório. O detector de segredos acusa alarme falso em trechos deles, e o detector não deve ser afrouxado para caber um arquivo. O `measure --save` já confere os segredos da rodada e recusa gravar se algum aparecer.
 
@@ -389,7 +389,7 @@ Não tente obter o texto do raciocínio por outro caminho. Se uma versão futura
 
 - **Uma rodada é uma amostra.** Para ter média, faça várias rodadas por modo, com sementes diferentes e a mesma ferramenta, o mesmo modelo e o mesmo esforço.
 - **Guarde todas.** Inclua as que falharam ou pararam. Uma rodada descartada some da análise; marque o motivo em vez de apagar.
-- **Não misture agentes.** Rodadas de ferramentas, modelos ou esforços diferentes entram em estudos separados (ver a [nota sobre `model`](measurements/README.md)). Comparar dois agentes é comparar dois estudos feitos com o mesmo caso e este protocolo.
+- **Não misture agentes.** Rodadas de ferramentas, modelos ou esforços diferentes entram em estudos separados (ver a [nota sobre `model`](https://github.com/MarcosQuintino0/harness-dast/blob/fd611a9/evals/measurements/README.md)). Comparar dois agentes é comparar dois estudos feitos com o mesmo caso e este protocolo.
 - **Use o mesmo caso que a linha de base.** Compare com `evals.runner compare`. A rodada de referência hoje é `evals/measurements/2026-11-15-clinica-piloto-sonnet55-v153-vulneravel` (Claude Code, Sonnet 5.5, medium).
 - **Nome da rodada e rótulo.** Use o apelido do modelo: por exemplo `piloto-terra61-v153-vuln-<data>` e o rótulo `terra61-v153-vulneravel`.
 
