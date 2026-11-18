@@ -1,8 +1,10 @@
 # Relatório da V1.12.1
 
 Data: 2026-11-17. Base: `develop` em `b50f843`. Branch: `fix/v1-12-1-mutacao-pendente`.
-Versão do pacote e lock: 1.12.1. Aceites e provas mínimas desta correção atendidos;
-os seis gates locais passaram. Sem publicação de release nesta entrega.
+Versão do pacote e lock: 1.12.1. Os registros até a seção Parte 2 são da primeira
+parte, cujos aceites e seis gates locais passaram. A parte 2 também atende às
+provas mínimas e aos seis gates, com resultados e limites registrados ao fim.
+Sem publicação de release nesta entrega.
 
 ## Entrega
 
@@ -101,7 +103,7 @@ da branch fica em `commits.txt` na pasta externa de evidências. ADR 0104 perman
 - Só laboratório local, dados sintéticos e aprovações descartáveis do suporte de integração.
 - Sem nova rodada cega v3, nota de avaliação ou varredura `lab_full` das APIs inteiras.
   Esta entrega atende às provas dirigidas solicitadas; não mede cobertura integral do produto.
-- Sem produto real, release publicada, PR ou merge; ADR permanece proposto.
+- Sem produto real, release publicada ou merge; ADR permanece proposto.
 - O inventário Compose estava vazio ao encerrar o laboratório, às 23:04:56 UTC;
   a trava `codex-v1-12-1` foi removida após conferir seu dono. CI remoto e uma
   execução humana real de `mutation release` não foram realizados.
@@ -110,3 +112,104 @@ da branch fica em `commits.txt` na pasta externa de evidências. ADR 0104 perman
 - Falha ou queda entre append sincronizado e rename deixa o arquivo bloqueante com duas linhas;
   a CLI recusa o estado inconsistente e não faz reparação automática. Teste de falha injetada cobre
   essa recusa; não há prova de durabilidade de metadados após perda de energia.
+
+## Parte 2: ponte OAST e verificabilidade
+
+Implementação enviada na mesma branch e no PR #37. O
+[ADR 0105](../adr/0105-lab-oast-bridge-and-verifiability.md) permanece proposto;
+no 0099, somente a linha de status mudou para parcialmente substituído.
+
+`stack up crapi` monta a ponte e conecta o workshop quando o perfil aprovado
+autoriza OAST. A seleção fica no domínio, os dados Compose em `lab_targets.py`;
+`stack down` retira o alvo antes da ponte. Rede interna e hardening originais
+preservados. Sem a chave, não cria a ponte; produtos comuns não recebem a montagem.
+
+A porta `OastBridge` informa processos, redes e conexão TCP ao Callback. O domínio
+decide a verificabilidade em `domain/oast_verification.py`. Ponte ausente,
+desconhecida ou observação perdida produz motivo em `scan.json.oast_verification`,
+relatório Markdown/HTML e painel, com cobertura parcial. A política efetiva é
+reduzida sem perder recusas ou estreitamentos da estratégia; a regra 40046 também
+é desligada. Falha específica do Callback vira lacuna; erro geral de política
+continua interrompendo. OAST ligado em JSON antigo, sem registro da ponte, é
+desconhecido. Sem a chave, as apresentações anteriores permanecem iguais.
+
+Programação por dois GPT 6.1 Terra high, no máximo dois simultâneos, com revisão
+cruzada e integração pela coordenação. A revisão corrigiu redução que reconstruía
+o perfil e podia perder restrições, configuração do Callback sem lacuna persistida,
+validação da saída Docker e testes do motivo específico nas apresentações.
+
+Evidências externas: `C:\harness-dast-artefatos\v1-12-1\parte-2\`.
+
+| Prova dirigida | Run ID | Tempo do run | Resultado |
+| --- | --- | --- | --- |
+| OAST ligado | `2026-11-18T00-21-32Z-crapi-bff8` | 212,7 s | 1 pedido guiado, 1 retorno correlacionado, 1 achado SSRF; saída 0 |
+| OAST desligado | `2026-11-18T00-40-10Z-crapi-0320` | 215,6 s | Sem gateway/rede de retorno, zero mensagens e achados OAST; saída 0 |
+
+As duas provas usaram `stack up → run → stack down`; authz e negative permaneceram
+no run. Nenhum helper subiu a ponte ou conectou o workshop. A implementação de
+produto é idêntica nas duas execuções; alterações intermediárias foram só de
+testes/documentação. Aprovação idêntica após up, antes e depois do run, vínculo
+`fresh` antes, vigia sem categoria e cleanup aprovado nas duas provas válidas.
+Com a chave, ZAP e SSRF foram `verifiable`, e a rota externa do workshop foi
+recusada (`ENETUNREACH`). Sem a chave, Callback `[0,0]`, zero mensagens tipo 22,
+`policy.oast=false`, `oast_rules=[]`, `ssrf=null` e `oast_verification=null`.
+
+Os testes de domínio/aplicação/adaptador cobrem ponte ausente, estado desconhecido,
+Callback indisponível e observador perdido, sem induzir pedido quando não há
+observação. Cobrem também artefato legado, motivo no relatório/painel e preservação
+da política compilada. Bateria focada final: 106 aprovações. O golden JSON recebeu
+somente `coverage.oast_gap: null`; os goldens HTML/Markdown e as asserções foram
+preservados, com 13 testes focados aprovados.
+
+As execuções combinadas OAST também tiveram interrupções `STACK_STALE/approval_changed`:
+`2026-11-18T00-12-46Z-crapi-1653`, `2026-11-18T00-29-25Z-crapi-f45a` e
+`2026-11-18T00-35-51Z-crapi-9f6e`. Nas duas últimas, bytes da aprovação iguais e
+diagnóstico `age` da vigia, que indica leitura válida com mais de 200 ms de idade.
+A causa do envelhecimento não foi estabelecida. Os cenários exigidos passaram em
+execuções distintas; não se afirma que uma invocação combinada ficou toda verde
+nem que essa intermitência anterior foi corrigida. Nenhuma cerca, timeout, recurso
+ou critério foi afrouxado.
+
+O CI da revisão `eb563ad` passou estática, segurança, Linux e Windows. Linux:
+11.202 testes aprovados, um pulo, 369,40 s; domínio 97,9%, aplicação 95,3% e
+diff 94% (mínimo 90% preservado). Execução `44208502808`. A primeira revisão
+ficou em 89% de diff; os testes de contratos de indisponibilidade fecharam a lacuna.
+
+Regressão dirigida final: **14 aprovações, 26 combinações inaplicáveis puladas e
+11.492 desmarcadas**, em **788,97 s de pytest** (13min08,97s), **793,668 s de
+parede**. A primeira tentativa teve 4 aprovações, 23 pulos e 13 erros em 446,38 s:
+a Clínica vulnerável parou no probe com `age`; Clínica segura e VAmPI passaram.
+A repetição preservou perfil, limites e asserções e não demonstrou correção da
+intermitência. Vigia sem categorias nos três cenários finais.
+
+| Regressão | Run ID | Tempo operacional do cenário | Resultado |
+| --- | --- | --- | --- |
+| Clínica vulnerável | `2026-11-18T00-56-54Z-clinica-piloto-6302` | 422,5 s | H1 a H10 achadas |
+| Clínica segura | `2026-11-18T01-04-51Z-clinica-piloto-30d7` | 222,6 s | Zero achado de autorização |
+| VAmPI, autorização | `2026-11-18T01-08-10Z-vampi-e0bb` | 69,8 s no cenário todo | V3 achada |
+| VAmPI, scan | `2026-11-18T01-08-16Z-vampi-1e87` | Incluído nos 69,8 s | V1 achada |
+
+O total do pytest inclui encerramento e coleta; os tempos operacionais não incluem
+toda essa sobrecarga. Logs `regression-final.*`, métricas `metrics-regression-final/`
+e resumo de ids `regression-run-ids.json` na pasta externa.
+
+| Gate local final da parte 2 | Resultado | Parede |
+| --- | --- | --- |
+| `uv run ruff check .` | Passou | 1,408 s |
+| `uv run ruff format --check .` | Passou | 1,458 s |
+| `uv run mypy` | Passou | 4,454 s |
+| `uv run lint-imports` | Passou, 6 contratos mantidos | 2,534 s |
+| `uv run vulture` | Passou | 5,248 s |
+| `uv run pytest` | 11.200 passaram, 5 pulados, 327 desmarcados | 431,225 s |
+
+O pytest final mediu 424,33 s internamente (7min04,33s). Evidências `last-*.log/json`.
+Mypy Linux também passou, em 22,098 s, sobre a mesma implementação de produto.
+
+Commits: `6178ec0`, `fc2a1ea`, `775164d`, `f9d5e9d`, `2facd79`, `03925ba`,
+`53703ba`, `fe960b5` e `eb563ad`; lista com assuntos no `commits.txt` externo.
+Sem dependência nova, PR novo, merge, release ou alteração das confirmações humanas.
+Sem `lab_full`, rodada cega nova ou cobertura de produto real. Log4Shell, XXE e SSTI
+cega continuam sem prova contra falha real plantada; topologia/TCP não provam
+retorno do alvo. Compose final retornou `[]`; a trava `codex-v1-12-1-p2` foi
+removida após conferir seu dono, em 2026-11-18T01:09:17.8368949Z. Evidências
+`compose-final.json`, `lab-final.json` e relatório externo `relatorio-coordenador.md`.

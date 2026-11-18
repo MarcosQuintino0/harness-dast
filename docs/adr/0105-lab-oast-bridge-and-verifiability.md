@@ -77,6 +77,12 @@ externa ficam em módulos próprios, com testes separados. Falha geral de polít
 continua interrompendo a etapa, enquanto a falha específica do Callback registra
 a lacuna e mantém as demais verificações possíveis.
 
+O arquivo de testes da coordenação OAST também supera 300 linhas: mantém junto o
+mesmo cenário sintético e os resultados de política, observação e apresentação,
+para conferir o contrato completo sem duplicar a preparação. O helper de prova
+dirigida explicita, numa sequência acima de 40 linhas, subida, aprovação imutável,
+run e coleta; a descida fica no `finally` externo para valer também nas falhas.
+
 ## Aceites verificáveis
 
 - CLI `stack up crapi` com OAST autorizado, seguida de `run`, observa retorno no
