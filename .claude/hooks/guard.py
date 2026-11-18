@@ -21,6 +21,7 @@ HUMAN_COMMANDS = (
     ("finding", "acknowledge"),
     ("mutation", "release"),
     ("cleanup",),
+    ("demo",),
 )
 NETWORK_CLIENTS = frozenset(
     (
