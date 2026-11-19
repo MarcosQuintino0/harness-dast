@@ -36,3 +36,11 @@ Os aceites são testes de unidade com entradas sintéticas para cada regra, vari
 A análise é estática e textual. Variáveis, aliases, scripts gravados em disco e programas próprios podem escapar da inspeção. A barreira física contra tráfego direto ao alvo é o isolamento de rede da pilha. No laboratório, o alvo só é alcançável pelo proxy de escopo.
 
 A validação manual sem pydantic é uma exceção deliberada à regra de entrada do `AGENTS.md`. O hook executa somente com a biblioteca padrão, sem depender das bibliotecas instaladas no ambiente do projeto.
+
+## Lista de escrita na pasta de produtos
+
+O hook identifica o clone pelo nome `harness-dast` em `[project]` no `pyproject.toml` e pela pasta `src/harness_dast/`. Ele consulta `CLAUDE_PROJECT_DIR` e usa o diretório atual quando essa variável está ausente. Fora do clone, as ferramentas de edição e as gravações verificáveis pelo shell só podem usar caminhos literais que permaneçam em `products/`, `runs/` ou `cartas/` após a resolução de links. Os três nomes exigem a grafia exata, inclusive no Windows. Em ambos os modos, o hook protege o cache e os dados do plugin e o diretório de estado do hdast. [ADR 0119](0119-hdast-como-plugin-do-claude-code.md)
+
+Na pasta de produtos, a análise de shell aceita um conjunto explícito de comandos e argumentos. Ela bloqueia destinos dinâmicos, instalação de pacotes, operações do Git que alteram metadados e chamadas MCP sem contrato verificável. Os instaladores podem escrever em caches, diretórios temporários ou executar código transitivo. A operação de shell para gravar um diff de dois caminhos tem saída explícita. Código inline fica limitado às formas de leitura previstas pelo analisador.
+
+O hook pressupõe executáveis e perfis de shell confiáveis. A verificação de caminhos é feita antes da execução. Uma troca concorrente de arquivos, links ou montagens pode mudar o destino depois dessa verificação. Permissões do sistema operacional e isolamento de rede continuam necessários nos respectivos limites.
