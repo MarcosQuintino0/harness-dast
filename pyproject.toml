@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hdast = "harness_dast.cli.app:main"
+hdast = "harness_dast.__main__:main"
 
 [dependency-groups]
 dev = [

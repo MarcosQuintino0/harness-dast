@@ -40,7 +40,7 @@ from harness_dast.cli.commands.setup import setup_command
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
 from harness_dast.cli.commands.strategy import build_strategy_app
-from harness_dast.cli.commands.version import version_command
+from harness_dast.cli.commands.version import emit_version, version_command
 from harness_dast.cli.commands.wait import wait_command
 from harness_dast.cli.journal_recording import record_invocation
 from harness_dast.cli.output import CliState, build_failure, capture_envelopes, emit, get_state
@@ -156,6 +156,10 @@ def run_app(
     # removido aqui, e não declarado em cada comando, para valer também para os futuros e
     # para erros de uso, que acontecem antes de qualquer callback rodar.
     argv, json_mode = _extract_json_flag(raw)
+    # O hook de início consulta a versão sem abrir a configuração nem gravar no diário.
+    if argv == ["--version"]:
+        emit_version(json_mode=json_mode, plain=True)
+        return int(ExitCode.OK)
     state = CliState(json_mode=json_mode)
     # Antes de qualquer coisa: sem isso o structlog padrão escreveria no stdout.
     configure_logging("INFO", state.secrets)
