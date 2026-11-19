@@ -393,6 +393,13 @@ def test_nao_reprova_quando_o_pedido_usa_so_os_padroes_da_cli(
     assert _failed(target, case) == set()
 
 
+def test_pedido_sem_carta_gera_perfil_sem_declaracao_de_nuclei(safe_profile: Path) -> None:
+    checks = yaml.safe_load(safe_profile.read_text(encoding="utf-8"))["extra_checks"]
+
+    # O caso tem respostas do coordenador e nenhuma frase do dono autorizando o Nuclei.
+    assert {"nuclei", "nuclei_login", "nuclei_wide_paths"}.isdisjoint(checks)
+
+
 def test_nao_reprova_quando_o_caminho_nunca_nem_esta_no_allow(
     safe_profile: Path, case: Case
 ) -> None:

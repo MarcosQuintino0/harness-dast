@@ -14,6 +14,7 @@ from typing import Final
 
 from harness_dast.domain.letter_collect import LetterIssue
 from harness_dast.domain.letter_defaults import MinimumDefault
+from harness_dast.domain.nuclei_approval import NUCLEI_INACTIVE_OPTIONS
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_defaults import RequestDefault
 
@@ -27,6 +28,7 @@ NEGATIVE_WRITES_AUTHORIZED: Final = "NEGATIVE_WRITES_AUTHORIZED"
 OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
 UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
 ATTACK_FLAG_AUTHORIZED: Final = "ATTACK_FLAG_AUTHORIZED"
+NUCLEI_OPTION_INACTIVE: Final = "NUCLEI_OPTION_INACTIVE"
 MINIMUM_DEFAULT_APPLIED: Final = "MINIMUM_DEFAULT_APPLIED"
 REQUEST_DEFAULT_APPLIED: Final = "REQUEST_DEFAULT_APPLIED"
 
@@ -181,6 +183,7 @@ def letter_warnings(profile: ProductProfile, today: date) -> tuple[LetterIssue, 
             )
         )
     warnings.extend(_attack_flag_warnings(profile))
+    warnings.extend(_nuclei_option_warnings(profile))
     if profile.scan.include_outcomes:
         warnings.append(
             LetterIssue(
@@ -228,6 +231,28 @@ def _attack_flag_warnings(profile: ProductProfile) -> list[LetterIssue]:
         for name, text in _ATTACK_FLAG_TEXT.items()
         if enabled[name]
     ]
+
+
+def _nuclei_option_warnings(profile: ProductProfile) -> tuple[LetterIssue, ...]:
+    checks = profile.extra_checks
+    if not checks.nuclei and (checks.nuclei_login or checks.nuclei_wide_paths):
+        return (
+            LetterIssue(
+                field="attack.nuclei", code=NUCLEI_OPTION_INACTIVE, message=NUCLEI_INACTIVE_OPTIONS
+            ),
+        )
+    if checks.nuclei and checks.nuclei_wide_paths:
+        return (
+            LetterIssue(
+                field="attack.nuclei_wide_paths",
+                code=ATTACK_FLAG_AUTHORIZED,
+                message=(
+                    "A carta declara autorização para qualquer caminho das origens aprovadas "
+                    "com o Nuclei. Os caminhos negados continuam negados."
+                ),
+            ),
+        )
+    return ()
 
 
 def _technology_warning(profile: ProductProfile) -> tuple[LetterIssue, ...]:

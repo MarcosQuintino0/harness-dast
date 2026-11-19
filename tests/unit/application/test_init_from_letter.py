@@ -163,6 +163,19 @@ def test_outcome_carries_the_warnings_of_a_ready_letter() -> None:
     assert [w.code for w in outcome.warnings] == ["VALIDITY_OVER_ONE_YEAR"]
 
 
+def test_execute_creates_nothing_when_the_nuclei_declaration_lacks_the_owner_quote() -> None:
+    data = valid_letter_data()
+    data["attack"] = {"nuclei": answer(True, "carta")}
+    use_case, scaffolder, _ = _use_case(data)
+
+    outcome = use_case.execute("demo", LETTER)
+
+    assert scaffolder.created == {}
+    assert [(issue.field, issue.code) for issue in outcome.issues] == [
+        ("attack.nuclei", "ATTACK_FLAG_NEEDS_LETTER")
+    ]
+
+
 # --- pedido mínimo (ADR 0120) -----------------------------------------------------------------
 
 REQUEST_LETTER = Path("pasta-da-carta") / "carta.yml"

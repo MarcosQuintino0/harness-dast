@@ -8,6 +8,7 @@ import pytest
 from harness_dast.adapters.storage.strict_yaml import parse_profile_yaml
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError, ScopeViolation
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_review import LetterReview, review_letter
 from harness_dast.domain.profile import ProductProfile
@@ -152,6 +153,21 @@ def test_perfil_valida_e_traz_cada_padrao_em_aviso_e_cabecalho_quando_a_carta_e_
     assert profile.extra_checks.experimental_rules
     assert profile.extra_checks.inventory
     assert profile.environment.name == "teste"
+
+
+def test_pedido_minimo_sem_carta_nao_declara_autorizacao_para_nuclei() -> None:
+    review = _review(_data())
+
+    assert all(not getattr(_profile(review).extra_checks, name) for name in NUCLEI_FIELDS)
+
+
+@pytest.mark.parametrize("name", NUCLEI_FIELDS)
+def test_pedido_minimo_exige_frase_da_carta_quando_nuclei_e_solicitado(name: str) -> None:
+    review = _review(_data(**{name: answer(True, "pessoa")}))
+
+    assert [(issue.field, issue.code) for issue in review.issues] == [
+        (f"attack.{name}", "ATTACK_FLAG_NEEDS_LETTER")
+    ]
 
 
 def test_perfil_usa_o_login_e_as_contas_da_carta_quando_a_carta_e_minima() -> None:

@@ -208,6 +208,8 @@ class AttackSection(ProfileModel):
             Booleano -> `extra_checks.inventory`. Os cinco booleanos: ausente, nulo ou
             `desconhecido` valem `false`; `true` só com `source: carta` e a frase em `quote`
             (ADR 0096).
+        nuclei, nuclei_login, nuclei_wide_paths: Autorizações declaradas para o Nuclei, login
+            e caminhos fora do Swagger (ADR 0122). Cada `true` exige origem e frase da carta.
         allow_data_writes: Só no modo `request` (ADR 0120), pergunta 4: o ambiente pode
             receber dados gravados pela ferramenta? Booleano, aceita `source: pessoa` sem frase.
             `true` liga `authz.allow_writes`, `negative.allow_writes` e `scan.allow_upload_scan`;
@@ -229,6 +231,9 @@ class AttackSection(ProfileModel):
     experimental_rules: Answer | None = None
     inventory: Answer | None = None
     allow_data_writes: Answer | None = None
+    nuclei: Answer | None = None
+    nuclei_login: Answer | None = None
+    nuclei_wide_paths: Answer | None = None
 
 
 class Letter(ProfileModel):
