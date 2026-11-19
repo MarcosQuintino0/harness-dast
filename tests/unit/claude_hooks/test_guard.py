@@ -103,6 +103,11 @@ def guard() -> ModuleType:
     return module
 
 
+@pytest.fixture(autouse=True)
+def clone_workspace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(ROOT))
+
+
 def _call(guard: ModuleType, tool: str, **tool_input: object) -> tuple[int, str]:
     stdin = io.StringIO(json.dumps({"tool_name": tool, "tool_input": tool_input}))
     stderr = io.StringIO()
@@ -706,3 +711,201 @@ def test_allows_interpreter_when_no_inline_code_follows(guard: ModuleType, comma
 )
 def test_denies_inline_code_after_unknown_option(guard: ModuleType, command: str) -> None:
     assert _call(guard, "Bash", command=command)[0] == 2
+
+
+@pytest.fixture
+def products_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    project = tmp_path / "workspace"
+    project.mkdir()
+    for directory in ("products", "runs", "cartas"):
+        (project / directory).mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
+    return project
+
+
+@pytest.mark.parametrize(
+    ("manifest", "has_package", "expected"),
+    [
+        (None, False, 2),
+        ('[project]\nname = "harness-dast"\n', False, 2),
+        ("[project", True, 2),
+        ('[project]\nname = "outro-projeto"\n', True, 2),
+        ('[project]\nname = "harness-dast"\n', True, 0),
+    ],
+)
+def test_selects_write_policy_when_project_changes(
+    guard: ModuleType,
+    products_workspace: Path,
+    manifest: str | None,
+    has_package: bool,
+    expected: int,
+) -> None:
+    if manifest is not None:
+        (products_workspace / "pyproject.toml").write_text(manifest, encoding="utf-8")
+    if has_package:
+        (products_workspace / "src" / "harness_dast").mkdir(parents=True)
+
+    assert _call(guard, "Write", file_path="README.md")[0] == expected
+
+
+def test_uses_current_directory_when_project_dir_is_missing(
+    guard: ModuleType, products_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR")
+    monkeypatch.chdir(products_workspace)
+
+    assert _call(guard, "Write", file_path="README.md")[0] == 2
+
+
+@pytest.mark.parametrize(
+    ("tool", "input_key", "path"),
+    [
+        ("Edit", "file_path", "products/demo.yml"),
+        ("Write", "file_path", "cartas/demo.carta.yml"),
+        ("NotebookEdit", "notebook_path", "runs/demo.ipynb"),
+    ],
+)
+def test_allows_edit_when_path_is_inside_product_directories(
+    guard: ModuleType, products_workspace: Path, tool: str, input_key: str, path: str
+) -> None:
+    assert _call(guard, tool, **{input_key: path}) == (0, "")
+
+
+@pytest.mark.parametrize("path", ["README.md", "../demo.yml", "PRODUCTS/demo.yml", "products/../x"])
+def test_denies_edit_when_path_is_outside_product_directories(
+    guard: ModuleType, products_workspace: Path, path: str
+) -> None:
+    assert _call(guard, "Edit", file_path=path) == (2, guard.PRODUCT_DENIED + "\n")
+
+
+def test_denies_edit_when_absolute_path_leaves_project(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    path = products_workspace.parent / "other" / "products" / "demo.yml"
+
+    assert _call(guard, "Write", file_path=path.as_posix())[0] == 2
+
+
+def test_denies_edit_when_symlink_leaves_project(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    outside = products_workspace.parent / "outside"
+    outside.mkdir()
+    try:
+        (products_workspace / "products" / "link").symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("O ambiente não permite criar links simbólicos.")
+
+    assert _call(guard, "Write", file_path="products/link/demo.yml")[0] == 2
+
+
+@pytest.mark.parametrize("clone", [True, False])
+@pytest.mark.parametrize("tool", ["Read", "Write", "Bash"])
+@pytest.mark.parametrize("protected", ["plugin", "state"])
+def test_denies_access_when_destination_is_private(
+    guard: ModuleType,
+    products_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    clone: bool,
+    tool: str,
+    protected: str,
+) -> None:
+    if clone:
+        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(ROOT))
+    home = products_workspace.parent / "home"
+    if protected == "plugin":
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home / ".claude"))
+        path = home / ".claude" / "plugins" / "cache" / "private.txt"
+    else:
+        path = home / "state" / "private.txt"
+        monkeypatch.setenv("HDAST_STATE_DIR", str(path.parent))
+    inputs = {"command": f"cat '{path.as_posix()}'"} if tool == "Bash" else {"file_path": str(path)}
+
+    assert _call(guard, tool, **inputs) == (2, guard.PROTECTED_DENIED + "\n")
+
+
+def test_denies_shell_glob_when_it_enters_plugin_cache(guard: ModuleType) -> None:
+    result = _call(guard, "Bash", command="cat ~/.claude/plugins/cache/*")
+
+    assert result == (2, guard.PROTECTED_DENIED + "\n")
+
+
+def test_allows_powershell_literal_destination_with_spaces(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    destination = products_workspace / "cartas" / "arquivo local.txt"
+
+    result = _call(
+        guard, "PowerShell", command=f'Set-Content -LiteralPath "{destination}" -Value x'
+    )
+
+    assert result == (0, "")
+
+
+@pytest.mark.parametrize(
+    ("tool", "template"),
+    [
+        ("Bash", "echo x > {path}"),
+        ("Bash", "echo x >> {path}"),
+        ("Bash", "echo x | tee -a {path}"),
+        ("Bash", "cp products/input.txt {path}"),
+        ("Bash", "mv products/input.txt {path}"),
+        ("Bash", "rm -rf {path}"),
+        ("Bash", "mkdir -p {path}"),
+        ("Bash", "touch {path}"),
+        ("Bash", "sed -i 's/x/y/' {path}"),
+        ("Bash", "install products/input.txt {path}"),
+        (
+            "Bash",
+            "git diff --no-index --no-ext-diff --no-textconv --output={path} -- "
+            "products/a.txt products/b.txt",
+        ),
+        ("PowerShell", "Set-Content -Path {path} -Value x"),
+        ("PowerShell", "Write-Output x | Out-File -FilePath {path}"),
+        ("PowerShell", "New-Item -Path {path} -ItemType Directory"),
+        ("PowerShell", "Remove-Item -LiteralPath {path}"),
+        ("PowerShell", "Copy-Item -Destination {path} -Path products/input.txt"),
+        ("PowerShell", "Move-Item -Path products/input.txt -Destination {path}"),
+    ],
+)
+@pytest.mark.parametrize(("path", "expected"), [("products/result.txt", 0), ("result.txt", 2)])
+def test_checks_explicit_shell_destination(
+    guard: ModuleType, products_workspace: Path, tool: str, template: str, path: str, expected: int
+) -> None:
+    assert _call(guard, tool, command=template.format(path=path))[0] == expected
+
+
+@pytest.mark.parametrize(
+    ("tool", "command", "expected"),
+    [
+        ("Bash", "python -c \"print(open('products/in.txt', 'r').read())\"", 0),
+        ("Bash", "python -c \"open('products/out.txt', 'w')\"", 2),
+        ("Bash", 'python -c "print(load())"', 2),
+        ("Bash", "python - <<'PY'\nprint(42)\nPY", 0),
+        ("Bash", "python - < products/script.py", 2),
+        ("Bash", "python - <<'PY'\nopen('products/out.txt', 'w')\nPY", 2),
+        ("Bash", "node -e 'console.log(1)'", 0),
+        ("PowerShell", "pwsh -Command 'Get-Content products/input.txt'", 0),
+        ("PowerShell", "pwsh -Command 'Set-Content products/out.txt x'", 2),
+        ("Bash", "hdast profile status example", 0),
+        ("Bash", "uv run hdast secret list", 0),
+        ("Bash", "uv run hdast setup example", 2),
+        ("Bash", "hdast -- setup example", 2),
+        ("Bash", "tee products/ok.txt outside.txt", 2),
+        ("Bash", "mv outside.txt products/ok.txt", 2),
+        ("Bash", "echo x > products/result.txt && touch outside.txt", 2),
+        ("Bash", "touch products/$NAME", 2),
+        ("Bash", "git init products/repo", 2),
+        ("Bash", "pip install --target products/deps pacote", 2),
+    ],
+)
+def test_checks_all_shell_effects_in_products_workspace(
+    guard: ModuleType, products_workspace: Path, tool: str, command: str, expected: int
+) -> None:
+    assert _call(guard, tool, command=command)[0] == expected
+
+
+def test_denies_mcp_when_write_contract_is_unknown(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    assert _call(guard, "mcp__example__write", path="products/demo.yml")[0] == 2

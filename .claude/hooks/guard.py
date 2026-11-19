@@ -1,17 +1,22 @@
 """Decide chamadas do Claude Code sem executá-las.
 
 O módulo reúne a validação de entrada e a análise de shell para manter o hook
-autônomo, executável com a biblioteca padrão e sem dependências do projeto.
+autônomo, executável com a biblioteca padrão e sem dependências do projeto. O
+arquivo único preserva o ponto de entrada e a cópia independente do hook.
 """
 
+import ast
 import fnmatch
 import io
 import itertools
 import json
+import os
 import posixpath
 import re
 import sys
+import tomllib
 from collections.abc import Iterator
+from pathlib import Path, PureWindowsPath
 from typing import TextIO
 
 HUMAN_COMMANDS = (
@@ -129,6 +134,99 @@ SENSITIVE_READ_DENIED = "Leitura de segredo barrada. Somente uma pessoa pode con
 WRITE_DENIED = "Alteração de arquivo protegido barrada. Somente uma pessoa pode fazê-la."
 INVALID_INPUT = "Entrada inválida no hook. Corrija a chamada da ferramenta antes de tentar de novo."
 INTERNAL_FAILURE = "Falha interna no hook. Peça a uma pessoa para revisar a trava."
+PROTECTED_DENIED = "Acesso à pasta de plugins ou ao estado privado do hdast barrado."
+PRODUCT_DENIED = (
+    "Nesta pasta, o agente só escreve em products/, runs/ e cartas/. "
+    "Use caminhos literais e uma operação que o hook consiga verificar. "
+    "Mude a ferramenta no repositório dela."
+)
+PRODUCT_DIRECTORIES = frozenset(("products", "runs", "cartas"))
+
+
+def _is_clone(project: Path) -> bool:
+    package = project / "src" / "harness_dast"
+    manifest_path = project / "pyproject.toml"
+    if not package.is_dir() or not package.resolve().is_relative_to(project):
+        return False
+    if manifest_path.is_symlink():
+        return False
+    try:
+        with manifest_path.open("rb") as manifest:
+            metadata = tomllib.load(manifest).get("project")
+            return isinstance(metadata, dict) and metadata.get("name") == "harness-dast"
+    except (FileNotFoundError, tomllib.TOMLDecodeError):
+        return False
+
+
+def _state_root() -> Path:
+    if override := os.environ.get("HDAST_STATE_DIR"):
+        return Path(override)
+    if sys.platform == "win32" and (local := os.environ.get("LOCALAPPDATA")):
+        return Path(local) / "hdast"
+    base = os.environ.get("XDG_STATE_HOME")
+    return (Path(base) if base else Path.home() / ".local" / "state") / "hdast"
+
+
+def _protected_roots() -> tuple[Path, ...]:
+    roots = [Path.home() / ".claude" / "plugins", _state_root()]
+    if config := os.environ.get("CLAUDE_CONFIG_DIR"):
+        roots.append(Path(config) / "plugins")
+    for key in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PLUGIN_DATA"):
+        if value := os.environ.get(key):
+            roots.append(Path(value))
+    return tuple(roots)
+
+
+def _native_path(value: str, cwd: Path) -> Path:
+    if sys.platform == "win32" and (msys := re.fullmatch(r"/([a-zA-Z])(/.*)", value)):
+        value = f"{msys[1]}:{msys[2]}"
+    path = Path(value)
+    return cwd / (path.expanduser() if path.parts[:1] == ("~",) else path)
+
+
+def _protected_path(value: str, cwd: Path, *, tree: bool = False) -> bool:
+    path = _native_path(value, cwd)
+    locations = (Path(os.path.abspath(path)), path.resolve())
+    for root in _protected_roots():
+        for boundary in (Path(os.path.abspath(root)), root.resolve()):
+            if any(location.is_relative_to(boundary) for location in locations):
+                return True
+            if tree and any(boundary.is_relative_to(location) for location in locations):
+                return True
+    return False
+
+
+def _product_component(path: Path, project: Path) -> bool:
+    if not path.is_relative_to(project):
+        return False
+    parts = path.relative_to(project).parts
+    # O Windows compara Path sem distinguir caixa. A lista exige a grafia da pasta.
+    return bool(parts and parts[0] in PRODUCT_DIRECTORIES)
+
+
+def _product_destination(value: str, cwd: Path, project: Path) -> bool:
+    if not value or re.search(r"[\x00-\x1f*?\[\]${}%~]", value):
+        return False
+    raw = Path(value)
+    if raw.anchor and not raw.is_absolute():
+        return False
+    parts = raw.parts[1:] if raw.anchor else raw.parts
+    if any(":" in part for part in parts):
+        return False
+    if sys.platform == "win32" and any(
+        PureWindowsPath(part).is_reserved() or (part != ".." and part.endswith((".", " ")))
+        for part in parts
+    ):
+        return False
+    path = cwd / raw
+    resolved = path.resolve()
+    return (
+        _product_component(Path(os.path.abspath(path)), project)
+        and _product_component(resolved, project)
+        and not _protected_path(value, cwd, tree=True)
+        and not _writes_control(str(resolved))
+        and (not resolved.is_file() or resolved.stat().st_nlink == 1)
+    )
 
 
 def _normalize_path(path: str) -> str:
@@ -496,6 +594,366 @@ def _check_shell(command: str, cwd: str = "") -> str | None:
     return None
 
 
+_PRODUCT_LEXER_PATTERN = (
+    r"(?P<redirect>>>?|<)|(?P<separator>&&|\|\||[;|\n])"
+    r"""|(?P<word>{quoted}|[^\s'";&|()<>]+)"""
+    r"|(?P<space>[^\S\n]+)|(?P<invalid>.)"
+)
+_PRODUCT_BASH_TOKEN = re.compile(_PRODUCT_LEXER_PATTERN.format(quoted=QUOTED_PART.pattern))
+_PS_QUOTED = r"'[^']*'|\"[^\"]*\""
+_PRODUCT_POWERSHELL_TOKEN = re.compile(_PRODUCT_LEXER_PATTERN.format(quoted=_PS_QUOTED))
+_POSITIONAL_WRITERS = {
+    "tee": frozenset(("-a", "--append")),
+    "cp": frozenset(("-f", "--force")),
+    "install": frozenset(),
+    "mv": frozenset(("-f", "--force")),
+    "rm": frozenset(("-f", "-r", "-rf", "-fr", "--force", "--recursive")),
+    "mkdir": frozenset(("-p", "--parents")),
+    "touch": frozenset(),
+}
+_PS_WRITERS = frozenset(
+    (
+        "set-content",
+        "out-file",
+        "new-item",
+        "remove-item",
+        "copy-item",
+        "move-item",
+        "add-content",
+    )
+)
+
+
+def _product_shell_segments(command: str, tool: str) -> Iterator[list[tuple[str, str]]]:
+    tokens: list[tuple[str, str]] = []
+    end = 0
+    previous = "space"
+    pattern = _PRODUCT_BASH_TOKEN if tool == "Bash" else _PRODUCT_POWERSHELL_TOKEN
+    for token in pattern.finditer(command):
+        kind = token.lastgroup or "invalid"
+        value = token[0]
+        if token.start() != end or kind == "invalid":
+            raise ValueError(PRODUCT_DENIED)
+        end = token.end()
+        if kind == "separator":
+            if not tokens:
+                raise ValueError(PRODUCT_DENIED)
+            yield tokens
+            tokens = []
+        elif kind in {"word", "redirect"}:
+            if previous == "word" and (kind == "word" or tokens[-1][1].isdigit()):
+                raise ValueError(PRODUCT_DENIED)
+            tokens.append((kind, _literal_word(value, tool) if kind == "word" else value))
+        previous = kind
+    if end != len(command) or (not tokens and previous != "separator"):
+        raise ValueError(PRODUCT_DENIED)
+    if tokens:
+        yield tokens
+
+
+def _literal_word(value: str, tool: str) -> str:
+    if value[:1] in {"'", '"'} and value[1:2] == "-":
+        raise ValueError(PRODUCT_DENIED)
+    if value.startswith("'"):
+        return value[1:-1]
+    if value.startswith('"'):
+        if re.search(r"[\x00-\x1f$`!]", value) or (tool == "Bash" and "\\" in value):
+            raise ValueError(PRODUCT_DENIED)
+        return value[1:-1]
+    if re.search(r"[\x00-\x1f$`^%*?\[\]{}~#,!@]", value) or (tool == "Bash" and "\\" in value):
+        raise ValueError(PRODUCT_DENIED)
+    return value
+
+
+def _literal_operands(args: list[str], flags: frozenset[str]) -> list[str]:
+    operands: list[str] = []
+    for index, arg in enumerate(args):
+        if arg == "--":
+            return operands + args[index + 1 :]
+        if arg in flags:
+            continue
+        if arg.startswith("-"):
+            raise ValueError(PRODUCT_DENIED)
+        operands.append(arg)
+    return operands
+
+
+def _copy_destinations(name: str, source: str, target: str, cwd: Path) -> list[str]:
+    if not _safe_read_path(source, cwd, tree=True):
+        raise ValueError(PRODUCT_DENIED)
+    origin = _native_path(source, cwd)
+    destination = _native_path(target, cwd)
+    if origin.is_dir() or not origin.name:
+        raise ValueError(PRODUCT_DENIED)
+    paths = [target]
+    if destination.is_dir():
+        paths.append(str(destination / origin.name))
+    return [source, *paths] if name in {"mv", "move-item"} else paths
+
+
+def _sed_destinations(args: list[str]) -> list[str]:
+    if len(args) < 3 or not re.fullmatch(r"-i(?:\.[a-zA-Z0-9_-]+)?", args[0]):
+        raise ValueError(PRODUCT_DENIED)
+    if not re.fullmatch(r"s/[^/\\\n]*/[^/\\\n]*/g?", args[1]):
+        raise ValueError(PRODUCT_DENIED)
+    paths = _literal_operands(args[2:], frozenset())
+    suffix = args[0][2:]
+    return paths + [path + suffix for path in paths if suffix]
+
+
+def _positional_destinations(name: str, args: list[str], cwd: Path) -> list[str]:
+    operands = _literal_operands(args, _POSITIONAL_WRITERS[name])
+    if name in {"cp", "mv", "install"}:
+        if len(operands) != 2:
+            raise ValueError(PRODUCT_DENIED)
+        return _copy_destinations(name, operands[0], operands[1], cwd)
+    return operands
+
+
+def _ps_operands(args: list[str]) -> tuple[dict[str, str], list[str]]:
+    named: dict[str, str] = {}
+    positional = []
+    remaining = iter(args)
+    for arg in remaining:
+        flag = arg.lower()
+        if flag in {"-force", "-append"}:
+            continue
+        if not flag.startswith("-"):
+            positional.append(arg)
+            continue
+        options = {"-path", "-literalpath", "-filepath", "-destination", "-value", "-itemtype"}
+        if flag not in options:
+            raise ValueError(PRODUCT_DENIED)
+        value = next(remaining, "")
+        if flag in named or not value or value.startswith("-"):
+            raise ValueError(PRODUCT_DENIED)
+        named[flag] = value
+    return named, positional
+
+
+def _ps_destinations(name: str, args: list[str], cwd: Path) -> list[str]:
+    named, positional = _ps_operands(args)
+    selectors = [named[key] for key in ("-path", "-literalpath", "-filepath") if key in named]
+    path = selectors[0] if selectors else (positional.pop(0) if positional else "")
+    if len(selectors) > 1 or not path:
+        raise ValueError(PRODUCT_DENIED)
+    if name in {"copy-item", "move-item"}:
+        target = named.get("-destination", "") or (positional.pop(0) if positional else "")
+        if positional or not target:
+            raise ValueError(PRODUCT_DENIED)
+        return _copy_destinations(name, path, target, cwd)
+    if name == "new-item" and named.get("-itemtype", "file").lower() not in {"file", "directory"}:
+        raise ValueError(PRODUCT_DENIED)
+    if len(positional) > int(name in {"set-content", "add-content"} and "-value" not in named):
+        raise ValueError(PRODUCT_DENIED)
+    return [path]
+
+
+def _ast_path(node: ast.expr, cwd: Path) -> bool:
+    if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+        return False
+    value = node.value
+    return not _reads_secret_reference(value) and _safe_read_path(value, cwd)
+
+
+def _python_read(node: ast.Call, cwd: Path) -> bool:
+    if node.keywords or not isinstance(node.func, ast.Attribute):
+        return False
+    source = node.func.value
+    if node.args or not isinstance(source, ast.Call) or not isinstance(source.func, ast.Name):
+        return False
+    if source.keywords or not source.args or not _ast_path(source.args[0], cwd):
+        return False
+    if source.func.id == "Path":
+        return node.func.attr in {"read_text", "read_bytes"} and len(source.args) == 1
+    if source.func.id != "open" or node.func.attr != "read":
+        return False
+    return len(source.args) == 1 or (
+        len(source.args) == 2
+        and isinstance(source.args[1], ast.Constant)
+        and source.args[1].value in ("r", "rt", "rb")
+    )
+
+
+def _python_expression(node: ast.expr, cwd: Path) -> bool:
+    if isinstance(node, ast.Constant):
+        return True
+    if not isinstance(node, ast.Call):
+        return False
+    if isinstance(node.func, ast.Name) and node.func.id == "print":
+        return not node.keywords and all(_python_expression(arg, cwd) for arg in node.args)
+    return _python_read(node, cwd)
+
+
+def _python_read_only(code: str, cwd: Path, *, isolated: bool = False) -> bool:
+    try:
+        statements = ast.parse(code).body
+    except SyntaxError:
+        return False
+    for statement in statements:
+        if isinstance(statement, ast.Expr) and _python_expression(statement.value, cwd):
+            continue
+        if (
+            isolated
+            and isinstance(statement, ast.ImportFrom)
+            and statement.level == 0
+            and statement.module == "pathlib"
+            and [(alias.name, alias.asname) for alias in statement.names] == [("Path", None)]
+        ):
+            continue
+        return False
+    return bool(statements)
+
+
+def _node_read_only(code: str) -> bool:
+    match = re.fullmatch(r"\s*console\.log\((.*)\);?\s*", code)
+    if not match:
+        return False
+    try:
+        json.loads(match[1])
+    except ValueError:
+        return False
+    return True
+
+
+def _safe_reader(name: str, args: list[str], cwd: Path) -> bool:
+    if name in {"pwd", "get-location"}:
+        return not args
+    if name in {"echo", "write-output"}:
+        return not any(arg.startswith("-") for arg in args)
+    if name in {"cat", "type", "get-content", "head", "tail"}:
+        paths = _literal_operands(args, frozenset(("-path", "-literalpath")))
+        return all(_safe_read_path(path, cwd) for path in paths)
+    if name in {"ls", "dir", "get-childitem"}:
+        flags = frozenset(("-a", "-l", "-al", "-la", "-path", "-literalpath"))
+        paths = _literal_operands(args, flags)
+        return all(_safe_read_path(path, cwd, tree=True) for path in paths or ["."])
+    return False
+
+
+def _safe_read_path(path: str, cwd: Path, *, tree: bool = False) -> bool:
+    raw = Path(path)
+    return not (
+        re.search(r"[\x00-\x1f*?\[\]${}%~]", path)
+        or (raw.anchor and not raw.is_absolute())
+        or bool(re.match(r"(?i)env:", path))
+        or _reads_secret(str(_native_path(path, cwd).resolve()))
+        or _protected_path(path, cwd, tree=tree)
+    )
+
+
+def _git_destinations(args: list[str], cwd: Path) -> list[str]:
+    # Esta forma compara arquivos e grava uma saída explícita, sem alterar metadados do Git.
+    if len(args) != 8 or args[:4] != ["diff", "--no-index", "--no-ext-diff", "--no-textconv"]:
+        raise ValueError(PRODUCT_DENIED)
+    option, separator, left, right = args[4:]
+    if not option.startswith("--output=") or separator != "--":
+        raise ValueError(PRODUCT_DENIED)
+    if not all(
+        _safe_read_path(path, cwd, tree=True) and not _native_path(path, cwd).is_dir()
+        for path in (left, right)
+    ):
+        raise ValueError(PRODUCT_DENIED)
+    return [option.removeprefix("--output=")]
+
+
+def _hdast_command(name: str, args: list[str]) -> bool:
+    if name == "uv" and args[:2] == ["run", "hdast"]:
+        args = args[2:]
+    elif name not in {"hdast", "hdast.exe"}:
+        return False
+    remaining = [arg for arg in args if arg != "--json"]
+    return (
+        not remaining
+        or remaining in [["--help"], ["--version"]]
+        or not remaining[0].startswith("-")
+    )
+
+
+def _product_command(
+    words: list[str], cwd: Path, project: Path, tool: str, *, nested: bool
+) -> list[str]:
+    name, *args = words
+    name = name.lower()
+    if tool == "Bash" and any("\\" in arg for arg in args) and not PYTHON.fullmatch(name):
+        raise ValueError(PRODUCT_DENIED)
+    nested_readers = {"echo", "write-output", "get-location", "get-content", "get-childitem"}
+    if nested and name not in nested_readers:
+        raise ValueError(PRODUCT_DENIED)
+    if _safe_reader(name, args, cwd):
+        return []
+    if _hdast_command(name, args):
+        return []
+    if name in _POSITIONAL_WRITERS and tool == "Bash":
+        return _positional_destinations(name, args, cwd)
+    if name in _PS_WRITERS and tool == "PowerShell":
+        return _ps_destinations(name, args, cwd)
+    if name == "sed" and tool == "Bash":
+        return _sed_destinations(args)
+    if name == "git":
+        return _git_destinations(args, cwd)
+    if _safe_inline(name, args, cwd, project):
+        return []
+    raise ValueError(PRODUCT_DENIED)
+
+
+def _safe_inline(name: str, args: list[str], cwd: Path, project: Path) -> bool:
+    if PYTHON.fullmatch(name) and len(args) == 5 and args[:4] == ["-I", "-B", "-S", "-c"]:
+        return _python_read_only(args[-1], cwd, isolated=True)
+    if len(args) != 2:
+        return False
+    option, code = args
+    if PYTHON.fullmatch(name) and option == "-c":
+        return _python_read_only(code, cwd)
+    if name == "node" and option in {"-e", "--eval"}:
+        return _node_read_only(code)
+    if name in POWERSHELLS and option.lower() in {"-c", "-command"}:
+        _check_product_shell(code, cwd, project, "PowerShell", nested=True)
+        return True
+    return False
+
+
+def _split_product_command(
+    tokens: list[tuple[str, str]], cwd: Path, tool: str
+) -> tuple[list[str], list[str]]:
+    words = []
+    writes = []
+    remaining = iter(tokens)
+    for kind, value in remaining:
+        if kind == "word":
+            words.append(value)
+            continue
+        target_kind, target = next(remaining, ("", ""))
+        if target_kind != "word" or (value == "<" and not _safe_read_path(target, cwd)):
+            raise ValueError(PRODUCT_DENIED)
+        if tool == "Bash" and "\\" in target:
+            raise ValueError(PRODUCT_DENIED)
+        if value != "<":
+            writes.append(target)
+    return words, writes
+
+
+def _check_product_shell(
+    command: str, cwd: Path, project: Path, tool: str, *, nested: bool = False
+) -> None:
+    command = command.strip()
+    if re.search(r"[\x00-\x08\x0b-\x1f]", command):
+        raise ValueError(PRODUCT_DENIED)
+    heredoc = re.fullmatch(r"python(?:3)? -\s+<<\s*'([A-Za-z_]\w*)'\n(.*?)\n\1", command, re.S)
+    if heredoc and tool == "Bash" and not nested:
+        delimiter, code = heredoc.groups()
+        if delimiter not in code.splitlines() and _python_read_only(code, cwd):
+            return
+        raise ValueError(PRODUCT_DENIED)
+    for tokens in _product_shell_segments(command, tool):
+        words, destinations = _split_product_command(tokens, cwd, tool)
+        if not words or (nested and destinations):
+            raise ValueError(PRODUCT_DENIED)
+        destinations.extend(_product_command(words, cwd, project, tool, nested=nested))
+        if not all(_product_destination(path, cwd, project) for path in destinations):
+            raise ValueError(PRODUCT_DENIED)
+
+
 def _require_text(data: dict[str, object], key: str) -> str:
     value = data.get(key)
     if not isinstance(value, str) or not value.strip() or "\x00" in value:
@@ -540,24 +998,115 @@ def _check_mcp(value: object) -> str | None:
     return None
 
 
+def _protected_reference(value: str, cwd: Path) -> bool:
+    settings = r"(?:CLAUDE_PLUGIN_(?:DATA|ROOT)|HDAST_STATE_DIR)"
+    if re.search(rf"(?i)(?:\$(?:\{{|env:)?{settings}\b|%{settings}%)", value):
+        return True
+    if re.search(r"(?i)(?:\$\{?HOME\}?|\$env:USERPROFILE)[\\/]\.claude[\\/]plugins\b", value):
+        return True
+    fragments = re.split(r"[\s'\"`(),;=]+", value)
+    return any(_protected_fragment(part, cwd) for part in (value, *fragments))
+
+
+def _protected_fragment(part: str, cwd: Path) -> bool:
+    if not part or re.search(r"[\x00-\x1f<>|\"]", part):
+        return False
+    prefix = re.split(r"[*?\[]", part, maxsplit=1)[0]
+    if prefix == part:
+        return _protected_path(prefix, cwd)
+    directory = posixpath.dirname(prefix.replace("\\", "/"))
+    return bool(prefix and _protected_path(prefix, cwd)) or _protected_path(
+        directory or ".", cwd, tree=True
+    )
+
+
+def _protected_mcp(value: object, cwd: Path) -> bool:
+    if isinstance(value, str):
+        return _protected_reference(value, cwd)
+    if isinstance(value, dict):
+        return any(_protected_mcp(item, cwd) for item in value.values())
+    if isinstance(value, list):
+        return any(_protected_mcp(item, cwd) for item in value)
+    return False
+
+
+def _protected_search(tool: str, data: dict[str, object], cwd: Path) -> bool:
+    base = _require_text(data, "path") if "path" in data else "."
+    selector = _require_text(data, "pattern") if tool == "Glob" else ""
+    prefix = re.split(r"[*?\[]", selector, maxsplit=1)[0]
+    if prefix != selector and not prefix.endswith(("/", "\\")):
+        prefix = posixpath.dirname(prefix.replace("\\", "/"))
+    return _protected_path(prefix or ".", _native_path(base, cwd), tree=True)
+
+
+def _protected_shell(command: str, cwd: Path) -> bool:
+    if _protected_path(".", cwd) or _protected_reference(command, cwd):
+        return True
+    return any(
+        _protected_reference(value, cwd)
+        for segment in _shell_commands(command)
+        for kind, value in segment
+        if kind == "word"
+    )
+
+
+def _check_shell_call(
+    tool: str, data: dict[str, object], project: Path, context: str
+) -> str | None:
+    command = _require_text(data, "command")
+    cwd = _native_path(context or ".", project)
+    baseline = _check_shell(command, context) if context else _check_shell(command)
+    if baseline:
+        return baseline
+    if _protected_shell(command, cwd):
+        return PROTECTED_DENIED
+    if not _is_clone(project):
+        try:
+            _check_product_shell(command, cwd, project, tool)
+        except ValueError:
+            return PRODUCT_DENIED
+    return None
+
+
+def _check_file_call(tool: str, data: dict[str, object], project: Path, context: str) -> str | None:
+    cwd = _native_path(context or ".", project)
+    key = "notebook_path" if tool == "NotebookEdit" and "notebook_path" in data else "file_path"
+    path = _require_text(data, key)
+    if tool == "Read" and (
+        _reads_secret(path) or _reads_secret(str(_native_path(path, cwd).resolve()))
+    ):
+        return SENSITIVE_READ_DENIED
+    if tool != "Read" and _writes_control(_resolve_path(path, context)):
+        return WRITE_DENIED
+    if _protected_path(path, cwd):
+        return PROTECTED_DENIED
+    if tool != "Read" and not _is_clone(project) and not _product_destination(path, cwd, project):
+        return PRODUCT_DENIED
+    return None
+
+
 def _check_call(event: object) -> str | None:
     if not isinstance(event, dict) or not isinstance(data := event.get("tool_input"), dict):
         raise TypeError(INVALID_INPUT)
     tool = _require_text(event, "tool_name")
     cwd = _require_text(event, "cwd") if "cwd" in event else ""
+    project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd()).resolve()
     if tool.startswith("mcp__"):
-        return _check_mcp(data)
+        if reason := _check_mcp(data):
+            return reason
+        if _protected_mcp(data, _native_path(cwd or ".", project)):
+            return PROTECTED_DENIED
+        return None if _is_clone(project) else PRODUCT_DENIED
     if tool in SHELL_TOOLS:
-        command = _require_text(data, "command")
-        return _check_shell(command, cwd) if cwd else _check_shell(command)
-    if tool == "Read":
-        return SENSITIVE_READ_DENIED if _reads_secret(_require_text(data, "file_path")) else None
-    if tool in WRITE_TOOLS:
-        key = "notebook_path" if tool == "NotebookEdit" and "notebook_path" in data else "file_path"
-        path = _resolve_path(_require_text(data, key), cwd)
-        return WRITE_DENIED if _writes_control(path) else None
+        return _check_shell_call(tool, data, project, cwd)
+    if tool == "Read" or tool in WRITE_TOOLS:
+        return _check_file_call(tool, data, project, cwd)
     if tool in SEARCH_TOOLS:
-        return _check_search(tool, data)
+        if reason := _check_search(tool, data):
+            return reason
+        if _protected_search(tool, data, _native_path(cwd or ".", project)):
+            return PROTECTED_DENIED
+        return None
     raise ValueError(INVALID_INPUT)
 
 
