@@ -4,11 +4,15 @@
 segmento com `{` e outro texto, como `{id}.json`, também vira `*`: casa um pouco a mais, nunca
 um segmento a mais). A sugestão de `scope.deny_paths` é heurística, por nome de segmento
 literal: recuperação, esquecimento e troca de senha, logout, exclusão de conta e administração.
+Os trechos de nome são buscados por substring. `otp` exige uma palavra inteira, separada por
+`-`, `_`, `.`, espaço ou fronteira camelCase, porque `check-otp` conclui a recuperação de senha
+no crAPI.
 Um caminho perigoso com nome inesperado escapa dela; por isso o agente pode acrescentar
 caminhos a partir da documentação de negócio e a pessoa revisa tudo na aprovação. Este módulo
 é puro e só soma: nada aqui remove um caminho negado.
 """
 
+import re
 from collections.abc import Iterable
 from typing import Final
 
@@ -34,6 +38,7 @@ _NAME_KEYWORDS: Final = (
 )
 """Trechos de nome (minúsculas, sem `-` nem `_`) que fazem o caminho entrar na sugestão."""
 _SEPARATORS: Final = str.maketrans("", "", "-_. ")
+_WORD_BOUNDARIES: Final = re.compile(r"[-_. ]+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
 
 def to_scope_pattern(template: str, prefix: str = "") -> str | None:
@@ -63,6 +68,8 @@ def _is_dangerous(template: str) -> bool:
             continue
         name = segment.lower().translate(_SEPARATORS)
         if any(keyword in name for keyword in _NAME_KEYWORDS):
+            return True
+        if any(word.lower() == "otp" for word in _WORD_BOUNDARIES.split(segment)):
             return True
     return False
 

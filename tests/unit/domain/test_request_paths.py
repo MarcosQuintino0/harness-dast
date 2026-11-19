@@ -63,6 +63,8 @@ def test_sugestao_nega_a_recuperacao_de_senha_do_crapi() -> None:
     denied = suggest_deny_paths(_paths("lab/crapi", "openapi.json"), "", frozenset())
 
     assert "/identity/api/auth/forget-password" in denied
+    assert "/identity/api/auth/v2/check-otp" in denied
+    assert "/identity/api/auth/v3/check-otp" in denied
     assert "/identity/api/v2/user/reset-password" in denied
     assert "/identity/api/v2/admin/videos/*" in denied
 
@@ -104,9 +106,23 @@ def test_sugestao_ignora_o_nome_do_marcador_quando_ele_parece_perigoso() -> None
     assert suggest_deny_paths(("/users/{admin}",), "", frozenset()) == ()
 
 
+@pytest.mark.parametrize(
+    "template",
+    ["/auth/verifyOtp", "/auth/verifyOTP", "/auth/OTPVerify", "/auth/check_otp", "/auth/check.otp"],
+)
+def test_sugestao_nega_o_caminho_quando_otp_e_uma_palavra(template: str) -> None:
+    assert suggest_deny_paths((template,), "", frozenset()) == (template,)
+
+
+@pytest.mark.parametrize("template", ["/footprint", "/hotpots", "/auth/{otp}"])
+def test_sugestao_ignora_otp_quando_nao_e_palavra_em_segmento_literal(template: str) -> None:
+    assert suggest_deny_paths((template,), "", frozenset()) == ()
+
+
 def test_sugestao_preserva_o_login_quando_ele_esta_na_lista_de_preservar() -> None:
+    keep = frozenset({"/auth/password-login", "/auth/otp-login"})
     denied = suggest_deny_paths(
-        ("/auth/password-login", "/auth/reset"), "", frozenset({"/auth/password-login"})
+        ("/auth/password-login", "/auth/otp-login", "/auth/reset"), "", keep
     )
 
     assert denied == ("/auth/reset",)

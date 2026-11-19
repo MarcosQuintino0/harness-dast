@@ -376,7 +376,21 @@ def test_reprova_quando_forget_password_esta_no_escopo(safe_profile: Path, case:
 def test_reprova_quando_a_v3_do_otp_nao_foi_negada(pedido_round: RoundDirs, case: Case) -> None:
     target = _init(pedido_round, _request_letter())
 
+    def change(data: dict[str, Any]) -> None:
+        deny = data["scope"]["deny_paths"]
+        data["scope"]["deny_paths"] = [p for p in deny if "check-otp" not in p]
+
+    _rewrite(target, change)
+
     assert _failed(target, case) == {"never_paths"}
+
+
+def test_nao_reprova_quando_o_pedido_usa_so_os_padroes_da_cli(
+    pedido_round: RoundDirs, case: Case
+) -> None:
+    target = _init(pedido_round, _request_letter())
+
+    assert _failed(target, case) == set()
 
 
 def test_nao_reprova_quando_o_caminho_nunca_nem_esta_no_allow(
