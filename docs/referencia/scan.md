@@ -62,6 +62,10 @@ Antes da primeira varredura o ZAP recebe: `threadPerHost` (`limits.zap_threads_p
 
 Todos os ids foram conferidos no ZAP 2.17.0 (a imagem tem 53 regras de varredura ativa). O id 10095 (Backup File Disclosure), que constava da primeira versão desta lista, é uma regra **passiva**: não existe no varredor ativo e fazia o ZAP recusar o `disableScanners` inteiro; foi removido. O adaptador lê as regras da política ANTES de desligar e recusa a execução (saída 4) citando os ids que a imagem não tem (por exemplo, um `scan.disable_rules` errado do perfil), e as lê de volta DEPOIS, recusando se uma regra que devia estar desligada continua ligada.
 
+## O que o `scan` não faz: o segundo motor
+
+O `scan` é só do ZAP e fica no escopo estrito: ataca o que o contrato descreve. Falhas conhecidas de produtos de prateleira, configuração errada e exposição fora do Swagger (como o Actuator aberto) são do Nuclei, o [`hdast nuclei`](cli.md#hdast-nuclei), que roda depois do `scan` no `hdast run`, atrás da segunda cerca e só com `extra_checks.nuclei` no perfil ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). O ZAP nunca passa pela política do Nuclei, e as regras de arquivos ocultos acima continuam desligadas.
+
 ## Token (Replacer)
 
 A CLI faz o login (mesma sessão e mesmo orçamento de login do `probe`), instala regras do Replacer com nome `hdast-auth-<conta>-<geração>-<n>`, `matchType=REQ_HEADER` no cabeçalho de autenticação do perfil e `url` restrita à origem do alvo, e **renova** por `addRule` da geração nova antes de `removeRule` da antiga quando passa `scan.token_refresh_seconds` (mínimo `60 / auth.login_limit.max_per_minute`) ou o JWT está a menos de 30 s de expirar. **Remove tudo ao fim**, em sucesso, erro e Ctrl+C: primeiro pelo nome, depois uma varredura por prefixo `hdast-`.
