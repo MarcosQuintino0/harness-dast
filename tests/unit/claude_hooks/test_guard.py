@@ -1085,6 +1085,76 @@ def test_allows_read_only_diagnostic_when_folder_is_products_workspace(
 
 
 @pytest.mark.parametrize(
+    "command",
+    [
+        "grep -A4 '\"servers\"' inputs/openapi.json",
+        "grep servers inputs/openapi.json",
+        "grep -o '\"servers\"[^]]*]' inputs/openapi.json | head -3",
+        "find . -maxdepth 3",
+        "ls -la && find . -maxdepth 3 | head -50",
+        "hdast doctor 2>&1",
+        "hdast doctor 2>&1 | tail -30",
+        "uv run hdast doctor 2>&1 | tail -30",
+        "hdast doctor >&2",
+        "hdast doctor 1>&2",
+        "cat >> products/crapi/data-rules.yml <<'EOF'\nresource: example\nEOF",
+        "cat > products/crapi/x.yml <<'EOF'\nvalue: '$(literal)'\nEOF\n",
+    ],
+)
+def test_allows_literal_shell_operations_when_folder_is_products_workspace(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo x > fora.txt",
+        "cat > ../fora.yml <<'EOF'\nvalue: 1\nEOF",
+        "cat > products/crapi/x.yml <<'EOF'\nvalue: 1\nEOF\necho x > fora.txt",
+        "cat > products/crapi/x.yml <<EOF\nvalue: 1\nEOF",
+        "find . -delete",
+        r"find . -exec rm {} \;",
+        r"find . -execdir rm {} \;",
+        r"find . -ok rm {} \;",
+        r"find . -okdir rm {} \;",
+        "find . -fprint fora.txt",
+        "find . -fprint0 fora.txt",
+        "find . -fprintf fora.txt x",
+        "find . -fls fora.txt",
+        "grep -r senha ~/.claude",
+        "grep -rn servers inputs",
+        "grep senha .env",
+        "grep -o 'senha' .env",
+        "grep -f inputs/patterns inputs/openapi.json",
+        "hdast doctor 2> fora.log",
+        "hdast doctor > fora.txt 2>&1",
+        "hdast doctor >&fora.log",
+        "hdast doctor >&2\u00a0",
+        "hdast stack up --build",
+        "cat .env",
+    ],
+)
+def test_denies_unsafe_shell_operations_when_folder_is_products_workspace(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 2
+
+
+def test_keeps_output_outside_products_allowed_when_folder_is_clone(guard: ModuleType) -> None:
+    assert _call(guard, "Bash", command="hdast doctor > fora.txt 2>&1") == (0, "")
+
+
+@pytest.mark.parametrize("command", ["find . -maxdepth 3", "grep -o 'x' private/report.txt"])
+def test_denies_shell_read_when_path_covers_private_state(
+    guard: ModuleType, products_workspace: Path, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    monkeypatch.setenv("HDAST_STATE_DIR", str(products_workspace / "private"))
+    assert _call(guard, "Bash", command=command)[0] == 2
+
+
+@pytest.mark.parametrize(
     "command", ["Get-PSDrive", "systeminfo", "wsl --status", "winget --version"]
 )
 def test_allows_read_only_diagnostic_when_powershell_runs_it(
@@ -1116,7 +1186,7 @@ def test_allows_read_only_diagnostic_when_powershell_runs_it(
         "echo $(whoami)",
         "echo `whoami`",
         "uname -$(id)",
-        "grep x file.txt",
+        "grep x ~/.claude/.credentials.json",
         "uv tool list | sort -o saida.txt",
         "uv tool list | tee fora.txt",
         "uv tool list | grep -r x",
