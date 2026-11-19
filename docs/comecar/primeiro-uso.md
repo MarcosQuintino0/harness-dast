@@ -107,6 +107,8 @@ Leva cerca de 15 minutos. Uma [operação varrida](../referencia/glossario.md#op
 
 Depois da varredura, o `run` verifica a autorização entre contas em modo de leitura. Os testes incluem [BOLA](../referencia/glossario.md#bola), quando uma conta consegue acessar um recurso que pertence a outra, e [BFLA](../referencia/glossario.md#bfla), quando uma conta consegue usar uma função proibida para seu papel. A comparação de acesso a recursos só acontece com **duas contas do mesmo papel** (o VAmPI tem `user_a` e `user_b`). A escrita, como o teste de [atribuição em massa](../referencia/glossario.md#atribuição-em-massa) (a API grava campos que a conta não deveria poder alterar), só roda se a carta autorizar (`authz.allow_writes`). `--no-authz` pula o estágio, `--authz` ainda é aceito e o estágio é pulado com `--skip-scan`.
 
+Entre o `scan` e o `authz`, o `run` roda o Nuclei, o segundo motor, **só se o perfil tem `extra_checks.nuclei`** (vem da carta ou do pedido mínimo, nunca do agente). Ele procura falhas conhecidas de produtos de prateleira e exposição fora do Swagger, atrás de uma segunda cerca, e exige a imagem do Nuclei (`uv run hdast stack pull` baixa as três). `--no-nuclei` pula a etapa. [`hdast nuclei`](../referencia/cli.md#hdast-nuclei).
+
 Em seguida, `negative` verifica se a API rejeita valores proibidos pelo Swagger. Vem em modo de leitura, aceita `--no-negative` para pular e só escreve se a carta permitir (`negative.allow_writes`).
 
 Acompanhe em outro terminal pelo arquivo `runs\<run_id>\scan-progress.json`. Para parar com segurança, use `uv run hdast stop`. Ao fim, o código `0` indica que não houve achado acima do limiar, e `1` indica que houve achado no limiar. [Códigos de saída](../referencia/exit-codes.md).

@@ -26,7 +26,7 @@ hdast stack pull
 hdast doctor
 ```
 
-A instalação usa o Compose do pacote e as imagens publicadas por digest. Para a demo e os alvos de laboratório mantidos no repositório, use o clone.
+A instalação usa o Compose do pacote e as imagens publicadas por digest: o ZAP, o proxy de escopo e o Nuclei, o segundo motor ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). O Nuclei é uma imagem a mais para baixar, com `hdast stack pull`; ela só é usada quando o perfil tem `extra_checks.nuclei`. Para a demo e os alvos de laboratório mantidos no repositório, use o clone.
 
 ## Pelo clone de desenvolvimento
 
