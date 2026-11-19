@@ -4,11 +4,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from harness_dast import __version__
 from harness_dast.application.doctor import Doctor
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.secret_router import RoutingSecretProvider
-from harness_dast.application.stack_images import StackImages
 from harness_dast.application.validate_profile import ValidateProfile
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.observability.logging import MASK, SecretRegistry
@@ -107,7 +105,7 @@ class DoctorSetup:
         clock = ManualClock()
         self.doctor = Doctor(
             host=host,
-            images=StackImages(host, __version__),
+            images=host.stack_images(),
             profiles=profiles,
             validator=ValidateProfile(profiles, clock, InMemoryApprovalStore()),
             secrets=RoutingSecretProvider(DictSecretProvider({"ACME_USER_A_LOGIN": LOGIN}), store),

@@ -19,11 +19,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: ghcr.io/marcosquintino0/hdast-zap
+          - key: zap
+            image: ghcr.io/marcosquintino0/hdast-zap
             context: docker/zap
             file: docker/zap/Dockerfile
             check_package_version: false
-          - image: ghcr.io/marcosquintino0/hdast-scope-proxy
+          - key: scope-proxy
+            image: ghcr.io/marcosquintino0/hdast-scope-proxy
             context: .
             file: docker/scope-proxy/Dockerfile
             check_package_version: true
@@ -76,3 +78,49 @@ jobs:
           subject-name: ${{ matrix.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+      - name: Gravar o digest publicado
+        env:
+          IMAGE_KEY: ${{ matrix.key }}
+          IMAGE_REPOSITORY: ${{ matrix.image }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          printf '%s@%s\n' "$IMAGE_REPOSITORY" "$IMAGE_DIGEST" > "$RUNNER_TEMP/$IMAGE_KEY.txt"
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: image-digest-${{ matrix.key }}
+          path: ${{ runner.temp }}/${{ matrix.key }}.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  images-lock:
+    name: Gerar arquivo de digests
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: image-digest-*
+          path: ${{ runner.temp }}/image-digests
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: false
+      - name: Validar os digests e gravar images.lock.json
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --locked --no-dev scripts/write_images_lock.py "${RELEASE_TAG#v}" \
+            "$(cat "$RUNNER_TEMP/image-digests/zap.txt")" \
+            "$(cat "$RUNNER_TEMP/image-digests/scope-proxy.txt")"
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: images-lock
+          path: src/harness_dast/adapters/docker/images.lock.json
+          if-no-files-found: error

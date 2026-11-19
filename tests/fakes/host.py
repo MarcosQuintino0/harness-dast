@@ -4,8 +4,25 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from harness_dast import __version__
-from harness_dast.application.stack_images import ImageInfo
+from harness_dast.application.stack_images import ImageInfo, StackImages
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.images_lock import ImagesLock, LockedImage, LockedImages
+
+
+def published_images(version: str = __version__) -> ImagesLock:
+    """Imagens publicadas simuladas com digests distintos."""
+    return ImagesLock(
+        schema_version=1,
+        version=version,
+        images=LockedImages(
+            zap=LockedImage(
+                repository="registry.example/zap", tag=version, digest="sha256:" + "a" * 64
+            ),
+            scope_proxy=LockedImage(
+                repository="registry.example/proxy", tag=version, digest="sha256:" + "b" * 64
+            ),
+        ),
+    )
 
 
 class FakeHost:
@@ -33,6 +50,17 @@ class FakeHost:
         self.directories: set[Path] = set()
         self.docker_calls = 0
         self.requested_services: tuple[str, ...] = ()
+        self.images_lock: ImagesLock | None = None
+        self.build_contexts = True
+
+    def stack_images(self) -> StackImages:
+        """Monta a seleção com os digests e os contextos simulados."""
+        return StackImages(
+            self,
+            __version__,
+            load_lock=lambda: self.images_lock,
+            has_build_contexts=lambda: self.build_contexts,
+        )
 
     def docker_version(self) -> str:
         self.docker_calls += 1
@@ -61,6 +89,7 @@ class FakeHost:
         )
 
     def pull_image(self, reference: str) -> None:
+        self.docker_calls += 1
         if self.docker_error is not None:
             raise self.docker_error
         if reference not in self.remote:
