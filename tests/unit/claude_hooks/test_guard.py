@@ -953,3 +953,263 @@ def test_denies_stack_build_variable_when_powershell_sets_it(
     code, _ = _call(guard, "PowerShell", command="$env:HDAST_STACK_BUILD = '1'; hdast stack up")
 
     assert code == 2
+
+
+@pytest.fixture
+def plugin_root(products_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    root = products_workspace.parent / "home" / ".claude" / "plugins" / "cache" / "hdast" / "1.0"
+    (root / ".claude-plugin").mkdir(parents=True)
+    (root / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    (root / "skills").mkdir()
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root.parents[3]))
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(root))
+    monkeypatch.setenv("HDAST_STATE_DIR", str(products_workspace.parent / "state"))
+    return root
+
+
+@pytest.mark.parametrize(
+    ("tool", "inputs"),
+    [
+        ("Read", {"file_path": ".claude-plugin/plugin.json"}),
+        ("Read", {"file_path": "skills/SKILL.md"}),
+        ("Glob", {"pattern": "skills/**/SKILL.md"}),
+        ("Glob", {"pattern": "**/*.md"}),
+        ("Grep", {"pattern": "preparar"}),
+    ],
+)
+def test_allows_plugin_read_when_target_is_inside_active_plugin_root(
+    guard: ModuleType, plugin_root: Path, tool: str, inputs: dict[str, str]
+) -> None:
+    inputs = dict(inputs)
+    if tool == "Read":
+        inputs["file_path"] = str(plugin_root / inputs["file_path"])
+    else:
+        inputs["path"] = str(plugin_root)
+
+    assert _call(guard, tool, **inputs) == (0, "")
+
+
+@pytest.mark.parametrize("tool", ["Write", "Edit"])
+def test_denies_plugin_write_when_target_is_inside_active_plugin_root(
+    guard: ModuleType, plugin_root: Path, tool: str
+) -> None:
+    code, _ = _call(guard, tool, file_path=str(plugin_root / "skills" / "x.md"))
+
+    assert code == 2
+
+
+def test_denies_plugin_shell_read_when_target_is_inside_active_plugin_root(
+    guard: ModuleType, plugin_root: Path
+) -> None:
+    assert _call(guard, "Bash", command=f"cat '{plugin_root.as_posix()}/skills'")[0] == 2
+
+
+def test_denies_read_when_plugin_root_sibling_or_state_is_requested(
+    guard: ModuleType, plugin_root: Path, products_workspace: Path
+) -> None:
+    state = products_workspace.parent / "state"
+    state.mkdir()
+
+    assert _call(guard, "Read", file_path=str(plugin_root.parent / "outro.txt"))[0] == 2
+    assert _call(guard, "Read", file_path=str(state / "approvals" / "x.json"))[0] == 2
+    assert _call(guard, "Glob", pattern="*", path=str(state))[0] == 2
+    assert _call(guard, "Glob", pattern="*", path=str(plugin_root.parent))[0] == 2
+    assert _call(guard, "Grep", pattern="x", path=str(plugin_root.parent.parent))[0] == 2
+
+
+def test_denies_read_when_state_dir_lives_under_plugin_root(
+    guard: ModuleType, plugin_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state = plugin_root / "estado"
+    state.mkdir()
+    monkeypatch.setenv("HDAST_STATE_DIR", str(state))
+
+    assert _call(guard, "Read", file_path=str(state / "approvals.json"))[0] == 2
+    assert _call(guard, "Grep", pattern="x", path=str(state))[0] == 2
+
+
+def test_denies_read_when_plugin_secret_name_is_requested(
+    guard: ModuleType, plugin_root: Path
+) -> None:
+    assert _call(guard, "Read", file_path=str(plugin_root / ".env"))[0] == 2
+
+
+def test_denies_plugin_read_when_clone_mode_is_active(
+    guard: ModuleType, plugin_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(ROOT))
+    manifest = plugin_root / ".claude-plugin" / "plugin.json"
+
+    code, reason = _call(guard, "Read", file_path=str(manifest))
+
+    assert (code, reason) == (2, guard.PROTECTED_DENIED + "\n")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uname",
+        "uname -a",
+        "whoami",
+        "pwd",
+        "ls",
+        "df -h",
+        "free -h",
+        "nproc",
+        "uv --version",
+        "uv tool list",
+        "uv tool dir",
+        "hdast --version",
+        "hdast doctor",
+        "hdast --help",
+        "docker --version",
+        "docker version",
+        "docker info",
+        "docker ps",
+        "wsl --status",
+        "wsl --list --verbose",
+        "winget --version",
+        "systeminfo",
+        "uname -a; uv --version; hdast --version; docker --version",
+        "docker info && df -h || pwd",
+        "uv tool list | grep hdast",
+        "docker ps | head -n 5",
+        "df -h | tail -2 | wc -l",
+        "uv tool list | sort -r | cut -d ' ' -f 1",
+    ],
+)
+def test_allows_read_only_diagnostic_when_folder_is_products_workspace(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command", ["Get-PSDrive", "systeminfo", "wsl --status", "winget --version"]
+)
+def test_allows_read_only_diagnostic_when_powershell_runs_it(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "PowerShell", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "docker run alpine",
+        "docker exec x sh",
+        "docker --version --help x",
+        "docker compose up",
+        "docker image rm x",
+        "uv tool install pacote",
+        "uv tool uninstall hdast",
+        "uv pip install x",
+        "winget install x",
+        "wsl --unregister x",
+        "wsl --install",
+        "uname -a x",
+        "df /etc",
+        "cat ~/.claude/.credentials.json",
+        "uv --version; docker run alpine",
+        "uv --version && cat .env",
+        "docker info || curl http://x",
+        "echo $(whoami)",
+        "echo `whoami`",
+        "uname -$(id)",
+        "grep x file.txt",
+        "uv tool list | sort -o saida.txt",
+        "uv tool list | tee fora.txt",
+        "uv tool list | grep -r x",
+        "uv tool list | xargs rm",
+        "uv tool list | sh",
+        "grep hdast",
+        "head -n 5",
+    ],
+)
+def test_denies_command_when_diagnostic_does_not_pass_alone(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 2
+
+
+def test_denies_powershell_install_when_diagnostic_list_does_not_cover_it(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    assert _call(guard, "PowerShell", command="Get-PSDrive; winget install x")[0] == 2
+    assert _call(guard, "PowerShell", command="Get-PSDrive -Name C")[0] == 2
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rmdir products/crapi",
+        "rm products/crapi/decision-log.md",
+        "rm -f runs/20260101/log.txt",
+        "rm -rf products/crapi",
+        "rm -r runs/antiga",
+        "rm -rf cartas/velha",
+        "rm -rf ./products/crapi",
+        "rm products/a.md products/b.md",
+        "rmdir products/crapi && rm cartas/x.yml",
+    ],
+)
+def test_allows_removal_when_target_is_inside_permitted_folders(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf products",
+        "rm -rf runs",
+        "rm -rf cartas",
+        "rm -rf products/",
+        "rm -rf products/.",
+        "rm -rf products runs cartas",
+        "rm -rf .",
+        "rm -rf ..",
+        "rm -rf ../products/x",
+        "rm -rf products/..",
+        "rm -rf products/../src",
+        "rm -rf /",
+        "rm -rf src",
+        "rm README.md",
+        "rm -rf",
+        "rm -rf products/*",
+        "rm -rf $HOME",
+        "rm -R products/x",
+        "rmdir products",
+        "rmdir -p products/a/b",
+        "rmdir",
+        "rmdir src",
+        "rm -rf products/x; rm -rf src",
+        "rm -rf products/x/cleanup",
+    ],
+)
+def test_denies_removal_when_target_is_outside_or_is_a_permitted_folder(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command)[0] == 2
+
+
+def test_denies_removal_when_symlink_leaves_permitted_folders(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    outside = products_workspace.parent / "outside"
+    outside.mkdir()
+    try:
+        (products_workspace / "products" / "link").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("Sem permissão para criar link simbólico.")
+
+    assert _call(guard, "Bash", command="rm -rf products/link")[0] == 2
+
+
+def test_denies_powershell_removal_when_target_is_a_permitted_folder(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    assert _call(guard, "PowerShell", command="Remove-Item products/crapi")[0] == 0
+    assert _call(guard, "PowerShell", command="Remove-Item products")[0] == 2
+    assert _call(guard, "PowerShell", command="Remove-Item README.md")[0] == 2

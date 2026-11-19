@@ -193,6 +193,35 @@ def _protected_roots() -> tuple[Path, ...]:
     return tuple(roots)
 
 
+def _plugin_readable(path: Path) -> bool:
+    """Diz se o caminho está na raiz do plugin ativo e fora do estado privado do hdast.
+
+    Só vale para leitura: o plugin é código e instrução do próprio agente, sem segredo. A raiz
+    vem de `CLAUDE_PLUGIN_ROOT`; sem ela nada é liberado. O estado do hdast (aprovações,
+    confirmações, cofre) e a pasta de dados do plugin seguem barrados mesmo se ficarem sob a raiz.
+    """
+    root = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if not root:
+        return False
+    base = Path(root)
+    private = [_state_root()]
+    if data := os.environ.get("CLAUDE_PLUGIN_DATA"):
+        private.append(Path(data))
+    locations = (Path(os.path.abspath(path)), path.resolve())
+    bases = (Path(os.path.abspath(base)), base.resolve())
+    if not all(
+        location.is_relative_to(boundary)
+        for location, boundary in zip(locations, bases, strict=True)
+    ):
+        return False
+    return not any(
+        location.is_relative_to(boundary)
+        for location in locations
+        for secret in private
+        for boundary in (Path(os.path.abspath(secret)), secret.resolve())
+    )
+
+
 def _native_path(value: str, cwd: Path) -> Path:
     if sys.platform == "win32" and (msys := re.fullmatch(r"/([a-zA-Z])(/.*)", value)):
         value = f"{msys[1]}:{msys[2]}"
@@ -624,6 +653,7 @@ _POSITIONAL_WRITERS = {
     "install": frozenset(),
     "mv": frozenset(("-f", "--force")),
     "rm": frozenset(("-f", "-r", "-rf", "-fr", "--force", "--recursive")),
+    "rmdir": frozenset(),
     "mkdir": frozenset(("-p", "--parents")),
     "touch": frozenset(),
 }
@@ -640,8 +670,12 @@ _PS_WRITERS = frozenset(
 )
 
 
-def _product_shell_segments(command: str, tool: str) -> Iterator[list[tuple[str, str]]]:
+def _product_shell_segments(
+    command: str, tool: str
+) -> Iterator[tuple[list[tuple[str, str]], bool]]:
+    # Cada parte sai com um sinal: veio logo depois de `|`? Só então um filtro de leitura vale.
     tokens: list[tuple[str, str]] = []
+    piped = False
     end = 0
     previous = "space"
     pattern = _PRODUCT_BASH_TOKEN if tool == "Bash" else _PRODUCT_POWERSHELL_TOKEN
@@ -654,8 +688,9 @@ def _product_shell_segments(command: str, tool: str) -> Iterator[list[tuple[str,
         if kind == "separator":
             if not tokens:
                 raise ValueError(PRODUCT_DENIED)
-            yield tokens
+            yield tokens, piped
             tokens = []
+            piped = value == "|"
         elif kind in {"word", "redirect"}:
             if previous == "word" and (kind == "word" or tokens[-1][1].isdigit()):
                 raise ValueError(PRODUCT_DENIED)
@@ -664,7 +699,7 @@ def _product_shell_segments(command: str, tool: str) -> Iterator[list[tuple[str,
     if end != len(command) or (not tokens and previous != "separator"):
         raise ValueError(PRODUCT_DENIED)
     if tokens:
-        yield tokens
+        yield tokens, piped
 
 
 def _literal_word(value: str, tool: str) -> str:
@@ -717,8 +752,32 @@ def _sed_destinations(args: list[str]) -> list[str]:
     return paths + [path + suffix for path in paths if suffix]
 
 
-def _positional_destinations(name: str, args: list[str], cwd: Path) -> list[str]:
+def _inside_product_folder(value: str, cwd: Path, project: Path) -> bool:
+    """Diz se o alvo fica dentro de products/, runs/ ou cartas/, nunca nelas mesmas."""
+    path = _native_path(value, cwd)
+    for location in (Path(os.path.abspath(path)), path.resolve()):
+        if not location.is_relative_to(project):
+            return False
+        parts = location.relative_to(project).parts
+        if len(parts) < 2 or parts[0] not in PRODUCT_DIRECTORIES:
+            return False
+        # O script de limpeza é de autoria humana: o agente também não o apaga.
+        if "cleanup" in parts[2:]:
+            return False
+    return True
+
+
+def _check_removal(paths: list[str], cwd: Path, project: Path) -> list[str]:
+    # Apagar exige alvo explícito dentro das pastas permitidas; as três pastas e a raiz ficam.
+    if not paths or not all(_inside_product_folder(path, cwd, project) for path in paths):
+        raise ValueError(PRODUCT_DENIED)
+    return paths
+
+
+def _positional_destinations(name: str, args: list[str], cwd: Path, project: Path) -> list[str]:
     operands = _literal_operands(args, _POSITIONAL_WRITERS[name])
+    if name in {"rm", "rmdir"}:
+        return _check_removal(operands, cwd, project)
     if name in {"cp", "mv", "install"}:
         if len(operands) != 2:
             raise ValueError(PRODUCT_DENIED)
@@ -873,6 +932,82 @@ def _git_destinations(args: list[str], cwd: Path) -> list[str]:
     return [option.removeprefix("--output=")]
 
 
+# Diagnóstico só de leitura: formas exatas, sem instalar, gravar nem ler segredo.
+_DIAGNOSTIC_FORMS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "uv": (("--version",), ("tool", "list"), ("tool", "dir")),
+    "docker": (("--version",), ("version",), ("info",), ("ps",), ("ps", "-a"), ("ps", "--all")),
+    "wsl": (
+        ("--status",),
+        ("--list",),
+        ("-l",),
+        ("--list", "--verbose"),
+        ("--list", "-v"),
+        ("-l", "--verbose"),
+        ("-l", "-v"),
+    ),
+    "winget": (("--version",),),
+    "whoami": ((),),
+    "nproc": ((),),
+    "systeminfo": ((),),
+    "get-psdrive": ((),),
+}
+_DIAGNOSTIC_FLAGS = {
+    "uname": re.compile(r"-[asmrnopvi]+"),
+    "df": re.compile(r"-[hHkTPal]+"),
+    "free": re.compile(r"-[hmgbkw]+"),
+}
+_FILTER_NUMBER = re.compile(r"\+?\d+")
+
+
+def _diagnostic_command(name: str, args: list[str]) -> bool:
+    name = name.removesuffix(".exe")
+    if name in _DIAGNOSTIC_FLAGS:
+        return all(_DIAGNOSTIC_FLAGS[name].fullmatch(arg) for arg in args)
+    return tuple(arg.lower() for arg in args) in _DIAGNOSTIC_FORMS.get(name, ())
+
+
+def _count_filter(args: list[str]) -> bool:
+    # head e tail só da entrada padrão: `-n N`, `-c N`, `-N`, `-nN`, `-cN`.
+    remaining = iter(args)
+    for arg in remaining:
+        if arg in {"-n", "-c"}:
+            if not _FILTER_NUMBER.fullmatch(next(remaining, "")):
+                return False
+        elif not re.fullmatch(r"-(?:[nc]\+?)?\d+", arg):
+            return False
+    return True
+
+
+def _cut_filter(args: list[str]) -> bool:
+    remaining = iter(args)
+    for arg in remaining:
+        if arg in {"-d", "-f", "-c", "-b"}:
+            if not next(remaining, ""):
+                return False
+        elif not re.fullmatch(r"-[dfcb].+|-s|--complement", arg):
+            return False
+    return True
+
+
+def _grep_filter(args: list[str]) -> bool:
+    patterns = [arg for arg in args if not arg.startswith("-")]
+    flags = [arg for arg in args if arg.startswith("-")]
+    return len(patterns) == 1 and all(re.fullmatch(r"-[ivcnwxFEHhqsoa]+", arg) for arg in flags)
+
+
+def _pipe_filter(name: str, args: list[str]) -> bool:
+    """Filtros de leitura que só leem a entrada padrão; valem depois de `|`."""
+    if name in {"head", "tail"}:
+        return _count_filter(args)
+    if name == "wc":
+        return all(re.fullmatch(r"-[lwcmL]+", arg) for arg in args)
+    if name == "sort":
+        return all(re.fullmatch(r"-[rnufhV]+", arg) for arg in args)
+    if name == "cut":
+        return _cut_filter(args)
+    return name == "grep" and _grep_filter(args)
+
+
 def _hdast_command(name: str, args: list[str]) -> bool:
     if name == "uv" and args[:2] == ["run", "hdast"]:
         args = args[2:]
@@ -886,8 +1021,19 @@ def _hdast_command(name: str, args: list[str]) -> bool:
     )
 
 
+def _reads_only(name: str, args: list[str], cwd: Path, tool: str, *, piped: bool) -> bool:
+    if piped and tool == "Bash" and _pipe_filter(name, args):
+        return True
+    return _diagnostic_command(name, args) or _safe_reader(name, args, cwd)
+
+
+def _ps_writer(name: str, args: list[str], cwd: Path, project: Path) -> list[str]:
+    paths = _ps_destinations(name, args, cwd)
+    return _check_removal(paths, cwd, project) if name == "remove-item" else paths
+
+
 def _product_command(
-    words: list[str], cwd: Path, project: Path, tool: str, *, nested: bool
+    words: list[str], cwd: Path, project: Path, tool: str, *, nested: bool, piped: bool = False
 ) -> list[str]:
     name, *args = words
     name = name.lower()
@@ -896,14 +1042,12 @@ def _product_command(
     nested_readers = {"echo", "write-output", "get-location", "get-content", "get-childitem"}
     if nested and name not in nested_readers:
         raise ValueError(PRODUCT_DENIED)
-    if _safe_reader(name, args, cwd):
-        return []
-    if _hdast_command(name, args):
+    if _reads_only(name, args, cwd, tool, piped=piped) or _hdast_command(name, args):
         return []
     if name in _POSITIONAL_WRITERS and tool == "Bash":
-        return _positional_destinations(name, args, cwd)
+        return _positional_destinations(name, args, cwd, project)
     if name in _PS_WRITERS and tool == "PowerShell":
-        return _ps_destinations(name, args, cwd)
+        return _ps_writer(name, args, cwd, project)
     if name == "sed" and tool == "Bash":
         return _sed_destinations(args)
     if name == "git":
@@ -961,11 +1105,11 @@ def _check_product_shell(
         if delimiter not in code.splitlines() and _python_read_only(code, cwd):
             return
         raise ValueError(PRODUCT_DENIED)
-    for tokens in _product_shell_segments(command, tool):
+    for tokens, piped in _product_shell_segments(command, tool):
         words, destinations = _split_product_command(tokens, cwd, tool)
         if not words or (nested and destinations):
             raise ValueError(PRODUCT_DENIED)
-        destinations.extend(_product_command(words, cwd, project, tool, nested=nested))
+        destinations.extend(_product_command(words, cwd, project, tool, nested=nested, piped=piped))
         if not all(_product_destination(path, cwd, project) for path in destinations):
             raise ValueError(PRODUCT_DENIED)
 
@@ -1047,12 +1191,16 @@ def _protected_mcp(value: object, cwd: Path) -> bool:
 
 
 def _protected_search(tool: str, data: dict[str, object], cwd: Path) -> bool:
+    return _protected_path(str(_search_location(tool, data, cwd)), cwd, tree=True)
+
+
+def _search_location(tool: str, data: dict[str, object], cwd: Path) -> Path:
     base = _require_text(data, "path") if "path" in data else "."
     selector = _require_text(data, "pattern") if tool == "Glob" else ""
     prefix = re.split(r"[*?\[]", selector, maxsplit=1)[0]
     if prefix != selector and not prefix.endswith(("/", "\\")):
         prefix = posixpath.dirname(prefix.replace("\\", "/"))
-    return _protected_path(prefix or ".", _native_path(base, cwd), tree=True)
+    return _native_path(prefix or ".", _native_path(base, cwd))
 
 
 def _protected_shell(command: str, cwd: Path) -> bool:
@@ -1102,7 +1250,9 @@ def _check_file_call(tool: str, data: dict[str, object], project: Path, context:
         return SENSITIVE_READ_DENIED
     if tool != "Read" and _writes_control(_resolve_path(path, context)):
         return WRITE_DENIED
-    if _protected_path(path, cwd):
+    if _protected_path(path, cwd) and not (
+        tool == "Read" and not _is_clone(project) and _plugin_readable(_native_path(path, cwd))
+    ):
         return PROTECTED_DENIED
     if tool != "Read" and not _is_clone(project) and not _product_destination(path, cwd, project):
         return PRODUCT_DENIED
@@ -1128,7 +1278,10 @@ def _check_call(event: object) -> str | None:
     if tool in SEARCH_TOOLS:
         if reason := _check_search(tool, data):
             return reason
-        if _protected_search(tool, data, _native_path(cwd or ".", project)):
+        where = _native_path(cwd or ".", project)
+        if _protected_search(tool, data, where) and not (
+            not _is_clone(project) and _plugin_readable(_search_location(tool, data, where))
+        ):
             return PROTECTED_DENIED
         return None
     raise ValueError(INVALID_INPUT)
