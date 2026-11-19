@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Final, Protocol
 
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.nuclei_command import NUCLEI_CATALOG_ROOT
 from harness_dast.domain.nuclei_findings import NucleiResultRecord
 from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.nuclei_scope import NucleiScope
@@ -31,7 +32,7 @@ __all__ = [
     "NucleiSecretsWriter",
 ]
 
-CATALOG_ROOT: Final = "/opt/nuclei-templates"
+CATALOG_ROOT: Final = NUCLEI_CATALOG_ROOT
 """Raiz do catálogo dentro da imagem (`docker/nuclei/Dockerfile`)."""
 TEMPLATES_MOUNT: Final = "/hdast/templates.txt"
 """Onde a lista de modelos aparece no contêiner (montagem somente leitura); vai em `-t`."""

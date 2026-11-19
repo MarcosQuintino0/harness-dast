@@ -11,7 +11,16 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictInt
 
-__all__ = ["NUCLEI_FORBIDDEN_FLAGS", "NucleiCommandInput", "build_nuclei_args"]
+__all__ = [
+    "NUCLEI_CATALOG_ROOT",
+    "NUCLEI_FORBIDDEN_FLAGS",
+    "NucleiCommandInput",
+    "build_nuclei_args",
+]
+
+NUCLEI_CATALOG_ROOT = "/opt/nuclei-templates"
+"""Pasta do catálogo na imagem. Vai sempre em `-ud`: sem ela, o Nuclei nega aos modelos o
+acesso aos arquivos auxiliares de `helpers/` (prova no Codespace, 2026-11-19)."""
 
 NUCLEI_FORBIDDEN_FLAGS = frozenset(
     {"-fr", "-dast", "-code", "-headless", "-cloud-upload", "-auth", "-update", "-ut"}
@@ -70,6 +79,8 @@ def build_nuclei_args(command: NucleiCommandInput) -> tuple[str, ...]:
         "-nc",
         "-u",
         command.target_url,
+        "-ud",
+        NUCLEI_CATALOG_ROOT,
         "-t",
         command.templates_list_path,
         "-proxy",

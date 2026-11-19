@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from harness_dast.domain.nuclei_command import (
+    NUCLEI_CATALOG_ROOT,
     NUCLEI_FORBIDDEN_FLAGS,
     NucleiCommandInput,
     build_nuclei_args,
@@ -30,6 +31,12 @@ def test_includes_the_safety_flags_quando_building_args() -> None:
     assert args[args.index("-rl") + 1] == "5"
     assert args[args.index("-c") + 1] == "2"
     assert args[args.index("-proxy") + 1] == "http://scope-proxy-nuclei:3128"
+
+
+def test_points_ud_to_the_catalog_quando_building_args() -> None:
+    args = build_nuclei_args(_input())
+
+    assert args[args.index("-ud") + 1] == NUCLEI_CATALOG_ROOT
 
 
 @pytest.mark.parametrize("with_file", [False, True])
