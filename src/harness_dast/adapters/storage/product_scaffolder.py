@@ -1,9 +1,8 @@
 """Criador de pastas de produto a partir do modelo `products/_template`.
 
-Implementa a porta `ProductScaffolder`. Onde fica o modelo: `products/_template` na raiz do
-repositório, localizado a partir deste arquivo (`default_template_dir`). Isso vale com
-`uv run` e instalação editável (`uv sync`), que é o uso da V1. Uma instalação "wheel" não
-carrega a pasta `products/`; nesse caso o erro orienta a rodar a partir do repositório.
+Implementa a porta `ProductScaffolder`. Onde fica o modelo (`default_template_dir`): no clone,
+`products/_template` na raiz do repositório; na instalação pelo wheel (plugin, ADR 0119), a cópia
+empacotada em `harness_dast/product_template`, que um teste de contrato mantém igual à do clone.
 """
 
 import re
@@ -21,9 +20,13 @@ CLEANUP_DIR = "cleanup"
 _PRODUCT_LINE = re.compile(r"^product: meu-produto[ \t]*$", re.MULTILINE)
 
 
-def default_template_dir() -> Path:
-    """Caminho do modelo no repositório: `<raiz>/products/_template`."""
-    return Path(__file__).resolve().parents[4] / "products" / "_template"
+def default_template_dir(package: Path | None = None) -> Path:
+    """Caminho do modelo: `<raiz>/products/_template` no clone, ou o do pacote instalado."""
+    package = Path(__file__).resolve().parents[2] if package is None else package
+    in_clone = package.parent.parent / "products" / "_template"
+    if package.parent.name == "src" and in_clone.is_dir():
+        return in_clone
+    return package / "product_template"
 
 
 def _copy_template(
