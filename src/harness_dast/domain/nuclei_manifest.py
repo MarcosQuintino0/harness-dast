@@ -1,6 +1,7 @@
 """Validação estrutural dos metadados do catálogo Nuclei fixado no ADR 0122."""
 
 import re
+from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -19,7 +20,17 @@ from harness_dast.domain.nuclei_version import (
 )
 from harness_dast.domain.secret_ref import ProfileModel
 
-__all__ = ["NucleiManifest", "NucleiSeverity", "NucleiTemplateEntry"]
+__all__ = [
+    "NucleiExclusion",
+    "NucleiManifest",
+    "NucleiPermissions",
+    "NucleiSelection",
+    "NucleiSeverity",
+    "NucleiTemplateEntry",
+    "NucleiVeto",
+    "select_templates",
+    "veto_reasons",
+]
 
 NucleiSeverity = Literal["critical", "high", "medium", "low", "info", "unknown"]
 
@@ -114,3 +125,136 @@ class NucleiManifest(ProfileModel):
         if len({entry.path for entry in self.entries}) != len(self.entries):
             raise ValueError("o manifesto contém caminhos de modelos duplicados")
         return self
+
+
+class NucleiVeto(StrEnum):
+    """Motivos de veto permanente de um modelo (ADR 0122); nenhuma permissão os levanta."""
+
+    NON_HTTP = "non_http"
+    UNSAFE = "unsafe"
+    CODE = "code"
+    HEADLESS = "headless"
+    OAST = "oast"
+    DAST = "dast"
+    UNPARSED_METHOD = "unparsed_method"
+    TAG_DOS = "tag_dos"
+    TAG_INTRUSIVE = "tag_intrusive"
+    TAG_BRUTEFORCE = "tag_bruteforce"
+    TAG_FUZZ = "tag_fuzz"
+    TAG_DEFAULT_LOGINS = "tag_default_logins"
+
+
+class NucleiExclusion(StrEnum):
+    """Motivos de exclusão que dependem das permissões da execução."""
+
+    WRITES_NOT_ALLOWED = "writes_not_allowed"
+    DELETE_NOT_ALLOWED = "delete_not_allowed"
+    LOGIN_READ_ONLY = "login_read_only"
+
+
+_VETOED_TAGS: dict[str, NucleiVeto] = {
+    "dos": NucleiVeto.TAG_DOS,
+    "intrusive": NucleiVeto.TAG_INTRUSIVE,
+    "bruteforce": NucleiVeto.TAG_BRUTEFORCE,
+    "fuzz": NucleiVeto.TAG_FUZZ,
+    "default-logins": NucleiVeto.TAG_DEFAULT_LOGINS,
+}
+_READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_DELETE_METHOD = "DELETE"
+
+
+def veto_reasons(entry: NucleiTemplateEntry) -> frozenset[NucleiVeto]:
+    """Lista os vetos permanentes de um modelo; vazio significa "pode ser considerado".
+
+    Falha fechado: protocolo que não seja só `http` (inclusive lista vazia) e método que o
+    gerador do manifesto não conseguiu ler (`unparsed_method`) vetam. `raw` sozinho não veta.
+
+    Args:
+        entry: Metadados do modelo.
+
+    Returns:
+        Conjunto imutável de vetos.
+    """
+    reasons: set[NucleiVeto] = set()
+    if set(entry.protocols) != {"http"}:
+        reasons.add(NucleiVeto.NON_HTTP)
+    flags = (
+        (entry.unsafe, NucleiVeto.UNSAFE),
+        (entry.code, NucleiVeto.CODE),
+        (entry.headless, NucleiVeto.HEADLESS),
+        (entry.oast, NucleiVeto.OAST),
+        (entry.dast, NucleiVeto.DAST),
+        (entry.unparsed_method, NucleiVeto.UNPARSED_METHOD),
+    )
+    reasons.update(veto for active, veto in flags if active)
+    reasons.update(_VETOED_TAGS[tag] for tag in entry.tags if tag in _VETOED_TAGS)
+    return frozenset(reasons)
+
+
+class NucleiPermissions(ProfileModel):
+    """O que o pedido autoriza além da leitura.
+
+    Attributes:
+        writes: `POST`, `PUT` e `PATCH` permitidos (permissão de escrita de dados).
+        delete: `DELETE` permitido (só a pedido explícito da pessoa).
+        login: A execução usa conta autenticada; então só modelos de leitura rodam.
+    """
+
+    writes: StrictBool = False
+    delete: StrictBool = False
+    login: StrictBool = False
+
+
+class NucleiSelection(ProfileModel):
+    """Resultado determinístico da escolha dos modelos.
+
+    Attributes:
+        paths: Caminhos escolhidos, em ordem alfabética.
+        excluded: Pares (motivo, contagem) em ordem alfabética do motivo. Um modelo com mais
+            de um motivo conta em cada um, então a soma pode passar do total excluído.
+    """
+
+    paths: tuple[str, ...]
+    excluded: tuple[tuple[str, int], ...]  # noqa: F841, RUF100
+
+
+def _method_exclusions(
+    methods: tuple[str, ...], permissions: NucleiPermissions
+) -> frozenset[NucleiExclusion]:
+    declared = frozenset(methods) or frozenset({"GET"})
+    deletes = _DELETE_METHOD in declared
+    # Método fora das listas conhecidas conta como escrita (falha fechado).
+    writes = bool(declared - _READ_METHODS - {_DELETE_METHOD})
+    reasons: set[NucleiExclusion] = set()
+    if writes and not permissions.writes:
+        reasons.add(NucleiExclusion.WRITES_NOT_ALLOWED)
+    if deletes and not permissions.delete:
+        reasons.add(NucleiExclusion.DELETE_NOT_ALLOWED)
+    if (writes or deletes) and permissions.login:
+        reasons.add(NucleiExclusion.LOGIN_READ_ONLY)
+    return frozenset(reasons)
+
+
+def select_templates(manifest: NucleiManifest, permissions: NucleiPermissions) -> NucleiSelection:
+    """Escolhe os modelos que podem rodar: sem veto e com métodos dentro das permissões.
+
+    Sem `methods` declarados vale `GET` (padrão do Nuclei). Método desconhecido conta como
+    escrita. Com `login`, só entram modelos de leitura.
+
+    Args:
+        manifest: Manifesto validado do catálogo fixado.
+        permissions: Permissões da execução.
+
+    Returns:
+        Os caminhos escolhidos e a contagem por motivo de exclusão, ordenados.
+    """
+    chosen: list[str] = []
+    counts: dict[str, int] = {}
+    for entry in manifest.entries:
+        reasons = [str(v) for v in veto_reasons(entry)]
+        reasons += [str(e) for e in _method_exclusions(entry.methods, permissions)]
+        if not reasons:
+            chosen.append(entry.path)
+        for reason in reasons:
+            counts[reason] = counts.get(reason, 0) + 1
+    return NucleiSelection(paths=tuple(sorted(chosen)), excluded=tuple(sorted(counts.items())))
