@@ -318,6 +318,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "domain/request_letter.py",  # pedido mínimo: só recusa wide e grava strict, sem guarda
         "domain/letter_sections.py",  # só recusa `wide` sem origem na carta; não monta guarda
         "domain/profile.py",
+        "domain/nuclei_scope.py",  # só monta a política da cerca do Nuclei (ADR 0122)
         "domain/scope_fingerprint.py",  # aprovação humana (ADR 0037): só resume o modo, não decide
         "domain/scope_approval_summary.py",  # só mostra o modo à pessoa que aprova
         "domain/report/traffic.py",

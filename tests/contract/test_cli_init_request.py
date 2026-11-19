@@ -39,6 +39,8 @@ EXPECTED_APPLIED = {
     "extra_checks.allow_rate_tests",
     "extra_checks.experimental_rules",
     "extra_checks.inventory",
+    "extra_checks.nuclei",
+    "extra_checks.nuclei_login",
 }
 
 
