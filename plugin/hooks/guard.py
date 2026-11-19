@@ -644,7 +644,14 @@ _PRODUCT_LEXER_PATTERN = (
     r"""|(?P<word>{quoted}|[^\s'";&|()<>]+)"""
     r"|(?P<space>[^\S\n]+)|(?P<invalid>.)"
 )
-_PRODUCT_BASH_TOKEN = re.compile(_PRODUCT_LEXER_PATTERN.format(quoted=QUOTED_PART.pattern))
+_PRODUCT_BASH_TOKEN = re.compile(
+    r"(?P<duplicate>(?<![^ \t\n;&|])[012]?>&[012](?=$|[ \t\n;&|]))|"
+    + _PRODUCT_LEXER_PATTERN.format(quoted=QUOTED_PART.pattern)
+)
+_CAT_HEREDOC_HEADER = re.compile(
+    rf"""(?P<output>cat[ \t]+>>?[ \t]*(?:{QUOTED_PART.pattern}|[^\s'";&|()<>]+))"""
+    r"[ \t]+<<[ \t]*'(?P<delimiter>[A-Za-z_][A-Za-z_0-9]*)'[ \t]*"
+)
 _PS_QUOTED = r"'[^']*'|\"[^\"]*\""
 _PRODUCT_POWERSHELL_TOKEN = re.compile(_PRODUCT_LEXER_PATTERN.format(quoted=_PS_QUOTED))
 _POSITIONAL_WRITERS = {
@@ -691,7 +698,7 @@ def _product_shell_segments(
             yield tokens, piped
             tokens = []
             piped = value == "|"
-        elif kind in {"word", "redirect"}:
+        elif kind in {"word", "redirect", "duplicate"}:
             if previous == "word" and (kind == "word" or tokens[-1][1].isdigit()):
                 raise ValueError(PRODUCT_DENIED)
             tokens.append((kind, _literal_word(value, tool) if kind == "word" else value))
@@ -995,6 +1002,34 @@ def _grep_filter(args: list[str]) -> bool:
     return len(patterns) == 1 and all(re.fullmatch(r"-[ivcnwxFEHhqsoa]+", arg) for arg in flags)
 
 
+def _grep_file_reader(args: list[str], cwd: Path) -> bool:
+    """Confere opções de saída e contexto antes do padrão, seguidas de arquivos literais."""
+    remaining = iter(args)
+    for arg in remaining:
+        if arg in {"-A", "-B", "-C"}:
+            if not re.fullmatch(r"[0-9]+", next(remaining, "")):
+                return False
+        elif not arg.startswith("-"):
+            paths = list(remaining)
+            return bool(paths) and all(
+                not path.startswith("-") and _safe_read_path(path, cwd, tree=True) for path in paths
+            )
+        elif not re.fullmatch(r"-[ivcnwxFEHhqsoa]+|-[ABC][0-9]+", arg):
+            return False
+    return False
+
+
+def _find_reader(args: list[str], cwd: Path) -> bool:
+    """Aceita raízes literais e profundidade opcional, com a listagem padrão do find."""
+    if args[-2:-1] == ["-maxdepth"]:
+        if not re.fullmatch(r"[0-9]+", args[-1]):
+            return False
+        args = args[:-2]
+    return all(
+        not path.startswith("-") and _safe_read_path(path, cwd, tree=True) for path in args or ["."]
+    )
+
+
 def _pipe_filter(name: str, args: list[str]) -> bool:
     """Filtros de leitura que só leem a entrada padrão; valem depois de `|`."""
     if name in {"head", "tail"}:
@@ -1024,6 +1059,10 @@ def _hdast_command(name: str, args: list[str]) -> bool:
 def _reads_only(name: str, args: list[str], cwd: Path, tool: str, *, piped: bool) -> bool:
     if piped and tool == "Bash" and _pipe_filter(name, args):
         return True
+    if tool == "Bash" and name == "grep":
+        return _grep_file_reader(args, cwd)
+    if tool == "Bash" and name == "find":
+        return _find_reader(args, cwd)
     return _diagnostic_command(name, args) or _safe_reader(name, args, cwd)
 
 
@@ -1083,6 +1122,8 @@ def _split_product_command(
         if kind == "word":
             words.append(value)
             continue
+        if kind == "duplicate":
+            continue
         target_kind, target = next(remaining, ("", ""))
         if target_kind != "word" or (value == "<" and not _safe_read_path(target, cwd)):
             raise ValueError(PRODUCT_DENIED)
@@ -1096,7 +1137,7 @@ def _split_product_command(
 def _check_product_shell(
     command: str, cwd: Path, project: Path, tool: str, *, nested: bool = False
 ) -> None:
-    command = command.strip()
+    command = command.strip(" \t\n") if tool == "Bash" else command.strip()
     if re.search(r"[\x00-\x08\x0b-\x1f]", command):
         raise ValueError(PRODUCT_DENIED)
     heredoc = re.fullmatch(r"python(?:3)? -\s+<<\s*'([A-Za-z_]\w*)'\n(.*?)\n\1", command, re.S)
@@ -1220,17 +1261,31 @@ def _requests_stack_build(command: str) -> bool:
     return bool(STACK_BUILD_FLAG.search(command) and HDAST_WORD.search(command))
 
 
+def _literal_cat_output(command: str) -> str:
+    """Isola o redirecionamento de um cat com heredoc literal e terminador final."""
+    header, _, body = command.partition("\n")
+    if match := _CAT_HEREDOC_HEADER.fullmatch(header):
+        lines = body.removesuffix("\n").split("\n")
+        delimiter = match["delimiter"]
+        if lines[-1] == delimiter and delimiter not in lines[:-1]:
+            return match["output"]
+    return command
+
+
 def _check_shell_call(
     tool: str, data: dict[str, object], project: Path, context: str
 ) -> str | None:
     command = _require_text(data, "command")
     cwd = _native_path(context or ".", project)
+    product_mode = not _is_clone(project)
+    if product_mode and tool == "Bash":
+        command = _literal_cat_output(command)
     baseline = _check_shell(command, context) if context else _check_shell(command)
     if baseline:
         return baseline
     if _protected_shell(command, cwd):
         return PROTECTED_DENIED
-    if not _is_clone(project):
+    if product_mode:
         if _requests_stack_build(command):
             return STACK_BUILD_DENIED
         try:
