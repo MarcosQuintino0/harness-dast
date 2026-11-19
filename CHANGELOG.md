@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Pacote P6 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), imagem e cerca do Nuclei:
+  - `docker/nuclei/Dockerfile` fixa a base por digest e baixa o binário v3.11.1 e o catálogo v10.5.1 com SHA-256 conferido (uid 10002, catálogo somente leitura);
+  - `scripts/build_nuclei_manifest.py` gera o manifesto dos modelos sem rede e sem extrair o ZIP, e `adapters/nuclei/manifest_reader.py` o lê do pacote;
+  - o Compose ganha o serviço `nuclei` (perfil próprio, só na `zap_net`, sem segredo no ambiente) e a segunda cerca `scope-proxy-nuclei`, com política e auditoria próprias; o ZAP nunca a referencia;
+  - o `stack up` publica nela a política do Nuclei derivada do perfil, ou a que nega tudo sem o motor ligado, e o `hdast stop` cria o `KILL` das duas cercas;
+  - `ComposeRunner.run_once` roda o contêiner uma vez, com a entrada padrão fechada e prazo com morte do contêiner;
+  - `images.lock.json` passa ao esquema 2 com a imagem do Nuclei (o esquema 1 antigo continua aceito e deixa o Nuclei indisponível), e o `stack pull`, o `doctor` e o `images.yml` a incluem.
 - Testes de isolamento conferem que, no Compose do clone e do wheel, o ZAP fica na rede interna e usa a cerca original. A verificação de partida do proxy recusa políticas ausentes ou sem regras de permissão. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
 - Domínio do Nuclei (pacote P1 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)): vetos e escolha dos modelos pelos métodos e pelas permissões (`nuclei_manifest`), política da segunda cerca derivada do perfil que só reduz ou iguala origem, `deny_paths`, limites e janelas (`nuclei_scope`), e argumentos fixos e seguros, com o segredo só por caminho em `-sf` (`nuclei_command`). Regras puras, sem I/O; ainda não ligadas à CLI.
 - A carta assinada e o perfil registram a autorização declarada para Nuclei, login e caminhos fora do Swagger. A revisão humana inclui a versão dos modelos e o fingerprint preserva as aprovações antigas. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
