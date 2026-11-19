@@ -207,8 +207,9 @@ def check_no_direct_http(transcript: Transcript | None) -> Check:
 PEEK = re.compile(
     r"(?:^|[\s/\\\"'])(?:sealed|agent-env\.json|mode\.json|secrets\.json|stack\.json)(?:[\s/\\\"']|$)"
     r"|(?:^|[;&|(`]|\bxargs\s|\bsudo\s)\s*docker(?:-compose)?(?:\.exe)?\b"
-    # `docker ps`, `version` e `info` so dizem que o Docker esta ligado: nao mostram o modo.
-    r"(?!\s+(?:ps|version|info)\b)"
+    # `docker ps`, `version`, `--version` (a mesma coisa) e `info` so dizem que o Docker esta
+    # ligado: nao mostram o modo.
+    r"(?!\s+(?:ps|version|--version|info)(?![\w-]))"
     # Escolher o modo na mao desfaz o sorteio. So conta na linha de comando do hdast: um diario
     # que escreve "`stack up` sem --secure" esta dizendo que NAO escolheu.
     r"|\bhdast\b[^\n;&|`]*\bstack\s+up\b[^\n;&|`]*--(?:secure|vulnerable)\b",
