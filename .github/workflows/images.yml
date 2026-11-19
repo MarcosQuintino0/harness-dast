@@ -1,0 +1,254 @@
+name: Imagens Docker
+
+on:
+  # Só por tag v*: o disparo manual permitiria publicar a partir de qualquer branch.
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publicar ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      matrix:
+        include:
+          - key: zap
+            image: ghcr.io/marcosquintino0/hdast-zap
+            context: docker/zap
+            file: docker/zap/Dockerfile
+            check_package_version: false
+          - key: scope-proxy
+            image: ghcr.io/marcosquintino0/hdast-scope-proxy
+            context: .
+            file: docker/scope-proxy/Dockerfile
+            check_package_version: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Conferir a versão do pacote
+        id: package
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import tomllib
+
+          with open('pyproject.toml', 'rb') as package:
+              version = tomllib.load(package)['project']['version']
+          if not re.fullmatch(r'[0-9][A-Za-z0-9_.-]{0,127}', version):
+              raise SystemExit('A versão do pacote precisa ser válida como tag Docker.')
+          ref = os.environ['GITHUB_REF']
+          if ref != f'refs/tags/v{version}':
+              raise SystemExit(f'A tag Git deve ser v{version}, conforme pyproject.toml.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'version={version}\n')
+          PY
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: build
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ matrix.image }}:${{ steps.package.outputs.version }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.package.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: >-
+            ${{ matrix.check_package_version && format('HDAST_IMAGE_VERSION={0}', steps.package.outputs.version) || '' }}
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ matrix.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Gravar o digest publicado
+        env:
+          IMAGE_KEY: ${{ matrix.key }}
+          IMAGE_REPOSITORY: ${{ matrix.image }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          printf '%s@%s\n' "$IMAGE_REPOSITORY" "$IMAGE_DIGEST" > "$RUNNER_TEMP/$IMAGE_KEY.txt"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-digest-${{ matrix.key }}
+          path: ${{ runner.temp }}/${{ matrix.key }}.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  images-lock:
+    name: Gerar arquivo de digests
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: image-digest-*
+          path: ${{ runner.temp }}/image-digests
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Validar os digests e gravar images.lock.json
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --locked --no-dev scripts/write_images_lock.py "${RELEASE_TAG#v}" \
+            "$(cat "$RUNNER_TEMP/image-digests/zap.txt")" \
+            "$(cat "$RUNNER_TEMP/image-digests/scope-proxy.txt")"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: images-lock
+          path: src/harness_dast/adapters/docker/images.lock.json
+          if-no-files-found: error
+
+  release:
+    name: Publicar pacote da CLI
+    needs: images-lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      commit_sha: ${{ steps.versions.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: images-lock
+          path: ${{ runner.temp }}/images-lock
+      - name: Conferir as versões da publicação
+        id: versions
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+          lock = Path(os.environ["RUNNER_TEMP"]) / "images-lock" / "images.lock.json"
+          lock_version = json.loads(lock.read_text(encoding="utf-8"))["version"]
+          plugin = Path("plugin/.claude-plugin/plugin.json")
+          plugin_version = json.loads(plugin.read_text(encoding="utf-8"))["version"]
+          if (
+              os.environ["GITHUB_REF"] != f"refs/tags/v{version}"
+              or lock_version != version
+              or plugin_version != version
+          ):
+              raise SystemExit("As versões da tag, do pacote, dos digests e do plugin precisam coincidir.")
+          PY
+          commit_sha=$(git rev-parse HEAD)
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+      - name: Incluir os digests no pacote
+        run: cp "$RUNNER_TEMP/images-lock/images.lock.json" src/harness_dast/adapters/docker/
+      - name: Construir wheel e sdist
+        run: |
+          python3 -m venv "$RUNNER_TEMP/release-build"
+          "$RUNNER_TEMP/release-build/bin/python" -m pip install 'uv==0.11.15'
+          "$RUNNER_TEMP/release-build/bin/uv" build --out-dir "$RUNNER_TEMP/hdast-dist"
+      - name: Anexar os pacotes à release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/hdast-dist/*.whl "$RUNNER_TEMP"/hdast-dist/*.tar.gz --clobber
+
+  marketplace:
+    name: Abrir PR do marketplace
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Fixar o commit publicado no marketplace
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ needs.release.outputs.commit_sha }}
+        run: |
+          version=$(python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(project["project"]["version"])
+          PY
+          )
+          if [[ "$RELEASE_TAG" != "v$version" ]]; then
+            echo "A versão da main precisa coincidir com a tag publicada."
+            exit 1
+          fi
+          uv run --locked --no-dev scripts/write_marketplace.py "$RELEASE_TAG" "$RELEASE_SHA"
+      - name: Enviar a branch e abrir PR para main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          manifest=.claude-plugin/marketplace.json
+          if git diff --quiet -- "$manifest"; then
+            exit 0
+          fi
+
+          branch="chore/marketplace-$RELEASE_TAG"
+          gh auth setup-git
+          existing=$(git ls-remote --heads origin "refs/heads/$branch")
+          if [[ -z "$existing" ]]; then
+            git switch -c "$branch"
+            git add -- "$manifest"
+            git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore(plugin): fixa marketplace em $RELEASE_TAG"
+            git push origin "HEAD:refs/heads/$branch"
+          else
+            # Reaproveita a branch se uma tentativa anterior já gravou o manifesto esperado.
+            git fetch --depth=1 origin "refs/heads/$branch"
+            git show "FETCH_HEAD:$manifest" | cmp - "$manifest"
+          fi
+
+          open_prs=$(gh pr list --state open --base main --head "$branch" --json number --jq length)
+          if [[ "$open_prs" == 0 ]]; then
+            gh pr create --base main --head "$branch" \
+              --title "chore(plugin): fixa marketplace em $RELEASE_TAG" \
+              --body "Fixa o plugin na tag e no commit publicados para $RELEASE_TAG, conforme o ADR 0119."
+          fi

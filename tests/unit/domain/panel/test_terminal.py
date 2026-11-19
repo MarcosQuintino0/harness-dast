@@ -9,7 +9,9 @@ from harness_dast.domain.panel.model import PanelCommand
 from harness_dast.domain.panel.pages import render_panel
 from tests.unit.domain.panel.helpers import XSS, view
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 EXTRA_CLASSES = {"crumb", "foot", "vh", "tp", "seg-no", "seg-cut", "nb-cut", "nb-no", "sm"}
 DESIGN_ONLY = {"ex", "escuro", "term", "o", "t", "rn", "cur"}
 T0 = datetime(2026, 11, 13, 23, 8, 31, tzinfo=UTC)

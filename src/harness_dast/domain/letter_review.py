@@ -7,7 +7,10 @@ vigente, dono do produto): um "não" ou "desconhecido" recusa tudo e nenhum outr
 (2) cada campo obrigatório, com origem e valor. Só sem nenhuma pendência o perfil é montado, e
 ele ainda passa por `ProductProfile.from_data`: o que o perfil recusa, a carta recusa.
 Autorização com validade vencida é pendência. Avisos (`warnings`) não recusam nem mudam o
-perfil. Este módulo é puro.
+perfil. Resposta `desconhecido` nos quatro campos da tabela `MINIMUM_DEFAULTS` vira o padrão
+mínimo da CLI, com aviso (ADR 0114). Na carta `kind: request` (ADR 0120) a CLI antes completa o
+que a pessoa não respondeu com a tabela de `request_defaults`, e os portões passam a incluir o
+endereço do ambiente. Este módulo é puro.
 """
 
 from collections.abc import Mapping
@@ -27,6 +30,7 @@ from harness_dast.domain.letter_collect import (
     Collector,
     LetterIssue,
 )
+from harness_dast.domain.letter_defaults import MinimumDefault, default_notes
 from harness_dast.domain.letter_negative import read_allow_invalid_writes
 from harness_dast.domain.letter_outcomes import read_include_outcomes
 from harness_dast.domain.letter_sections import (
@@ -42,10 +46,23 @@ from harness_dast.domain.letter_sections import (
 from harness_dast.domain.letter_shared_roles import read_shared_roles
 from harness_dast.domain.letter_technology import read_technologies
 from harness_dast.domain.letter_upload import read_allow_upload_scan
-from harness_dast.domain.letter_warnings import expired_issue, letter_warnings
+from harness_dast.domain.letter_warnings import (
+    default_warning,
+    expired_issue,
+    letter_warnings,
+    request_warning,
+)
 from harness_dast.domain.letter_writes import read_allow_writes
 from harness_dast.domain.letter_yaml import render_yaml
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.request_defaults import RequestDefault, request_notes
+from harness_dast.domain.request_letter import (
+    RequestInputs,
+    check_base_url_gate,
+    fill_request_letter,
+    letter_kind,
+    reject_request_only_keys,
+)
 
 GENERATED_BLOCKS: Final = (
     "environment",
@@ -100,6 +117,12 @@ _HEADER_NEGATIVE = (
 _HEADER_ATTACK = (
     "# Também gerado da carta (ADR 0096): scan.pacing, scan.inject_headers, scan.oast e "
     "extra_checks, que só a carta liga.\n"
+)
+_HEADER_REQUEST = (
+    "# Modo pedido mínimo (ADR 0120): a pessoa respondeu só às quatro perguntas; a CLI aplicou "
+    "os padrões listados abaixo.\n"
+    "# Cada padrão está escrito explícito neste arquivo e só vale depois da aprovação humana "
+    "(hdast setup). Para mudar um, a pessoa responde na carta e o perfil é gerado de novo.\n"
 )
 
 
@@ -276,7 +299,25 @@ def _has_block(data: Mapping[str, object], name: str) -> bool:
     return True
 
 
-def review_letter(letter: Letter, expected_product: str, today: date) -> LetterReview:
+def _letter_text(profile: ProductProfile, defaults: tuple[MinimumDefault, ...]) -> str:
+    """Cabeçalho da carta assinada (`kind: letter`); inalterado desde o ADR 0114."""
+    return (
+        _HEADER
+        + (_HEADER_OUTCOMES if profile.scan.include_outcomes else "")
+        + (_HEADER_UPLOAD if profile.scan.allow_upload_scan else "")
+        + (_HEADER_WRITES if profile.authz.allow_writes else "")
+        + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
+        + (_HEADER_ATTACK if _has_attack_keys(profile) else "")
+        + default_notes(defaults)
+    )
+
+
+def review_letter(
+    letter: Letter,
+    expected_product: str,
+    today: date,
+    request: RequestInputs | None = None,
+) -> LetterReview:
     """Confere a carta e, se estiver completa, gera o texto do `target.yml`.
 
     Args:
@@ -284,21 +325,42 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
         expected_product: Produto pedido em `hdast init`; a carta precisa ser dele.
         today: Dia de hoje em UTC (entra por parâmetro: o domínio não lê relógio). Autorização
             que venceu antes dele é pendência; a validade longa demais vira aviso.
+        request: Só na carta `kind: request` (ADR 0120): os caminhos do OpenAPI e o fuso das
+            janelas. Sem eles, o pedido mínimo não gera o escopo e a carta fica pendente.
 
     Returns:
         A conferência: pendências campo a campo ou o texto gerado.
     """
     c = Collector()
+    kind = letter_kind(letter)
+    if kind is None:
+        c.add(
+            "kind",
+            INVALID_VALUE,
+            "Use kind: letter (carta assinada) ou kind: request (pedido mínimo); ausente vale "
+            "letter.",
+        )
     if letter.product != expected_product:
         c.add(
             "product",
             PRODUCT_MISMATCH,
             "A carta é de outro produto; use a carta deste produto ou corrija o nome.",
         )
+    is_request = kind == "request"
+    if not is_request:
+        reject_request_only_keys(c, letter)
     _check_gates(c, letter.gates)
+    if is_request:
+        check_base_url_gate(c, letter)
     if c.issues:
         return LetterReview(issues=tuple(c.issues))
-    built = _profile_data(letter, c, today)
+    source = letter
+    applied: tuple[RequestDefault, ...] = ()
+    if is_request:
+        source, applied = fill_request_letter(letter, c, request or RequestInputs(), today)
+        if c.issues:
+            return LetterReview(issues=tuple(c.issues))
+    built = _profile_data(source, c, today)
     if built is None:
         return LetterReview(issues=tuple(c.issues))
     data, examples = built
@@ -307,17 +369,19 @@ def review_letter(letter: Letter, expected_product: str, today: date) -> LetterR
     except ConfigError as error:
         c.add("(perfil gerado)", PROFILE_REJECTED, f"{error.message} {error.hint or ''}".strip())
         return LetterReview(issues=tuple(c.issues))
-    blocks = tuple(name for name in GENERATED_BLOCKS if _has_block(data, name))
+    header = (
+        _HEADER + _HEADER_REQUEST + request_notes(applied)
+        if is_request
+        else _letter_text(profile, tuple(c.defaults))
+    )
     return LetterReview(
         issues=(),
-        profile_text=_HEADER
-        + (_HEADER_OUTCOMES if profile.scan.include_outcomes else "")
-        + (_HEADER_UPLOAD if profile.scan.allow_upload_scan else "")
-        + (_HEADER_WRITES if profile.authz.allow_writes else "")
-        + (_HEADER_NEGATIVE if profile.negative.allow_writes else "")
-        + (_HEADER_ATTACK if _has_attack_keys(profile) else "")
-        + render_yaml(data),
-        blocks=blocks,
+        profile_text=header + render_yaml(data),
+        blocks=tuple(name for name in GENERATED_BLOCKS if _has_block(data, name)),
         example_data=examples,
-        warnings=letter_warnings(profile, today),
+        warnings=(
+            *(default_warning(default) for default in c.defaults),
+            *(request_warning(default) for default in applied),
+            *letter_warnings(profile, today),
+        ),
     )

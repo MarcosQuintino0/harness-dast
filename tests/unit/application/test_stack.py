@@ -3,16 +3,23 @@ from pathlib import Path
 
 import pytest
 
+from harness_dast import __version__
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack import StackManager, StackUpRequest
 from harness_dast.application.stack_freshness import StackFreshnessCheck
 from harness_dast.application.stack_models import LabAccountPaths
 from harness_dast.domain.api_model import ApiSpec, Operation
-from harness_dast.domain.errors import ConfigError, ExternalToolError, ScopeViolation
+from harness_dast.domain.errors import (
+    ConfigError,
+    ExternalToolError,
+    ScopeViolation,
+    StackBuildForbidden,
+)
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.scan_result import ScanProgress
 from harness_dast.domain.stack_binding import StackDigests
+from tests.fakes.host import FakeHost, published_images
 from tests.fakes.probe_ports import InMemorySpecs
 from tests.fakes.profile_data import valid_profile, valid_profile_data
 from tests.fakes.profile_repository import InMemoryProfileRepository
@@ -57,7 +64,8 @@ class Rig:
         self.profiles.add(lab_profile("vampi", "vampi", 5000))
         self.profiles.add(lab_profile("clinica-piloto", "clinica-piloto", 8080))
         self.profiles.add(lab_profile("crapi", "crapi", 80))
-        self.compose = FakeCompose()
+        self.host = FakeHost()
+        self.compose = FakeCompose(self.host)
         self.states = InMemoryStackState(tmp_path)
         self.policies = RecordingPolicyStore()
         self.environ = environ or {}
@@ -69,6 +77,7 @@ class Rig:
             random=CountingRandom(),
             policies=self.policies,
             compose=self.compose,
+            images=self.host.stack_images(),
             states=self.states,
             environ=self.environ,
             repo_root=tmp_path / "repo",
@@ -219,12 +228,141 @@ def test_up_gera_chave_politica_e_estado_e_sobe_so_o_compose_raiz_para_produto_e
     assert env["HDAST_SCOPE_POLICY_DIR"] == state.policy_dir.as_posix()
 
 
-def test_up_reconstroi_proxy_mesmo_sem_flag_build(tmp_path: Path) -> None:
+def test_up_uses_existing_images_without_building(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
 
     rig.manager.up(StackUpRequest(product="demo"))
 
-    assert rig.compose.builds["hdast"] is True
+    assert rig.compose.builds["hdast"] is False
+    assert rig.compose.envs["hdast"]["HDAST_SCOPE_PROXY_IMAGE"] == rig.host.images["scope-proxy"]
+    assert ("build", "hdast") not in rig.compose.calls
+
+
+def test_up_passes_digest_references_to_compose_when_lock_is_present(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    lock = published_images()
+    rig.host.images_lock = lock
+    zap = lock.images.zap.reference()
+    proxy = lock.images.scope_proxy.reference()
+    rig.host.present = {zap, proxy}
+    rig.host.versions[proxy] = __version__
+
+    rig.manager.up(StackUpRequest(product="demo"))
+
+    assert rig.compose.envs["hdast"]["HDAST_ZAP_IMAGE"] == zap
+    assert rig.compose.envs["hdast"]["HDAST_SCOPE_PROXY_IMAGE"] == proxy
+    assert rig.compose.builds["hdast"] is False
+
+
+@pytest.mark.parametrize("service", ["zap", "scope-proxy"])
+def test_up_preserves_previous_stack_when_an_image_is_missing(tmp_path: Path, service: str) -> None:
+    rig = Rig(tmp_path)
+    rig.manager.up(StackUpRequest(product="demo"))
+    previous = rig.states.state
+    rig.host.present.remove(rig.host.images[service])
+
+    with pytest.raises(ExternalToolError, match="ausentes") as error:
+        rig.manager.up(StackUpRequest(product="vampi"))
+
+    assert "hdast stack pull" in (error.value.hint or "")
+    assert rig.states.state == previous
+    assert rig.compose.calls == [("up", "hdast")]
+
+
+@pytest.mark.parametrize("version", ["0.0.0", None])
+def test_up_refuses_an_incompatible_proxy_before_creating_state(
+    tmp_path: Path, version: str | None
+) -> None:
+    rig = Rig(tmp_path)
+    rig.host.versions[rig.host.images["scope-proxy"]] = version
+
+    with pytest.raises(ExternalToolError, match="A CLI exige a versão") as error:
+        rig.manager.up(StackUpRequest(product="demo"))
+
+    assert __version__ in error.value.message
+    assert "hdast stack pull" in (error.value.hint or "")
+    assert rig.states.state is None
+    assert rig.compose.calls == []
+
+
+@pytest.mark.parametrize("flag", [False, True])
+def test_up_builds_local_images_when_requested(tmp_path: Path, flag: bool) -> None:
+    rig = Rig(tmp_path, {} if flag else {"HDAST_STACK_BUILD": "1"})
+    rig.host.present.clear()
+
+    rig.manager.up(StackUpRequest(product="demo", build=flag))
+
+    local_proxy = "hdast/scope-proxy:local"
+    assert rig.host.versions[local_proxy] == __version__
+    assert rig.compose.envs["hdast"]["HDAST_SCOPE_PROXY_IMAGE"] == local_proxy
+    assert rig.compose.calls == [("build", "hdast"), ("up", "hdast")]
+
+
+@pytest.mark.parametrize("flag", [False, True], ids=["env", "flag"])
+@pytest.mark.parametrize("packaged", [False, True], ids=["missing-contexts", "lock-present"])
+def test_up_rejects_local_build_before_docker_when_outside_clone(
+    tmp_path: Path, flag: bool, packaged: bool
+) -> None:
+    rig = Rig(tmp_path, {} if flag else {"HDAST_STACK_BUILD": "1"})
+    # A presença do arquivo de digests basta para recusar mesmo se os contextos existirem.
+    rig.host.build_contexts = packaged
+    rig.host.images_lock = published_images() if packaged else None
+
+    with pytest.raises(StackBuildForbidden, match=__version__) as error:
+        rig.manager.up(StackUpRequest(product="demo", build=flag))
+
+    assert error.value.hint
+    assert rig.host.docker_calls == 0
+    assert rig.compose.calls == []
+    assert rig.states.state is None
+
+
+def test_up_checks_the_proxy_version_after_local_build(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_BUILD": "1"})
+    rig.compose.built_proxy_version = "0.0.0"
+
+    with pytest.raises(ExternalToolError, match="A CLI exige a versão"):
+        rig.manager.up(StackUpRequest(product="demo"))
+
+    assert rig.states.state is None
+    assert not rig.compose.running
+
+
+@pytest.mark.parametrize(
+    ("value", "explicit_build", "expected"),
+    [
+        (None, False, None),
+        ("0", False, None),
+        ("true", False, None),
+        ("reuse", False, False),
+        ("reuse", True, True),
+        ("1", False, True),
+    ],
+)
+def test_selects_pilot_build_quando_configurado(
+    tmp_path: Path, value: str | None, explicit_build: bool, expected: bool | None
+) -> None:
+    env = {} if value is None else {"HDAST_STACK_BUILD": value}
+    rig = Rig(tmp_path, env)
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto", build=explicit_build))
+
+    assert rig.compose.builds["hdast-pilotrun"] is expected
+
+
+def test_reuse_disables_builds_when_outside_clone(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_BUILD": "reuse"})
+    rig.host.build_contexts = False
+    lock = published_images()
+    rig.host.images_lock = lock
+    proxy = lock.images.scope_proxy.reference()
+    rig.host.present = {lock.images.zap.reference(), proxy}
+    rig.host.versions[proxy] = __version__
+
+    rig.manager.up(StackUpRequest(product="clinica-piloto"))
+
+    assert rig.compose.builds == {"hdast": False, "hdast-pilotrun": False}
+    assert rig.compose.calls == [("up", "hdast"), ("up", "hdast-pilotrun")]
 
 
 def test_sufixo_isola_projetos_e_rede_tambem_no_down(tmp_path: Path) -> None:

@@ -7,7 +7,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from evals.runner import exclusions, gitutil
+from evals.runner import exclusions, gitutil, plugin_layout
 from evals.runner.briefing import build_briefing
 from evals.runner.cases import (
     CASES_DIR,
@@ -33,6 +33,7 @@ class PrepareResult:
     sealed: Path
     excluded: tuple[str, ...]
     leaks: tuple[LeakHit, ...]
+    plugin: Path | None = None
 
 
 def resolve_mode(case: Case, requested: str, seed: int) -> str:
@@ -144,13 +145,47 @@ repositorio original."""
 
 
 def harden_settings(workspace: Path) -> None:
-    """Acrescenta `EXTRA_DENY` ao `.claude/settings.json` da copia (antes da base do git)."""
+    """Acrescenta `EXTRA_DENY` ao `.claude/settings.json` da copia (antes da base do git).
+
+    Tambem aponta o hook para onde o guard cai no workspace (`.claude/hooks/guard.py`).
+    """
     path = workspace / ".claude" / "settings.json"
     settings = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
     deny = settings.setdefault("permissions", {}).setdefault("deny", [])
     deny.extend(rule for rule in EXTRA_DENY if rule not in deny)
+    for group in settings.get("hooks", {}).get("PreToolUse", []):
+        for hook in group.get("hooks", []):
+            hook["command"] = hook.get("command", "").replace(
+                "plugin/hooks/guard.py", ".claude/hooks/guard.py"
+            )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+
+def build_workspace(case: Case, source: Path, dirs: RoundDirs) -> list[str]:
+    """Monta o workspace conforme o `layout` do caso e devolve o que ficou de fora."""
+    if case.layout == "repo":
+        excluded = copy_workspace(case, source, dirs.workspace)
+        deliver_inputs(case, source, dirs.workspace)
+        harden_settings(dirs.workspace)
+        return excluded
+    deliver_inputs(case, source, dirs.workspace)
+    plugin_layout.add_product_folders(dirs.workspace)
+    plugin_layout.write_settings(source, dirs.workspace, EXTRA_DENY)
+    files = plugin_layout.copy_plugin(source, dirs.plugin)
+    plugin_layout.write_manifest(dirs, files)
+    return plugin_layout.not_delivered(source)
+
+
+def seal_coordinator_answers(case: Case, dirs: RoundDirs, cases_dir: Path) -> None:
+    """Copia as respostas fixas do coordenador para o lacre (nunca para o workspace)."""
+    if case.request is None:
+        return
+    origin = cases_dir / case.name / case.request.coordinator_answers
+    if not origin.is_file():
+        raise EvalError(f"Respostas do coordenador ausentes: {origin}.")
+    dirs.sealed.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(origin, dirs.sealed / "coordinator-answers.md")
 
 
 def write_sealed(
@@ -187,6 +222,7 @@ def prepare(
     cases_dir: Path = CASES_DIR,
     reuse_from: Path | None = None,
     reuse_package: Path | None = None,
+    separate_git: bool = False,
 ) -> PrepareResult:
     """Cria `<out>/workspace` e `<out>/sealed`.
 
@@ -205,9 +241,7 @@ def prepare(
     if out.exists() and any(out.iterdir()):
         raise EvalError(f"{out} nao esta vazia: use uma pasta nova para cada rodada.")
     resolved = resolve_mode(case, mode, seed)
-    excluded = copy_workspace(case, source, dirs.workspace)
-    deliver_inputs(case, source, dirs.workspace)
-    harden_settings(dirs.workspace)
+    excluded = build_workspace(case, source, dirs)
     briefing = build_briefing(case, read_authorization(case_name, case, cases_dir))
     if reuse is not None:
         product, files = reuse
@@ -229,6 +263,9 @@ def prepare(
         )
     (dirs.workspace / BRIEFING_NAME).write_text(briefing, encoding="utf-8")
     leaks = tuple(scan_leaks(dirs.workspace, case.leak_terms))
+    if case.layout == "plugin":
+        leaks += tuple(plugin_layout.scan_plugin_leaks(dirs.plugin, case.leak_terms))
+    seal_coordinator_answers(case, dirs, cases_dir)
     write_sealed(case, dirs, resolved, mode, seed, draw_secrets(case))
     (dirs.sealed / "exclusions.json").write_text(json.dumps(excluded, indent=2), encoding="utf-8")
     (dirs.sealed / "leak-report.json").write_text(
@@ -241,5 +278,6 @@ def prepare(
             f"(veja {dirs.sealed / 'leak-report.json'}). "
             "Acrescente o caminho em `exclude` do case.yml ou use --allow-leaks conscientemente."
         )
-    gitutil.init_baseline(dirs.workspace)
-    return PrepareResult(dirs.workspace, dirs.sealed, tuple(excluded), leaks)
+    gitutil.init_baseline(dirs.workspace, separate_git=separate_git)
+    plugin = dirs.plugin if case.layout == "plugin" else None
+    return PrepareResult(dirs.workspace, dirs.sealed, tuple(excluded), leaks, plugin)

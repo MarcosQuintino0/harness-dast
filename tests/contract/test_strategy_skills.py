@@ -3,7 +3,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILL = ROOT / ".claude/skills/onboard-product/SKILL.md"
+SKILL = ROOT / "plugin/skills/onboard-product/SKILL.md"
 
 
 def test_onboarding_explica_classes_e_limites_da_estrategia() -> None:

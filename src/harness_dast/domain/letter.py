@@ -13,7 +13,7 @@ import re
 from collections.abc import Mapping
 from typing import Final, Literal, Self
 
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import Field, StrictStr, ValidationError, field_validator, model_validator
 
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.profile_errors import to_config_error
@@ -38,7 +38,8 @@ class Answer(ProfileModel):
             `letter_review`). Ausente ou nulo conta como "sem resposta".
         source: De onde veio: `carta` (a carta assinada diz isso), `pessoa` (a pessoa
             respondeu na entrevista) ou `desconhecido` ("não sei" / "não está na carta"; sem
-            valor). Resposta desconhecida em campo obrigatório recusa a carta.
+            valor). Resposta desconhecida em campo obrigatório recusa a carta, salvo nos quatro
+            campos com padrão mínimo da CLI (`letter_defaults`, ADR 0114).
         quote: Frase da carta ou da conversa que sustenta a resposta (opcional; obrigatória
             para `path_mode: wide`).
     """
@@ -103,11 +104,16 @@ class ScopeSection(ProfileModel):
             -> `scope.deny_paths`.
         path_mode: `strict` (padrão, vale se ausente) ou `wide` (só com origem `carta` e
             frase de origem) -> `scope.path_mode`.
+        allow_delete: Só no modo `request` (ADR 0120): a pessoa pede que o `DELETE` entre no
+            escopo padrão? Booleano; ausente, nulo ou `desconhecido` valem `false`. No modo
+            `letter` a chave é recusada; ela não vira chave do perfil, só acrescenta o método
+            à regra gerada.
     """
 
     allow: Answer | None = None
     deny_paths: Answer | None = None
     path_mode: Answer | None = None
+    allow_delete: Answer | None = None
 
 
 class AuthorizationSection(ProfileModel):
@@ -202,6 +208,11 @@ class AttackSection(ProfileModel):
             Booleano -> `extra_checks.inventory`. Os cinco booleanos: ausente, nulo ou
             `desconhecido` valem `false`; `true` só com `source: carta` e a frase em `quote`
             (ADR 0096).
+        allow_data_writes: Só no modo `request` (ADR 0120), pergunta 4: o ambiente pode
+            receber dados gravados pela ferramenta? Booleano, aceita `source: pessoa` sem frase.
+            `true` liga `authz.allow_writes`, `negative.allow_writes` e `scan.allow_upload_scan`;
+            ausente, nulo, `false` ou `desconhecido` as deixam desligadas. Uma resposta explícita
+            numa das três chaves individuais vence esta. No modo `letter` a chave é recusada.
     """
 
     technologies: Answer | None = None
@@ -217,6 +228,7 @@ class AttackSection(ProfileModel):
     allow_rate_tests: Answer | None = None
     experimental_rules: Answer | None = None
     inventory: Answer | None = None
+    allow_data_writes: Answer | None = None
 
 
 class Letter(ProfileModel):
@@ -224,6 +236,9 @@ class Letter(ProfileModel):
 
     Attributes:
         schema_version: Sempre 1.
+        kind: `letter` (carta assinada; vale se ausente) ou `request` (pedido mínimo, ADR 0120:
+            a CLI completa com padrões o que a pessoa não respondeu). Valor diferente destes
+            vira pendência em `review_letter`, não erro de forma.
         product: Slug do produto; precisa ser igual ao argumento de `hdast init`.
         gates: Portões.
         environment: Endereço do ambiente.
@@ -238,6 +253,7 @@ class Letter(ProfileModel):
     """
 
     schema_version: Literal[1]
+    kind: StrictStr | None = None
     product: str
     gates: Gates = Gates()
     environment: EnvironmentSection = EnvironmentSection()

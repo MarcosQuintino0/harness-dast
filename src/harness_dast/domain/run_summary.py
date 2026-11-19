@@ -55,6 +55,7 @@ class RunOptions(BaseModel):
     compare: str | None = None
     max_minutes: int | None = None
     include_outcomes: bool = True
+    only: tuple[str, ...] = ()
 
 
 class RunSummary(BaseModel):

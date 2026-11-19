@@ -11,6 +11,13 @@ CASE_NAMES = sorted(path.name for path in CASES_DIR.iterdir() if path.is_dir())
 def test_case_loads_and_its_letter_names_every_denied_path_and_account(name: str) -> None:
     case = load_case(name)
     letter = read_authorization(name, case, CASES_DIR)
+    if case.request is not None:
+        # Caso do pedido minimo: nao ha carta. As contas estao no arquivo de usuarios.
+        letter = (CASES_DIR / name / "inputs" / "usuarios.md").read_text(encoding="utf-8")
+        for account in case.expected.accounts:
+            assert account.username_env in letter
+            assert account.password_env in letter
+        return
 
     for path in case.expected.deny_paths:
         assert path in letter

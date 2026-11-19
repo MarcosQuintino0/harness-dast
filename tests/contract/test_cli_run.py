@@ -204,3 +204,26 @@ def test_run_uses_the_profile_outcomes_by_default_and_the_flag_only_reduces(
     assert code == int(ExitCode.OK)
     assert [request.include_outcomes for request in SEEN] == [expected]
     assert set(envelope) == {"schema_version", "ok", "run_id", "data"}
+
+
+def test_run_passes_the_repeatable_only_option_to_the_pipeline(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, _ = _call(capsys, "run", "demo", "--json", "--only", "getPet", "--only", "listPets")
+
+    assert code == int(ExitCode.OK)
+    assert [request.only for request in SEEN] == [("getPet", "listPets")]
+
+
+def test_run_has_no_operation_selection_by_default(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    _call(capsys, "run", "demo", "--json")
+
+    assert [request.only for request in SEEN] == [()]

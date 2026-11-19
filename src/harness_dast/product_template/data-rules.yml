@@ -1,0 +1,45 @@
+# =============================================================================
+# MODELO: data-rules.yml. Regras de geração de dados válidos para o produto.
+#
+# Schema versão 1, validado por `domain/datagen.py`. A referência campo a campo
+# está em docs/referencia/data-rules-yml.md.
+#
+# Por que existe: o ZAP, sozinho, envia valores genéricos que a API rejeita
+# (400) ou que colidem com registros existentes (409). Estas regras dizem como
+# gerar valores aceitos e únicos. O agente propõe as regras a partir do OpenAPI
+# e dos erros do `hdast probe`; uma pessoa revisa.
+#
+# Todos os dados gerados são SINTÉTICOS. Nunca use dados de pessoas reais.
+# =============================================================================
+schema_version: 1
+
+rules:
+  # `match` escolhe onde a regra vale:
+  #   field      nome do campo (`cpf`) ou caminho com pontos (`endereco.cpf`); obrigatório
+  #   operation  restringe a uma operação (operationId do OpenAPI); opcional
+  #   location   restringe a path, query, header, cookie ou body; opcional
+  # Vale a regra MAIS ESPECÍFICA: (1) tem `operation`; (2) `field` com mais
+  # segmentos; (3) tem `location`. Duas regras com o mesmo `match` são recusadas.
+  #
+  # `generator` escolhe o gerador do catálogo fechado; `args` o parametriza;
+  # `unique: true` garante valor novo a cada requisição (evita 409) e embute a
+  # etiqueta da execução no valor, para a limpeza achá-lo depois.
+  # Se o harness não souber gerar um campo sozinho (por exemplo, um `pattern`
+  # complexo), ele para e pede uma regra aqui em vez de adivinhar.
+
+  # CPF válido, com dígitos verificadores, sintético.
+  - match: { field: cpf }
+    generator: br.cpf
+    unique: true
+
+  # Código numérico de 8 dígitos só para a operação indicada.
+  - match: { operation: criarConvenio, field: codigo }
+    generator: numeric
+    args: { digits: 8 }
+    unique: true
+
+  # E-mail em domínio de teste, para que nada chegue a uma pessoa real.
+  - match: { field: email }
+    generator: email
+    args: { domain: "teste.exemplo.com.br" }
+    unique: true

@@ -22,11 +22,11 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.integration.lab_proof_support import prepare_control_product
 from tests.integration.lab_support import PILOT_PROFILE, REPO, LabCli, require_docker
 from tests.integration.run_support import record_metrics, throwaway_pilot_env
-from tests.integration.v112_proof_support import prepare_control_product
 
-pytestmark = [pytest.mark.integration, pytest.mark.lab_fast]
+pytestmark = [pytest.mark.integration, pytest.mark.lab_prova]
 
 OPERATION = "validate_coupon"
 COUPON_PATH = "/community/api/v2/coupon/validate-coupon"
@@ -120,7 +120,7 @@ def _collect(cli: LabCli, name: str, enabled: bool, run_id: str, code: int) -> E
 def _crapi(cli: LabCli, enabled: bool) -> ExperimentalLab:
     seconds: dict[str, float] = {}
     started = time.monotonic()
-    assert cli.run("stack", "up", "crapi", timeout=900).code == 0
+    assert cli.stack_up("crapi", timeout=900).code == 0
     seconds["stack_up"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "crapi").code == 0
     started = time.monotonic()
@@ -144,7 +144,7 @@ def _clinic(cli: LabCli, enabled: bool) -> ExperimentalLab:
     seconds: dict[str, float] = {}
     _set_key(cli.products / "clinica-piloto" / "target.yml", enabled)
     started = time.monotonic()
-    up = cli.run("stack", "up", "clinica-piloto", "--build", "--secure", timeout=900)
+    up = cli.stack_up("clinica-piloto", "--secure", timeout=900)
     assert up.code == 0, up.stdout[-500:]
     seconds["stack_up_build"] = round(time.monotonic() - started, 1)
     assert cli.run("preflight", "clinica-piloto").code == 0

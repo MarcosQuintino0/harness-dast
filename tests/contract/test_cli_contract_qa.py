@@ -114,6 +114,7 @@ def test_exit_code_values_are_stable() -> None:
         "TARGET": 6,
         "CLEANUP": 7,
         "BUSY": 8,
+        "BUILD_FORBIDDEN": 9,
         "INTERNAL": 10,
         "INTERRUPTED": 130,
     }

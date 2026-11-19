@@ -5,10 +5,10 @@ description: "Use ao desenvolver o harness-dast para registrar uma decisão arqu
 
 # Escrever um ADR
 
-1. Consulte quando um ADR é obrigatório e seu ciclo de vida no [índice](../../../docs/adr/README.md)
-   e em [CONTRIBUTING](../../../CONTRIBUTING.md): dependência, porta, contrato ou fronteira nova exigem registro.
-2. Confira o maior número existente, reserve o próximo sem reutilizar números e use o [template](../../../docs/adr/template.md).
+1. Consulte a [Parte A do AGENTS.md](../../../AGENTS.md#dependências-e-adr). Dependência, porta,
+   contrato ou fronteira nova e mudanças de rumo descobertas em um spike exigem ADR.
+2. Confira o maior número existente, reserve o próximo sem reutilizar números e use o [template](../../../docs/decisoes/template.md).
 3. Escreva contexto, decisão proposta, alternativas, consequências e aceites verificáveis.
-   Atualize o índice e a documentação afetada.
-4. ADR aceito é imutável. Mudança de rumo exige ADR novo, com a relação de substituição prevista no ciclo de vida.
-   Aceite é decisão do dono; não transforme proposta em decisão aceita por conta própria.
+   Atualize o [índice](../../../docs/decisoes/README.md) e a documentação afetada.
+4. Abra o ADR como `Proposto`. O dono decide o aceite, registrado como `Aceito` na `main`.
+   ADR aceito é imutável. Registre mudanças de rumo em um novo ADR com link para a decisão que ele substitui.

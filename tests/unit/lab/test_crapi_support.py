@@ -2,6 +2,8 @@
 
 import json
 import subprocess
+from functools import partial
+from pathlib import Path
 
 import pytest
 
@@ -9,20 +11,23 @@ from tests.integration import crapi_support as support
 from tests.integration.lab_support import LabCli
 
 
-def _docker_fixture(*args: str) -> str:
+def _docker_fixture(*args: str, suffix: str = "") -> str:
     if args[:2] == ("network", "inspect"):
         return "true"
     if args[:2] == ("volume", "ls"):
         return ""
     if args[0] == "ps":
-        return "zap" if args[-1].endswith("=hdast-codex") else "workshop\nweb"
+        projects = {f"hdast{suffix}": "zap", f"hdast-crapi{suffix}": "workshop\nweb"}
+        return projects[args[-1].rsplit("=", 1)[1]]
     if args[0] == "inspect":
         template, container = args[2], args[3]
         if ".Config.Labels" in template:
             service = {"zap": "zap", "workshop": "crapi-workshop", "web": "crapi-web"}[container]
             return json.dumps(service)
         if ".NetworkSettings.Networks" in template:
-            network = "hdast-codex_zap_net" if container == "zap" else "hdast-crapi-codex_crapi_net"
+            network = (
+                f"hdast{suffix}_zap_net" if container == "zap" else f"hdast-crapi{suffix}_crapi_net"
+            )
             return json.dumps({network: {}})
         if ".NetworkSettings.Ports" in template:
             return json.dumps({"80/tcp": [{"HostIp": "127.0.0.1"}]})
@@ -30,8 +35,12 @@ def _docker_fixture(*args: str) -> str:
     raise AssertionError("consulta inesperada")
 
 
-def test_topologia_confere_redes_portas_e_volumes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(support, "_docker", _docker_fixture)
+@pytest.mark.parametrize("suffix", ["", "-codex", "-claude"])
+def test_topologia_confere_redes_portas_e_volumes(
+    monkeypatch: pytest.MonkeyPatch, suffix: str
+) -> None:
+    monkeypatch.setenv("HDAST_IT_STACK_SUFFIX", suffix)
+    monkeypatch.setattr(support, "_docker", partial(_docker_fixture, suffix=suffix))
     volumes = support.inspect_topology()
     assert volumes == {"disposable-volume"}
     support.assert_volumes_removed(volumes)
@@ -61,7 +70,7 @@ def test_rejeita_zap_na_rede_publicada_do_alvo(monkeypatch: pytest.MonkeyPatch) 
             and ".NetworkSettings.Networks" in args[2]
             and args[3] in {"zap", "web"}
         ):
-            return json.dumps({"hdast-crapi-codex_publish_net": {}})
+            return json.dumps({"hdast-crapi_publish_net": {}})
         return _docker_fixture(*args)
 
     monkeypatch.setattr(support, "_docker", connected)
@@ -81,3 +90,19 @@ def test_metricas_nao_incluem_resposta_arbitraria(monkeypatch: pytest.MonkeyPatc
     _, metrics = support.run_cli(cli, "preflight", "crapi")
     assert metrics["error_code"] == "STACK_STALE"
     assert "secret" not in json.dumps(metrics)
+
+
+@pytest.mark.parametrize("suffix", [None, "-codex", "-claude"])
+def test_nomes_de_projeto_correspondem_ao_sufixo_da_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str | None
+) -> None:
+    if suffix is not None:
+        monkeypatch.setenv("HDAST_IT_STACK_SUFFIX", suffix)
+    cli = LabCli(tmp_path, {})
+
+    applied = cli.env.get("HDAST_STACK_PROJECT_SUFFIX", "")
+    assert applied == (suffix or "")
+    assert (support.project(), support.crapi_project()) == (
+        f"hdast{applied}",
+        f"hdast-crapi{applied}",
+    )

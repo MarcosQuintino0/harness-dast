@@ -105,6 +105,7 @@ class DoctorSetup:
         clock = ManualClock()
         self.doctor = Doctor(
             host=host,
+            images=host.stack_images(),
             profiles=profiles,
             validator=ValidateProfile(profiles, clock, InMemoryApprovalStore()),
             secrets=RoutingSecretProvider(DictSecretProvider({"ACME_USER_A_LOGIN": LOGIN}), store),

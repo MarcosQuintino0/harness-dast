@@ -5,18 +5,19 @@
 #
 # Uso (veja lab/README.md e docker/scope-proxy/README.md):
 #   export HDAST_ZAP_API_KEY="$(openssl rand -hex 24)"   # obrigatória, sem padrão
-#   docker compose up -d --build                # zap + scope-proxy (+ zap-gateway)
-#   docker compose --profile lab up -d --build  # inclui o alvo de laboratório (VAmPI)
+#   uv run hdast stack pull                    # baixa as imagens próprias
+#   docker compose up -d --no-build             # zap + scope-proxy (+ pontes)
+#   docker compose --profile lab up -d --no-build  # inclui o alvo de laboratório (VAmPI)
 #   docker compose --profile lab down           # parada
 # O caminho normal é `hdast stack up <produto>`, que gera a política do perfil, sorteia a chave
-# do ZAP e sobe tudo (docs/reference/cli.md); estes comandos servem à operação manual.
+# do ZAP e sobe tudo (docs/referencia/cli.md); estes comandos servem à operação manual.
 #
 # Variáveis opcionais (caminhos relativos a este arquivo):
 #   HDAST_SCOPE_POLICY_DIR  diretório com policy.json (e o arquivo-sinal KILL)
 #   HDAST_AUDIT_DIR         diretório da trilha de auditoria (sobrevive ao down)
 #
-# Imagens fixadas por tag E digest (digest do índice multi-arquitetura, lido no
-# Docker Hub e conferido no pull). Atualizar = trocar tag e digest num PR.
+# As imagens de terceiros são fixadas por tag e digest. A CLI usa os digests
+# publicados das imagens próprias quando a instalação contém images.lock.json.
 
 name: hdast
 
@@ -29,7 +30,8 @@ services:
     # extra_checks.experimental_rules liga as selecionadas. Nada é baixado em execução.
     build:
       context: docker/zap
-    image: hdast/zap:2.17.0-alpha54-beta64
+    image: ${HDAST_ZAP_IMAGE:-ghcr.io/marcosquintino0/hdast-zap:1.12.2}
+    pull_policy: never
     # Execução como usuário "zap" (não root), como a documentação oficial.
     user: zap
     environment:
@@ -103,6 +105,7 @@ services:
   zap-gateway:
     # Fonte: https://hub.docker.com/r/alpine/socat
     image: alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055
+    pull_policy: ${HDAST_LAB_PULL_POLICY:-missing}
     user: "65534:65534"   # nobody; a porta 8080 é acima de 1024, não precisa de root
     command: ["TCP-LISTEN:8080,fork,reuseaddr", "TCP:zap:8080"]
     # socat é só um encaminhador TCP: 64 MiB e poucos processos bastam (um fork por conexão).
@@ -139,6 +142,7 @@ services:
   # Fora da máquina: ninguém (a porta é publicada só em loopback).
   proxy-gateway:
     image: alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055
+    pull_policy: ${HDAST_LAB_PULL_POLICY:-missing}
     user: "65534:65534"
     command: ["TCP-LISTEN:3128,fork,reuseaddr", "TCP:scope-proxy:3128"]
     mem_limit: 64m
@@ -169,7 +173,10 @@ services:
     build:
       context: .
       dockerfile: docker/scope-proxy/Dockerfile
-    image: hdast/scope-proxy:local
+      args:
+        HDAST_IMAGE_VERSION: ${HDAST_IMAGE_VERSION:-}
+    image: &scope-proxy-image ${HDAST_SCOPE_PROXY_IMAGE:-ghcr.io/marcosquintino0/hdast-scope-proxy:1.12.2}
+    pull_policy: never
     # uid 10001 criado na imagem; é também o dono dos tmpfs abaixo. Nunca root.
     user: "${HDAST_PROXY_UID:-10001}:${HDAST_PROXY_GID:-10001}"
     # init: PID 1 próprio, que repassa sinais e colhe processos filhos.
@@ -216,6 +223,7 @@ services:
     user: "65534:65534"   # nobody; o VAmPI só precisa ler o código e gravar o SQLite em tmpfs
     # Fonte: https://hub.docker.com/r/erev0s/vampi (única tag publicada: latest)
     image: erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+    pull_policy: ${HDAST_LAB_PULL_POLICY:-missing}
     environment:
       # 1 = vulnerável (padrão), 0 = seguro. Os testes usam os dois modos.
       # Fonte: https://github.com/erev0s/VAmPI#readme
@@ -248,7 +256,8 @@ services:
   # É alvo de laboratório, não parte da pilha para produtos reais.
   vampi-tls:
     profiles: ["lab"]
-    image: hdast/scope-proxy:local
+    image: *scope-proxy-image
+    pull_policy: never
     user: "10001:10001"
     init: true
     entrypoint: ["mitmdump"]
@@ -265,7 +274,7 @@ services:
       vampi:
         condition: service_healthy
       scope-proxy:
-        condition: service_healthy   # a imagem local é construída pelo serviço scope-proxy
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8443), 3).close()"]
       interval: 5s

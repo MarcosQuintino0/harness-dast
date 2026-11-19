@@ -1,7 +1,7 @@
 """Pergunta única: há uma pessoa diante de um terminal interativo?
 
-Usada pelos comandos que só uma pessoa pode confirmar (`cleanup`, `secret set|delete` e
-`profile approve`). Sem terminal (entrada ou saída de diagnóstico redirecionada), a resposta é
+Usada pelos comandos que só uma pessoa pode confirmar, como `cleanup`, `profile approve`
+e `demo`. Sem terminal (entrada ou saída de diagnóstico redirecionada), a resposta é
 não: foi assim que um agente de IA, que roda comandos sem terminal, é barrado.
 """
 

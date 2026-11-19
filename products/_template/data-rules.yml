@@ -2,7 +2,7 @@
 # MODELO: data-rules.yml. Regras de geração de dados válidos para o produto.
 #
 # Schema versão 1, validado por `domain/datagen.py`. A referência campo a campo
-# está em docs/reference/data-rules-yml.md.
+# está em docs/referencia/data-rules-yml.md.
 #
 # Por que existe: o ZAP, sozinho, envia valores genéricos que a API rejeita
 # (400) ou que colidem com registros existentes (409). Estas regras dizem como

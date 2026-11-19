@@ -24,7 +24,7 @@ from tests.integration.strategy_support import (
     record_control,
     set_lab_pacing,
 )
-from tests.integration.test_lab_v155 import _install
+from tests.integration.test_lab_mass_assignment_and_pair import _install
 from tests.integration.test_lab_vampi import SEEDED
 
 pytestmark = pytest.mark.integration
@@ -47,7 +47,7 @@ def _cli(root: Path, product: str) -> LabCli:
     return LabCli(root, env)
 
 
-@pytest.mark.lab_fast
+@pytest.mark.lab_prova
 @pytest.mark.parametrize("product", ["clinica-piloto", "vampi"])
 @pytest.mark.parametrize("mode", ["vulnerable", "secure"])
 @pytest.mark.parametrize("pacing", ["legacy"])
@@ -65,9 +65,9 @@ def test_strategy_preserva_controles_direcionados(
     _install(cli, product)
     set_lab_pacing(cli, product, pacing)
     activate_strategy(cli, product)
-    flags = ["--build", *(["--secure"] if mode == "secure" else [])]
+    flags = [*(["--secure"] if mode == "secure" else [])]
     try:
-        up = cli.run("stack", "up", product, *flags, timeout=900)
+        up = cli.stack_up(product, *flags, timeout=900)
         assert up.code == 0, up.stdout + up.stderr
         bind_live_strategy(cli, product, mode)
         preflight = cli.run("preflight", product)
@@ -178,7 +178,7 @@ def test_strategy_preserva_varredura_completa(tmp_path: Path, product: str) -> N
     cli = _cli(tmp_path, product)
     install_strategy(cli, product)
     try:
-        up = cli.run("stack", "up", product, "--build", timeout=900)
+        up = cli.stack_up(product, timeout=900)
         assert up.code == 0, up.stdout + up.stderr
         scenario = run_scenario(f"v18-t4-{product}", cli, product=product, timeout=3600)
         assert scenario.result.code in {0, 1}, scenario.result.stdout + scenario.result.stderr

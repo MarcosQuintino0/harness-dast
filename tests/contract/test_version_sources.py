@@ -18,7 +18,7 @@ def test_project_version_matches_latest_numbered_changelog_section() -> None:
     assert project["project"]["version"] == published[0]
 
 
-@pytest.mark.parametrize("relative", ["README.md", "docs/architecture.md"])
+@pytest.mark.parametrize("relative", ["README.md", "docs/como-funciona/arquitetura.md"])
 def test_entry_documents_link_to_roadmap_instead_of_announcing_current_version(
     relative: str,
 ) -> None:

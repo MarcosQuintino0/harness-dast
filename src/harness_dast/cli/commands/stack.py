@@ -1,4 +1,4 @@
-"""Comandos `hdast stack up|status|down` e `hdast stop` (pilha de contêineres e trava)."""
+"""Comandos `hdast stack pull|up|status|down` e `hdast stop`."""
 
 from pathlib import Path
 from typing import Annotated
@@ -9,6 +9,7 @@ from harness_dast.application.stack import DEFAULT_UP_TIMEOUT_SECONDS, StackUpRe
 from harness_dast.application.stack_models import StackReport, StopReport
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.stack_composition import (
+    build_stack_images,
     build_stack_manager,
     open_zap_stopper,
     policy_dir_from_environment,
@@ -77,7 +78,7 @@ def up_command(
         typer.Option("--token-ttl", min=5, max=86400, help="Vida do token do alvo, em segundos."),
     ] = None,
     build: Annotated[
-        bool, typer.Option("--build", help="Reconstrói as imagens locais antes de subir.")
+        bool, typer.Option("--build", help="Reconstrói as imagens em um clone de desenvolvimento.")
     ] = False,
     oracle: Annotated[
         bool,
@@ -132,6 +133,17 @@ def status_command(ctx: typer.Context) -> None:
     )
 
 
+def pull_command(ctx: typer.Context) -> None:
+    """Baixa as imagens próprias do ZAP e do proxy de escopo sem subir a pilha."""
+    with hold_stack("stack pull", "-"):
+        images = build_stack_images().pull()
+    emit(
+        build_success({"images": list(images)}),
+        json_mode=get_state(ctx).json_mode,
+        human="Imagens baixadas.\n" + "\n".join(images),
+    )
+
+
 def down_command(ctx: typer.Context) -> None:
     """Derruba o que `stack up` subiu e esquece o estado (a auditoria é mantida)."""
     # Derrubar com uma execução em andamento a destruiria: use `hdast stop` antes.
@@ -169,6 +181,7 @@ def build_stack_app() -> typer.Typer:
         help="Pilha de contêineres do laboratório (ZAP, proxy de escopo, alvo)."
     )
     stack_app.command("up")(up_command)
+    stack_app.command("pull")(pull_command)
     stack_app.command("status")(status_command)
     stack_app.command("down")(down_command)
     return stack_app

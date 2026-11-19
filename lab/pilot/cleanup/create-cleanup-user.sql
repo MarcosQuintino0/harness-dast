@@ -5,7 +5,7 @@
 -- A senha da limpeza e PILOT_ORACLE_CLEANUP_PASSWORD (gerada por `hdast stack up --oracle` e
 -- guardada so no estado local da pilha; ou defina a variavel antes de subir).
 --
--- Minimo privilegio (docs/operations/cleanup.md): entrar, ler e apagar nas cinco tabelas de teste.
+-- Minimo privilegio (docs/como-funciona/operacao/cleanup.md): entrar, ler e apagar nas cinco tabelas de teste.
 -- Nada de INSERT, UPDATE, DROP, TRUNCATE, papeis (DBA, RESOURCE, CONNECT) nem outros esquemas.
 -- SELECT e necessario: no Oracle 23ai um DELETE com WHERE sem SELECT na tabela da ORA-41900.
 -- =============================================================================

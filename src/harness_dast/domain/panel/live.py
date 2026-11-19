@@ -1,6 +1,7 @@
 """Página "Ao vivo" (`live.html`): em que etapa o teste está. Módulo puro.
 
-Fiel a `docs/design/execution-panel/screens/live.html` e aos estados de `system/states.html`:
+Segue `docs/desenvolver/design/execution-panel/screens/live.html` e os estados de
+`system/states.html`:
 trilho de etapas, "atacando agora", quadrados das funções, pedidos e barrados, e o aviso de como
 parar. Sem JavaScript: a CLI regrava a página e ela se recarrega sozinha a cada 15 segundos
 (`<meta http-equiv="refresh">`), então o horário da última gravação fica sempre ao lado de "Ao

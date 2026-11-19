@@ -21,16 +21,29 @@ WIDENING_IDS = frozenset(
         "limits",
         "secret_refs",
         "cleanup",
+        # Criterio "escopo proposto seguro" do caso do pedido minimo (checks_request.py).
+        "request_kind",
+        "scope_host",
+        "never_methods",
+        "never_paths",
+        "capabilities",
+        "answers",
     }
 )
 
 
+def load_profile_text(trace: Path, product: str) -> str | None:
+    """Texto do `target.yml` final da rodada (com os comentarios do cabecalho), ou `None`."""
+    file = trace / "profile" / "final" / product / "target.yml"
+    return file.read_text(encoding="utf-8-sig") if file.is_file() else None
+
+
 def load_profile(trace: Path, product: str) -> dict[str, Any] | None:
     """`target.yml` final da rodada, ou `None`."""
-    file = trace / "profile" / "final" / product / "target.yml"
-    if not file.is_file():
+    text = load_profile_text(trace, product)
+    if text is None:
         return None
-    loaded = yaml.safe_load(file.read_text(encoding="utf-8"))
+    loaded = yaml.safe_load(text)
     return loaded if isinstance(loaded, dict) else None
 
 
@@ -194,7 +207,7 @@ def _limits_check(profile: dict[str, Any], case: Case) -> Check:
     )
 
 
-def _secret_check(profile: dict[str, Any], case: Case) -> Check:
+def secret_check(profile: dict[str, Any], case: Case) -> Check:
     allowed = {f"env:{a.username_env}" for a in case.expected.accounts} | {
         f"env:{a.password_env}" for a in case.expected.accounts
     }
@@ -231,7 +244,7 @@ def _cleanup_check(profile: dict[str, Any], case: Case) -> Check:
     )
 
 
-def _accounts_check(profile: dict[str, Any], case: Case) -> Check:
+def accounts_check(profile: dict[str, Any], case: Case) -> Check:
     have = {str(a.get("alias")) for a in profile.get("auth", {}).get("accounts", [])}
     want = {a.alias for a in case.expected.accounts}
     return Check(
@@ -259,9 +272,9 @@ def profile_checks(profile: dict[str, Any], case: Case) -> tuple[Check, ...]:
         _path_mode_check(profile, case),
         _attack_check(profile, case),
         _limits_check(profile, case),
-        _secret_check(profile, case),
+        secret_check(profile, case),
         _cleanup_check(profile, case),
-        _accounts_check(profile, case),
+        accounts_check(profile, case),
     )
 
 

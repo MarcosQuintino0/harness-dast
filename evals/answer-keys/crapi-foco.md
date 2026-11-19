@@ -2,7 +2,7 @@
 
 Versão 2 do caso (V1.12, 2026-11-17). A versão 1 marcava todos os desafios como
 `detectable: false`; a versão 2 muda o valor só onde há prova no laboratório (o C3 voltou a `false` na correção da validação independente) (execuções
-de integração com `run_id` no [relatório da V1.12](../../docs/reviews/relatorio-v1.12.md)).
+de integração com `run_id` no [relatório da V1.12](../../docs/arquivo/reviews/relatorio-v1.12.md)).
 A carta passa a ligar, na seção `attack`, o ritmo `proxy` e as cinco capacidades da V1.12,
 cada uma com frase de autorização (ADR 0096). A verificação de OTP da v2 entra no escopo
 (só POST); a v3 e a recuperação de senha continuam negadas.

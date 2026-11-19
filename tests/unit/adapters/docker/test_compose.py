@@ -5,10 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from harness_dast.adapters.docker.compose import BUILD_SECONDS, CommandResult, DockerComposeCli
+from harness_dast.adapters.docker.compose import (
+    BUILD_SECONDS,
+    CommandResult,
+    DockerComposeCli,
+    default_compose_root,
+)
 from harness_dast.application.stack_models import ComposeProject
 from harness_dast.cli.output import build_failure
-from harness_dast.domain.errors import ExitCode, ExternalToolError
+from harness_dast.domain.errors import ConfigError, ExitCode, ExternalToolError
 
 PROJECT = ComposeProject(
     name="hdast",
@@ -18,6 +23,26 @@ PROJECT = ComposeProject(
     services=("zap", "vampi"),
 )
 SECRET = "chave-zap-muito-secreta"  # noqa: S105
+
+
+def test_usa_compose_da_raiz_quando_esta_no_clone() -> None:
+    root = Path("checkout")
+    package = root / "src/harness_dast"
+    files = {root / "pyproject.toml", root / "compose.yaml", package / "compose.yaml"}
+
+    assert default_compose_root(package=package, is_file=files.__contains__) == root
+
+
+def test_usa_compose_do_pacote_quando_instalado() -> None:
+    package = Path("venv/lib/site-packages/harness_dast")
+    files = {package / "compose.yaml"}
+
+    assert default_compose_root(package=package, is_file=files.__contains__) == package
+
+
+def test_informa_instalacao_incompleta_quando_compose_falta() -> None:
+    with pytest.raises(ConfigError, match=r"Não encontrei o compose\.yaml"):
+        default_compose_root(package=Path("site-packages/harness_dast"), is_file=lambda _: False)
 
 
 class Recorder:
@@ -67,6 +92,16 @@ def test_up_com_build_ganha_prazo_extra_e_sem_build_fica_como_antes() -> None:
 
     assert with_build.calls[0][2] == without.calls[0][2] + BUILD_SECONDS
     assert without.calls[0][2] == 130
+    assert "--no-build" in without.calls[0][0]
+
+
+def test_build_prepara_as_imagens_proprias_sem_subir_servicos() -> None:
+    runner = Recorder(CommandResult(0, "", ""))
+
+    cli(runner).build(PROJECT, {}, ("zap", "scope-proxy"))
+
+    assert runner.calls[0][0][-3:] == ["build", "zap", "scope-proxy"]
+    assert runner.calls[0][2] == BUILD_SECONDS
 
 
 def test_falha_do_compose_vira_erro_de_ferramenta_sem_vazar_o_segredo() -> None:

@@ -5,6 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "harness-dast"
 version = "1.12.2"
+license = "MIT"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hdast = "harness_dast.cli.app:main"
+hdast = "harness_dast.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -41,6 +42,10 @@ dev = [
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.uv.build-backend]
+# O uv_build leva os dados sob o módulo para o wheel e para o sdist.
+source-exclude = ["/docker", "/lab", "/tests", "/evals", "/docs", "/.claude"]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -88,14 +93,14 @@ convention = "google"
 "tests/**" = ["S101", "D"]
 # O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
 "evals/**" = ["D1"]
-# CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
+# CSS copiado do desenho do painel (docs/desenvolver/design/execution-panel/): linhas longas de propósito, para
 # a cópia continuar idêntica ao original.
 "src/harness_dast/domain/panel/style.py" = ["E501"]
 "src/harness_dast/domain/panel/tokens.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
-files = ["src", "tests", "evals"]
+files = ["src", "tests", "evals", "plugin/hooks"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
@@ -116,6 +121,7 @@ markers = [
     "contract: envelope JSON, códigos de saída e contratos de portas",
     "e2e: hdast run contra o lab; exige Docker",
     "lab_fast: nivel RAPIDO da integracao (poucos endpoints, pilha reaproveitada); exige Docker",
+    "lab_prova: provas de versão, rodadas no fechamento e quando a área muda; exige Docker",
     "lab_full: nivel COMPLETO da integracao (todos os endpoints, politica padrao); exige Docker",
     "regressao_dirigida: roteiro nao cego e rapido que prova que H1 a H10 (Clinica) e V1 e V3 (VAmPI) seguem achadas; exige Docker",
 ]
@@ -207,7 +213,7 @@ modules = [
 
 # --------------------------------------------------------------- vulture
 [tool.vulture]
-paths = ["src"]
+paths = ["src", "plugin/hooks"]
 min_confidence = 60
 # Os validadores pydantic são chamados por reflexão: a exceção é por decorador, não por nome.
 ignore_decorators = ["@field_validator", "@model_validator"]

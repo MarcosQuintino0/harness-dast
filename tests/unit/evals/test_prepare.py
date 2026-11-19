@@ -20,8 +20,8 @@ def test_prepare_copies_the_repo_without_what_reveals_the_flaws(repo: Path, out:
     for gone in (
         "evals/answer-keys/k.md",
         "tests/integration/t.py",
-        "docs/reviews/r.md",
-        "docs/guides/primeiro-uso.md",
+        "docs/arquivo/reviews/r.md",
+        "docs/comecar/primeiro-uso.md",
         "lab/README.md",
         "lab/mini/openapi.json",
         "lab/mini/secret-notes/n.md",
@@ -165,14 +165,14 @@ def test_prepare_copies_agents_instructions_without_coordinator_material(
 ) -> None:
     instructions = (Path(__file__).resolve().parents[3] / "AGENTS.md").read_text(encoding="utf-8")
     write(repo / "AGENTS.md", instructions)
-    write(repo / "docs/plans/briefing.md", "segredo-do-gabarito")
+    write(repo / "docs/arquivo/plans/briefing.md", "segredo-do-gabarito")
     write(repo / ".claude/settings.local.json", "permissoes do coordenador")
     write(repo / ".claude/worktrees/agent/evals/answer-keys/key.md", "gabarito")
 
     dirs = make_round(repo, out)
 
     assert (dirs.workspace / "AGENTS.md").read_text(encoding="utf-8") == instructions
-    assert not (dirs.workspace / "docs/plans").exists()
+    assert not (dirs.workspace / "docs/arquivo/plans").exists()
     assert not (dirs.workspace / ".claude/settings.local.json").exists()
     assert not (dirs.workspace / ".claude/worktrees").exists()
     assert not (dirs.workspace / "evals/answer-keys").exists()

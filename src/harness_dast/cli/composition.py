@@ -6,9 +6,11 @@ aos adaptadores reais.
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from harness_dast.adapters.cleanup.oracle_executor import OracleCleanupExecutor
 from harness_dast.adapters.cleanup.run_files import FileCleanupRuns
@@ -18,6 +20,7 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.openapi.spec_paths import FileSpecPaths
 from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
 from harness_dast.adapters.storage.knowledge_repository import FileKnowledgeStore
 from harness_dast.adapters.storage.letter_reader import FileLetterReader
@@ -56,12 +59,14 @@ from harness_dast.cli.approval_composition import (
 )
 from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
+    build_stack_images,
     load_effective_settings,
     open_kill_switch,
     open_state_store,
 )
 from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.probe_policy import REQUEST_TIMEOUT_SECONDS
+from harness_dast.domain.request_defaults import DEFAULT_TIMEZONE
 from harness_dast.observability.logging import SecretRegistry
 
 
@@ -82,6 +87,19 @@ def build_init_product(products_dir: Path | None) -> InitProduct:
     return InitProduct(scaffolder)
 
 
+def local_timezone_name(env: Mapping[str, str]) -> str:
+    """Fuso da janela padrão do pedido mínimo: `TZ`, se for um nome IANA válido.
+
+    O Python não informa o nome IANA do fuso da máquina (só o deslocamento), então a CLI usa
+    a variável `TZ` e, sem ela ou com valor inválido, `America/Sao_Paulo` (ADR 0120).
+    """
+    name = env.get("TZ", "").strip()
+    try:
+        return ZoneInfo(name).key if name else DEFAULT_TIMEZONE
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return DEFAULT_TIMEZONE
+
+
 def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
     """Monta o caso de uso `hdast init --from-letter`.
 
@@ -90,7 +108,11 @@ def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
     """
     root = products_dir_or_default(products_dir)
     return InitFromLetter(
-        FileLetterReader(), FileProductScaffolder(root, default_template_dir()), SystemClock()
+        FileLetterReader(),
+        FileProductScaffolder(root, default_template_dir()),
+        SystemClock(),
+        FileSpecPaths(),
+        local_timezone_name(os.environ),
     )
 
 
@@ -299,8 +321,10 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
     root = products_dir_or_default(products_dir)
     clock = SystemClock()
     profiles = FileProfileRepository(root)
+    host = SystemHost(os.environ)
     return Doctor(
-        host=SystemHost(os.environ),
+        host=host,
+        images=build_stack_images(host),
         profiles=profiles,
         validator=ValidateProfile(profiles, clock, open_approval_store()),
         secrets=build_secret_provider(),

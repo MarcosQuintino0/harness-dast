@@ -34,8 +34,11 @@ class ProductScaffolder(Protocol):
         `target_text` (ADR 0036) substitui o `target.yml` do modelo pelo texto gerado da carta;
         o texto é gravado como veio, em UTF-8 com quebras LF.
 
-        Garante: nunca sobrescreve uma pasta existente e nunca cria nada fora da pasta de
-        produtos; em caso de falha no meio da cópia, não deixa pasta parcial.
+        Garante: nunca sobrescreve um arquivo existente nem aceita uma pasta que já tenha
+        arquivo do perfil (`target.yml`, `data-rules.yml`, `flows.yml`, `cleanup/`); uma pasta
+        sem eles (só o diário do agente, por exemplo) é aceita e seus arquivos ficam intactos.
+        Nunca cria nada fora da pasta de produtos; em caso de falha no meio da cópia, remove o
+        que criou e não deixa pasta parcial.
 
         Raises:
             ConfigError: Nome inválido, pasta de produtos ausente, produto já existente,
@@ -53,5 +56,19 @@ class LetterReader(Protocol):
         Raises:
             ConfigError: Arquivo ausente, grande demais, fora de UTF-8 ou YAML inválido ou
                 com construção proibida. A mensagem nunca traz o conteúdo do arquivo.
+        """
+        ...
+
+
+class SpecPathReader(Protocol):
+    """Leitor dos caminhos de um OpenAPI que ainda não está na pasta do produto."""
+
+    def read_paths(self, base_dir: Path, relative: str) -> tuple[str, ...]:
+        """Devolve os modelos de caminho (`/users/{id}`) do OpenAPI, sem repetição.
+
+        Só lê arquivo dentro de `base_dir` (a pasta da carta) e não envia nada a ninguém.
+
+        Raises:
+            ConfigError: Caminho fora de `base_dir`, arquivo ausente ou OpenAPI inválido.
         """
         ...

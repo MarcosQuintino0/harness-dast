@@ -1,6 +1,6 @@
 """Modelo do relatório de achados (`findings.json`) e as afirmações fixas de honestidade.
 
-`findings.json` é contrato público (schema versionado, `docs/reference/finding-schema.md`).
+`findings.json` é contrato público (schema versionado, `docs/referencia/finding-schema.md`).
 Toda execução leva, no próprio arquivo, o que ela NÃO testou: a ausência de achados não prova
 segurança. Este módulo é puro.
 """

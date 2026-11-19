@@ -1,0 +1,8 @@
+{
+  "name": "hdast",
+  "version": "1.12.2",
+  "description": "Teste de seguranca de APIs com o harness-dast: skills de cadastro, alcance, varredura e triagem, dois subagentes e o guard que barra o que o agente nao pode fazer. Uso defensivo, so em ambiente de teste autorizado.",
+  "author": {
+    "name": "Marcos Quintino"
+  }
+}

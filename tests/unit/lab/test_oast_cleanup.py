@@ -14,11 +14,12 @@ import pytest
 import yaml
 
 from tests.integration.lab_support import REPO, CliResult, LabCli
-from tests.integration.oast_cleanup import CRAPI_PROJECT, PROJECT
 from tests.integration.oast_support import OastLab
 from tests.integration.test_lab_oast import finish_proof
 
 OWNER = "a" * 12
+PROJECT = "hdast"
+CRAPI_PROJECT = "hdast-crapi"
 NETWORK = "b" * 64
 CLIENT = "c" * 64
 GATEWAY = "d" * 64

@@ -132,8 +132,8 @@ def _measure(cli: LabCli, mode: str) -> AuthzLab:
         seconds[name] = round(time.monotonic() - started, 1)
 
     started = time.monotonic()
-    flags = ["--build", "--secure"] if mode == "secure" else ["--build"]
-    assert cli.run("stack", "up", "clinica-piloto", *flags, timeout=600).code == 0
+    flags = ["--secure"] if mode == "secure" else []
+    assert cli.stack_up("clinica-piloto", *flags, timeout=600).code == 0
     timed("stack_up", started)
     assert cli.run("preflight", "clinica-piloto").code == 0
     started = time.monotonic()

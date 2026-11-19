@@ -1,5 +1,5 @@
 # Encadeamento da Clinica Piloto (schema v1): convenio -> paciente -> consulta -> receita, com
-# medico alimentando a consulta. Varios niveis sao aceitos (docs/reference/flows-yml.md).
+# medico alimentando a consulta. Varios niveis sao aceitos (docs/referencia/flows-yml.md).
 schema_version: 1
 bindings:
   - produces: { operation: criarConvenio, field: id }

@@ -22,9 +22,7 @@ _GRACE_SECONDS = 30
 BUILD_SECONDS = 600
 """Prazo extra do processo quando o `up` reconstrói imagens (`--build`).
 
-O `--wait-timeout` só conta a espera pela saúde dos contêineres; o build (a imagem `hdast/zap`
-baixa dois complementos no primeiro `stack up`, ADR 0103, e o `scope-proxy` instala dependências)
-roda antes e ficaria dentro dos 30 s de folga. Sem build o prazo é o de antes.
+O `--wait-timeout` só conta a espera pela saúde dos contêineres. O build roda antes.
 """
 
 
@@ -62,6 +60,28 @@ def default_repo_root() -> Path:
     return root
 
 
+def default_compose_root(
+    *,
+    package: Path | None = None,
+    is_file: Callable[[Path], bool] = Path.is_file,
+) -> Path:
+    """Localiza o Compose do clone editável ou o arquivo da instalação."""
+    package = Path(__file__).resolve().parents[2] if package is None else package
+    root = package.parent.parent
+    if (
+        package.parent.name == "src"
+        and is_file(root / "pyproject.toml")
+        and is_file(root / "compose.yaml")
+    ):
+        return root
+    if is_file(package / "compose.yaml"):
+        return package
+    raise ConfigError(
+        "Não encontrei o compose.yaml da pilha.",
+        hint="Reinstale o wheel da release ou restaure o compose.yaml do clone.",
+    )
+
+
 def run_subprocess(
     args: list[str], env: Mapping[str, str], cwd: Path, timeout: float
 ) -> CommandResult:
@@ -94,14 +114,28 @@ class DockerComposeCli:
         self._base_env = dict(base_env)
         self._runner = runner
 
+    def build(
+        self, project: ComposeProject, env: dict[str, str], services: tuple[str, ...]
+    ) -> None:
+        """Constrói os serviços indicados sem iniciar contêineres."""
+        command = [*_prefix(project), "build", *services]
+        self._run(project, command, env, BUILD_SECONDS, "construir")
+
     def up(
-        self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        *,
+        build: bool | None,
+        timeout_seconds: int,
     ) -> None:
         """Sobe o projeto (`up -d --wait --force-recreate`) dentro do prazo."""
         command = [*_prefix(project), "up", "-d", "--wait", "--wait-timeout", str(timeout_seconds)]
         command.append("--force-recreate")
-        if build:
+        if build is True:
             command.append("--build")
+        if build is False:
+            command.append("--no-build")
         command.extend(project.services)
         allowance = BUILD_SECONDS if build else 0
         self._run(project, command, env, timeout_seconds + _GRACE_SECONDS + allowance, "subir")
@@ -148,11 +182,16 @@ class DockerComposeCli:
                 hint="Confira a instalação do Docker Desktop.",
             ) from None
         if result.returncode != 0:
+            hint = (
+                "Confira o Docker, a conexão para baixar dependências e rode uv sync."
+                if verb == "construir"
+                else "Confira se o Docker está em execução (docker info) e os logs "
+                "do projeto (docker compose -p NOME logs)."
+            )
             raise ExternalToolError(
                 f"O docker compose falhou ao {verb} o projeto {project.name}: "
                 f"código de saída {result.returncode}.",
-                hint="Confira se o Docker Desktop está em execução (docker info) e os logs "
-                "do projeto (docker compose -p NOME logs).",
+                hint=hint,
             )
         return result
 

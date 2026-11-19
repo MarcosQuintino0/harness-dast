@@ -193,7 +193,7 @@ def build_report(products_dir: Path | None, *, with_panel: bool = True) -> Repor
     """
     runs_dir = load_settings().runs_dir
     calibration_path = (
-        Path(__file__).resolve().parents[3] / "docs/reference/verification-calibration.json"
+        Path(__file__).resolve().parents[3] / "docs/referencia/verification-calibration.json"
     )
     presentation = PresentationBuilder(FilePresentationFiles(runs_dir, calibration_path))
     try:

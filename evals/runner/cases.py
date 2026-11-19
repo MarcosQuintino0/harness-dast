@@ -28,6 +28,11 @@ class RoundDirs:
         return self.out / "workspace"
 
     @property
+    def plugin(self) -> Path:
+        """Copia do plugin do layout `plugin`: fora do workspace, carregada com `--plugin-dir`."""
+        return self.out / "plugin"
+
+    @property
     def sealed(self) -> Path:
         """Lacrado: modo sorteado, segredos e relatorio de exclusao. Fora do workspace."""
         return self.out / "sealed"
@@ -55,9 +60,27 @@ def load_case(name: str, cases_dir: Path = CASES_DIR) -> Case:
         raise EvalError(f"Caso '{name}' nao existe em {cases_dir}. Casos: {', '.join(known)}.")
     try:
         loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict) and "flaws_from" in loaded:
+            loaded = _with_inherited_flaws(loaded, cases_dir)
         return Case.model_validate(loaded)
     except (yaml.YAMLError, ValidationError) as error:
         raise EvalError(f"{path} invalido: {error}") from error
+
+
+def _with_inherited_flaws(loaded: dict[str, object], cases_dir: Path) -> dict[str, object]:
+    """Resolve `flaws_from: <caso>`: o gabarito de falhas e o do outro caso, sem copia.
+
+    Raises:
+        EvalError: O caso de origem nao existe ou nao tem `flaws`.
+    """
+    merged = dict(loaded)
+    source = str(merged.pop("flaws_from"))
+    origin = cases_dir / source / "case.yml"
+    base = yaml.safe_load(origin.read_text(encoding="utf-8")) if origin.is_file() else None
+    if not isinstance(base, dict) or "flaws" not in base:
+        raise EvalError(f"flaws_from: o caso '{source}' nao existe ou nao tem flaws.")
+    merged["flaws"] = base["flaws"]
+    return merged
 
 
 def read_authorization(name: str, case: Case, cases_dir: Path = CASES_DIR) -> str:

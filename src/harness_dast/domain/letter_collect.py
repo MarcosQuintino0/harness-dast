@@ -2,7 +2,8 @@
 
 Garantia de falha fechada: uma resposta só vira valor se tem origem `carta` ou `pessoa`, tem
 valor, e o valor não é de modelo. Todo o resto vira uma pendência com o campo e o que fazer;
-nada é preenchido por padrão. As mensagens nunca repetem o valor recebido. Este módulo é puro.
+nada é preenchido por padrão, salvo o "não sei" nos quatro campos de `letter_defaults`
+(ADR 0114). As mensagens nunca repetem o valor recebido. Este módulo é puro.
 """
 
 from collections.abc import Mapping
@@ -11,6 +12,7 @@ from typing import Final
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from harness_dast.domain.letter import Answer
+from harness_dast.domain.letter_defaults import MINIMUM_DEFAULTS, MinimumDefault
 from harness_dast.domain.placeholders import is_placeholder_text
 from harness_dast.domain.profile_errors import describe_problems, format_location
 
@@ -85,6 +87,7 @@ class Collector:
     def __init__(self) -> None:
         """Cria um coletor sem pendências."""
         self.issues: list[LetterIssue] = []
+        self.defaults: list[MinimumDefault] = []
 
     def add(self, field: str, code: str, message: str) -> None:
         """Registra uma pendência."""
@@ -119,6 +122,21 @@ class Collector:
             self.add(field, PLACEHOLDER, _PLACEHOLDER_TEXT)
             return None
         return answer.value
+
+    def take_with_default(
+        self, field: str, answer: Answer | None, *, required: bool = True
+    ) -> object | None:
+        """Como `take`, mas a resposta `desconhecido` vira o padrão mínimo da CLI (ADR 0114).
+
+        Só vale para os campos da tabela `MINIMUM_DEFAULTS`; o valor aplicado fica em
+        `defaults` para virar aviso. Resposta ausente, nula ou inválida segue as regras de
+        `take`: o padrão cobre só o "não sei" declarado.
+        """
+        if answer is not None and answer.source == "desconhecido":
+            default = MINIMUM_DEFAULTS[field]
+            self.defaults.append(default)
+            return default.value
+        return self.take(field, answer, required=required)
 
     def _absent(self, field: str, required: bool, code: str, text: str) -> None:
         if required:

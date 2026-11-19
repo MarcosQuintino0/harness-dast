@@ -61,11 +61,29 @@ def test_from_data_rejects_an_unknown_field_inside_an_answer() -> None:
         Letter.from_data(data)
 
 
-def test_from_data_rejects_a_bare_value_where_an_answer_is_expected() -> None:
+@pytest.mark.parametrize(
+    "field",
+    [
+        "gates.test_environment",
+        "gates.synthetic_data",
+        "gates.authorization_in_force",
+        "gates.product_owner",
+        "environment.base_url",
+        "scope.allow",
+        "authorization.reference",
+        "authorization.valid_until",
+        "authorization.windows",
+        "auth.type",
+        "auth.accounts",
+        "limits.requests_per_second",
+    ],
+)
+def test_from_data_rejects_a_bare_value_where_an_answer_is_expected(field: str) -> None:
     data = valid_letter_data()
-    data["limits"]["requests_per_second"] = 5
+    section, name = field.split(".")
+    data[section][name] = "valor sem origem"
 
-    with pytest.raises(ConfigError, match=r"limits.requests_per_second"):
+    with pytest.raises(ConfigError, match=rf"{section}\.{name}"):
         Letter.from_data(data)
 
 

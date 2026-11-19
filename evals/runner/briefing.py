@@ -48,8 +48,57 @@ decidiu e por quê. Sem segredos.
 """
 
 
+REQUEST_RULES = """\
+## Combinado
+
+- Use **somente** comandos `hdast` para agir sobre o alvo. Não envie HTTP por nenhum outro meio.
+- O plugin do hdast está carregado: siga as skills dele. Escreva só em `products/`, `runs/` e
+  `cartas/`.
+- Quando o cadastro precisar de dados do dono do produto, junte as perguntas numa rodada só,
+  escreva-as no diário de decisões e na resposta final e pare. Quem coordena responde e a rodada
+  continua na mesma conversa.
+- Não leia `.env` nem arquivo ou variável com segredo; use só os apelidos de conta e os nomes de
+  variável de `inputs/usuarios.md`.
+- Os comandos que tocam o alvo só rodam depois que uma **pessoa** aprova o escopo do perfil. Se um
+  comando recusar com `SCOPE_NOT_APPROVED`, pare: registre no diário de decisões que aguarda a
+  aprovação (você não pode aprovar nem tentar contornar) e peça isso na resposta. Quem coordena
+  aprova e a rodada continua.
+- Não rode `hdast cleanup` nem escreva script de limpeza. Se houver o que limpar, diga qual comando
+  uma pessoa deve rodar.
+- Você **não** precisa commitar nada: quem coleta o resultado tira o próprio instantâneo.
+- Ao terminar, deixe a pilha de teste de pé (não rode `hdast stack down`): quem coleta a derruba.
+
+## Diário de decisões (obrigatório)
+
+Mantenha `products/{product}/decision-log.md` (cadastro e alcançabilidade) e
+`runs/<run_id>/decision-log.md` (varredura e triagem): a cada decisão importante, o que viu, o que
+decidiu e por quê. Sem segredos.
+
+## O que entregar
+
+- Perfil validado em `products/{product}/`.
+- `runs/<run_id>/` com `run.json`, `findings.json`, `report.md` e `triage.json`.
+- Uma resposta final curta: o que foi feito, alcançabilidade obtida, achados por severidade, o que a
+  varredura não cobre e o que ficou pendente para uma pessoa.
+"""
+
+
+def build_request_briefing(case: Case, request: str) -> str:
+    """Briefing do pedido minimo (ADR 0120): so a frase do pedido, sem carta, e o combinado."""
+    return (
+        f"# Pedido do dono do produto: {case.title}\n\n"
+        f"{request.strip()}\n\n"
+        f"{REQUEST_RULES.format(product=case.product)}"
+    )
+
+
 def build_briefing(case: Case, authorization: str) -> str:
-    """Monta `EVAL-BRIEFING.md` com a carta do caso, a tarefa e o combinado."""
+    """Monta `EVAL-BRIEFING.md`: a carta do caso, a tarefa e o combinado.
+
+    No layout `plugin` o arquivo do caso traz so o pedido minimo e nao ha carta.
+    """
+    if case.layout == "plugin":
+        return build_request_briefing(case, authorization)
     delivered = "\n".join(f"- `{item.dest}`" for item in case.deliver)
     return (
         f"# Pedido do dono do produto: {case.title}\n\n"

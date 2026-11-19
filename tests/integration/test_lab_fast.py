@@ -65,7 +65,7 @@ def pilot_facts(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Facts]:
     cli = LabCli(tmp_path_factory.mktemp("fast-pilot"), throwaway_pilot_env())
     cli.install_product("clinica-piloto", PILOT_PROFILE)
     try:
-        assert cli.run("stack", "up", "clinica-piloto", timeout=600).code == 0
+        assert cli.stack_up("clinica-piloto", timeout=600).code == 0
         run_id, _ = _probe_and_scan(cli, "clinica-piloto", *PILOT_OPERATIONS)
         result = cli.run("report", "clinica-piloto", "--run", run_id)
         scenario = Scenario("fast-pilot", cli, result, cli.runs / run_id, proxy_audit(cli), {}, 0.0)
@@ -127,7 +127,7 @@ def slow_vampi(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, f
     assert slow != fast, "o perfil do laboratório deixou de declarar 50 req/s e 8 threads"
     installed.write_text(slow, encoding="utf-8")
     try:
-        assert cli.run("stack", "up", "vampi", timeout=600).code == 0
+        assert cli.stack_up("vampi", timeout=600).code == 0
         run_id, _ = _probe_and_scan(cli, "vampi", VAMPI_OPERATION)
         traffic = _traffic(cli.runs / run_id)
         yield traffic

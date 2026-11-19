@@ -9,7 +9,9 @@ from tests.unit.domain.panel.test_index_pages import TODAY, info, run_row, two_p
 from tests.unit.domain.panel.test_live import view
 from tests.unit.domain.panel.test_summary import EXTRA_CLASSES, analyse
 
-DESIGN = Path(__file__).parents[4] / "docs" / "design" / "execution-panel" / "screens"
+DESIGN = (
+    Path(__file__).parents[4] / "docs" / "desenvolver" / "design" / "execution-panel" / "screens"
+)
 """Classes que o painel acrescenta ao desenho (o desenho não tem a aba desligada, por exemplo)."""
 ADDED = EXTRA_CLASSES | {"off", "k-gr", "k-am", "k-ok", "k-no", "k-run", "ch-mu", "here"}
 

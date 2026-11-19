@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-13T00-00-00Z-lab-0001",
+  "scope": {
+    "allow": [
+      {
+        "host": "vampi",
+        "scheme": "http",
+        "port": 5000,
+        "allow_local": true,
+        "methods": ["GET", "POST", "PUT"],
+        "paths": ["/", "/createdb", "/me", "/users/**", "/books/**"]
+      }
+    ],
+    "deny_paths": ["/users/v1/_debug"]
+  },
+  "limits": {
+    "requests_per_second": 20,
+    "max_duration_minutes": 480,
+    "zap_threads_per_host": 2
+  },
+  "not_after": "2099-12-31T23:59:59Z"
+}

@@ -40,6 +40,14 @@
       "PowerShell(uv run hdast --json secret delete:*)",
       "PowerShell(hdast secret delete:*)",
       "PowerShell(hdast --json secret delete:*)",
+      "Bash(hdast demo:*)",
+      "Bash(hdast --json demo:*)",
+      "Bash(uv run hdast demo:*)",
+      "Bash(uv run hdast --json demo:*)",
+      "PowerShell(hdast demo:*)",
+      "PowerShell(hdast --json demo:*)",
+      "PowerShell(uv run hdast demo:*)",
+      "PowerShell(uv run hdast --json demo:*)",
       "Bash(uv run hdast profile approve:*)",
       "Bash(uv run hdast --json profile approve:*)",
       "Bash(hdast profile approve:*)",
@@ -48,6 +56,14 @@
       "PowerShell(uv run hdast --json profile approve:*)",
       "PowerShell(hdast profile approve:*)",
       "PowerShell(hdast --json profile approve:*)",
+      "Bash(uv run hdast setup:*)",
+      "Bash(uv run hdast --json setup:*)",
+      "Bash(hdast setup:*)",
+      "Bash(hdast --json setup:*)",
+      "PowerShell(uv run hdast setup:*)",
+      "PowerShell(uv run hdast --json setup:*)",
+      "PowerShell(hdast setup:*)",
+      "PowerShell(hdast --json setup:*)",
       "Bash(uv run hdast finding acknowledge:*)",
       "Bash(uv run hdast --json finding acknowledge:*)",
       "Bash(hdast finding acknowledge:*)",
@@ -66,7 +82,30 @@
       "PowerShell(hdast --json mutation release:*)",
       "WebFetch",
       "WebSearch",
-      "Edit(products/*/cleanup/**)"
+      "Edit(products/*/cleanup/**)",
+      "Edit(.claude/settings.json)",
+      "Write(.claude/settings.json)",
+      "Edit(.claude/hooks/**)",
+      "Write(.claude/hooks/**)",
+      "Edit(plugin/hooks/**)",
+      "Write(plugin/hooks/**)",
+      "Edit(.mcp.json)",
+      "Write(.mcp.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet python \"${CLAUDE_PROJECT_DIR}/plugin/hooks/guard.py\"",
+            "onFailure": "block",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

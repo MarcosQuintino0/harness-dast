@@ -14,6 +14,7 @@ import pytest
 import typer
 
 from harness_dast.cli.app import build_app, run_app
+from harness_dast.cli.approval_prompt import TerminalApprovalPrompt
 from harness_dast.cli.commands import profile as profile_command
 from harness_dast.domain.errors import ExitCode
 from tests.fakes.approvals import approve_product_on_disk
@@ -152,7 +153,7 @@ def test_terminal_prompt_shows_the_summary_and_accepts_only_the_exact_product_na
 ) -> None:
     answers = iter(["demo", "DEMO", "", "demo "])
     monkeypatch.setattr(typer, "prompt", lambda *a, **k: next(answers))
-    prompt = profile_command.TerminalApprovalPrompt()
+    prompt = TerminalApprovalPrompt()
     summary = ("Produto: demo", "Pode alcançar (e só isto):")
 
     results = [prompt.confirm("demo", summary, ("limits: limites de carga",)) for _ in range(4)]
@@ -231,6 +232,7 @@ TOUCHING = {
     "scan": ("scan", "demo", "--run", RUN_ID),
     "authz": ("authz", "demo", "--run", RUN_ID),
     "run": ("run", "demo"),
+    "retestar": ("retestar", "demo", "--run", RUN_ID),
     "stack-up": ("stack", "up", "demo"),
     "cleanup": ("cleanup", "demo", "--run", RUN_ID, "--dry-run"),
 }
