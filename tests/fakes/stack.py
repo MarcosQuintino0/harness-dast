@@ -6,11 +6,13 @@ from pathlib import Path
 from harness_dast import __version__
 from harness_dast.application.stack_models import (
     ComposeProject,
+    OneShotResult,
     ServiceStatus,
     StackDirectories,
     StackState,
 )
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.nuclei_scope import NucleiScope
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
 from harness_dast.domain.stack_binding import StackDigests
@@ -60,6 +62,20 @@ class FakeCompose:
             raise ExternalToolError("docker falhou", hint="tente de novo")
         self.running.pop(project.name, None)
 
+    def run_once(
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        service: str,
+        args: tuple[str, ...],
+        *,
+        container_name: str,
+        timeout_seconds: int,
+        mounts: tuple[str, ...] = (),
+    ) -> OneShotResult:
+        self.calls.append(("run_once", project.name))
+        return OneShotResult(exit_code=0, stdout="")
+
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
         if project.name not in self.running:
             return ()
@@ -86,10 +102,18 @@ class InMemoryStackState:
         self.state = None
 
     def directories_for(self, run_id: str) -> StackDirectories:
-        policy, audit = self._base / run_id / "policy", self._base / run_id / "audit"
-        policy.mkdir(parents=True)
-        audit.mkdir(parents=True)
-        return StackDirectories(policy_dir=policy, audit_dir=audit)
+        folders = {
+            name: self._base / run_id / name
+            for name in ("policy", "audit", "policy-nuclei", "audit-nuclei")
+        }
+        for folder in folders.values():
+            folder.mkdir(parents=True)
+        return StackDirectories(
+            policy_dir=folders["policy"],
+            audit_dir=folders["audit"],
+            nuclei_policy_dir=folders["policy-nuclei"],
+            nuclei_audit_dir=folders["audit-nuclei"],
+        )
 
     def location(self) -> Path:
         return self._base / "stack.json"
@@ -100,11 +124,25 @@ class RecordingPolicyStore:
 
     def __init__(self) -> None:
         self.published: list[tuple[str, datetime, Path]] = []
+        self.published_nuclei: list[tuple[str, datetime, Path, NucleiScope | None]] = []
 
     def publish(
         self, profile: ProductProfile, run_id: RunId, not_after: datetime, directory: Path
     ) -> Path:
         self.published.append((run_id.value, not_after, directory))
+        path = directory / "policy.json"
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    def publish_nuclei(
+        self,
+        profile: ProductProfile,
+        run_id: RunId,
+        not_after: datetime,
+        directory: Path,
+        nuclei: NucleiScope | None,
+    ) -> Path:
+        self.published_nuclei.append((run_id.value, not_after, directory, nuclei))
         path = directory / "policy.json"
         path.write_text("{}", encoding="utf-8")
         return path

@@ -13,7 +13,7 @@ Também aciona a trava de emergência (arquivo `KILL` ao lado da política).
 import hashlib
 import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -27,13 +27,18 @@ from harness_dast.adapters.scope_proxy.policy import (
     parse_policy,
 )
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.nuclei_scope import NucleiScope
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.run import RunId
+from harness_dast.domain.scope import Scope, ScopeRule
 from harness_dast.domain.scope_approval import ScopeApproval, check_approval
 
 POLICY_FILE_NAME = "policy.json"
 _WRITE_HINT = "Confira o espaço em disco e a permissão de escrita da pasta de estado."
+DENY_ALL_NOT_AFTER = datetime(2000, 1, 1, tzinfo=UTC)
+"""Prazo já vencido da política que nega tudo: o proxy nega pelo prazo mesmo se o escopo falhar."""
+_DENY_ALL_HOST = "deny-all.example"
 
 
 def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: datetime) -> ProxyPolicy:
@@ -53,6 +58,58 @@ def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: dateti
             "scope": scope,
             "limits": profile.limits,
             "path_mode": profile.scope.path_mode,
+            "not_after": not_after.isoformat(),
+            "stack_minutes": stack_validity_minutes(profile),
+            "tls_verify_upstream": not relax_tls,
+        }
+    )
+
+
+def build_deny_all_policy(profile: ProductProfile, run_id: RunId) -> ProxyPolicy:
+    """Monta a política que nega tudo, da segunda cerca sem o Nuclei ligado.
+
+    Duas travas independentes: `deny_paths` com `/**` nega qualquer caminho de qualquer host, e o
+    prazo (`not_after`) já venceu. A regra de `allow` existe só porque o esquema exige uma; seu
+    host não é de nenhum produto. Os limites são os do perfil (nada a ampliar).
+    """
+    scope = Scope(
+        allow=(ScopeRule(host=_DENY_ALL_HOST, paths=("/**",), methods=("OPTIONS",)),),
+        deny_paths=("/**",),
+    )
+    return ProxyPolicy.model_validate(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": run_id.value,
+            "scope": scope,
+            "limits": profile.limits,
+            "path_mode": "strict",
+            "not_after": DENY_ALL_NOT_AFTER.isoformat(),
+            "stack_minutes": 1,
+        }
+    )
+
+
+def build_nuclei_policy(
+    profile: ProductProfile, run_id: RunId, not_after: datetime, nuclei: NucleiScope | None
+) -> ProxyPolicy:
+    """Monta a política da cerca do Nuclei: a derivada do perfil, ou a que nega tudo.
+
+    Com `nuclei=None` (motor desligado no perfil) devolve `build_deny_all_policy`. Com escopo, usa
+    o `scope`, o `path_mode` e os `limits` dele; o prazo e a validade da pilha são os da política
+    original, e a verificação de TLS segue a mesma regra dela.
+    """
+    if nuclei is None:
+        return build_deny_all_policy(profile, run_id)
+    relax_tls = not profile.environment.verify_tls and all(
+        rule.allow_local for rule in nuclei.scope.allow
+    )
+    return ProxyPolicy.model_validate(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": run_id.value,
+            "scope": nuclei.scope,
+            "limits": nuclei.limits,
+            "path_mode": nuclei.path_mode,
             "not_after": not_after.isoformat(),
             "stack_minutes": stack_validity_minutes(profile),
             "tls_verify_upstream": not relax_tls,
@@ -127,7 +184,28 @@ class FileProxyPolicyStore:
         Raises:
             ConfigError: A política gerada é inválida ou a gravação falhou.
         """
-        policy = build_proxy_policy(profile, run_id, not_after)
+        return self._write(build_proxy_policy(profile, run_id, not_after), profile, directory)
+
+    def publish_nuclei(
+        self,
+        profile: ProductProfile,
+        run_id: RunId,
+        not_after: datetime,
+        directory: Path,
+        nuclei: NucleiScope | None,
+    ) -> Path:
+        """Grava a política da cerca do Nuclei (derivada do perfil ou a que nega tudo).
+
+        Garante: as mesmas garantias de `publish` e, com `nuclei=None`, uma política que nega
+        todo pedido. Nunca há política padrão permissiva.
+
+        Raises:
+            ConfigError: A política gerada é inválida ou a gravação falhou.
+        """
+        policy = build_nuclei_policy(profile, run_id, not_after, nuclei)
+        return self._write(policy, profile, directory)
+
+    def _write(self, policy: ProxyPolicy, profile: ProductProfile, directory: Path) -> Path:
         if self._products_dir is not None:
             policy = policy.model_copy(update={"binding": self._bind(profile)})
         raw = (policy.model_dump_json(indent=2) + "\n").encode("utf-8")

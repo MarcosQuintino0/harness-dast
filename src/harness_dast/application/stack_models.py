@@ -84,18 +84,36 @@ class ServiceStatus(BaseModel):
     health: str = ""
 
 
+class OneShotResult(BaseModel):
+    """Resultado de um contêiner de uso único (`docker compose run --rm`).
+
+    Attributes:
+        exit_code: Código de saída do processo do contêiner, repassado sem interpretação.
+        stdout: Saída padrão do contêiner (a de erro não é devolvida).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    exit_code: int
+    stdout: str
+
+
 class StackDirectories(BaseModel):
     """Pastas de uma execução da pilha.
 
     Attributes:
         policy_dir: Pasta montada somente leitura no proxy (`policy.json` e `KILL`).
         audit_dir: Pasta da trilha de auditoria do proxy.
+        nuclei_policy_dir: Pasta da política da segunda cerca, `scope-proxy-nuclei` (ADR 0122).
+        nuclei_audit_dir: Pasta da trilha de auditoria da segunda cerca.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     policy_dir: Path
     audit_dir: Path
+    nuclei_policy_dir: Path
+    nuclei_audit_dir: Path
 
 
 class StackState(BaseModel):
@@ -113,6 +131,9 @@ class StackState(BaseModel):
         auth_proxy_url: URL do proxy de escopo no host (login e CSRF).
         policy_dir: Pasta da política (contém o `KILL` quando acionado).
         audit_dir: Pasta da auditoria do proxy.
+        nuclei_policy_dir: Pasta da política da `scope-proxy-nuclei` (contém o `KILL` quando
+            acionado); `None` em estado gravado antes da segunda cerca.
+        nuclei_audit_dir: Pasta da auditoria da `scope-proxy-nuclei`; `None` como acima.
         projects: Projetos compose subidos, na ordem de subida.
         target_env: Variáveis (credenciais descartáveis) geradas para o alvo, lidas como
             `secret_ref: env:` pelos comandos seguintes. Só nomes que o alvo exige.
@@ -132,6 +153,8 @@ class StackState(BaseModel):
     auth_proxy_url: str
     policy_dir: Path
     audit_dir: Path
+    nuclei_policy_dir: Path | None = None
+    nuclei_audit_dir: Path | None = None
     projects: tuple[ComposeProject, ...]
     target_env: dict[str, str] = Field(default_factory=dict)
     target_urls: dict[str, str] = Field(default_factory=dict)
@@ -231,6 +254,9 @@ class StopReport(BaseModel):
         zap_message: Por que o ZAP não pôde ser alcançado, quando for o caso.
         scans_running: Varreduras do `hdast scan`/`run` que estavam andando (lidas de
             `scan-progress.json`, atualizado há pouco) quando a trava foi acionada.
+        nuclei_kill_file: Caminho do `KILL` da `scope-proxy-nuclei`, ou `None` sem pasta dela
+            (estado gravado antes da segunda cerca ou sem pilha gerenciada).
+        nuclei_kill_created: Se o `KILL` da segunda cerca foi criado agora.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -242,3 +268,5 @@ class StopReport(BaseModel):
     zap_scans_stopped: int = 0
     zap_message: str | None = None
     scans_running: tuple[ScanProgress, ...] = ()
+    nuclei_kill_file: str | None = None
+    nuclei_kill_created: bool = False

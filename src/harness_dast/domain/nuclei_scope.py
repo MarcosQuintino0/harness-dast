@@ -9,13 +9,14 @@ A restrição de métodos usa o campo `methods` de cada regra, que o guarda já 
 """
 
 from harness_dast.domain.nuclei_manifest import NucleiPermissions
+from harness_dast.domain.nuclei_permissions import nuclei_permissions
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scope import PathMode, Scope, ScopeRule
 from harness_dast.domain.secret_ref import ProfileModel
 from harness_dast.domain.window import ExecutionWindow
 
-__all__ = ["NucleiScope", "build_nuclei_scope", "nuclei_methods"]
+__all__ = ["NucleiScope", "build_nuclei_scope", "nuclei_methods", "nuclei_scope_for"]
 
 _READ_METHODS = ("GET", "HEAD", "OPTIONS")
 _WRITE_METHODS = ("PATCH", "POST", "PUT")
@@ -89,4 +90,25 @@ def build_nuclei_scope(
         path_mode="wide" if wide_paths else "strict",
         limits=profile.limits,
         windows=profile.scope.windows,
+    )
+
+
+def nuclei_scope_for(profile: ProductProfile) -> NucleiScope | None:
+    """Política da cerca do Nuclei para o perfil, ou `None` com o motor desligado.
+
+    As permissões vêm de `nuclei_permissions` e os caminhos amplos de
+    `extra_checks.nuclei_wide_paths`. `None` quer dizer que a segunda cerca sobe com a política
+    que nega tudo: nunca há política padrão permissiva.
+
+    Args:
+        profile: Perfil já validado e aprovado.
+    """
+    if not profile.extra_checks.nuclei:
+        return None
+    granted = nuclei_permissions(profile)
+    permissions = NucleiPermissions(
+        writes=granted.writes, delete=granted.delete, login=granted.login
+    )
+    return build_nuclei_scope(
+        profile, permissions, wide_paths=profile.extra_checks.nuclei_wide_paths
     )

@@ -97,13 +97,20 @@ class FileStackStateStore:
             raise _write_error() from None
 
     def directories_for(self, run_id: str) -> StackDirectories:
-        """Cria `<estado>/stacks/<run_id>/policy` e `.../audit`."""
+        """Cria as pastas da execução: `policy` e `audit`, e as da cerca do Nuclei."""
         valid = RunId(value=run_id)
         base = self._directory / "stacks" / valid.value
-        policy, audit = base / "policy", base / "audit"
-        for folder in (policy, audit):
+        folders = {
+            name: base / name for name in ("policy", "audit", "policy-nuclei", "audit-nuclei")
+        }
+        for folder in folders.values():
             self._ensure_dir(folder)
-        return StackDirectories(policy_dir=policy, audit_dir=audit)
+        return StackDirectories(
+            policy_dir=folders["policy"],
+            audit_dir=folders["audit"],
+            nuclei_policy_dir=folders["policy-nuclei"],
+            nuclei_audit_dir=folders["audit-nuclei"],
+        )
 
     @staticmethod
     def _ensure_dir(folder: Path) -> None:
