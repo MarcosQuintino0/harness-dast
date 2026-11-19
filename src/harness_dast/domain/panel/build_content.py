@@ -33,6 +33,7 @@ from harness_dast.domain.panel.model import (
     PanelLeftOut,
     PanelStep,
 )
+from harness_dast.domain.panel.nuclei import nuclei_severe
 from harness_dast.domain.probe_result import OperationResult, ProbeResult
 from harness_dast.domain.report.labels import seeded_scans_notice
 from harness_dast.domain.report.model import FindingsReport
@@ -225,6 +226,7 @@ def build_severe(
         for item in (negative.findings if negative else ())
         if item.proposed_severity == "high"
     ]
+    found += nuclei_severe(report)
     return tuple(sorted(found, key=lambda item: (-item.confidence, item.finding_id)))
 
 
@@ -233,12 +235,15 @@ def build_counts(
     authz: AuthzResult | None,
     negative: NegativeResult | None = None,
 ) -> FindingCounts | None:
-    """Achados por severidade proposta (ZAP, entre contas e valores proibidos), ou `None`."""
+    """Achados por severidade proposta (ZAP, entre contas, valores proibidos, Nuclei), ou `None`."""
     if report is None:
         return None
     counts = Counter(item.proposed_severity for item in report.findings)
     counts.update(item.proposed_severity for item in (authz.findings if authz else ()))
     counts.update(item.proposed_severity for item in (negative.findings if negative else ()))
+    counts.update(
+        item.proposed_severity for item in (report.nuclei.findings if report.nuclei else ())
+    )
     return FindingCounts(
         high=counts["high"],
         medium=counts["medium"],

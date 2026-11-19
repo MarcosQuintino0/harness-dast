@@ -23,6 +23,7 @@ from harness_dast.domain.panel.build_measure import build_measurements, with_sta
 from harness_dast.domain.panel.build_stages import build_stages, build_verdict, settle_stopped
 from harness_dast.domain.panel.format import product_title
 from harness_dast.domain.panel.model import PanelCommand, PanelIdentity, PanelView, panel_links
+from harness_dast.domain.panel.nuclei import build_nuclei_summary
 from harness_dast.domain.panel.sources import PanelSources, parse_moment
 from harness_dast.domain.report.build import _not_tested, coverage_is_partial
 
@@ -160,6 +161,7 @@ def build_panel_view(src: PanelSources) -> PanelView:
         traffic=src.scan.traffic if src.scan else None,
         traffic_measured=bool(src.scan and src.scan.traffic.enabled),
         counts=counts,
+        nuclei=build_nuclei_summary(src.findings),
         groups=build_groups(src.findings, paths),
         severe=severe,
         left_out=build_left_out(

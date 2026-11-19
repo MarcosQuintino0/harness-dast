@@ -33,7 +33,7 @@ PANEL_DIR: Final = "panel"
 StageKey = Literal["preflight", "probe", "scan", "authz", "negative", "report"]
 StageState = Literal["done", "cut", "skipped", "pending"]
 CommandStatus = Literal["ok", "partial", "error"]
-FindingOrigin = Literal["zap", "authz", "negative"]
+FindingOrigin = Literal["zap", "authz", "negative", "nuclei"]
 Owner = Literal["qa", "owner"]
 
 
@@ -218,8 +218,8 @@ class PanelFinding(ApiModel):
 
     Attributes:
         finding_id: Identificador curto (`F-...` ou `A-...`).
-        origin: `zap` (varredura), `authz` (teste entre contas) ou `negative` (valores que o
-            esquema proíbe).
+        origin: `zap` (varredura), `authz` (teste entre contas), `negative` (valores que o
+            esquema proíbe) ou `nuclei` (segundo motor, modelos conhecidos).
         title: Nome do alerta ou da técnica.
         severity: Severidade PROPOSTA (nunca alterada).
         confidence: Degrau do medidor: 1 a confirmar, 2 prova forte, 3 confirmada.
@@ -240,6 +240,8 @@ class PanelFinding(ApiModel):
         authz_evidence: Resumo da prova do teste de autorização, ou `None`.
         authz_technique: Técnica do achado de autorização, ou `None` quando não informada.
         negative_evidence: Resumo da prova do teste de valores proibidos, ou `None`.
+        nuclei_evidence: Resumo do achado do Nuclei (modelo, onde, contagens; nunca o valor
+            extraído), ou `None`.
         reproduce_curl: Comando `curl` com marcadores no lugar dos segredos, ou `None`.
         repro: Dados de "Como reproduzir à mão" (sem segredo, dado pessoal mascarado), ou `None`
             em falha de autorização ou sem evidência gravada.
@@ -272,6 +274,7 @@ class PanelFinding(ApiModel):
     authz_evidence: str | None = None
     authz_technique: AuthzTechnique | None = None
     negative_evidence: str | None = None
+    nuclei_evidence: str | None = None
     reproduce_curl: str | None = None
     repro: ManualRepro | None = None
     comparison: str | None = None
@@ -331,6 +334,22 @@ class FindingCounts(ApiModel):
     def total(self) -> int:
         """Todos os achados."""
         return self.high + self.medium + self.low + self.informational + self.unknown
+
+
+class PanelNuclei(ApiModel):
+    """Contagens do estágio `nuclei` (ADR 0122) para a aba Falhas.
+
+    Attributes:
+        status: `completed` ou o motivo da parada antecipada.
+        findings: Achados do Nuclei (todas as gravidades).
+        severe: Achados graves (já listados em `severe` do painel).
+        technologies: Tecnologias identificadas (não são achados).
+    """
+
+    status: str
+    findings: int = 0
+    severe: int = 0
+    technologies: int = 0
 
 
 class PanelLeftOut(ApiModel):
@@ -458,6 +477,7 @@ class PanelView(ApiModel):
         traffic: Tráfego da cerca durante a varredura, ou `None` sem `scan.json`.
         traffic_measured: Se havia auditoria do proxy (sem ela, "0 pedidos barrados" seria mentira).
         counts: Achados por severidade, ou `None` sem `findings.json`.
+        nuclei: Contagens do Nuclei, ou `None` quando o estágio não rodou.
         groups: Achados agrupados por causa.
         severe: Falhas graves com a evidência, da mais forte para a mais fraca.
         left_out: O que ficou de fora.
@@ -479,6 +499,7 @@ class PanelView(ApiModel):
     traffic: TrafficSummary | None = None
     traffic_measured: bool = False
     counts: FindingCounts | None = None
+    nuclei: PanelNuclei | None = None
     groups: tuple[PanelGroup, ...] = ()
     severe: tuple[PanelFinding, ...] = ()
     left_out: tuple[PanelLeftOut, ...] = ()
