@@ -40,12 +40,20 @@ def test_wheel_inclui_compose_e_volumes_sem_pastas_do_checkout(tmp_path: Path) -
     with ZipFile(wheel_path) as wheel:
         names = wheel.namelist()
         compose = wheel.read("harness_dast/compose.yaml").decode()
-        assert _relative_mounts(compose) == {"compose_data/policy", "compose_data/audit"}
+        assert _relative_mounts(compose) == {
+            "compose_data/policy",
+            "compose_data/audit",
+            "compose_data/policy-nuclei",
+            "compose_data/audit-nuclei",
+        }
         assert "harness_dast/compose_data/audit/README.txt" in names
         assert "harness_dast/product_template/target.yml" in names
         policy = wheel.read("harness_dast/compose_data/policy/policy.json").decode()
         original = ROOT / "docker/scope-proxy/policy/policy.json"
         assert policy.replace("\r\n", "\n") == original.read_text(encoding="utf-8")
+        nuclei_policy = wheel.read("harness_dast/compose_data/policy-nuclei/policy.json").decode()
+        nuclei_original = ROOT / "docker/scope-proxy/policy-nuclei/policy.json"
+        assert nuclei_policy.replace("\r\n", "\n") == nuclei_original.read_text(encoding="utf-8")
         excluded = {"docker", "lab", "tests", "evals", "docs", ".claude"}
         assert all(
             excluded.isdisjoint(Path(name).parts[:-1]) or _adapter_file(name) for name in names

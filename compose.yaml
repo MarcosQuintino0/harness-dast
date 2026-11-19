@@ -217,6 +217,83 @@ services:
       - /run/mitm:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=16m
       - /run/home:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=8m
 
+  # ------------------------------------------------ Proxy de escopo do Nuclei
+  # Segunda instância da cerca (ADR 0122): a mesma imagem e o mesmo addon, com política e
+  # auditoria PRÓPRIAS. Só o Nuclei aponta para ela; o ZAP nunca referencia este serviço. A
+  # política vem do `hdast stack up` (escopo do Nuclei derivado do perfil aprovado) e, sem o
+  # Nuclei ligado no perfil, é a política que NEGA TUDO. A pasta padrão abaixo também nega tudo:
+  # nunca existe política padrão permissiva. Fica nas mesmas três redes da cerca original (o alvo
+  # do lab só é alcançável pela lab_net) e com os mesmos endurecimentos.
+  scope-proxy-nuclei:
+    image: *scope-proxy-image
+    pull_policy: never
+    user: "${HDAST_PROXY_UID:-10001}:${HDAST_PROXY_GID:-10001}"
+    init: true
+    environment:
+      HDAST_MANAGED_POLICY: "${HDAST_MANAGED_POLICY:-0}"
+    volumes:
+      - ${HDAST_APPROVAL_DIR:-./docker/scope-proxy/policy}:/approvals:ro
+      - ${HDAST_PRODUCT_DIR:-./docker/scope-proxy/policy}:/product:ro
+      # Política do Nuclei, SOMENTE LEITURA. O KILL criado nesta pasta aciona a parada de
+      # emergência desta cerca (o `hdast stop` cria o das duas).
+      - ${HDAST_NUCLEI_POLICY_DIR:-./docker/scope-proxy/policy-nuclei}:/policy:ro
+      - ${HDAST_NUCLEI_AUDIT_DIR:-./docker/scope-proxy/audit-nuclei}:/audit
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 5s
+    networks:
+      zap_net: {}          # lado do Nuclei (interna)
+      lab_net: {}          # lado do alvo do lab (interna)
+      egress_net: {}       # única rede com rota para fora
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    mem_limit: 512m
+    pids_limit: 128
+    tmpfs:
+      - /run/mitm:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=16m
+      - /run/home:uid=${HDAST_PROXY_UID:-10001},gid=${HDAST_PROXY_GID:-10001},mode=0700,size=8m
+
+  # -------------------------------------------------------------- Nuclei
+  # Contêiner de USO ÚNICO (`docker compose run --rm -T nuclei ...`), fora da pilha: o perfil
+  # `nuclei` impede que suba com o `up`. Só na zap_net, que é interna: sem rota para fora e sem
+  # DNS externo; o único destino alcançável é a scope-proxy-nuclei. Nenhuma variável de ambiente
+  # com segredo (o login usa um arquivo em tmpfs, ADR 0122). A entrada padrão é fechada por quem
+  # roda (lição do spike: com ela aberta o contêiner travou na partida).
+  nuclei:
+    profiles: ["nuclei"]
+    # Só o clone constrói (hdast stack up --build); a instalação usa a imagem publicada.
+    build:
+      context: docker/nuclei
+      args:
+        HDAST_IMAGE_VERSION: ${HDAST_IMAGE_VERSION:-}
+    # Fixada por digest quando a instalação contém images.lock.json (schema 2).
+    image: ${HDAST_NUCLEI_IMAGE:-ghcr.io/marcosquintino0/hdast-nuclei:1.12.2}
+    pull_policy: never
+    # uid 10002 criado na imagem; é também o dono dos tmpfs abaixo e do arquivo de segredos.
+    user: "10002:10002"
+    stdin_open: false
+    tty: false
+    networks:
+      - zap_net            # interna: única rede do Nuclei
+    depends_on:
+      scope-proxy-nuclei:
+        condition: service_healthy
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    # 512m e 128 processos: o Nuclei usou poucas centenas de MiB no spike (321 modelos).
+    mem_limit: 512m
+    pids_limit: 128
+    tmpfs:
+      - /home/nuclei:uid=10002,gid=10002,mode=0700,size=64m
+      - /tmp:uid=10002,gid=10002,mode=0700,size=64m
+
   # ------------------------------------------------------------ Lab (alvo)
   vampi:
     profiles: ["lab"]
@@ -294,9 +371,9 @@ services:
       - /run/home:uid=10001,gid=10001,mode=0700,size=8m
 
 # Redes
-#  zap_net    internal: sem rota para fora; ZAP, proxy e ponte.
-#  lab_net    internal: proxy, VAmPI e frente TLS; o ZAP não está nela.
-#  egress_net comum: só o scope-proxy; é por onde um produto real seria alcançado.
+#  zap_net    internal: sem rota para fora; ZAP, proxy, ponte, scope-proxy-nuclei e o Nuclei.
+#  lab_net    internal: os dois proxies, VAmPI e frente TLS; o ZAP e o Nuclei não estão nela.
+#  egress_net comum: só o scope-proxy e o scope-proxy-nuclei; é por onde um produto real seria alcançado.
 #  host_net   comum: só as pontes (zap-gateway e proxy-gateway), para publicar portas em 127.0.0.1.
 networks:
   zap_net:

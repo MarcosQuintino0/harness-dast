@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-13T00-00-00Z-nuclei-0001",
+  "scope": {
+    "allow": [
+      {
+        "host": "deny-all.example",
+        "scheme": "https",
+        "methods": ["OPTIONS"],
+        "paths": ["/**"]
+      }
+    ],
+    "deny_paths": ["/**"]
+  },
+  "limits": {
+    "requests_per_second": 1,
+    "max_duration_minutes": 1,
+    "zap_threads_per_host": 1
+  },
+  "not_after": "2000-01-01T00:00:00Z",
+  "stack_minutes": 1
+}
