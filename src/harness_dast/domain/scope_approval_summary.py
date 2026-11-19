@@ -30,6 +30,23 @@ def _window_text(window: ExecutionWindow) -> str:
     return f"{days} {_clock(window.start_minute)}-{_clock(window.end_minute)} {window.timezone}"
 
 
+def describe_environment(profile: ProductProfile) -> str:
+    """Mostra o endereço do ambiente e destaca quando a verificação TLS está desligada."""
+    environment = profile.environment
+    tls = "" if environment.verify_tls else " (SEM verificar o certificado TLS)"
+    return f"Ambiente: {environment.name}, endereço {environment.base_url}{tls}"
+
+
+def describe_schedule(profile: ProductProfile) -> tuple[str, str]:
+    """Mostra a referência, a validade e todas as janelas com os respectivos fusos."""
+    scope = profile.scope
+    return (
+        f"Autorização: {scope.authorization.reference}, válida até "
+        f"{scope.authorization.valid_until.isoformat()}",
+        "Janelas de execução: " + "; ".join(_window_text(w) for w in scope.windows),
+    )
+
+
 def _origin(rule: ScopeRule) -> str:
     port = "" if rule.port is None else f":{rule.port}"
     return f"{rule.scheme}://{rule.host}{port}"
@@ -276,19 +293,15 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
     """Linhas legíveis dos blocos que a aprovação trava (sem segredo, sem valor de variável)."""
     scope = profile.scope
     limits = profile.limits
-    environment = profile.environment
-    tls = "" if environment.verify_tls else " (SEM verificar o certificado TLS)"
     denied = ", ".join(scope.deny_paths) or "nenhum caminho negado"
     return (
         f"Produto: {profile.product}",
-        f"Ambiente: {environment.name}, endereço {environment.base_url}{tls}",
+        describe_environment(profile),
         "Pode alcançar (e só isto):",
         *(_rule_line(rule) for rule in scope.allow),
         f"Proibido em qualquer endereço: {denied}",
         _path_mode_line(profile),
-        f"Autorização: {scope.authorization.reference}, válida até "
-        f"{scope.authorization.valid_until.isoformat()}",
-        "Janelas de execução: " + "; ".join(_window_text(w) for w in scope.windows),
+        *describe_schedule(profile),
         f"Limites: {limits.requests_per_second} req/s, {limits.max_duration_minutes} min, "
         f"{limits.zap_threads_per_host} thread(s) do ZAP por host",
         f"Autenticação: {profile.auth.type}",

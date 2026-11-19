@@ -140,7 +140,8 @@ def test_setup_writes_the_missing_password_and_approves_without_leaking_the_valu
     assert "APROVADO" in out
     assert NAME in out
     assert VALUE not in out + err
-    assert approval.shown[0][0].startswith("PADRÃO MÍNIMO DA CLI")
+    assert approval.shown[0][0] == "ENDEREÇO DO AMBIENTE"
+    assert any(line.startswith("PADRÃO MÍNIMO DA CLI") for line in approval.shown[0])
     assert "  - limits.requests_per_second = 1" in approval.shown[0]
     assert json.loads(approval_file(tmp_path).read_text(encoding="utf-8"))["product"] == "demo"
 

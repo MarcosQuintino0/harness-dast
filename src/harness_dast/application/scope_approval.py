@@ -28,6 +28,7 @@ from harness_dast.domain.scope_approval import (
 )
 from harness_dast.domain.scope_approval_summary import describe_protection
 from harness_dast.domain.scope_fingerprint import describe_block
+from harness_dast.domain.setup_notes import approval_notes
 
 
 class ApprovalInfo(BaseModel):
@@ -151,15 +152,15 @@ class ScopeApprovals:
         return info_of(current_check(self._store, self._profiles.load(product)))
 
     def approve(
-        self, product: str, *, interactive: bool, notes: tuple[str, ...] = ()
+        self, product: str, *, interactive: bool, setup_defaults: tuple[str, ...] | None = None
     ) -> ApproveReport:
         """Mostra os blocos de proteção e grava a aprovação se a pessoa confirmar.
 
         Args:
             product: Slug do produto.
             interactive: Se há terminal interativo e a saída não é `--json`; a CLI calcula.
-            notes: Avisos em destaque mostrados antes do resumo (`hdast setup`, ADR 0114);
-                não entram na aprovação gravada.
+            setup_defaults: Padrões mínimos aplicados, para mostrar os destaques do `setup`
+                antes do resumo. `None` mantém só o resumo. Os destaques não são gravados.
 
         Raises:
             ConfigError: Sem terminal interativo (o agente não aprova), produto ou perfil
@@ -184,6 +185,7 @@ class ScopeApprovals:
                 summary=summary,
             )
         changes = tuple(f"{block}: {describe_block(block)}" for block in check.changed_blocks)
+        notes = () if setup_defaults is None else approval_notes(profile, setup_defaults)
         if not self._prompt.confirm(product, (*notes, *summary), changes):
             return ApproveReport(
                 product=product,
