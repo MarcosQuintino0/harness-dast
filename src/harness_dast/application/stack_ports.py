@@ -4,7 +4,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-from harness_dast.application.stack_models import ComposeProject, LabAccountPaths, ServiceStatus
+from harness_dast.application.stack_models import (
+    ComposeProject,
+    LabAccountPaths,
+    OneShotResult,
+    ServiceStatus,
+)
+from harness_dast.domain.nuclei_scope import NucleiScope
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
 from harness_dast.domain.stack_binding import StackDigests
@@ -20,6 +26,24 @@ class ProxyPolicyStore(Protocol):
 
         Garante: escopo e limites iguais aos do perfil (nunca mais largos) e arquivo que o
         validador do proxy aceita.
+
+        Raises:
+            ConfigError: Política inválida ou falha de escrita.
+        """
+        ...
+
+    def publish_nuclei(
+        self,
+        profile: ProductProfile,
+        run_id: RunId,
+        not_after: datetime,
+        directory: Path,
+        nuclei: NucleiScope | None,
+    ) -> Path:
+        """Grava `policy.json` da `scope-proxy-nuclei` em `directory`.
+
+        Garante: com `nuclei` o escopo, o modo de caminho e os limites são os derivados do
+        perfil; com `None`, a política NEGA TUDO. Nunca há política padrão permissiva.
 
         Raises:
             ConfigError: Política inválida ou falha de escrita.
@@ -86,6 +110,28 @@ class ComposeRunner(Protocol):
 
         Raises:
             ExternalToolError: Docker ausente, daemon parado, falha do compose ou prazo.
+        """
+        ...
+
+    def run_once(
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        service: str,
+        args: tuple[str, ...],
+        *,
+        container_name: str,
+        timeout_seconds: int,
+        mounts: tuple[str, ...] = (),
+    ) -> OneShotResult:
+        """Roda o serviço uma vez (`run --rm`) com a entrada padrão fechada e prazo.
+
+        Garante: ao estourar o prazo o contêiner é morto e removido antes de a falha subir; o
+        código de saída do contêiner é devolvido como veio.
+
+        Raises:
+            ConfigError: Nome de contêiner ou montagem inválidos (montagem só leitura).
+            ExternalToolError: Docker ausente, falha ao iniciar ou prazo estourado.
         """
         ...
 

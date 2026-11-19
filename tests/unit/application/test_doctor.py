@@ -21,7 +21,7 @@ from harness_dast.domain.errors import (
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.observability.logging import SecretRegistry
 from tests.fakes.approvals import InMemoryApprovalStore
-from tests.fakes.host import FakeHost
+from tests.fakes.host import FakeHost, published_images
 from tests.fakes.probe_ports import DictSecretProvider
 from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.rig import ENV, LOGIN, PASSWORD, agenda_profile, profile_data
@@ -163,7 +163,7 @@ def test_missing_own_images_fail_and_list_names_without_digest(tmp_path: Path) -
 
     check = by_id(report)["images"]
     assert check.status == "fail"
-    assert "Faltam 2 de 3" in check.detail
+    assert "Faltam 3 de 4" in check.detail
     assert "zap:1" in check.detail
     assert "sha256" not in check.detail
     assert "hdast stack pull" in check.detail
@@ -211,7 +211,7 @@ def test_image_check_summarises_when_many_images_are_missing(tmp_path: Path) -> 
 
     check = by_id(setup.doctor.execute())["images"]
 
-    assert "e mais 1" in check.detail
+    assert "e mais 2" in check.detail
 
 
 def test_compose_problem_fails_the_image_check(tmp_path: Path) -> None:
@@ -251,7 +251,9 @@ def test_images_come_from_the_base_services_when_no_product_is_given(tmp_path: P
         "zap",
         "zap-gateway",
         "scope-proxy",
+        "scope-proxy-nuclei",
         "proxy-gateway",
+        "nuclei",
     )
 
 
@@ -609,3 +611,16 @@ def test_the_new_warnings_never_suggest_widening_scope_limits_or_window(tmp_path
 
     for word in ("amplie", "aumente", "estenda", "libere"):
         assert word not in text.lower()
+
+
+def test_doctor_does_not_ask_for_the_nuclei_image_when_the_lock_is_schema_1(
+    tmp_path: Path,
+) -> None:
+    setup = Setup(tmp_path)
+    setup.host.images_lock = published_images()
+    setup.host.present.discard(setup.host.images["nuclei"])
+
+    check = by_id(setup.doctor.execute())["images"]
+
+    assert "nuclei" not in setup.host.requested_services
+    assert "O Nuclei não está nesta instalação" in check.detail

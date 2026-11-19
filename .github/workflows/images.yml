@@ -31,6 +31,12 @@ jobs:
             context: .
             file: docker/scope-proxy/Dockerfile
             check_package_version: true
+          # O Nuclei não carrega o pacote; a flag só repassa a versão ao rótulo OCI da imagem.
+          - key: nuclei
+            image: ghcr.io/marcosquintino0/hdast-nuclei
+            context: docker/nuclei
+            file: docker/nuclei/Dockerfile
+            check_package_version: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,7 +126,8 @@ jobs:
         run: |
           uv run --locked --no-dev scripts/write_images_lock.py "${RELEASE_TAG#v}" \
             "$(cat "$RUNNER_TEMP/image-digests/zap.txt")" \
-            "$(cat "$RUNNER_TEMP/image-digests/scope-proxy.txt")"
+            "$(cat "$RUNNER_TEMP/image-digests/scope-proxy.txt")" \
+            "$(cat "$RUNNER_TEMP/image-digests/nuclei.txt")"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: images-lock

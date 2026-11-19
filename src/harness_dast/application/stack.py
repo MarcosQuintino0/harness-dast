@@ -43,7 +43,14 @@ from harness_dast.application.lab_targets import (
 )
 from harness_dast.application.scan_ports import RunningScans
 from harness_dast.application.stack_freshness import StackFreshnessCheck
-from harness_dast.application.stack_images import OWN_SERVICES, StackImages, use_local_build
+from harness_dast.application.stack_images import (
+    NUCLEI_RECOVERY,
+    NUCLEI_SERVICE,
+    NUCLEI_UNAVAILABLE,
+    OWN_SERVICES,
+    StackImages,
+    use_local_build,
+)
 from harness_dast.application.stack_lock import StackLockService
 from harness_dast.application.stack_models import (
     ComposeProject,
@@ -61,6 +68,7 @@ from harness_dast.application.stack_ports import (
     ZapScanStopper,
 )
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.nuclei_scope import nuclei_scope_for
 from harness_dast.domain.oast_bridge import should_mount_oast_bridge
 from harness_dast.domain.proxy_deadline import compute_policy_deadline
 from harness_dast.domain.run import RunId
@@ -68,7 +76,7 @@ from harness_dast.domain.scan_result import ScanProgress
 from harness_dast.domain.stack_binding import stale_error
 
 MAIN_PROJECT = "hdast"
-BASE_SERVICES = ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
+BASE_SERVICES = ("zap", "zap-gateway", "scope-proxy", "scope-proxy-nuclei", "proxy-gateway")
 DEFAULT_ZAP_PORT = "8080"
 DEFAULT_PROXY_PORT = "3128"
 DEFAULT_UP_TIMEOUT_SECONDS = 300
@@ -76,6 +84,8 @@ DOWN_TIMEOUT_SECONDS = 120
 KEY_ENV = "HDAST_ZAP_API_KEY"
 POLICY_DIR_ENV = "HDAST_SCOPE_POLICY_DIR"
 AUDIT_DIR_ENV = "HDAST_AUDIT_DIR"
+NUCLEI_POLICY_DIR_ENV = "HDAST_NUCLEI_POLICY_DIR"
+NUCLEI_AUDIT_DIR_ENV = "HDAST_NUCLEI_AUDIT_DIR"
 _KEY_BYTES = 24
 _PASSWORD_BYTES = 12
 _USERNAME_BYTES = 3
@@ -200,6 +210,15 @@ class StackManager:
                     "Leitor do OpenAPI indisponível.", hint="Confira a montagem da CLI."
                 )
             paths = account_paths(self._specs.load(profile.product, profile))
+        notes: list[str] = []
+        if profile.extra_checks.nuclei:
+            if self._images.nuclei_available():
+                references = {
+                    **references,
+                    **self._images.references((NUCLEI_SERVICE,), local=build_local),
+                }
+            else:
+                notes.append(f"{NUCLEI_UNAVAILABLE} {NUCLEI_RECOVERY}")
         suffix = _project_suffix(self._environ)
         oracle = self._oracle_requested(request, target)
         bridge = should_mount_oast_bridge(profile.environment.base_url, requested=profile.scan.oast)
@@ -213,6 +232,10 @@ class StackManager:
         not_after = compute_policy_deadline(profile, now)
         directories = self._states.directories_for(run_id.value)
         policy_file = self._policies.publish(profile, run_id, not_after, directories.policy_dir)
+        # A segunda cerca sempre recebe uma política: a do Nuclei, ou a que nega tudo.
+        self._policies.publish_nuclei(
+            profile, run_id, not_after, directories.nuclei_policy_dir, nuclei_scope_for(profile)
+        )
         zap_port = self._environ.get("HDAST_ZAP_HOST_PORT", DEFAULT_ZAP_PORT)
         proxy_port = self._environ.get("HDAST_PROXY_HOST_PORT", DEFAULT_PROXY_PORT)
         state = StackState(
@@ -226,6 +249,8 @@ class StackManager:
             auth_proxy_url=f"http://127.0.0.1:{proxy_port}",
             policy_dir=directories.policy_dir,
             audit_dir=directories.audit_dir,
+            nuclei_policy_dir=directories.nuclei_policy_dir,
+            nuclei_audit_dir=directories.nuclei_audit_dir,
             projects=projects,
             target_env=self._credentials(target, oracle=oracle),
             target_urls=_target_urls(target),
@@ -248,7 +273,7 @@ class StackManager:
                 paths,
             )
         report = self._report(state, policy_file=policy_file)
-        return report.model_copy(update={"warnings": tuple(warnings)})
+        return report.model_copy(update={"warnings": (*warnings, *notes)})
 
     def _prepare_images(
         self, project: ComposeProject, references: Mapping[str, str], *, local: bool
@@ -256,7 +281,8 @@ class StackManager:
         env = self._images.compose_env(references)
         if local:
             # O Compose interpola a chave mesmo em `build`, que não inicia nenhum serviço.
-            self._compose.build(project, {**env, KEY_ENV: _PLACEHOLDER}, OWN_SERVICES)
+            services = tuple(s for s in (*OWN_SERVICES, NUCLEI_SERVICE) if s in references)
+            self._compose.build(project, {**env, KEY_ENV: _PLACEHOLDER}, services)
         self._images.require_ready(references)
         return env
 
@@ -327,9 +353,10 @@ class StackManager:
         )
 
     def stop(self, stopper: ZapScanStopper, policy_dir_override: Path | None) -> StopReport:
-        """Aciona a trava de emergência do proxy e para as varreduras do ZAP.
+        """Aciona a trava de emergência das duas cercas e para as varreduras do ZAP.
 
-        A trava vem primeiro e não depende do ZAP.
+        As travas vêm primeiro e não dependem do ZAP: o `KILL` da cerca original e, com pilha
+        gerenciada, o da `scope-proxy-nuclei`.
 
         Raises:
             ConfigError: Não há pasta de política conhecida ou o `KILL` não pôde ser criado.
@@ -343,10 +370,16 @@ class StackManager:
             )
         running = self._fresh_scans()
         created = self._policies.trigger_kill(directory)
+        nuclei_directory = state.nuclei_policy_dir if state else None
+        nuclei_created = (
+            self._policies.trigger_kill(nuclei_directory) if nuclei_directory is not None else False
+        )
         stopped, reachable, message = _stop_zap(stopper)
         return StopReport(
             kill_file=str(directory / "KILL"),
             kill_created=created,
+            nuclei_kill_file=str(nuclei_directory / "KILL") if nuclei_directory else None,
+            nuclei_kill_created=nuclei_created,
             stack_managed=state is not None,
             zap_reachable=reachable,
             zap_scans_stopped=stopped,
@@ -467,6 +500,7 @@ class StackManager:
                 KEY_ENV: state.zap_api_key,
                 POLICY_DIR_ENV: state.policy_dir.as_posix(),
                 AUDIT_DIR_ENV: state.audit_dir.as_posix(),
+                **_nuclei_dirs_env(state),
                 "HDAST_ZAP_HOST_PORT": ports[0],
                 "HDAST_PROXY_HOST_PORT": ports[1],
                 **(options if state.lab_target == "vampi" else {}),
@@ -544,6 +578,17 @@ def _common_env(state: StackState) -> dict[str, str]:
         KEY_ENV: state.zap_api_key,
         POLICY_DIR_ENV: state.policy_dir.as_posix(),
         AUDIT_DIR_ENV: state.audit_dir.as_posix(),
+        **_nuclei_dirs_env(state),
+    }
+
+
+def _nuclei_dirs_env(state: StackState) -> dict[str, str]:
+    # Estado gravado antes da segunda cerca não tem as pastas: o compose usa as padrão (nega tudo).
+    if state.nuclei_policy_dir is None or state.nuclei_audit_dir is None:
+        return {}
+    return {
+        NUCLEI_POLICY_DIR_ENV: state.nuclei_policy_dir.as_posix(),
+        NUCLEI_AUDIT_DIR_ENV: state.nuclei_audit_dir.as_posix(),
     }
 
 

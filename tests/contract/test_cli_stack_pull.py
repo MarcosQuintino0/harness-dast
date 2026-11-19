@@ -23,13 +23,13 @@ def host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FakeHost:
     return fake
 
 
-def test_pull_returns_the_two_image_references_in_the_success_envelope(
+def test_pull_returns_the_three_image_references_in_the_success_envelope(
     host: FakeHost, capsys: pytest.CaptureFixture[str]
 ) -> None:
     code = run_app(build_app(), ["stack", "pull", "--json"])
 
     assert code == ExitCode.OK
-    own = [host.images["zap"], host.images["scope-proxy"]]
+    own = [host.images["zap"], host.images["scope-proxy"], host.images["nuclei"]]
     assert json.loads(capsys.readouterr().out) == {
         "schema_version": 1,
         "ok": True,

@@ -56,9 +56,15 @@ def _render_stop(report: StopReport) -> str:
         f"execução {item.run_id}"
         for item in report.scans_running
     )
+    nuclei = (
+        f"\nTrava da cerca do Nuclei: {report.nuclei_kill_file} "
+        f"({'criada agora' if report.nuclei_kill_created else 'já existia'})."
+        if report.nuclei_kill_file
+        else ""
+    )
     return (
-        f"Trava de emergência acionada: {report.kill_file} ({created}). {zap}.\n"
-        "O proxy nega todo pedido novo até ser recriado (hdast stack up)." + running
+        f"Trava de emergência acionada: {report.kill_file} ({created}). {zap}.{nuclei}\n"
+        "Os proxies negam todo pedido novo até serem recriados (hdast stack up)." + running
     )
 
 

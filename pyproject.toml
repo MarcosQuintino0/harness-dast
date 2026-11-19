@@ -209,6 +209,7 @@ modules = [
     "harness_dast.adapters.storage",
     "harness_dast.adapters.scope_proxy",
     "harness_dast.adapters.docker",
+    "harness_dast.adapters.nuclei",
 ]
 
 # --------------------------------------------------------------- vulture
@@ -220,6 +221,9 @@ ignore_decorators = ["@field_validator", "@model_validator"]
 # O vulture compara por NOME simples (não há como qualificar por classe); cada grupo abaixo
 # existe por um motivo e deve perder a entrada quando ganhar um chamador de produção.
 ignore_names = [
+    # Nuclei (ADR 0122): `require_nuclei` é o erro claro da trava de digests v1 e só ganha chamador
+    # de produção com o runner do comando `hdast nuclei` (pacote P7).
+    "require_nuclei",
     # Proxy de escopo: chamados só por docker/scope-proxy/addon.py, que roda no contêiner com o
     # mitmproxy e fica fora de `paths`; `ts` e `query_params` são campos lidos pelo pydantic.
     "ScopeProxyEngine",

@@ -9,10 +9,13 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.images_lock import ImagesLock, LockedImage, LockedImages
 
 
-def published_images(version: str = __version__) -> ImagesLock:
-    """Imagens publicadas simuladas com digests distintos."""
+def published_images(version: str = __version__, *, nuclei: bool = False) -> ImagesLock:
+    """Imagens publicadas simuladas com digests distintos.
+
+    Sem `nuclei` é o esquema 1 (anterior ao Nuclei); com `nuclei` é o esquema 2.
+    """
     return ImagesLock(
-        schema_version=1,
+        schema_version=2 if nuclei else 1,
         version=version,
         images=LockedImages(
             zap=LockedImage(
@@ -20,6 +23,13 @@ def published_images(version: str = __version__) -> ImagesLock:
             ),
             scope_proxy=LockedImage(
                 repository="registry.example/proxy", tag=version, digest="sha256:" + "b" * 64
+            ),
+            nuclei=(
+                LockedImage(
+                    repository="registry.example/nuclei", tag=version, digest="sha256:" + "c" * 64
+                )
+                if nuclei
+                else None
             ),
         ),
     )
@@ -39,6 +49,8 @@ class FakeHost:
             "zap": "zap:1@sha256:aaa",
             "zap-gateway": "socat:1@sha256:bbb",
             "scope-proxy": "registry.example/scope-proxy:1",
+            "scope-proxy-nuclei": "registry.example/scope-proxy:1",
+            "nuclei": "registry.example/nuclei:1",
             "proxy-gateway": "socat:1@sha256:bbb",
         }
         self.compose_error: ConfigError | None = None
@@ -78,6 +90,9 @@ class FakeHost:
         if overrides:
             images.update(zap=overrides["HDAST_ZAP_IMAGE"])
             images["scope-proxy"] = overrides["HDAST_SCOPE_PROXY_IMAGE"]
+            images["scope-proxy-nuclei"] = overrides["HDAST_SCOPE_PROXY_IMAGE"]
+            if "HDAST_NUCLEI_IMAGE" in overrides:
+                images["nuclei"] = overrides["HDAST_NUCLEI_IMAGE"]
         return {service: images[service] for service in services if service in images}
 
     def inspect_image(self, reference: str) -> ImageInfo | None:

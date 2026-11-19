@@ -8,17 +8,21 @@ repassada, pois pode conter credenciais herdadas ou transformadas.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from harness_dast.application.stack_models import ComposeProject, ServiceStatus
+from harness_dast.application.stack_models import ComposeProject, OneShotResult, ServiceStatus
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 
 STATUS_TIMEOUT_SECONDS = 30
 _GRACE_SECONDS = 30
+KILL_SECONDS = 30
+"""Prazo do `docker rm -f` que mata o contêiner de uso único depois de estourar o prazo dele."""
+_CONTAINER_NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")
 BUILD_SECONDS = 600
 """Prazo extra do processo quando o `up` reconstrói imagens (`--build`).
 
@@ -147,6 +151,84 @@ class DockerComposeCli:
             command.append("--volumes")
         self._run(project, command, env, timeout_seconds, "derrubar")
 
+    def run_once(
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        service: str,
+        args: tuple[str, ...],
+        *,
+        container_name: str,
+        timeout_seconds: int,
+        mounts: tuple[str, ...] = (),
+    ) -> OneShotResult:
+        """Roda o serviço uma vez (`run --rm -T --no-deps`) dentro do prazo.
+
+        A entrada padrão do processo do docker é `/dev/null` (`run_subprocess`) e `-T` evita o
+        terminal: com a entrada aberta o Nuclei travou na partida (spike, ADR 0122). Ao estourar o
+        prazo, `docker rm -f` mata e remove o contêiner pelo nome, e só então o erro sobe.
+        """
+        if not _CONTAINER_NAME.fullmatch(container_name):
+            raise ConfigError(
+                "Nome de contêiner inválido para a execução única.",
+                hint="Use minúsculas, dígitos, ponto, hífen ou sublinhado, até 63 caracteres.",
+            )
+        command = [*_prefix(project), "run", "--rm", "-T", "--no-deps", "--name", container_name]
+        for mount in mounts:
+            if not mount.endswith(":ro") or mount.startswith("-") or not mount.isprintable():
+                raise ConfigError(
+                    "Montagem recusada na execução única: só leitura (origem:destino:ro).",
+                    hint="Monte os arquivos do Nuclei somente leitura.",
+                )
+            command.extend(["-v", mount])
+        command.extend([service, *args])
+        docker = self._docker()
+        full_env = {**self._base_env, **env}
+        try:
+            result = self._runner(
+                [docker, *command],
+                full_env,
+                Path(project.workdir),
+                timeout_seconds,
+            )
+        except subprocess.TimeoutExpired:
+            self._kill_container(docker, project, full_env, container_name)
+            raise ExternalToolError(
+                f"O contêiner {service} passou do prazo de {timeout_seconds} s e foi encerrado.",
+                hint="Reduza a quantidade de modelos ou aumente o prazo; o contêiner foi removido.",
+            ) from None
+        except OSError:
+            raise ExternalToolError(
+                "Não foi possível executar o docker.",
+                hint="Confira a instalação do Docker Desktop.",
+            ) from None
+        return OneShotResult(exit_code=result.returncode, stdout=result.stdout)
+
+    def _kill_container(
+        self, docker: str, project: ComposeProject, env: Mapping[str, str], name: str
+    ) -> None:
+        try:
+            result = self._runner(
+                [docker, "rm", "-f", name], env, Path(project.workdir), KILL_SECONDS
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            result = CommandResult(1, "", "")
+        # `rm -f` de um contêiner que já saiu devolve erro de "não existe": é o resultado certo.
+        if result.returncode != 0 and "No such container" not in result.stderr:
+            raise ExternalToolError(
+                f"O contêiner {name} passou do prazo e não pôde ser encerrado.",
+                hint=f"Rode docker rm -f {name} agora.",
+            )
+
+    def _docker(self) -> str:
+        docker = shutil.which("docker", path=self._base_env.get("PATH", os.defpath))
+        if docker is None:
+            raise ExternalToolError(
+                "O comando docker não foi encontrado.",
+                hint="Instale o Docker Desktop e confira se o docker está no PATH.",
+            )
+        return docker
+
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
         """Lista os contêineres do projeto (`ps --all --format json`)."""
         command = [*_prefix(project), "ps", "--all", "--format", "json"]
@@ -161,12 +243,7 @@ class DockerComposeCli:
         timeout: float,
         verb: str,
     ) -> CommandResult:
-        docker = shutil.which("docker", path=self._base_env.get("PATH", os.defpath))
-        if docker is None:
-            raise ExternalToolError(
-                "O comando docker não foi encontrado.",
-                hint="Instale o Docker Desktop e confira se o docker está no PATH.",
-            )
+        docker = self._docker()
         try:
             result = self._runner(
                 [docker, *command], {**self._base_env, **env}, Path(project.workdir), timeout
