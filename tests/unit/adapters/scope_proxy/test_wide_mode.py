@@ -304,6 +304,7 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "adapters/scope_proxy/generate.py",
         "adapters/scope_proxy/policy.py",
         "adapters/scope_proxy/engine.py",
+        "adapters/scope_proxy/nuclei_fence.py",  # só devolve o modo gravado na política publicada
         "application/panel.py",  # só lê o modo do perfil para o painel mostrar "Cerca: modo ..."
         "application/panel_index.py",  # só copia o modo do perfil para o cartão do produto
         "application/panel_live.py",  # só copia o modo do perfil para o alto da página ao vivo

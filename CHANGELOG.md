@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Pacote P4 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), o Nuclei nos comandos:
+  - `hdast nuclei PRODUTO --run RUN_ID [--account APELIDO]` roda só o Nuclei, com as travas do estágio (aprovação do escopo, janela, trava da pilha e `KILL`) e o envelope JSON de sempre; achado é dado (saída `0`), parada por janela, prazo ou `KILL` sai com `3` e devolve o parcial;
+  - o `run` ganha a etapa `nuclei`, depois do `scan` e antes do `authz`, que só roda com `extra_checks.nuclei` no perfil e sem `--no-nuclei`: `--nuclei` nunca liga o motor, e `--only` e `--skip-scan` o pulam. Falha ou parada segue o padrão do `authz`. O `run.json` passa a ter sete estágios e os campos `nuclei_findings_by_severity`, `nuclei_templates_selected` e `nuclei_templates_excluded`, e `options.nuclei`;
+  - o gate de severidade (`--fail-on` e `scan.fail_on`) soma os achados do Nuclei, e o `metrics.json` guarda o tempo da etapa (`stages_seconds.nuclei`);
+  - o reteste roda o Nuclei só com os modelos dos achados do `nuclei.json` da execução anterior (`RunRequest.nuclei_templates`), e o desliga se não houver;
+  - adaptadores reais: `FileNucleiFence` (lê o `policy.json` da `scope-proxy-nuclei` pela pasta do estado da pilha e devolve nada com a política que nega tudo), `FileRunArtifacts.write_nuclei` e `read_nuclei` (`nuclei.json` atômico, entre os artefatos conhecidos) e a montagem `cli/nuclei_composition.py`. Relatório, `confirm` e painel ficam para o pacote P5.
 - Pacote P3 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), caso de uso e runner do Nuclei, ainda sem comando na CLI:
   - o caso de uso `nuclei` recusa rodar sem `extra_checks.nuclei`, sem a imagem ou sem a política do perfil publicada na `scope-proxy-nuclei`; escolhe os modelos pelo domínio, monta os argumentos fixos e grava só `nuclei.json` (projeção por lista branca, sem `curl-command`, `request`, `response` nem valores extraídos);
   - o login obtém o token pelo `AccountSession` (consome o `login_budget`) e o entrega só pelo arquivo `-sf` (YAML com valores entre aspas de JSON, `0400` e dono uid 10002 quando o sistema permite, em `/dev/shm` no Linux), apagado num `finally` em sucesso, falha, prazo e `KILL`;

@@ -131,6 +131,15 @@ def test_the_run_stage_records_decide_when_present_including_the_preflight() -> 
     assert seconds.report is None  # `not_run` não vira zero nem o valor derivado
 
 
+def test_the_nuclei_stage_time_comes_from_the_run_record_and_skipped_is_none() -> None:
+    ran = (StageRecord(name="nuclei", status="ok", duration_seconds=33.3),)
+    skipped = (StageRecord(name="nuclei", status="skipped"),)
+
+    assert build(stages=ran).stages_seconds.nuclei == 33.3
+    assert build(stages=skipped).stages_seconds.nuclei is None
+    assert build().stages_seconds.nuclei is None
+
+
 def test_window_is_the_run_window_or_the_manifest_start_and_the_last_finish() -> None:
     assert build(run_window=("a", "b")).started_at == "a"
     assert build(run_window=("a", "b")).finished_at == "b"

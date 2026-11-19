@@ -8,9 +8,9 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-STAGES: Final = ("preflight", "probe", "scan", "authz", "negative", "report")
+STAGES: Final = ("preflight", "probe", "scan", "nuclei", "authz", "negative", "report")
 
-StageName = Literal["preflight", "probe", "scan", "authz", "negative", "report"]
+StageName = Literal["preflight", "probe", "scan", "nuclei", "authz", "negative", "report"]
 StageStatus = Literal["ok", "failed", "interrupted", "skipped", "not_run"]
 RunStatus = Literal["completed", "findings", "failed", "interrupted"]
 
@@ -43,12 +43,17 @@ class StageRecord(BaseModel):
 
 
 class RunOptions(BaseModel):
-    """Opções efetivas do `run` (só o que reduz ou escolhe; nada que amplie)."""
+    """Opções do `run` (só o que reduz ou escolhe; nada que amplie).
+
+    `nuclei` é a chave pedida (`--nuclei/--no-nuclei`); o perfil sem `extra_checks.nuclei` e o
+    `--only` ainda pulam o estágio, e `stages` diz por quê.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     seed: int | None = None
     skip_scan: bool = False
+    nuclei: bool = False
     authz: bool = False
     negative: bool = False
     fail_on: str | None = None
@@ -71,14 +76,21 @@ class RunSummary(BaseModel):
         finished_at: Fim.
         duration_seconds: Duração total.
         options: Opções efetivas.
-        stages: Os seis estágios, sempre, na ordem (`authz` e `negative` ficam `skipped` com
-            `--no-authz`, `--no-negative` ou `--skip-scan`).
+        stages: Os sete estágios, sempre, na ordem (`nuclei`, `authz` e `negative` ficam
+            `skipped` com `--no-nuclei`, `--no-authz`, `--no-negative`, `--skip-scan` e, no caso
+            do `nuclei`, também com `--only` ou sem `extra_checks.nuclei` no perfil).
         artifacts: Nome do arquivo -> nome do arquivo, só dos que existem na pasta.
         findings_by_severity: Achados do ZAP por severidade proposta, quando o `report` rodou.
         authz_findings_by_severity: Achados do estágio `authz` (técnica própria, não misturados
             aos do ZAP) por severidade, quando o estágio rodou.
         negative_findings_by_severity: Achados do estágio `negative` (valores que o esquema
             proíbe, ADR 0051; técnica própria) por severidade, quando o estágio rodou.
+        nuclei_findings_by_severity: Achados do estágio `nuclei` (segundo motor, ADR 0122; origem
+            própria, não misturados aos do ZAP) por severidade, quando o estágio rodou.
+        nuclei_templates_selected: Quantos modelos do Nuclei o domínio escolheu para rodar, quando
+            o estágio rodou.
+        nuclei_templates_excluded: Modelos do Nuclei excluídos por motivo (um modelo com mais de
+            um motivo conta em cada um), quando o estágio rodou.
         stop_requested: Se a trava de emergência (`hdast stop`) foi acionada.
         cleanup_command: Comando que a pessoa deve rodar para limpar os dados desta execução.
     """
@@ -99,5 +111,8 @@ class RunSummary(BaseModel):
     findings_by_severity: dict[str, int] | None = None
     authz_findings_by_severity: dict[str, int] | None = None
     negative_findings_by_severity: dict[str, int] | None = None
+    nuclei_findings_by_severity: dict[str, int] | None = None
+    nuclei_templates_selected: int | None = None
+    nuclei_templates_excluded: dict[str, int] | None = None
     stop_requested: bool = False
     cleanup_command: str | None = None

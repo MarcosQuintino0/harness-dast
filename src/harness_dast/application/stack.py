@@ -582,6 +582,15 @@ def _common_env(state: StackState) -> dict[str, str]:
     }
 
 
+def stack_compose_env(state: StackState) -> dict[str, str]:
+    """Ambiente que o compose precisa para interpolar o arquivo da pilha já em pé.
+
+    Serve a quem roda um serviço de uso único depois do `up` (o Nuclei): as redes, as pastas de
+    política e de auditoria e a chave do ZAP, tudo do estado. Não traz a referência das imagens.
+    """
+    return _common_env(state)
+
+
 def _nuclei_dirs_env(state: StackState) -> dict[str, str]:
     # Estado gravado antes da segunda cerca não tem as pastas: o compose usa as padrão (nega tudo).
     if state.nuclei_policy_dir is None or state.nuclei_audit_dir is None:

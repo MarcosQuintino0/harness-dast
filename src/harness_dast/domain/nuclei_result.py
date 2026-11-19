@@ -12,7 +12,9 @@ from typing import Literal
 from pydantic import StrictBool, StrictInt
 
 from harness_dast.domain.nuclei_findings import NucleiFinding, TechnologyDetected
+from harness_dast.domain.scan_config import FailOn
 from harness_dast.domain.secret_ref import ProfileModel
+from harness_dast.domain.zap_alert import SEVERITY_RANK
 
 __all__ = ["NucleiResult", "NucleiStatus"]
 
@@ -57,3 +59,13 @@ class NucleiResult(ProfileModel):
     malformed_lines: StrictInt
     findings: tuple[NucleiFinding, ...]
     technologies: tuple[TechnologyDetected, ...]
+
+    def reaches(self, threshold: FailOn) -> bool:
+        """Diz se algum achado tem severidade proposta igual ou acima do limiar (gate do `run`).
+
+        `none` nunca alcança. Tecnologias identificadas não contam: não são achados.
+        """
+        if threshold == "none":
+            return False
+        floor = SEVERITY_RANK[threshold]
+        return any(SEVERITY_RANK[item.proposed_severity] >= floor for item in self.findings)

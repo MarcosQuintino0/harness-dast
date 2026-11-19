@@ -23,8 +23,9 @@ from harness_dast.application.nuclei_ports import (
 )
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.nuclei_findings import NucleiFinding, classify, parse_nuclei_jsonl
 from harness_dast.domain.nuclei_manifest import NucleiManifest, NucleiTemplateEntry
-from harness_dast.domain.nuclei_result import NucleiResult
+from harness_dast.domain.nuclei_result import NucleiResult, NucleiStatus
 from harness_dast.domain.nuclei_scope import NucleiScope, nuclei_scope_for
 from harness_dast.domain.nuclei_version import (
     NUCLEI_VERSION,
@@ -103,6 +104,45 @@ def result_line(
         **extra,
     }
     return json.dumps(record)
+
+
+def nuclei_finding(
+    template_id: str = "springboot-env", severity: str = "medium", path: str = "/actuator/env"
+) -> NucleiFinding:
+    """Um achado do Nuclei como o domínio o classifica (gravidade fixa pela tabela do ADR)."""
+    item = classify(parse_nuclei_jsonl(result_line(template_id, severity=severity, path=path)))
+    assert isinstance(item, NucleiFinding)
+    return item
+
+
+def nuclei_result(
+    status: NucleiStatus = "completed",
+    *,
+    findings: tuple[NucleiFinding, ...] = (),
+    selected: int = 2,
+    excluded: tuple[tuple[str, int], ...] = (("unsafe", 1),),
+    run_id: str = RUN_ID,
+    product: str = "demo",
+    message: str | None = None,
+) -> NucleiResult:
+    """Um `nuclei.json` pronto, sem rodar nada."""
+    return NucleiResult(
+        run_id=run_id,
+        product=product,
+        status=status,
+        stop_message=message if status != "completed" else None,
+        started_at="2026-11-13T10:00:00+00:00",
+        finished_at="2026-11-13T10:01:00+00:00",
+        nuclei_version=NUCLEI_VERSION,
+        templates_version=TEMPLATES_VERSION,
+        logged_in=False,
+        templates_selected=selected,
+        excluded=excluded,
+        exit_code=0,
+        malformed_lines=0,
+        findings=findings,
+        technologies=(),
+    )
 
 
 class FakeNucleiEngine:

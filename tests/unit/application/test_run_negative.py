@@ -130,7 +130,7 @@ def test_no_negative_skips_the_stage_and_says_why() -> None:
     assert "negative" not in rig.calls
     assert rig.calls[-2:] == ["authz", "report"]
     assert _status(result)["negative"] == "skipped"
-    assert "--no-negative" in (result.summary.stages[4].message or "")
+    assert "--no-negative" in (result.summary.stages[5].message or "")
     assert result.summary.options.negative is False
     assert result.summary.negative_findings_by_severity is None
 
@@ -164,7 +164,7 @@ def test_skip_scan_also_skips_the_negative_stage_and_points_to_the_standalone_co
 
     assert rig.calls == ["preflight", "probe"]
     assert _status(result)["negative"] == "skipped"
-    message = result.summary.stages[4].message or ""
+    message = result.summary.stages[5].message or ""
     assert "--skip-scan" in message
     assert "hdast negative PRODUTO --run RUN_ID" in message
 
@@ -172,7 +172,7 @@ def test_skip_scan_also_skips_the_negative_stage_and_points_to_the_standalone_co
 def test_skip_scan_with_no_negative_keeps_the_short_skip_message() -> None:
     result = Rig().run(RunRequest(product="demo", negative=False, skip_scan=True))
 
-    assert result.summary.stages[4].message == "Pedido com --skip-scan e --no-negative."
+    assert result.summary.stages[5].message == "Pedido com --skip-scan e --no-negative."
 
 
 def test_a_stopped_negative_still_produces_the_report_and_keeps_its_own_exit_code() -> None:

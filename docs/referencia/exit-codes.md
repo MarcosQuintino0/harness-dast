@@ -30,7 +30,11 @@ Tratamento sugerido: `0` segue; `1` é um resultado de segurança que o time pre
 
 ## `hdast run`
 
-O `run` sai com o código do estágio que falhou (preflight: 3 ou 4; probe: 3, 5 ou 6; scan: 3 a 6; authz, se pedido: 3, 5 ou 6; report: 1 com achado no limiar, 2 em erro), `0` se tudo passou e `130` se foi interrompido. O `run.json` traz o código de cada estágio. A trava de emergência (`hdast stop`) durante um `scan` solto sai com `3` (como janela fechada); durante o `run`, com `130`.
+O `run` sai com o código do estágio que falhou (preflight: 3 ou 4; probe: 3, 5 ou 6; scan: 3 a 6; nuclei, quando o perfil o liga: 2 (pilha ou imagem ausente), 3 (janela, prazo ou `KILL`) ou 5 (Docker ou Nuclei com erro); authz, se pedido: 3, 5 ou 6; report: 1 com achado no limiar, 2 em erro), `0` se tudo passou e `130` se foi interrompido. O `run.json` traz o código de cada estágio. A trava de emergência (`hdast stop`) durante um `scan` solto sai com `3` (como janela fechada); durante o `run`, com `130`.
+
+## `hdast nuclei`
+
+Não cria código novo. Sai com `0` ao terminar, **mesmo com achados** (achado é dado, como no `authz` e no `negative`; o gate de severidade fica no `run` e no `report`). Sai com `3` na recusa por falta de aprovação do escopo (`SCOPE_NOT_APPROVED`), janela fechada, autorização vencida, prazo esgotado ou `KILL` (nesse último caso com o resultado parcial em `data`), com `2` quando o perfil não liga `extra_checks.nuclei`, falta a pilha, a imagem ou a política da segunda cerca, ou o `--run` é inválido, com `5` quando o Docker ou o Nuclei falha, com `4` se o login da conta é recusado e com `8` com a pilha ocupada. Dentro do `run`, o `KILL` vira `130`, e os achados do Nuclei no limiar de `--fail-on` ou `scan.fail_on` fazem o `run` sair com `1`.
 
 ## `hdast stack pull`
 

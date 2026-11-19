@@ -405,6 +405,41 @@ def test_recusa_quando_nenhum_modelo_passa_pelas_permissoes(tmp_path: Path) -> N
     assert rig.engine.specs == []
 
 
+def test_reteste_limita_a_lista_aos_modelos_pedidos(tmp_path: Path) -> None:
+    rig = _rig(tmp_path, profile_data_override=_writes_profile())
+
+    result = rig.nuclei().execute(
+        NucleiRequest(product="agenda", run_id=RUN_ID, only_templates=(WRITE_TEMPLATE,))
+    )
+
+    assert _templates(rig) == (WRITE_TEMPLATE,)
+    assert result.templates_selected == 1
+
+
+def test_reteste_nunca_traz_modelo_que_as_permissoes_nao_deixam(tmp_path: Path) -> None:
+    rig = _rig(tmp_path, profile_data_override=nuclei_profile_data(nuclei_login=False))
+
+    result = rig.nuclei().execute(
+        NucleiRequest(
+            product="agenda", run_id=RUN_ID, only_templates=(READ_TEMPLATE, WRITE_TEMPLATE)
+        )
+    )
+
+    assert _templates(rig) == (READ_TEMPLATE,)
+    assert result.templates_selected == 1
+
+
+def test_reteste_sem_modelo_possivel_recusa_sem_rodar(tmp_path: Path) -> None:
+    rig = _rig(tmp_path)
+
+    with pytest.raises(ConfigError, match="Nenhum modelo"):
+        rig.nuclei().execute(
+            NucleiRequest(product="agenda", run_id=RUN_ID, only_templates=(UNSAFE_TEMPLATE,))
+        )
+
+    assert rig.engine.specs == []
+
+
 class _CountingBudget(LoginBudget):
     def __init__(self, rig: NucleiRig) -> None:
         super().__init__(None, rig.clock, rig.clock)

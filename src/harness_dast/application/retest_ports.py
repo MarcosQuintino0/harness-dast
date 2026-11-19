@@ -3,6 +3,7 @@
 from typing import Protocol
 
 from harness_dast.application.run import RunRequest, RunResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.retest import RetestReport
 
@@ -23,6 +24,14 @@ class RetestArtifacts(Protocol):
 
         Raises:
             ConfigError: Execução ou arquivo ausente, ilegível ou inválido.
+        """
+        ...
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        """Lê `nuclei.json` de uma execução; `None` se o estágio não rodou nela.
+
+        Raises:
+            ConfigError: O arquivo existe e está ilegível ou inválido.
         """
         ...
 

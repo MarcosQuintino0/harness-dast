@@ -104,12 +104,16 @@ class NucleiRequest:
         account: Apelido da conta do login (`extra_checks.nuclei_login`); `None` usa a primeira
             do perfil. Sem a permissão de login, a conta é ignorada.
         deadline: Prazo absoluto herdado do `run` encadeado; só reduz o prazo do perfil.
+        only_templates: Caminhos de modelos (como no `template_path` dos achados) aos quais a
+            execução se limita, no reteste. Só reduz: o que não passa pelas permissões do
+            perfil continua de fora, e vazio roda todos os escolhidos.
     """
 
     product: str
     run_id: str
     account: str | None = None
     deadline: datetime | None = None
+    only_templates: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -245,7 +249,9 @@ class Nuclei:
         permissions = self._check_allowed(profile)
         gate = RunGate(profile, self._clock, started, self._kill_switch, deadline=request.deadline)
         gate.check()
-        selection = select_templates(self._load_manifest(), permissions)
+        selection = _restrict(
+            select_templates(self._load_manifest(), permissions), request.only_templates
+        )
         if not selection.paths:
             raise ConfigError(
                 "Nenhum modelo do Nuclei passa pelas permissões deste perfil.",
@@ -402,6 +408,16 @@ class Nuclei:
             findings=findings,
             technologies=technologies,
         )
+
+
+def _restrict(selection: NucleiSelection, only: tuple[str, ...]) -> NucleiSelection:
+    """Reduz a escolha aos modelos pedidos (reteste); nunca acrescenta um que o domínio vetou."""
+    if not only:
+        return selection
+    wanted = frozenset(only)
+    return selection.model_copy(
+        update={"paths": tuple(path for path in selection.paths if path in wanted)}
+    )
 
 
 def _domains(base_url: str) -> tuple[str, ...]:
