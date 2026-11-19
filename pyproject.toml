@@ -209,6 +209,7 @@ modules = [
     "harness_dast.adapters.storage",
     "harness_dast.adapters.scope_proxy",
     "harness_dast.adapters.docker",
+    "harness_dast.adapters.nuclei",
 ]
 
 # --------------------------------------------------------------- vulture
