@@ -76,6 +76,11 @@ class FakeCompose:
         self.calls.append(("run_once", project.name))
         return OneShotResult(exit_code=0, stdout="")
 
+    def kill_container(
+        self, project: ComposeProject, env: dict[str, str], container_name: str
+    ) -> None:
+        self.calls.append(("kill_container", container_name))
+
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
         if project.name not in self.running:
             return ()

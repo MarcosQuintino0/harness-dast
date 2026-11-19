@@ -204,6 +204,21 @@ class DockerComposeCli:
             ) from None
         return OneShotResult(exit_code=result.returncode, stdout=result.stdout)
 
+    def kill_container(
+        self, project: ComposeProject, env: dict[str, str], container_name: str
+    ) -> None:
+        """Mata e remove o contêiner de uso único pelo nome (`docker rm -f`).
+
+        Usado quando quem o roda decide parar antes do prazo (`KILL`, janela fechada). Um contêiner
+        que já saiu conta como encerrado.
+        """
+        if not _CONTAINER_NAME.fullmatch(container_name):
+            raise ConfigError(
+                "Nome de contêiner inválido para a execução única.",
+                hint="Use minúsculas, dígitos, ponto, hífen ou sublinhado, até 63 caracteres.",
+            )
+        self._kill_container(self._docker(), project, {**self._base_env, **env}, container_name)
+
     def _kill_container(
         self, docker: str, project: ComposeProject, env: Mapping[str, str], name: str
     ) -> None:
