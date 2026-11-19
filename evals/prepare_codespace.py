@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"Erro ao preparar a cópia: {error}\n")
         return 2
     sys.stdout.write(f"Cópia cega: {result.workspace}\n")
+    if result.plugin is not None:
+        sys.stdout.write(f"Plugin (fora do workspace): {result.plugin}\n")
     return 0
 
 

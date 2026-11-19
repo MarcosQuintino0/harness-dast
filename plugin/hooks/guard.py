@@ -148,6 +148,15 @@ PRODUCT_DENIED = (
     "Mude a ferramenta no repositório dela."
 )
 PRODUCT_DIRECTORIES = frozenset(("products", "runs", "cartas"))
+STACK_BUILD_DENIED = (
+    "Construir as imagens da cerca barrado nesta pasta. Use as imagens já presentes: "
+    "retire --build e HDAST_STACK_BUILD e peça a uma pessoa se faltar imagem."
+)
+# Na pasta de produtos, a CLI pode ser a do clone do coordenador (instalação editável) e aceitar o
+# build local. O agente nunca o liga: nem pela opção, nem pela variável de ambiente.
+STACK_BUILD_VARIABLE = re.compile(r"HDAST_STACK_BUILD", re.IGNORECASE)
+STACK_BUILD_FLAG = re.compile(r"(?<![\w-])--build(?![\w-])")
+HDAST_WORD = re.compile(r"\b(?:hdast|harness_dast)\b", re.IGNORECASE)
 
 
 def _is_clone(project: Path) -> bool:
@@ -1057,6 +1066,12 @@ def _protected_shell(command: str, cwd: Path) -> bool:
     )
 
 
+def _requests_stack_build(command: str) -> bool:
+    if STACK_BUILD_VARIABLE.search(command):
+        return True
+    return bool(STACK_BUILD_FLAG.search(command) and HDAST_WORD.search(command))
+
+
 def _check_shell_call(
     tool: str, data: dict[str, object], project: Path, context: str
 ) -> str | None:
@@ -1068,6 +1083,8 @@ def _check_shell_call(
     if _protected_shell(command, cwd):
         return PROTECTED_DENIED
     if not _is_clone(project):
+        if _requests_stack_build(command):
+            return STACK_BUILD_DENIED
         try:
             _check_product_shell(command, cwd, project, tool)
         except ValueError:

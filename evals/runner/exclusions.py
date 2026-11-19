@@ -110,6 +110,10 @@ OPERATIONAL_SKILLS = frozenset(
 )
 
 
+PLUGIN_SKILLS = OPERATIONAL_SKILLS | {"preparar"}
+"""Skills que o plugin entrega no layout `plugin`: as cinco de uso e o diagnostico de inicio."""
+
+
 def exclusions_for(case: Case) -> tuple[Exclusion, ...]:
     """Exclusoes fixas mais as do caso."""
     extra = tuple(Exclusion(path, "exclusao do caso") for path in case.exclude)
@@ -158,8 +162,8 @@ PLUGIN_TO_WORKSPACE = (
     ("plugin/agents/", ".claude/agents/"),
     ("plugin/hooks/guard.py", ".claude/hooks/guard.py"),
 )
-"""Onde o plugin cai no workspace cego: o `.claude/` que o Claude Code descobre sozinho. O
-workspace nao instala o plugin (isso e o pacote 6.7); so entrega o mesmo conteudo."""
+"""Onde o plugin cai no workspace cego do layout `repo`: o `.claude/` que o Claude Code descobre
+sozinho. No layout `plugin` o plugin vai inteiro para `<out>/plugin` (`plugin_layout.py`)."""
 
 
 def workspace_path(rel: str) -> str | None:
@@ -212,3 +216,25 @@ def applied(root: Path, rules: tuple[Exclusion, ...]) -> list[Exclusion]:
                 if (hit := decide(entry.relative_to(root).as_posix(), rules)) is not None
             )
     return found
+
+
+def walk_plugin(plugin: Path) -> Iterator[tuple[Path, str]]:
+    """Gera (arquivo, caminho relativo) do plugin que vai para a copia fora do workspace.
+
+    O plugin sai como o usuario o instalaria. Ficam de fora caches, arquivos de segredo, links
+    simbolicos e skill que nao seja de uso (`dev-*`).
+    """
+    stack = [plugin]
+    while stack:
+        folder = stack.pop()
+        for entry in sorted(folder.iterdir()):
+            rel = entry.relative_to(plugin).as_posix()
+            parts = rel.split("/")
+            if entry.is_symlink() or parts[-1] in CACHE_NAMES or parts[-1].startswith(".env"):
+                continue
+            if len(parts) >= 2 and parts[0] == "skills" and parts[1] not in PLUGIN_SKILLS:
+                continue
+            if entry.is_dir():
+                stack.append(entry)
+            elif entry.is_file():
+                yield entry, rel

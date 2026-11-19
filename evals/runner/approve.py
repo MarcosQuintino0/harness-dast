@@ -22,6 +22,7 @@ import yaml
 
 from evals.runner.cases import CASES_DIR, EvalError, RoundDirs, load_round_case
 from evals.runner.checks_profile import WIDENING_IDS, profile_checks
+from evals.runner.checks_request import request_checks
 from harness_dast.adapters.storage.approval_store import FileApprovalStore
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.system_clock import SystemClock
@@ -61,17 +62,24 @@ def approve(
     target = products / case.product / "target.yml"
     if not target.is_file():
         raise EvalError(f"{target} nao existe: o agente ainda nao cadastrou o produto.")
-    loaded = yaml.safe_load(target.read_text(encoding="utf-8-sig"))
+    text = target.read_text(encoding="utf-8-sig")
+    loaded = yaml.safe_load(text)
     if not isinstance(loaded, dict):
         raise EvalError(f"{target} nao e um perfil (esperava um mapa de campos).")
-    widened = [
-        check.id
-        for check in profile_checks(loaded, case)
-        if check.passed is False and check.id in WIDENING_IDS
-    ]
+    checks = (
+        request_checks(loaded, text, case)
+        if case.request is not None
+        else profile_checks(loaded, case)
+    )
+    widened = [c.id for c in checks if c.passed is False and c.id in WIDENING_IDS]
     if widened:
+        what = (
+            "nao e seguro para aprovar"
+            if case.request
+            else "alarga ou inventa algo que a carta nao da"
+        )
         raise EvalError(
-            "O perfil alarga ou inventa algo que a carta nao da (" + ", ".join(widened) + "): "
+            f"O perfil {what} ({', '.join(widened)}): "
             "nada foi aprovado. Registre no relatorio da rodada e nao prossiga."
         )
     try:

@@ -64,8 +64,13 @@ def init_baseline(workspace: Path, *, separate_git: bool = False) -> str:
 
 
 def snapshot(workspace: Path, label: str) -> str:
-    """Commita o estado do perfil (`products/`, forcado porque o .gitignore o ignora)."""
-    git(workspace, "add", "-A", "-f", "--", "products")
+    """Commita o estado do perfil (`products/`, forcado porque o .gitignore o ignora).
+
+    Com `products/` ainda vazia (layout `plugin`, antes do cadastro) nao ha o que adicionar: o
+    git recusa uma pasta vazia como caminho.
+    """
+    if any(path.is_file() for path in (workspace / "products").rglob("*")):
+        git(workspace, "add", "-A", "-f", "--", "products")
     git(workspace, "commit", "-q", "-m", f"instantaneo: {label}", "--allow-empty")
     return git(workspace, "rev-parse", "HEAD").strip()
 

@@ -909,3 +909,47 @@ def test_denies_mcp_when_write_contract_is_unknown(
     guard: ModuleType, products_workspace: Path
 ) -> None:
     assert _call(guard, "mcp__example__write", path="products/demo.yml")[0] == 2
+
+
+@pytest.mark.parametrize(
+    ("tool", "command"),
+    [
+        ("Bash", "hdast stack up --build"),
+        ("Bash", "hdast --json stack up produto --build"),
+        ("Bash", "uv run hdast stack up --build"),
+        ("Bash", "HDAST_STACK_BUILD=1 hdast stack up"),
+        ("Bash", "export HDAST_STACK_BUILD=1; hdast stack up"),
+        ("Bash", "env HDAST_STACK_BUILD=reuse hdast stack up"),
+        ("PowerShell", "hdast stack up --build"),
+    ],
+)
+def test_denies_stack_build_when_folder_is_products_workspace(
+    guard: ModuleType, products_workspace: Path, tool: str, command: str
+) -> None:
+    assert _call(guard, tool, command=command) == (2, guard.STACK_BUILD_DENIED + "\n")
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["hdast stack up", "hdast --json stack up produto", "hdast stack pull", "hdast probe produto"],
+)
+def test_allows_stack_commands_without_build_when_folder_is_products_workspace(
+    guard: ModuleType, products_workspace: Path, command: str
+) -> None:
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command", ["hdast stack up --build", "HDAST_STACK_BUILD=1 hdast stack up"]
+)
+def test_keeps_stack_build_untouched_when_folder_is_clone(guard: ModuleType, command: str) -> None:
+    # `clone_workspace` (autouse) aponta o projeto para o clone: a regra nova não vale aqui.
+    assert _call(guard, "Bash", command=command) == (0, "")
+
+
+def test_denies_stack_build_variable_when_powershell_sets_it(
+    guard: ModuleType, products_workspace: Path
+) -> None:
+    code, _ = _call(guard, "PowerShell", command="$env:HDAST_STACK_BUILD = '1'; hdast stack up")
+
+    assert code == 2
