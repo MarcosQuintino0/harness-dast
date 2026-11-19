@@ -205,7 +205,7 @@ def test_run_shows_the_minimum_defaults_before_the_summary() -> None:
     report = rig.use_case.run("demo", interactive=True)
 
     shown = rig.approval_prompt.shown[0][1]
-    assert shown[0].startswith("PADRÃO MÍNIMO DA CLI")
+    assert any(line.startswith("PADRÃO MÍNIMO DA CLI") for line in shown)
     assert "  - limits.requests_per_second = 1" in shown
     assert shown.index("  - limits.requests_per_second = 1") < shown.index("Produto: demo")
     assert report.defaults == ("limits.requests_per_second = 1",)
@@ -219,15 +219,20 @@ def test_run_highlights_an_empty_deny_paths() -> None:
     rig.use_case.run("demo", interactive=True)
 
     shown = rig.approval_prompt.shown[0][1]
-    assert shown[0].startswith("ATENÇÃO: nenhum caminho proibido")
+    assert any(line.startswith("ATENÇÃO: nenhum caminho proibido") for line in shown)
 
 
-def test_run_shows_no_highlight_when_there_is_nothing_to_warn() -> None:
+def test_run_mostra_os_destaques_antes_do_resumo_quando_revisa_o_escopo() -> None:
     rig = Rig()
 
     rig.use_case.run("demo", interactive=True)
 
-    assert rig.approval_prompt.shown[0][1][0] == "Produto: demo"
+    shown = rig.approval_prompt.shown[0][1]
+    highlights = shown[: shown.index("Produto: demo")]
+    assert highlights[0] == "ENDEREÇO DO AMBIENTE"
+    assert "CAMINHOS NEGADOS" in highlights
+    assert "OPERAÇÕES QUE PODEM GRAVAR NO AMBIENTE" in highlights
+    assert "VALIDADE E JANELAS DE EXECUÇÃO" in highlights
 
 
 def test_run_reports_an_already_approved_profile_without_asking_again() -> None:

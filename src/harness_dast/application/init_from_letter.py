@@ -11,11 +11,18 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, JsonValue
 
 from harness_dast.application.common_ports import Clock
-from harness_dast.application.init_ports import LetterReader, ProductScaffolder, ScaffoldedProduct
-from harness_dast.domain.errors import LetterRejected
+from harness_dast.application.init_ports import (
+    LetterReader,
+    ProductScaffolder,
+    ScaffoldedProduct,
+    SpecPathReader,
+)
+from harness_dast.domain.errors import ConfigError, LetterRejected
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_collect import LetterIssue
 from harness_dast.domain.letter_review import LetterReview, review_letter
+from harness_dast.domain.request_defaults import DEFAULT_TIMEZONE
+from harness_dast.domain.request_letter import RequestInputs, letter_kind, requested_openapi
 
 _WHO_HINT = (
     "Cada pendência é uma pergunta para a pessoa (o dono do produto ou a carta assinada); o "
@@ -52,17 +59,29 @@ class LetterOutcome(BaseModel):
 class InitFromLetter:
     """Confere a carta e cria o produto com o perfil gerado."""
 
-    def __init__(self, reader: LetterReader, scaffolder: ProductScaffolder, clock: Clock) -> None:
+    def __init__(
+        self,
+        reader: LetterReader,
+        scaffolder: ProductScaffolder,
+        clock: Clock,
+        spec_paths: SpecPathReader | None = None,
+        timezone: str = DEFAULT_TIMEZONE,
+    ) -> None:
         """Cria o caso de uso.
 
         Args:
             reader: Leitor da carta.
             scaffolder: Criador da pasta do produto.
             clock: Relógio injetado (a validade da autorização é conferida contra hoje).
+            spec_paths: Leitor dos caminhos do OpenAPI, só para a carta `kind: request`
+                (ADR 0120); sem ele, o pedido mínimo fica pendente.
+            timezone: Nome IANA do fuso da janela padrão do pedido mínimo, informado pela CLI.
         """
         self._reader = reader
         self._scaffolder = scaffolder
         self._clock = clock
+        self._spec_paths = spec_paths
+        self._timezone = timezone
 
     def review(self, product: str, letter_path: Path) -> LetterReview:
         """Lê e confere a carta, sem criar nada.
@@ -72,7 +91,27 @@ class InitFromLetter:
                 desconhecido, resposta fora do formato `{value, source}`).
         """
         letter = Letter.from_data(self._reader.read(letter_path))
-        return review_letter(letter, product, self._clock.now().astimezone(UTC).date())
+        request = (
+            self._request_inputs(letter, letter_path) if letter_kind(letter) == "request" else None
+        )
+        return review_letter(letter, product, self._clock.now().astimezone(UTC).date(), request)
+
+    def _request_inputs(self, letter: Letter, letter_path: Path) -> RequestInputs:
+        """Lê os caminhos do OpenAPI que o pedido mínimo usa; falha vira pendência da carta."""
+        relative = requested_openapi(letter)
+        if relative is None or self._spec_paths is None:
+            return RequestInputs(
+                timezone=self._timezone,
+                api_error="Informe environment.openapi: o OpenAPI, ao lado da carta, de onde a "
+                "CLI tira o escopo do pedido mínimo.",
+            )
+        try:
+            paths = self._spec_paths.read_paths(letter_path.parent, relative)
+        except ConfigError as error:
+            return RequestInputs(
+                timezone=self._timezone, api_error=f"{error.message} {error.hint or ''}".strip()
+            )
+        return RequestInputs(api_paths=paths, timezone=self._timezone)
 
     def check(self, product: str, letter_path: Path) -> LetterOutcome:
         """Só confere a carta (`--check`): não cria pasta nem arquivo."""

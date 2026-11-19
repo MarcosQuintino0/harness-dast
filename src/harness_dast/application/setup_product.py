@@ -15,7 +15,6 @@ from harness_dast.application.secret_refs import profile_secret_refs
 from harness_dast.application.setup_ports import AppliedDefaultsReader, SetupNotifier
 from harness_dast.application.validate_profile import ReadinessIssue, ValidateProfile
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.setup_notes import approval_notes
 
 _SETUP = "hdast setup"
 # A janela fechada não impede aprovar o escopo: ela só vale na hora de executar.
@@ -111,9 +110,7 @@ class SetupProduct:
                 + ", ".join(env_names)
             )
         applied = self._defaults.read(product)
-        approval = self._approvals.approve(
-            product, interactive=True, notes=approval_notes(profile, applied)
-        )
+        approval = self._approvals.approve(product, interactive=True, setup_defaults=applied)
         return SetupReport(
             product=product,
             secrets_written=tuple(written),

@@ -48,6 +48,8 @@ Uma pessoa aprova o perfil com [`hdast profile approve`](cli.md#hdast-profile-ap
 | `extra_checks` | Bloco inteiro das verificações adicionais, quando difere do padrão |
 | `cleanup` | Configuração da limpeza, com caminho do script, nomes de `secret_ref`, tabelas, teto de linhas e esquema. A limpeza confere o conteúdo do script separadamente |
 
+**Origem dos blocos gerados.** A CLI escreve os blocos de proteção a partir do `carta.yml` (`hdast init --from-letter`). Com `kind: letter` (padrão), o que a carta não diz fica no mais estreito. Com `kind: request` (pedido mínimo, [ADR 0120](../decisoes/0120-pedido-minimo-com-padroes-e-aprovacao.md)), a CLI escreve também os padrões da tabela (escopo do OpenAPI sem `DELETE`, caminhos negados sugeridos, janela, validade, limites e capacidades extras), cada um explícito no `target.yml` e listado em `# Padrão do pedido mínimo:` no cabeçalho. O valor padrão de cada campo do modelo do perfil não muda, e tudo o que o padrão liga entra na impressão digital e só vale depois da aprovação.
+
 A aprovação compara o perfil validado e normalizado. Comentários, espaços e ordem das chaves do YAML ficam de fora, assim como os valores dos segredos. A versão do cálculo é 2, e perfis com aprovação na versão 1 precisam de nova aprovação. A aprovação fica na pasta de estado (`HDAST_STATE_DIR`). [ADR 0037](../decisoes/0037-aprovacao-humana-do-escopo.md).
 
 Para ajustar o alcance depois da aprovação, o agente pode atualizar `openapi`, `probe`, `auth.csrf`, `auth.token_expired`, `auth.default_account`, `auth.account_map` e as opções de codificação do login (`request_encoding`, `username_field`, `password_field`, `token_response_field`, `token_header`, `token_scheme`).
@@ -114,7 +116,7 @@ Os valores (`agenda`, `SEC-1234`, hosts e datas) são fictícios.
 | `probe` | bloco | Não | Critério de sucesso e caminho de saúde (M3). Padrão: sucesso é 2xx |
 | `scan` | bloco | Não | Política da varredura ativa e gate de severidade (M4). Veja [`scan`](#scan-opcional) |
 | `authz` | bloco | Não | Teste de autorização entre contas ([ADR 0027](../decisoes/0027-teste-de-autorizacao-entre-contas.md)). Veja [`authz`](#authz-opcional) |
-| `extra_checks` | bloco | Não | Capacidades extras da V1.12, só pela carta. Veja [`extra_checks`](#extra_checks-opcional) |
+| `extra_checks` | bloco | Não | Capacidades extras da V1.12, só pela CLI a partir da carta (ou do pedido mínimo). Veja [`extra_checks`](#extra_checks-opcional) |
 
 ### Caminhos de arquivo (`openapi`, `cleanup.script`)
 
@@ -513,7 +515,7 @@ negative:
 
 ## `extra_checks` (opcional)
 
-Capacidades extras da V1.12, todas desligadas ([ADR 0096](../decisoes/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Nada aqui amplia escopo, janela ou limites; cada chave muda o tráfego ou o relato e só a carta a liga (`attack.*`, pelo `init --from-letter`). O bloco entra na impressão digital da aprovação **quando difere do padrão**. Chave desconhecida ou valor que não é booleano é recusado. As capacidades que consomem as chaves chegam em passos posteriores da V1.12.
+Capacidades extras da V1.12, todas desligadas ([ADR 0096](../decisoes/0096-bloco-attack-da-carta-liga-capacidades-v1-12.md)). Nada aqui amplia escopo, janela ou limites; cada chave muda o tráfego ou o relato e só a carta, a resposta da pessoa ou o padrão do pedido mínimo (ADR 0120) a ligam (`attack.*`, sempre pelo `init --from-letter` e com aprovação humana). O bloco entra na impressão digital da aprovação **quando difere do padrão**. Chave desconhecida ou valor que não é booleano é recusado. As capacidades que consomem as chaves chegam em passos posteriores da V1.12.
 
 | Campo | Tipo | Padrão | Descrição |
 | --- | --- | --- | --- |
