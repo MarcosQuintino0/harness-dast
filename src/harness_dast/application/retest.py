@@ -6,11 +6,13 @@ aplica aprovação do escopo, pilha atual, janela, prazo, limite por segundo, tr
 mutação pendente. Os estágios `authz` e `negative` ficam desligados (redução): o reteste
 classifica só os achados do varredor, que são os que `findings.json` lista em `findings`.
 
-Nuclei (ADR 0122): se o `nuclei.json` da execução anterior tem achados, o estágio `nuclei` roda
-de novo só com os modelos desses achados (`RunRequest.nuclei_templates`); sem achados do Nuclei
-ele fica desligado. O Nuclei só entra num reteste que já tem achados do ZAP a repetir: sozinho ele
-não escolhe operações, e a classificação "reproduzido" dos achados dele fica com o relatório do
-Nuclei (o `run.json` traz as contagens).
+Nuclei (ADR 0122): se o `nuclei.json` da execução anterior tem achados abertos (`U-...`), o
+estágio `nuclei` roda de novo só com os modelos dos achados escolhidos
+(`RunRequest.nuclei_templates`); sem achados do Nuclei ele fica desligado. `--finding` aceita a
+impressão digital de um achado do Nuclei. Sem nenhum achado elegível do ZAP, mas com achados
+abertos do Nuclei, o reteste roda SÓ o Nuclei (`RunRequest.nuclei_only`): não há `probe`, `scan`
+nem `findings.json`, e a pasta é a do `preflight`. O `retest.json` traz uma entrada por achado do
+Nuclei (`origin: nuclei`), classificada pela impressão digital.
 
 Honestidade: o resultado nunca diz "corrigido". `not_reproduced` significa que a operação foi
 testada nesta execução e o fingerprint não apareceu; o aviso `COMPARISON_NOTICE` acompanha.
@@ -26,15 +28,18 @@ from harness_dast.application.run import RunRequest, RunResult
 from harness_dast.domain.errors import ExitCode, HarnessError
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_diff import ensure_comparable
+from harness_dast.domain.nuclei_findings import NucleiFinding
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.retest import (
     DEFAULT_MAX_FINDINGS,
+    RetestEntry,
     RetestReport,
     build_retest_report,
     operations_of,
     reproduced_at_threshold,
-    select_for_retest,
 )
+from harness_dast.domain.retest_nuclei import nuclei_retest_entries, select_retest_targets
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_config import FailOn, effective_fail_on
 
@@ -117,43 +122,59 @@ class RetestUseCase:
         previous_id = require_run_id(request.previous_run_id)
         baseline = self._artifacts.read_findings(previous_id)
         ensure_comparable(baseline, request.product)
-        selected = select_for_retest(baseline.findings, request.findings, request.max_findings)
-        templates = self._open_nuclei_templates(previous_id)
+        previous_nuclei = self._artifacts.read_nuclei(previous_id)
+        selected, opened = select_retest_targets(
+            baseline.findings,
+            previous_nuclei.findings if previous_nuclei else (),
+            request.findings,
+            request.max_findings,
+        )
+        templates = _templates_of(opened)
         result = self._run.execute(
             RunRequest(
                 product=request.product,
                 nuclei=bool(templates),
                 nuclei_templates=templates,
+                nuclei_only=not selected,
                 authz=False,
                 negative=False,
                 fail_on=request.fail_on,
                 compare=previous_id,
                 max_minutes=request.max_minutes,
-                only=operations_of(selected),
+                only=operations_of(selected) if selected else (),
             )
         )
         summary = result.summary
-        if "findings.json" not in summary.artifacts:
+        needed = "findings.json" if selected else "nuclei.json"
+        if needed not in summary.artifacts:
             return RetestOutcome(result, None, summary.exit_code, result.error)
-        current = self._artifacts.read_findings(summary.run_id)
+        current = self._artifacts.read_findings(summary.run_id) if selected else None
         report = build_retest_report(
             product=request.product,
             previous_run_id=previous_id,
             run_id=summary.run_id,
             generated_at=self._clock.now().isoformat(),
             selected=selected,
-            current=current.findings,
-            scanned_operations=_scanned(selected, current),
+            current=current.findings if current else (),
+            scanned_operations=_scanned(selected, current) if current else frozenset(),
+            nuclei_entries=self._nuclei_entries(opened, summary.run_id),
         )
         self._artifacts.write_retest(summary.run_id, report)
         return RetestOutcome(result, report, _exit_code(result, report, threshold), result.error)
 
-    def _open_nuclei_templates(self, previous_id: str) -> tuple[str, ...]:
-        """Caminhos dos modelos dos achados do Nuclei da execução anterior, sem repetição."""
-        previous = self._artifacts.read_nuclei(previous_id)
-        if previous is None:
+    def _nuclei_entries(
+        self, opened: tuple[NucleiFinding, ...], run_id: str
+    ) -> tuple[RetestEntry, ...]:
+        """Entradas do `retest.json` para os achados do Nuclei escolhidos."""
+        if not opened:
             return ()
-        return tuple(sorted({item.record.template_path for item in previous.findings}))
+        current: NucleiResult | None = self._artifacts.read_nuclei(run_id)
+        return nuclei_retest_entries(opened, current)
+
+
+def _templates_of(opened: tuple[NucleiFinding, ...]) -> tuple[str, ...]:
+    """Caminhos dos modelos dos achados do Nuclei escolhidos, sem repetição e em ordem."""
+    return tuple(sorted({item.record.template_path for item in opened}))
 
 
 def _scanned(selected: tuple[Finding, ...], current: FindingsReport) -> frozenset[str]:

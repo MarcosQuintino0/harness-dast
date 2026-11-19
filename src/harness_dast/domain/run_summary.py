@@ -46,7 +46,8 @@ class RunOptions(BaseModel):
     """Opções do `run` (só o que reduz ou escolhe; nada que amplie).
 
     `nuclei` é a chave pedida (`--nuclei/--no-nuclei`); o perfil sem `extra_checks.nuclei` e o
-    `--only` ainda pulam o estágio, e `stages` diz por quê.
+    `--only` ainda pulam o estágio, e `stages` diz por quê. `nuclei_only` marca o reteste que
+    roda só o Nuclei (sem achado elegível do ZAP).
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -54,6 +55,7 @@ class RunOptions(BaseModel):
     seed: int | None = None
     skip_scan: bool = False
     nuclei: bool = False
+    nuclei_only: bool = False
     authz: bool = False
     negative: bool = False
     fail_on: str | None = None

@@ -344,3 +344,40 @@ def test_html_inclui_aviso_consultivo_dentro_de_main_com_fechamento_multilinha(
     assert "Verificação inválida" in html
     assert "senha-privada" not in html
     assert "Reproduzido" not in html
+
+
+def test_nuclei_finding_is_presented_with_its_reproduction_and_never_as_independent(
+    tmp_path: Path, report: FindingsReport
+) -> None:
+    from tests.fakes.nuclei import nuclei_finding, nuclei_result
+
+    finding = nuclei_finding(severity="high")
+    stored = nuclei_result(findings=(finding,), run_id=report.run_id, product=report.product)
+    with_nuclei = report.model_copy(update={"nuclei": stored})
+    _write(
+        tmp_path,
+        report,
+        "verification.json",
+        {
+            "schema_version": 1,
+            "product": report.product,
+            "run_id": report.run_id,
+            "entries": [
+                {
+                    "fingerprint": finding.fingerprint,
+                    "level": "reproduced",
+                    "reason": "Reprodução: o mesmo modelo voltou a casar.",
+                    "recipe": "nuclei_template",
+                }
+            ],
+        },
+    )
+
+    view = _builder(tmp_path).build(with_nuclei)
+
+    (row,) = [item for item in view.findings if item.origin == "nuclei"]
+    assert row.finding_id == finding.finding_id
+    assert row.title == finding.record.template_id
+    assert row.verification.level == "reproduced"
+    assert row.verification.recipe == "nuclei_template"
+    assert row.confirmations == ()

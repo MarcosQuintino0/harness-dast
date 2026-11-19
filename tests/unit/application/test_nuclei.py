@@ -467,3 +467,14 @@ def _wiring(rig: NucleiRig) -> dict[str, Any]:
         "sleeper": rig.clock,
         "kill_switch": rig.kill,
     }
+
+
+def test_persist_false_devolve_o_resultado_sem_gravar_o_nuclei_json(tmp_path: Path) -> None:
+    line = result_line()
+    rig = _rig(tmp_path, lines=(line,))
+    request = NucleiRequest(product="agenda", run_id=RUN_ID, persist=False)
+
+    result = rig.nuclei().execute(request)
+
+    assert len(result.findings) == 1
+    assert rig.artifacts.results == {}

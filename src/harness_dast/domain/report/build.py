@@ -20,12 +20,14 @@ from harness_dast.domain.finding_diff import (
 from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.internal_error_signals import classify_internal_error_signals
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.oast_verification import oast_gap
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.redaction import EvidenceMessage
 from harness_dast.domain.report.labels import SEED_ASK_NOTICE
 from harness_dast.domain.report.model import (
     NOT_TESTED_NEGATIVE,
+    NOT_TESTED_NUCLEI,
     NOT_TESTED_STATEMENTS,
     NOT_TESTED_WITH_AUTHZ,
     ComparisonInfo,
@@ -40,7 +42,7 @@ from harness_dast.domain.report.model import (
 from harness_dast.domain.scan_config import EXTRA_OUTCOMES
 from harness_dast.domain.scan_result import MUTATION_PENDING_NOTE, ScanResult
 from harness_dast.domain.signal_result import ProxySignals
-from harness_dast.domain.triage import TriageFile, merge_triage
+from harness_dast.domain.triage import TriageFile, merge_nuclei_triage, merge_triage
 from harness_dast.domain.zap_alert import RawAlert
 
 
@@ -234,6 +236,7 @@ def _summary(
     authz: AuthzResult | None,
     signals: ProxySignals | None,
     negative: NegativeResult | None = None,
+    nuclei: NucleiResult | None = None,
 ) -> FindingsSummary:
     counts: Counter[str] = Counter(item.proposed_severity for item in findings)
     own: Counter[str] = Counter(
@@ -241,6 +244,9 @@ def _summary(
     )
     typed: Counter[str] = Counter(
         item.proposed_severity for item in (negative.findings if negative else ())
+    )
+    probed: Counter[str] = Counter(
+        item.proposed_severity for item in (nuclei.findings if nuclei else ())
     )
     seen: Counter[str] = Counter(
         item.proposed_severity for item in (signals.findings if signals else ())
@@ -254,15 +260,19 @@ def _summary(
         negative_by_severity=(
             {name: typed.get(name, 0) for name in _SEVERITIES} if negative else {}
         ),
+        nuclei_by_severity=({name: probed.get(name, 0) for name in _SEVERITIES} if nuclei else {}),
         signal_by_severity=(
             {name: seen.get(name, 0) for name in _SEVERITIES} if signals and signals.enabled else {}
         ),
     )
 
 
-def _statements(authz: AuthzResult | None, negative: NegativeResult | None) -> tuple[str, ...]:
+def _statements(
+    authz: AuthzResult | None, negative: NegativeResult | None, nuclei: NucleiResult | None
+) -> tuple[str, ...]:
     base = NOT_TESTED_STATEMENTS if authz is None else NOT_TESTED_WITH_AUTHZ
-    return base if negative is None else (*base, NOT_TESTED_NEGATIVE)
+    extra = (NOT_TESTED_NEGATIVE,) if negative is not None else ()
+    return (*base, *extra, *((NOT_TESTED_NUCLEI,) if nuclei is not None else ()))
 
 
 def assemble_report(
@@ -280,6 +290,7 @@ def assemble_report(
     authz: AuthzResult | None = None,
     proxy_signals: ProxySignals | None = None,
     negative: NegativeResult | None = None,
+    nuclei: NucleiResult | None = None,
 ) -> FindingsReport:
     """Monta o relatório completo.
 
@@ -301,11 +312,13 @@ def assemble_report(
         findings, orphans = merge_triage(findings, triage)
         supplemental = frozenset(
             finding.fingerprint
-            for source in (authz, proxy_signals, negative)
+            for source in (authz, proxy_signals, negative, nuclei)
             if source is not None
             for finding in source.findings
         )
         orphans = tuple(fingerprint for fingerprint in orphans if fingerprint not in supplemental)
+        if nuclei is not None:
+            nuclei = merge_nuclei_triage(nuclei, triage)
     gone: tuple[GoneFinding, ...] = ()
     comparison: ComparisonInfo | None = None
     if baseline is not None:
@@ -319,7 +332,7 @@ def assemble_report(
         generated_at=generated_at,
         harness_version=harness_version,
         coverage=_coverage(probe, scan),
-        summary=_summary(findings, unreadable, authz, proxy_signals, negative),
+        summary=_summary(findings, unreadable, authz, proxy_signals, negative, nuclei),
         findings=findings,
         groups=group_findings(findings),
         not_observed=gone,
@@ -328,6 +341,7 @@ def assemble_report(
         authz=authz,
         proxy_signals=proxy_signals,
         negative=negative,
+        nuclei=nuclei,
         internal_error_signals=classify_internal_error_signals(evidence),
-        not_tested_statements=_statements(authz, negative),
+        not_tested_statements=_statements(authz, negative, nuclei),
     )

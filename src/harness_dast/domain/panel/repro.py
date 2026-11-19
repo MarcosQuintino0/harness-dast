@@ -373,6 +373,22 @@ def render_repro(item: PanelFinding, view: PanelView) -> str:
             )
             + "</div>"
         )
+    if item.origin == "nuclei":
+        return (
+            '<div style="display: flex; flex-direction: column; gap: 14px">'
+            + head
+            + '<p class="mu">Esta falha vem de um modelo pronto do Nuclei. O relatório guarda só o '
+            "modelo, o método, o caminho e as contagens: não guarda a requisição, a resposta nem "
+            "o valor extraído. Para repetir o mesmo modelo, peça a uma pessoa para rodar "
+            "<b>hdast confirm</b> (reprodução, não confirmação independente).</p>"
+            + (
+                '<p class="sm"><b>O que o Nuclei observou:</b> '
+                f"{h.text(item.nuclei_evidence, 600)}</p>"
+                if item.nuclei_evidence
+                else ""
+            )
+            + "</div>"
+        )
     repro = item.repro
     if repro is None:
         return (

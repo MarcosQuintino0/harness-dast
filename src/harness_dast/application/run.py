@@ -9,9 +9,12 @@ Estágio `nuclei` (ADR 0122), o segundo motor: depois do `scan` e antes do `auth
 reduz, nunca liga o motor num perfil sem a chave. `--only`, `--skip-scan` e `--no-nuclei` o pulam
 (`skipped` em `run.json`, com o motivo). Falha ou parada do estágio segue o padrão do `authz`:
 o `report` ainda roda sobre o que existe, os estágios seguintes ficam `not_run` e o código de
-saída é o do `nuclei`. O gate de severidade (`--fail-on` e `scan.fail_on`) soma os achados do
-Nuclei ao do `report` até o relatório do Nuclei existir (o `run` sai com 1 se algum alcança o
-limiar).
+saída é o do `nuclei`. No reteste (`nuclei_templates`) o `--only` não o pula: ele se limita aos
+modelos pedidos. Com `nuclei_only` (reteste sem achado elegível do ZAP) a cadeia para depois do
+`preflight`: roda só o `nuclei`, sobre a pasta do `preflight`, e `probe`, `scan`, `authz`,
+`negative` e `report` ficam `skipped`. O gate de severidade (`--fail-on` e `scan.fail_on`) soma
+os achados do Nuclei: o `report` já os conta (`exceeds`) e o `run` ainda soma a conta do próprio
+estágio, que vale mesmo se o `report` não chegar a rodar (sai com 1 se algum alcança o limiar).
 
 Estágio `authz` (ADR 0027), LIGADO por padrão desde a V1.4 (ADR 0038): depois do `scan` e antes
 do `report`, repete com outras contas os pedidos que o `probe` provou. Por padrão só LÊ (BOLA,
@@ -156,7 +159,10 @@ class RunRequest:
             perfil: só roda com `extra_checks.nuclei`, e `False` equivale a `--no-nuclei`. Nunca
             liga o Nuclei num perfil sem a chave. `only` e `skip_scan` também o pulam.
         nuclei_templates: Caminhos de modelos aos quais o Nuclei se limita (reteste dos achados
-            abertos); vazio roda todos os escolhidos. Só reduz.
+            abertos); vazio roda todos os escolhidos. Só reduz. Com modelos pedidos o `only` não
+            pula o estágio.
+        nuclei_only: Roda só o `preflight` e o `nuclei` (reteste de achados do Nuclei quando o
+            ZAP não tem achado elegível); exige `nuclei_templates` e nunca roda o `probe`.
         authz: Roda o estágio `authz` (teste de autorização entre contas) depois do `scan` e
             antes do `report`. Ligado por padrão (ADR 0038): manda requisições a mais, mas só
             lê; escrever exige `authz.allow_writes` no perfil (vem da carta). `False` equivale
@@ -180,6 +186,7 @@ class RunRequest:
     skip_scan: bool = False
     nuclei: bool = True
     nuclei_templates: tuple[str, ...] = ()
+    nuclei_only: bool = False
     authz: bool = True
     negative: bool = True
     fail_on: FailOn | None = None
@@ -322,6 +329,9 @@ class RunPipeline:
     def _chain(self, request: RunRequest, progress: _Progress, started: datetime) -> None:
         preflight, probe, scan, report = self._stages
         self._stage("preflight", progress, lambda: self._preflight(preflight, request, progress))
+        if request.nuclei_only:
+            self._nuclei_only(request, progress, started)
+            return
         self._stage("probe", progress, lambda: self._probe(probe, request, progress, started))
         if request.skip_scan:
             progress.records["scan"] = StageRecord(
@@ -373,6 +383,22 @@ class RunPipeline:
             raise
         self._authz_then_report(report, request, progress, started)
 
+    def _nuclei_only(self, request: RunRequest, progress: _Progress, started: datetime) -> None:
+        """Reteste só do Nuclei: os demais estágios ficam `skipped` e não há `report`."""
+        progress.deadline = self._deadline(request, started)
+        for name in ("probe", "scan", "authz", "negative", "report"):
+            progress.records[name] = StageRecord(
+                name=name, status="skipped", message="Reteste só do Nuclei: sem achado do ZAP."
+            )
+        reason = self._nuclei_skip_reason(request)
+        if reason is not None:
+            progress.records["nuclei"] = StageRecord(
+                name="nuclei", status="skipped", message=reason
+            )
+            return
+        self._stage("nuclei", progress, lambda: self._nuclei(request, progress))
+        progress.exceeds = progress.nuclei_exceeds
+
     def _authz_then_report(
         self, report: ReportStage, request: RunRequest, progress: _Progress, started: datetime
     ) -> None:
@@ -402,7 +428,7 @@ class RunPipeline:
     def _nuclei_skip_reason(self, request: RunRequest) -> str | None:
         if not request.nuclei:
             return "Desligado por --no-nuclei."
-        if request.only:
+        if request.only and not request.nuclei_templates:
             return "Pedido com --only: o nuclei não filtra por operação e não foi executado."
         if not self._profiles.load(request.product).extra_checks.nuclei:
             return "O perfil não liga o Nuclei (extra_checks.nuclei); só a carta o liga."
@@ -687,6 +713,7 @@ class RunPipeline:
                 seed=request.seed,
                 skip_scan=request.skip_scan,
                 nuclei=request.nuclei,
+                nuclei_only=request.nuclei_only,
                 authz=request.authz,
                 negative=request.negative,
                 fail_on=request.fail_on,

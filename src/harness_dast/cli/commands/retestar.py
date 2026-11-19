@@ -45,8 +45,11 @@ def _render(outcome: RetestOutcome) -> str:
 
 def _counts(report: RetestReport) -> str:
     counts = report.counts
+    from_nuclei = sum(1 for item in report.entries if item.origin == "nuclei")
+    nuclei = f", {from_nuclei} deles do Nuclei" if from_nuclei else ""
     return (
-        f"{len(report.entries)} achado(s) retestado(s) em {len(report.only)} operação(ões): "
+        f"{len(report.entries)} achado(s) retestado(s) em {len(report.only)} operação(ões)"
+        f"{nuclei}: "
         f"{counts.reproduced} {_LABELS['reproduced']}, "
         f"{counts.not_reproduced} {_LABELS['not_reproduced']}, "
         f"{counts.not_tested} {_LABELS['not_tested']}."

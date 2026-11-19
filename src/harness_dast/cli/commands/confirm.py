@@ -30,7 +30,7 @@ def confirm_command(
     with hold_stack("confirm", product):
         network = open_network(product, products_dir, state.secrets)
         try:
-            service = build_confirmation(products_dir, state.secrets, network, run)
+            service = build_confirmation(products_dir, state.secrets, network, run, product)
             result = service.execute(
                 ConfirmationRequest(product=product, run_id=run, finding=finding, maximum=maximum)
             )

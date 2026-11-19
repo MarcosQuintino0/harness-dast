@@ -17,6 +17,7 @@ from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.finding import Finding, normalize_path_template
 from harness_dast.domain.http_messages import HttpResponse
 from harness_dast.domain.negative_result import NegativeFinding
+from harness_dast.domain.nuclei_findings import NucleiFinding
 from harness_dast.domain.probe_exchange import ExchangeRecord
 from harness_dast.domain.request_encoding import join_url
 from harness_dast.domain.scan_binding import bind_scan_seed
@@ -364,10 +365,10 @@ def _internal_error(fingerprint: str, r: tuple[HttpResponse, ...]) -> Verificati
 
 
 def select_confirmation_findings(
-    findings: tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...],
+    findings: tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...],
     limit: int,
     fingerprint: str | None,
-) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...]:
+) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...]:
     """Ordena achados por severidade e aplica seleção que apenas reduz o teto.
 
     Raises:

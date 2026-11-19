@@ -25,6 +25,7 @@ from pydantic import ValidationError, field_validator, model_validator
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import Finding, TriageNote
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.redaction import strip_control
 
 _FINGERPRINT: Final = re.compile(r"[0-9a-f]{64}")
@@ -154,3 +155,26 @@ def merge_triage(
         merged.append(finding.model_copy(update={"triage": note}))
     known = {finding.fingerprint for finding in findings}
     return tuple(merged), tuple(sorted(set(notes) - known))
+
+
+def merge_nuclei_triage(result: NucleiResult, triage: TriageFile) -> NucleiResult:
+    """Casa a triagem com os achados do Nuclei pela impressão digital (`U-...`).
+
+    Só o campo `triage` de cada achado muda: severidade, ocorrências e ordem ficam como estão,
+    e as tecnologias identificadas (que não são achados) não recebem anotação. Anotação sem
+    achado do Nuclei é ignorada aqui; quem a conta como órfã é o `merge_triage` do relatório.
+    """
+    notes = {item.fingerprint: item for item in triage.annotations}
+    merged = []
+    for finding in result.findings:
+        entry = notes.get(finding.fingerprint)
+        if entry is None:
+            merged.append(finding)
+            continue
+        note = TriageNote(
+            note=strip_control(entry.note, keep_newlines=False),
+            suspected_false_positive=entry.suspected_false_positive,
+            reason=strip_control(entry.reason, keep_newlines=False),
+        )
+        merged.append(finding.model_copy(update={"triage": note}))
+    return result.model_copy(update={"findings": tuple(merged)})

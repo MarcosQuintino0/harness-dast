@@ -18,6 +18,7 @@ from harness_dast.domain.panel.authz_copy import authz_confidence_text
 from harness_dast.domain.panel.format import fmt_count, pick, plural
 from harness_dast.domain.panel.layout import card, chip, meter, row
 from harness_dast.domain.panel.model import PanelFinding, PanelGroup, PanelView
+from harness_dast.domain.panel.nuclei import render_nuclei_card
 from harness_dast.domain.panel.repro import render_repro
 from harness_dast.domain.panel.verification import render_verification, render_verifications
 from harness_dast.domain.report.presentation import PresentedFinding
@@ -159,7 +160,7 @@ def _how_to_read() -> str:
 def _list_card(view: PanelView) -> str:
     return card(
         f'<h2 class="h">Graves · {len(view.severe)}</h2>'
-        f"{_picks(view)}{_minor_section(view)}{_how_to_read()}",
+        f"{_picks(view)}{_minor_section(view)}{render_nuclei_card(view.nuclei)}{_how_to_read()}",
         style="flex: 1 1 300px; align-self: flex-start",
     )
 
@@ -244,6 +245,21 @@ def _confidence_rows(item: PanelFinding) -> str:
                 first=True,
             )
             + line("no", "Pode ser coerção legítima ou campo ignorado", "a triar")
+            + confirmed
+        )
+    if item.origin == "nuclei":
+        return (
+            line(
+                "ok",
+                "Um modelo conhecido do Nuclei casou na resposta do sistema de teste",
+                "sim",
+                first=True,
+            )
+            + line(
+                "no",
+                "Repetir o modelo (hdast confirm) é reprodução, não confirmação independente",
+                "a triar",
+            )
             + confirmed
         )
     proven = bool(item.evidence and item.evidence.available and item.evidence.zap_evidence.strip())

@@ -342,3 +342,66 @@ def test_erro_de_configuracao_do_nuclei_nao_vira_excecao_solta() -> None:
     result = rig.run(RunRequest(product="demo"))
 
     assert result.summary.exit_code == int(ExitCode.USAGE)
+
+
+def test_only_com_modelos_do_reteste_nao_pula_o_nuclei() -> None:
+    rig = Rig()
+    templates = ("http/misconfiguration/a.yaml",)
+
+    result = rig.run(RunRequest(product="demo", only=("ver",), nuclei_templates=templates))
+
+    assert "nuclei" in rig.calls
+    assert _status(result)["nuclei"] == "ok"
+    (request,) = rig.nuclei_requests
+    assert request.only_templates == templates
+
+
+def test_nuclei_only_roda_so_o_preflight_e_o_nuclei_sobre_a_pasta_do_preflight() -> None:
+    rig = Rig()
+    templates = ("http/misconfiguration/a.yaml",)
+
+    result = rig.run(RunRequest(product="demo", nuclei_only=True, nuclei_templates=templates))
+
+    assert rig.calls == ["preflight", "nuclei"]
+    assert _status(result) == {
+        "preflight": "ok",
+        "probe": "skipped",
+        "scan": "skipped",
+        "nuclei": "ok",
+        "authz": "skipped",
+        "negative": "skipped",
+        "report": "skipped",
+    }
+    assert result.summary.options.nuclei_only is True
+    (request,) = rig.nuclei_requests
+    assert request.only_templates == templates
+    assert request.deadline is not None
+
+
+def test_nuclei_only_com_achado_alto_sai_com_1_pelo_gate_do_proprio_estagio() -> None:
+    rig = Rig(
+        fail_on="high", nuclei=lambda: nuclei_result(findings=(nuclei_finding(severity="high"),))
+    )
+
+    result = rig.run(RunRequest(product="demo", nuclei_only=True, nuclei_templates=("x.yaml",)))
+
+    assert result.error is None
+    assert result.summary.exit_code == int(ExitCode.FINDINGS)
+
+
+def test_nuclei_only_com_o_perfil_sem_a_chave_pula_o_estagio() -> None:
+    rig = Rig(profile_nuclei=False)
+
+    result = rig.run(RunRequest(product="demo", nuclei_only=True, nuclei_templates=("x.yaml",)))
+
+    assert rig.calls == ["preflight"]
+    assert _status(result)["nuclei"] == "skipped"
+
+
+def test_nuclei_only_com_falha_do_estagio_para_com_o_codigo_dele() -> None:
+    rig = Rig(nuclei_error=ConfigError("Sem pilha.", hint="Suba a pilha."))
+
+    result = rig.run(RunRequest(product="demo", nuclei_only=True, nuclei_templates=("x.yaml",)))
+
+    assert result.summary.exit_code == int(ExitCode.USAGE)
+    assert _status(result)["nuclei"] == "failed"
