@@ -53,7 +53,7 @@ Vamos acrescentar o Nuclei como **segundo motor** do hdast. A CLI decide, o cont
   - modelos com `DELETE` só entram com o pedido explícito da pessoa.
 
 ### Cerca básica do Nuclei
-Durante a etapa `nuclei`, a CLI aplica à cerca uma **política própria do Nuclei**, derivada do perfil aprovado e restaurada no fim, inclusive após falha:
+O Nuclei passa por uma **segunda instância da cerca**, `scope-proxy-nuclei`. Ela usa a mesma imagem e a mesma auditoria, só que em arquivo próprio, e só ela segue a **política própria do Nuclei**. A CLI deriva essa política do perfil aprovado e a publica no `stack up`, como faz com a política de hoje. A cerca não troca de política durante a execução. O ZAP continua apontado para a cerca de hoje e nunca passa pela do Nuclei. A política do Nuclei é esta:
 
 | Regra | Valor |
 | --- | --- |
@@ -153,7 +153,7 @@ Esta é uma forma de modo amplo de caminho restrita ao Nuclei. Como exige o [ADR
 
 ### Aceites verificáveis
 1. O manifesto é reproduzível, e um teste unitário cobre cada veto, os métodos dos pedidos `raw` e a escolha por métodos permitidos.
-2. Durante a etapa `nuclei`, a cerca aplica a política do Nuclei e volta à política anterior no fim e após falha forçada. O ZAP nunca roda com a política do Nuclei.
+2. O Nuclei só alcança o alvo pela `scope-proxy-nuclei`, e o ZAP só pela cerca de hoje. Um teste de contrato do `compose.yaml` e uma prova no laboratório mostram que a política ampla nunca vale para o ZAP.
 3. No laboratório:
    - o alvo Spring rende pelo menos os 13 achados do Actuator sem seleção manual;
    - os pedidos do Nuclei batem com a auditoria;
