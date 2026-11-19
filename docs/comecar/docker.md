@@ -1,6 +1,6 @@
 # Instalar o Docker e preparar a pilha
 
-O Docker é obrigatório para a pilha do harness-dast. Reserve cerca de 4 GiB de memória para o Docker Desktop. Faça os passos de download e diagnóstico na raiz do repositório depois de [instalar a CLI](instalar.md).
+O Docker é obrigatório para a pilha do harness-dast. Reserve cerca de 4 GiB de memória para o Docker Desktop. [Instale a CLI](instalar.md) antes de baixar as imagens. Se instalou pelo wheel da release, use `hdast` no lugar de `uv run hdast` nos passos de download e diagnóstico. No clone, execute esses passos na raiz do repositório.
 
 ## Windows com WSL 2
 
