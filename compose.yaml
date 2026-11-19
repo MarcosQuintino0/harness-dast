@@ -16,8 +16,8 @@
 #   HDAST_SCOPE_POLICY_DIR  diretório com policy.json (e o arquivo-sinal KILL)
 #   HDAST_AUDIT_DIR         diretório da trilha de auditoria (sobrevive ao down)
 #
-# As imagens de terceiros são fixadas por tag e digest. Os digests das imagens
-# próprias serão fixados depois da primeira publicação no GHCR.
+# As imagens de terceiros são fixadas por tag e digest. A CLI usa os digests
+# publicados das imagens próprias quando a instalação contém images.lock.json.
 
 name: hdast
 
