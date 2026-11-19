@@ -1,0 +1,17 @@
+{
+  "name": "hdast",
+  "owner": {
+    "name": "harness-dast"
+  },
+  "plugins": [
+    {
+      "name": "hdast",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/MarcosQuintino0/harness-dast.git",
+        "path": "plugin",
+        "ref": "v1.12.2"
+      }
+    }
+  ]
+}
