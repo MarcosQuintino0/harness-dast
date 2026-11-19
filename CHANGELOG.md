@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- A CI da tag confere a versão da CLI e do arquivo de digests e anexa o wheel e o sdist à release do GitHub. O wheel inclui o Compose e os dados de montagem para instalação fora do clone. [Guia de instalação](docs/comecar/instalar.md)
 - A CI da tag gera o artefato `images-lock` com os digests do ZAP e do proxy de escopo. Com esse arquivo instalado, `stack pull` e `stack up` usam as referências por digest. Pedidos de build fora do clone de desenvolvimento retornam `STACK_BUILD_FORBIDDEN` (saída 9) antes de chamar o Docker. [ADR 0121](docs/decisoes/0121-digests-empacotados-e-build-so-no-clone.md)
 - Decisão (aceita pelo dono) de distribuir o hdast como plugin do Claude Code publicado por tag: quem testa instala o plugin numa pasta de produtos e não clona a ferramenta; o guard trabalha por lista permitida (`products/`, `runs/`, `cartas/`); a CLI instalada sobe as imagens por digest e recusa construir a cerca; a skill `/hdast:preparar` instala o que falta com a permissão da pessoa. [ADR 0119](docs/decisoes/0119-hdast-como-plugin-do-claude-code.md)
 - O `hdast setup` destaca o endereço, os caminhos negados, as capacidades ligadas, as permissões de escrita, a validade e as janelas antes da confirmação humana. Um teste de contrato registra o YAML e a impressão digital de três cartas versionadas.
