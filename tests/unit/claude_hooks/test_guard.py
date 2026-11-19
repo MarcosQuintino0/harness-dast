@@ -9,7 +9,7 @@ from types import ModuleType
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
-GUARD = ROOT / ".claude" / "hooks" / "guard.py"
+GUARD = ROOT / "plugin" / "hooks" / "guard.py"
 SETTINGS = ROOT / ".claude" / "settings.json"
 BASELINE_DENY = (
     "Read(**/.env*)",
@@ -421,7 +421,7 @@ def test_settings_register_the_guard_for_the_expected_tools() -> None:
                 "type": "command",
                 "command": (
                     "uv run --no-project --quiet python "
-                    '"$' + '{CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"'
+                    '"$' + '{CLAUDE_PROJECT_DIR}/plugin/hooks/guard.py"'
                 ),
                 "onFailure": "block",
                 "timeout": 30,

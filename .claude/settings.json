@@ -87,6 +87,8 @@
       "Write(.claude/settings.json)",
       "Edit(.claude/hooks/**)",
       "Write(.claude/hooks/**)",
+      "Edit(plugin/hooks/**)",
+      "Write(plugin/hooks/**)",
       "Edit(.mcp.json)",
       "Write(.mcp.json)"
     ]
@@ -98,7 +100,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --quiet python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py\"",
+            "command": "uv run --no-project --quiet python \"${CLAUDE_PROJECT_DIR}/plugin/hooks/guard.py\"",
             "onFailure": "block",
             "timeout": 30
           }

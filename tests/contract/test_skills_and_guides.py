@@ -18,10 +18,16 @@ import yaml
 from harness_dast.cli.app import build_app
 
 ROOT = Path(__file__).resolve().parents[2]
-ALL_SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+ALL_SKILL_FILES = sorted(
+    [
+        *(ROOT / ".claude" / "skills").glob("*/SKILL.md"),
+        *(ROOT / "plugin" / "skills").glob("*/SKILL.md"),
+    ]
+)
+SKILLS_DIRS = {p.parent.name: p.parent for p in ALL_SKILL_FILES}
 SKILL_FILES = [p for p in ALL_SKILL_FILES if not p.parent.name.startswith("dev-")]
 DEV_SKILL_FILES = [p for p in ALL_SKILL_FILES if p.parent.name.startswith("dev-")]
-AGENT_FILES = sorted((ROOT / ".claude" / "agents").glob("*.md"))
+AGENT_FILES = sorted((ROOT / "plugin" / "agents").glob("*.md"))
 GUIDE_FILES = [
     *sorted((ROOT / "docs" / "comecar").glob("*.md")),
     *sorted((ROOT / "docs" / "usar").glob("*.md")),
@@ -43,12 +49,12 @@ EXPECTED_AGENTS = {"spec-analyst", "findings-triager"}
 
 def test_wait_and_final_triage_are_required_by_skills() -> None:
     for name in ("run-scan", "test-product"):
-        content = (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        content = (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
         assert "hdast" in content
         assert "wait --product" in content
         assert "não leia `scan-progress.json` em laço" in content.lower()
     for name in ("triage-findings", "test-product"):
-        content = (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        content = (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
         assert "qualquer origem" in content
         assert "fingerprint" in content
 
@@ -282,7 +288,7 @@ def test_skills_guides_and_agents_do_not_leak_planted_flaw_terms() -> None:
 
 
 def _skill_text(name: str) -> str:
-    return (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    return (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
 
 
 def test_test_product_points_to_the_four_stage_skills_in_order() -> None:

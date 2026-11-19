@@ -3,6 +3,13 @@
 O módulo reúne a validação de entrada e a análise de shell para manter o hook
 autônomo, executável com a biblioteca padrão e sem dependências do projeto. O
 arquivo único preserva o ponto de entrada e a cópia independente do hook.
+
+Por que um arquivo só, com mais de mil linhas: o hook roda como script autônomo,
+lançado por `uv run --no-project`, sem o pacote `harness_dast` nem dependência
+alguma. Um arquivo único mantém o lançador simples (um caminho, nenhum
+`sys.path`) e se copia inteiro para o cache do plugin e para a cópia cega. Dividir
+o arquivo exigiria importar irmãos do próprio diretório e abriria um modo de falha
+no lançamento; por isso a divisão é recusada de propósito.
 """
 
 import ast
