@@ -85,6 +85,7 @@ ALLOWED_ROOTS = (
     "lab",
     "products/_template",
     ".claude",
+    "plugin",
     "docs",
     "AGENTS.md",
     "CLAUDE.md",
@@ -140,7 +141,7 @@ def decide(rel: str, rules: tuple[Exclusion, ...]) -> Exclusion | None:
         return Exclusion(rel, "arquivo local de segredos")
     if (
         len(parts) >= 3
-        and parts[:2] == [".claude", "skills"]
+        and parts[:2] in ([".claude", "skills"], ["plugin", "skills"])
         and parts[2] not in OPERATIONAL_SKILLS
     ):
         return Exclusion(rel, "skill fora da lista operacional")
@@ -152,8 +153,27 @@ def decide(rel: str, rules: tuple[Exclusion, ...]) -> Exclusion | None:
     return _matches(rel, rules) or _product_exclusion(rel)
 
 
+PLUGIN_TO_WORKSPACE = (
+    ("plugin/skills/", ".claude/skills/"),
+    ("plugin/agents/", ".claude/agents/"),
+    ("plugin/hooks/guard.py", ".claude/hooks/guard.py"),
+)
+"""Onde o plugin cai no workspace cego: o `.claude/` que o Claude Code descobre sozinho. O
+workspace nao instala o plugin (isso e o pacote 6.7); so entrega o mesmo conteudo."""
+
+
+def workspace_path(rel: str) -> str | None:
+    """Caminho no workspace; `None` para o que do plugin nao desce (manifesto e hooks.json)."""
+    if rel != "plugin" and not rel.startswith("plugin/"):
+        return rel
+    for origin, destination in PLUGIN_TO_WORKSPACE:
+        if rel.startswith(origin):
+            return destination + rel[len(origin) :]
+    return None
+
+
 def walk_kept(root: Path, rules: tuple[Exclusion, ...]) -> Iterator[tuple[Path, str]]:
-    """Gera (arquivo, caminho relativo) de tudo que fica; poda as pastas excluidas."""
+    """Gera (arquivo, caminho no workspace) de tudo que fica; poda as pastas excluidas."""
     stack = [root]
     while stack:
         folder = stack.pop()
@@ -166,7 +186,9 @@ def walk_kept(root: Path, rules: tuple[Exclusion, ...]) -> Iterator[tuple[Path, 
             if entry.is_dir():
                 stack.append(entry)
             elif entry.is_file():
-                yield entry, rel
+                destination = workspace_path(rel)
+                if destination is not None:
+                    yield entry, destination
 
 
 def applied(root: Path, rules: tuple[Exclusion, ...]) -> list[Exclusion]:
@@ -182,11 +204,11 @@ def applied(root: Path, rules: tuple[Exclusion, ...]) -> list[Exclusion]:
         hit = decide(entry.name, rules)
         if hit is not None and hit not in found:
             found.append(hit)
-    skills = root / ".claude" / "skills"
-    if skills.is_dir():
-        found.extend(
-            hit
-            for entry in sorted(skills.iterdir())
-            if (hit := decide(entry.relative_to(root).as_posix(), rules)) is not None
-        )
+    for skills in (root / ".claude" / "skills", root / "plugin" / "skills"):
+        if skills.is_dir():
+            found.extend(
+                hit
+                for entry in sorted(skills.iterdir())
+                if (hit := decide(entry.relative_to(root).as_posix(), rules)) is not None
+            )
     return found
