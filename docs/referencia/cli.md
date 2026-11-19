@@ -36,7 +36,8 @@ As provas de execução foram feitas em laboratório. Consulte os [relatórios p
 | `hdast cleanup <produto> --run ID` | Roda o hook de limpeza do produto para uma execução, com confirmação humana | Não (só o banco de testes) | Implementado (M5), verificado contra um Oracle Free real; `--dry-run`; só uma pessoa em terminal interativo apaga ([ADR 0025](../decisoes/0025-limpeza-confirmacao-so-em-terminal-e-correcoes-do-qa-m2-m5.md)) |
 | `hdast secret set\|list\|delete` | A pessoa grava, lista e remove segredos do cofre de credenciais do sistema (`secret_ref: keyring:NOME`); nunca mostra valor. Gravar e remover só em terminal interativo | Não | Implementado ([ADR 0030](../decisoes/0030-cofre-de-credenciais-do-sistema-keyring.md)); ainda não verificado no cofre real de uma máquina. Seção abaixo |
 | `hdast mutation list` / `hdast mutation release <id>` | Lista intenções pendentes sem corpo ou segredo; só uma pessoa em terminal interativo pode liberar depois de conferir o alvo. O agente pode listar, mas nunca liberar | Não | Implementado na V1.12.1 ([ADR 0104](../decisoes/0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md)) |
-| `hdast run <produto>` | Encadeia preflight, probe, scan (usa `scan.include_outcomes` do perfil; `--no-include-outcomes` o reduz a só `success`), authz e negative (ligados por padrão; `--no-authz` e `--no-negative` os pulam) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
+| `hdast nuclei <produto> --run ID` | O segundo motor ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)): roda só o Nuclei (modelos fixados, só leitura por padrão) atrás da segunda cerca e grava `nuclei.json` na pasta do `probe`. Só roda com `extra_checks.nuclei` no perfil, que vem da carta. Seção abaixo | Sim | Implementado ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). [Seção](#hdast-nuclei) |
+| `hdast run <produto>` | Encadeia preflight, probe, scan (usa `scan.include_outcomes` do perfil; `--no-include-outcomes` o reduz a só `success`), nuclei (só com `extra_checks.nuclei` no perfil; `--no-nuclei` o pula), authz e negative (ligados por padrão; `--no-authz` e `--no-negative` os pulam) e report num só processo, sem interação, e grava `run.json`; nunca roda a limpeza | Sim | Implementado (M5). Seção abaixo |
 | `hdast retestar <produto> --run ID [--finding FP]... [--max N]` | Repete só as operações dos achados escolhidos (padrão: alta e média, até 10) pelo pipeline do `run`, com `--only` e `--compare` contra a execução anterior, e grava `retest.json` com `reproduced`, `not_reproduced` ou `not_tested` por achado. Nunca diz "corrigido" | Sim | Implementado ([ADR 0112](../decisoes/0112-retestar-e-run-only.md)). Seção abaixo |
 | `hdast wait --product PRODUTO [--lock ID] [--timeout SEGUNDOS]` ou `hdast wait --run ID [--timeout SEGUNDOS]` | Espera uma execução terminar ou o prazo vencer. Lê o estado local | Não | Implementado. [Referência](wait.md) |
 | `hdast stack up <produto>` | Gera a política do proxy de escopo a partir do perfil e sobe ZAP, proxy, ponte do proxy e o alvo de laboratório | Não (sobe contêineres locais) | Implementado ([ADR 0019](../decisoes/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md)) |
@@ -45,7 +46,7 @@ As provas de execução foram feitas em laboratório. Consulte os [relatórios p
 
 Os marcos acima seguem o roadmap: `init` e `profile validate` no M2; `spec inspect`, `preflight` e `probe` no M3; `scan` e `report` no M4; `cleanup`, `run` e a parada de emergência no M5.
 
-**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `confirm`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
+**Aprovação do escopo (ADR 0037).** `preflight`, `probe`, `scan`, `authz`, `negative`, `nuclei`, `confirm`, `run`, `cleanup` e `stack up` só carregam o perfil se uma pessoa aprovou os blocos de proteção (`hdast profile approve`) e eles não mudaram desde então; senão recusam com `SCOPE_NOT_APPROVED` (saída `3`) antes de abrir qualquer conexão. `stack down`, `stack status` e `stop` nunca são bloqueados.
 
 ## `hdast demo`
 
@@ -100,16 +101,17 @@ uv run hdast run meu-produto --fail-on high --compare <run_id>  # gate de severi
 uv run hdast run meu-produto --max-minutes 20
 ```
 
-Caso de uso `RunPipeline` ([ADR 0024](../decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `authz` (ligado por padrão desde a V1.4, [ADR 0038](../decisoes/0038-authz-padrao-no-run-e-escrita-pela-carta.md)), `negative` (ligado por padrão, [ADR 0051](../decisoes/0051-valores-que-o-esquema-proibe.md)) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
+Caso de uso `RunPipeline` ([ADR 0024](../decisoes/0024-run-encadeado-trava-de-emergencia-e-oracle-na-pilha.md)). Roda `preflight`, `probe`, `scan`, `nuclei` (só com `extra_checks.nuclei` no perfil, [ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)), `authz` (ligado por padrão desde a V1.4, [ADR 0038](../decisoes/0038-authz-padrao-no-run-e-escrita-pela-carta.md)), `negative` (ligado por padrão, [ADR 0051](../decisoes/0051-valores-que-o-esquema-proibe.md)) e `report` **no mesmo processo**: um cache de tokens e um orçamento de login compartilhados (cada conta loga uma vez), sem perguntas. Para no primeiro estágio que falha e sai com o código **dele**; o `report` é o único dono do código `1`.
 
 | Flag | Efeito |
 | --- | --- |
 | `--seed N` | Semente dos geradores do `probe` |
-| `--skip-scan` | Para depois do `probe`; `scan`, `authz`, `negative` e `report` ficam `skipped` |
+| `--skip-scan` | Para depois do `probe`; `scan`, `nuclei`, `authz`, `negative` e `report` ficam `skipped` |
+| `--nuclei` / `--no-nuclei` | O estágio `nuclei` (segundo motor, [seção](#hdast-nuclei)), depois do `scan` e antes do `authz`, **segue o perfil**: só roda se o perfil tem `extra_checks.nuclei` (que vem da carta). `--no-nuclei` o pula (consta como `skipped`; é redução). `--nuclei` **nunca liga** o Nuclei num perfil sem a chave: o estágio fica `skipped`, com o motivo. `--only` e `--skip-scan` também o pulam. Falha ou parada do estágio segue o padrão do `authz`: o `report` ainda roda sobre o que existe, os estágios seguintes ficam `not_run` e a saída é a do `nuclei`. Os achados dele contam para o `--fail-on` (o `run` sai com `1` se algum alcança o limiar) |
 | `--authz` / `--no-authz` | O estágio `authz` (teste de autorização entre contas), depois do `scan` e antes do `report` ([authz.md](authz.md)), **vem ligado**: por padrão só lê (`horizontal`, `excessive_data` e `vertical` em `GET`/`HEAD`); a atribuição em massa e os métodos de escrita só rodam com `authz.allow_writes` no perfil, que vem da carta. `--no-authz` o pula (consta como `skipped`; é redução). `--authz` continua aceito por compatibilidade e é redundante. Com `--skip-scan` ele também fica `skipped`. Sem contas ou pedidos suficientes o estágio não derruba o `run`: as verificações vão para `not_tested` com o motivo. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `authz` |
 | `--negative` / `--no-negative` | O estágio `negative` (valores que o esquema proíbe, [negative.md](negative.md)), depois do `authz` e antes do `report`, **vem ligado**: por padrão só lê (`GET`); a escrita só roda com `negative.allow_writes` no perfil, que vem da carta. `--no-negative` o pula (consta como `skipped`; é redução). `--negative` continua aceito por compatibilidade e é redundante. Com `--skip-scan` ele também fica `skipped`. Sem `exchanges.json` o estágio não derruba o `run`: vai para `not_tested`. Se ele parar antes do fim, o `report` ainda roda e a saída é a do `negative`; os achados dele contam para o `--fail-on` |
 | `--include-outcomes` / `--no-include-outcomes` | O `scan` usa `scan.include_outcomes` do perfil (padrão, [ADR 0050](../decisoes/0050-varrer-operacoes-que-deram-nao-encontrado.md)); `--no-include-outcomes` o reduz a só operações com `success` e fica registrado em `run.json` (`options.include_outcomes`). Nenhuma flag amplia o que o perfil autoriza |
-| `--only OPERATION_ID` | Repetível. Reduz o `probe`, o `scan` e o `negative` às operações citadas (os produtores de `flows.yml` entram junto no `probe`); o `authz` roda inteiro, porque só lê. Só reduz: nunca amplia o escopo. Operação inexistente no OpenAPI é erro de uso (`2`) com dica. A seleção fica em `run.json` (`options.only`, [ADR 0112](../decisoes/0112-retestar-e-run-only.md)) |
+| `--only OPERATION_ID` | Repetível. Reduz o `probe`, o `scan` e o `negative` às operações citadas (os produtores de `flows.yml` entram junto no `probe`); o `authz` roda inteiro, porque só lê; o `nuclei` não roda (não filtra por operação). Só reduz: nunca amplia o escopo. Operação inexistente no OpenAPI é erro de uso (`2`) com dica. A seleção fica em `run.json` (`options.only`, [ADR 0112](../decisoes/0112-retestar-e-run-only.md)) |
 | `--fail-on {none,low,medium,high}` | Limiar do `report`; achado no limiar ou acima sai com `1`. **Só endurece** `scan.fail_on` do perfil: `--fail-on none` com um perfil `high` continua `high` (flags só reduzem). Severidade que a CLI não soube classificar (`unknown`) conta como acima de qualquer limiar diferente de `none` |
 | `--compare RUN_ID` | Comparação do `report` com outra execução do mesmo produto |
 | `--max-minutes N` | Reduz o prazo da execução inteira (conta o tempo já gasto; nunca acima do perfil, mínimo 1 min para o `scan`) |
@@ -134,14 +136,32 @@ Gravado na pasta do `probe` (do preflight, se o `probe` não começou). O `data`
 | `schema_version`, `product`, `run_id` | Versão (1), produto e pasta da execução |
 | `status` | `completed`, `findings` (saída 1), `failed` ou `interrupted` |
 | `exit_code`, `started_at`, `finished_at`, `duration_seconds` | Resultado e tempos |
-| `options` | `seed`, `skip_scan`, `authz`, `negative`, `include_outcomes`, `only`, `fail_on`, `compare`, `max_minutes` efetivos. `only` é a lista de `--only` (vazia = todas as operações). `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
-| `stages` | Sempre os seis (`preflight`, `probe`, `scan`, `authz`, `negative`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
+| `options` | `seed`, `skip_scan`, `nuclei` (a chave pedida; o perfil e o `--only` ainda podem pular o estágio, e `stages` diz por quê), `authz`, `negative`, `include_outcomes`, `only`, `fail_on`, `compare`, `max_minutes` efetivos. `only` é a lista de `--only` (vazia = todas as operações). `include_outcomes: true` significa usar `scan.include_outcomes` do perfil; se a lista do perfil está vazia, só `success` é varrido. `false` ignora a lista e restringe a `success`. O booleano não informa que operações sem sucesso foram autorizadas ou varridas |
+| `stages` | Sempre os sete (`preflight`, `probe`, `scan`, `nuclei`, `authz`, `negative`, `report`), em ordem: `name`, `status` (`ok`, `failed`, `interrupted`, `skipped`, `not_run`), `exit_code`, `run_id`, `started_at`, `duration_seconds`, `error_code`, `message` |
 | `artifacts` | Arquivos que existem na pasta (`probe.json`, `scan.json`, `findings.json`, `report.md`, `report.html`, `authz.json`, `rule-stats.json`, `metrics.json`...). A pasta `panel/` não aparece aqui: é uma pasta, e o `run` a gera depois de gravar este arquivo |
 | `findings_by_severity` | Achados do ZAP por severidade proposta (só se o `report` rodou) |
 | `authz_findings_by_severity` | Achados do estágio `authz` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
 | `negative_findings_by_severity` | Achados do estágio `negative` (técnica própria, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
+| `nuclei_findings_by_severity` | Achados do estágio `nuclei` (segundo motor, não misturados aos do ZAP) por severidade, ou `null` se ele não rodou |
+| `nuclei_templates_selected`, `nuclei_templates_excluded` | Quantos modelos do Nuclei rodaram e quantos ficaram de fora, por motivo (um modelo com mais de um motivo conta em cada um), ou `null` se o estágio não rodou |
 | `stop_requested` | A trava de emergência estava acionada |
 | `cleanup_command` | Comando de limpeza a rodar por uma pessoa, ou `null` |
+
+## `hdast nuclei`
+
+`hdast nuclei <produto> --run RUN_ID [--account APELIDO] [--products-dir DIR] [--json]` roda só o Nuclei ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)), com as mesmas travas do estágio do `run`: perfil com aprovação vigente, janela, autorização, trava da pilha (`STACK_BUSY`) e o `KILL` do `hdast stop`. O `RUN_ID` é a pasta do `probe` (como no `negative`); o resultado vai para `nuclei.json` ali. O comando recusa rodar:
+
+- sem aprovação do escopo (`SCOPE_NOT_APPROVED`, saída `3`);
+- fora da janela ou com a autorização vencida (`SCOPE_VIOLATION`, saída `3`);
+- sem `extra_checks.nuclei` no perfil, sem a imagem do Nuclei ou sem a política do perfil publicada na `scope-proxy-nuclei` (`CONFIG_ERROR`, saída `2`; a dica manda rodar `hdast stack up`).
+
+| Opção | Efeito |
+| --- | --- |
+| `--run RUN_ID` | Obrigatória. Pasta que recebe o `nuclei.json` |
+| `--account APELIDO` | Conta do login do Nuclei; só vale com `extra_checks.nuclei_login` (sem a chave a conta é ignorada). Sem ela usa a primeira do perfil |
+| `--products-dir DIR` | Pasta de produtos; sobrepõe `HDAST_PRODUCTS_DIR` |
+
+O `data` do envelope é o conteúdo de `nuclei.json`: `status` (`completed`, `stopped_kill`, `stopped_window` ou `stopped_deadline`), versões do Nuclei e dos modelos, `logged_in`, `account`, `templates_selected`, `excluded` (por motivo), `exit_code`, `malformed_lines`, `findings` (agrupados por impressão digital, com `origin: "nuclei"`, identificador `U-...` e severidade proposta fixa no domínio) e `technologies` (identificação, não achado). Nenhuma requisição, resposta, `curl-command` ou valor extraído entra no arquivo nem no envelope. Achado é dado: a saída é `0`. Parada antecipada (janela, prazo, `KILL`) sai com `3` e devolve o resultado parcial em `data`. O `run` repete a mesma etapa (`--nuclei/--no-nuclei`, seção do `run`); o reteste roda só os modelos dos achados do Nuclei da execução anterior.
 
 ## `hdast retestar`
 
@@ -151,7 +171,7 @@ uv run hdast retestar meu-produto --run <run_anterior> --finding <fingerprint> -
 uv run hdast --json retestar meu-produto --run <run_anterior> --max 5 --fail-on high
 ```
 
-Repete o teste só nas operações dos achados escolhidos da execução anterior e diz, por achado, o que esta execução observou ([ADR 0112](../decisoes/0112-retestar-e-run-only.md)). Não é um caminho novo de tráfego: monta um `run` com `--only` nas operações dos achados e `--compare` com a execução anterior (os estágios `authz` e `negative` ficam desligados) e passa pelos mesmos controles dele: aprovação do escopo, pilha atual (`STACK_STALE`), janela, prazo, limite por segundo, trava da pilha e mutação pendente. Sem aprovação nada é enviado.
+Repete o teste só nas operações dos achados escolhidos da execução anterior e diz, por achado, o que esta execução observou ([ADR 0112](../decisoes/0112-retestar-e-run-only.md)). Não é um caminho novo de tráfego: monta um `run` com `--only` nas operações dos achados e `--compare` com a execução anterior (os estágios `authz` e `negative` ficam desligados; o `nuclei` roda só com os modelos dos achados do `nuclei.json` anterior, se houver, e fica desligado sem eles) e passa pelos mesmos controles dele: aprovação do escopo, pilha atual (`STACK_STALE`), janela, prazo, limite por segundo, trava da pilha e mutação pendente. Sem aprovação nada é enviado.
 
 | Opção | Efeito |
 | --- | --- |

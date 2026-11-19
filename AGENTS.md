@@ -91,7 +91,7 @@ Só diga que terminou se todos passarem. Informe o que não rodou.
 
 ## Parte B. Ao OPERAR a ferramenta contra um alvo
 
-Vale quando você usa o `hdast` para testar um produto. Os comandos que tocam o alvo são `preflight`, `probe`, `scan`, `authz`, `negative`, `confirm`, `run` e `cleanup` (o `stack up` e o `stack down` mexem só na pilha local).
+Vale quando você usa o `hdast` para testar um produto. Os comandos que tocam o alvo são `preflight`, `probe`, `scan`, `authz`, `negative`, `nuclei`, `confirm`, `run` e `cleanup` (o `stack up` e o `stack down` mexem só na pilha local).
 
 - Aja sobre o alvo **somente** por comandos `hdast`. Nunca envie HTTP ao alvo por `curl`, `wget`, `httpx`, scripts ou qualquer outro meio.
 - Nunca leia `.env` nem qualquer arquivo ou variável com segredo. Use só apelidos de conta (`user_a`) e `secret_ref`.

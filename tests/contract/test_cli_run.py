@@ -34,6 +34,9 @@ SUMMARY_KEYS = {
     "findings_by_severity",
     "authz_findings_by_severity",
     "negative_findings_by_severity",
+    "nuclei_findings_by_severity",
+    "nuclei_templates_selected",
+    "nuclei_templates_excluded",
     "stop_requested",
     "cleanup_command",
 }
@@ -41,7 +44,7 @@ RUN_ID = "2026-11-13T10-00-00Z-demo-aaaa"
 
 
 def _summary(status: RunStatus, code: int, *, stop: bool = False) -> RunSummary:
-    names = ("preflight", "probe", "scan", "authz", "negative", "report")
+    names = ("preflight", "probe", "scan", "nuclei", "authz", "negative", "report")
     return RunSummary(
         product="demo",
         run_id=RUN_ID,
@@ -117,6 +120,7 @@ def test_run_envelope_data_is_the_run_summary_and_exit_code_follows_it(
         "preflight",
         "probe",
         "scan",
+        "nuclei",
         "authz",
         "negative",
         "report",
@@ -164,6 +168,47 @@ def test_run_has_the_authz_stage_on_by_default_and_no_authz_turns_it_off(
 
     assert code == int(ExitCode.OK)
     assert [request.authz for request in SEEN] == [expected]
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [((), True), (("--nuclei",), True), (("--no-nuclei",), False)],
+)
+def test_run_follows_the_profile_for_nuclei_and_no_nuclei_only_turns_it_off(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    flags: tuple[str, ...],
+    expected: bool,
+) -> None:
+    SEEN.clear()
+    _install(monkeypatch, RunResult(_summary("completed", 0), None))
+
+    code, _ = _call(capsys, "run", "demo", "--json", *flags)
+
+    assert code == int(ExitCode.OK)
+    assert [request.nuclei for request in SEEN] == [expected]
+    assert [request.nuclei_templates for request in SEEN] == [()]
+
+
+def test_run_human_output_shows_the_nuclei_counts_when_the_stage_ran(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    summary = _summary("completed", 0).model_copy(
+        update={
+            "nuclei_findings_by_severity": {"high": 1, "medium": 0, "low": 2},
+            "nuclei_templates_selected": 7,
+            "nuclei_templates_excluded": {"unsafe": 3, "writes_not_allowed": 2},
+        }
+    )
+    _install(monkeypatch, RunResult(summary, None))
+
+    code = run_app(build_app(), ["run", "demo"])
+    out = capsys.readouterr().out
+
+    assert code == int(ExitCode.OK)
+    assert "Achados do Nuclei" in out
+    assert "high: 1" in out
+    assert "7 modelo(s) rodado(s), 5 exclusão(ões) por motivo" in out
 
 
 @pytest.mark.parametrize(

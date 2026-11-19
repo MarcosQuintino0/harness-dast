@@ -26,6 +26,7 @@ from harness_dast.cli.commands.init import init_command
 from harness_dast.cli.commands.knowledge import build_knowledge_app
 from harness_dast.cli.commands.mutation import build_mutation_app
 from harness_dast.cli.commands.negative import negative_command
+from harness_dast.cli.commands.nuclei import nuclei_command
 from harness_dast.cli.commands.panel import panel_command
 from harness_dast.cli.commands.plan import plan_command
 from harness_dast.cli.commands.preflight import preflight_command
@@ -76,6 +77,7 @@ def _register_commands(app: typer.Typer) -> None:
     app.command("scan", rich_help_panel=TEST_STAGES_PANEL)(scan_command)
     app.command("authz", rich_help_panel=TEST_STAGES_PANEL)(authz_command)
     app.command("negative", rich_help_panel=TEST_STAGES_PANEL)(negative_command)
+    app.command("nuclei", rich_help_panel=TEST_STAGES_PANEL)(nuclei_command)
     app.command("confirm", rich_help_panel=TEST_STAGES_PANEL)(confirm_command)
     app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
 

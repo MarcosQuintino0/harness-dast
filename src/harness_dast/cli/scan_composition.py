@@ -49,6 +49,7 @@ from harness_dast.cli.composition import (
     products_dir_or_default,
 )
 from harness_dast.cli.negative_composition import build_negative
+from harness_dast.cli.nuclei_composition import build_nuclei
 from harness_dast.cli.panel_index_composition import build_indexed_panel, build_live_board
 from harness_dast.cli.secrets_composition import build_secret_provider
 from harness_dast.cli.stack_composition import (
@@ -159,8 +160,9 @@ def build_run_pipeline(
     profiles = checked_profiles(root, net.network.zap)
     clock = SystemClock()
     kill_switch = open_kill_switch()
+    profile = profiles.load(product)
     shared = SharedServices(
-        login_budget=LoginBudget(profiles.load(product).login_limit, clock, SystemSleeper()),
+        login_budget=LoginBudget(profile.login_limit, clock, SystemSleeper()),
         kill_switch=kill_switch,
     )
     runs_dir = load_settings().runs_dir
@@ -177,6 +179,13 @@ def build_run_pipeline(
         observer=observer,
         authz=build_authz(products_dir, secrets, net.network, shared),
         negative=build_negative(products_dir, secrets, net.network, shared),
+        # Só o perfil com a chave monta o Nuclei (e exige a pilha da segunda cerca); sem ela a
+        # etapa é pulada pelo `run` e nada do Nuclei é tocado.
+        nuclei=(
+            build_nuclei(products_dir, secrets, net.network, shared)
+            if profile.extra_checks.nuclei
+            else None
+        ),
         sink=FileRunArtifacts(runs_dir),
         kill_switch=kill_switch,
         clock=clock,
