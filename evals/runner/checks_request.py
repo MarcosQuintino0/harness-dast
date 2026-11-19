@@ -183,9 +183,13 @@ def _answers_check(profile: dict[str, Any], expected: RequestExpectation) -> Che
         for block, field in _WRITE_FLAGS
         if _mapping(profile.get(block)).get(field, False) is not answers.writes
     )
+    if _mapping(profile.get("extra_checks")).get("nuclei_wide_paths", False) is not (
+        answers.wide_paths
+    ):
+        problems.append("extra_checks.nuclei_wide_paths")
     return Check(
         id="answers",
-        title="As respostas do coordenador as quatro perguntas chegaram ao perfil",
+        title="As respostas do coordenador as cinco perguntas chegaram ao perfil",
         passed=not problems,
         detail=", ".join(problems) or "ok",
     )

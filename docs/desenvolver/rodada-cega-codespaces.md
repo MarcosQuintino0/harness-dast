@@ -167,9 +167,9 @@ claude -p "$prompt" --plugin-dir "$out/plugin" --model sonnet --effort medium \
 
 O resto do bloco (hora de início e de fim, identificador da sessão) é o do
 [protocolo](../../evals/protocolo-da-rodada-cega.md#33-segmento-1-lançar-o-agente). O agente deve
-parar com as quatro perguntas do cadastro.
+parar com as cinco perguntas do cadastro.
 
-**5. Responder às quatro perguntas.** É uma intervenção permitida, com o texto fixo do caso.
+**5. Responder às cinco perguntas.** É uma intervenção permitida, com o texto fixo do caso.
 Envie só o que vem depois da linha `---`, na mesma conversa, com o mesmo ambiente, `PATH` e
 `--plugin-dir`:
 

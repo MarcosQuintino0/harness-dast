@@ -284,6 +284,7 @@ def _request_letter(*, deny: list[str] | None = None, writes: bool = True) -> di
     data["attack"] = {
         "strength": answer("LOW", "pessoa"),
         "allow_data_writes": answer(writes, "pessoa"),
+        "nuclei_wide_paths": answer(True, "pessoa"),
     }
     if deny is not None:
         data["scope"] = {"deny_paths": answer(deny, "pessoa")}
@@ -393,15 +394,25 @@ def test_nao_reprova_quando_o_pedido_usa_so_os_padroes_da_cli(
     assert _failed(target, case) == set()
 
 
-def test_pedido_gera_perfil_com_nuclei_e_login_por_padrao_e_sem_caminhos_amplos(
+def test_pedido_gera_perfil_com_nuclei_e_login_por_padrao_e_caminhos_amplos_pelo_sim(
     safe_profile: Path,
 ) -> None:
     checks = yaml.safe_load(safe_profile.read_text(encoding="utf-8"))["extra_checks"]
 
     # Motivo: o ADR 0122 liga `nuclei` e `nuclei_login` por padrão no pedido mínimo; os caminhos
-    # fora do Swagger só ligam com o "sim" explícito da pergunta 5, que este caso não tem.
+    # fora do Swagger só ligam com o "sim" explícito da pergunta 5, que o coordenador dá neste caso.
     assert checks["nuclei"] is True
     assert checks["nuclei_login"] is True
+    assert checks["nuclei_wide_paths"] is True
+
+
+def test_pedido_sem_a_pergunta_5_nao_liga_caminhos_amplos(pedido_round: RoundDirs) -> None:
+    data = _request_letter()
+    del data["attack"]["nuclei_wide_paths"]
+
+    target = _init(pedido_round, data)
+    checks = yaml.safe_load(target.read_text(encoding="utf-8"))["extra_checks"]
+
     assert "nuclei_wide_paths" not in checks
 
 
@@ -463,6 +474,7 @@ def test_reprova_quando_liga_capacidade_fora_da_tabela(
         lambda d: d["scan"].update(strength="HIGH"),
         lambda d: d["scope"]["authorization"].update(reference="pedido-crapi"),
         lambda d: d["authz"].update(allow_writes=False),
+        lambda d: d["extra_checks"].update(nuclei_wide_paths=False),
     ],
 )
 def test_reprova_quando_o_perfil_difere_das_respostas_do_coordenador(

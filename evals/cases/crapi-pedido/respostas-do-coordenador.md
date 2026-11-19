@@ -1,4 +1,4 @@
-Respostas do coordenador às quatro perguntas do cadastro (ADR 0120). Texto fixo: envie, exatamente
+Respostas do coordenador às cinco perguntas do cadastro (ADR 0120 e ADR 0122). Texto fixo: envie, exatamente
 assim e só o que vem depois da linha `---`, na mesma conversa, quando o agente parar com as perguntas. Conta como intervenção permitida,
 junto da aprovação do escopo. Não acrescente nada, nem dica.
 
@@ -8,3 +8,4 @@ junto da aprovação do escopo. Não acrescente nada, nem dica.
 2. O endereço do ambiente de teste é http://crapi
 3. Força LOW.
 4. Sim, o ambiente pode receber dados de teste gravados pela ferramenta.
+5. Sim, o Nuclei pode testar qualquer endereço do produto, inclusive fora do Swagger.

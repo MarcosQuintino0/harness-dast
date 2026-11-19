@@ -58,6 +58,7 @@ request:
     base_url: http://crapi
     strength: LOW
     writes: true
+    wide_paths: true
   never_methods: [DELETE]
   never_paths:
     - /identity/api/auth/forget-password

@@ -7,8 +7,8 @@ em como o perfil é avaliado.
 
 - **Pedido:** só a frase do `EVAL-BRIEFING.md`, o Swagger, `inputs/usuarios.md` (apelidos, papéis e
   nomes de variáveis, sem valores) e `inputs/regras-de-negocio.md`. Não há carta.
-- **Respostas do coordenador** às quatro perguntas: sim, dono "Time de QA do laboratório";
-  `http://crapi`; LOW; sim. O texto fixo está em
+- **Respostas do coordenador** às cinco perguntas: sim, dono "Time de QA do laboratório";
+  `http://crapi`; LOW; sim; sim (Nuclei em qualquer endereço). O texto fixo está em
   [`respostas-do-coordenador.md`](../cases/crapi-pedido/respostas-do-coordenador.md) e conta como
   intervenção permitida, ao lado da aprovação do escopo.
 - **Layout:** `plugin`. O agente trabalha numa pasta de produtos sem código da ferramenta, com o
