@@ -94,7 +94,7 @@ O nível `carga` roda o benchmark da cerca (`test_guard_benchmark.py`, sem pedid
 ## Organização e nomes
 
 - `tests/unit/` espelha `src/harness_dast/`.
-- `tests/unit/claude_hooks/test_guard.py` carrega o hook de `.claude/hooks/` por `importlib`. As entradas JSON são sintéticas e os comandos são apenas inspecionados. A suíte também confere as negações legadas e o registro em `.claude/settings.json`. O mypy e o vulture incluem o diretório do hook em suas checagens.
+- `tests/unit/claude_hooks/test_guard.py` carrega o hook de `plugin/hooks/` por `importlib`. As entradas JSON são sintéticas e os comandos são apenas inspecionados. A suíte também confere as negações legadas e o registro em `.claude/settings.json`. Os testes de `tests/contract/test_plugin_layout.py` conferem a pasta `plugin/` (hooks com `onFailure: block`, versão igual à do `pyproject.toml`, fonte única de skills, agentes e guard). O mypy e o vulture incluem o diretório do hook em suas checagens.
 - Arquivo: `test_NOME_DO_MODULO.py`.
 - Função: `test_COMPORTAMENTO_quando_CONDICAO`. Exemplo: `test_rejects_request_when_redirect_leaves_scope`.
 - Estrutura de cada teste: preparar, agir, verificar. Uma razão para falhar por teste.
