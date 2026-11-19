@@ -67,3 +67,21 @@ def valid_letter_data(product: str = "demo") -> dict[str, Any]:
             },
         }
     )
+
+
+def request_letter_data(
+    product: str = "demo", base_url: str = "https://api.hml.acme-teste.net.br"
+) -> dict[str, Any]:
+    """Carta `kind: request` mínima: só os portões, o endereço, o OpenAPI e as contas (ADR 0120)."""
+    data = valid_letter_data(product)
+    return {
+        "schema_version": 1,
+        "kind": "request",
+        "product": product,
+        "gates": data["gates"],
+        "environment": {
+            "base_url": answer(base_url, "pessoa"),
+            "openapi": answer("./openapi.json", "pessoa"),
+        },
+        "auth": data["auth"],
+    }

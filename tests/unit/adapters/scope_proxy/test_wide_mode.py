@@ -314,6 +314,8 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "domain/panel/build.py",  # só copia o modo gravado na execução para o painel
         "domain/letter.py",  # carta estruturada (ADR 0036): só descreve a resposta
         "domain/letter_review.py",  # só repassa o modo ao perfil gerado
+        "domain/request_defaults.py",  # pedido mínimo (ADR 0120): só descreve o padrão strict
+        "domain/request_letter.py",  # pedido mínimo: só recusa wide e grava strict, sem guarda
         "domain/letter_sections.py",  # só recusa `wide` sem origem na carta; não monta guarda
         "domain/profile.py",
         "domain/scope_fingerprint.py",  # aprovação humana (ADR 0037): só resume o modo, não decide

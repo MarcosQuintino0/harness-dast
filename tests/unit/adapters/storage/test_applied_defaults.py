@@ -57,3 +57,19 @@ def test_read_raises_when_the_profile_is_not_utf8(tmp_path: Path) -> None:
 def test_read_raises_on_an_invalid_product_name(tmp_path: Path, product: str) -> None:
     with pytest.raises(ConfigError):
         FileAppliedDefaults(tmp_path).read(product)
+
+
+REQUEST_NOTE = (
+    "# Padrão do pedido mínimo: limits.requests_per_second = 10 | carga moderada para o teste\n"
+)
+
+
+def test_read_returns_the_request_defaults_with_the_setup_label_after_the_minimum_ones(
+    tmp_path: Path,
+) -> None:
+    root = _product(tmp_path, NOTE + REQUEST_NOTE + "schema_version: 1\n")
+
+    assert FileAppliedDefaults(root).read("demo") == (
+        "limits.max_duration_minutes = 30",
+        "pedido mínimo: limits.requests_per_second = 10",
+    )

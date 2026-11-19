@@ -1,6 +1,7 @@
 """Destaques para a pessoa revisar no início do resumo do `hdast setup`."""
 
 from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.request_defaults import SETUP_LABEL
 from harness_dast.domain.scope_approval_summary import describe_environment, describe_schedule
 
 _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -47,15 +48,21 @@ def _write_notes(profile: ProductProfile) -> tuple[str, ...]:
 
 
 def approval_notes(profile: ProductProfile, applied_defaults: tuple[str, ...]) -> tuple[str, ...]:
-    """Mostra os destaques do perfil em revisão e os padrões mínimos da CLI.
+    """Mostra os destaques do perfil em revisão e os padrões aplicados pela CLI.
 
     Args:
         profile: Perfil que a pessoa vai aprovar.
-        applied_defaults: Padrões mínimos aplicados na carta, como `campo = valor`.
+        applied_defaults: Padrões aplicados na carta, como `campo = valor`. Os do pedido mínimo
+            (ADR 0120) vêm com o prefixo `request_defaults.SETUP_LABEL`; os demais são os padrões
+            mínimos da resposta "não sei" (ADR 0114).
 
     Returns:
         Linhas para o terminal, sem alterar o perfil nem o resumo gravado na aprovação.
     """
+    requested = tuple(
+        item.removeprefix(SETUP_LABEL) for item in applied_defaults if item.startswith(SETUP_LABEL)
+    )
+    minimum = tuple(item for item in applied_defaults if not item.startswith(SETUP_LABEL))
     notes = [
         "ENDEREÇO DO AMBIENTE",
         f"  {describe_environment(profile)}",
@@ -65,7 +72,10 @@ def approval_notes(profile: ProductProfile, applied_defaults: tuple[str, ...]) -
         "VALIDADE E JANELAS DE EXECUÇÃO",
         *(f"  {line}" for line in describe_schedule(profile)),
     ]
-    if applied_defaults:
+    if requested:
+        notes.append("PADRÕES DO PEDIDO MÍNIMO (a CLI aplicou; ninguém respondeu estes campos):")
+        notes.extend(f"  - {item}" for item in requested)
+    if minimum:
         notes.append("PADRÃO MÍNIMO DA CLI (resposta 'não sei' na carta, sem valor de ninguém):")
-        notes.extend(f"  - {item}" for item in applied_defaults)
+        notes.extend(f"  - {item}" for item in minimum)
     return tuple(notes)
