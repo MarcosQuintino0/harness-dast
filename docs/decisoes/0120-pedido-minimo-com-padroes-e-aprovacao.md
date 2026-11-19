@@ -1,7 +1,7 @@
 # 0120. Pedido mínimo: padrões da CLI e aprovação humana no lugar da carta detalhada
 
-- **Status:** Proposto
-- **Data:** 2026-11-18
+- **Status:** Aceito
+- **Data:** 2026-11-18 (aceito pelo dono em 2026-11-18)
 - **Origem:** decisão do dono durante a reestruturação, depois das rodadas cegas `crapi-foco` no Codespaces. A carta do caso é detalhada demais para simular o mundo real.
 
 ## Contexto
