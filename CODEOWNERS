@@ -1,0 +1,43 @@
+# Na empresa, substitua @MarcosQuintino0 pelo usuário ou grupo revisor.
+# Dono padrão do repositório, mantido como exemplo.
+# * @MarcosQuintino0
+
+# Áreas já protegidas.
+/src/harness_dast/domain/ @MarcosQuintino0
+/src/harness_dast/adapters/secrets/ @MarcosQuintino0
+/src/harness_dast/adapters/cleanup/ @MarcosQuintino0
+/.claude/ @MarcosQuintino0
+/.github/ @MarcosQuintino0
+
+# Cerca e escopo.
+/docker/scope-proxy/ @MarcosQuintino0
+/src/harness_dast/domain/scope*.py @MarcosQuintino0
+/src/harness_dast/domain/zap_scope.py @MarcosQuintino0
+/src/harness_dast/domain/pathpattern.py @MarcosQuintino0
+/src/harness_dast/adapters/scope_proxy/ @MarcosQuintino0
+
+# Aprovação, impressão digital (scope_fingerprint.py) e setup.
+/src/harness_dast/application/scope_approval*.py @MarcosQuintino0
+/src/harness_dast/application/setup*.py @MarcosQuintino0
+/src/harness_dast/domain/setup_notes.py @MarcosQuintino0
+/src/harness_dast/adapters/storage/approval_store.py @MarcosQuintino0
+/src/harness_dast/cli/approval_*.py @MarcosQuintino0
+/src/harness_dast/cli/commands/profile.py @MarcosQuintino0
+/src/harness_dast/cli/commands/setup.py @MarcosQuintino0
+/src/harness_dast/cli/setup_composition.py @MarcosQuintino0
+
+# Carta e pedido mínimo.
+/src/harness_dast/domain/letter*.py @MarcosQuintino0
+/src/harness_dast/domain/request_*.py @MarcosQuintino0
+/src/harness_dast/application/init_from_letter.py @MarcosQuintino0
+/src/harness_dast/adapters/storage/letter_reader.py @MarcosQuintino0
+/src/harness_dast/cli/commands/init.py @MarcosQuintino0
+
+# Plugin, instruções e CI.
+/plugin/ @MarcosQuintino0
+/.claude/settings.json @MarcosQuintino0
+/.claude-plugin/ @MarcosQuintino0
+/.github/workflows/ @MarcosQuintino0
+/AGENTS.md @MarcosQuintino0
+/CLAUDE.md @MarcosQuintino0
+/CODEOWNERS @MarcosQuintino0
