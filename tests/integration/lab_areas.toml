@@ -285,3 +285,18 @@ paths = [
 ]
 fast = ["test_lab_fast.py", "test_lab_header_injection.py"]
 prova = ["test_lab_cors.py", "test_safe_mode_controls.py", "test_lab_experimental_rules.py"]
+
+[areas.nuclei]
+name = "Nuclei"
+paths = [
+    "src/harness_dast/adapters/nuclei/**",
+    "src/harness_dast/adapters/scope_proxy/nuclei_fence.py",
+    "src/harness_dast/application/nuclei*.py",
+    "src/harness_dast/cli/commands/nuclei.py",
+    "src/harness_dast/cli/nuclei_composition.py",
+    "src/harness_dast/domain/nuclei_*.py",
+    "docker/nuclei/**",
+    "lab/actuator/**",
+]
+fast = []
+prova = ["test_lab_nuclei.py"]
