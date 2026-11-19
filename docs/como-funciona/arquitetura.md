@@ -65,7 +65,7 @@ flowchart LR
 
 ### Fluxo de uma execução
 
-O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. O `run` encadeia, na ordem, `preflight`, `probe`, `scan`, `authz`, `negative` e `report` num processo. Os estágios `authz` e `negative` rodam por padrão. Veja a [referência da CLI](../referencia/cli.md#hdast-run).
+O laço de `probe` é onde o agente resolve os 400 e 409. A limpeza é disparada por uma pessoa. O `run` encadeia, na ordem, `preflight`, `probe`, `scan`, `nuclei`, `authz`, `negative` e `report` num processo. Os estágios `authz` e `negative` rodam por padrão; o `nuclei` só roda se o perfil tem `extra_checks.nuclei` ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). Veja a [referência da CLI](../referencia/cli.md#hdast-run).
 
 ### Caminho de uma requisição
 
@@ -81,6 +81,34 @@ flowchart LR
   GUARD -->|"Sim"| ALVO["API do ambiente de teste"]
   GUARD -->|"Não"| NEGADA["Proxy recusa o pedido sem enviá-lo à API"]
 ```
+
+### A segunda cerca do Nuclei
+
+O Nuclei é o segundo motor ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). Ele procura falhas conhecidas de produtos de prateleira, configuração errada e exposição fora do contrato. A CLI decide o que roda, o contêiner executa e a cerca confere cada pedido.
+
+O Nuclei **nunca** usa a cerca do ZAP. Ele passa por uma segunda instância, `scope-proxy-nuclei`: a mesma imagem e a mesma auditoria, mas com política e arquivo de auditoria próprios. O ZAP nunca referencia essa instância.
+
+```text
+ZAP ----------> scope-proxy ---------------> alvo
+                (política de hoje: escopo estrito do perfil)
+
+Nuclei -------> scope-proxy-nuclei --------> alvo
+(uso único,     (política do Nuclei, derivada do perfil aprovado:
+ rede interna    - só as origens aprovadas; redirecionamento e Host divergente negados
+ zap_net)        - deny_paths continuam valendo
+                 - leitura liberada; escrita só com a permissão de escrita; DELETE só a pedido
+                 - qualquer caminho dessas origens só com nuclei_wide_paths
+                 - ritmo de limits.requests_per_second
+                 - auditoria própria, todos os pedidos)
+```
+
+- A política do Nuclei vem do perfil aprovado e é publicada no `stack up`. A cerca não troca de política durante a execução. Com o Nuclei desligado no perfil, a segunda cerca sobe com a política que nega tudo: nunca existe política padrão permissiva.
+- O contêiner do Nuclei é de uso único, só na rede interna `zap_net` (sem rota para fora), com `cap_drop: ["ALL"]`, `read_only`, `no-new-privileges` e entrada padrão fechada. O login usa um arquivo de segredos em `tmpfs`, apagado no fim; o token não vai para argumento, ambiente nem log.
+- O `hdast stop` cria o arquivo `KILL` das duas cercas e derruba o contêiner do Nuclei.
+- A saída passa por uma lista branca: do valor extraído ficam só o tipo, a contagem e o tamanho; requisição e resposta são descartadas.
+- Os modelos vêm de um catálogo fixado por versão e SHA-256, e a CLI os escolhe por um manifesto gerado no build, nunca lendo os modelos na execução.
+
+Esta é uma forma de modo amplo de caminho, restrita ao Nuclei e só com autorização explícita ([ADR 0026](../decisoes/0026-cerca-com-motivo-granular-e-modo-amplo-de-caminho.md)). O ZAP e as outras etapas continuam com o escopo estrito.
 
 ### Regra de dependência entre camadas
 
@@ -169,7 +197,7 @@ Campos: `schema_version` (inteiro), `ok` (booleano), `run_id` (identificador da 
 
 ## Segurança em uma página
 
-Escopo em três camadas e falha fechada ([ADR 0008](../decisoes/0008-escopo-em-tres-camadas.md)); segredos por referência ([ADR 0009](../decisoes/0009-segredos-por-referencia.md)); limpeza por SQL escrito por pessoa e com confirmação ([ADR 0011](../decisoes/0011-limpeza-por-sql-oracle-com-python-oracledb.md)). Detalhes e estado em [../SECURITY.md](../../SECURITY.md) e [operacao/threat-model.md](operacao/threat-model.md).
+Escopo em três camadas e falha fechada ([ADR 0008](../decisoes/0008-escopo-em-tres-camadas.md)), com uma segunda cerca só para o Nuclei ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)); segredos por referência ([ADR 0009](../decisoes/0009-segredos-por-referencia.md)); limpeza por SQL escrito por pessoa e com confirmação ([ADR 0011](../decisoes/0011-limpeza-por-sql-oracle-com-python-oracledb.md)). Detalhes e estado em [../SECURITY.md](../../SECURITY.md) e [operacao/threat-model.md](operacao/threat-model.md).
 
 ## O que fica deliberadamente simples na V1
 

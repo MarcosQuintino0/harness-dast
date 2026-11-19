@@ -21,6 +21,8 @@ sem que nada real seja alvo. Definido em [`compose.yaml`](../compose.yaml).
 | `zap-gateway` | Ponte TCP mínima que publica o ZAP em `127.0.0.1:8080` | Loopback do host |
 | `proxy-gateway` | Ponte TCP mínima (socat, destino fixo `scope-proxy:3128`) que publica o proxy de escopo em `127.0.0.1:3128`; é por onde o `hdast` envia login e token CSRF sem passar pelo ZAP | Loopback do host |
 | `scope-proxy` | Proxy de escopo (mitmproxy + `ScopeGuard`); decide cada requisição por host, porta, caminho e método; único com rota externa | Rede interna |
+| `scope-proxy-nuclei` | Segunda instância do proxy de escopo ([ADR 0122](../docs/decisoes/0122-nuclei-como-segundo-motor.md)): mesma imagem, política e auditoria próprias, só para o Nuclei. Sem o Nuclei ligado no perfil, sobe com a política que nega tudo | Rede interna |
+| `nuclei` (perfil `nuclei`) | O segundo motor, em contêiner de uso único (`docker compose run --rm`); não sobe com o `stack up`, só quando o `run` ou o `hdast nuclei` o chamam. Sem rota para fora: o único destino é o `scope-proxy-nuclei` | Só da `zap_net` |
 | `vampi` (perfil `lab`) | Alvo vulnerável, porta 5000 | Só do `scope-proxy` |
 | `vampi-tls` (perfil `lab`) | Frente TLS do VAmPI (certificado autoassinado gerado ao iniciar), porta 8443, só para provar HTTPS | Só do `scope-proxy` |
 
@@ -29,6 +31,8 @@ proxy de escopo enxerga, para que o tráfego do ZAP até ele passe sempre pelo p
 o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
+
+**Limite de prova do Nuclei.** No spike do ADR 0122, o Nuclei não teve achado exclusivo na Clínica Piloto, no VAmPI nem no crAPI: são APIs de estudo, sem os produtos que os modelos conhecem. O ganho só apareceu num alvo Spring Boot com o Actuator aberto (13 exposições), que não faz parte deste lab. As provas de ponta a ponta do pacote no laboratório e em produto real ainda não existem.
 
 O OWASP crAPI é o terceiro alvo do lab, integrado ao `hdast stack up`: veja
 [`crapi/README.md`](crapi/README.md).

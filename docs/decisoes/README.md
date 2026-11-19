@@ -126,7 +126,7 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0099 | [OAST na varredura do ZAP](0099-oast-na-varredura.md) | Parcialmente substituído pelo [ADR 0105](0105-lab-oast-bridge-and-verifiability.md) |
 | 0100 | [SSRF guiado pelo contrato](0100-ssrf-guiado-pelo-contrato.md) | Proposto |
 | 0101 | [Limite de consumo: tamanho de página enorme e tentativas repetidas](0101-limite-de-consumo.md) | Proposto |
-| 0102 | [Inventário: versões irmãs não documentadas e documentação exposta](0102-inventario-de-versoes-e-documentacao.md) | Proposto |
+| 0102 | [Inventário: versões irmãs não documentadas e documentação exposta](0102-inventario-de-versoes-e-documentacao.md) | Proposto; parcialmente substituído pelo [ADR 0122](0122-nuclei-como-segundo-motor.md) (fora do Swagger, a cerca do Nuclei libera as exposições conhecidas por inteiro) |
 | 0103 | [Regras alpha e beta selecionadas na imagem do ZAP](0103-regras-alpha-selecionadas-na-imagem-do-zap.md) | Proposto |
 | 0104 | [Bloqueio local e liberação humana de mutações](0104-bloqueio-local-e-liberacao-humana-de-mutacoes.md) | Proposto |
 | 0105 | [Ponte OAST na pilha do laboratório e verificabilidade do retorno](0105-lab-oast-bridge-and-verifiability.md) | Proposto |

@@ -14,11 +14,14 @@ As provas de execução se limitam ao laboratório, com Clínica Piloto, VAmPI e
 | Cerca na CLI e no proxy, com janela, limites e parada de emergência | [Autorização e escopo](como-funciona/operacao/authorization-and-scope.md) |
 | Inventário do OpenAPI, geração de dados, encadeamento e medição de alcance | [CLI](referencia/cli.md) |
 | Varredura com OWASP ZAP e controles adicionais condicionados à carta | [Varredura](referencia/scan.md), [uso do ZAP](referencia/uso-do-zap.md) |
+| Nuclei, o segundo motor: falhas conhecidas de produtos de prateleira, configuração errada e exposição fora do contrato, atrás da segunda cerca (`scope-proxy-nuclei`), com etapa `nuclei` no `run`, comando `hdast nuclei`, login por arquivo de segredos e achados `U-` com gravidade fixa. Governado por `extra_checks.nuclei`, `nuclei_login` e `nuclei_wide_paths`, que só a carta, a pessoa ou o padrão do pedido mínimo ligam ([ADR 0122](decisoes/0122-nuclei-como-segundo-motor.md)) | [`hdast nuclei`](referencia/cli.md#hdast-nuclei), [uso do ZAP e do Nuclei](referencia/uso-do-zap.md), [arquitetura](como-funciona/arquitetura.md#a-segunda-cerca-do-nuclei) |
 | Verificações de autorização e de valores proibidos, ligadas por padrão no `run` | [Autorização](referencia/authz.md), [testes negativos](referencia/negative.md) |
 | Prévia local, estratégia versionada, conhecimento e diário de mutações | [Estratégia](referencia/strategy.md), [conhecimento](referencia/knowledge.md) |
 | Relatório, painel, métricas, verificação automática e confirmação humana de achados | [Relatório](referencia/relatorio.md), [verificação](referencia/verification.md) |
 | Limpeza Oracle com confirmação humana e segredos resolvidos por referência | [Limpeza](usar/limpeza-de-dados.md), [CLI](referencia/cli.md#hdast-secret) |
 | Skills de operação e suíte de avaliação cega em laboratório | [Avaliação das skills](desenvolver/avaliacao-das-skills.md) |
+
+**Limites de prova do Nuclei.** Só o spike do ADR 0122 mediu o motor: 0 achados exclusivos na Clínica Piloto, no VAmPI e no crAPI e 13 exposições do Actuator num alvo Spring, com 13 execuções sem pedido fora da cerca. O ganho em produto real não foi medido. O login por arquivo de segredos só foi provado com marcador sintético, e não houve captura de pacotes. Nada foi provado ainda por rodada cega nem pelo piloto M7. Com caminhos amplos e escrita ligados, um modelo de CVE pode gravar dados no ambiente de teste (risco aceito, [modelo de ameaças](como-funciona/operacao/threat-model.md)). A tabela de gravidade fixa subestima, por exemplo, o `/actuator/env` com valores de configuração (baixa).
 
 O contrato de autorização entre contas e as lacunas de cobertura estão na [referência de autorização](referencia/authz.md).
 

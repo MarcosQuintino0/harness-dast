@@ -41,3 +41,23 @@ Proteção que confere se uma requisição pode sair para a API. A CLI e o proxy
 ## Carta
 
 Autorização escrita do dono do produto que identifica o ambiente de teste, o que a equipe pode testar, por quanto tempo e sob quais limites. Inclui as referências das contas de teste. [Modelo de carta curta](../usar/carta-curta.md).
+
+## Nuclei
+
+O segundo motor do hdast ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). O ZAP ataca o que o contrato descreve; o Nuclei procura falhas conhecidas de produtos de prateleira, configuração errada e exposição fora do contrato, como o Actuator aberto. Ele usa modelos de assinatura da comunidade, fixados por versão. Só roda se o perfil tem `extra_checks.nuclei`, que vem da carta ou do pedido mínimo, e atrás da segunda cerca. Comando: [`hdast nuclei`](cli.md#hdast-nuclei).
+
+## Modelo (do Nuclei)
+
+Uma assinatura do catálogo `nuclei-templates` que descreve uma verificação conhecida, como um CVE ou um painel exposto. A CLI escolhe os modelos pelo manifesto fixado na instalação, nunca pelo que o alvo diz.
+
+## Segunda cerca
+
+A segunda instância do proxy de escopo, `scope-proxy-nuclei`. Só o Nuclei passa por ela, com política própria derivada do perfil aprovado. O ZAP nunca usa essa política. [Arquitetura](../como-funciona/arquitetura.md#a-segunda-cerca-do-nuclei).
+
+## Caminhos amplos
+
+Liberação de `extra_checks.nuclei_wide_paths`: a segunda cerca aceita qualquer caminho das origens aprovadas, mesmo fora do Swagger. Origem, `deny_paths` e ritmo continuam valendo. Só o Nuclei tem esse modo; o ZAP e as outras etapas seguem estritos.
+
+## Tecnologia identificada
+
+Informação que o Nuclei dá só para identificar (produto, versão). Vai para a seção "Tecnologias identificadas" do relatório e não conta como achado.

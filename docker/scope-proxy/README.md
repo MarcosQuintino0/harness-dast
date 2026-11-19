@@ -37,6 +37,25 @@ Para cada pedido, nesta ordem, e a primeira recusa encerra:
   `Upgrade` recusado (WebSocket e h2c), `ignore_hosts`/`allow_hosts`/`tcp_hosts` vazios. O addon se recusa a iniciar se
   alguma dessas opções for mudada.
 
+## A segunda instância: `scope-proxy-nuclei`
+
+O Nuclei, o segundo motor ([ADR 0122](../../docs/decisoes/0122-nuclei-como-segundo-motor.md)), passa por uma **segunda instância** desta cerca. É a mesma imagem e o mesmo `ScopeGuard`, com **política e auditoria próprias**; só ela segue a política do Nuclei e o ZAP nunca a referencia.
+
+```text
+ZAP    --> scope-proxy        (política de hoje, auditoria em audit/)
+Nuclei --> scope-proxy-nuclei (política do Nuclei, auditoria em audit-nuclei/)
+```
+
+| Item | `scope-proxy` | `scope-proxy-nuclei` |
+| --- | --- | --- |
+| Política | `HDAST_SCOPE_POLICY_DIR` (`policy/`) | `HDAST_NUCLEI_POLICY_DIR` (`policy-nuclei/`) |
+| Auditoria | `HDAST_AUDIT_DIR` (`audit/`) | `HDAST_NUCLEI_AUDIT_DIR` (`audit-nuclei/`) |
+| Quem usa | ZAP e o login da CLI | Só o Nuclei (contêiner de uso único na `zap_net`) |
+| Caminhos | Estritos, como no perfil | Qualquer caminho das origens aprovadas só com `extra_checks.nuclei_wide_paths` (`path_mode: wide`) |
+| Métodos | Os do perfil | Leitura sempre; `POST`, `PUT` e `PATCH` só com a permissão de escrita; `DELETE` só a pedido explícito |
+
+A CLI deriva a política do Nuclei do perfil aprovado e a publica no `stack up`; a cerca não troca de política durante a execução. A origem (host, esquema e porta), os `deny_paths`, os limites e as janelas são os do perfil, nunca mais largos. Com `extra_checks.nuclei` desligado, a segunda cerca sobe com a política que **nega tudo** (`policy-nuclei/policy.json` deste repositório, vencida e sem origem real): nunca existe política padrão permissiva. A trava de emergência vale para as duas: o `hdast stop` cria o `KILL` em cada pasta de política. Tudo o que está abaixo (ordem das checagens, códigos de motivo, auditoria, TLS e limites) vale para as duas instâncias.
+
 ## Arquivos
 
 | Arquivo | Papel |
