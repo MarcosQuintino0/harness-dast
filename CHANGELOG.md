@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Testes de isolamento conferem que, no Compose do clone e do wheel, o ZAP fica na rede interna e usa a cerca original. A verificação de partida do proxy recusa políticas ausentes ou sem regras de permissão. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
 - Domínio do Nuclei (pacote P1 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)): vetos e escolha dos modelos pelos métodos e pelas permissões (`nuclei_manifest`), política da segunda cerca derivada do perfil que só reduz ou iguala origem, `deny_paths`, limites e janelas (`nuclei_scope`), e argumentos fixos e seguros, com o segredo só por caminho em `-sf` (`nuclei_command`). Regras puras, sem I/O; ainda não ligadas à CLI.
 - A carta assinada e o perfil registram a autorização declarada para Nuclei, login e caminhos fora do Swagger. A revisão humana inclui a versão dos modelos e o fingerprint preserva as aprovações antigas. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
 - No pedido mínimo, o Nuclei e o login dele vêm ligados por padrão (`REQUEST_DEFAULT_APPLIED`) e uma 5ª pergunta liga os caminhos fora do Swagger só com o "sim" explícito. A função `nuclei_permissions` deriva escrita e `DELETE` das permissões que já existem, e o resumo da aprovação e os avisos da carta mostram escrita, apagar e caminhos amplos. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
