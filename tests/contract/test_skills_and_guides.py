@@ -36,7 +36,7 @@ GUIDE_FILES = [
 EXTRA_FILES = [ROOT / "evals" / "README.md", ROOT / "README.md"]
 CHECKED_FILES = [*ALL_SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
 STAGE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findings")
-EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product"}
+EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product", "preparar"}
 EXPECTED_DEV_SKILLS = {
     "dev-test-change",
     "dev-close-version",
@@ -111,7 +111,7 @@ def _check(tokens: list[str], commands: dict[tuple[str, ...], Any]) -> str | Non
     words = [item for item in tokens if item != "--json"]
     positional = [item for item in words if not item.startswith("-")]
     if not positional:
-        return None if not words or words[0] in {"--help"} else "sem comando"
+        return None if not words or words[0] in {"--help", "--version"} else "sem comando"
     first = positional[0]
     if not re.fullmatch(r"[a-z][a-z-]*", first):
         return None
