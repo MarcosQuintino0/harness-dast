@@ -1,7 +1,7 @@
 # 0119. O hdast é distribuído como plugin do Claude Code, publicado por tag
 
-- **Status:** Proposto
-- **Data:** 2026-11-18
+- **Status:** Aceito
+- **Data:** 2026-11-18 (aceito pelo dono em 2026-11-18)
 - **Origem:** pergunta do dono durante a reestruturação: o agente que testa um produto pode editar a ferramenta? Como levar o código-fonte inteiro para o GitLab da empresa sem que alguém estrague o que importa? Substitui a versão anterior deste ADR, que propunha um manifesto de integridade e nunca foi aceita.
 
 ## Contexto
