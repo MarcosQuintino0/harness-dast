@@ -6,7 +6,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugin"
-USE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findings", "test-product")
+USE_SKILLS = (
+    "onboard-product",
+    "fix-reachability",
+    "run-scan",
+    "triage-findings",
+    "test-product",
+    "preparar",
+)
 AGENTS = ("spec-analyst", "findings-triager")
 
 
@@ -28,6 +35,22 @@ def test_plugin_hooks_block_on_failure_and_use_the_plugin_root() -> None:
         assert hook["onFailure"] == "block"
         assert hook["timeout"] == 30
         assert "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py" in str(hook["command"])
+
+
+def test_plugin_registers_a_bounded_session_start_hook() -> None:
+    config = json.loads((PLUGIN / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+
+    assert config["hooks"]["SessionStart"] == [
+        {
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/session_start.sh"',
+                    "timeout": 9,
+                }
+            ]
+        }
+    ]
 
 
 def test_plugin_hook_matcher_equals_the_repository_settings_matcher() -> None:

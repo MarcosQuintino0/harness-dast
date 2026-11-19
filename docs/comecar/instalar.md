@@ -1,5 +1,13 @@
 # Instalar o harness-dast
 
+## Com o plugin
+
+Ao iniciar uma sessão do Claude Code com o plugin `hdast`, o hook `SessionStart` informa a versão do plugin e confere o `uv`, a versão da CLI, o Docker e as imagens da versão. A consulta de versão usa `hdast --version` e a conferência das imagens usa os digests do wheel instalado por `uv tool`. O hook só consulta a máquina. Se os digests não estiverem disponíveis, ele avisa que pulou essa conferência.
+
+Use `/hdast:preparar` quando o hook apontar uma pendência. A skill diagnostica a máquina e pede um sim para cada instalação. Se faltar `uv`, instale-o no seu terminal e reabra o Claude Code. No Windows, use `winget install --id astral-sh.uv -e`. No Linux ou no macOS, siga o [guia oficial do uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+O wheel vem da release correspondente à versão do plugin. Para usar outro repositório GitHub de releases do hdast, configure `HDAST_RELEASE_REPOSITORY` no formato `dono/repositório`. O padrão é `MarcosQuintino0/harness-dast`.
+
 ## Pelo wheel da release
 
 Instale o [`uv`](https://docs.astral.sh/uv/getting-started/installation/) e abra um novo terminal. Na [release do GitHub](https://github.com/MarcosQuintino0/harness-dast/releases) da versão desejada, copie o endereço do anexo `harness_dast-…-py3-none-any.whl`. Substitua `<URL do wheel>` pelo endereço copiado.
