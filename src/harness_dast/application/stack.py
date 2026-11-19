@@ -29,7 +29,6 @@ from harness_dast.application.lab_targets import (
     CLINICA_PILOTO,
     CRAPI,
     CRAPI_OAST_FILE,
-    CRAPI_PROJECT,
     OAST_GATEWAY_FILE,
     OAST_GATEWAY_SERVICE,
     PILOT_API_PORT,
@@ -37,7 +36,6 @@ from harness_dast.application.lab_targets import (
     PILOT_ORACLE_ENV_FIXED,
     PILOT_ORACLE_FILE,
     PILOT_ORACLE_PROFILE,
-    PILOT_PROJECT,
     LabTarget,
     lab_target_for,
 )
@@ -471,7 +469,7 @@ class StackManager:
         if target is None or target.attached_workdir is None:
             return (main,)
         attached = ComposeProject(
-            name=(CRAPI_PROJECT if target is CRAPI else PILOT_PROJECT) + suffix,
+            name=target.project + suffix,
             workdir=str(self._root / target.attached_workdir),
             files=(
                 target.attached_files

@@ -413,6 +413,7 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | 15MB (captura inicial) |
 | `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | 339MB (captura inicial) |
 | `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | 186MB (captura inicial) |
+| `hdast-alvo-actuator:1.0.0` | Alvo Spring com Actuator aberto (ADR 0122): actuator | A medir |
 | `hdast-clinica-piloto:1.0.0` | Clínica Piloto: pilot | 365MB (captura inicial) |
 | `gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093` | Clínica Piloto: oracle | 6.46GB (captura inicial) |
 | `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | 809MB (captura inicial) |

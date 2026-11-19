@@ -1,0 +1,41 @@
+# Alvo Spring Boot com o Actuator aberto de propósito (ADR 0122, prova do Nuclei).
+# SOFTWARE INTENCIONALMENTE VULNERÁVEL, só para o laboratório. Nenhuma porta é publicada no host:
+# o alvo fica SÓ na rede interna do laboratório (`hdast_lab_net`), onde só os proxies de escopo
+# o alcançam. O `hdast stack up alvo-actuator` o sobe com o projeto `hdast-actuator`.
+#
+# Imagens-base fixadas por tag e digest no Dockerfile (as mesmas da Clínica Piloto).
+# Mesmo endurecimento do restante do laboratório: não-root, cap_drop ALL, no-new-privileges,
+# rootfs somente leitura + tmpfs, restart "no", healthcheck e limites de memória e processos.
+
+name: hdast-actuator
+
+services:
+  actuator:
+    image: hdast-alvo-actuator:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "10001:10001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/ping"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 15s
+    networks:
+      lab_net:
+        aliases:
+          - alvo-actuator
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=0700,size=128m
+    mem_limit: 512m
+    pids_limit: 256
+
+networks:
+  lab_net:
+    external: true
+    name: ${HDAST_LAB_NETWORK:-hdast_lab_net}

@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 PILOT_PROJECT = "hdast-pilotrun"
 """Projeto compose do alvo piloto: distinto de `hdast-pilot` (usado à mão, com Oracle)."""
 CRAPI_PROJECT = "hdast-crapi"
+ACTUATOR_PROJECT = "hdast-actuator"
 OAST_GATEWAY_FILE = "lab/oast/compose.yaml"
 OAST_GATEWAY_SERVICE = "oast-gateway"
 CRAPI_OAST_FILE = "compose.oast.yaml"
@@ -47,6 +48,7 @@ class LabTarget:
             recebem um valor sem uso, porque nada as lê.
         vulnerable_env: Variável de modo vulnerável (1) ou seguro (0).
         ttl_env: Variável de vida do token, em segundos.
+        project: Projeto compose do alvo anexado (sem o sufixo da pilha).
     """
 
     name: str
@@ -59,6 +61,7 @@ class LabTarget:
     inert_env: tuple[str, ...]
     vulnerable_env: str
     ttl_env: str
+    project: str = PILOT_PROJECT
 
 
 VAMPI = LabTarget(
@@ -115,9 +118,24 @@ CRAPI = LabTarget(
     inert_env=(),
     vulnerable_env="",
     ttl_env="",
+    project=CRAPI_PROJECT,
 )
 
-_TARGETS = (VAMPI, CLINICA_PILOTO, CRAPI)
+ALVO_ACTUATOR = LabTarget(
+    name="alvo-actuator",
+    host="alvo-actuator",
+    main_profiles=(),
+    main_services=(),
+    attached_workdir="lab/actuator",
+    attached_files=("compose.yaml",),
+    credential_env=("ACTUATOR_API_KEY",),
+    inert_env=(),
+    vulnerable_env="",
+    ttl_env="",
+    project=ACTUATOR_PROJECT,
+)
+
+_TARGETS = (VAMPI, CLINICA_PILOTO, CRAPI, ALVO_ACTUATOR)
 
 
 def lab_target_for(base_url: str) -> LabTarget | None:
