@@ -1,9 +1,9 @@
 """Caso de uso `report`: transforma os alertas brutos da execução em achados e relatórios.
 
 Não toca rede nem ZAP: lê só arquivos da execução (`probe.json`, `scan.json`,
-`alerts.raw.json`, `evidence.json` e, se existir, `triage.json`), monta o `FindingsReport` no
-domínio e entrega aos destinos (`ReportSink`: JSON e Markdown). Não confere janela nem
-autorização: ler arquivos não envia nada ao alvo.
+`alerts.raw.json`, `evidence.json` e, se existirem, `nuclei.json` e `triage.json`), monta o
+`FindingsReport` no domínio e entrega aos destinos (`ReportSink`: JSON e Markdown). Não confere
+janela nem autorização: ler arquivos não envia nada ao alvo.
 
 Os sinais de erro interno vistos pela cerca (ADR 0049) vêm da auditoria do proxy (`ProxyAudit`,
 opcional): o `report` grava `error-signals.json` quando há linhas liberadas na janela da execução e,
@@ -161,6 +161,12 @@ class Report:
                 "O negative.json da execução é de outro produto.",
                 hint="Use o run_id do probe, do scan e do negative deste produto.",
             )
+        nuclei = self._artifacts.read_nuclei(run_id)
+        if nuclei is not None and nuclei.product != profile.product:
+            raise ConfigError(
+                "O nuclei.json da execução é de outro produto.",
+                hint="Use o run_id do probe, do scan e do nuclei deste produto.",
+            )
         baseline = self._baseline(request.compare, run_id)
         auth_header, csrf_header = _placeholders(profile)
         report = assemble_report(
@@ -177,6 +183,7 @@ class Report:
             authz=authz,
             proxy_signals=self._proxy_signals(run_id, probe, scan, authz, negative, profile),
             negative=negative,
+            nuclei=nuclei,
         )
         files = tuple(sink.write(run_id, report) for sink in self._sinks)
         threshold = effective_fail_on(profile.scan.fail_on, request.fail_on)
@@ -270,8 +277,10 @@ def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
     """Diz se algum achado tem severidade proposta igual ou acima do limiar (`none` = nunca).
 
     Conta os achados do ZAP, os de autorização entre contas (`report.authz`) e os de sinal de erro
-    interno vistos pela cerca (`report.proxy_signals`, ADR 0049) e os de valores que o esquema
-    proíbe (`report.negative`, ADR 0051): achado de origem própria não contorna o gate.
+    interno vistos pela cerca (`report.proxy_signals`, ADR 0049), os de valores que o esquema
+    proíbe (`report.negative`, ADR 0051) e os do Nuclei (`report.nuclei`, ADR 0122): achado de
+    origem própria não contorna o gate. As tecnologias identificadas pelo Nuclei não são achados
+    e não entram.
 
     Severidade que a CLI não soube classificar (`unknown`: `Critical`, um ZAP em outro idioma,
     vazio) conta como acima de qualquer limiar diferente de `none`: o gate falha fechado.
@@ -284,6 +293,8 @@ def exceeds(report: FindingsReport, threshold: FailOn) -> bool:
         severities += [item.proposed_severity for item in report.authz.findings]
     if report.negative is not None:
         severities += [item.proposed_severity for item in report.negative.findings]
+    if report.nuclei is not None:
+        severities += [item.proposed_severity for item in report.nuclei.findings]
     if report.proxy_signals is not None:
         severities += [item.proposed_severity for item in report.proxy_signals.findings]
     return any(severity == "unknown" or SEVERITY_RANK[severity] >= floor for severity in severities)

@@ -154,6 +154,7 @@
     "alerts_unreadable": 0,
     "authz_by_severity": {},
     "negative_by_severity": {},
+    "nuclei_by_severity": {},
     "signal_by_severity": {}
   },
   "findings": [
@@ -857,5 +858,6 @@
     "findings_omitted": 0,
     "notice": "Achados de sinal vêm de reconhecer texto conhecido (erro de banco, rastreamento de exceção, página de depuração) em respostas que o proxy de escopo liberou; não são alertas do ZAP e não confirmam vulnerabilidade. Severidade proposta pelo catálogo do código; todo achado exige triagem humana. O ZAP pode ter o mesmo achado como alerta próprio (por exemplo 'Application Error Disclosure'): os dois pedem uma triagem só. Não entram em --compare. Contagem zero NÃO prova ausência de erros: veja as respostas não lidas."
   },
-  "negative": null
+  "negative": null,
+  "nuclei": null
 }

@@ -22,6 +22,7 @@ def _has_own_findings(report: FindingsReport) -> bool:
         report.findings
         or (report.authz and report.authz.findings)
         or (report.negative and report.negative.findings)
+        or (report.nuclei and report.nuclei.findings)
     )
 
 
@@ -89,6 +90,31 @@ def _negative_steps(report: FindingsReport) -> list[str]:
     return steps
 
 
+def _nuclei_steps(report: FindingsReport) -> list[str]:
+    nuclei = report.nuclei
+    if nuclei is None:
+        return []
+    steps: list[str] = []
+    if nuclei.status != "completed":
+        steps.append(
+            "O Nuclei parou antes do fim: o que ele não rodou NÃO deve ser lido como livre de "
+            "exposição conhecida. Veja o estado e a parada na seção dele."
+        )
+    found = sum(report.summary.nuclei_by_severity.values())
+    if found:
+        steps.append(
+            f"Triar os {found} achado(s) do Nuclei (exposições conhecidas): cada um diz o "
+            "modelo, o método e o caminho. Para repetir o mesmo modelo, use `hdast confirm`: é "
+            "reprodução, não confirmação independente; a gravidade vem da regra do código."
+        )
+    if nuclei.technologies:
+        steps.append(
+            f"O Nuclei identificou {len(nuclei.technologies)} tecnologia(s): são só "
+            "identificação, não achados; confira com o time se a lista é esperada."
+        )
+    return steps
+
+
 def next_steps(report: FindingsReport) -> tuple[str, ...]:
     """Lista, em ordem de importância, o que a pessoa deve fazer ao ler este relatório."""
     steps: list[str] = []
@@ -115,6 +141,7 @@ def next_steps(report: FindingsReport) -> tuple[str, ...]:
         )
     steps += _authz_steps(report)
     steps += _negative_steps(report)
+    steps += _nuclei_steps(report)
     other_groups = sum(_count_groups(report, name)[0] for name in ("medium", "low"))
     if other_groups:
         steps.append(f"Planeje a correção dos {other_groups} grupo(s) de gravidade média e baixa.")

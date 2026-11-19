@@ -15,6 +15,7 @@ from pydantic import (
 )
 
 from harness_dast.domain.errors import ExternalToolError, ScopeViolation
+from harness_dast.domain.finding import TriageNote
 from harness_dast.domain.nuclei_manifest import NucleiSeverity
 from harness_dast.domain.profile_errors import describe_problems, format_location
 from harness_dast.domain.secret_ref import ProfileModel
@@ -146,7 +147,11 @@ class NucleiResultRecord(ProfileModel):
 
 
 class NucleiFinding(ProfileModel):
-    """Achado identificado pela impressão digital estável do resultado."""
+    """Achado identificado pela impressão digital estável do resultado.
+
+    `triage` fica vazio em `nuclei.json`: só o `report` o preenche, ao casar a anotação do
+    agente pela impressão digital (consultiva; nunca muda a severidade nem remove o achado).
+    """
 
     origin: Literal["nuclei"] = "nuclei"
     finding_id: str
@@ -154,6 +159,12 @@ class NucleiFinding(ProfileModel):
     record: NucleiResultRecord
     proposed_severity: Severity
     occurrences: Annotated[StrictInt, Field(ge=1)] = 1
+    triage: TriageNote | None = None
+
+    @property
+    def title(self) -> str:
+        """Nome mostrado ao lado dos outros achados: o identificador do modelo."""
+        return self.record.template_id
 
 
 class TechnologyDetected(ProfileModel):

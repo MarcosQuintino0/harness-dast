@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.oast_ssrf import OastEvent
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
@@ -276,6 +277,14 @@ class RunArtifacts(Protocol):
 
     def read_negative(self, run_id: str) -> NegativeResult | None:
         """Lê `negative.json`; `None` quando o estágio de valores proibidos não rodou (ADR 0051).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        """Lê `nuclei.json`; `None` quando o estágio do Nuclei não rodou (ADR 0122).
 
         Raises:
             ConfigError: Arquivo ilegível ou inválido.
