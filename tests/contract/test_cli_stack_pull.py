@@ -5,8 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from harness_dast import __version__
-from harness_dast.application.stack_images import StackImages
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.cli.commands import stack
 from harness_dast.cli.stack_lock_composition import hold_stack
@@ -20,7 +18,7 @@ pytestmark = pytest.mark.contract
 def host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FakeHost:
     fake = FakeHost()
     fake.present.clear()
-    monkeypatch.setattr(stack, "build_stack_images", lambda: StackImages(fake, __version__))
+    monkeypatch.setattr(stack, "build_stack_images", fake.stack_images)
     monkeypatch.setenv("HDAST_STATE_DIR", str(tmp_path))
     return fake
 

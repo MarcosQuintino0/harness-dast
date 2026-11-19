@@ -1,16 +1,17 @@
 """Seleção, download e compatibilidade das imagens próprias da pilha."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.errors import ConfigError, ExternalToolError, StackBuildForbidden
+from harness_dast.domain.images_lock import IMAGES_LOCK_RECOVERY, ImagesLock
 
 PROXY_SERVICE = "scope-proxy"
 OWN_SERVICES = ("zap", PROXY_SERVICE)
 _ENV_BY_SERVICE = (("zap", "HDAST_ZAP_IMAGE"), (PROXY_SERVICE, "HDAST_SCOPE_PROXY_IMAGE"))
-IMAGE_RECOVERY = "Rode hdast stack pull ou use HDAST_STACK_BUILD=1 para construir localmente."
+IMAGE_RECOVERY = "Rode hdast stack pull. Em um clone de desenvolvimento, pode usar --build."
 
 
 class ImageInfo(BaseModel):
@@ -42,23 +43,52 @@ class ImageStore(Protocol):
 class StackImages:
     """Usa a mesma seleção e checagem de versão na subida e no diagnóstico."""
 
-    def __init__(self, store: ImageStore, cli_version: str) -> None:
-        """Recebe o Docker e a versão do pacote instalado que executa a CLI."""
+    def __init__(
+        self,
+        store: ImageStore,
+        cli_version: str,
+        *,
+        load_lock: Callable[[], ImagesLock | None],
+        has_build_contexts: Callable[[], bool],
+    ) -> None:
+        """Recebe o Docker, a versão da CLI e as consultas aos arquivos da instalação."""
         self._store = store
         self._cli_version = cli_version
+        self._load_lock = load_lock
+        self._has_build_contexts = has_build_contexts
 
     def references(self, services: tuple[str, ...], *, local: bool) -> dict[str, str]:
-        """Resolve as imagens por serviço e exige as duas referências próprias."""
-        overrides = (
-            {env: f"hdast/{service}:local" for service, env in _ENV_BY_SERVICE} if local else {}
-        )
-        images = self._store.compose_images(services, overrides)
+        """Resolve as referências e recusa build local fora de um clone antes do Docker."""
+        lock = self._load_lock()
+        images = self._store.compose_images(services, self._overrides(lock, local=local))
         if any(service not in images for service in OWN_SERVICES):
             raise ConfigError(
                 "Falta declarar a imagem do ZAP ou a do proxy de escopo no compose.yaml.",
                 hint="Restaure o compose.yaml original.",
             )
         return images
+
+    def _overrides(self, lock: ImagesLock | None, *, local: bool) -> dict[str, str]:
+        if lock is not None and lock.version != self._cli_version:
+            raise ConfigError(
+                f"O arquivo images.lock.json é da versão {lock.version}, "
+                f"mas a CLI é da versão {self._cli_version}.",
+                hint=IMAGES_LOCK_RECOVERY,
+            )
+        if local:
+            if lock is not None or not self._has_build_contexts():
+                raise StackBuildForbidden(
+                    f"Esta instalação usa as imagens publicadas da versão {self._cli_version}. "
+                    "Construir a cerca só é possível num clone de desenvolvimento.",
+                    hint="Retire --build e HDAST_STACK_BUILD=1. Use hdast stack pull.",
+                )
+            return {env: f"hdast/{service}:local" for service, env in _ENV_BY_SERVICE}
+        if lock is None:
+            return {}
+        return {
+            "HDAST_ZAP_IMAGE": lock.images.zap.reference(),
+            "HDAST_SCOPE_PROXY_IMAGE": lock.images.scope_proxy.reference(),
+        }
 
     def inspect(self, references: Mapping[str, str]) -> dict[str, ImageInfo | None]:
         """Inspeciona uma vez cada referência, mesmo quando vários serviços a usam."""

@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+/src/harness_dast/adapters/docker/images.lock.json
 
 # Ambientes
 .venv/

@@ -10,15 +10,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from harness_dast import __version__
 from harness_dast.adapters.docker.compose import default_repo_root, run_subprocess
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.application.doctor_report import DoctorReport
 from harness_dast.application.doctor_stack import DoctorStackChecks
 from harness_dast.application.lab_targets import VAMPI
-from harness_dast.application.stack_images import StackImages
 from harness_dast.cli.output import SCHEMA_VERSION, Envelope, build_failure
+from harness_dast.cli.stack_composition import build_stack_images
 from harness_dast.domain.errors import ConfigError, ExitCode, ExternalToolError
 from harness_dast.domain.run import is_run_id
 
@@ -64,7 +63,7 @@ def demo_environment(environ: Mapping[str, str]) -> dict[str, str]:
 def check_demo_environment(environ: Mapping[str, str]) -> DoctorReport:
     """Reutiliza o diagnóstico da pilha e exige todas as imagens locais e portas livres."""
     host = SystemHost(environ)
-    checks = DoctorStackChecks(host, StackImages(host, __version__), environ)
+    checks = DoctorStackChecks(host, build_stack_images(host), environ)
     return DoctorReport.from_checks(checks.execute(VAMPI, offline=True))
 
 

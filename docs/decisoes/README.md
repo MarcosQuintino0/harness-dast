@@ -142,3 +142,4 @@ A numeração pula o 0044, que nunca foi publicado como ADR. Os números 0106 a 
 | 0118 | [Laboratório em máquinas efêmeras do GitHub](0118-laboratorio-em-maquinas-efemeras-do-github.md) | Proposto |
 | 0119 | [O hdast é distribuído como plugin do Claude Code, publicado por tag](0119-hdast-como-plugin-do-claude-code.md) | Aceito |
 | 0120 | [Pedido mínimo: padrões da CLI e aprovação humana no lugar da carta detalhada](0120-pedido-minimo-com-padroes-e-aprovacao.md) | Aceito |
+| 0121 | [Digests empacotados e build só no clone de desenvolvimento](0121-digests-empacotados-e-build-so-no-clone.md) | Proposto |

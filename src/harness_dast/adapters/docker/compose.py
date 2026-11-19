@@ -60,6 +60,12 @@ def default_repo_root() -> Path:
     return root
 
 
+def default_compose_root() -> Path:
+    """Localiza o Compose empacotado ou aponta para a raiz do clone."""
+    package = Path(__file__).resolve().parents[2]
+    return package if (package / "compose.yaml").is_file() else package.parents[1]
+
+
 def run_subprocess(
     args: list[str], env: Mapping[str, str], cwd: Path, timeout: float
 ) -> CommandResult:

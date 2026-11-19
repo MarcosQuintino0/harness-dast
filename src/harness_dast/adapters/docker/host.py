@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, ValidationError
 
-from harness_dast.adapters.docker.compose import CommandResult, Runner, default_repo_root
+from harness_dast.adapters.docker.compose import CommandResult, Runner, default_compose_root
 from harness_dast.adapters.docker.compose import run_subprocess as run_process
 from harness_dast.application.stack_images import IMAGE_RECOVERY, ImageInfo
 from harness_dast.domain.errors import ConfigError, ExternalToolError
@@ -55,8 +55,7 @@ class SystemHost:
         Args:
             base_env: Ambiente herdado pelos processos filhos (PATH, HOME...).
             runner: Execução de processo; injetada nos testes.
-            repo_root: Raiz do repositório (onde fica o `compose.yaml`); `None` calcula a
-                partir deste pacote.
+            repo_root: Pasta do `compose.yaml`; `None` procura no pacote e no clone.
         """
         self._env = dict(base_env)
         self._runner = runner
@@ -77,24 +76,24 @@ class SystemHost:
         self, services: tuple[str, ...], overrides: Mapping[str, str]
     ) -> dict[str, str]:
         """Resolve literais e referências `${VAR:-padrão}` do Compose para os serviços."""
-        root = self._repo_root if self._repo_root is not None else default_repo_root()
+        root = self._repo_root if self._repo_root is not None else default_compose_root()
         compose = root / "compose.yaml"
         try:
             if compose.stat().st_size > _MAX_COMPOSE_BYTES:
                 raise ConfigError(
-                    "O compose.yaml do repositório é grande demais.",
+                    "O compose.yaml da pilha é grande demais.",
                     hint="Restaure o compose.yaml original.",
                 )
             data = yaml.safe_load(compose.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, yaml.YAMLError):
             raise ConfigError(
-                "Não consegui ler o compose.yaml do repositório.",
-                hint="Rode o hdast a partir de uma cópia íntegra do repositório.",
+                "Não consegui ler o compose.yaml da pilha.",
+                hint="Confira o pacote instalado ou restaure o compose.yaml do clone.",
             ) from None
         declared = data.get("services") if isinstance(data, dict) else None
         if not isinstance(declared, dict):
             raise ConfigError(
-                "O compose.yaml do repositório não tem a seção services.",
+                "O compose.yaml da pilha não tem a seção services.",
                 hint="Restaure o compose.yaml original.",
             )
         env = {**self._env, **overrides}
