@@ -1,0 +1,840 @@
+{
+ "/": [
+  "http/exposures/logs/sap-logon-error-message.yaml",
+  "http/exposures/logs/vugex-source-detect.yaml"
+ ],
+ "/.DS_Store": [
+  "http/exposures/files/ds-store-file.yaml"
+ ],
+ "/.Dockerfile": [
+  "http/exposures/configs/dockerfile-hidden-disclosure.yaml"
+ ],
+ "/.apdisk": [
+  "http/exposures/files/apdisk-disclosure.yaml"
+ ],
+ "/.authorized_keys": [
+  "http/exposures/configs/ssh-authorized-keys.yaml"
+ ],
+ "/.aws/config": [
+  "http/exposures/configs/aws-config.yaml"
+ ],
+ "/.badarg.log": [
+  "http/exposures/logs/badarg-log.yaml"
+ ],
+ "/.bzr/branch/branch.conf": [
+  "http/exposures/configs/exposed-bzr.yaml"
+ ],
+ "/.codeclimate.yml": [
+  "http/exposures/configs/codeclimate-config-exposure.yaml"
+ ],
+ "/.composer/composer.json": [
+  "http/exposures/configs/composer-config.yaml"
+ ],
+ "/.coveralls.yml": [
+  "http/exposures/configs/coveralls-configuration-file-exposure.yaml"
+ ],
+ "/.dbeaver/data-sources.json": [
+  "http/exposures/files/dbeaver-database-connections.yaml"
+ ],
+ "/.deployment": [
+  "http/exposures/files/ht-deployment.yaml"
+ ],
+ "/.docker/config.json": [
+  "http/exposures/configs/dockercfg-config.yaml"
+ ],
+ "/.dockercfg": [
+  "http/exposures/configs/dockercfg-config.yaml"
+ ],
+ "/.dockerfile": [
+  "http/exposures/configs/dockerfile-hidden-disclosure.yaml"
+ ],
+ "/.drone.yml": [
+  "http/exposures/configs/detect-drone-config.yaml"
+ ],
+ "/.editorconfig": [
+  "http/exposures/configs/editor-exposure.yaml"
+ ],
+ "/.esmtprc": [
+  "http/exposures/configs/esmtprc-config.yaml"
+ ],
+ "/.flowconfig": [
+  "http/exposures/configs/flow-config-exposure.yaml"
+ ],
+ "/.ftpconfig": [
+  "http/exposures/files/ftpconfig.yaml"
+ ],
+ "/.gcloudignore": [
+  "http/exposures/files/gcloudignore-file.yaml"
+ ],
+ "/.git-credentials": [
+  "http/exposures/configs/git-credentials-disclosure.yaml"
+ ],
+ "/.git/logs/HEAD": [
+  "http/exposures/logs/git-logs-exposure.yaml"
+ ],
+ "/.gitignore": [
+  "http/exposures/configs/exposed-gitignore.yaml"
+ ],
+ "/.gitmodules": [
+  "http/exposures/configs/exposed-gitmodules.yaml"
+ ],
+ "/.hg/hgrc": [
+  "http/exposures/configs/exposed-hg.yaml"
+ ],
+ "/.hgignore": [
+  "http/exposures/configs/mercurial-hgignore.yaml"
+ ],
+ "/.htdeployment": [
+  "http/exposures/files/ht-deployment.yaml"
+ ],
+ "/.htpasswd": [
+  "http/exposures/configs/htpasswd-detection.yaml"
+ ],
+ "/.idea/dataSources.xml": [
+  "http/exposures/configs/jetbrains-datasources.yaml"
+ ],
+ "/.idea/deployment.xml": [
+  "http/exposures/files/idea-folder-exposure.yaml"
+ ],
+ "/.idea/httpRequests/http-client.cookies": [
+  "http/exposures/logs/idea-logs-exposure.yaml"
+ ],
+ "/.idea/httpRequests/http-requests-log.http": [
+  "http/exposures/logs/idea-logs-exposure.yaml"
+ ],
+ "/.idea/workspace.xml": [
+  "http/exposures/files/idea-folder-exposure.yaml"
+ ],
+ "/.licenserc.yaml": [
+  "http/exposures/files/apache-licenserc.yaml"
+ ],
+ "/.mailmap": [
+  "http/exposures/files/git-mailmap.yaml"
+ ],
+ "/.msmtprc": [
+  "http/exposures/configs/msmtp-config.yaml"
+ ],
+ "/.my.cnf": [
+  "http/exposures/configs/mysql-config-exposure.yaml"
+ ],
+ "/.npmrc": [
+  "http/exposures/files/npmrc-authtoken.yaml"
+ ],
+ "/.pgpass": [
+  "http/exposures/files/postgres-credentials-exposure.yaml"
+ ],
+ "/.php_cs.cache": [
+  "http/exposures/files/php-cs-cache.yaml"
+ ],
+ "/.phpunit.result.cache": [
+  "http/exposures/files/phpunit-result-cache-exposure.yaml"
+ ],
+ "/.prettierignore": [
+  "http/exposures/configs/prettier-ignore-disclosure.yaml"
+ ],
+ "/.prettierrc": [
+  "http/exposures/configs/prettier-ignore-disclosure.yaml"
+ ],
+ "/.project": [
+  "http/exposures/files/eclipse-project-exposure.yaml"
+ ],
+ "/.python_history": [
+  "http/exposures/files/python-history-disclosure.yaml"
+ ],
+ "/.remote-sync.json": [
+  "http/exposures/files/atom-sync-remote.yaml"
+ ],
+ "/.rubocop.yml": [
+  "http/exposures/configs/rubocop-config.yaml"
+ ],
+ "/.s3cfg": [
+  "http/exposures/configs/s3cfg-config.yaml"
+ ],
+ "/.sass-lint.yml": [
+  "http/exposures/files/sass-lint.yaml"
+ ],
+ "/.scrutinizer.yml": [
+  "http/exposures/configs/scrutinizer-config.yaml"
+ ],
+ "/.snyk": [
+  "http/exposures/files/snyk-ignore-file-disclosure.yaml"
+ ],
+ "/.sqlite_history": [
+  "http/exposures/files/sqlite-history-exposure.yaml"
+ ],
+ "/.ssh/authorized_keys": [
+  "http/exposures/configs/ssh-authorized-keys.yaml"
+ ],
+ "/.ssh/known_hosts": [
+  "http/exposures/configs/ssh-known-hosts.yaml"
+ ],
+ "/.ssh/known_hosts.old": [
+  "http/exposures/configs/ssh-known-hosts.yaml"
+ ],
+ "/.stestr.conf": [
+  "http/exposures/configs/stestr-config.yaml"
+ ],
+ "/.styleci.yml": [
+  "http/exposures/files/styleci-yml-disclosure.yaml"
+ ],
+ "/.svn/entries": [
+  "http/exposures/configs/exposed-svn.yaml"
+ ],
+ "/.testignore": [
+  "http/exposures/files/testignore-disclosure.yaml"
+ ],
+ "/.user.ini": [
+  "http/exposures/files/php-user-ini-disclosure.yaml"
+ ],
+ "/.viminfo": [
+  "http/exposures/files/viminfo-disclosure.yaml"
+ ],
+ "/.vscode/": [
+  "http/exposures/configs/exposed-vscode.yaml"
+ ],
+ "/.vscode/launch.json": [
+  "http/exposures/files/vscode-launch.yaml"
+ ],
+ "/.well-known/openid-configuration": [
+  "http/exposures/configs/keycloak-openid-config.yaml"
+ ],
+ "/.wget-hsts": [
+  "http/exposures/files/wget-hsts-list-exposure.yaml"
+ ],
+ "/.wp-env.json": [
+  "http/exposures/configs/wordpress-wp-env-exposure.yaml"
+ ],
+ "/BitKeeper/etc/config": [
+  "http/exposures/configs/exposed-bitkeeper.yaml"
+ ],
+ "/Cargo.lock": [
+  "http/exposures/files/cargo-lock-package.yaml"
+ ],
+ "/Cargo.toml": [
+  "http/exposures/files/cargo-toml-file.yaml"
+ ],
+ "/DEADJOE": [
+  "http/exposures/files/joe-deadjoe-file-exposure.yaml"
+ ],
+ "/Dockerfile": [
+  "http/exposures/configs/dockerfile-hidden-disclosure.yaml"
+ ],
+ "/Dockerrun.aws.json": [
+  "http/exposures/configs/amazon-docker-config.yaml"
+ ],
+ "/FileZilla.xml": [
+  "http/exposures/files/filezilla.yaml"
+ ],
+ "/Gemfile": [
+  "http/exposures/files/github-gemfile-files.yaml"
+ ],
+ "/Gemfile.lock": [
+  "http/exposures/files/github-gemfile-files.yaml"
+ ],
+ "/GoogleService-Info.plist": [
+  "http/exposures/configs/google-service-info-plist.yaml"
+ ],
+ "/Guardfile": [
+  "http/exposures/configs/guard-config.yaml"
+ ],
+ "/OA_HTML/bin/sqlnet.log": [
+  "http/exposures/logs/oracle-ebs-sqllog-disclosure.yaml"
+ ],
+ "/OA_HTML/jtfwrepo.xml": [
+  "http/exposures/configs/oracle-ebs-credentials.yaml"
+ ],
+ "/Pipfile": [
+  "http/exposures/configs/pipfile-config.yaml"
+ ],
+ "/Pipfile.lock": [
+  "http/exposures/files/pipfile-lock.yaml"
+ ],
+ "/Procfile": [
+  "http/exposures/configs/procfile-config.yaml"
+ ],
+ "/README.md": [
+  "http/exposures/files/readme-md.yaml"
+ ],
+ "/Rakefile": [
+  "http/exposures/configs/rakefile-disclosure.yaml"
+ ],
+ "/Rexfile": [
+  "http/exposures/configs/rexify-config-exposure.yaml"
+ ],
+ "/SetupConfig.xml": [
+  "http/exposures/configs/3cx-config.yaml"
+ ],
+ "/Thumbs.db": [
+  "http/exposures/files/thumbs-db-disclosure.yaml"
+ ],
+ "/Trace.axd": [
+  "http/exposures/logs/trace-axd-expose.yaml"
+ ],
+ "/Vagrantfile": [
+  "http/exposures/files/vagrantfile-exposure.yaml"
+ ],
+ "/_/.ssh/authorized_keys": [
+  "http/exposures/configs/ssh-authorized-keys.yaml"
+ ],
+ "/__clockwork/app": [
+  "http/exposures/logs/clockwork-php-page.yaml"
+ ],
+ "/_config.yml": [
+  "http/exposures/files/github-page-config.yaml"
+ ],
+ "/_darcs/prefs/binaries": [
+  "http/exposures/configs/exposed-darcs.yaml"
+ ],
+ "/_debug_toolbar/": [
+  "http/exposures/logs/pyramid-debug-toolbar.yaml"
+ ],
+ "/_ignition/logs": [
+  "http/exposures/logs/laravel-ignition-log-viewer.yaml"
+ ],
+ "/_notes/dwsync.xml": [
+  "http/exposures/files/dwsync-exposure.yaml"
+ ],
+ "/access.log": [
+  "http/exposures/logs/access-log-file.yaml"
+ ],
+ "/admin/setup": [
+  "http/exposures/configs/filestash-admin-config.yaml"
+ ],
+ "/airflow.cfg": [
+  "http/exposures/configs/airflow-configuration-exposure.yaml"
+ ],
+ "/alps/profile": [
+  "http/exposures/files/exposed-alps-spring.yaml"
+ ],
+ "/ambassador/v0/diag/": [
+  "http/exposures/apis/ambassador-api-diagnostics-exposure.yaml"
+ ],
+ "/ansible.cfg": [
+  "http/exposures/configs/ansible-config-disclosure.yaml"
+ ],
+ "/anything_here": [
+  "http/exposures/configs/phalcon-framework-source.yaml"
+ ],
+ "/apache.conf": [
+  "http/exposures/configs/apache-config.yaml"
+ ],
+ "/api/": [
+  "http/exposures/apis/freshrss-api.yaml",
+  "http/exposures/apis/freshrss-fever-api.yaml"
+ ],
+ "/api/auth/health": [
+  "http/exposures/configs/apache-skywalking-horizon-ui-config.yaml"
+ ],
+ "/api/auth/oidc/providers": [
+  "http/exposures/configs/apache-skywalking-horizon-ui-config.yaml"
+ ],
+ "/api/config": [
+  "http/exposures/apis/frigate-api-exposure.yaml",
+  "http/exposures/configs/librechat-config-exposure.yaml"
+ ],
+ "/api/profile": [
+  "http/exposures/files/exposed-alps-spring.yaml"
+ ],
+ "/apiserver-etcd-client.key": [
+  "http/exposures/files/kubernetes-etcd-keys.yaml"
+ ],
+ "/app/config/security.yml": [
+  "http/exposures/configs/symfony-security-config.yaml"
+ ],
+ "/appconfigs": [
+  "http/exposures/configs/apache-pinot-config.yaml"
+ ],
+ "/application/logs/access.log": [
+  "http/exposures/logs/access-log-file.yaml"
+ ],
+ "/appspec.yaml": [
+  "http/exposures/configs/appspec-yml-disclosure.yaml"
+ ],
+ "/appspec.yml": [
+  "http/exposures/configs/appspec-yml-disclosure.yaml"
+ ],
+ "/artifactory/api/build": [
+  "http/exposures/configs/jfrog-artifactory-build-exposure.yaml"
+ ],
+ "/assets/.gitignore": [
+  "http/exposures/configs/exposed-gitignore.yaml"
+ ],
+ "/auth.json": [
+  "http/exposures/files/auth-json.yaml"
+ ],
+ "/auth/realms/master/.well-known/openid-configuration": [
+  "http/exposures/configs/keycloak-openid-config.yaml"
+ ],
+ "/authorized_keys": [
+  "http/exposures/configs/ssh-authorized-keys.yaml"
+ ],
+ "/awstats.conf": [
+  "http/exposures/configs/awstats-config.yaml"
+ ],
+ "/awstats/": [
+  "http/exposures/configs/awstats-config.yaml"
+ ],
+ "/azuredeploy.json": [
+  "http/exposures/files/azuredeploy-json.yaml"
+ ],
+ "/babel.config.js": [
+  "http/exposures/configs/babel-config-exposure.yaml"
+ ],
+ "/bitbucket-pipelines.yml": [
+  "http/exposures/files/bitbucket-pipelines.yaml"
+ ],
+ "/bower.json": [
+  "http/exposures/files/bower-json.yaml"
+ ],
+ "/bun.lockb": [
+  "http/exposures/files/bun-lock.yaml"
+ ],
+ "/cfcache.map": [
+  "http/exposures/files/cold-fusion-cfcache-map.yaml"
+ ],
+ "/cgi-bin/nagios3/status.cgi": [
+  "http/exposures/configs/nagios-status-page.yaml"
+ ],
+ "/cgi-bin/nagios4/status.cgi": [
+  "http/exposures/configs/nagios-status-page.yaml"
+ ],
+ "/cgi-bin/printenv": [
+  "http/exposures/configs/oracle-cgi-printenv.yaml"
+ ],
+ "/cgi-bin/printenv.pl": [
+  "http/exposures/configs/cgi-printenv.yaml",
+  "http/exposures/files/xampp-environment-variables.yaml"
+ ],
+ "/cgi-bin/test-cgi": [
+  "http/exposures/files/oracle-test-cgi.yaml"
+ ],
+ "/client_secrets.json": [
+  "http/exposures/configs/gmail-api-client-secrets.yaml"
+ ],
+ "/codeception.yml": [
+  "http/exposures/configs/codeception-config.yaml"
+ ],
+ "/composer.json": [
+  "http/exposures/configs/composer-config.yaml"
+ ],
+ "/composer.lock": [
+  "http/exposures/configs/composer-config.yaml"
+ ],
+ "/conf": [
+  "http/exposures/configs/apache-hive-config.yaml",
+  "http/exposures/configs/apache-ozone-conf.yaml"
+ ],
+ "/config.ru": [
+  "http/exposures/configs/rackup-config-ru.yaml"
+ ],
+ "/config/": [
+  "http/exposures/configs/configuration-listing.yaml"
+ ],
+ "/config/database.yml": [
+  "http/exposures/configs/rails-database-config.yaml"
+ ],
+ "/config/databases.yml": [
+  "http/exposures/configs/symfony-database-config.yaml"
+ ],
+ "/config/initializers/secret_token.rb": [
+  "http/exposures/files/rails-secret-token-disclosure.yaml"
+ ],
+ "/config/packages/security.yaml": [
+  "http/exposures/configs/symfony-security-config.yaml"
+ ],
+ "/config/user.xml": [
+  "http/exposures/configs/hikvision-info-leak.yaml"
+ ],
+ "/configuration.php-dist": [
+  "http/exposures/configs/joomla-config-dist-file.yaml"
+ ],
+ "/core": [
+  "http/exposures/files/core-dump.yaml"
+ ],
+ "/core/config/databases.yml": [
+  "http/exposures/configs/qdpm-info-leak.yaml"
+ ],
+ "/cpanel.config": [
+  "http/exposures/configs/cpanel-config.yaml"
+ ],
+ "/crossdomain.xml": [
+  "http/exposures/files/crossdomain-xml.yaml"
+ ],
+ "/dashboard/env-config.js": [
+  "http/exposures/configs/devtron-env-config-js.yaml"
+ ],
+ "/database_credentials.inc": [
+  "http/exposures/files/database-credentials.yaml"
+ ],
+ "/debug.seam": [
+  "http/exposures/logs/jboss-seam-debug-page.yaml"
+ ],
+ "/debug/vars": [
+  "http/exposures/configs/debug-vars.yaml"
+ ],
+ "/deployment-config.json": [
+  "http/exposures/configs/sftp-deployment-config.yaml"
+ ],
+ "/desktop.ini": [
+  "http/exposures/files/desktop-ini-exposure.yaml"
+ ],
+ "/dnsmasq.conf": [
+  "http/exposures/files/dnsmasq-config.yaml"
+ ],
+ "/docker-cloud.yml": [
+  "http/exposures/files/docker-cloud.yaml"
+ ],
+ "/domcfg.nsf": [
+  "http/exposures/files/domcfg-page.yaml"
+ ],
+ "/env.dev.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/env.development.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/env.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/env.prod.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/env.production.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/env.test.js": [
+  "http/exposures/configs/javascript-env-config.yaml"
+ ],
+ "/fcgi-bin/echo": [
+  "http/exposures/logs/fastcgi-echo.yaml"
+ ],
+ "/files/ldap.debug.txt": [
+  "http/exposures/logs/teampass-ldap.yaml"
+ ],
+ "/filezilla.xml": [
+  "http/exposures/files/filezilla.yaml"
+ ],
+ "/firebase-debug.log": [
+  "http/exposures/logs/firebase-debug-log.yaml"
+ ],
+ "/ftpsync.settings": [
+  "http/exposures/configs/ftp-credentials-exposure.yaml",
+  "http/exposures/configs/sftp-credentials-exposure.yaml"
+ ],
+ "/gateway.conf": [
+  "http/exposures/configs/remote-spark-gateway-config.yaml"
+ ],
+ "/go.mod": [
+  "http/exposures/files/go-mod-disclosure.yaml"
+ ],
+ "/gunicorn.conf.py": [
+  "http/exposures/files/gunicorn-config-file.yaml"
+ ],
+ "/haproxy.cfg": [
+  "http/exposures/files/haproxy-config-file.yaml"
+ ],
+ "/host.json": [
+  "http/exposures/configs/azure-functions-hostjson-exposure.yaml"
+ ],
+ "/hosts": [
+  "http/exposures/configs/kyan-credential-exposure.yaml"
+ ],
+ "/httpd.conf": [
+  "http/exposures/configs/httpd-config.yaml"
+ ],
+ "/icecast.xml": [
+  "http/exposures/files/icecast-config.yaml"
+ ],
+ "/inc/data/database.sdb": [
+  "http/exposures/backups/batflat-sqlite-exposure.yaml"
+ ],
+ "/includes/.gitignore": [
+  "http/exposures/configs/exposed-gitignore.yaml"
+ ],
+ "/ioncube/loader-wizard.php": [
+  "http/exposures/files/ioncube-loader-wizard.yaml"
+ ],
+ "/jeecg-boot/": [
+  "http/exposures/apis/jeecg-boot-swagger.yaml"
+ ],
+ "/jsapi_ticket.json": [
+  "http/exposures/files/jsapi-ticket-json.yaml"
+ ],
+ "/jsconfig.json": [
+  "http/exposures/configs/jsconfig-json.yaml"
+ ],
+ "/keycloak.json": [
+  "http/exposures/files/keycloak-json.yaml"
+ ],
+ "/kibana.yml": [
+  "http/exposures/files/elastic-kibana-config.yaml"
+ ],
+ "/kustomization.yml": [
+  "http/exposures/configs/kubernetes-kustomization-disclosure.yaml"
+ ],
+ "/lang/log/system.log": [
+  "http/exposures/logs/milesight-system-log.yaml"
+ ],
+ "/lfm.php": [
+  "http/exposures/files/lazy-file.yaml"
+ ],
+ "/libraries/joomla/database/": [
+  "http/exposures/files/joomla-file-listing.yaml"
+ ],
+ "/lighttpd.conf": [
+  "http/exposures/files/lighttpd-config-file.yaml"
+ ],
+ "/llms.txt": [
+  "http/exposures/files/llms-file-enum.yaml"
+ ],
+ "/loader-wizard.php": [
+  "http/exposures/files/ioncube-loader-wizard.yaml"
+ ],
+ "/log/access.log": [
+  "http/exposures/logs/access-log-file.yaml"
+ ],
+ "/log4j.properties": [
+  "http/exposures/files/log4-properties.yaml"
+ ],
+ "/login.php": [
+  "http/exposures/configs/ruijie-information-disclosure.yaml"
+ ],
+ "/logs/access.log": [
+  "http/exposures/logs/access-log-file.yaml"
+ ],
+ "/metrics/healthcheck": [
+  "http/exposures/logs/apache-livy-logs.yaml"
+ ],
+ "/metrics/metrics": [
+  "http/exposures/logs/apache-livy-logs.yaml"
+ ],
+ "/metrics/threads": [
+  "http/exposures/logs/apache-livy-logs.yaml"
+ ],
+ "/nagios/cgi-bin/status.cgi": [
+  "http/exposures/configs/nagios-status-page.yaml"
+ ],
+ "/nbproject/project.properties": [
+  "http/exposures/configs/netbeans-config.yaml"
+ ],
+ "/next.config.js": [
+  "http/exposures/files/next-js-config-file.yaml"
+ ],
+ "/nginx.conf": [
+  "http/exposures/configs/nginx-config.yaml"
+ ],
+ "/npm-shrinkwrap.json": [
+  "http/exposures/files/npm-shrinkwrap-exposure.yaml"
+ ],
+ "/nuxt.config.js": [
+  "http/exposures/files/nuxtjs-config-file.yaml"
+ ],
+ "/oauth-credentials.json": [
+  "http/exposures/files/oauth-credentials-json.yaml"
+ ],
+ "/opcache-status/": [
+  "http/exposures/configs/opcache-status-exposure.yaml"
+ ],
+ "/opcache-status/opcache.php": [
+  "http/exposures/configs/opcache-status-exposure.yaml"
+ ],
+ "/openapi.json": [
+  "http/exposures/apis/openapi.yaml"
+ ],
+ "/owncloud/config/": [
+  "http/exposures/configs/owncloud-config.yaml"
+ ],
+ "/package-lock.json": [
+  "http/exposures/configs/package-json.yaml"
+ ],
+ "/package.json": [
+  "http/exposures/configs/package-json.yaml"
+ ],
+ "/pantheon.upstream.yml": [
+  "http/exposures/files/pantheon-upstream.yaml"
+ ],
+ "/perl-status": [
+  "http/exposures/configs/perl-status.yaml"
+ ],
+ "/phinx.yml": [
+  "http/exposures/configs/phinx-config.yaml"
+ ],
+ "/php-fpm.conf": [
+  "http/exposures/configs/php-fpm-config.yaml"
+ ],
+ "/php-opcache-status/": [
+  "http/exposures/configs/opcache-status-exposure.yaml"
+ ],
+ "/php.ini": [
+  "http/exposures/files/php-ini.yaml"
+ ],
+ "/phpcs.xml": [
+  "http/exposures/configs/phpcs-config.yaml"
+ ],
+ "/phpstan.neon": [
+  "http/exposures/configs/phpstan-config.yaml"
+ ],
+ "/phpunit.xml": [
+  "http/exposures/files/phpunit.yaml"
+ ],
+ "/pipeline.yaml": [
+  "http/exposures/files/pipeline-configuration.yaml"
+ ],
+ "/platformio.ini": [
+  "http/exposures/configs/platformio-ini.yaml"
+ ],
+ "/plesk-stat/": [
+  "http/exposures/configs/plesk-stat.yaml"
+ ],
+ "/pnpm-lock.yaml": [
+  "http/exposures/files/pnpm-lock.yaml"
+ ],
+ "/pools/default/buckets": [
+  "http/exposures/apis/couchbase-buckets-api.yaml"
+ ],
+ "/prober.php": [
+  "http/exposures/configs/php-prober-exposure.yaml"
+ ],
+ "/profile": [
+  "http/exposures/files/exposed-alps-spring.yaml"
+ ],
+ "/proftpd.conf": [
+  "http/exposures/configs/proftpd-config.yaml"
+ ],
+ "/protractor.conf.js": [
+  "http/exposures/configs/protractor-config.yaml"
+ ],
+ "/psalm.xml": [
+  "http/exposures/configs/psalm-config.yaml"
+ ],
+ "/pyproject.toml": [
+  "http/exposures/configs/pyproject-toml.yaml",
+  "http/exposures/files/pyproject-disclosure.yaml"
+ ],
+ "/q/metrics": [
+  "http/exposures/configs/apache-polaris-metrics-exposure.yaml"
+ ],
+ "/redis.conf": [
+  "http/exposures/configs/redis-config.yaml"
+ ],
+ "/rollup.config.js": [
+  "http/exposures/configs/rollup-js-config.yaml"
+ ],
+ "/s3cmd.ini": [
+  "http/exposures/configs/s3cmd-config.yaml"
+ ],
+ "/sendgrid.env": [
+  "http/exposures/files/sendgrid-env.yaml"
+ ],
+ "/setup.py": [
+  "http/exposures/configs/python-setup-config.yaml"
+ ],
+ "/sftp-config.json": [
+  "http/exposures/configs/sftp-credentials-exposure.yaml"
+ ],
+ "/sitemanager.xml": [
+  "http/exposures/files/filezilla.yaml"
+ ],
+ "/smb.conf": [
+  "http/exposures/configs/samba-config.yaml"
+ ],
+ "/snoop": [
+  "http/exposures/configs/snoop-servlet-exposure.yaml"
+ ],
+ "/storage/logs/laravel.log": [
+  "http/exposures/logs/laravel-log-file.yaml"
+ ],
+ "/storage/logs/web.log": [
+  "http/exposures/logs/craftcms-log-disclosure.yaml"
+ ],
+ "/svnserve.conf": [
+  "http/exposures/configs/svnserve-config.yaml"
+ ],
+ "/symfony.lock": [
+  "http/exposures/configs/symfony-lock-exposure.yaml"
+ ],
+ "/tool/view/phpinfo.view.php": [
+  "http/exposures/configs/ruijie-phpinfo.yaml"
+ ],
+ "/tox.ini": [
+  "http/exposures/configs/tox-ini.yaml"
+ ],
+ "/usage/": [
+  "http/exposures/logs/webalizer-xtended-stats.yaml"
+ ],
+ "/user.ini": [
+  "http/exposures/files/php-user-ini-disclosure.yaml"
+ ],
+ "/uwsgi.ini": [
+  "http/exposures/files/uwsgi-ini.yaml"
+ ],
+ "/vendor/composer/installed.json": [
+  "http/exposures/configs/composer-config.yaml"
+ ],
+ "/ventrilo_srv.ini": [
+  "http/exposures/configs/ventrilo-config.yaml"
+ ],
+ "/venv/": [
+  "http/exposures/files/python-venv-exposure.yaml"
+ ],
+ "/vercel.json": [
+  "http/exposures/files/vercel-config-file.yaml"
+ ],
+ "/vite.config.js": [
+  "http/exposures/configs/vite-config.yaml"
+ ],
+ "/wd/hub/status": [
+  "http/exposures/configs/selenium-grid-exposure.yaml"
+ ],
+ "/web.config": [
+  "http/exposures/configs/web-config.yaml"
+ ],
+ "/web_caps/webCapsConfig": [
+  "http/exposures/configs/honeywell-scada-config.yaml"
+ ],
+ "/webpack.config.js": [
+  "http/exposures/configs/webpack-config.yaml"
+ ],
+ "/webpack.mix.js": [
+  "http/exposures/files/webpack-mix-js.yaml"
+ ],
+ "/wp-app.log": [
+  "http/exposures/logs/wp-app-log.yaml"
+ ],
+ "/wp-cli.yml": [
+  "http/exposures/files/wp-cli-exposure.yaml"
+ ],
+ "/wp-content/plugins/easy-google-fonts/error_log": [
+  "http/exposures/logs/wp-easy-google-fonts-log-disclosure.yaml"
+ ],
+ "/wp-content/plugins/pretty-link/error_log": [
+  "http/exposures/logs/wp-pretty-link-log-disclosure.yaml"
+ ],
+ "/wp-content/plugins/wordpress-importer/error_log": [
+  "http/exposures/logs/wp-importer-log-disclosure.yaml"
+ ],
+ "/wp-content/plugins/wps-hide-login/classes/error_log": [
+  "http/exposures/logs/wp-wps-hide-login-log.yaml"
+ ],
+ "/wp-content/uploads/EnableMediaReplace.log": [
+  "http/exposures/logs/wp-enable-media-replace-log.yaml"
+ ],
+ "/wp-content/uploads/wp-statistics/debug.log": [
+  "http/exposures/logs/wp-wpstatistics-log.yaml"
+ ],
+ "/wp-content/uploads/wpdesk-logs/wpdesk_debug.log": [
+  "http/exposures/logs/wp-flexible-shipping-log.yaml"
+ ],
+ "/wp-content/w3tc/dbcache/": [
+  "http/exposures/files/wp-w3-total-cache-exposure.yaml"
+ ],
+ "/wpad.dat": [
+  "http/exposures/configs/proxy-wpad-exposure.yaml"
+ ],
+ "/xprober.php": [
+  "http/exposures/configs/xprober-service.yaml"
+ ],
+ "/yarn.lock": [
+  "http/exposures/files/yarn-lock.yaml"
+ ]
+}

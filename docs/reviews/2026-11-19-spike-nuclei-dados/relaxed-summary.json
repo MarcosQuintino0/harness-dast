@@ -1,0 +1,14 @@
+{
+ "templates": 33,
+ "vetoed": {
+  "http/misconfiguration/springboot/springboot-heapdump.yaml": [
+   "raw"
+  ]
+ },
+ "accepted_paths": 67,
+ "refused_path_expressions": [
+  "{{BaseURL}}",
+  "{{BaseURL}}/actuator%72",
+  "{{BaseURL}}/actuator;/env;"
+ ]
+}

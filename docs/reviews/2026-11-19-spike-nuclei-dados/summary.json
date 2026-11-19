@@ -1,0 +1,18 @@
+{
+ "_all": {
+  "projectable_after_vetoes": 1436,
+  "exposure_paths": 277
+ },
+ "clinica-piloto": {
+  "a": 53,
+  "b": 321
+ },
+ "vampi": {
+  "a": 27,
+  "b": 277
+ },
+ "crapi": {
+  "a": 0,
+  "b": 273
+ }
+}

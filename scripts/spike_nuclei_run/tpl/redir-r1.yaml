@@ -1,0 +1,16 @@
+id: spike-redir-r1
+info:
+  name: Spike - redirecionamento para caminho fora do escopo
+  author: spike
+  severity: info
+  tags: spike
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/r1"
+    redirects: true
+    max-redirects: 3
+    matchers:
+      - type: status
+        status:
+          - 200

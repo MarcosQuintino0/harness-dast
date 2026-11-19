@@ -1,0 +1,17 @@
+# Override do spike: acrescenta o servico nuclei a pilha do compose.yaml SEM alterar o arquivo versionado.
+# Uso: docker compose -p <projeto> -f compose.yaml -f docker/nuclei/compose.spike.yaml run --rm nuclei <args>
+services:
+  nuclei:
+    image: hdast-nuclei-spike:3.11.1-10.5.1
+    pull_policy: never
+    profiles: ["nuclei"]
+    networks:
+      - zap_net            # interna, sem rota para fora; so alcanca scope-proxy e zap
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    mem_limit: 512m
+    pids_limit: 128
+    tmpfs:
+      - /home/nuclei:uid=10002,gid=10002,mode=0700,size=64m
+      - /tmp:uid=10002,gid=10002,mode=0700,size=64m

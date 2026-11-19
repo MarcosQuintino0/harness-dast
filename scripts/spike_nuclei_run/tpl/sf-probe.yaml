@@ -1,0 +1,15 @@
+id: spike-sf-probe
+info:
+  name: Spike - sonda do arquivo de segredos (GET somente leitura)
+  author: spike
+  severity: info
+  tags: spike
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/me"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "TOKEN_INVALIDO"

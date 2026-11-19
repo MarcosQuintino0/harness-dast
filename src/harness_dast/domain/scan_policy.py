@@ -10,6 +10,7 @@ regra desligada continuar ligada depois de aplicada.
 """
 
 import math
+import os
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict
@@ -226,7 +227,13 @@ def build_policy(config: ScanConfig, *, experimental_rules: bool = False) -> Sca
         for plugin_id in enabled_experimental_ids(experimental=experimental_rules, oast=config.oast)
         if plugin_id not in declined
     )
-    disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES if rule.plugin_id not in oast_ids]
+    # SPIKE (branch spike/nuclei, nunca na main): religa regras pelo ambiente, p.ex. 40034,40035.
+    reenabled = {int(x) for x in os.environ.get("SPIKE_ZAP_REENABLE", "").split(",") if x}
+    disabled = [
+        rule.plugin_id
+        for rule in DEFAULT_DISABLED_RULES
+        if rule.plugin_id not in oast_ids and rule.plugin_id not in reenabled
+    ]
     disabled.extend(
         rule.plugin_id for rule in EXPERIMENTAL_RULES if rule.plugin_id not in experimental_ids
     )
