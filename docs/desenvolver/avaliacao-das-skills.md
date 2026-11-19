@@ -1,6 +1,6 @@
 # Como saber se uma skill piorou
 
-Roteiro curto, para rodar **antes de um release e sempre que mudar** uma skill (`.claude/skills/`), um subagente, a documentação que elas citam ou uma mensagem de erro da CLI. Ele complementa a [avaliação cega](../../evals/README.md) (repetível, com nota automática; ADR 0014): aqui é o ensaio rápido, por uma pessoa.
+Roteiro curto, para rodar **antes de um release e sempre que mudar** uma skill (`plugin/skills/`), um subagente, a documentação que elas citam ou uma mensagem de erro da CLI. Ele complementa a [avaliação cega](../../evals/README.md) (repetível, com nota automática; ADR 0014): aqui é o ensaio rápido, por uma pessoa.
 
 ## Antes de mudar
 

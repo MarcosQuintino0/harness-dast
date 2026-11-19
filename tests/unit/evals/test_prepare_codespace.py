@@ -14,7 +14,7 @@ def test_prepare_entrega_copia_cega_sem_gabarito_git_ou_skills_extras(
     repo: Path, out: Path
 ) -> None:
     for skill in (*USE_SKILLS, "dev-blind-eval", "private-notes"):
-        write(repo / ".claude" / "skills" / skill / "SKILL.md", "orientação")
+        write(repo / "plugin" / "skills" / skill / "SKILL.md", "orientação")
     write(repo / "src/nested/.git/HEAD", "histórico aninhado")
     write(repo / "docs/desenvolver/rodada-cega-codespaces.md", "guia do coordenador")
 

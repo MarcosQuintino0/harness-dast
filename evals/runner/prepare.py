@@ -144,11 +144,19 @@ repositorio original."""
 
 
 def harden_settings(workspace: Path) -> None:
-    """Acrescenta `EXTRA_DENY` ao `.claude/settings.json` da copia (antes da base do git)."""
+    """Acrescenta `EXTRA_DENY` ao `.claude/settings.json` da copia (antes da base do git).
+
+    Tambem aponta o hook para onde o guard cai no workspace (`.claude/hooks/guard.py`).
+    """
     path = workspace / ".claude" / "settings.json"
     settings = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
     deny = settings.setdefault("permissions", {}).setdefault("deny", [])
     deny.extend(rule for rule in EXTRA_DENY if rule not in deny)
+    for group in settings.get("hooks", {}).get("PreToolUse", []):
+        for hook in group.get("hooks", []):
+            hook["command"] = hook.get("command", "").replace(
+                "plugin/hooks/guard.py", ".claude/hooks/guard.py"
+            )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 

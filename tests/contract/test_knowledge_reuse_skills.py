@@ -11,7 +11,7 @@ SKILLS = ("onboard-product", "fix-reachability", "run-scan", "test-product")
 
 
 def _section(name: str) -> str:
-    text = (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    text = (ROOT / "plugin" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
     return text.split("## Conhecimento em nova execução", 1)[1].split("\n## ", 1)[0].lower()
 
 
@@ -74,7 +74,7 @@ def test_fluxo_de_captura_e_diario_estao_documentados() -> None:
 def test_novos_textos_nao_vazam_termos_dos_casos() -> None:
     paths = [
         ROOT / "docs/referencia/knowledge.md",
-        *(ROOT / ".claude/skills" / n / "SKILL.md" for n in SKILLS),
+        *(ROOT / "plugin/skills" / n / "SKILL.md" for n in SKILLS),
     ]
     terms = []
     for case in (ROOT / "evals/cases").glob("*/case.yml"):

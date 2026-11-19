@@ -26,7 +26,7 @@ def test_strategy_plans_and_qa_evidence_stay_out_of_blind_copy(repo: Path, out: 
 
 
 def test_strategy_skill_with_answer_key_term_is_rejected(repo: Path, out: Path) -> None:
-    write(repo / ".claude/skills/onboard-product/SKILL.md", "segredo-do-gabarito")
+    write(repo / "plugin/skills/onboard-product/SKILL.md", "segredo-do-gabarito")
 
     with pytest.raises(EvalError, match="termo"):
         prepare("mini", "vulnerable", 1, out, source=repo, cases_dir=CASES)

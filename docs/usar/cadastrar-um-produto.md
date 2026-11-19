@@ -84,9 +84,9 @@ Regras: nunca escreva senha em arquivo do repositório, em prompt nem em chat; n
 
 ## 4. Abrir o Claude Code
 
-Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido, rode `claude`. Se usar referências `env:`, defina as variáveis no terminal antes de abrir o agente. O Claude Code carrega as skills de `.claude/skills/` e aplica as permissões da camada 0 de `.claude/settings.json`. A mesma configuração registra uma segunda camada, o hook `PreToolUse`, que verifica chamadas de shell e de ferramentas de arquivo.
+Na raiz deste repositório, com `HDAST_PRODUCTS_DIR` definido, rode `claude`. Se usar referências `env:`, defina as variáveis no terminal antes de abrir o agente. No clone, abra com `claude --plugin-dir plugin/`: o Claude Code carrega as skills e os subagentes de `plugin/` e aplica as permissões da camada 0 de `.claude/settings.json`. A mesma configuração registra uma segunda camada, o hook `PreToolUse`, que verifica chamadas de shell e de ferramentas de arquivo.
 
-Com `uv` no PATH e Python 3.12 disponível, o hook usa `uv run --no-project --quiet python "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"` em Windows e Linux. O Claude Code v2.1.295 ou posterior bloqueia falhas do lançador e tempo esgotado com `onFailure: block`. `--no-project` evita sincronizar as dependências do projeto a cada chamada. Ao detectar uma ação reservada, entrada inválida ou falha de processamento, o hook devolve código `2` e o Claude Code comunica o motivo ao agente. [ADR 0111](../decisoes/0111-hook-pretooluse-segunda-camada.md).
+Com `uv` no PATH e Python 3.12 disponível, o hook usa `uv run --no-project --quiet python "${CLAUDE_PROJECT_DIR}/plugin/hooks/guard.py"` em Windows e Linux. O Claude Code v2.1.295 ou posterior bloqueia falhas do lançador e tempo esgotado com `onFailure: block`. `--no-project` evita sincronizar as dependências do projeto a cada chamada. Ao detectar uma ação reservada, entrada inválida ou falha de processamento, o hook devolve código `2` e o Claude Code comunica o motivo ao agente. [ADR 0111](../decisoes/0111-hook-pretooluse-segunda-camada.md).
 
 - O hook barra os comandos humanos, inclusive `hdast cleanup --dry-run`. Quem roda a simulação é você. [Limpeza de dados](limpeza-de-dados.md).
 - O hook detecta clientes de rede conhecidos por caminho absoluto, dentro de `sh -c` e em formas listadas de código inline. Scripts que montam endereços em tempo de execução podem escapar. O isolamento de rede é a barreira física contra HTTP direto ao alvo e a avaliação cega verifica o transcript.
@@ -128,7 +128,7 @@ Antes de testar e após alterar o perfil, consulte `hdast profile approval <prod
 
 ## 6. Os prompts
 
-**Um pedido só (skill `test-product`).** O agente conduz as quatro etapas abaixo. Veja [quando seguir com cobertura parcial e quando parar](../../.claude/skills/test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
+**Um pedido só (skill `test-product`).** O agente conduz as quatro etapas abaixo. Veja [quando seguir com cobertura parcial e quando parar](../../plugin/skills/test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
 
 Um [achado](../referencia/glossario.md#achado) é um sinal de problema que aparece no relatório para revisão.
 

@@ -10,6 +10,7 @@ _QUIET = ["-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
 PROTECTED = (
     "src/",
     ".claude/",
+    "plugin/",
     "docker/",
     "compose.yaml",
     "lab/",

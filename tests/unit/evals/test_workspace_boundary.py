@@ -22,6 +22,9 @@ USE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-finding
         "sites/index.html",
         "translate-app/app.py",
         ".claude/skills/dev-new/SKILL.md",
+        "plugin/skills/dev-new/SKILL.md",
+        "plugin/.claude-plugin/plugin.json",
+        "plugin/hooks/hooks.json",
         "CHANGELOG.md",
         "docs/roadmap.md",
         "docs/comecar/primeiro-uso.md",
@@ -107,3 +110,39 @@ def test_shared_rules_are_protected_against_tampering(repo: Path, out: Path) -> 
 
     assert "AGENTS.md" in changed_protected_paths(dirs.workspace)
     assert "AGENTS.md" in git(dirs.workspace, "diff", "--name-only")
+
+
+def test_plugin_is_delivered_as_the_workspace_claude_folder(repo: Path, out: Path) -> None:
+    write(repo / "plugin/skills/run-scan/SKILL.md", "skill")
+    write(repo / "plugin/agents/spec-analyst.md", "agente")
+    write(repo / "plugin/hooks/guard.py", "guard")
+    write(repo / "plugin/hooks/hooks.json", "{}")
+    write(repo / "plugin/.claude-plugin/plugin.json", "{}")
+    write(
+        repo / ".claude/settings.json",
+        json.dumps(
+            {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "hooks": [
+                                {"command": 'python "${CLAUDE_PROJECT_DIR}/plugin/hooks/guard.py"'}
+                            ]
+                        }
+                    ]
+                }
+            }
+        ),
+    )
+
+    dirs = make_round(repo, out)
+
+    ws = dirs.workspace
+    assert (ws / ".claude/skills/run-scan/SKILL.md").is_file()
+    assert (ws / ".claude/agents/spec-analyst.md").is_file()
+    assert (ws / ".claude/hooks/guard.py").is_file()
+    assert not (ws / "plugin").exists()
+    settings = json.loads((ws / ".claude/settings.json").read_text(encoding="utf-8"))
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    assert command.endswith('.claude/hooks/guard.py"')
+    assert "plugin/" not in command

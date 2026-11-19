@@ -24,7 +24,7 @@ O OpenAPI está em <caminho>. A carta de autorização está em <caminho>.
 É ambiente de teste com dados sintéticos e a autorização vale agora.
 ```
 
-O agente conduz o cadastro e o teste pela CLI. Você aprova o escopo no seu terminal e revisa o relatório. Siga o [guia de cadastro](../usar/cadastrar-um-produto.md) e consulte [quando seguir com cobertura parcial e quando parar](../../.claude/skills/test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
+O agente conduz o cadastro e o teste pela CLI. Você aprova o escopo no seu terminal e revisa o relatório. Siga o [guia de cadastro](../usar/cadastrar-um-produto.md) e consulte [quando seguir com cobertura parcial e quando parar](../../plugin/skills/test-product/SKILL.md#se-der-x-faça-y-quando-parar-e-chamar-a-pessoa).
 
 ## Fazer passo a passo (opcional)
 
