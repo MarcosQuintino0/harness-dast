@@ -14,7 +14,8 @@ from typing import Final
 
 from harness_dast.domain.letter_collect import LetterIssue
 from harness_dast.domain.letter_defaults import MinimumDefault
-from harness_dast.domain.nuclei_approval import NUCLEI_INACTIVE_OPTIONS
+from harness_dast.domain.nuclei_approval import NUCLEI_INACTIVE_OPTIONS, NUCLEI_WIDE_PATHS_LINE
+from harness_dast.domain.nuclei_permissions import nuclei_permissions
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_defaults import RequestDefault
 
@@ -29,6 +30,7 @@ OUTCOMES_ATTACK_EXTENDED: Final = "OUTCOMES_ATTACK_EXTENDED"
 UPLOAD_SCAN_AUTHORIZED: Final = "UPLOAD_SCAN_AUTHORIZED"
 ATTACK_FLAG_AUTHORIZED: Final = "ATTACK_FLAG_AUTHORIZED"
 NUCLEI_OPTION_INACTIVE: Final = "NUCLEI_OPTION_INACTIVE"
+NUCLEI_WRITES_AUTHORIZED: Final = "NUCLEI_WRITES_AUTHORIZED"
 MINIMUM_DEFAULT_APPLIED: Final = "MINIMUM_DEFAULT_APPLIED"
 REQUEST_DEFAULT_APPLIED: Final = "REQUEST_DEFAULT_APPLIED"
 
@@ -235,24 +237,40 @@ def _attack_flag_warnings(profile: ProductProfile) -> list[LetterIssue]:
 
 def _nuclei_option_warnings(profile: ProductProfile) -> tuple[LetterIssue, ...]:
     checks = profile.extra_checks
-    if not checks.nuclei and (checks.nuclei_login or checks.nuclei_wide_paths):
-        return (
+    if not checks.nuclei:
+        if checks.nuclei_login or checks.nuclei_wide_paths:
+            return (
+                LetterIssue(
+                    field="attack.nuclei",
+                    code=NUCLEI_OPTION_INACTIVE,
+                    message=NUCLEI_INACTIVE_OPTIONS,
+                ),
+            )
+        return ()
+    warnings: list[LetterIssue] = []
+    allowed = nuclei_permissions(profile)
+    if allowed.writes:
+        delete = " e apagar (`DELETE`)" if allowed.delete else ""
+        warnings.append(
             LetterIssue(
-                field="attack.nuclei", code=NUCLEI_OPTION_INACTIVE, message=NUCLEI_INACTIVE_OPTIONS
-            ),
+                field="attack.nuclei",
+                code=NUCLEI_WRITES_AUTHORIZED,
+                message=(
+                    f"O Nuclei poderá gravar{delete} no ambiente, porque as três escritas do "
+                    "perfil estão ligadas. Confirme com o dono do produto que o ambiente é de "
+                    "teste com dados sintéticos."
+                ),
+            )
         )
-    if checks.nuclei and checks.nuclei_wide_paths:
-        return (
+    if checks.nuclei_wide_paths:
+        warnings.append(
             LetterIssue(
                 field="attack.nuclei_wide_paths",
                 code=ATTACK_FLAG_AUTHORIZED,
-                message=(
-                    "A carta declara autorização para qualquer caminho das origens aprovadas "
-                    "com o Nuclei. Os caminhos negados continuam negados."
-                ),
-            ),
+                message=NUCLEI_WIDE_PATHS_LINE,
+            )
         )
-    return ()
+    return tuple(warnings)
 
 
 def _technology_warning(profile: ProductProfile) -> tuple[LetterIssue, ...]:

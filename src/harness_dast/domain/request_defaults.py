@@ -1,11 +1,12 @@
 """Tabela de padrões do modo pedido mínimo da carta (ADR 0120).
 
-Na carta `kind: request`, a pessoa responde só quatro perguntas (portões e dono, endereço,
-força, gravação no ambiente). A CLI completa o resto com os valores desta tabela, e cada um
-vai escrito de forma explícita no `target.yml`, com aviso e comentário no cabeçalho: o que o
-padrão ligou entra na impressão digital e só vale depois da aprovação humana. Os valores
-padrão do modelo do perfil NÃO mudam. Resposta explícita da pessoa vence o padrão, inclusive
-para desligar; a única exceção é `scope.deny_paths`, que a pessoa só soma à sugestão.
+Na carta `kind: request`, a pessoa responde só cinco perguntas (portões e dono, endereço,
+força, gravação no ambiente e caminhos amplos do Nuclei). A CLI completa o resto com os valores
+desta tabela, e cada um vai escrito de forma explícita no `target.yml`, com aviso e comentário
+no cabeçalho: o que o padrão ligou entra na impressão digital e só vale depois da
+aprovação humana. Os valores padrão do modelo do perfil NÃO mudam. Resposta explícita da
+pessoa vence o padrão, inclusive para desligar; a única exceção é `scope.deny_paths`, que a
+pessoa só soma à sugestão.
 
 Os valores de carga (`limits.*`) são pontos de partida a calibrar no laboratório (ADR 0120,
 fase D). Este módulo é puro.
@@ -143,6 +144,18 @@ REQUEST_DEFAULTS: Final[Mapping[str, RequestDefault]] = MappingProxyType(
                 "extra_checks.inventory",
                 True,
                 "inventaria versões irmãs e documentação exposta, só dentro do escopo",
+            ),
+            _static(
+                "extra_checks.nuclei",
+                True,
+                "liga o Nuclei, segundo motor de verificações conhecidas da comunidade, atrás da "
+                "cerca de origens aprovadas (ADR 0122)",
+            ),
+            _static(
+                "extra_checks.nuclei_login",
+                True,
+                "o Nuclei entra com a conta de teste do perfil, pelo arquivo de segredos "
+                "(ADR 0122)",
             ),
             _static(
                 "scan.pacing",

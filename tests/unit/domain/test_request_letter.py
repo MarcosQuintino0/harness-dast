@@ -8,9 +8,9 @@ import pytest
 from harness_dast.adapters.storage.strict_yaml import parse_profile_yaml
 from harness_dast.domain.auth import PasswordLoginAuth
 from harness_dast.domain.errors import ConfigError, ScopeViolation
-from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_review import LetterReview, review_letter
+from harness_dast.domain.nuclei_permissions import nuclei_permissions
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_defaults import REQUEST_DEFAULTS
 from harness_dast.domain.request_letter import RequestInputs
@@ -155,19 +155,102 @@ def test_perfil_valida_e_traz_cada_padrao_em_aviso_e_cabecalho_quando_a_carta_e_
     assert profile.environment.name == "teste"
 
 
-def test_pedido_minimo_sem_carta_nao_declara_autorizacao_para_nuclei() -> None:
+def test_pedido_minimo_liga_nuclei_e_login_e_deixa_caminhos_amplos_desligados_por_padrao() -> None:
     review = _review(_data())
 
-    assert all(not getattr(_profile(review).extra_checks, name) for name in NUCLEI_FIELDS)
+    checks = _profile(review).extra_checks
+    assert (checks.nuclei, checks.nuclei_login, checks.nuclei_wide_paths) == (True, True, False)
+    assert {"extra_checks.nuclei", "extra_checks.nuclei_login"} <= _fields(
+        review, "REQUEST_DEFAULT_APPLIED"
+    )
+    assert "extra_checks.nuclei_wide_paths" not in _fields(review, "REQUEST_DEFAULT_APPLIED")
+    for field in ("extra_checks.nuclei", "extra_checks.nuclei_login"):
+        assert f"# Padrão do pedido mínimo: {field} = true | " in (review.profile_text or "")
 
 
-@pytest.mark.parametrize("name", NUCLEI_FIELDS)
-def test_pedido_minimo_exige_frase_da_carta_quando_nuclei_e_solicitado(name: str) -> None:
-    review = _review(_data(**{name: answer(True, "pessoa")}))
+@pytest.mark.parametrize("name", ["nuclei", "nuclei_login"])
+def test_pedido_minimo_desliga_nuclei_quando_a_pessoa_responde_falso(name: str) -> None:
+    review = _review(_data(**{name: answer(False, "pessoa")}))
 
-    assert [(issue.field, issue.code) for issue in review.issues] == [
-        (f"attack.{name}", "ATTACK_FLAG_NEEDS_LETTER")
+    assert getattr(_profile(review).extra_checks, name) is False
+    assert f"extra_checks.{name}" not in _fields(review, "REQUEST_DEFAULT_APPLIED")
+
+
+def test_pedido_minimo_nao_aplica_padrao_de_login_quando_a_pessoa_desliga_o_nuclei() -> None:
+    review = _review(_data(nuclei=answer(False, "pessoa")))
+
+    checks = _profile(review).extra_checks
+    assert (checks.nuclei, checks.nuclei_login) == (False, False)
+    assert "NUCLEI_OPTION_INACTIVE" not in {w.code for w in review.warnings}
+
+
+def test_pergunta_5_liga_caminhos_amplos_quando_a_resposta_e_sim() -> None:
+    review = _review(_data(nuclei_wide_paths=answer(True, "pessoa")))
+
+    checks = _profile(review).extra_checks
+    assert (checks.nuclei, checks.nuclei_wide_paths) == (True, True)
+    assert _fields(review, "ATTACK_FLAG_AUTHORIZED") >= {"attack.nuclei_wide_paths"}
+    assert "extra_checks.nuclei_wide_paths" not in _fields(review, "REQUEST_DEFAULT_APPLIED")
+
+
+@pytest.mark.parametrize("reply", [answer(False, "pessoa"), UNKNOWN, None])
+def test_pergunta_5_deixa_caminhos_amplos_desligados_quando_a_resposta_nao_e_sim(
+    reply: dict[str, Any] | None,
+) -> None:
+    data = _data() if reply is None else _data(nuclei_wide_paths=reply)
+
+    review = _review(data)
+
+    assert _profile(review).extra_checks.nuclei_wide_paths is False
+    assert review.issues == ()
+
+
+def test_pergunta_5_com_texto_e_recusada_quando_a_resposta_nao_e_booleana() -> None:
+    review = _review(_data(nuclei_wide_paths=answer("sim", "pessoa")))
+
+    assert [(i.field, i.code) for i in review.issues] == [
+        ("attack.nuclei_wide_paths", "INVALID_VALUE")
     ]
+
+
+def test_pergunta_5_sim_nao_liga_a_escrita_do_nuclei_quando_a_pergunta_4_nao_e_sim() -> None:
+    profile = _profile(_review(_data(nuclei_wide_paths=answer(True, "pessoa"))))
+
+    assert nuclei_permissions(profile) == (False, False, True)
+
+
+def test_escrita_do_nuclei_so_liga_com_a_pergunta_4_quando_o_pedido_e_minimo() -> None:
+    sem = _profile(_review(_data()))
+    com = _profile(_review(_data(allow_data_writes=answer(True, "pessoa"))))
+
+    assert nuclei_permissions(sem).writes is False
+    assert nuclei_permissions(com).writes is True
+    assert nuclei_permissions(com).delete is False
+
+
+def test_apagar_do_nuclei_exige_pergunta_4_e_pedido_explicito_de_delete() -> None:
+    delete = {"allow_delete": answer(True, "pessoa")}
+    writes = answer(True, "pessoa")
+    only_writes = _profile(_review(_data(allow_data_writes=writes)))
+    both = _data(allow_data_writes=writes)
+    both["scope"] = delete
+    only_delete = _data()
+    only_delete["scope"] = delete
+
+    assert nuclei_permissions(only_writes).delete is False
+    assert nuclei_permissions(_profile(_review(both))).delete is True
+    assert nuclei_permissions(_profile(_review(only_delete))).delete is False
+
+
+def test_carta_assinada_nao_liga_nuclei_por_padrao() -> None:
+    data = valid_letter_data()
+    data["authorization"]["valid_until"] = answer("2027-06-30")
+    data["scope"]["deny_paths"] = answer(["/api/admin/**"])
+
+    review = review_letter(Letter.from_data(data), "demo", TODAY)
+
+    assert review.profile_text is not None
+    assert "nuclei" not in review.profile_text
 
 
 def test_perfil_usa_o_login_e_as_contas_da_carta_quando_a_carta_e_minima() -> None:

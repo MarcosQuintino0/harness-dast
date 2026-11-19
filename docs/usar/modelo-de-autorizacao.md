@@ -265,7 +265,7 @@ O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, os demais cam
 
 ## Pedido mínimo (`kind: request`)
 
-Quando o QA entrega só o Swagger, as contas e a documentação de negócio, sem carta assinada, a carta leva `kind: request` e a pessoa responde **só quatro perguntas** ([ADR 0120](../decisoes/0120-pedido-minimo-com-padroes-e-aprovacao.md)). A CLI completa o resto com uma tabela de padrões fixa no código, escreve **cada valor de forma explícita** no `target.yml` e a pessoa o aprova no `hdast setup`. Os padrões do modelo do perfil não mudam, e perfis e aprovações existentes continuam válidos.
+Quando o QA entrega só o Swagger, as contas e a documentação de negócio, sem carta assinada, a carta leva `kind: request` e a pessoa responde **só cinco perguntas** ([ADR 0120](../decisoes/0120-pedido-minimo-com-padroes-e-aprovacao.md)). A CLI completa o resto com uma tabela de padrões fixa no código, escreve **cada valor de forma explícita** no `target.yml` e a pessoa o aprova no `hdast setup`. Os padrões do modelo do perfil não mudam, e perfis e aprovações existentes continuam válidos.
 
 | # | Pergunta | Onde vai na carta | Com "não" ou "não sei" |
 | --- | --- | --- | --- |
@@ -273,8 +273,9 @@ Quando o QA entrega só o Swagger, as contas e a documentação de negócio, sem
 | 2 | Endereço do ambiente de teste (o `servers` do Swagger só aparece como sugestão) | `environment.base_url` | **Para o cadastro** |
 | 3 | Força do ataque: `LOW`, `MEDIUM` ou `HIGH` | `attack.strength` | `LOW` |
 | 4 | O ambiente pode receber dados gravados pela ferramenta? | `attack.allow_data_writes` (`source: pessoa`, sem frase) | As três escritas ficam desligadas |
+| 5 | O Nuclei pode testar qualquer endereço do produto, inclusive fora do Swagger? Escrita só se você disse sim à pergunta 4 | `attack.nuclei_wide_paths` (`source: pessoa`, sem frase) | Fica desligada (só o sim explícito liga) |
 
-Além das quatro respostas, a carta traz `environment.openapi` (o OpenAPI, **ao lado da carta**: a CLI lê o escopo dele; o mesmo nome vale depois dentro da pasta do produto) e `auth` com tipo, rota do login e as contas (apelido, papel e **nome** do segredo; nunca o valor). Carta mínima:
+Além das cinco respostas, a carta traz `environment.openapi` (o OpenAPI, **ao lado da carta**: a CLI lê o escopo dele; o mesmo nome vale depois dentro da pasta do produto) e `auth` com tipo, rota do login e as contas (apelido, papel e **nome** do segredo; nunca o valor). Carta mínima:
 
 ```yaml
 schema_version: 1
@@ -318,6 +319,7 @@ attack:
 | `environment.name` | `teste` |
 | `scan.strength` | A resposta 3; sem resposta, `LOW` |
 | `scan.include_outcomes` | `not_found`, `validation_error`, `conflict`, `logical_failure` e `client_error` |
+| `extra_checks.nuclei`, `extra_checks.nuclei_login` | Ligados (ADR 0122). Se a pessoa desliga o `nuclei`, o login não recebe padrão. `extra_checks.nuclei_wide_paths` não tem padrão: só o "sim" da pergunta 5 o liga |
 | `scan.inject_headers`, `scan.oast`, `extra_checks.*` | Ligados. Sem o serviço de retorno, a varredura segue sem OAST |
 | `scan.pacing` | `proxy` |
 | `authz.allow_writes`, `negative.allow_writes`, `scan.allow_upload_scan` | **Nunca por padrão.** Ligam todos com a pergunta 4 `true`; uma chave individual explícita (`allow_authz_writes`, `allow_invalid_input_writes`, `allow_upload_scan`) vence a agrupada |

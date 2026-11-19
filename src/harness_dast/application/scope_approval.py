@@ -151,9 +151,7 @@ class ScopeApprovals:
             ConfigError: Produto ou perfil inválido.
         """
         profile = self._profiles.load(product)
-        return info_of(
-            current_check(self._store, profile), notes=describe_nuclei(profile.extra_checks)
-        )
+        return info_of(current_check(self._store, profile), notes=describe_nuclei(profile))
 
     def approve(
         self, product: str, *, interactive: bool, setup_defaults: tuple[str, ...] | None = None

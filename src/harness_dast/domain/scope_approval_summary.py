@@ -315,7 +315,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_outcomes_lines(profile),
         *_upload_lines(profile),
         *_v112_lines(profile),
-        *describe_nuclei(profile.extra_checks),
+        *describe_nuclei(profile),
         *_authz_lines(profile),
         *_negative_lines(profile),
         *_cleanup_lines(profile),

@@ -91,14 +91,15 @@ def test_both_approval_summaries_describe_the_declared_nuclei_options(
     expected = (
         f"Nuclei: verificações conhecidas da comunidade, versão "
         f"{nuclei_version.TEMPLATES_VERSION} dos modelos. "
-        f"Com login: {login_word}. Endereços fora do Swagger: {wide_word}."
+        f"Com login: {login_word}. Endereços fora do Swagger: {wide_word}. "
+        "Escrita: não. Apagar: não."
     )
 
     for summary in (approval_notes(profile, ()), describe_protection(profile)):
         assert expected in summary
         assert (
-            "A declaração abrange qualquer caminho das origens aprovadas. "
-            "Os caminhos negados continuam negados." in summary
+            "O Nuclei pode consultar qualquer caminho das origens aprovadas, mesmo fora do "
+            "Swagger. Os caminhos negados continuam negados." in summary
         ) is wide
 
 
@@ -118,3 +119,28 @@ def test_both_approval_summaries_omit_nuclei_when_all_flags_are_off() -> None:
         "Nuclei:" not in line
         for line in (*approval_notes(profile, ()), *describe_protection(profile))
     )
+
+
+def _writing_profile(*, delete: bool) -> ProductProfile:
+    data = valid_profile_data()
+    data["extra_checks"] = {"nuclei": True}
+    data["authz"] = {"allow_writes": True}
+    data["negative"] = {"allow_writes": True}
+    data["scan"] = {"allow_upload_scan": True}
+    if delete:
+        data["scope"]["allow"][0]["methods"] = ["GET", "POST", "DELETE"]
+    return ProductProfile.from_data(data)
+
+
+@pytest.mark.parametrize(("delete", "delete_word"), [(False, "não"), (True, "sim")])
+def test_both_approval_summaries_show_write_and_delete_when_the_three_writes_are_on(
+    delete: bool, delete_word: str
+) -> None:
+    profile = _writing_profile(delete=delete)
+
+    for summary in (approval_notes(profile, ()), describe_protection(profile)):
+        assert any(
+            line.endswith(f"Escrita: sim. Apagar: {delete_word}.")
+            for line in summary
+            if line.startswith("Nuclei:")
+        )
