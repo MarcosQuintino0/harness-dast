@@ -7,6 +7,7 @@
 | [Como funciona](como-funciona/) | Finalidade, arquitetura e controles de operação para quem quer entender o sistema. |
 | [Referência](referencia/) | Comandos, formatos, campos e códigos de saída. Consulte também [`demo`](referencia/cli.md#hdast-demo) e [`retestar`](referencia/cli.md#hdast-retestar). |
 | [Desenvolver](desenvolver/) | Mapa de módulos, estratégia de testes e avaliação de skills para quem modifica o projeto. |
+| [Empresa](empresa/README.md) | [QA que testa](empresa/qa-que-testa.md), [QA que melhora](empresa/qa-que-melhora.md) e [importação no GitLab](empresa/importar-no-gitlab.md). |
 | [Decisões](decisoes/README.md) | ADRs com o contexto, as alternativas e as consequências das decisões de arquitetura. |
 | [Gravações](media/README.md) | Roteiros de terminal para a demo e o reteste no VAmPI local. |
 | [Arquivo](arquivo/) | Histórico de planos, revisões, pesquisas, experimentos e desenhos para consulta sobre entregas passadas. Para operar, siga os guias vigentes. |
