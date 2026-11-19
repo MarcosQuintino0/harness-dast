@@ -125,7 +125,8 @@ class InitFromLetter:
         Com pendências, nada é criado e o resultado (`ready=False`) as lista campo a campo.
 
         Raises:
-            ConfigError: Como em `review`, ou o produto já existe (nada é sobrescrito).
+            ConfigError: Como em `review`, ou a pasta do produto já tem arquivo do perfil
+            (nada é sobrescrito; uma pasta só com arquivos do agente é aceita).
         """
         review = self.review(product, letter_path)
         if not review.ready:

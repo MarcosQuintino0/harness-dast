@@ -331,6 +331,26 @@ def test_init_from_letter_never_overwrites_an_existing_product(
     assert (products / "demo" / "target.yml").read_text(encoding="utf-8") == "meu trabalho"
 
 
+def test_init_from_letter_accepts_a_folder_that_only_has_agent_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Visto na rodada cega de 2026-11-19: o diário do agente nasce antes do init e o recusava.
+    products = _products(tmp_path)
+    (products / "demo").mkdir()
+    (products / "demo" / "decision-log.md").write_text("diário do agente", encoding="utf-8")
+    letter = _letter_file(tmp_path, valid_letter_data())
+
+    code, envelope = _run_json(
+        capsys, "init", "demo", "--from-letter", str(letter), "--products-dir", str(products)
+    )
+
+    assert code == ExitCode.OK
+    assert "target.yml" in envelope["data"]["files"]
+    assert "decision-log.md" not in envelope["data"]["files"]
+    assert (products / "demo" / "target.yml").is_file()
+    assert (products / "demo" / "decision-log.md").read_text(encoding="utf-8") == "diário do agente"
+
+
 def test_init_from_letter_fails_when_the_letter_file_does_not_exist(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
