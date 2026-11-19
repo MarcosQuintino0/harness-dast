@@ -55,7 +55,7 @@ class SystemHost:
         Args:
             base_env: Ambiente herdado pelos processos filhos (PATH, HOME...).
             runner: Execução de processo; injetada nos testes.
-            repo_root: Pasta do `compose.yaml`; `None` procura no pacote e no clone.
+            repo_root: Pasta do `compose.yaml`; `None` usa o localizador da pilha.
         """
         self._env = dict(base_env)
         self._runner = runner
