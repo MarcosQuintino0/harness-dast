@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Pacote P5 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), os achados do Nuclei no relato:
+  - o `report` lê o `nuclei.json` e o `findings.json` ganha o campo `nuclei` (aditivo, `null` sem o estágio) e `summary.nuclei_by_severity`; o `report.md` e o `report.html` ganham a seção "Nuclei" com os achados por gravidade (modelo, método, caminho, ocorrências; do valor extraído só a contagem e os bytes) e a seção "Tecnologias identificadas", que não vira achado nem entra no gate. O gate de severidade soma os achados do Nuclei;
+  - a triagem casa o achado do Nuclei pela impressão digital (`U-...`), como os demais, e a anotação não vira órfã;
+  - o `confirm` repete o mesmo modelo pelo caso de uso do Nuclei (`NucleiRequest.persist: false`, o `nuclei.json` original não é sobrescrito) e registra `reproduced` ou `inconclusive` (receita `nuclei_template`); o relatório chama isso de reprodução, nunca de confirmação independente, e `likely_false_positive` nunca sai daqui;
+  - o reteste aceita a impressão digital de um achado do Nuclei em `--finding`, classifica cada um em `retest.json` (`origin: nuclei`) e, sem achado elegível do ZAP, roda só o Nuclei (`RunRequest.nuclei_only`, `options.nuclei_only` no `run.json`, sobre a pasta do `preflight`). O `--only` do reteste deixa de pular o Nuclei quando há modelos pedidos (antes a etapa nunca rodava no reteste);
+  - o painel soma o Nuclei nas contagens, lista a falha grave com origem `nuclei` e mostra o bloco "Nuclei" na aba Falhas (mínimo, painel congelado). Referência em [relatorio.md](docs/referencia/relatorio.md) e [finding-schema.md](docs/referencia/finding-schema.md).
 - Pacote P4 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), o Nuclei nos comandos:
   - `hdast nuclei PRODUTO --run RUN_ID [--account APELIDO]` roda só o Nuclei, com as travas do estágio (aprovação do escopo, janela, trava da pilha e `KILL`) e o envelope JSON de sempre; achado é dado (saída `0`), parada por janela, prazo ou `KILL` sai com `3` e devolve o parcial;
   - o `run` ganha a etapa `nuclei`, depois do `scan` e antes do `authz`, que só roda com `extra_checks.nuclei` no perfil e sem `--no-nuclei`: `--nuclei` nunca liga o motor, e `--only` e `--skip-scan` o pulam. Falha ou parada segue o padrão do `authz`. O `run.json` passa a ter sete estágios e os campos `nuclei_findings_by_severity`, `nuclei_templates_selected` e `nuclei_templates_excluded`, e `options.nuclei`;
