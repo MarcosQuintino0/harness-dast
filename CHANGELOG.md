@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Pacote P3 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), caso de uso e runner do Nuclei, ainda sem comando na CLI:
+  - o caso de uso `nuclei` recusa rodar sem `extra_checks.nuclei`, sem a imagem ou sem a política do perfil publicada na `scope-proxy-nuclei`; escolhe os modelos pelo domínio, monta os argumentos fixos e grava só `nuclei.json` (projeção por lista branca, sem `curl-command`, `request`, `response` nem valores extraídos);
+  - o login obtém o token pelo `AccountSession` (consome o `login_budget`) e o entrega só pelo arquivo `-sf` (YAML com valores entre aspas de JSON, `0400` e dono uid 10002 quando o sistema permite, em `/dev/shm` no Linux), apagado num `finally` em sucesso, falha, prazo e `KILL`;
+  - o motor roda pelo `run --rm` com a lista de modelos e o `-sf` montados só leitura, consulta o `KILL`, a janela e o prazo durante a execução e derruba o contêiner pelo nome (`ComposeRunner.kill_container`); o JSONL bruto fica num diretório privado e é sempre descartado;
+  - o leitor do JSONL conta linhas malformadas e nunca registra o conteúdo de uma linha.
 - Pacote P6 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), imagem e cerca do Nuclei:
   - `docker/nuclei/Dockerfile` fixa a base por digest e baixa o binário v3.11.1 e o catálogo v10.5.1 com SHA-256 conferido (uid 10002, catálogo somente leitura);
   - `scripts/build_nuclei_manifest.py` gera o manifesto dos modelos sem rede e sem extrair o ZIP, e `adapters/nuclei/manifest_reader.py` o lê do pacote;
