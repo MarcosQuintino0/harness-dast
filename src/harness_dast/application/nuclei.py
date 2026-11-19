@@ -82,7 +82,13 @@ from harness_dast.domain.nuclei_version import NUCLEI_VERSION, TEMPLATES_VERSION
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run_ref import require_run_id
 
-__all__ = ["NUCLEI_CONCURRENCY", "NUCLEI_PROXY_URL", "Nuclei", "NucleiRequest"]
+__all__ = [
+    "NUCLEI_CONCURRENCY",
+    "NUCLEI_PROXY_URL",
+    "NUCLEI_RUNNER_GRACE_SECONDS",
+    "Nuclei",
+    "NucleiRequest",
+]
 
 _log = structlog.get_logger()
 
@@ -90,6 +96,10 @@ NUCLEI_PROXY_URL = "http://scope-proxy-nuclei:3128"
 """Endereço da segunda cerca na rede interna (`compose.yaml`)."""
 NUCLEI_CONCURRENCY = 5
 """Teto de modelos em paralelo (`-c`); abaixo disso quando o ritmo do perfil é menor."""
+NUCLEI_RUNNER_GRACE_SECONDS = 15
+"""Folga entre o prazo do portão (KILL, janela, prazo do perfil) e o do contêiner. O portão para
+primeiro e devolve a saída parcial; o prazo do contêiner é só a rede de segurança, que o motor
+impõe se o portão falhar. Sem a folga, os dois estouravam juntos e o erro do runner vencia."""
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 _AUTH_HEADER_FALLBACK = "Authorization"
 
@@ -312,7 +322,7 @@ class Nuclei:
             args=args,
             templates=plan.selection.paths,
             secrets_path=secret_path,
-            timeout_seconds=max(1, int(remaining)),
+            timeout_seconds=max(1, int(remaining)) + NUCLEI_RUNNER_GRACE_SECONDS,
             container_name=f"hdast-nuclei-{digest}",
         )
 
