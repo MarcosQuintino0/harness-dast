@@ -20,9 +20,14 @@ from harness_dast.application.common_ports import (
     Sleeper,
     TargetClient,
 )
-from harness_dast.application.confirmation_ports import ConfirmationArtifacts, ConfirmationStore
+from harness_dast.application.confirmation_ports import (
+    ConfirmationArtifacts,
+    ConfirmationStore,
+    NucleiReproducer,
+)
 from harness_dast.application.dispatcher import OperationDispatcher
 from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.nuclei import NucleiRequest
 from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.authz.result import AuthzFinding
@@ -34,6 +39,7 @@ from harness_dast.domain.confirmation import (
     recipe_targets,
     select_confirmation_findings,
 )
+from harness_dast.domain.confirmation_nuclei import judge_nuclei_reproduction, nuclei_not_verifiable
 from harness_dast.domain.confirmation_observations import (
     classify_authz_confirmation,
     classify_recorded_finding,
@@ -46,6 +52,7 @@ from harness_dast.domain.errors import (
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
 from harness_dast.domain.negative_result import NegativeFinding
+from harness_dast.domain.nuclei_findings import NucleiFinding
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.request_encoding import join_url
@@ -81,6 +88,7 @@ class ConfirmationDependencies:
     kill_switch: KillSwitch
     token_cache: TokenCache
     marker: Callable[[], str]
+    nuclei: NucleiReproducer | None = None
 
 
 class Confirmation:
@@ -126,19 +134,11 @@ class Confirmation:
         dispatcher, sessions, gate = self._network(profile, request, started)
         for finding in selected:
             self._finding_start = sum(self.traffic)
-            if isinstance(finding, AuthzFinding):
-                current = self._save(request, current, classify_authz_confirmation(finding))
-                continue
             if not isinstance(finding, Finding):
-                current = self._save(
-                    request,
-                    current,
-                    VerificationEntry(
-                        fingerprint=finding.fingerprint,
-                        level="not_verifiable",
-                        reason="Não há receita segura para esta origem de achado.",
-                    ),
-                )
+                direct, interrupted = self._direct_entry(finding, profile, run_id)
+                current = self._save(request, current, direct)
+                if interrupted:
+                    raise interrupted
                 continue
             recorded = classify_recorded_finding(finding)
             if recorded is not None:
@@ -163,12 +163,29 @@ class Confirmation:
                 raise stopped
         return current
 
+    def _direct_entry(
+        self,
+        finding: AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding,
+        profile: ProductProfile,
+        run_id: str,
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
+        """Resultado dos achados que não passam pela receita do ZAP."""
+        if isinstance(finding, AuthzFinding):
+            return classify_authz_confirmation(finding), None
+        if isinstance(finding, NucleiFinding):
+            return self._reproduce_nuclei(finding, profile, run_id)
+        return VerificationEntry(
+            fingerprint=finding.fingerprint,
+            level="not_verifiable",
+            reason="Não há receita segura para esta origem de achado.",
+        ), None
+
     def _candidates(
         self, report: FindingsReport, product: str, run_id: str
-    ) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...]:
-        candidates: tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...] = (
-            report.findings
-        )
+    ) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...]:
+        candidates: tuple[
+            Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...
+        ] = report.findings
         if report.authz is not None:
             authz = report.authz
             if authz.run_id != run_id or authz.product != product or authz.dry_run:
@@ -176,9 +193,49 @@ class Confirmation:
             candidates += authz.findings
         if report.negative is not None:
             candidates += report.negative.findings
+        if report.nuclei is not None:
+            nuclei = report.nuclei
+            if nuclei.run_id != run_id or nuclei.product != product:
+                raise ConfigError("Resultado do Nuclei não corresponde à execução.")
+            candidates += nuclei.findings
         if report.proxy_signals is not None:
             candidates += report.proxy_signals.findings
         return candidates
+
+    def _reproduce_nuclei(
+        self, finding: NucleiFinding, profile: ProductProfile, run_id: str
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
+        """Repete o MESMO modelo do achado; reprodução, não confirmação independente."""
+        nuclei = self._d.nuclei
+        if nuclei is None or not profile.extra_checks.nuclei:
+            return nuclei_not_verifiable(
+                finding,
+                "O Nuclei não está autorizado neste perfil (extra_checks.nuclei, que só a carta "
+                "liga) ou não foi montado; o modelo não foi repetido.",
+            ), None
+        request = NucleiRequest(
+            product=profile.product,
+            run_id=run_id,
+            only_templates=(finding.record.template_path,),
+            persist=False,
+        )
+        try:
+            result = nuclei.execute(request)
+        except ConfigError as error:
+            return nuclei_not_verifiable(
+                finding,
+                f"O Nuclei não pôde repetir este modelo ({error.code}): confira a pilha, a "
+                "imagem e as permissões do perfil.",
+            ), None
+        except (HarnessError, KeyboardInterrupt) as error:
+            stopped = _safe_error(error) if isinstance(error, HarnessError) else error
+            return VerificationEntry(
+                fingerprint=finding.fingerprint,
+                level="inconclusive",
+                reason="Reprodução interrompida por escopo, pilha, prazo, janela ou motor.",
+                recipe="nuclei_template",
+            ), stopped
+        return judge_nuclei_reproduction(finding, result), None
 
     def _save(
         self, request: ConfirmationRequest, current: VerificationFile, entry: VerificationEntry

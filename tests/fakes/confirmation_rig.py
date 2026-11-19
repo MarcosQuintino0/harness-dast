@@ -12,6 +12,7 @@ from harness_dast.application.confirmation import (
     ConfirmationDependencies,
     ConfirmationRequest,
 )
+from harness_dast.application.confirmation_ports import NucleiReproducer
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
 from harness_dast.domain.probe_exchange import ExchangeLog, ExchangeRecord
@@ -72,8 +73,9 @@ class ConfirmationRig:
         stopped: bool = False,
         plugin: str = "40018",
         handler: Callable[[HttpRequest, dict[str, str]], HttpResponse] = confirmation_target,
+        profile: ProductProfile | None = None,
     ) -> None:
-        self.rig = ScanRig(handler=handler)
+        self.rig = ScanRig(handler=handler, profile=profile)
         probe = self.rig.run_probe()
         scan = self.rig.run_scan()
         self.run_id = probe.run_id
@@ -130,15 +132,23 @@ class ConfirmationRig:
         self.switch = ConfirmationSwitch(stopped)
         self.store = VerificationStore(self.path, self.rig.vault.mask)
 
-    def execute(self, *, maximum: int = 30, finding: str | None = None) -> object:
+    def execute(
+        self,
+        *,
+        maximum: int = 30,
+        finding: str | None = None,
+        nuclei: NucleiReproducer | None = None,
+    ) -> object:
         """Executa usando adaptadores falsos de rede e o armazém real."""
-        return self.service().execute(
+        return self.service(nuclei=nuclei).execute(
             ConfirmationRequest(
                 product="agenda", run_id=self.run_id, maximum=maximum, finding=finding
             )
         )
 
-    def service(self, profiles: ProfileRepository | None = None) -> Confirmation:
+    def service(
+        self, profiles: ProfileRepository | None = None, nuclei: NucleiReproducer | None = None
+    ) -> Confirmation:
         """Monta o serviço real com portas falsas e arquivo temporário."""
         deps = ConfirmationDependencies(
             profiles=profiles or self.rig.profiles,
@@ -154,6 +164,7 @@ class ConfirmationRig:
             kill_switch=self.switch,
             token_cache=TokenCache(),
             marker=lambda: "0123456789abcdef",
+            nuclei=nuclei,
         )
         return Confirmation(deps)
 

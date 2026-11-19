@@ -107,6 +107,8 @@ class NucleiRequest:
         only_templates: Caminhos de modelos (como no `template_path` dos achados) aos quais a
             execução se limita, no reteste. Só reduz: o que não passa pelas permissões do
             perfil continua de fora, e vazio roda todos os escolhidos.
+        persist: Se o resultado vira `nuclei.json` na pasta da execução. O `confirm` passa
+            `False`: a reprodução de um achado não pode sobrescrever o `nuclei.json` original.
     """
 
     product: str
@@ -114,6 +116,7 @@ class NucleiRequest:
     account: str | None = None
     deadline: datetime | None = None
     only_templates: tuple[str, ...] = ()
+    persist: bool = True
 
 
 @dataclass(frozen=True)
@@ -204,7 +207,7 @@ class Nuclei:
         self._kill_switch = kill_switch
 
     def execute(self, request: NucleiRequest) -> NucleiResult:
-        """Executa o `nuclei` e grava `nuclei.json`.
+        """Executa o `nuclei` e grava `nuclei.json` (salvo com `persist=False`).
 
         Args:
             request: Pedido.
@@ -232,7 +235,8 @@ class Nuclei:
                 hint="Rode de novo; se repetir, confira a imagem do Nuclei e a política da cerca.",
             )
         result = self._result(plan, run, parsed, alias, stop)
-        self._artifacts.write_nuclei(plan.run_id, result)
+        if request.persist:
+            self._artifacts.write_nuclei(plan.run_id, result)
         _log.info(
             "nuclei.done",
             status=result.status,

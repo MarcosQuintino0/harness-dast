@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from harness_dast.adapters.nuclei.jsonl_reader import NucleiJsonlReader
-from harness_dast.application.nuclei import Nuclei
+from harness_dast.application.nuclei import Nuclei, NucleiRequest
 from harness_dast.application.nuclei_ports import (
     NucleiRunResult,
     NucleiRunSpec,
@@ -249,6 +249,22 @@ class FakeNucleiArtifacts:
     def write_nuclei(self, run_id: str, result: NucleiResult) -> None:
         self.results[run_id] = result
         self.serialized[run_id] = result.model_dump_json(indent=2)
+
+
+class FakeNucleiReproducer:
+    """`NucleiReproducer` falso do `confirm`: devolve o resultado combinado e registra o pedido."""
+
+    def __init__(self, result: NucleiResult | None = None, error: Exception | None = None) -> None:
+        self.result = result
+        self.error = error
+        self.requests: list[NucleiRequest] = []
+
+    def execute(self, request: NucleiRequest) -> NucleiResult:
+        self.requests.append(request)
+        if self.error is not None:
+            raise self.error
+        assert self.result is not None
+        return self.result
 
 
 class KillSwitchFake:
