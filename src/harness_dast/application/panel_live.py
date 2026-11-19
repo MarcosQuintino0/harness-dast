@@ -25,12 +25,15 @@ from harness_dast.domain.panel.build_stages import STAGE_LABELS
 from harness_dast.domain.panel.format import RunStateKind, product_title
 from harness_dast.domain.panel.live import LIVE_FILE, render_live
 from harness_dast.domain.panel.live_model import LivePhase, LiveStage, LiveStageState, LiveView
-from harness_dast.domain.panel.model import PanelLinks, panel_links
+from harness_dast.domain.panel.model import PanelLinks, StageKey, panel_links
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.run_summary import STAGES, RunSummary, StageName, StageRecord
+from harness_dast.domain.run_summary import RunSummary, StageName, StageRecord
 from harness_dast.domain.traffic import TrafficSummary
 
 _log = structlog.get_logger()
+# O painel é congelado (ADR 0110) e ainda não conhece o Nuclei; a seção própria dele vem com o
+# relatório (pacote P5).
+_PANEL_STAGES: tuple[StageKey, ...] = ("preflight", "probe", "scan", "authz", "negative", "report")
 _RECORD_STATE: dict[str, LiveStageState] = {
     "ok": "done",
     "failed": "cut",
@@ -235,7 +238,7 @@ class LiveBoard:
     def _stages(self, state: _State, phase: LivePhase, now: datetime) -> tuple[LiveStage, ...]:
         records = {item.name: item for item in state.records}
         built: list[LiveStage] = []
-        for key in STAGES:
+        for key in _PANEL_STAGES:
             if (key == "authz" and not state.authz) or (key == "negative" and not state.negative):
                 continue
             record = records.get(key)
