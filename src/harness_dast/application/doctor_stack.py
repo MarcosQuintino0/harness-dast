@@ -13,6 +13,7 @@ from harness_dast.application.lab_targets import (
 from harness_dast.application.stack import BASE_SERVICES, DEFAULT_PROXY_PORT, DEFAULT_ZAP_PORT
 from harness_dast.application.stack_images import (
     IMAGE_RECOVERY,
+    NUCLEI_SERVICE,
     OWN_SERVICES,
     PROXY_SERVICE,
     StackImages,
@@ -59,7 +60,12 @@ class DoctorStackChecks:
     def _images_check(self, target: LabTarget | None, *, offline: bool) -> DoctorCheck:
         local = use_local_build(self._environ)
         try:
-            services = BASE_SERVICES + (target.main_services if target else ())
+            nuclei = self._images.nuclei_available()
+            services = (
+                BASE_SERVICES
+                + ((NUCLEI_SERVICE,) if nuclei else ())
+                + (target.main_services if target else ())
+            )
             refs = self._images.references(services, local=local)
             if offline and (undeclared := sorted(set(services) - refs.keys())):
                 return make_check(
@@ -85,6 +91,8 @@ class DoctorStackChecks:
             except ExternalToolError as error:
                 return make_check("images", "fail", f"{error.message} {error.hint or ''}".strip())
             version_note = f" O proxy de escopo tem a versão da CLI ({version})."
+        if not nuclei:
+            version_note += " O Nuclei não está nesta instalação (images.lock.json versão 1)."
 
         missing = [image for image, info in inspected.items() if info is None]
         if not missing:
@@ -165,7 +173,7 @@ def _list_images(missing: list[str]) -> str:
 def _missing_image_hint(
     refs: Mapping[str, str], missing: list[str], *, local: bool
 ) -> tuple[DoctorStatus, str]:
-    if any(refs[service] in missing for service in OWN_SERVICES):
+    if any(refs[s] in missing for s in (*OWN_SERVICES, NUCLEI_SERVICE) if s in refs):
         if local:
             return "warn", "As imagens próprias serão construídas no próximo hdast stack up."
         return "fail", IMAGE_RECOVERY

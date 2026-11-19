@@ -9,8 +9,17 @@ from harness_dast.domain.errors import ConfigError, ExternalToolError, StackBuil
 from harness_dast.domain.images_lock import IMAGES_LOCK_RECOVERY, ImagesLock
 
 PROXY_SERVICE = "scope-proxy"
+NUCLEI_SERVICE = "nuclei"
 OWN_SERVICES = ("zap", PROXY_SERVICE)
 _ENV_BY_SERVICE = (("zap", "HDAST_ZAP_IMAGE"), (PROXY_SERVICE, "HDAST_SCOPE_PROXY_IMAGE"))
+NUCLEI_IMAGE_ENV = "HDAST_NUCLEI_IMAGE"
+NUCLEI_UNAVAILABLE = (
+    "Esta instalação foi publicada sem a imagem do Nuclei (images.lock.json versão 1), "
+    "então o Nuclei está indisponível."
+)
+NUCLEI_RECOVERY = (
+    "Reinstale a CLI com uma versão que inclua o Nuclei ou desligue extra_checks.nuclei."
+)
 IMAGE_RECOVERY = "Rode hdast stack pull. Em um clone de desenvolvimento, pode usar --build."
 
 
@@ -60,13 +69,38 @@ class StackImages:
     def references(self, services: tuple[str, ...], *, local: bool) -> dict[str, str]:
         """Resolve as referências e recusa build local fora de um clone antes do Docker."""
         lock = self._load_lock()
-        images = self._store.compose_images(services, self._overrides(lock, local=local))
-        if any(service not in images for service in OWN_SERVICES):
+        # Com a trava do esquema 1 o Nuclei não existe: sai da lista em vez de cair no padrão
+        # do compose, que apontaria para uma imagem que esta instalação nunca publicou.
+        wanted = (
+            services
+            if lock is None or lock.supports_nuclei
+            else tuple(service for service in services if service != NUCLEI_SERVICE)
+        )
+        images = self._store.compose_images(wanted, self._overrides(lock, local=local))
+        required = tuple(s for s in (*OWN_SERVICES, NUCLEI_SERVICE) if s in wanted)
+        if any(service not in images for service in required):
             raise ConfigError(
-                "Falta declarar a imagem do ZAP ou a do proxy de escopo no compose.yaml.",
+                "Falta declarar a imagem do ZAP, a do proxy de escopo ou a do Nuclei "
+                "no compose.yaml.",
                 hint="Restaure o compose.yaml original.",
             )
         return images
+
+    def nuclei_available(self) -> bool:
+        """Diz se esta instalação traz a imagem do Nuclei.
+
+        Sem `images.lock.json` (clone) vale `True`; com o esquema 1, `False`.
+
+        Raises:
+            ConfigError: Arquivo de digests inválido.
+        """
+        lock = self._load_lock()
+        return lock is None or lock.supports_nuclei
+
+    def require_nuclei(self) -> None:
+        """Levanta `ConfigError` com orientação se o Nuclei estiver indisponível."""
+        if not self.nuclei_available():
+            raise ConfigError(NUCLEI_UNAVAILABLE, hint=NUCLEI_RECOVERY)
 
     def _overrides(self, lock: ImagesLock | None, *, local: bool) -> dict[str, str]:
         if lock is not None and lock.version != self._cli_version:
@@ -82,13 +116,17 @@ class StackImages:
                     "Construir a cerca só é possível num clone de desenvolvimento.",
                     hint="Retire --build e HDAST_STACK_BUILD=1. Use hdast stack pull.",
                 )
-            return {env: f"hdast/{service}:local" for service, env in _ENV_BY_SERVICE}
+            local_images = {env: f"hdast/{service}:local" for service, env in _ENV_BY_SERVICE}
+            return {**local_images, NUCLEI_IMAGE_ENV: f"hdast/{NUCLEI_SERVICE}:local"}
         if lock is None:
             return {}
-        return {
+        overrides = {
             "HDAST_ZAP_IMAGE": lock.images.zap.reference(),
             "HDAST_SCOPE_PROXY_IMAGE": lock.images.scope_proxy.reference(),
         }
+        if lock.images.nuclei is not None:
+            overrides[NUCLEI_IMAGE_ENV] = lock.images.nuclei.reference()
+        return overrides
 
     def inspect(self, references: Mapping[str, str]) -> dict[str, ImageInfo | None]:
         """Inspeciona uma vez cada referência, mesmo quando vários serviços a usam."""
@@ -121,11 +159,17 @@ class StackImages:
     def compose_env(self, references: Mapping[str, str]) -> dict[str, str]:
         """Fixa no processo filho as referências consultadas e a versão esperada no build."""
         images = {env: references[service] for service, env in _ENV_BY_SERVICE}
+        if NUCLEI_SERVICE in references:
+            images[NUCLEI_IMAGE_ENV] = references[NUCLEI_SERVICE]
         return {**images, "HDAST_IMAGE_VERSION": self._cli_version}
 
     def pull(self) -> tuple[str, ...]:
-        """Baixa as duas imagens próprias configuradas e devolve suas referências."""
-        references = self.references(OWN_SERVICES, local=False)
+        """Baixa as imagens próprias configuradas (com o Nuclei, se a instalação o traz).
+
+        Devolve as referências baixadas.
+        """
+        services = (*OWN_SERVICES, NUCLEI_SERVICE) if self.nuclei_available() else OWN_SERVICES
+        references = self.references(services, local=False)
         for reference in references.values():
             self._store.pull_image(reference)
         return tuple(references.values())

@@ -7,15 +7,16 @@ from scripts.write_images_lock import main
 
 ZAP = "ghcr.io/example/hdast-zap@sha256:" + "a" * 64
 PROXY = "ghcr.io/example/hdast-scope-proxy@sha256:" + "b" * 64
+NUCLEI = "ghcr.io/example/hdast-nuclei@sha256:" + "c" * 64
 
 
-def test_writes_both_images_when_arguments_are_valid(tmp_path: Path) -> None:
+def test_writes_the_three_images_in_schema_2_when_arguments_are_valid(tmp_path: Path) -> None:
     path = tmp_path / "images.lock.json"
 
-    main(["1.12.2", ZAP, PROXY, "--output", str(path)])
+    main(["1.12.2", ZAP, PROXY, NUCLEI, "--output", str(path)])
 
     assert json.loads(path.read_text(encoding="utf-8")) == {
-        "schema_version": 1,
+        "schema_version": 2,
         "version": "1.12.2",
         "images": {
             "zap": {
@@ -28,6 +29,11 @@ def test_writes_both_images_when_arguments_are_valid(tmp_path: Path) -> None:
                 "tag": "1.12.2",
                 "digest": "sha256:" + "b" * 64,
             },
+            "nuclei": {
+                "repository": "ghcr.io/example/hdast-nuclei",
+                "tag": "1.12.2",
+                "digest": "sha256:" + "c" * 64,
+            },
         },
     }
 
@@ -35,11 +41,13 @@ def test_writes_both_images_when_arguments_are_valid(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "args",
     [
-        ["1.12.2", ZAP],
-        ["", ZAP, PROXY],
-        ["1.12.2", ZAP.partition("@")[0], PROXY],
-        ["1.12.2", ZAP, PROXY[:-1]],
-        ["1.12.2", ZAP.replace("@", ":latest@"), PROXY],
+        ["1.12.2", ZAP, PROXY],
+        ["", ZAP, PROXY, NUCLEI],
+        ["1.12.2", ZAP.partition("@")[0], PROXY, NUCLEI],
+        ["1.12.2", ZAP, PROXY[:-1], NUCLEI],
+        ["1.12.2", ZAP, PROXY, NUCLEI[:-1]],
+        ["1.12.2", ZAP, PROXY, NUCLEI.partition("@")[0]],
+        ["1.12.2", ZAP.replace("@", ":latest@"), PROXY, NUCLEI],
     ],
 )
 def test_keeps_previous_file_when_arguments_are_invalid(tmp_path: Path, args: list[str]) -> None:
