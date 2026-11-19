@@ -6,6 +6,12 @@ aplica aprovação do escopo, pilha atual, janela, prazo, limite por segundo, tr
 mutação pendente. Os estágios `authz` e `negative` ficam desligados (redução): o reteste
 classifica só os achados do varredor, que são os que `findings.json` lista em `findings`.
 
+Nuclei (ADR 0122): se o `nuclei.json` da execução anterior tem achados, o estágio `nuclei` roda
+de novo só com os modelos desses achados (`RunRequest.nuclei_templates`); sem achados do Nuclei
+ele fica desligado. O Nuclei só entra num reteste que já tem achados do ZAP a repetir: sozinho ele
+não escolhe operações, e a classificação "reproduzido" dos achados dele fica com o relatório do
+Nuclei (o `run.json` traz as contagens).
+
 Honestidade: o resultado nunca diz "corrigido". `not_reproduced` significa que a operação foi
 testada nesta execução e o fingerprint não apareceu; o aviso `COMPARISON_NOTICE` acompanha.
 Código de saída: o do `run` se ele falhou; senão `1` se algum achado reproduzido tem severidade
@@ -112,9 +118,12 @@ class RetestUseCase:
         baseline = self._artifacts.read_findings(previous_id)
         ensure_comparable(baseline, request.product)
         selected = select_for_retest(baseline.findings, request.findings, request.max_findings)
+        templates = self._open_nuclei_templates(previous_id)
         result = self._run.execute(
             RunRequest(
                 product=request.product,
+                nuclei=bool(templates),
+                nuclei_templates=templates,
                 authz=False,
                 negative=False,
                 fail_on=request.fail_on,
@@ -138,6 +147,13 @@ class RetestUseCase:
         )
         self._artifacts.write_retest(summary.run_id, report)
         return RetestOutcome(result, report, _exit_code(result, report, threshold), result.error)
+
+    def _open_nuclei_templates(self, previous_id: str) -> tuple[str, ...]:
+        """Caminhos dos modelos dos achados do Nuclei da execução anterior, sem repetição."""
+        previous = self._artifacts.read_nuclei(previous_id)
+        if previous is None:
+            return ()
+        return tuple(sorted({item.record.template_path for item in previous.findings}))
 
 
 def _scanned(selected: tuple[Finding, ...], current: FindingsReport) -> frozenset[str]:

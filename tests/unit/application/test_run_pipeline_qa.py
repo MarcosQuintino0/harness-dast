@@ -124,6 +124,7 @@ def test_execute_runs_the_stages_in_order_and_exits_zero_when_all_pass() -> None
         ("preflight", "ok"),
         ("probe", "ok"),
         ("scan", "ok"),
+        ("nuclei", "skipped"),
         ("authz", "skipped"),
         ("negative", "skipped"),
         ("report", "ok"),
@@ -151,6 +152,7 @@ def test_execute_stops_after_the_probe_and_skips_scan_and_report_when_skip_scan(
     assert [status for _, status in stage_names(result.summary)] == [
         "ok",
         "ok",
+        "skipped",
         "skipped",
         "skipped",
         "skipped",

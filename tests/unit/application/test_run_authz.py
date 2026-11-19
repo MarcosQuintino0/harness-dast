@@ -139,7 +139,7 @@ def test_no_authz_skips_the_stage_and_says_why() -> None:
 
     assert "authz" not in rig.calls
     assert _status(result)["authz"] == "skipped"
-    assert "--no-authz" in (result.summary.stages[3].message or "")
+    assert "--no-authz" in (result.summary.stages[4].message or "")
     assert result.summary.options.authz is False
     assert result.summary.authz_findings_by_severity is None
 
@@ -172,7 +172,7 @@ def test_skip_scan_also_skips_the_authz_stage() -> None:
 
     assert rig.calls == ["preflight", "probe"]
     assert _status(result)["authz"] == "skipped"
-    message = result.summary.stages[3].message or ""
+    message = result.summary.stages[4].message or ""
     assert "--skip-scan" in message
     assert "hdast authz PRODUTO --run RUN_ID" in message
 
@@ -180,13 +180,13 @@ def test_skip_scan_also_skips_the_authz_stage() -> None:
 def test_skip_scan_with_no_authz_keeps_the_short_skip_message() -> None:
     result = Rig().run(RunRequest(product="demo", authz=False, skip_scan=True))
 
-    assert result.summary.stages[3].message == "Pedido com --skip-scan e --no-authz."
+    assert result.summary.stages[4].message == "Pedido com --skip-scan e --no-authz."
 
 
 def test_skip_scan_by_default_still_points_to_the_standalone_authz_command() -> None:
     result = Rig().run(RunRequest(product="demo", skip_scan=True))
 
-    assert "hdast authz PRODUTO --run RUN_ID" in (result.summary.stages[3].message or "")
+    assert "hdast authz PRODUTO --run RUN_ID" in (result.summary.stages[4].message or "")
 
 
 def test_a_stopped_authz_still_produces_the_report_and_keeps_its_own_exit_code() -> None:
