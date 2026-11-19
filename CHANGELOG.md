@@ -6,6 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- A carta assinada e o perfil registram a autorização declarada para Nuclei, login e caminhos fora do Swagger. A revisão humana inclui a versão dos modelos e o fingerprint preserva as aprovações antigas. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
 - ADR 0122 (Aceito): o Nuclei entra como segundo motor atrás de uma cerca básica, que deixa passar só as origens aprovadas e aplica os caminhos negados, o ritmo e a auditoria. Os modelos arriscados ficam vetados, a escrita depende de permissão e o login usa arquivo de segredos. Base: spike de 2026-11-19. [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md)
 - No pedido mínimo, a sugestão de caminhos negados inclui `otp` como palavra inteira do segmento, cobrindo a recuperação de senha do crAPI e respeitando a exceção do login.
 - Na pasta de produtos, o guard do plugin aceita buscas `grep` com opções de leitura, listagem `find` sem ação, duplicação de descritores e `cat` com heredoc literal e destino permitido.
