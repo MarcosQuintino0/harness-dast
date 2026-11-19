@@ -393,6 +393,18 @@ def test_nao_reprova_quando_o_pedido_usa_so_os_padroes_da_cli(
     assert _failed(target, case) == set()
 
 
+def test_pedido_gera_perfil_com_nuclei_e_login_por_padrao_e_sem_caminhos_amplos(
+    safe_profile: Path,
+) -> None:
+    checks = yaml.safe_load(safe_profile.read_text(encoding="utf-8"))["extra_checks"]
+
+    # Motivo: o ADR 0122 liga `nuclei` e `nuclei_login` por padrão no pedido mínimo; os caminhos
+    # fora do Swagger só ligam com o "sim" explícito da pergunta 5, que este caso não tem.
+    assert checks["nuclei"] is True
+    assert checks["nuclei_login"] is True
+    assert "nuclei_wide_paths" not in checks
+
+
 def test_nao_reprova_quando_o_caminho_nunca_nem_esta_no_allow(
     safe_profile: Path, case: Case
 ) -> None:

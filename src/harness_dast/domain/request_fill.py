@@ -3,7 +3,8 @@
 Cada função devolve a seção da carta com a resposta explícita da pessoa ou, sem ela, o padrão da
 tabela de `request_defaults`, e registra em `applied` o que a CLI aplicou. As três escritas
 (`authz`, valores inválidos e upload) nunca têm padrão: só a pergunta 4 `true` ou a chave
-individual explícita as liga. Este módulo é puro.
+individual explícita as liga. O Nuclei liga por padrão, com login; os caminhos fora do Swagger
+(`nuclei_wide_paths`, pergunta 5) só ligam com o "sim" explícito. Este módulo é puro.
 """
 
 from datetime import date, timedelta
@@ -40,6 +41,8 @@ _FLAG_FIELDS: Final = (
     ("allow_rate_tests", "extra_checks.allow_rate_tests"),
     ("experimental_rules", "extra_checks.experimental_rules"),
     ("inventory", "extra_checks.inventory"),
+    ("nuclei", "extra_checks.nuclei"),
+    ("nuclei_login", "extra_checks.nuclei_login"),
 )
 _WRITE_KEYS: Final = ("allow_authz_writes", "allow_invalid_input_writes", "allow_upload_scan")
 
@@ -120,16 +123,30 @@ def fill_auth(letter: Letter, applied: list[RequestDefault]) -> AuthSection:
 def fill_attack(
     attack: AttackSection, c: Collector, applied: list[RequestDefault]
 ) -> AttackSection:
-    """Força, classes de resposta, ritmo e as cinco capacidades; as escritas só pela pergunta 4."""
+    """Força, classes de resposta, ritmo e capacidades, com o Nuclei ligado por padrão.
+
+    As escritas só ligam pela pergunta 4 e os caminhos amplos do Nuclei só pela pergunta 5.
+    """
     update: dict[str, Answer | None] = {
         "strength": pick(attack.strength, "scan.strength", applied),
         "include_outcomes": pick(attack.include_outcomes, "scan.include_outcomes", applied),
         "pacing": pick(attack.pacing, "scan.pacing", applied),
     }
+    nuclei_off = _explicitly_off(attack.nuclei)
     for name, field in _FLAG_FIELDS:
+        if name == "nuclei_login" and nuclei_off and explicit(attack.nuclei_login) is None:
+            continue  # o login do Nuclei não tem padrão quando a pessoa desligou o Nuclei
         update[name] = endorse(pick(getattr(attack, name), field, applied))
     update.update(_fill_writes(attack, c))
+    wide_paths = explicit(attack.nuclei_wide_paths)
+    if wide_paths is not None:  # pergunta 5: sem resposta explícita, a chave fica desligada
+        update["nuclei_wide_paths"] = endorse(wide_paths)
     return attack.model_copy(update=update)
+
+
+def _explicitly_off(answer: Answer | None) -> bool:
+    given = explicit(answer)
+    return given is not None and given.value is False
 
 
 def _fill_writes(attack: AttackSection, c: Collector) -> dict[str, Answer | None]:

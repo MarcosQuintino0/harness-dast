@@ -131,3 +131,44 @@ def test_a_refused_letter_has_no_warnings() -> None:
 
     assert not review.ready
     assert review.warnings == ()
+
+
+def _nuclei_attack(**extra: Any) -> dict[str, Any]:
+    quote = "A carta autoriza."
+    attack: dict[str, Any] = {"nuclei": answer(True, "carta", quote)}
+    attack.update({name: answer(value, "carta", quote) for name, value in extra.items()})
+    return attack
+
+
+def _nuclei_codes(review: LetterReview) -> list[tuple[str, str]]:
+    return [(w.field, w.code) for w in review.warnings if "nuclei" in w.field]
+
+
+def test_nuclei_without_writes_or_wide_paths_adds_no_extra_warning() -> None:
+    review = _review(_letter(attack=_nuclei_attack(nuclei_login=True)))
+
+    assert _nuclei_codes(review) == []
+
+
+def test_nuclei_with_the_three_writes_warns_about_writing() -> None:
+    attack = _nuclei_attack(
+        allow_authz_writes=True, allow_invalid_input_writes=True, allow_upload_scan=True
+    )
+
+    review = _review(_letter(attack=attack))
+
+    assert _nuclei_codes(review) == [("attack.nuclei", "NUCLEI_WRITES_AUTHORIZED")]
+
+
+def test_nuclei_with_only_one_write_does_not_warn_about_nuclei_writing() -> None:
+    review = _review(_letter(attack=_nuclei_attack(allow_authz_writes=True)))
+
+    assert _nuclei_codes(review) == []
+
+
+def test_nuclei_with_wide_paths_warns_that_denied_paths_stay_denied() -> None:
+    review = _review(_letter(attack=_nuclei_attack(nuclei_wide_paths=True)))
+
+    (warning,) = (w for w in review.warnings if w.field == "attack.nuclei_wide_paths")
+    assert warning.code == "ATTACK_FLAG_AUTHORIZED"
+    assert "negados continuam negados" in warning.message

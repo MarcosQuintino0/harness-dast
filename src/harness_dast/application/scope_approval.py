@@ -18,6 +18,7 @@ from harness_dast.application.common_ports import (
 )
 from harness_dast.application.scope_approval_ports import ApprovalPrompt
 from harness_dast.domain.errors import ConfigError, ScopeNotApproved
+from harness_dast.domain.nuclei_approval import describe_nuclei
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.scope_approval import (
     APPROVE_COMMAND,
@@ -38,7 +39,7 @@ class ApprovalInfo(BaseModel):
         state: `approved`, `not_approved`, `changed` ou `invalid`.
         approved_at: Instante da aprovação vigente ou anterior; `None` sem registro válido.
         changed_blocks: Blocos alterados desde a aprovação (só com `changed`).
-        message: Frase que diz o que houve.
+        message: Estado em texto. Na consulta, inclui a declaração do Nuclei do perfil atual.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -81,13 +82,13 @@ def current_check(store: ApprovalStore, profile: ProductProfile) -> ApprovalChec
     return check_approval(profile, approval)
 
 
-def info_of(check: ApprovalCheck) -> ApprovalInfo:
+def info_of(check: ApprovalCheck, *, notes: tuple[str, ...] = ()) -> ApprovalInfo:
     """Traduz o resultado da conferência para o modelo de saída."""
     return ApprovalInfo(
         state=check.state,
         approved_at=check.approved_at,
         changed_blocks=check.changed_blocks,
-        message=check.message(),
+        message="\n".join((check.message(), *notes)),
     )
 
 
@@ -149,7 +150,8 @@ class ScopeApprovals:
         Raises:
             ConfigError: Produto ou perfil inválido.
         """
-        return info_of(current_check(self._store, self._profiles.load(product)))
+        profile = self._profiles.load(product)
+        return info_of(current_check(self._store, profile), notes=describe_nuclei(profile))
 
     def approve(
         self, product: str, *, interactive: bool, setup_defaults: tuple[str, ...] | None = None

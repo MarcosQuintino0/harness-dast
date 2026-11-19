@@ -1,16 +1,14 @@
-"""Chaves `attack.*` da V1.12 lidas da carta: ritmo e capacidades extras (ADR 0096).
+"""Ritmo e autorizações adicionais lidos da carta (ADRs 0096 e 0122).
 
 Todas nascem desligadas. `attack.pacing` aceita `legacy` ou `proxy`, de `source: carta` ou
-`pessoa`, sem frase (não amplia o ataque; só muda o ritmo e continua exigindo aprovação). Os
-cinco booleanos (`inject_headers`, `oast`, `allow_rate_tests`, `experimental_rules`,
-`inventory`) mudam o tráfego ou o relato: `true` só vale com `source: carta` e a frase de
-origem; o agente nunca os liga por conta própria. É o mesmo molde de `letter_upload`. É puro.
+`pessoa`, sem frase. Cada booleano `true` exige `source: carta` e a frase de origem.
 """
 
 from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.letter import Answer, AttackSection
 from harness_dast.domain.letter_collect import (
     ATTACK_FLAG_NEEDS_LETTER,
@@ -25,12 +23,13 @@ FLAG_FIELDS: Final = (
     "allow_rate_tests",
     "experimental_rules",
     "inventory",
+    *NUCLEI_FIELDS,
 )
-"""Nomes (em `attack.`) dos cinco booleanos da V1.12, na ordem em que a carta os documenta."""
+"""Nomes dos booleanos que exigem frase da carta."""
 
 
 class AttackFlags(BaseModel):
-    """Resultado da leitura das chaves da V1.12.
+    """Resultado da leitura das autorizações adicionais.
 
     Attributes:
         pacing: Ritmo pedido; `legacy` quando ausente.
@@ -39,6 +38,9 @@ class AttackFlags(BaseModel):
         allow_rate_tests: Testes de limite autorizados -> `extra_checks.allow_rate_tests`.
         experimental_rules: Regras experimentais autorizadas -> `extra_checks.experimental_rules`.
         inventory: Inventário autorizado -> `extra_checks.inventory`.
+        nuclei: Autorização declarada para o Nuclei.
+        nuclei_login: Autorização declarada para login com o Nuclei.
+        nuclei_wide_paths: Autorização declarada para caminhos fora do Swagger com o Nuclei.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -49,6 +51,9 @@ class AttackFlags(BaseModel):
     allow_rate_tests: bool = False
     experimental_rules: bool = False
     inventory: bool = False
+    nuclei: bool = False
+    nuclei_login: bool = False
+    nuclei_wide_paths: bool = False
 
 
 def _read_pacing(c: Collector, answer: Answer | None) -> Pacing:
@@ -84,7 +89,7 @@ def _read_flag(c: Collector, name: str, answer: Answer | None) -> bool:
 
 
 def read_attack_flags(c: Collector, attack: AttackSection) -> AttackFlags:
-    """Lê `attack.pacing` e os cinco booleanos da V1.12; tudo desligado por padrão (ADR 0096).
+    """Lê `attack.pacing` e as autorizações booleanas, todas desligadas por padrão.
 
     Ausente, nulo e `desconhecido` valem o padrão sem pendência. Valor de tipo errado ou booleano
     `true` sem origem `carta` e frase vira pendência e a chave fica desligada.

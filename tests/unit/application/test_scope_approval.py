@@ -232,3 +232,14 @@ def test_status_of_an_invalid_record_does_not_raise() -> None:
 
     assert info.state == "invalid"
     assert info.approved_at is None
+
+
+def test_status_shows_the_nuclei_declaration_when_the_current_profile_is_pending() -> None:
+    rig = Rig()
+    rig.edit_profile(lambda data: data.update(extra_checks={"nuclei": True, "nuclei_login": True}))
+
+    info = rig.use_case.status("demo")
+
+    assert info.state == "not_approved"
+    assert "Nuclei: verificações conhecidas da comunidade" in info.message
+    assert "Com login: sim. Endereços fora do Swagger: não." in info.message

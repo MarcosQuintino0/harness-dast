@@ -20,6 +20,7 @@ from typing import Final
 from pydantic import BaseModel, ConfigDict, JsonValue
 
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.letter import Gates, Letter
 from harness_dast.domain.letter_attack import AttackFlags, read_attack_flags
 from harness_dast.domain.letter_collect import (
@@ -260,14 +261,8 @@ def _scan_flags(flags: AttackFlags) -> Block:
 
 
 def _extra_checks_data(flags: AttackFlags) -> Block:
-    data: Block = {}
-    if flags.allow_rate_tests:
-        data["allow_rate_tests"] = True
-    if flags.experimental_rules:
-        data["experimental_rules"] = True
-    if flags.inventory:
-        data["inventory"] = True
-    return data
+    fields = ("allow_rate_tests", "experimental_rules", "inventory", *NUCLEI_FIELDS)
+    return {name: True for name in fields if getattr(flags, name)}
 
 
 def _authz_data(allow_writes: bool, shared_roles: tuple[str, ...]) -> dict[str, object]:

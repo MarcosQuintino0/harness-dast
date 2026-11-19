@@ -28,12 +28,18 @@ EXPECTED = {
     "extra_checks.allow_rate_tests": True,
     "extra_checks.experimental_rules": True,
     "extra_checks.inventory": True,
+    "extra_checks.nuclei": True,
+    "extra_checks.nuclei_login": True,
     "scan.pacing": "proxy",
 }
 
 
 def test_tabela_tem_os_valores_do_adr_quando_consultada() -> None:
     assert {field: item.value for field, item in REQUEST_DEFAULTS.items()} == EXPECTED
+
+
+def test_tabela_nao_liga_os_caminhos_amplos_do_nuclei() -> None:
+    assert "extra_checks.nuclei_wide_paths" not in REQUEST_DEFAULTS
 
 
 def test_tabela_documenta_o_motivo_de_cada_padrao() -> None:
