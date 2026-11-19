@@ -51,9 +51,9 @@ class NucleiResult(ProfileModel):
     finished_at: str
     nuclei_version: str
     templates_version: str
-    logged_in: StrictBool  # noqa: F841, RUF100
+    logged_in: StrictBool
     account: str | None = None
-    templates_selected: StrictInt  # noqa: F841, RUF100
+    templates_selected: StrictInt
     excluded: tuple[tuple[str, int], ...]
     exit_code: StrictInt
     malformed_lines: StrictInt

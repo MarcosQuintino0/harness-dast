@@ -77,15 +77,15 @@ class NucleiTemplateEntry(ProfileModel):
     # O Pydantic lê estes campos na serialização. Para o Vulture, F841 é um alias de V107.
     path: _Path
     sha256: _Sha256
-    protocols: tuple[_Label, ...]  # noqa: F841, RUF100
+    protocols: tuple[_Label, ...]
     methods: tuple[_Method, ...]
-    unsafe: StrictBool  # noqa: F841, RUF100
+    unsafe: StrictBool
     raw: StrictBool
     code: StrictBool
-    headless: StrictBool  # noqa: F841, RUF100
+    headless: StrictBool
     oast: StrictBool
-    dast: StrictBool  # noqa: F841, RUF100
-    unparsed_method: StrictBool  # noqa: F841, RUF100
+    dast: StrictBool
+    unparsed_method: StrictBool
     tags: tuple[_Label, ...]
     severity: NucleiSeverity
     category: _Label | None
@@ -215,7 +215,7 @@ class NucleiSelection(ProfileModel):
     """
 
     paths: tuple[str, ...]
-    excluded: tuple[tuple[str, int], ...]  # noqa: F841, RUF100
+    excluded: tuple[tuple[str, int], ...]
 
 
 def _method_exclusions(

@@ -15,6 +15,7 @@
     "hdast/nuclei:local",
     "ghcr.io/marcosquintino0/hdast-zap:1.12.2",
     "gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093",
+    "hdast-alvo-actuator:1.0.0",
     "hdast-clinica-piloto:1.0.0",
     "hdast/scope-proxy:local",
     "hdast/zap:2.17.0-alpha54-beta64",

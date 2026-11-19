@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Pacote P8 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), a prova do Nuclei no laboratório ([relatório](docs/arquivo/reviews/2026-11-19-prova-nuclei.md)):
+  - alvo de laboratório `alvo-actuator` (Spring Boot com o Actuator aberto de propósito, só na rede interna), reconhecido pelo `stack up` com projeto próprio (`hdast-actuator`), e o teste de integração `tests/integration/test_lab_nuclei.py` com a área "Nuclei" da escada;
+  - correção: o prazo do contêiner do Nuclei era igual ao do portão, os dois estouravam juntos e o resultado parcial se perdia (saída `5`). Agora o contêiner tem 15 s de folga, o portão para primeiro e o parcial é gravado (saída `3`, `stopped_deadline`);
+  - aceites 2 a 6 e a cerca desligada passaram. O aceite 3 passou com ressalva de contagem: 11 achados do Actuator e 2 tecnologias, não 13 achados. O tamanho da imagem do Nuclei (cerca de 591 MB) ficou no [guia do Docker](docs/comecar/docker.md).
 - Pacote P5 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), os achados do Nuclei no relato:
   - o `report` lê o `nuclei.json` e o `findings.json` ganha o campo `nuclei` (aditivo, `null` sem o estágio) e `summary.nuclei_by_severity`; o `report.md` e o `report.html` ganham a seção "Nuclei" com os achados por gravidade (modelo, método, caminho, ocorrências; do valor extraído só a contagem e os bytes) e a seção "Tecnologias identificadas", que não vira achado nem entra no gate. O gate de severidade soma os achados do Nuclei;
   - a triagem casa o achado do Nuclei pela impressão digital (`U-...`), como os demais, e a anotação não vira órfã;

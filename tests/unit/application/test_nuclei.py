@@ -13,6 +13,7 @@ from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.nuclei import (
     NUCLEI_CONCURRENCY,
     NUCLEI_PROXY_URL,
+    NUCLEI_RUNNER_GRACE_SECONDS,
     Nuclei,
     NucleiRequest,
 )
@@ -171,7 +172,7 @@ def test_prazo_vem_do_menor_entre_o_perfil_e_o_run_encadeado(tmp_path: Path) -> 
 
     rig.nuclei().execute(NucleiRequest(product="agenda", run_id=RUN_ID, deadline=chained))
 
-    assert rig.engine.specs[0].timeout_seconds == 600
+    assert rig.engine.specs[0].timeout_seconds == 600 + NUCLEI_RUNNER_GRACE_SECONDS
 
 
 def test_prazo_e_o_do_perfil_sem_run_encadeado(tmp_path: Path) -> None:
@@ -179,7 +180,31 @@ def test_prazo_e_o_do_perfil_sem_run_encadeado(tmp_path: Path) -> None:
 
     rig.nuclei().execute(REQUEST)
 
-    assert rig.engine.specs[0].timeout_seconds == 60 * 60
+    assert rig.engine.specs[0].timeout_seconds == 60 * 60 + NUCLEI_RUNNER_GRACE_SECONDS
+
+
+def test_prazo_do_perfil_para_pelo_portao_e_devolve_o_parcial_antes_do_contêiner(
+    tmp_path: Path,
+) -> None:
+    # Defeito achado na prova de laboratório: o prazo do contêiner era igual ao do portão, então
+    # o runner estourava junto, o erro vencia e o resultado parcial se perdia (saída 5, sem
+    # `nuclei.json`). O falso abaixo modela o runner real: mata o contêiner no próprio prazo.
+    rig = _rig(tmp_path, profile_data_override=nuclei_profile_data(nuclei_login=False))
+    rig.engine.lines = (result_line(),)
+    profile_seconds = 60 * 60
+
+    def at_profile_deadline() -> None:
+        rig.clock.advance(profile_seconds)
+        if profile_seconds >= rig.engine.specs[-1].timeout_seconds:
+            rig.engine.error = ExternalToolError("O contêiner nuclei passou do prazo.")
+
+    rig.engine.during_run = at_profile_deadline
+
+    result = rig.nuclei().execute(REQUEST)
+
+    assert result.status == "stopped_deadline"
+    assert len(result.findings) == 1
+    assert rig.artifacts.results[RUN_ID].status == "stopped_deadline"
 
 
 def test_sem_login_nao_grava_arquivo_de_segredos_nem_faz_login(tmp_path: Path) -> None:

@@ -64,6 +64,7 @@ class Rig:
         self.profiles.add(lab_profile("vampi", "vampi", 5000))
         self.profiles.add(lab_profile("clinica-piloto", "clinica-piloto", 8080))
         self.profiles.add(lab_profile("crapi", "crapi", 80))
+        self.profiles.add(lab_profile("alvo-actuator", "alvo-actuator", 8080))
         self.host = FakeHost()
         self.compose = FakeCompose(self.host)
         self.states = InMemoryStackState(tmp_path)
@@ -126,6 +127,26 @@ def test_crapi_sobe_projeto_proprio_e_cadastra_contas_sem_expor_valores(tmp_path
     assert all(value not in report.model_dump_json() for value in state.target_env.values())
     rig.manager.down()
     assert rig.compose.calls[-2:] == [("down", "hdast-crapi-codex"), ("down", "hdast-codex")]
+
+
+def test_alvo_actuator_sobe_projeto_proprio_so_na_rede_do_lab_e_sorteia_a_chave(
+    tmp_path: Path,
+) -> None:
+    rig = Rig(tmp_path, {"HDAST_STACK_PROJECT_SUFFIX": "-codex"})
+
+    report = rig.manager.up(StackUpRequest(product="alvo-actuator"))
+
+    state = rig.states.state
+    assert state is not None
+    assert state.lab_target == "alvo-actuator"
+    assert [p.name for p in state.projects] == ["hdast-codex", "hdast-actuator-codex"]
+    assert Path(state.projects[1].workdir).parts[-2:] == ("lab", "actuator")
+    assert state.projects[1].files == ("compose.yaml",)
+    assert state.projects[1].remove_volumes is False
+    assert set(state.target_env) == {"ACTUATOR_API_KEY"}
+    assert report.target_urls == {}
+    rig.manager.down()
+    assert rig.compose.calls[-2:] == [("down", "hdast-actuator-codex"), ("down", "hdast-codex")]
 
 
 def test_crapi_oast_starts_isolated_bridge_and_stops_in_order(tmp_path: Path) -> None:
