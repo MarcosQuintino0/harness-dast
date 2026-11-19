@@ -1,0 +1,19 @@
+{
+  "extraKnownMarketplaces": {
+    "hdast": {
+      "source": {
+        "source": "git",
+        "url": "https://gitlab.empresa.exemplo/qa/harness-dast.git"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "hdast@hdast": true
+  },
+  "strictKnownMarketplaces": [
+    {
+      "source": "git",
+      "url": "https://gitlab.empresa.exemplo/qa/harness-dast.git"
+    }
+  ]
+}
