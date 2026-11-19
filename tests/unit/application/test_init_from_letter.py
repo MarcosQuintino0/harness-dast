@@ -6,9 +6,10 @@ import pytest
 from harness_dast.application.init_from_letter import InitFromLetter, rejection
 from harness_dast.domain.errors import ConfigError, ExitCode, LetterRejected
 from tests.fakes.clock import FixedClock, utc
-from tests.fakes.letter_data import answer, valid_letter_data
+from tests.fakes.letter_data import answer, request_letter_data, valid_letter_data
 from tests.fakes.letter_reader import InMemoryLetterReader
 from tests.fakes.product_scaffolder import InMemoryScaffolder
+from tests.fakes.spec_paths import InMemorySpecPaths
 
 LETTER = Path("carta.yml")
 
@@ -160,3 +161,104 @@ def test_outcome_carries_the_warnings_of_a_ready_letter() -> None:
 
     assert outcome.ready
     assert [w.code for w in outcome.warnings] == ["VALIDITY_OVER_ONE_YEAR"]
+
+
+# --- pedido mínimo (ADR 0120) -----------------------------------------------------------------
+
+REQUEST_LETTER = Path("pasta-da-carta") / "carta.yml"
+REQUEST_PATHS = ("/api/auth/login", "/api/users/{id}", "/api/auth/forgot-password")
+
+
+def _request_use_case(
+    specs: dict[str, tuple[str, ...]] | None = None, timezone: str = "UTC"
+) -> tuple[InitFromLetter, InMemoryScaffolder, InMemorySpecPaths]:
+    data = request_letter_data()
+    data["auth"]["token_path"] = answer("/api/auth/login", "pessoa")
+    reader = InMemoryLetterReader({"carta.yml": data})
+    scaffolder = InMemoryScaffolder(files=("README.md", "target.yml"))
+    paths = InMemorySpecPaths({"./openapi.json": REQUEST_PATHS} if specs is None else specs)
+    use_case = InitFromLetter(
+        reader, scaffolder, FixedClock(utc(2026, 11, 14)), spec_paths=paths, timezone=timezone
+    )
+    return use_case, scaffolder, paths
+
+
+def test_execute_creates_the_product_from_the_request_letter_reading_the_spec_next_to_it() -> None:
+    use_case, scaffolder, paths = _request_use_case()
+
+    outcome = use_case.execute("demo", REQUEST_LETTER)
+
+    assert outcome.ready, outcome.issues
+    assert paths.reads == [(Path("pasta-da-carta"), "./openapi.json")]
+    text = scaffolder.target_texts["demo"]
+    assert text is not None
+    assert "/api/users/*" in text
+    assert "seg-dom 00:00-24:00 UTC" in text
+    assert "valid_until: 2026-12-14" in text
+    assert {w.code for w in outcome.warnings} >= {"REQUEST_DEFAULT_APPLIED"}
+
+
+def test_check_reports_the_request_defaults_without_creating_anything() -> None:
+    use_case, scaffolder, _ = _request_use_case()
+
+    outcome = use_case.check("demo", REQUEST_LETTER)
+
+    assert outcome.ready
+    assert outcome.created is None
+    assert scaffolder.created == {}
+    assert "scope.deny_paths" in {w.field for w in outcome.warnings}
+
+
+def test_execute_creates_nothing_when_the_spec_cannot_be_read() -> None:
+    use_case, scaffolder, _ = _request_use_case(specs={})
+
+    outcome = use_case.execute("demo", REQUEST_LETTER)
+
+    assert not outcome.ready
+    assert scaffolder.created == {}
+    assert [(i.field, i.code) for i in outcome.issues] == [
+        ("environment.openapi", "OPENAPI_UNREADABLE")
+    ]
+    assert "Ponha-o ao lado da carta" in outcome.issues[0].message
+
+
+def test_execute_asks_for_the_spec_when_the_request_letter_has_no_openapi_answer() -> None:
+    data = request_letter_data()
+    del data["environment"]["openapi"]
+    reader = InMemoryLetterReader({"carta.yml": data})
+    scaffolder = InMemoryScaffolder(files=("target.yml",))
+    paths = InMemorySpecPaths({})
+    use_case = InitFromLetter(reader, scaffolder, FixedClock(utc(2026, 11, 14)), paths)
+
+    outcome = use_case.execute("demo", REQUEST_LETTER)
+
+    assert [i.code for i in outcome.issues] == ["OPENAPI_UNREADABLE"]
+    assert paths.reads == []
+
+
+def test_execute_does_not_read_the_spec_when_the_letter_is_a_signed_letter() -> None:
+    reader = InMemoryLetterReader({"carta.yml": valid_letter_data()})
+    paths = InMemorySpecPaths({})
+    use_case = InitFromLetter(
+        reader,
+        InMemoryScaffolder(files=("target.yml",)),
+        FixedClock(utc(2026, 11, 14)),
+        spec_paths=paths,
+    )
+
+    outcome = use_case.execute("demo", LETTER)
+
+    assert outcome.ready
+    assert paths.reads == []
+
+
+def test_execute_asks_for_the_spec_when_no_spec_reader_was_wired() -> None:
+    data = request_letter_data()
+    reader = InMemoryLetterReader({"carta.yml": data})
+    use_case = InitFromLetter(
+        reader, InMemoryScaffolder(files=("target.yml",)), FixedClock(utc(2026, 11, 14))
+    )
+
+    outcome = use_case.check("demo", REQUEST_LETTER)
+
+    assert [i.code for i in outcome.issues] == ["OPENAPI_UNREADABLE"]

@@ -112,6 +112,7 @@ Regras do formulário:
 
 - Cada resposta é `{value, source, quote}`. `source` é `carta` (a carta assinada diz isso), `pessoa` (a pessoa respondeu na entrevista) ou `desconhecido` ("não sei" / "não está na carta", sem `value`). `quote` é a frase de origem (opcional).
 - **A resposta vem da pessoa, não do agente.** O agente só transcreve. Campo obrigatório ausente ou `desconhecido` recusa a carta; o agente pergunta de novo à pessoa, nunca preenche por conta própria.
+- **`kind`** (no topo, fora de `{value, source}`) é `letter` (carta assinada; vale se ausente) ou `request` (pedido mínimo, [ADR 0120](../decisoes/0120-pedido-minimo-com-padroes-e-aprovacao.md); veja a seção "Pedido mínimo" abaixo). Outro valor é a pendência `INVALID_VALUE` em `kind`; valor que não é texto é erro de forma. Uma carta antiga, sem `kind`, gera exatamente o mesmo `target.yml` e a mesma impressão digital de antes.
 - **Portões:** ambiente de teste, dados sintéticos e autorização vigente precisam ser `true`. Um "não" (ou desconhecido) recusa tudo.
 - **Valores de exemplo** (`exemplo.com.br`, `SEC-0000`, `MEU_PRODUTO_...`, `CHANGE_ME`) são recusados.
 - **Segredos:** só o NOME (`env:NOME` ou `keyring:NOME`). Um valor de senha no lugar do nome é recusado, e a mensagem não o repete.
@@ -256,9 +257,72 @@ Do `carta.yml` ao `target.yml`, campo a campo:
 | `attack.allow_rate_tests` | `extra_checks.allow_rate_tests: true` (só se `true` com `source: carta` e `quote`) |
 | `attack.experimental_rules` | `extra_checks.experimental_rules: true` (só se `true` com `source: carta` e `quote`) |
 | `attack.inventory` | `extra_checks.inventory: true` (só se `true` com `source: carta` e `quote`) |
-| `gates.*`, `example_data` | não viram campo do perfil |
+| `attack.allow_data_writes` (só `kind: request`) | `authz.allow_writes`, `negative.allow_writes` e `scan.allow_upload_scan`, os três `true` (só se `true`; a chave individual explícita vence) |
+| `scope.allow_delete` (só `kind: request`) | acrescenta `DELETE` aos métodos da regra gerada |
+| `kind`, `gates.*`, `example_data` | não viram campo do perfil |
 
 O resto do `target.yml` (`probe`, `auth.csrf`, `auth.account_map`, os demais campos de `authz`, `cleanup`) não vem da carta e continua sendo escrito nas etapas seguintes. Isso inclui a tabela "quem pode o quê" (`authz.access_matrix`): a carta registra a autorização para tocar o alvo, e a tabela é o que o dono do produto sabe sobre os papéis; por isso não há campo dela na carta.
+
+## Pedido mínimo (`kind: request`)
+
+Quando o QA entrega só o Swagger, as contas e a documentação de negócio, sem carta assinada, a carta leva `kind: request` e a pessoa responde **só quatro perguntas** ([ADR 0120](../decisoes/0120-pedido-minimo-com-padroes-e-aprovacao.md)). A CLI completa o resto com uma tabela de padrões fixa no código, escreve **cada valor de forma explícita** no `target.yml` e a pessoa o aprova no `hdast setup`. Os padrões do modelo do perfil não mudam, e perfis e aprovações existentes continuam válidos.
+
+| # | Pergunta | Onde vai na carta | Com "não" ou "não sei" |
+| --- | --- | --- | --- |
+| 1 | Ambiente de teste, dados sintéticos, autorização do dono do produto; quem é o dono | `gates.*` | **Para o cadastro** |
+| 2 | Endereço do ambiente de teste (o `servers` do Swagger só aparece como sugestão) | `environment.base_url` | **Para o cadastro** |
+| 3 | Força do ataque: `LOW`, `MEDIUM` ou `HIGH` | `attack.strength` | `LOW` |
+| 4 | O ambiente pode receber dados gravados pela ferramenta? | `attack.allow_data_writes` (`source: pessoa`, sem frase) | As três escritas ficam desligadas |
+
+Além das quatro respostas, a carta traz `environment.openapi` (o OpenAPI, **ao lado da carta**: a CLI lê o escopo dele; o mesmo nome vale depois dentro da pasta do produto) e `auth` com tipo, rota do login e as contas (apelido, papel e **nome** do segredo; nunca o valor). Carta mínima:
+
+```yaml
+schema_version: 1
+kind: request
+product: meu-produto
+gates:
+  test_environment: { value: true, source: pessoa }
+  synthetic_data: { value: true, source: pessoa }
+  authorization_in_force: { value: true, source: pessoa }
+  product_owner: { value: "Fulana de Tal (fulana@empresa.com.br)", source: pessoa }
+environment:
+  base_url: { value: "https://api.hml.empresa.com.br", source: pessoa }
+  openapi: { value: ./openapi.json, source: pessoa }
+auth:
+  type: { value: login_password, source: pessoa }
+  token_path: { value: /api/auth/login, source: pessoa }
+  accounts:
+    source: pessoa
+    value:
+      - alias: user_a
+        role: usuario
+        username: { secret_ref: "keyring:MEU_PRODUTO_USER_A_LOGIN" }
+        password: { secret_ref: "keyring:MEU_PRODUTO_USER_A_SENHA" }
+attack:
+  strength: { value: LOW, source: pessoa }
+  allow_data_writes: { value: false, source: pessoa }
+```
+
+**Padrões aplicados** (tabela única em `domain/request_defaults.py`; cada um gera o aviso `REQUEST_DEFAULT_APPLIED` com o campo e o valor, e uma linha `# Padrão do pedido mínimo:` no cabeçalho do `target.yml`):
+
+| Campo | Padrão |
+| --- | --- |
+| `scope.allow` | Host, esquema e porta de `environment.base_url` (e o prefixo do caminho, se houver); todos os caminhos do OpenAPI, com `{x}` virando o curinga `*`; métodos `GET`, `POST`, `PUT` e `PATCH`. Host local do laboratório recebe `allow_local: true` |
+| `DELETE` | Fora. Só entra com `scope.allow_delete: {value: true, source: pessoa}` |
+| `scope.deny_paths` | Sugestão por nome de segmento: recuperação, esquecimento e troca de senha (`forgot`, `forget`, `reset`, `recover`, `password`), `logout` e `signout`, exclusão de conta e `admin`. O que a pessoa escrever **soma** à sugestão e nunca a remove; o caminho do login nunca é sugerido |
+| `scope.path_mode` | `strict`, sempre; o `wide` só vale na carta `kind: letter`, com frase |
+| `authorization.reference` | `pedido-<produto>-<AAAA-MM-DD> (dono: <nome>)` |
+| `authorization.valid_until` | Dia do cadastro mais 30 dias |
+| `authorization.windows` | `seg-dom 00:00-24:00 <fuso>`; fuso da variável `TZ` se for um nome IANA válido, senão `America/Sao_Paulo` |
+| `limits` | 10 req/s, 30 min, 2 threads; `auth.login_max_per_minute` 5 (só com login por senha) |
+| `environment.name` | `teste` |
+| `scan.strength` | A resposta 3; sem resposta, `LOW` |
+| `scan.include_outcomes` | `not_found`, `validation_error`, `conflict`, `logical_failure` e `client_error` |
+| `scan.inject_headers`, `scan.oast`, `extra_checks.*` | Ligados. Sem o serviço de retorno, a varredura segue sem OAST |
+| `scan.pacing` | `proxy` |
+| `authz.allow_writes`, `negative.allow_writes`, `scan.allow_upload_scan` | **Nunca por padrão.** Ligam todos com a pergunta 4 `true`; uma chave individual explícita (`allow_authz_writes`, `allow_invalid_input_writes`, `allow_upload_scan`) vence a agrupada |
+
+**Resposta explícita vence o padrão**, inclusive para desligar (`value: false`, lista vazia, força escolhida). `desconhecido` e campo ausente recebem o padrão. A exceção é `scope.deny_paths`, que só soma. Na carta `kind: letter`, as chaves `attack.allow_data_writes` e `scope.allow_delete` são recusadas (`REQUEST_ONLY`): ali cada capacidade segue exigindo `source: carta` e a frase. Carta `request` sem o OpenAPI legível ao lado dela fica pendente com `OPENAPI_UNREADABLE`.
 
 ## Regras
 

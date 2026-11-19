@@ -55,3 +55,17 @@ class LetterReader(Protocol):
                 com construção proibida. A mensagem nunca traz o conteúdo do arquivo.
         """
         ...
+
+
+class SpecPathReader(Protocol):
+    """Leitor dos caminhos de um OpenAPI que ainda não está na pasta do produto."""
+
+    def read_paths(self, base_dir: Path, relative: str) -> tuple[str, ...]:
+        """Devolve os modelos de caminho (`/users/{id}`) do OpenAPI, sem repetição.
+
+        Só lê arquivo dentro de `base_dir` (a pasta da carta) e não envia nada a ninguém.
+
+        Raises:
+            ConfigError: Caminho fora de `base_dir`, arquivo ausente ou OpenAPI inválido.
+        """
+        ...
