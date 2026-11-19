@@ -134,6 +134,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+    outputs:
+      commit_sha: ${{ steps.versions.outputs.commit_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,7 +144,8 @@ jobs:
         with:
           name: images-lock
           path: ${{ runner.temp }}/images-lock
-      - name: Conferir as três versões
+      - name: Conferir as versões da publicação
+        id: versions
         run: |
           python3 - <<'PY'
           import json
@@ -153,9 +156,17 @@ jobs:
           version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
           lock = Path(os.environ["RUNNER_TEMP"]) / "images-lock" / "images.lock.json"
           lock_version = json.loads(lock.read_text(encoding="utf-8"))["version"]
-          if os.environ["GITHUB_REF"] != f"refs/tags/v{version}" or lock_version != version:
-              raise SystemExit("As versões da tag, do pyproject.toml e de images.lock.json precisam coincidir.")
+          plugin = Path("plugin/.claude-plugin/plugin.json")
+          plugin_version = json.loads(plugin.read_text(encoding="utf-8"))["version"]
+          if (
+              os.environ["GITHUB_REF"] != f"refs/tags/v{version}"
+              or lock_version != version
+              or plugin_version != version
+          ):
+              raise SystemExit("As versões da tag, do pacote, dos digests e do plugin precisam coincidir.")
           PY
+          commit_sha=$(git rev-parse HEAD)
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
       - name: Incluir os digests no pacote
         run: cp "$RUNNER_TEMP/images-lock/images.lock.json" src/harness_dast/adapters/docker/
       - name: Construir wheel e sdist
@@ -172,3 +183,72 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --generate-notes
           fi
           gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/hdast-dist/*.whl "$RUNNER_TEMP"/hdast-dist/*.tar.gz --clobber
+
+  marketplace:
+    name: Abrir PR do marketplace
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Fixar o commit publicado no marketplace
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ needs.release.outputs.commit_sha }}
+        run: |
+          version=$(python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(project["project"]["version"])
+          PY
+          )
+          if [[ "$RELEASE_TAG" != "v$version" ]]; then
+            echo "A versão da main precisa coincidir com a tag publicada."
+            exit 1
+          fi
+          uv run --locked --no-dev scripts/write_marketplace.py "$RELEASE_TAG" "$RELEASE_SHA"
+      - name: Enviar a branch e abrir PR para main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          manifest=.claude-plugin/marketplace.json
+          if git diff --quiet -- "$manifest"; then
+            exit 0
+          fi
+
+          branch="chore/marketplace-$RELEASE_TAG"
+          gh auth setup-git
+          existing=$(git ls-remote --heads origin "refs/heads/$branch")
+          if [[ -z "$existing" ]]; then
+            git switch -c "$branch"
+            git add -- "$manifest"
+            git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore(plugin): fixa marketplace em $RELEASE_TAG"
+            git push origin "HEAD:refs/heads/$branch"
+          else
+            # Reaproveita a branch se uma tentativa anterior já gravou o manifesto esperado.
+            git fetch --depth=1 origin "refs/heads/$branch"
+            git show "FETCH_HEAD:$manifest" | cmp - "$manifest"
+          fi
+
+          open_prs=$(gh pr list --state open --base main --head "$branch" --json number --jq length)
+          if [[ "$open_prs" == 0 ]]; then
+            gh pr create --base main --head "$branch" \
+              --title "chore(plugin): fixa marketplace em $RELEASE_TAG" \
+              --body "Fixa o plugin na tag e no commit publicados para $RELEASE_TAG, conforme o ADR 0119."
+          fi
