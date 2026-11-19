@@ -42,6 +42,7 @@ def test_wheel_inclui_compose_e_volumes_sem_pastas_do_checkout(tmp_path: Path) -
         compose = wheel.read("harness_dast/compose.yaml").decode()
         assert _relative_mounts(compose) == {"compose_data/policy", "compose_data/audit"}
         assert "harness_dast/compose_data/audit/README.txt" in names
+        assert "harness_dast/product_template/target.yml" in names
         policy = wheel.read("harness_dast/compose_data/policy/policy.json").decode()
         original = ROOT / "docker/scope-proxy/policy/policy.json"
         assert policy.replace("\r\n", "\n") == original.read_text(encoding="utf-8")

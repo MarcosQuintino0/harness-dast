@@ -200,3 +200,18 @@ def test_scaffold_with_target_text_refuses_to_overwrite_an_existing_product(
         _scaffolder(products).scaffold("demo", target_text="x: 1\n")
 
     assert (products / "demo" / "target.yml").read_text(encoding="utf-8") == "meu trabalho"
+
+
+def test_default_template_dir_uses_the_packaged_copy_outside_the_clone(tmp_path: Path) -> None:
+    package = tmp_path / "site-packages" / "harness_dast"
+    (package / "product_template").mkdir(parents=True)
+
+    assert default_template_dir(package) == package / "product_template"
+
+
+def test_default_template_dir_prefers_the_clone_template(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "harness_dast"
+    package.mkdir(parents=True)
+    (tmp_path / "products" / "_template").mkdir(parents=True)
+
+    assert default_template_dir(package) == tmp_path / "products" / "_template"
