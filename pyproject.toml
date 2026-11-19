@@ -43,6 +43,10 @@ dev = [
 [tool.uv]
 default-groups = ["dev"]
 
+[tool.uv.build-backend]
+# O uv_build leva os dados sob o módulo para o wheel e para o sdist.
+source-exclude = ["/docker", "/lab", "/tests", "/evals", "/docs", "/.claude"]
+
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
 line-length = 100

@@ -1,6 +1,6 @@
 # Instalar o Docker e preparar a pilha
 
-O Docker é obrigatório para a pilha do harness-dast. Reserve cerca de 4 GiB de memória para o Docker Desktop. Faça os passos de download e diagnóstico na raiz do repositório depois de [instalar a CLI](instalar.md).
+O Docker é obrigatório para a pilha do harness-dast. Reserve cerca de 4 GiB de memória para o Docker Desktop. [Instale a CLI](instalar.md) antes de baixar as imagens. Se instalou pelo wheel da release, use `hdast` no lugar de `uv run hdast` nos passos de download e diagnóstico. No clone, execute esses passos na raiz do repositório.
 
 ## Windows com WSL 2
 
@@ -26,7 +26,7 @@ uv run hdast stack pull
 uv run hdast doctor
 ```
 
-`docker version` deve mostrar as seções Client e Server. O `stack pull` baixa as imagens do ZAP e do proxy de escopo do GHCR, sem iniciar contêineres. O `doctor` indica se as duas estão locais e se o proxy tem a versão da CLI. O Docker ainda pode baixar imagens auxiliares e imagens do alvo de laboratório no primeiro `stack up`.
+`docker version` deve mostrar as seções Client e Server. O `stack pull` baixa as imagens do ZAP e do proxy de escopo do GHCR, sem iniciar contêineres. Com `images.lock.json` na instalação, `stack pull` e `stack up` usam os digests publicados para a versão da CLI. O `doctor` indica se as duas imagens estão locais e se o proxy tem a versão da CLI. O Docker ainda pode baixar imagens auxiliares e imagens do alvo de laboratório no primeiro `stack up`.
 
 Se os pacotes tiverem acesso restrito, autentique o Docker no GHCR com uma conta autorizada antes do download. [Autenticação no GHCR](https://docs.github.com/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
 
@@ -45,7 +45,7 @@ try {
 
 No Bash ou Zsh, use `HDAST_ZAP_API_KEY=preparo-local docker compose --profile lab pull zap-gateway proxy-gateway vampi`. O valor serve para o Compose interpretar o arquivo durante a preparação. Nenhum contêiner é iniciado.
 
-Se as imagens próprias ainda aguardam publicação, construa as duas usando os nomes padrão do Compose. No PowerShell, substitua a linha de `pull` no bloco acima por estas linhas. No Bash ou Zsh, use a mesma atribuição temporária de `HDAST_ZAP_API_KEY` antes de `docker compose build`.
+Se as imagens próprias ainda aguardam publicação, construa as duas em um clone de desenvolvimento usando os nomes padrão do Compose. No PowerShell, substitua a linha de `pull` no bloco acima por estas linhas. No Bash ou Zsh, use a mesma atribuição temporária de `HDAST_ZAP_API_KEY` antes de `docker compose build`.
 
 ```powershell
 $hdastImageVersion = uv run python -c "from harness_dast import __version__; print(__version__)"
@@ -56,7 +56,7 @@ Depois, prepare também as imagens auxiliares e a do VAmPI. O diagnóstico da de
 
 ## Construir a partir do código local
 
-Use a construção local ao modificar o proxy, o ZAP ou seus Dockerfiles, ou enquanto as imagens da versão ainda aguardam publicação. O primeiro build pode precisar de rede para baixar bases e dependências. Rode `uv sync --locked` ao trocar de versão do repositório.
+Use a construção local em um clone de desenvolvimento ao modificar o proxy, o ZAP ou seus Dockerfiles, ou enquanto as imagens da versão ainda aguardam publicação. Fora do clone, a CLI recusa `--build` e `HDAST_STACK_BUILD=1` antes de chamar o Docker. O primeiro build pode precisar de rede para baixar bases e dependências. Rode `uv sync --locked` ao trocar de versão do repositório.
 
 No PowerShell, substitua `vampi` pelo produto aprovado que você vai subir.
 

@@ -141,7 +141,7 @@ class StackManager:
             images: Seleção e conferência das imagens próprias da pilha.
             states: Estado persistido.
             environ: Ambiente da CLI (chave do ZAP, portas, credenciais já definidas).
-            repo_root: Raiz do repositório (onde estão `compose.yaml` e `lab/`).
+            repo_root: Raiz dos arquivos do Compose.
             running_scans: Leitura do andamento das varreduras, para o `stop` dizer o que parou.
             locks: Trava da pilha, para o `status` dizer quem a ocupa (ADR 0035).
             proxy_env: Montagens e identidade do proxy gerenciado para o produto.
@@ -170,10 +170,12 @@ class StackManager:
         """Sobe a pilha para o produto.
 
         Raises:
-            ConfigError: Perfil inválido ou falha ao gravar política ou estado.
+            ConfigError: Perfil ou imagens inválidas, build proibido ou falha de gravação.
             ScopeViolation: Autorização vencida ou janela fechada.
             ExternalToolError: Docker indisponível ou falha ao subir.
         """
+        build_local = request.build or use_local_build(self._environ)
+        references = self._images.references(OWN_SERVICES, local=build_local)
         now = self._clock.now()
         profile = self._profiles.load(request.product)
         profile.ensure_runnable(now)
@@ -203,8 +205,7 @@ class StackManager:
         bridge = should_mount_oast_bridge(profile.environment.base_url, requested=profile.scan.oast)
         projects = self._projects(target, oracle=oracle, suffix=suffix, bridge=bridge)
         proxy_env = self._proxy_env(profile.product) if self._proxy_env is not None else {}
-        build_local = request.build or use_local_build(self._environ)
-        image_env = self._prepare_images(projects[0], local=build_local)
+        image_env = self._prepare_images(projects[0], references, local=build_local)
         warnings = self._tear_down_previous()
         run_id = RunId.create(
             started_at=now, product=profile.product, suffix=self._entropy.hex_suffix()
@@ -249,8 +250,9 @@ class StackManager:
         report = self._report(state, policy_file=policy_file)
         return report.model_copy(update={"warnings": tuple(warnings)})
 
-    def _prepare_images(self, project: ComposeProject, *, local: bool) -> dict[str, str]:
-        references = self._images.references(OWN_SERVICES, local=local)
+    def _prepare_images(
+        self, project: ComposeProject, references: Mapping[str, str], *, local: bool
+    ) -> dict[str, str]:
         env = self._images.compose_env(references)
         if local:
             # O Compose interpola a chave mesmo em `build`, que não inicia nenhum serviço.

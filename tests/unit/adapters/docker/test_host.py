@@ -14,8 +14,9 @@ from harness_dast.adapters.docker.host import (
     PULL_TIMEOUT_SECONDS,
     SystemHost,
 )
-from harness_dast.application.stack_images import ImageInfo
+from harness_dast.application.stack_images import ImageInfo, StackImages
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from tests.fakes.host import published_images
 
 BASE_ZAP = "zaproxy/zap-stable:2.17.0@sha256:" + "a" * 64
 COMPOSE = f"""\
@@ -188,6 +189,25 @@ def test_compose_images_shares_the_versioned_proxy_reference_with_vampi_tls(
         "zap": f"ghcr.io/marcosquintino0/hdast-zap:{version}",
         "scope-proxy": expected,
         "vampi-tls": expected,
+    }
+
+
+def test_published_digests_override_image_environment_when_lock_is_loaded() -> None:
+    lock = published_images()
+    host_with_overrides = SystemHost(
+        {"HDAST_ZAP_IMAGE": "zap:local", "HDAST_SCOPE_PROXY_IMAGE": "scope-proxy:local"}
+    )
+    images = StackImages(
+        host_with_overrides,
+        lock.version,
+        load_lock=lambda: lock,
+        has_build_contexts=lambda: False,
+    ).references(("zap", "scope-proxy", "vampi-tls"), local=False)
+
+    assert images == {
+        "zap": lock.images.zap.reference(),
+        "scope-proxy": lock.images.scope_proxy.reference(),
+        "vampi-tls": lock.images.scope_proxy.reference(),
     }
 
 

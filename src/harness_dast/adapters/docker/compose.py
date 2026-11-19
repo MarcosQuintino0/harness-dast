@@ -60,6 +60,28 @@ def default_repo_root() -> Path:
     return root
 
 
+def default_compose_root(
+    *,
+    package: Path | None = None,
+    is_file: Callable[[Path], bool] = Path.is_file,
+) -> Path:
+    """Localiza o Compose do clone editável ou o arquivo da instalação."""
+    package = Path(__file__).resolve().parents[2] if package is None else package
+    root = package.parent.parent
+    if (
+        package.parent.name == "src"
+        and is_file(root / "pyproject.toml")
+        and is_file(root / "compose.yaml")
+    ):
+        return root
+    if is_file(package / "compose.yaml"):
+        return package
+    raise ConfigError(
+        "Não encontrei o compose.yaml da pilha.",
+        hint="Reinstale o wheel da release ou restaure o compose.yaml do clone.",
+    )
+
+
 def run_subprocess(
     args: list[str], env: Mapping[str, str], cwd: Path, timeout: float
 ) -> CommandResult:

@@ -9,7 +9,7 @@ import pytest
 from harness_dast import __version__
 from harness_dast.application.doctor import Doctor
 from harness_dast.application.doctor_report import DoctorReport
-from harness_dast.application.stack_images import ImageInfo, StackImages
+from harness_dast.application.stack_images import ImageInfo
 from harness_dast.application.stack_models import ComposeProject, StackState
 from harness_dast.application.stage_errors import doctor_failure
 from harness_dast.application.validate_profile import ValidateProfile
@@ -50,7 +50,7 @@ class Setup:
         self.vault = SecretRegistry()
         self.doctor = Doctor(
             host=self.host,
-            images=StackImages(self.host, __version__),
+            images=self.host.stack_images(),
             profiles=self.profiles,
             validator=ValidateProfile(self.profiles, self.clock, InMemoryApprovalStore()),
             secrets=DictSecretProvider(ENV if env is None else env),

@@ -16,7 +16,8 @@ class ExitCode(IntEnum):
 
     5 é reservado a falha de ferramenta externa (ZAP, Docker); 6 é o alvo respondendo de
     forma que impede o prosseguimento; 7 é falha na limpeza do ambiente; 8 é a pilha ocupada por
-    outra execução (ADR 0035); `STACK_STALE` (pilha desatualizada, ADR 0081) reaproveita o 4;
+    outra execução (ADR 0035); 9 é o build local da pilha pedido fora de um clone de
+    desenvolvimento (ADR 0121); `STACK_STALE` (pilha desatualizada, ADR 0081) reaproveita o 4;
     130 é interrupção pelo usuário (Ctrl+C), convenção de shell para SIGINT.
     """
 
@@ -29,6 +30,7 @@ class ExitCode(IntEnum):
     TARGET = 6
     CLEANUP = 7
     BUSY = 8
+    BUILD_FORBIDDEN = 9
     INTERRUPTED = 130
     INTERNAL = 10
 
@@ -72,6 +74,13 @@ class LetterRejected(ConfigError):
     """
 
     code = "LETTER_REJECTED"
+
+
+class StackBuildForbidden(ConfigError):
+    """O build local da pilha foi solicitado fora de um clone de desenvolvimento."""
+
+    code = "STACK_BUILD_FORBIDDEN"
+    exit_code = ExitCode.BUILD_FORBIDDEN
 
 
 class ScopeViolation(HarnessError):

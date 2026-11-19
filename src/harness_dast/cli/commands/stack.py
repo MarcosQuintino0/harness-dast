@@ -78,7 +78,7 @@ def up_command(
         typer.Option("--token-ttl", min=5, max=86400, help="Vida do token do alvo, em segundos."),
     ] = None,
     build: Annotated[
-        bool, typer.Option("--build", help="Reconstrói as imagens locais antes de subir.")
+        bool, typer.Option("--build", help="Reconstrói as imagens em um clone de desenvolvimento.")
     ] = False,
     oracle: Annotated[
         bool,

@@ -12,9 +12,10 @@ from pathlib import Path
 from pydantic import SecretStr
 
 from harness_dast import __version__
-from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
+from harness_dast.adapters.docker.compose import DockerComposeCli, default_compose_root
 from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
 from harness_dast.adapters.docker.host import SystemHost
+from harness_dast.adapters.docker.images_lock import has_build_contexts, load_images_lock
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
@@ -27,7 +28,7 @@ from harness_dast.adapters.system_random import SystemRandom
 from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
-from harness_dast.application.stack_images import StackImages
+from harness_dast.application.stack_images import ImageStore, StackImages
 from harness_dast.application.stack_models import StackState
 from harness_dast.cli.approval_composition import (
     formal_profiles,
@@ -41,9 +42,14 @@ from harness_dast.domain.errors import ConfigError
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
 
 
-def build_stack_images() -> StackImages:
+def build_stack_images(host: ImageStore | None = None) -> StackImages:
     """Monta a seleção e a conferência das imagens próprias do Compose."""
-    return StackImages(SystemHost(os.environ), __version__)
+    return StackImages(
+        SystemHost(os.environ) if host is None else host,
+        __version__,
+        load_lock=load_images_lock,
+        has_build_contexts=lambda: has_build_contexts(default_compose_root()),
+    )
 
 
 def open_state_store(environ: Mapping[str, str] | None = None) -> FileStackStateStore:
@@ -92,7 +98,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
     """Monta o caso de uso da pilha.
 
     Raises:
-        ConfigError: Configuração inválida ou repositório sem `compose.yaml`.
+        ConfigError: Configuração inválida.
     """
     settings = load_settings()
     root = products_dir if products_dir is not None else settings.products_dir
@@ -108,7 +114,7 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
         images=build_stack_images(),
         states=open_state_store(),
         environ=os.environ,
-        repo_root=default_repo_root(),
+        repo_root=default_compose_root(),
         running_scans=FileRunArtifacts(settings.runs_dir),
         locks=open_stack_lock(),
         proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
