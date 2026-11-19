@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class Frozen(BaseModel):
@@ -135,8 +135,36 @@ class Budget(Frozen):
     duration_seconds: int
 
 
+class RequestAnswers(Frozen):
+    """As respostas fixas do coordenador as quatro perguntas do pedido minimo (ADR 0120)."""
+
+    owner: str
+    base_url: str
+    strength: Literal["LOW", "MEDIUM", "HIGH"]
+    writes: bool
+
+
+class RequestExpectation(Frozen):
+    """Criterio "escopo proposto seguro" do caso realista (ADR 0120, secao 6).
+
+    `never_methods` e `never_paths` (caminhos concretos) nunca podem estar no escopo efetivo do
+    perfil: o que `scope.allow` libera e `scope.deny_paths` nao nega. `coordinator_answers` e o
+    arquivo (na pasta do caso) com o texto das respostas; vai para o lacre, nunca para o workspace.
+    """
+
+    answers: RequestAnswers
+    never_methods: tuple[str, ...]
+    never_paths: tuple[str, ...]
+    coordinator_answers: str
+
+
 class Case(Frozen):
-    """Caso = alvo + modos + carta + gabarito."""
+    """Caso = alvo + modos + carta + gabarito.
+
+    `layout` diz como o workspace e montado: `repo` (padrao) copia o repositorio quase inteiro;
+    `plugin` entrega so uma pasta de produtos e o plugin fica fora dela (ADR 0119, fase G).
+    `request` troca a fidelidade a carta pelo escopo proposto seguro (ADR 0120).
+    """
 
     schema_version: Literal[1]
     name: str
@@ -154,6 +182,14 @@ class Case(Frozen):
     flaws: tuple[Flaw, ...]
     forbidden: Forbidden
     budget: Budget
+    layout: Literal["repo", "plugin"] = "repo"
+    request: RequestExpectation | None = None
+
+    @model_validator(mode="after")
+    def _request_needs_plugin_layout(self) -> "Case":
+        if self.request is not None and self.layout != "plugin":
+            raise ValueError("o criterio de pedido minimo (request) exige layout: plugin")
+        return self
 
 
 class Check(Frozen):

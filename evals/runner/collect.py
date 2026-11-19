@@ -136,7 +136,7 @@ def collect(
     for transcript in sorted(out.glob("transcript.*")):
         shutil.copy2(transcript, trace / transcript.name)
         copied.append(transcript.name)
-    if not (trace / "runs").is_dir():
+    if not (trace / "runs").is_dir() or not any((trace / "runs").iterdir()):
         problems.append("o agente nao gerou runs/: nada foi executado contra o alvo")
     manifest = {"copied": copied, "problems": problems, "tamper": tamper}
     (trace / "collect.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")

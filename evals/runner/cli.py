@@ -104,8 +104,10 @@ def _run(args: argparse.Namespace, today: Callable[[], date]) -> str:
             reuse_from=args.reuse_from,
             reuse_package=args.reuse_package,
         )
+        plugin = f"plugin (fora do workspace): {result.plugin}\n" if result.plugin else ""
         return (
-            f"workspace: {result.workspace}\nlacre (NAO mostrar ao agente): {result.sealed}\n"
+            f"workspace: {result.workspace}\n{plugin}"
+            f"lacre (NAO mostrar ao agente): {result.sealed}\n"
             f"exclusoes: {len(result.excluded)}; termos do gabarito na copia: {len(result.leaks)}"
         )
     if args.command == "approve":
