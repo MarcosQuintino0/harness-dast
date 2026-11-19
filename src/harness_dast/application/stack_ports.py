@@ -135,6 +135,17 @@ class ComposeRunner(Protocol):
         """
         ...
 
+    def kill_container(
+        self, project: ComposeProject, env: dict[str, str], container_name: str
+    ) -> None:
+        """Mata e remove o contêiner de uso único pelo nome; um que já saiu conta como morto.
+
+        Raises:
+            ConfigError: Nome de contêiner inválido.
+            ExternalToolError: Docker ausente ou contêiner que não pôde ser encerrado.
+        """
+        ...
+
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
         """Lista os serviços do projeto (vazio se não há contêiner).
 

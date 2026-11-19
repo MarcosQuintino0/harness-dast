@@ -176,3 +176,39 @@ def test_processo_do_docker_roda_com_a_entrada_padrao_em_dev_null(
 
     assert seen["stdin"] is subprocess.DEVNULL
     assert seen["timeout"] == 5
+
+
+def test_kill_container_remove_o_conteiner_pelo_nome_sem_levantar_prazo() -> None:
+    runner = Sequence(CommandResult(0, NAME, ""))
+
+    _cli(runner).kill_container(PROJECT, {"HDAST_ZAP_API_KEY": SECRET}, NAME)
+
+    args, env, timeout = runner.calls[0]
+    assert args == ["docker", "rm", "-f", NAME]
+    assert env["HDAST_ZAP_API_KEY"] == SECRET
+    assert timeout == KILL_SECONDS
+
+
+def test_kill_container_que_ja_saiu_conta_como_encerrado() -> None:
+    gone = CommandResult(1, "", f"Error response from daemon: No such container: {NAME}")
+
+    _cli(Sequence(gone)).kill_container(PROJECT, {}, NAME)
+
+
+def test_kill_container_que_nao_morre_orienta_a_remover_na_mao() -> None:
+    runner = Sequence(CommandResult(1, "", "daemon ocupado"))
+
+    with pytest.raises(ExternalToolError) as error:
+        _cli(runner).kill_container(PROJECT, {}, NAME)
+
+    assert f"docker rm -f {NAME}" in (error.value.hint or "")
+
+
+@pytest.mark.parametrize("name", ["", "Maiuscula", "-hifen", "a b"])
+def test_kill_container_recusa_nome_invalido_sem_chamar_o_docker(name: str) -> None:
+    runner = Sequence()
+
+    with pytest.raises(ConfigError, match="Nome de contêiner"):
+        _cli(runner).kill_container(PROJECT, {}, name)
+
+    assert runner.calls == []
