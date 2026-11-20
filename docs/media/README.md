@@ -1,5 +1,16 @@
 # Gravar o terminal
 
+## Vídeo de apresentação do README
+
+O `apresentacao.gif` e o `apresentacao.mp4` saem do projeto Remotion na pasta [`video/`](../../video/). A cena do painel usa capturas de uma execução no laboratório (Clínica Piloto); as telas do Claude Code, do terminal e da varredura ao vivo são recriações desenhadas no vídeo.
+
+```bash
+cd video
+npm install
+npx remotion render Apresentacao ../docs/media/apresentacao.mp4 --crf=30
+npx remotion render Apresentacao ../docs/media/apresentacao.gif --codec=gif --every-nth-frame=4 --scale=0.4
+```
+
 Tudo aqui usa só o laboratório local (VAmPI). Nada sai da máquina.
 
 ## O que o VHS grava sozinho
