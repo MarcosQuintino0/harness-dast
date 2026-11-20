@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). O v
 
 ## [Unreleased]
 
+- Vídeo de apresentação no README (`docs/media/apresentacao.gif` e `apresentacao.mp4`), gerado pelo projeto Remotion em `video/`, no lugar da animação de terminal na abertura. O `demo.gif` e os roteiros do VHS continuam em `docs/media`.
+
 - Pacote P8 do [ADR 0122](docs/decisoes/0122-nuclei-como-segundo-motor.md), a prova do Nuclei no laboratório ([relatório](docs/arquivo/reviews/2026-11-19-prova-nuclei.md)):
   - alvo de laboratório `alvo-actuator` (Spring Boot com o Actuator aberto de propósito, só na rede interna), reconhecido pelo `stack up` com projeto próprio (`hdast-actuator`), e o teste de integração `tests/integration/test_lab_nuclei.py` com a área "Nuclei" da escada;
   - correção: o prazo do contêiner do Nuclei era igual ao do portão, os dois estouravam juntos e o resultado parcial se perdia (saída `5`). Agora o contêiner tem 15 s de folga, o portão para primeiro e o parcial é gravado (saída `3`, `stopped_deadline`);

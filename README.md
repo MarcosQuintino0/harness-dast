@@ -2,8 +2,10 @@
 
 Ferramenta defensiva para QA testar a segurança de APIs no laboratório local e em ambientes de teste autorizados.
 
-<!-- A animação é gerada por docs/media/demo.tape. -->
-![hdast demo](docs/media/demo.gif)
+<!-- A animação é gerada pelo projeto Remotion em video/ (veja docs/media/README.md). -->
+[![Apresentação do hdast: o pedido ao agente, a varredura e o painel](docs/media/apresentacao.gif)](docs/media/apresentacao.mp4)
+
+Clique na animação para abrir o vídeo em tamanho cheio.
 
 ## Por que dá para confiar
 
