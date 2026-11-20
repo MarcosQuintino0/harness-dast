@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.profile import ProductProfile
 from tests.fakes.profile_data import valid_profile_data
 
@@ -53,3 +54,21 @@ def test_the_keys_load_when_present() -> None:
 def test_unknown_key_wrong_type_or_invalid_value_is_rejected(blocks: dict[str, Any]) -> None:
     with pytest.raises(ConfigError):
         _load(**blocks)
+
+
+@pytest.mark.parametrize("name", NUCLEI_FIELDS)
+def test_a_nuclei_key_defaults_to_false_when_absent(name: str) -> None:
+    assert getattr(_load().extra_checks, name) is False
+
+
+@pytest.mark.parametrize("name", NUCLEI_FIELDS)
+@pytest.mark.parametrize("value", [True, False])
+def test_a_nuclei_key_preserves_an_explicit_boolean(name: str, value: bool) -> None:
+    assert getattr(_load(extra_checks={name: value}).extra_checks, name) is value
+
+
+@pytest.mark.parametrize("name", NUCLEI_FIELDS)
+@pytest.mark.parametrize("value", ["true", 1, None, {"value": True}])
+def test_a_nuclei_key_rejects_an_invalid_value(name: str, value: object) -> None:
+    with pytest.raises(ConfigError):
+        _load(extra_checks={name: value})

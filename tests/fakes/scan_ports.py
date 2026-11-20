@@ -16,6 +16,7 @@ from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
@@ -271,6 +272,7 @@ class InMemoryRunArtifacts:
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
         self.negative: dict[str, NegativeResult] = {}
+        self.nuclei: dict[str, NucleiResult] = {}
         self.rule_stats: dict[str, RuleStatsFile] = {}
         self.metrics: dict[str, RunMetrics] = {}
         self.signals: dict[str, ProxySignals] = {}
@@ -327,6 +329,9 @@ class InMemoryRunArtifacts:
 
     def read_negative(self, run_id: str) -> NegativeResult | None:
         return self.negative.get(run_id)
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        return self.nuclei.get(run_id)
 
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         self.authz[run_id] = result

@@ -120,6 +120,7 @@ e arquivos de teste. Quando mais de uma área muda, `changed` reúne seus arquiv
 | Imagens e pilha | `compose.yaml` | 4 | 3 |
 | Estratégia e reuso | `src/harness_dast/application/strategy*.py` | 2 | 5 |
 | Verificações extras | `src/harness_dast/application/extra_checks.py` | 2 | 3 |
+| Nuclei | `src/harness_dast/adapters/nuclei/**` | 0 | 1 |
 
 <!-- lab-areas:end -->
 

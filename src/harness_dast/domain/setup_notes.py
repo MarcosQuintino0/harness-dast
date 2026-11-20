@@ -1,5 +1,6 @@
 """Destaques para a pessoa revisar no início do resumo do `hdast setup`."""
 
+from harness_dast.domain.nuclei_approval import describe_nuclei
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_defaults import SETUP_LABEL
 from harness_dast.domain.scope_approval_summary import describe_environment, describe_schedule
@@ -68,6 +69,7 @@ def approval_notes(profile: ProductProfile, applied_defaults: tuple[str, ...]) -
         f"  {describe_environment(profile)}",
         *_denied_paths(profile),
         *_enabled_capabilities(profile),
+        *describe_nuclei(profile),
         *_write_notes(profile),
         "VALIDADE E JANELAS DE EXECUÇÃO",
         *(f"  {line}" for line in describe_schedule(profile)),

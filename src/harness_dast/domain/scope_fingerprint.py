@@ -18,7 +18,8 @@ YAML não entram; o que entra é o que decide o que é tocado, com que conta e c
   desligadas), só quando difere do padrão (ADR 0051);
 - `extra_checks`: as permissões extras da V1.12 (testes de limite, regras experimentais,
   inventário), só quando difere do padrão (ADR 0096); `scan.inject_headers` e `scan.oast` entram
-  com o `scan`, também só fora do padrão;
+  com o `scan`, também só fora do padrão. As chaves do Nuclei entram só quando verdadeiras
+  e, quando o motor está autorizado, fixam a versão do motor e o catálogo (ADR 0122);
 - `cleanup`: a configuração da limpeza (caminho do script, NOMES de `secret_ref`, tabelas, teto
   de linhas, esquema); nunca valor de segredo nem o conteúdo do script.
 
@@ -37,8 +38,10 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Final
 
+from harness_dast.domain import nuclei_version
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import PasswordLoginAuth
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.profile import ProductProfile
 
 FINGERPRINT_VERSION: Final = 2
@@ -61,7 +64,7 @@ BLOCKS: Final[tuple[tuple[str, str], ...]] = (
     ("scan", "política da varredura e do gate de severidade"),
     ("authz", "configuração do teste de autorização"),
     ("negative", "teste de valores que o esquema proíbe"),
-    ("extra_checks", "capacidades extras da V1.12, ligadas só pela carta"),
+    ("extra_checks", "capacidades adicionais e autorização do Nuclei"),
     ("cleanup", "limpeza do ambiente, com script, banco e tetos"),
 )
 """Blocos de proteção, em ordem de exibição: identificador e descrição em português."""
@@ -226,6 +229,20 @@ def _negative(profile: ProductProfile) -> JsonValue:
     return dumped
 
 
+def _extra_checks(profile: ProductProfile) -> JsonValue:
+    # Os valores falsos das chaves antigas fazem parte dos hashes já aprovados.
+    dumped: dict[str, JsonValue] = {
+        key: value
+        for key, value in profile.extra_checks.model_dump(mode="json").items()
+        if key not in NUCLEI_FIELDS or value is True
+    }
+    if profile.extra_checks.nuclei:
+        dumped["nuclei_version"] = nuclei_version.NUCLEI_VERSION
+        dumped["templates_version"] = nuclei_version.TEMPLATES_VERSION
+        dumped["templates_archive_sha256"] = nuclei_version.TEMPLATES_ARCHIVE_SHA256
+    return dumped
+
+
 def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
     """Forma canônica de cada bloco de proteção, na ordem de `BLOCK_IDS`.
 
@@ -250,7 +267,7 @@ def protected_blocks(profile: ProductProfile) -> dict[str, JsonValue]:
         "scan": _scan(profile),
         "authz": _authz(profile),
         "negative": _negative(profile),
-        "extra_checks": profile.extra_checks.model_dump(mode="json"),
+        "extra_checks": _extra_checks(profile),
         "cleanup": None if profile.cleanup is None else profile.cleanup.model_dump(mode="json"),
     }
     if profile.technologies is not None:

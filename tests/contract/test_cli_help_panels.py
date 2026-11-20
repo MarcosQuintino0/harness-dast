@@ -25,6 +25,7 @@ EXPECTED_COMMANDS = frozenset(
         "knowledge",
         "mutation",
         "negative",
+        "nuclei",
         "panel",
         "plan",
         "preflight",

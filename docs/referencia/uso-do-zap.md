@@ -4,6 +4,8 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 
 **Última conferência:** 2026-11-17, fim da V1.12 (passo F9). ZAP 2.17.0, imagem `hdast/zap:2.17.0-alpha54-beta64` (ADR 0103), derivada da `zaproxy/zap-stable` fixada por digest em `compose.yaml`, com `ascanrulesBeta` 64 e `ascanrulesAlpha` 54 fixados por SHA-256 em `docker/zap/Dockerfile`.
 
+**Divisão com o Nuclei (2026-11-19).** A seção "Onde o ZAP e o Nuclei se dividem" abaixo vem do [ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md) e do spike dele; o uso do ZAP não mudou e a conferência acima continua valendo.
+
 **Fontes da conferência:**
 - código: `src/harness_dast/adapters/zap/`, `src/harness_dast/domain/scan_policy.py`, `src/harness_dast/domain/experimental_rules.py`, `docker/zap/Dockerfile` e `compose.yaml`;
 - execução no laboratório (Clínica Piloto, VAmPI e crAPI): `rule-stats.json` das provas da V1.12, com os `run_id` no [relatório da V1.12](../arquivo/reviews/relatorio-v1.12.md); e, para a base anterior, a rodada cega da V1.9.3 (`2026-11-17T00-37-09Z-clinica-piloto-e0d5`).
@@ -24,6 +26,23 @@ Tabela de consulta para revisar, de tempos em tempos, se a ferramenta aproveita 
 | Spider e AJAX spider | Não | Desnecessários: as rotas vêm do OpenAPI e o `probe` alimenta o histórico |
 | Complemento de JWT do ZAP | Não | O JWT é feito pela CLI no `authz` (ADR 0098): `alg none`, assinatura retirada, claims alteradas e chave HMAC fraca offline com prova re-assinada. `kid`, `jku` e confusão de algoritmo ficam de fora. Origem: código e execução (crAPI aceitou `alg_none` e claims alteradas) |
 | Fuzzer do ZAP | Não | Os testes `negative` e `authz` cobrem casos guiados pelo contrato; o limite de consumo (página enorme e tentativas repetidas) é a F5 da CLI, com `extra_checks.allow_rate_tests` (ADR 0101), e o inventário de versões e documentação é a F8, com `extra_checks.inventory` (ADR 0102) |
+
+## Onde o ZAP e o Nuclei se dividem
+
+O Nuclei é o segundo motor ([ADR 0122](../decisoes/0122-nuclei-como-segundo-motor.md)). Cada um cobre o que o outro não olha:
+
+| Assunto | ZAP | Nuclei |
+| --- | --- | --- |
+| Alvo da varredura | O que o contrato (OpenAPI) e o `probe` descrevem | Falhas conhecidas de produtos de prateleira (CVE de Spring, Tomcat, nginx), configuração errada e exposição fora do contrato (Actuator aberto, arquivos de configuração, painéis) |
+| Como ataca | Injeção em parâmetros, corpo, caminho, cabeçalhos e cookies, com regras ativas e passivas | Modelos de assinatura da comunidade, fixados por versão e SHA-256 no manifesto |
+| Escopo | Estrito: só as operações do contrato, pela cerca de hoje | Origens aprovadas pela segunda cerca; qualquer caminho só com `extra_checks.nuclei_wide_paths` |
+| Arquivos ocultos | Regras 40035, 40032 e 40034 desligadas: o spike achou 0 nos quatro alvos | Cobre as exposições conhecidas, inclusive os modelos de `http/misconfiguration/` |
+| Login | Replacer do ZAP, na janela do `scan` | Arquivo de segredos `-sf`, só leitura com login |
+| Sai em | `scan.json`, `findings.json` | `nuclei.json`, seção própria do relatório, ids `U-` |
+
+Os dois passam por proxies de escopo diferentes, e o ZAP nunca usa a política do Nuclei. As regras de arquivos ocultos do ZAP **não** são religadas para cobrir o Nuclei: o ZAP não achou nada nos quatro alvos do spike, mesmo no Actuator aberto, e custaria 53 pedidos a mais por varredura. Se o uso real mostrar sobreposição, a seleção pela lacuna do ZAP pode ser reaberta.
+
+**Limite de prova.** O ganho do Nuclei no laboratório foi pequeno (0 achados exclusivos na Clínica, no VAmPI e no crAPI), porque são APIs de estudo; só o alvo Spring com o Actuator aberto mostrou o ganho (13 exposições). O ganho em produto real não foi medido.
 
 ## Como conferir de novo
 

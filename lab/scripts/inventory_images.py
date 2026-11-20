@@ -15,10 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 ImageId = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 NonEmpty = Annotated[str, Field(min_length=1)]
 IMAGE_DEFAULT = re.compile(
-    r"\$\{HDAST_(?:ZAP|SCOPE_PROXY)_IMAGE:-([a-zA-Z0-9][a-zA-Z0-9._/:@-]*)\}"
+    r"\$\{HDAST_(?:ZAP|SCOPE_PROXY|NUCLEI)_IMAGE:-([a-zA-Z0-9][a-zA-Z0-9._/:@-]*)\}"
 )
 OWN_IMAGE = re.compile(
-    r"^(?:(?:harness|hdast)(?:[/-]|:|$)|ghcr\.io/marcosquintino0/hdast-(?:zap|scope-proxy)(?:[:@]|$))"
+    r"^(?:(?:harness|hdast)(?:[/-]|:|$)|ghcr\.io/marcosquintino0/hdast-(?:zap|scope-proxy|nuclei)(?:[:@]|$))"
 )
 
 

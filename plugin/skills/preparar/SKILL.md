@@ -15,7 +15,7 @@ Restrinja o trabalho à instalação e ao diagnóstico local, usando só as font
    - Compare a versão da CLI com a do manifesto `.claude-plugin/plugin.json` do plugin ativo, informada pelo `SessionStart`. Se o hook não mostrar a versão, peça à pessoa que confira o campo `version` do manifesto no terminal dela.
    - Confira o Docker com `docker --version` e teste o motor com `docker info`, com prazo curto. No Windows, confira o WSL 2 com `wsl --status` e `wsl --list --verbose`.
    - Consulte o espaço livre na unidade dos dados do Docker: `Get-PSDrive -PSProvider FileSystem` no Windows, `df -h` no Linux e no macOS.
-   - Se a CLI existir, rode `hdast doctor` sem produto e use o resultado para listar as pendências.
+   - Se a CLI existir, rode `hdast doctor` sem produto e use o resultado para listar as pendências. A verificação das imagens conta a do Nuclei (o segundo motor, [ADR 0122](../../../docs/decisoes/0122-nuclei-como-segundo-motor.md)), que ocupa mais espaço em disco: o `hdast stack pull` baixa as três. Se o aviso disser que a instalação não traz o Nuclei (`images.lock.json` versão 1), a solução é reinstalar a CLI numa versão que o inclua, pelo passo 3, e não há imagem a baixar. Você não liga nem desliga o Nuclei no perfil: isso é da carta.
 2. **Corrigir uma pendência por vez.** Para **cada instalação**:
    1. mostre o comando exato e a fonte;
    2. faça uma pergunta separada e aguarde o **sim explícito** da pessoa;
@@ -31,7 +31,7 @@ Restrinja o trabalho à instalação e ao diagnóstico local, usando só as font
    | Docker no Windows | `winget install --id Docker.DockerDesktop -e` |
    | Docker no Linux ou macOS | No Linux, o [guia oficial do Docker Engine](https://docs.docker.com/engine/install/), com o Engine e o Compose v2 da distribuição identificada. No macOS, o instalador da arquitetura certa no [guia do Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/), aberto pela pessoa. |
    | CLI ausente ou de outra versão | `uv tool install --python 3.12 <URL do wheel>`, com a URL do passo 3 |
-   | Imagens ausentes, com a CLI certa e o motor aberto | `hdast stack pull` |
+   | Imagens ausentes (ZAP, proxy de escopo e Nuclei), com a CLI certa e o motor aberto | `hdast stack pull` |
 3. **Montar a URL do wheel.**
    - O repositório vem de `HDAST_RELEASE_REPOSITORY` (`dono/repositório` no GitHub), com `MarcosQuintino0/harness-dast` como padrão. Se não puder consultar a variável, peça à pessoa só o valor dela ou a confirmação do padrão.
    - Molde: `https://github.com/<dono/repositório>/releases/download/v<versão>/harness_dast-<versão>-py3-none-any.whl`, com a versão do manifesto do plugin ativo.

@@ -58,7 +58,7 @@ Mude um destes valores e a rodada deixa de ser comparável. Se precisar mudar, d
 | Caso | `clinica-piloto`: a carta ampla da V1.5.2, com a regra dos papéis compartilhados da V1.5.3 |
 | API alvo | A Clínica Piloto local, na imagem `hdast-clinica-piloto:1.0.0`. Dentro da pilha ela fica em `http://clinica-piloto:8080`. O agente recebe o contrato como o dono entregaria, em `inputs/openapi.json`, que o `prepare` copia |
 | Pedido | O texto exato da seção 3.3, nada além |
-| Intervenção | Só a aprovação do escopo, pelo executor (`evals.runner approve`), e a mensagem `escopo aprovado, continue`. No caso `crapi-pedido`, também a mensagem fixa com as respostas às quatro perguntas (seção 1.4) |
+| Intervenção | Só a aprovação do escopo, pelo executor (`evals.runner approve`), e a mensagem `escopo aprovado, continue`. No caso `crapi-pedido`, também a mensagem fixa com as respostas às cinco perguntas (seção 1.4) |
 | Modo do alvo | Sorteado (`--mode random`) ou forçado (`--mode vulnerable` ou `secure`). Anote qual dos dois; rodada forçada é marcada como tal no resultado |
 | Semente | Uma nova a cada rodada, crescente. A última usada em 2026-11-15 foi a 18 |
 | Concorrência | Uma rodada por vez. As portas `28080`, `29091`, `3128` e `8080` são fixas |
@@ -89,7 +89,7 @@ Dentro de um estudo, todas as rodadas usam a mesma ferramenta, o mesmo modelo e 
 O coordenador só fala com o agente de dois jeitos, sempre com o texto exato, anotado na ficha:
 
 1. **A aprovação do escopo:** roda `evals.runner approve` e, na mesma conversa, envia `escopo aprovado, continue`.
-2. **As respostas do pedido mínimo** (só nos casos com `request`, como o `crapi-pedido`): quando o agente parar com as quatro perguntas do cadastro (ADR 0120), o coordenador envia, na mesma conversa, o texto de `sealed/coordinator-answers.md` que vem depois da linha `---`. É um texto fixo do caso: sim, dono "Time de QA do laboratório"; `http://crapi`; LOW; sim. Não acrescente dica, nem explicação, nem pergunta. O texto vem do caso, nunca do coordenador de memória.
+2. **As respostas do pedido mínimo** (só nos casos com `request`, como o `crapi-pedido`): quando o agente parar com as cinco perguntas do cadastro (ADR 0120 e ADR 0122), o coordenador envia, na mesma conversa, o texto de `sealed/coordinator-answers.md` que vem depois da linha `---`. É um texto fixo do caso: sim, dono "Time de QA do laboratório"; `http://crapi`; LOW; sim. Não acrescente dica, nem explicação, nem pergunta. O texto vem do caso, nunca do coordenador de memória.
 
 Qualquer outra mensagem é uma intervenção não prevista e invalida a rodada para comparação.
 
@@ -202,7 +202,7 @@ dentro deste diretório. Quando terminar, responda com o resumo que o pedido des
 claude -p $prompt --plugin-dir "$out\plugin" --model sonnet --effort medium --permission-mode auto --allowedTools "Bash(hdast:*)" --output-format stream-json --verbose 2>"$out\stderr-1.log" | Out-File -Encoding utf8 "$out\transcript-1.jsonl"
 ```
 
-O agente deve parar nas quatro perguntas do cadastro, e o coordenador responde com a mensagem da seção 1.4 (`--resume <session_id>`, mesmo `--plugin-dir`). Depois ele para em `SCOPE_NOT_APPROVED`, o coordenador aprova (3.4) e retoma com `escopo aprovado, continue`.
+O agente deve parar nas cinco perguntas do cadastro, e o coordenador responde com a mensagem da seção 1.4 (`--resume <session_id>`, mesmo `--plugin-dir`). Depois ele para em `SCOPE_NOT_APPROVED`, o coordenador aprova (3.4) e retoma com `escopo aprovado, continue`.
 
 ### 3.4 Aprovar o escopo
 

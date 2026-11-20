@@ -24,6 +24,7 @@ from harness_dast.domain.internal_error_signals import SIGNAL_LABELS
 from harness_dast.domain.report.actions import next_steps
 from harness_dast.domain.report.html_authz import authz_cards, authz_section
 from harness_dast.domain.report.html_negative import negative_cards, negative_section
+from harness_dast.domain.report.html_nuclei import nuclei_cards, nuclei_section
 from harness_dast.domain.report.html_signals import signal_section
 from harness_dast.domain.report.html_style import STYLE
 from harness_dast.domain.report.html_traffic import traffic_section
@@ -65,11 +66,11 @@ def _cards(report: FindingsReport) -> str:
         f'<div class="card"><b>{len(report.groups)}</b>causa(s) distintas</div>'
         f'<div class="card"><b>{report.summary.total}</b>achado(s) no total</div>'
     )
-    own = report.authz is not None or report.negative is not None
+    own = report.authz is not None or report.negative is not None or report.nuclei is not None
     title = '<p class="muted">Varredura ativa do ZAP:</p>' if own else ""
     return (
         f'{title}<div class="cards">{"".join(cells)}</div>'
-        f"{authz_cards(report)}{negative_cards(report)}"
+        f"{authz_cards(report)}{negative_cards(report)}{nuclei_cards(report)}"
     )
 
 
@@ -246,6 +247,7 @@ def _findings(report: FindingsReport) -> str:
             " da varredura do ZAP"
             if report.authz is not None
             or report.negative is not None
+            or report.nuclei is not None
             or report.summary.signal_by_severity
             else ""
         )
@@ -390,6 +392,7 @@ def render_html(report: FindingsReport, presentation: Presentation | None = None
             _findings(report),
             authz_section(report),
             negative_section(report),
+            nuclei_section(report),
             signal_section(report.proxy_signals),
             _not_covered(report),
             traffic_section(report),

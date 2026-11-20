@@ -161,6 +161,7 @@ def test_run_chains_all_stages_and_writes_summary_when_everything_passes() -> No
         "preflight": "ok",
         "probe": "ok",
         "scan": "ok",
+        "nuclei": "skipped",
         "authz": "skipped",
         "negative": "skipped",
         "report": "ok",
@@ -202,6 +203,7 @@ def test_run_stops_at_failed_preflight_with_its_exit_code_and_writes_summary() -
         "preflight": "failed",
         "probe": "not_run",
         "scan": "not_run",
+        "nuclei": "not_run",
         "authz": "not_run",
         "negative": "not_run",
         "report": "not_run",
@@ -236,7 +238,7 @@ def test_run_stops_when_a_stage_raises_a_harness_error() -> None:
     result = Rig(report=failing).run()
 
     assert result.summary.exit_code == 2
-    assert result.summary.stages[5].status == "failed"
+    assert result.summary.stages[6].status == "failed"
 
 
 def test_run_skip_scan_stops_after_probe_without_calling_scan_or_report() -> None:
@@ -308,13 +310,14 @@ def test_run_reports_scope_error_when_the_window_closes_without_kill_switch() ->
     assert result.summary.stop_requested is False
 
 
-def test_run_summary_always_lists_the_six_stages_in_order() -> None:
+def test_run_summary_always_lists_the_seven_stages_in_order() -> None:
     result = Rig().run()
 
     assert [s.name for s in result.summary.stages] == [
         "preflight",
         "probe",
         "scan",
+        "nuclei",
         "authz",
         "negative",
         "report",
@@ -461,6 +464,7 @@ def test_run_refreshes_metrics_at_the_end_with_every_stage_and_the_run_window() 
         "preflight",
         "probe",
         "scan",
+        "nuclei",
         "authz",
         "negative",
         "report",

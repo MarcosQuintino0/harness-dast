@@ -1,0 +1,56 @@
+# Perfil de produto do alvo Spring Boot com Actuator aberto (alvo de treino LOCAL do harness-dast).
+# Schema v1. Prova do Nuclei como segundo motor (ADR 0122): o Actuator exposto de propósito não
+# aparece no Swagger, então o Nuclei só o alcança com `extra_checks.nuclei_wide_paths`.
+# Valores de autorização são do laboratório local, não de um ambiente de empresa.
+schema_version: 1
+product: alvo-actuator
+
+environment:
+  name: lab
+  # Apelido DNS do serviço na rede interna do lab (lab/actuator/compose.yaml).
+  base_url: http://alvo-actuator:8080
+
+openapi: ./openapi.json
+
+scope:
+  allow:
+    - host: alvo-actuator
+      scheme: http
+      port: 8080
+      allow_local: true
+      paths: ["/", "/api/**"]
+      methods: [GET]
+  deny_paths:
+    # Despejo da memória do processo: nenhum teste deve baixá-lo, nem o Nuclei.
+    - "/actuator/heapdump"
+    - "/actuator/shutdown"
+  authorization:
+    reference: "LAB-ACTUATOR"
+    valid_until: 2099-12-31
+  windows:
+    - "seg-dom 00:00-24:00 America/Sao_Paulo"
+
+limits:
+  requests_per_second: 50
+  max_duration_minutes: 30
+  zap_threads_per_host: 8
+
+probe:
+  health_path: /api/ping
+
+# O alvo não tem login: a conta existe só porque o schema exige uma (chave sorteada pelo
+# `hdast stack up`, nunca usada pelo alvo).
+auth:
+  type: api_key
+  header_name: X-API-Key
+  default_account: user_a
+  accounts:
+    - alias: user_a
+      role: user
+      api_key: { secret_ref: "env:ACTUATOR_API_KEY" }
+
+# O papel da carta, só no laboratório: liga o Nuclei e os caminhos fora do Swagger.
+# Nunca liga escrita (as três permissões de escrita ficam desligadas) nem login.
+extra_checks:
+  nuclei: true
+  nuclei_wide_paths: true

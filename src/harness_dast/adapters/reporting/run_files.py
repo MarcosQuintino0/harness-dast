@@ -6,7 +6,8 @@ arquivo temporário e `os.replace`, para nunca existir um arquivo pela metade. E
 redige: quem grava já entregou texto redigido (`domain.redaction`).
 
 Arquivos: `scan.json`, `scan-progress.json`, `alerts.raw.json`, `evidence.json`, `authz.json`,
-`negative.json`, `rule-stats.json`, `error-signals.json` e `metrics.json` (escritos aqui);
+`negative.json`, `nuclei.json`, `rule-stats.json`, `error-signals.json` e `metrics.json` (escritos
+aqui);
 `manifest.json`, `probe.json`,
 `exchanges.json`, `audit.jsonl`, `triage.json` e `findings.json` (lidos).
 """
@@ -25,6 +26,7 @@ from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
@@ -47,6 +49,7 @@ SUMMARY_FILE: Final = "run.json"
 EXCHANGES_FILE: Final = "exchanges.json"
 AUTHZ_FILE: Final = "authz.json"
 NEGATIVE_FILE: Final = "negative.json"
+NUCLEI_FILE: Final = "nuclei.json"
 RULE_STATS_FILE: Final = "rule-stats.json"
 METRICS_FILE: Final = "metrics.json"
 SIGNALS_FILE: Final = "error-signals.json"
@@ -63,6 +66,7 @@ KNOWN_FILES: Final = (
     EXCHANGES_FILE,
     AUTHZ_FILE,
     NEGATIVE_FILE,
+    NUCLEI_FILE,
     "scan-progress.json",
     SCAN_FILE,
     RULE_STATS_FILE,
@@ -140,6 +144,16 @@ class FileRunArtifacts:
         if not (self._directory(run_id) / NEGATIVE_FILE).exists():
             return None
         return self._model(run_id, NEGATIVE_FILE, NegativeResult, "o negative")
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        """Lê `nuclei.json`; `None` se o estágio não rodou nesta execução."""
+        if not (self._directory(run_id) / NUCLEI_FILE).exists():
+            return None
+        return self._model(run_id, NUCLEI_FILE, NucleiResult, "o nuclei")
+
+    def write_nuclei(self, run_id: str, result: NucleiResult) -> None:
+        """Grava `nuclei.json` de forma atômica (só o resultado limpo; o JSONL bruto não entra)."""
+        self._write(run_id, NUCLEI_FILE, result.model_dump_json(indent=2))
 
     def read_signals(self, run_id: str) -> ProxySignals | None:
         """Lê `error-signals.json`; `None` se o `report` ainda não o gravou."""

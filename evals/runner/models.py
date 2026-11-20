@@ -136,12 +136,16 @@ class Budget(Frozen):
 
 
 class RequestAnswers(Frozen):
-    """As respostas fixas do coordenador as quatro perguntas do pedido minimo (ADR 0120)."""
+    """As respostas fixas do coordenador as cinco perguntas do pedido minimo (ADR 0120 e 0122).
+
+    `wide_paths` e a 5a pergunta: o Nuclei pode testar qualquer endereco do produto.
+    """
 
     owner: str
     base_url: str
     strength: Literal["LOW", "MEDIUM", "HIGH"]
     writes: bool
+    wide_paths: bool = False
 
 
 class RequestExpectation(Frozen):

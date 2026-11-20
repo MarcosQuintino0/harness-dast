@@ -12,6 +12,7 @@ from harness_dast.domain.authz.config import (
     DEFAULT_MASS_METHODS,
     AuthzConfig,
 )
+from harness_dast.domain.nuclei_approval import describe_nuclei
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.redaction import strip_control
 from harness_dast.domain.scope import ScopeRule
@@ -314,6 +315,7 @@ def describe_protection(profile: ProductProfile) -> tuple[str, ...]:
         *_outcomes_lines(profile),
         *_upload_lines(profile),
         *_v112_lines(profile),
+        *describe_nuclei(profile),
         *_authz_lines(profile),
         *_negative_lines(profile),
         *_cleanup_lines(profile),

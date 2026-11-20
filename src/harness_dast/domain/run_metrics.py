@@ -42,6 +42,7 @@ class StageSeconds(ApiModel):
     preflight: float | None = None
     probe: float | None = None
     scan: float | None = None
+    nuclei: float | None = None
     authz: float | None = None
     negative: float | None = None
     report: float | None = None
@@ -236,6 +237,8 @@ def stage_seconds(
         if probe is None or probe.dry_run
         else _span(probe.started_at, probe.finished_at),
         "scan": None if scan is None or scan.dry_run else _span(scan.started_at, scan.finished_at),
+        # O `nuclei.json` não entra aqui: a duração vem do registro do `run` (abaixo).
+        "nuclei": None,
         "authz": None if authz is None else _span(authz.started_at, authz.finished_at),
         "negative": None if negative is None else _span(negative.started_at, negative.finished_at),
         "report": report_seconds,

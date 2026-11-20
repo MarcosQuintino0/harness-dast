@@ -8,6 +8,7 @@ from harness_dast.domain.authz.result import AuthzFinding
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.negative_result import NegativeFinding
+from harness_dast.domain.nuclei_findings import NucleiFinding
 from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.report.presentation import Presentation, PresentedFinding
 from harness_dast.domain.signal_result import SignalFinding
@@ -56,8 +57,10 @@ class PresentationBuilder:
         rows: list[PresentedFinding] = []
         groups: tuple[
             tuple[
-                Literal["zap", "authz", "negative", "proxy"],
-                tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding, ...],
+                Literal["zap", "authz", "negative", "proxy", "nuclei"],
+                tuple[
+                    Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...
+                ],
             ],
             ...,
         ] = (
@@ -65,6 +68,7 @@ class PresentationBuilder:
             ("authz", report.authz.findings if report.authz else ()),
             ("negative", report.negative.findings if report.negative else ()),
             ("proxy", report.proxy_signals.findings if report.proxy_signals else ()),
+            ("nuclei", report.nuclei.findings if report.nuclei else ()),
         )
         for origin, items in groups:
             for item in items:

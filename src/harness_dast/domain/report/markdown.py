@@ -23,6 +23,7 @@ from harness_dast.domain.report.labels import (
 )
 from harness_dast.domain.report.model import Coverage, FindingsReport
 from harness_dast.domain.report.negative import negative_lines, negative_summary_lines
+from harness_dast.domain.report.nuclei import nuclei_lines, nuclei_summary_lines
 from harness_dast.domain.report.presentation import Presentation
 from harness_dast.domain.report.presentation_render import render_presentation_markdown
 from harness_dast.domain.report.signals import (
@@ -196,7 +197,9 @@ def _not_tested_lines(coverage: Coverage) -> list[str]:
 
 
 def _has_other_techniques(report: FindingsReport) -> bool:
-    return bool(report.authz or report.negative or report.summary.signal_by_severity)
+    return bool(
+        report.authz or report.negative or report.nuclei or report.summary.signal_by_severity
+    )
 
 
 def _summary_lines(report: FindingsReport) -> list[str]:
@@ -218,6 +221,7 @@ def _summary_lines(report: FindingsReport) -> list[str]:
             for name, count in summary.authz_by_severity.items()
         ]
     lines += negative_summary_lines(summary.negative_by_severity)
+    lines += nuclei_summary_lines(summary.nuclei_by_severity)
     lines += signal_summary_lines(summary.signal_by_severity)
     if not report.findings:
         own = " do ZAP" if _has_other_techniques(report) else ""
@@ -432,6 +436,9 @@ def render_markdown(report: FindingsReport, presentation: Presentation | None = 
     typed = negative_lines(report.negative)
     if typed:
         lines += [*typed, ""]
+    probed = nuclei_lines(report.nuclei)
+    if probed:
+        lines += [*probed, ""]
     seen = signal_lines(report.proxy_signals)
     if seen:
         lines += [*seen, ""]

@@ -71,7 +71,7 @@ class PresentedFinding(ApiModel):
     finding_id: str
     title: str
     severity: str
-    origin: Literal["zap", "authz", "negative", "proxy"]
+    origin: Literal["zap", "authz", "negative", "proxy", "nuclei"]
     verification: VerificationEntry
     confirmations: tuple[HumanConfirmation, ...] = ()
     experimental: bool = False

@@ -7,6 +7,7 @@ import pytest
 
 from harness_dast.adapters.storage.strict_yaml import parse_profile_yaml
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.extra_checks_config import NUCLEI_FIELDS
 from harness_dast.domain.letter import Letter
 from harness_dast.domain.letter_review import LetterReview, review_letter
 from harness_dast.domain.profile import ProductProfile
@@ -40,10 +41,11 @@ def test_a_letter_without_the_keys_generates_the_same_profile_as_before() -> Non
     profile = _profile(plain)
     assert profile.scan.pacing == "legacy"
     assert profile.extra_checks.is_default()
+    assert all(not getattr(profile.extra_checks, name) for name in NUCLEI_FIELDS)
     assert "ATTACK_FLAG_AUTHORIZED" not in [w.code for w in plain.warnings]
 
 
-@pytest.mark.parametrize("name", ["pacing", *FLAGS])
+@pytest.mark.parametrize("name", ["pacing", *FLAGS, *NUCLEI_FIELDS])
 @pytest.mark.parametrize(
     "response",
     [
@@ -61,7 +63,7 @@ def test_unknown_or_null_answers_keep_every_key_off_without_pending_items(
     assert _profile(review).scan.pacing == "legacy"
 
 
-@pytest.mark.parametrize("name", FLAGS)
+@pytest.mark.parametrize("name", [*FLAGS, *NUCLEI_FIELDS])
 def test_false_keeps_the_flag_off(name: str) -> None:
     review = _review(**{name: answer(False, "carta", QUOTE)})
 
@@ -95,7 +97,7 @@ def test_the_flags_land_in_their_profile_blocks() -> None:
     assert {"scan.inject_headers", "scan.oast", "extra_checks"} <= set(review.blocks)
 
 
-@pytest.mark.parametrize("name", FLAGS)
+@pytest.mark.parametrize("name", [*FLAGS, *NUCLEI_FIELDS])
 @pytest.mark.parametrize(
     "response",
     [answer(True, "pessoa", QUOTE), answer(True, "carta"), answer(True, "carta", "  ")],
@@ -111,7 +113,7 @@ def test_true_without_the_letter_or_the_quote_is_a_pending_item(
     }
 
 
-@pytest.mark.parametrize("name", FLAGS)
+@pytest.mark.parametrize("name", [*FLAGS, *NUCLEI_FIELDS])
 @pytest.mark.parametrize("value", ["sim", 1, ["true"]])
 def test_a_flag_with_a_non_boolean_value_is_invalid(name: str, value: object) -> None:
     review = _review(**{name: answer(value, "carta", QUOTE)})
@@ -156,9 +158,38 @@ def test_an_unknown_key_in_the_attack_section_is_rejected() -> None:
         Letter.from_data(data)
 
 
-def test_an_answer_with_the_wrong_shape_is_rejected() -> None:
+@pytest.mark.parametrize("name", ["oast", *NUCLEI_FIELDS])
+def test_an_answer_with_the_wrong_shape_is_rejected(name: str) -> None:
     data = valid_letter_data()
-    data["attack"] = {"oast": True}
+    data["attack"] = {name: True}
 
     with pytest.raises(ConfigError):
         Letter.from_data(data)
+
+
+@pytest.mark.parametrize("name", NUCLEI_FIELDS)
+def test_the_nuclei_declaration_is_transcribed_when_the_letter_quotes_the_owner(name: str) -> None:
+    review = _review(**{name: answer(True, "carta", QUOTE)})
+
+    assert review.ready
+    assert getattr(_profile(review).extra_checks, name) is True
+
+
+@pytest.mark.parametrize("name", ["nuclei_login", "nuclei_wide_paths"])
+def test_a_nuclei_option_warns_when_the_engine_is_off(name: str) -> None:
+    review = _review(**{name: answer(True, "carta", QUOTE)})
+
+    assert [
+        warning.field for warning in review.warnings if warning.code == "NUCLEI_OPTION_INACTIVE"
+    ] == ["attack.nuclei"]
+
+
+def test_the_letter_highlights_the_scope_when_wide_nuclei_paths_are_declared() -> None:
+    review = _review(
+        nuclei=answer(True, "carta", QUOTE),
+        nuclei_wide_paths=answer(True, "carta", QUOTE),
+    )
+
+    warning = next(w for w in review.warnings if w.field == "attack.nuclei_wide_paths")
+    assert "qualquer caminho das origens aprovadas" in warning.message
+    assert "Os caminhos negados continuam negados" in warning.message

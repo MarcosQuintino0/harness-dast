@@ -15,6 +15,7 @@ from harness_dast.domain.finding import FINGERPRINT_VERSION, Finding
 from harness_dast.domain.finding_group import FindingGroup
 from harness_dast.domain.internal_error_signals import InternalErrorSignals
 from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.scan_result import AppliedLimits, AppliedPolicy, RuleCoverageGap
 from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import TrafficSummary
@@ -54,6 +55,14 @@ NOT_TESTED_NEGATIVE: Final[str] = (
     "exercitados, e o orçamento do estágio cortou o que está em 'not_tested' de 'negative'."
 )
 """Afirmação acrescentada quando o estágio `negative` rodou: onde ele mexeu e onde não."""
+
+NOT_TESTED_NUCLEI: Final[str] = (
+    "O estágio nuclei (ADR 0122) roda só modelos conhecidos de exposição, de um catálogo fixado, "
+    "contra o endereço do produto; ele não testa lógica de negócio nem autorização, e a ausência "
+    "de achado dele só diz que estes modelos não casaram nestas respostas. Uma reprodução do "
+    "`confirm` repete o mesmo modelo: não é confirmação independente."
+)
+"""Afirmação acrescentada quando o estágio `nuclei` rodou: o que ele cobre e o que não."""
 
 
 class NotTested(ApiModel):
@@ -184,6 +193,7 @@ class FindingsSummary(ApiModel):
     alerts_unreadable: int = 0
     authz_by_severity: dict[str, int] = Field(default_factory=dict)
     negative_by_severity: dict[str, int] = Field(default_factory=dict)
+    nuclei_by_severity: dict[str, int] = Field(default_factory=dict)
     signal_by_severity: dict[str, int] = Field(default_factory=dict)
 
 
@@ -258,6 +268,10 @@ class FindingsReport(ApiModel):
         proxy_signals: Sinais de erro interno vistos pela cerca em toda resposta liberada
             (ADR 0049), com os achados de origem própria `proxy`; `None` em relatório anterior.
             Não se soma a `internal_error_signals` (outra fonte) nem se mistura com `findings`.
+        nuclei: Resultado do estágio `nuclei` (ADR 0122): achados de origem própria `nuclei`,
+            com a triagem do agente mesclada, e as tecnologias identificadas (que não são
+            achados); `None` quando o estágio não rodou. Nunca carrega requisição, resposta,
+            `curl-command` nem valor extraído. Não se mistura com `findings` (do ZAP).
     """
 
     internal_error_signals: InternalErrorSignals | None = None
@@ -278,6 +292,7 @@ class FindingsReport(ApiModel):
     authz: AuthzResult | None = None
     proxy_signals: ProxySignals | None = None
     negative: NegativeResult | None = None
+    nuclei: NucleiResult | None = None
 
 
 class FindingDigest(ApiModel):
@@ -337,6 +352,7 @@ class ReportDigest(ApiModel):
         authz: Resultado do estágio de autorização entre contas, ou `None` se não rodou.
         proxy_signals: Sinais de erro interno vistos pela cerca, ou `None` em relatório anterior.
         negative: Resultado do estágio de valores que o esquema proíbe, ou `None` se não rodou.
+        nuclei: Resultado do estágio `nuclei`, ou `None` se não rodou.
     """
 
     internal_error_signals: InternalErrorSignals | None = None
@@ -356,6 +372,7 @@ class ReportDigest(ApiModel):
     authz: AuthzResult | None = None
     proxy_signals: ProxySignals | None = None
     negative: NegativeResult | None = None
+    nuclei: NucleiResult | None = None
 
 
 def build_digest(
@@ -400,4 +417,5 @@ def build_digest(
         internal_error_signals=report.internal_error_signals,
         proxy_signals=report.proxy_signals,
         negative=report.negative,
+        nuclei=report.nuclei,
     )

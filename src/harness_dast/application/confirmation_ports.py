@@ -2,7 +2,9 @@
 
 from typing import Protocol
 
+from harness_dast.application.nuclei import NucleiRequest
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.report.model import FindingsReport
@@ -31,6 +33,18 @@ class ConfirmationArtifacts(Protocol):
 
     def read_audit(self, run_id: str) -> tuple[AuditEntry, ...]:
         """Lê sequência anterior da auditoria."""
+        ...
+
+
+class NucleiReproducer(Protocol):
+    """Caso de uso do Nuclei, que o `confirm` usa para repetir o modelo de um achado."""
+
+    def execute(self, request: NucleiRequest) -> NucleiResult:
+        """Roda o Nuclei só com os modelos pedidos e devolve o resultado limpo.
+
+        Raises:
+            HarnessError: Perfil, janela, cerca ou motor impedem a execução.
+        """
         ...
 
 

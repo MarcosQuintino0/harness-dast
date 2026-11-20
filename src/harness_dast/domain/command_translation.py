@@ -35,6 +35,7 @@ _TRANSLATIONS: Final[dict[str, str]] = {
     "confirm": "Comparou receitas fixas com controles e registrou a verificação dos achados.",
     "authz": "Comparou o que cada conta enxerga e altera, para achar acesso indevido.",
     "negative": "Enviou valores que o contrato proíbe, um campo por vez, para ver se caem.",
+    "nuclei": "Procurou exposições e falhas conhecidas com o Nuclei, atrás da segunda cerca.",
     "report": "Montou o relatório com as falhas encontradas.",
     "run": "Fez o teste inteiro em sequência: alcance, ataque e relatório.",
     "retestar": "Repetiu o teste só nas funções dos achados escolhidos, sem afirmar correção.",

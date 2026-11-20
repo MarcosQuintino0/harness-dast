@@ -6,7 +6,7 @@ cortam a cobertura, então o máximo que se afirma é "não reproduzido nesta ex
 """
 
 from collections.abc import Collection, Sequence
-from typing import Final
+from typing import Final, Literal
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ConfigError
@@ -38,7 +38,11 @@ _REASONS: Final[dict[RetestStatus, str]] = {
 
 
 class RetestEntry(ApiModel):
-    """Um achado da execução anterior e o que o reteste observou sobre ele."""
+    """Um achado da execução anterior e o que o reteste observou sobre ele.
+
+    `origin` diz quem achou (`zap` ou `nuclei`, ADR 0122); no Nuclei, `operation_id` é
+    `nuclei:<modelo>` e `title` é o identificador do modelo.
+    """
 
     fingerprint: str
     finding_id: str
@@ -47,6 +51,7 @@ class RetestEntry(ApiModel):
     method: str
     path_template: str
     operation_id: str
+    origin: Literal["zap", "nuclei"] = "zap"
     result: RetestStatus
     reason: str
 
@@ -176,6 +181,7 @@ def build_retest_report(
     selected: Sequence[Finding],
     current: Sequence[Finding],
     scanned_operations: Collection[str],
+    nuclei_entries: Sequence[RetestEntry] = (),
 ) -> RetestReport:
     """Classifica os achados escolhidos e monta o `retest.json`.
 
@@ -187,12 +193,17 @@ def build_retest_report(
         selected: Achados escolhidos (`select_for_retest`).
         current: Achados da execução nova.
         scanned_operations: Operações efetivamente varridas na execução nova.
+        nuclei_entries: Entradas já classificadas dos achados do Nuclei (`retest_nuclei`); vêm
+            depois das do ZAP e entram na contagem.
 
     Returns:
         O relatório, com o aviso fixo.
     """
     results = classify_retest(selected, current, scanned_operations)
-    entries = tuple(_entry(item, result) for item, result in zip(selected, results, strict=True))
+    zap_entries = tuple(
+        _entry(item, result) for item, result in zip(selected, results, strict=True)
+    )
+    entries = (*zap_entries, *nuclei_entries)
     counts = RetestCounts(
         reproduced=sum(1 for item in entries if item.result == "reproduced"),
         not_reproduced=sum(1 for item in entries if item.result == "not_reproduced"),
@@ -203,7 +214,7 @@ def build_retest_report(
         previous_run_id=previous_run_id,
         run_id=run_id,
         generated_at=generated_at,
-        only=operations_of(selected),
+        only=operations_of(selected) if selected else (),
         counts=counts,
         entries=entries,
     )

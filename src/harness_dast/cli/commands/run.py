@@ -1,4 +1,4 @@
-"""Comando `hdast run`: preflight, probe, scan, authz, negative (ligados por padrão) e report."""
+"""Comando `hdast run`: preflight, probe, scan, nuclei, authz, negative (opcionais) e report."""
 
 from pathlib import Path
 from typing import Annotated
@@ -28,6 +28,14 @@ def _render(summary: RunSummary) -> str:
     if summary.findings_by_severity is not None:
         counts = ", ".join(f"{name}: {n}" for name, n in summary.findings_by_severity.items())
         lines.append(f"Achados (severidade PROPOSTA pelo ZAP): {counts or 'nenhum'}")
+    if summary.nuclei_findings_by_severity is not None:
+        own = ", ".join(f"{name}: {n}" for name, n in summary.nuclei_findings_by_severity.items())
+        excluded = sum((summary.nuclei_templates_excluded or {}).values())
+        lines.append(
+            f"Achados do Nuclei (modelos conhecidos; técnica própria): {own} "
+            f"({summary.nuclei_templates_selected} modelo(s) rodado(s), "
+            f"{excluded} exclusão(ões) por motivo)"
+        )
     if summary.authz_findings_by_severity is not None:
         own = ", ".join(f"{name}: {n}" for name, n in summary.authz_findings_by_severity.items())
         lines.append(f"Achados de autorização entre contas (técnica própria): {own}")
@@ -72,6 +80,15 @@ def run_command(
     skip_scan: Annotated[
         bool, typer.Option("--skip-scan", help="Para depois do probe (laço de regras de dados).")
     ] = False,
+    nuclei: Annotated[
+        bool,
+        typer.Option(
+            "--nuclei/--no-nuclei",
+            help="O Nuclei (segundo motor, depois do scan) só roda se o perfil tem "
+            "extra_checks.nuclei, o que vem da carta. --no-nuclei o pula; --nuclei não o liga "
+            "num perfil sem a chave. --only e --skip-scan também o pulam.",
+        ),
+    ] = True,
     authz: Annotated[
         bool,
         typer.Option(
@@ -106,7 +123,8 @@ def run_command(
         typer.Option(
             "--only",
             help="Reduz o probe, o scan e o negative a esta operação (repetível, operation_id "
-            "do OpenAPI). Só reduz: nunca amplia. O authz roda inteiro, porque só lê.",
+            "do OpenAPI). Só reduz: nunca amplia. O authz roda inteiro, porque só lê. O nuclei "
+            "não roda com --only.",
         ),
     ] = None,
     fail_on: Annotated[
@@ -134,7 +152,7 @@ def run_command(
         ),
     ] = None,
 ) -> int:
-    """Encadeia preflight, probe, scan, authz, negative (só leitura) e report; sem limpeza."""
+    """Encadeia preflight, probe, scan, nuclei, authz, negative e report; sem limpeza."""
     state = get_state(ctx)
     # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
     # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).
@@ -151,6 +169,7 @@ def run_command(
                     product=product,
                     seed=seed,
                     skip_scan=skip_scan,
+                    nuclei=nuclei,
                     authz=authz,
                     negative=negative,
                     fail_on=fail_on,

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -37,8 +38,59 @@ def test_detects_clone_contexts_when_both_paths_exist(
     if zap:
         (tmp_path / "docker/zap").mkdir(parents=True)
     if proxy:
-        dockerfile = tmp_path / "docker/scope-proxy/Dockerfile"
-        dockerfile.parent.mkdir(parents=True)
-        dockerfile.touch()
+        for name in ("scope-proxy", "nuclei"):
+            dockerfile = tmp_path / f"docker/{name}/Dockerfile"
+            dockerfile.parent.mkdir(parents=True)
+            dockerfile.touch()
 
     assert has_build_contexts(tmp_path) is (zap and proxy)
+
+
+def test_reads_schema_1_lock_without_nuclei(tmp_path: Path) -> None:
+    path = tmp_path / "images.lock.json"
+    path.write_text(published_images().model_dump_json(), encoding="utf-8")
+
+    loaded = load_images_lock(path)
+
+    assert loaded is not None
+    assert loaded.schema_version == 1
+    assert loaded.supports_nuclei is False
+
+
+def test_reads_schema_2_lock_with_nuclei(tmp_path: Path) -> None:
+    lock = published_images(nuclei=True)
+    path = tmp_path / "images.lock.json"
+    path.write_text(lock.model_dump_json(indent=2), encoding="utf-8")
+
+    assert load_images_lock(path) == lock
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda text: text.replace('"schema_version":2', '"schema_version":1'),
+        lambda text: text.replace('"schema_version":2', '"schema_version":3'),
+        lambda text: text.replace('"nuclei":{', '"nucleo":{'),
+    ],
+)
+def test_reports_config_error_for_inconsistent_schema_2_lock(
+    tmp_path: Path, mutate: Callable[[str], str]
+) -> None:
+    path = tmp_path / "images.lock.json"
+    path.write_text(mutate(published_images(nuclei=True).model_dump_json()), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=r"images\.lock\.json"):
+        load_images_lock(path)
+
+
+def test_clone_contexts_need_the_nuclei_dockerfile_too(tmp_path: Path) -> None:
+    (tmp_path / "docker/zap").mkdir(parents=True)
+    for name in ("scope-proxy", "nuclei"):
+        dockerfile = tmp_path / f"docker/{name}/Dockerfile"
+        dockerfile.parent.mkdir(parents=True)
+        dockerfile.touch()
+    assert has_build_contexts(tmp_path) is True
+
+    (tmp_path / "docker/nuclei/Dockerfile").unlink()
+
+    assert has_build_contexts(tmp_path) is False

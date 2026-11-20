@@ -42,5 +42,9 @@ def load_images_lock(path: Path = _LOCK_PATH) -> ImagesLock | None:
 
 
 def has_build_contexts(root: Path) -> bool:
-    """Verifica os dois caminhos de build declarados no Compose da pilha."""
-    return (root / "docker/zap").is_dir() and (root / "docker/scope-proxy/Dockerfile").is_file()
+    """Verifica os três caminhos de build declarados no Compose da pilha."""
+    return (
+        (root / "docker/zap").is_dir()
+        and (root / "docker/scope-proxy/Dockerfile").is_file()
+        and (root / "docker/nuclei/Dockerfile").is_file()
+    )

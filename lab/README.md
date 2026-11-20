@@ -21,6 +21,8 @@ sem que nada real seja alvo. Definido em [`compose.yaml`](../compose.yaml).
 | `zap-gateway` | Ponte TCP mínima que publica o ZAP em `127.0.0.1:8080` | Loopback do host |
 | `proxy-gateway` | Ponte TCP mínima (socat, destino fixo `scope-proxy:3128`) que publica o proxy de escopo em `127.0.0.1:3128`; é por onde o `hdast` envia login e token CSRF sem passar pelo ZAP | Loopback do host |
 | `scope-proxy` | Proxy de escopo (mitmproxy + `ScopeGuard`); decide cada requisição por host, porta, caminho e método; único com rota externa | Rede interna |
+| `scope-proxy-nuclei` | Segunda instância do proxy de escopo ([ADR 0122](../docs/decisoes/0122-nuclei-como-segundo-motor.md)): mesma imagem, política e auditoria próprias, só para o Nuclei. Sem o Nuclei ligado no perfil, sobe com a política que nega tudo | Rede interna |
+| `nuclei` (perfil `nuclei`) | O segundo motor, em contêiner de uso único (`docker compose run --rm`); não sobe com o `stack up`, só quando o `run` ou o `hdast nuclei` o chamam. Sem rota para fora: o único destino é o `scope-proxy-nuclei` | Só da `zap_net` |
 | `vampi` (perfil `lab`) | Alvo vulnerável, porta 5000 | Só do `scope-proxy` |
 | `vampi-tls` (perfil `lab`) | Frente TLS do VAmPI (certificado autoassinado gerado ao iniciar), porta 8443, só para provar HTTPS | Só do `scope-proxy` |
 
@@ -29,6 +31,8 @@ proxy de escopo enxerga, para que o tráfego do ZAP até ele passe sempre pelo p
 o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
+
+**Limite de prova do Nuclei.** No spike do ADR 0122, o Nuclei não teve achado exclusivo na Clínica Piloto, no VAmPI nem no crAPI: são APIs de estudo, sem os produtos que os modelos conhecem. O ganho só apareceu num alvo Spring Boot com o Actuator aberto (13 exposições), que não faz parte deste lab. As provas de ponta a ponta do pacote no laboratório e em produto real ainda não existem.
 
 O OWASP crAPI é o terceiro alvo do lab, integrado ao `hdast stack up`: veja
 [`crapi/README.md`](crapi/README.md).
@@ -408,9 +412,12 @@ Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID 
 | `hdast/zap:local` | ZAP construído pelo modo local | A medir |
 | `ghcr.io/marcosquintino0/hdast-zap:1.12.2` | ZAP preparado para publicação no GHCR | A medir |
 | `ghcr.io/marcosquintino0/hdast-scope-proxy:1.12.2` | Proxy de escopo preparado para publicação no GHCR | A medir |
+| `ghcr.io/marcosquintino0/hdast-nuclei:1.12.2` | Nuclei (ADR 0122) preparado para publicação no GHCR | A medir |
+| `hdast/nuclei:local` | Nuclei construído pelo modo local | A medir |
 | `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | 15MB (captura inicial) |
 | `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | 339MB (captura inicial) |
 | `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | 186MB (captura inicial) |
+| `hdast-alvo-actuator:1.0.0` | Alvo Spring com Actuator aberto (ADR 0122): actuator | A medir |
 | `hdast-clinica-piloto:1.0.0` | Clínica Piloto: pilot | 365MB (captura inicial) |
 | `gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093` | Clínica Piloto: oracle | 6.46GB (captura inicial) |
 | `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | 809MB (captura inicial) |
