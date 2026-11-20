@@ -1,11 +1,14 @@
 """Contrato público da CLI: envelope JSON e códigos de saída, pela CLI real."""
 
 import json
+import sys
+from pathlib import Path
 
 import pytest
 import typer
 
 from harness_dast import __version__
+from harness_dast.__main__ import main
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.domain.errors import (
     CleanupError,
@@ -14,6 +17,7 @@ from harness_dast.domain.errors import (
     HarnessError,
     PreflightError,
     ScopeViolation,
+    StackBusy,
     TargetError,
 )
 
@@ -55,6 +59,20 @@ def test_version_prints_plain_text_when_json_flag_is_absent(
 
     assert code == 0
     assert capsys.readouterr().out == f"version: {__version__}\n"
+
+
+def test_version_flag_prints_the_version_without_creating_state(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    state = tmp_path / "state"
+    monkeypatch.setenv("HDAST_STATE_DIR", str(state))
+    monkeypatch.setattr(sys, "argv", ["hdast", "--version"])
+
+    code = main()
+
+    assert code == 0
+    assert capsys.readouterr().out == f"{__version__}\n"
+    assert not state.exists()
 
 
 @pytest.mark.parametrize(
@@ -149,7 +167,10 @@ def test_run_app_prints_short_message_on_stderr_when_user_interrupts_in_human_mo
     assert "Traceback" not in captured.err
 
 
-@pytest.mark.parametrize(("error", "exit_code"), [(TargetError("x"), 6), (CleanupError("x"), 7)])
+@pytest.mark.parametrize(
+    ("error", "exit_code"),
+    [(TargetError("x"), 6), (CleanupError("x"), 7), (StackBusy("x"), 8)],
+)
 def test_run_app_maps_target_and_cleanup_errors_to_their_own_exit_codes(
     error: HarnessError, exit_code: int
 ) -> None:

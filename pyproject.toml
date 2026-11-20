@@ -4,7 +4,8 @@ build-backend = "uv_build"
 
 [project]
 name = "harness-dast"
-version = "1.2.0"
+version = "1.12.2"
+license = "MIT"
 description = "Ferramenta interna para testes de segurança (DAST) autorizados em APIs, conduzida por um agente de IA e executada por uma CLI determinística."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hdast = "harness_dast.cli.app:main"
+hdast = "harness_dast.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -41,6 +42,10 @@ dev = [
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.uv.build-backend]
+# O uv_build leva os dados sob o módulo para o wheel e para o sdist.
+source-exclude = ["/docker", "/lab", "/tests", "/evals", "/docs", "/.claude"]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -88,14 +93,14 @@ convention = "google"
 "tests/**" = ["S101", "D"]
 # O executor da avaliacao cega (evals/runner) e ferramenta interna: sem docstring obrigatoria em item publico.
 "evals/**" = ["D1"]
-# CSS copiado do desenho do painel (docs/design/execution-panel/): linhas longas de propósito, para
+# CSS copiado do desenho do painel (docs/desenvolver/design/execution-panel/): linhas longas de propósito, para
 # a cópia continuar idêntica ao original.
-"src/harness_dast/domain/panel_style.py" = ["E501"]
-"src/harness_dast/domain/panel_tokens.py" = ["E501"]
+"src/harness_dast/domain/panel/style.py" = ["E501"]
+"src/harness_dast/domain/panel/tokens.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
-files = ["src", "tests", "evals"]
+files = ["src", "tests", "evals", "plugin/hooks"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
@@ -116,7 +121,9 @@ markers = [
     "contract: envelope JSON, códigos de saída e contratos de portas",
     "e2e: hdast run contra o lab; exige Docker",
     "lab_fast: nivel RAPIDO da integracao (poucos endpoints, pilha reaproveitada); exige Docker",
+    "lab_prova: provas de versão, rodadas no fechamento e quando a área muda; exige Docker",
     "lab_full: nivel COMPLETO da integracao (todos os endpoints, politica padrao); exige Docker",
+    "regressao_dirigida: roteiro nao cego e rapido que prova que H1 a H10 (Clinica) e V1 e V3 (VAmPI) seguem achadas; exige Docker",
 ]
 # O -m padrão deixa de fora o que exige Docker. Passar -m na linha de comando
 # substitui este valor (ex.: pytest -m integration).
@@ -202,11 +209,12 @@ modules = [
     "harness_dast.adapters.storage",
     "harness_dast.adapters.scope_proxy",
     "harness_dast.adapters.docker",
+    "harness_dast.adapters.nuclei",
 ]
 
 # --------------------------------------------------------------- vulture
 [tool.vulture]
-paths = ["src"]
+paths = ["src", "plugin/hooks"]
 min_confidence = 60
 # Os validadores pydantic são chamados por reflexão: a exceção é por decorador, não por nome.
 ignore_decorators = ["@field_validator", "@model_validator"]
@@ -220,6 +228,10 @@ ignore_names = [
     "check_request",
     "recheck_after_wait",
     "reserve_slot",
+    "GrantQueue",
+    "defer_slots",
+    "retry_after_seconds",
+    "read_response_signals",
     "check_destination",
     "log",
     "ts",
@@ -233,6 +245,11 @@ ignore_names = [
     # Campos de modelos que só a serialização do pydantic lê (envelope JSON, probe.json,
     # manifest.json, audit.jsonl) ou que só os testes e o agente consomem.
     "schema_version",
+    # V1.7: campos públicos de metrics.json consumidos por análise externa.
+    "proxy_grant_wait_seconds",
+    "proxy_network_seconds",
+    "cpu_seconds",
+    "memory_peak_bytes",
     "requires_confirmation",
     "constraints",
     "field_name",
@@ -244,6 +261,8 @@ ignore_names = [
     "success_codes",
     "tags",
     "by_outcome",
+    # Ranking público do probe, serializado pelo Pydantic para o agente (ADR 0059).
+    "blocked_producers",
     "excerpt",
     "finished_at",
     "header_names",
@@ -260,6 +279,11 @@ ignore_names = [
     "baseline_status",
     "observed_status",
     "omitted_fields",
+    # Envio de arquivo no probe (ADR 0052): campos do resumo de multipart (exchanges.json, prévia
+    # do --dry-run e spec inspect) lidos só pela serialização do pydantic e pelo agente.
+    "total_bytes",
+    "multipart_parts",
+    "multipart_probe",
     # Limpeza (M5): campos do cleanup.json e da auditoria lidos só por quem serializa, e atributos
     # que o código atribui em objetos do driver Oracle.
     "statement_count",
@@ -272,6 +296,12 @@ ignore_names = [
     "autocommit",
     "call_timeout",
     "stack_managed",
+    # SSRF guiado (ADR 0100): campos de scan.json lidos só pela serialização do pydantic, pelos
+    # testes e pelo agente.
+    "ssrf",
+    "events_seen",
+    # Limite de consumo (ADR 0101): campo de scan.json lido só pela serialização do pydantic.
+    "rate_checks",
     # Medição da execução (ADR 0031): campos de rule-stats.json e metrics.json lidos só pela
     # serialização do pydantic, pelos testes e por quem analisa o arquivo depois.
     "quality",
@@ -295,6 +325,9 @@ ignore_names = [
     "translated_commands",
     "catalog_entries",
     "WHO_VALUES",
+    # Prévia V1.8: campos públicos do envelope JSON lidos pela serialização pydantic.
+    "probe_decision",
+    "body_entries_complete",
 ]
 
 # ------------------------------------------------------------ commitizen

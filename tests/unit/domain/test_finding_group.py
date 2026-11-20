@@ -5,11 +5,11 @@ import pytest
 from harness_dast.domain.finding import Finding
 from harness_dast.domain.finding_group import group_findings
 from harness_dast.domain.known_patterns import expected_pattern_note
-from harness_dast.domain.report_build import assemble_report
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.build import assemble_report
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.scan_plan import LearnedRef
 from tests.fakes.zap_alerts import zap_alert
-from tests.unit.domain.report_helpers import entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import entry, operation, probe_result, scan_result
 
 LEARNED = [
     LearnedRef(operation_id="obter", message_id=4),

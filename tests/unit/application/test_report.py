@@ -6,6 +6,7 @@ import pytest
 
 from harness_dast.application.report import ReportRequest, exceeds
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.rule_stats import RuleStat
 from tests.fakes.rig import PASSWORD, TOKEN, agenda_flows, agenda_profile
 from tests.fakes.scan_rig import ScanRig
 from tests.fakes.zap_alerts import attack_message, zap_alert
@@ -13,8 +14,10 @@ from tests.fakes.zap_alerts import attack_message, zap_alert
 OTHER = "2026-11-09T10-00-00Z-agenda-beef"
 
 
-def scanned(profile: Any = None, *, risk: str = "High") -> ScanRig:
+def scanned(profile: Any = None, *, risk: str = "High", completed_rules: bool = False) -> ScanRig:
     rig = ScanRig(flows=agenda_flows(), profile=profile)
+    if completed_rules:
+        rig.zap.rule_stats = (RuleStat(plugin_id=1, name="x", state="completed"),)
     rig.run_probe()
     rig.zap.messages[1604] = attack_message(1604, token=TOKEN, body=f'{{"password": "{PASSWORD}"}}')
 
@@ -202,6 +205,6 @@ def test_report_marks_the_coverage_as_partial_when_the_scan_stopped_before_the_e
 
 
 def test_report_is_not_partial_when_probe_and_scan_completed() -> None:
-    rig = scanned()
+    rig = scanned(completed_rules=True)
 
     assert rig.report().execute(request(rig)).report.coverage.partial is False

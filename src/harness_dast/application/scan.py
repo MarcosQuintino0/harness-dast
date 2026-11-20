@@ -11,7 +11,7 @@ O `ScanResult` devolvido nunca contém URL concreta, corpo nem segredo.
 """
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
@@ -19,12 +19,12 @@ import structlog
 from pydantic import ValidationError
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.panel_index_ports import ScanLive
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
+    ApprovalStore,
     Clock,
+    EntropySource,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -32,20 +32,58 @@ from harness_dast.application.ports import (
     SecretVault,
     Sleeper,
     SpecLoader,
+    StrategyStore,
     TargetClient,
     ZapControl,
 )
-from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.extra_checks import (
+    ExtraContext,
+    ExtraOutcome,
+    not_run_outcome,
+    run_extra_checks,
+)
+from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.mutation_guard import finish_mutation
+from harness_dast.application.negative_sender import NegativeSender, NegativeSettings
+from harness_dast.application.oast_ssrf import OAST_PREFIX, GuidedSsrf, SsrfOutcome
+from harness_dast.application.panel_index_ports import ScanLive
+from harness_dast.application.run_support import (
+    AuditTrail,
+    GuardedSender,
+    RateLimiter,
+    RunGate,
+    WindowClosed,
+)
 from harness_dast.application.scan_collect import Collected, collect
 from harness_dast.application.scan_health import TargetHealth
-from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts, ScanControl
+from harness_dast.application.scan_ports import (
+    ExchangeSource,
+    OastBridge,
+    OastEvents,
+    ProcessSampler,
+    ProxyAudit,
+    RunArtifacts,
+    ScanControl,
+)
 from harness_dast.application.scan_runner import RunnerDeps, RunOutcome, ScanRunner
 from harness_dast.application.scan_tokens import AccountTokens, TokenDelivery
+from harness_dast.application.session_pool import SessionPool
+from harness_dast.application.strategy import load_strategy
+from harness_dast.domain.api_model import Operation
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
     HarnessError,
     PreflightError,
+)
+from harness_dast.domain.oast_ssrf import SSRF_MAX_REQUESTS, plan_ssrf
+from harness_dast.domain.oast_verification import (
+    OastVerification,
+    callback_unavailable,
+    combine_oast_availability,
+    decide_oast_verification,
+    mark_ssrf_unobservable,
 )
 from harness_dast.domain.overrides import LimitsOverride, narrow_limits
 from harness_dast.domain.probe_plan import plan_probe
@@ -56,20 +94,28 @@ from harness_dast.domain.rule_stats import RuleStatsFile
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_ref import require_run_id
 from harness_dast.domain.scan_plan import (
-    EXTRA_OUTCOMES,
     Candidate,
     ScanPlan,
     ScanSkip,
     SentRequest,
     last_sent,
+    multipart_operation_ids,
+    resolve_include_outcomes,
     resolve_targets,
     select_candidates,
 )
-from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy, build_limits, build_policy
+from harness_dast.domain.scan_policy import (
+    ScanLimits,
+    ScanPolicy,
+    build_limits,
+    build_policy,
+    without_oast,
+)
 from harness_dast.domain.scan_result import (
     AppliedLimits,
     AppliedPolicy,
     HealthSummary,
+    OastUnavailable,
     Phase,
     PlannedScan,
     ScanEntry,
@@ -77,7 +123,12 @@ from harness_dast.domain.scan_result import (
     ScanResult,
     ScanStatusName,
 )
+from harness_dast.domain.scan_rule_coverage import rule_coverage_gaps
 from harness_dast.domain.scan_tokens import origin_regex
+from harness_dast.domain.scope import OutboundRequest
+from harness_dast.domain.scope_fingerprint import block_digests
+from harness_dast.domain.strategy_basis import StrategyBasis
+from harness_dast.domain.strategy_plan import compile_scan_snapshot
 from harness_dast.domain.traffic import TrafficSummary, summarize_traffic
 from harness_dast.domain.zap_messages import parse_learned_request
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
@@ -93,7 +144,8 @@ class ScanRequest:
         product: Produto.
         run_id: Execução do `probe` que alimenta a varredura.
         only: Varre só estas operações.
-        include_outcomes: Classes além de `success` (lista fechada de `EXTRA_OUTCOMES`).
+        include_outcomes: `None` (sem flag): vale `scan.include_outcomes` do perfil. Tupla: só
+            ESCOLHE dentro do perfil (flags só reduzem, ADR 0050); vazia é só `success`.
         dry_run: Mostra o plano, sem tocar o ZAP nem o alvo e sem gravar arquivos.
         max_minutes: Reduz o prazo total (nunca acima de `limits.max_duration_minutes`).
         threads: Reduz as threads por host (nunca acima de `limits.zap_threads_per_host`).
@@ -106,7 +158,7 @@ class ScanRequest:
     product: str
     run_id: str
     only: tuple[str, ...] = ()
-    include_outcomes: tuple[str, ...] = ()
+    include_outcomes: tuple[str, ...] | None = None
     dry_run: bool = False
     max_minutes: int | None = None
     threads: int | None = None
@@ -125,10 +177,13 @@ class _Prepared:
     sent: dict[str, SentRequest]
     candidates: tuple[Candidate, ...]
     skipped: tuple[ScanSkip, ...]
+    include_outcomes: tuple[str, ...]
+    uploads: frozenset[str]
     started: datetime
     deadline: datetime
     policy: ScanPolicy
     zap_limits: ScanLimits
+    operations: Mapping[str, Operation]
 
 
 @dataclass(frozen=True)
@@ -136,6 +191,7 @@ class _Live:
     gate: RunGate
     health: TargetHealth
     tokens: AccountTokens
+    dispatcher: OperationDispatcher
 
 
 class _ContinuingTrail(AuditTrail):
@@ -169,8 +225,20 @@ class Scan:
         kill_switch: KillSwitch | None = None,
         proxy_audit: ProxyAudit | None = None,
         live: ScanLive | None = None,
+        process_sampler: ProcessSampler | None = None,
+        strategy_store: StrategyStore | None = None,
+        approvals: ApprovalStore | None = None,
+        basis_for: Callable[[str, ProductProfile, str], StrategyBasis | None] | None = None,
+        mutation_journal: MutationJournal | None = None,
+        oast: OastEvents | None = None,
+        exchanges: ExchangeSource | None = None,
+        entropy: EntropySource | None = None,
+        bridge: OastBridge | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
+
+        `oast`, `exchanges` e `entropy` só servem ao SSRF guiado (`scan.oast`, ADR 0100); sem
+        qualquer um deles a etapa não roda.
 
         `token_cache`, `login_budget` e `kill_switch` são compartilhados com as outras etapas
         quando o `run` encadeia tudo num processo só (cada conta faz login uma vez). `live`
@@ -193,6 +261,15 @@ class Scan:
         self._kill_switch = kill_switch
         self._proxy_audit = proxy_audit
         self._live = live
+        self._process_sampler = process_sampler
+        self._strategy_store = strategy_store
+        self._approvals = approvals
+        self._basis_for = basis_for
+        self._mutation_journal = mutation_journal
+        self._oast = oast
+        self._exchanges = exchanges
+        self._entropy = entropy
+        self._bridge = bridge
 
     def execute(self, request: ScanRequest) -> ScanResult:
         """Executa o `scan`.
@@ -209,10 +286,11 @@ class Scan:
             ExternalToolError: Não foi possível remover as regras do Replacer ao fim.
             KeyboardInterrupt: Ctrl+C (a varredura é parada e as regras, removidas).
         """
+        sample = self._process_sampler.sample() if self._process_sampler else None
         prepared = self._prepare(request)
         if request.dry_run:
             return self._result(prepared, request, "completed", None)
-        return self._execute_live(prepared, request)
+        return self._execute_live(prepared, request, sample)
 
     def _prepare(self, request: ScanRequest) -> _Prepared:
         started = self._clock.now()
@@ -228,12 +306,8 @@ class Scan:
                 "--only cita operação desconhecida nesta execução: " + ", ".join(unknown) + ".",
                 hint="Use os operation_id de probe.json (hdast spec inspect lista os do OpenAPI).",
             )
-        extra = frozenset(request.include_outcomes)
-        if not extra <= EXTRA_OUTCOMES:
-            raise ConfigError(
-                "--include-outcome aceita só: " + ", ".join(sorted(EXTRA_OUTCOMES)) + ".",
-                hint="success é sempre incluído; erros de servidor e de autenticação nunca.",
-            )
+        outcomes = resolve_include_outcomes(profile.scan.include_outcomes, request.include_outcomes)
+        extra = frozenset(outcomes)
         spec = self._specs.load(request.product, profile)
         flows = self._documents.load_flows(request.product)
         planned = {
@@ -241,6 +315,7 @@ class Scan:
             for item in plan_probe(spec, flows, profile.guard(), profile.environment.base_url)
         }
         sent = last_sent(self._artifacts.read_audit(request.run_id))
+        uploads = multipart_operation_ids(spec.operations)
         candidates, skipped = select_candidates(
             probe.operations,
             planned,
@@ -249,6 +324,7 @@ class Scan:
             config=profile.scan,
             include_outcomes=extra,
             only=request.only,
+            uploads=uploads,
         )
         limits = _narrow(profile.limits, request)
         own_deadline = started + timedelta(minutes=limits.max_duration_minutes)
@@ -264,45 +340,100 @@ class Scan:
             sent=sent,
             candidates=candidates,
             skipped=skipped,
+            include_outcomes=outcomes,
+            uploads=uploads,
             started=started,
             deadline=deadline,
-            policy=build_policy(profile.scan),
+            policy=build_policy(
+                profile.scan, experimental_rules=profile.extra_checks.experimental_rules
+            ),
             zap_limits=build_limits(limits, profile.scan),
+            operations={op.operation_id: op for op in spec.operations},
         )
 
-    def _execute_live(self, prep: _Prepared, request: ScanRequest) -> ScanResult:
+    def _execute_live(
+        self, prep: _Prepared, request: ScanRequest, sample: tuple[float, int | None] | None
+    ) -> ScanResult:
         context_id = prep.manifest.zap_context_id
         if context_id is None:  # garantido por _ensure_usable; protege o tipo
             raise ConfigError("O manifesto do probe não tem o contexto do ZAP.")
         base_url = prep.profile.environment.base_url
         zap_version = self._check_zap(request.run_id, context_id)
         plan = self._plan(prep, base_url)
+        if self._strategy_store is not None and self._approvals is not None:
+            strategy = load_strategy(self._strategy_store, request.product)
+            basis = None
+            if strategy is not None and strategy.choices and self._basis_for is not None:
+                basis = self._basis_for(request.product, prep.profile, zap_version)
+            snapshot = compile_scan_snapshot(
+                prep.profile,
+                self._approvals.read(request.product),
+                strategy,
+                self._clock.now(),
+                baseline=plan,
+                proposed=plan,
+                baseline_policy=prep.policy,
+                proposed_policy=prep.policy,
+                baseline_limits=prep.zap_limits,
+                proposed_limits=prep.zap_limits,
+                basis=basis,
+            )
+            plan = snapshot.scan_plan
+            prep = replace(prep, policy=snapshot.policy, zap_limits=snapshot.limits)
+        if self._profiles.load(request.product) != prep.profile:
+            raise ConfigError("Perfil mudou durante a preparação do scan; recomece a etapa.")
         live = self._open(prep, request)
         self._write_progress(request.run_id, "starting", len(plan.targets))
-        runner = ScanRunner(self._deps(prep, request, live, context_id))
+        guided: SsrfOutcome | None = None
+        verification = self._bridge_verification(prep)
         try:
-            self._configure(prep)
+            prep, verification, guided = self._prepare_oast(prep, request, live, verification)
+            runner = ScanRunner(self._deps(prep, request, live, context_id))
             outcome = runner.run(plan.targets)
+            verification = self._recheck_oast(verification)
         finally:
             removed = live.tokens.remove_all()
             self._drop_policy(prep.policy.name)
+        extra_checks = self._extra_checks(prep, request, live, outcome.status)
         self._write_progress(request.run_id, "collecting", len(plan.targets))
-        collected, status, message = self._collect(request.run_id, base_url, outcome)
+        extra = (guided.alerts if guided is not None else ()) + (
+            extra_checks.alerts if extra_checks is not None else ()
+        )
+        collected, status, message = self._collect(request.run_id, base_url, outcome, extra)
         result = self._result(
             prep, request, status, message, plan=plan, entries=outcome.entries
         ).model_copy(
             update={
+                "ssrf": guided.summary if guided is not None else None,
+                "oast_verification": verification,
+                "rate_checks": extra_checks.rate if extra_checks is not None else None,
+                "inventory": extra_checks.inventory if extra_checks is not None else None,
                 "alerts_total": collected.alerts_total if collected else 0,
                 "alerts_by_risk": collected.by_risk if collected else {},
                 "evidence_messages": collected.evidence_messages if collected else 0,
+                "rule_coverage_gaps": rule_coverage_gaps(outcome.entries, outcome.rule_stats),
                 "rules_removed": removed,
                 "health": live.health.summary,
                 "traffic": self._traffic(prep),
+                "local_queue_seconds": outcome.local_queue_seconds,
+                "authentication_seconds": outcome.authentication_seconds,
             }
         )
+        if sample is not None and self._process_sampler is not None:
+            cpu, memory = self._process_sampler.sample()
+            observed = [value for value in (sample[1], memory) if value is not None]
+            result = result.model_copy(
+                update={
+                    "process_cpu_seconds": max(0.0, cpu - sample[0]),
+                    "process_peak_memory_bytes": max(observed) if observed else None,
+                }
+            )
         self._write_rule_stats(request.run_id, zap_version, outcome)
         self._artifacts.write_scan(request.run_id, result)
         self._write_progress(request.run_id, "done", len(plan.targets), status=status)
+        if self._mutation_journal is not None:
+            for key in outcome.finished_mutations:
+                finish_mutation(self._mutation_journal, key, "observed")
         if not removed:
             raise ExternalToolError(
                 "Não foi possível remover as regras do Replacer ao fim do scan.",
@@ -360,7 +491,9 @@ class Scan:
             for item in [parse_learned_request(message, scheme)]
             if item is not None
         ]
-        plan = resolve_targets(prep.candidates, prep.sent, learned, prep.profile.guard())
+        plan = resolve_targets(
+            prep.candidates, prep.sent, learned, prep.profile.guard(), prep.uploads
+        )
         if prep.pinned is None:
             return plan
         targets = tuple(replace(target, account=prep.pinned) for target in plan.targets)
@@ -371,8 +504,28 @@ class Scan:
         run_id = request.run_id
         last_seq = max((entry.seq for entry in self._artifacts.read_audit(run_id)), default=0)
         limited = profile.model_copy(update={"limits": prep.limits})
+
+        def revalidate() -> None:
+            try:
+                current = self._profiles.load(request.product)
+            except HarnessError:
+                raise WindowClosed(
+                    "A aprovação ou o perfil não está mais válido durante a varredura.",
+                    hint="Confira o perfil e a aprovação antes de executar novamente.",
+                ) from None
+            if block_digests(current) != block_digests(profile):
+                raise WindowClosed(
+                    "O perfil aprovado mudou durante a execução.",
+                    hint="Interrompa e confira a aprovação antes de executar novamente.",
+                )
+
         gate = RunGate(
-            limited, self._clock, prep.started, self._kill_switch, deadline=prep.deadline
+            limited,
+            self._clock,
+            prep.started,
+            self._kill_switch,
+            deadline=prep.deadline,
+            revalidate=revalidate,
         )
         sender = GuardedSender(
             guard=profile.guard(),
@@ -400,13 +553,13 @@ class Scan:
             sleeper=self._sleeper,
         )
         tokens = AccountTokens(lambda alias: self._delivery(prep, alias, dispatcher), self._zap)
-        return _Live(gate, health, tokens)
+        return _Live(gate, health, tokens, dispatcher)
 
-    def _delivery(
+    def _account_session(
         self, prep: _Prepared, alias: str, dispatcher: OperationDispatcher
-    ) -> TokenDelivery:
+    ) -> AccountSession:
         profile = prep.profile
-        session = AccountSession(
+        return AccountSession(
             account=profile.select_account(alias),
             auth=profile.auth,
             base_url=profile.environment.base_url,
@@ -416,6 +569,151 @@ class Scan:
             dispatcher=dispatcher,
             token_cache=self._token_cache,
         )
+
+    def _bridge_verification(self, prep: _Prepared) -> OastVerification | None:
+        if not prep.policy.oast:
+            return None
+        available = self._bridge.inspect() if self._bridge else None
+        return decide_oast_verification(available)
+
+    def _prepare_oast(
+        self,
+        prep: _Prepared,
+        request: ScanRequest,
+        live: _Live,
+        verification: OastVerification | None,
+    ) -> tuple[_Prepared, OastVerification | None, SsrfOutcome | None]:
+        if verification is not None and verification.zap == "unverifiable":
+            prep = self._without_oast(prep)
+        try:
+            self._configure(prep)
+        except OastUnavailable:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            verification = callback_unavailable()
+        if verification is None or verification.zap == "unverifiable":
+            return prep, verification, None
+        callback = self._bridge.callback() if self._bridge else None
+        if callback is not True:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(callback), None
+        if self._oast is None:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(None), None
+        try:
+            self._oast.oast_baseline()
+        except ExternalToolError:
+            prep = self._without_oast(prep)
+            self._configure(prep)
+            return prep, decide_oast_verification(None), None
+        guided = self._guided_ssrf(prep, request, live)
+        if guided is None or not guided.observable:
+            verification = mark_ssrf_unobservable(verification)
+        return prep, verification, guided
+
+    def _recheck_oast(self, verification: OastVerification | None) -> OastVerification | None:
+        if verification is None or verification.zap != "verifiable":
+            return verification
+        available = self._bridge.inspect() if self._bridge else None
+        callback = self._bridge.callback() if self._bridge else None
+        if available is not True or callback is not True:
+            return decide_oast_verification(combine_oast_availability(available, callback))
+        if self._oast is None:
+            return decide_oast_verification(None)
+        try:
+            self._oast.oast_baseline()
+        except ExternalToolError:
+            return decide_oast_verification(None)
+        return verification
+
+    def _without_oast(self, prep: _Prepared) -> _Prepared:
+        """Reduz a política quando não há caminho de retorno observável."""
+        return replace(prep, policy=without_oast(prep.policy))
+
+    def _guided_ssrf(
+        self, prep: _Prepared, request: ScanRequest, live: _Live
+    ) -> SsrfOutcome | None:
+        """SSRF guiado pelo contrato (ADR 0100): só com `scan.oast` e as portas ligadas."""
+        if not (prep.policy.oast and self._oast and self._exchanges and self._entropy):
+            return None
+        profile = prep.profile
+        try:
+            log = self._exchanges.read_exchanges(request.run_id)
+        except ConfigError as error:
+            _log.warning("ssrf_exchanges_unavailable", reason=error.message)
+            return None
+        guard = profile.guard()
+        base_url = profile.environment.base_url
+
+        def permits(method: str, target: str) -> bool:
+            url = join_url(base_url, target)
+            return guard.evaluate(OutboundRequest(method=method, url=url)).verdict == "allowed"
+
+        plan = plan_ssrf(
+            log.exchanges,
+            prep.operations,
+            permits=permits,
+            seed=self._entropy.seed(),
+            infrastructure=profile.infrastructure_paths,
+            only=frozenset(request.only),
+        )
+        pool = SessionPool(lambda alias: self._account_session(prep, alias, live.dispatcher))
+        settings = NegativeSettings(
+            base_url=base_url,
+            dispatcher=live.dispatcher,
+            sessions=pool,
+            max_requests=SSRF_MAX_REQUESTS,
+            product=profile.product,
+            mutation_journal=self._mutation_journal,
+            prefix=OAST_PREFIX,
+        )
+        return GuidedSsrf(
+            sender=NegativeSender(settings),
+            events=self._oast,
+            sleeper=self._sleeper,
+            base_url=base_url,
+        ).run(plan)
+
+    def _extra_checks(
+        self, prep: _Prepared, request: ScanRequest, live: _Live, status: str
+    ) -> ExtraOutcome | None:
+        """Limite de consumo e inventário (ADR 0101 e 0102): só com as chaves da carta.
+
+        Rodam depois das varreduras do ZAP (uma conta de teste que o limite bloqueasse não atrapalha
+        a varredura) e só se ela terminou normalmente; senão ficam como "não executado".
+        """
+        flags = prep.profile.extra_checks
+        if not (flags.allow_rate_tests or flags.inventory):
+            return None
+        if status != "completed" or self._exchanges is None:
+            return not_run_outcome(prep.profile, f"a varredura terminou como {status}.")
+        try:
+            log = self._exchanges.read_exchanges(request.run_id)
+        except ConfigError as error:
+            _log.warning("extra_checks_exchanges_unavailable", reason=error.message)
+            return not_run_outcome(prep.profile, "exchanges.json indisponível.")
+        context = ExtraContext(
+            profile=prep.profile,
+            operations=prep.operations,
+            exchanges=log,
+            dispatcher=live.dispatcher,
+            session_factory=lambda alias: self._account_session(prep, alias, live.dispatcher),
+            account=prep.default_account,
+            only=frozenset(request.only),
+            product=prep.profile.product,
+            run_id=request.run_id,
+            clock=self._clock,
+            mutation_journal=self._mutation_journal,
+        )
+        return run_extra_checks(context)
+
+    def _delivery(
+        self, prep: _Prepared, alias: str, dispatcher: OperationDispatcher
+    ) -> TokenDelivery:
+        profile = prep.profile
+        session = self._account_session(prep, alias, dispatcher)
         session.open()
         limit = profile.login_limit
         floor = math.ceil(60 / limit.max_per_minute) if limit is not None else 0
@@ -446,6 +744,8 @@ class Scan:
             deadline=prep.deadline,
             base_url=prep.profile.environment.base_url,
             on_progress=self._live_hook(prep, request),
+            product=prep.profile.product,
+            mutation_journal=self._mutation_journal,
         )
 
     def _live_hook(
@@ -470,6 +770,8 @@ class Scan:
         try:
             self._zap.remove_stale_rules(REPLACER_RULE_PREFIX)
             self._scanner.apply_policy(prep.policy, prep.zap_limits)
+        except OastUnavailable:
+            raise
         except ExternalToolError as error:
             raise PreflightError(
                 f"Não foi possível preparar o ZAP para a varredura: {error.message}",
@@ -483,7 +785,11 @@ class Scan:
             _log.error("scan_policy_remove_failed", policy=name, reason=error.message)
 
     def _collect(
-        self, run_id: str, base_url: str, outcome: RunOutcome
+        self,
+        run_id: str,
+        base_url: str,
+        outcome: RunOutcome,
+        extra: tuple[dict[str, str], ...] = (),
     ) -> tuple[Collected | None, ScanStatusName, str | None]:
         if outcome.status == "stopped_zap":
             return None, outcome.status, outcome.message
@@ -494,6 +800,7 @@ class Scan:
                 vault=self._vault,
                 run_id=run_id,
                 base_url=base_url,
+                extra=extra,
             )
         except ExternalToolError as error:
             _log.error("scan_collect_failed", reason=error.message)
@@ -537,13 +844,21 @@ class Scan:
         )
         if plan:
             planned = tuple(
-                PlannedScan(operation_id=t.operation_id, method=t.method, path=t.path)
+                PlannedScan(
+                    operation_id=t.operation_id,
+                    method=t.method,
+                    path=t.path,
+                    seed_outcome=t.seed_outcome,
+                )
                 for t in plan.targets
             )
         else:
             planned = tuple(
                 PlannedScan(
-                    operation_id=c.result.operation_id, method=c.result.method, path=c.result.path
+                    operation_id=c.result.operation_id,
+                    method=c.result.method,
+                    path=c.result.path,
+                    seed_outcome=c.seed_outcome,
                 )
                 for c in prep.candidates
             )
@@ -557,6 +872,7 @@ class Scan:
             finished_at=self._clock.now().isoformat(),
             policy=AppliedPolicy.from_policy(prep.policy),
             limits=AppliedLimits.from_limits(prep.limits, prep.zap_limits),
+            include_outcomes=prep.include_outcomes,
             planned=planned,
             entries=entries,
             skipped=prep.skipped + (plan.skipped if plan else ()) + pending,

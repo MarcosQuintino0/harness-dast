@@ -113,4 +113,17 @@ class WeaknessesHardenedModeTest extends ApiTestBase {
         assertThat(getRaw(token, "/api/medicos/crm/12345-SP").status()).isEqualTo(200);
     }
 
+    @Test
+    void h11_cabecalhoComSqlSegueOModo() throws Exception {
+        String token = login(ADMIN);
+        Reply normal = send(MockMvcRequestBuilders.get("/api/medicos/por-cabecalho")
+                .header("Authorization", "Bearer " + token).header("X-CRM", "inexistente"));
+        Reply injected = send(MockMvcRequestBuilders.get("/api/medicos/por-cabecalho")
+                .header("Authorization", "Bearer " + token).header("X-CRM", "inexistente' OR '1'='1"));
+        assertThat(normal.status()).isEqualTo(200);
+        assertThat(normal.body()).isEmpty();
+        assertThat(injected.status()).isEqualTo(200);
+        assertThat(injected.body()).isEmpty();
+    }
+
 }

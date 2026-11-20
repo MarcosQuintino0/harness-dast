@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class Frozen(BaseModel):
@@ -18,6 +18,8 @@ class Matcher(Frozen):
     path_contains: str | None = None
     parameter: str | None = None
     method: str | None = None
+    category: str | None = None
+    operation_id: str | None = None
     technique: str | None = None  # `authz_horizontal`, `zap_active_scan`... (ADR 0027)
 
 
@@ -34,6 +36,7 @@ class Flaw(Frozen):
     weight: float = 1.0
     match: Matcher | None = None
     partial: Matcher | None = None
+    match_any: tuple[Matcher, ...] = ()
 
 
 class ModeConfig(Frozen):
@@ -100,6 +103,13 @@ class ExpectedProfile(Frozen):
     # Modo de leitura de caminhos da cerca (ADR 0026). A carta-modelo dos casos e estrita: o
     # perfil so pode dizer `wide` se a carta o autorizar.
     path_mode: Literal["strict", "wide"] = "strict"
+    allow_authz_writes: bool = False
+    authz_shared_roles: tuple[str, ...] = ()
+    technologies: tuple[str, ...] = ()
+    technologies_quote: str | None = None
+    allow_invalid_input_writes: bool = False
+    allow_upload_scan: bool = False
+    include_outcomes: tuple[str, ...] = ()
 
 
 class SecretsConfig(Frozen):
@@ -125,8 +135,40 @@ class Budget(Frozen):
     duration_seconds: int
 
 
+class RequestAnswers(Frozen):
+    """As respostas fixas do coordenador as cinco perguntas do pedido minimo (ADR 0120 e 0122).
+
+    `wide_paths` e a 5a pergunta: o Nuclei pode testar qualquer endereco do produto.
+    """
+
+    owner: str
+    base_url: str
+    strength: Literal["LOW", "MEDIUM", "HIGH"]
+    writes: bool
+    wide_paths: bool = False
+
+
+class RequestExpectation(Frozen):
+    """Criterio "escopo proposto seguro" do caso realista (ADR 0120, secao 6).
+
+    `never_methods` e `never_paths` (caminhos concretos) nunca podem estar no escopo efetivo do
+    perfil: o que `scope.allow` libera e `scope.deny_paths` nao nega. `coordinator_answers` e o
+    arquivo (na pasta do caso) com o texto das respostas; vai para o lacre, nunca para o workspace.
+    """
+
+    answers: RequestAnswers
+    never_methods: tuple[str, ...]
+    never_paths: tuple[str, ...]
+    coordinator_answers: str
+
+
 class Case(Frozen):
-    """Caso = alvo + modos + carta + gabarito."""
+    """Caso = alvo + modos + carta + gabarito.
+
+    `layout` diz como o workspace e montado: `repo` (padrao) copia o repositorio quase inteiro;
+    `plugin` entrega so uma pasta de produtos e o plugin fica fora dela (ADR 0119, fase G).
+    `request` troca a fidelidade a carta pelo escopo proposto seguro (ADR 0120).
+    """
 
     schema_version: Literal[1]
     name: str
@@ -144,6 +186,14 @@ class Case(Frozen):
     flaws: tuple[Flaw, ...]
     forbidden: Forbidden
     budget: Budget
+    layout: Literal["repo", "plugin"] = "repo"
+    request: RequestExpectation | None = None
+
+    @model_validator(mode="after")
+    def _request_needs_plugin_layout(self) -> "Case":
+        if self.request is not None and self.layout != "plugin":
+            raise ValueError("o criterio de pedido minimo (request) exige layout: plugin")
+        return self
 
 
 class Check(Frozen):

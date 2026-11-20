@@ -125,6 +125,8 @@ class HttpResponse(BaseModel):
     content_type: str | None = None
     retry_after: str | None = None
     location: str | None = None
+    cors_allow_origin: str | None = None
+    cors_allow_credentials: str | None = None
     body: bytes = b""
     body_truncated: bool = False
     elapsed_ms: int = 0

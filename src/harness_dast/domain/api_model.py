@@ -19,6 +19,7 @@ ParamLocation = Literal["path", "query", "header", "cookie"]
 MAX_OPERATIONS = 5000
 MAX_PARAMETERS = 200
 MAX_MEDIA_TYPES = 20
+MAX_PART_TYPES = 50
 _PLACEHOLDER = re.compile(r"\{([^{}/]+)\}")
 _NON_WORD = re.compile(r"[^A-Za-z0-9]+")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -79,10 +80,13 @@ class MediaBody(ApiModel):
     Attributes:
         media_type: Por exemplo `application/json`.
         body_schema: Esquema do corpo, ou `None` se o documento não o descreve.
+        part_content_types: `encoding.<campo>.contentType` declarado (só `multipart`): nome do
+            campo -> tipo de mídia. Texto não confiável, já limitado pelo carregador.
     """
 
     media_type: str = Field(min_length=1, max_length=100)
     body_schema: Schema | None = None
+    part_content_types: dict[str, str] = Field(default_factory=dict, max_length=MAX_PART_TYPES)
 
 
 class RequestBody(ApiModel):
@@ -90,11 +94,15 @@ class RequestBody(ApiModel):
 
     Attributes:
         required: Se o corpo é obrigatório.
-        media: Um item por tipo de mídia, na ordem declarada.
+        media: Até 20 tipos de mídia representados, na ordem declarada.
+        multipart_declared: Multipart encontrado nas chaves, ou None se não inspecionadas.
+        multipart_inspection_incomplete: A inspeção de chaves foi limitada.
     """
 
     required: bool = False
     media: tuple[MediaBody, ...] = Field(default=(), max_length=MAX_MEDIA_TYPES)
+    multipart_declared: bool | None = Field(default=None, exclude=True)
+    multipart_inspection_incomplete: bool = Field(default=False, exclude=True)
 
     def preferred(self) -> MediaBody | None:
         """Escolhe o tipo de mídia a gerar: JSON primeiro; senão, o primeiro declarado."""

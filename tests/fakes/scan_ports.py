@@ -13,17 +13,26 @@ from typing import Any
 
 from harness_dast.application.scan_ports import ScanStart
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
-from harness_dast.domain.scan_result import ScanProgress, ScanRefused, ScanResult, ScanStatus
+from harness_dast.domain.scan_result import (
+    OastUnavailable,
+    ScanProgress,
+    ScanRefused,
+    ScanResult,
+    ScanStatus,
+)
 from harness_dast.domain.scan_tokens import ReplacerRule
+from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
 from tests.fakes.probe_ports import FakeTarget, FakeZap, InMemoryRunStore
@@ -91,6 +100,7 @@ class FakeScanZap(FakeZap):
     refuse: frozenset[str] = frozenset()
     failures: dict[str, ExternalToolError | BaseException] = field(default_factory=dict)
     ignore_disable: bool = False
+    oast_config_unavailable: bool = False
     applied: list[tuple[ScanPolicy, ScanLimits]] = field(default_factory=list)
     options_before_first_scan: bool = False
     let_through: dict[str, int] = field(default_factory=dict)
@@ -150,6 +160,8 @@ class FakeScanZap(FakeZap):
 
     def apply_policy(self, policy: ScanPolicy, limits: ScanLimits) -> None:
         self._fail("apply_policy")
+        if policy.oast and self.oast_config_unavailable:
+            raise OastUnavailable("Callback indisponivel")
         self.applied.append((policy, limits))
         if self.ignore_disable:
             raise ExternalToolError("Regras que deviam estar desligadas continuam ligadas: 40044.")
@@ -259,8 +271,11 @@ class InMemoryRunArtifacts:
         self.triage: dict[str, object] = {}
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
+        self.negative: dict[str, NegativeResult] = {}
+        self.nuclei: dict[str, NucleiResult] = {}
         self.rule_stats: dict[str, RuleStatsFile] = {}
         self.metrics: dict[str, RunMetrics] = {}
+        self.signals: dict[str, ProxySignals] = {}
         self.failing_writes: set[str] = set()
 
     def read_manifest(self, run_id: str) -> RunManifest:
@@ -312,8 +327,25 @@ class InMemoryRunArtifacts:
     def read_authz(self, run_id: str) -> AuthzResult | None:
         return self.authz.get(run_id)
 
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        return self.negative.get(run_id)
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        return self.nuclei.get(run_id)
+
     def write_authz(self, run_id: str, result: AuthzResult) -> None:
         self.authz[run_id] = result
+
+    def read_signals(self, run_id: str) -> ProxySignals | None:
+        return self.signals.get(run_id)
+
+    def write_signals(self, run_id: str, signals: ProxySignals) -> None:
+        if "signals" in self.failing_writes:
+            raise ConfigError("Falha simulada ao gravar error-signals.json.")
+        self.signals[run_id] = signals
+
+    def write_negative(self, run_id: str, result: NegativeResult) -> None:
+        self.negative[run_id] = result
 
     def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
         if "rule_stats" in self.failing_writes:
@@ -340,6 +372,7 @@ class InMemoryRunArtifacts:
         parts += [json.dumps(a) for alerts in self.alerts.values() for a in alerts]
         parts += [m.model_dump_json() for ms in self.evidence.values() for m in ms]
         parts += [a.model_dump_json() for a in self.authz.values()]
+        parts += [n.model_dump_json() for n in self.negative.values()]
         parts += [r.model_dump_json() for r in self.rule_stats.values()]
         parts += [m.model_dump_json() for m in self.metrics.values()]
         return "\n".join(parts)

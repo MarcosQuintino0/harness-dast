@@ -6,6 +6,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 
 ## O que este relatório não testou
 
+- **RELATÓRIO PARCIAL:** há lacunas ou cobertura desconhecida em operações ou regras; o que não foi varrido não deve ser lido como seguro.
 - Falhas de autorização \(BOLA/IDOR, BFLA, troca de dados de outro usuário\) exigem comparar respostas de contas diferentes; uma varredura ativa do ZAP não as detecta.
 - Atribuição em massa \(mass assignment\), exposição excessiva de dados em respostas legítimas e falhas de lógica de negócio estão fora do que o ZAP detecta.
 - Só foram varridas as operações que o probe alcançou com sucesso e que o plano permitiu \(sem DELETE, sem o login, sem caminhos negados\); as demais constam como não testadas.
@@ -17,6 +18,7 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 - Estado do probe: completed; do scan: completed. Varreduras executadas: 4.
 - Limites aplicados: 5 req/s, 2 thread(s) por host, atraso de 200 ms, até 60 min no total, 10 min por varredura.
 - Política: força LOW, limiar MEDIUM, injeção em caminho ligada, 10 regra(s) desligadas.
+- Cobertura por regra indisponível: não há prova de execução completa das regras.
 - Tráfego no proxy de escopo: não medido (sem auditoria do proxy).
 
 ### Varreduras truncadas ou paradas
@@ -25,14 +27,14 @@ Execução `2026-11-13T05-15-32Z-vampi-ab12`, gerado em 2026-11-13T06:00:00\+00:
 
 ### Operações sem varredura
 
-| Operação | Método e caminho | Motivo |
-|---|---|---|
-| `register` | `POST /users/v1/register` | A varredura parou antes de chegar a esta operação. |
-| `login` | `POST /users/v1/login` | O login não é varrido: senhas inválidas em massa bloqueariam a conta. |
-| `debug` | `GET /users/v1/_debug` | A varredura parou antes de chegar a esta operação. |
-| `update_email` | `PUT /users/v1/{username}/email` | PUT só é varrido sobre recurso criado nesta execução \(flows.yml\) ou com scan.mutating\_methods no perfil. |
-| `delete_user` | `DELETE /users/v1/{username}` | O probe terminou com skipped\_destructive. |
-| `createdb` | `GET /createdb` | O probe terminou com skipped\_denied. |
+| Operação | Método e caminho | Resultado do último probe | Motivo |
+|---|---|---|---|
+| `register` | `POST /users/v1/register` | success | A varredura parou antes de chegar a esta operação. |
+| `login` | `POST /users/v1/login` | success | O login não é varrido: senhas inválidas em massa bloqueariam a conta. |
+| `debug` | `GET /users/v1/_debug` | success | A varredura parou antes de chegar a esta operação. |
+| `update_email` | `PUT /users/v1/{username}/email` | success | PUT só é varrido sobre recurso criado nesta execução \(flows.yml\) ou com scan.mutating\_methods no perfil. |
+| `delete_user` | `DELETE /users/v1/{username}` | skipped\_destructive | O probe terminou com skipped\_destructive. |
+| `createdb` | `GET /createdb` | skipped\_denied | O probe terminou com skipped\_denied. |
 
 ## Resumo
 
@@ -59,6 +61,15 @@ Severidade e confiança abaixo são PROPOSTAS pelo ZAP.
 | `F-de30cb2b` | Baixa | medium | Cookie No HttpOnly Flag | `GET /books/v1` | 1 | - |
 | `F-275f10e3` | Baixa | medium | X-Content-Type-Options Header Missing | `GET /books/v1` | 1 | - |
 | `F-317171ee` | Informativa | medium | User Agent Fuzzer | `GET /users/v1/_debug` | 1 | - |
+
+## Sinais passivos de erro interno
+
+Mensagens distintas examinadas: 3; com campos cortados: 0.
+Sinais observados nas respostas já coletadas e redigidas, sujeitos a falso positivo; não são achados confirmados nem cobertura completa. Ausência de sinal não prova ausência de erros.
+
+- Resposta HTTP 5xx: 1 mensagem(ns).
+- Possível rastreamento de exceção: 0 mensagem(ns).
+- Possível erro de banco de dados: 0 mensagem(ns).
 
 ## Achados agrupados pela causa
 
@@ -343,3 +354,7 @@ Solução padrão do ZAP: Ensure that the application/web server sets the Conten
 
 **Direção de correção (sugestão genérica, não verificada):** Sem sugestão específica para este CWE nesta versão da CLI; siga a solução padrão do ZAP abaixo e revise com o time do produto.
 Solução padrão do ZAP: n/d
+
+## Sinais vistos pela cerca
+
+Sem leitura: a cerca não registrou respostas desta execução. Ausência de leitura não prova ausência de erros.

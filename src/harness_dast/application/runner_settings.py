@@ -3,8 +3,8 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from harness_dast.application.common_ports import Clock, SecretVault
 from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.ports import Clock, SecretVault
 from harness_dast.application.preview import RecordingSource
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import Operation

@@ -13,6 +13,7 @@ from harness_dast.domain.traffic import ProxyRow
 from tests.fakes.rig import PASSWORD, TOKEN, agenda_flows, profile_data
 from tests.fakes.scan_ports import FakeProxyAudit
 from tests.fakes.scan_rig import ScanRig
+from tests.unit.domain.negative_samples import negative_result
 
 
 def ready() -> ScanRig:
@@ -49,6 +50,8 @@ def test_a_failure_reading_the_rules_does_not_fail_the_scan_and_is_logged_not_sw
 
     assert result.status == "completed"
     assert [e.outcome for e in result.entries] == ["completed"] * 4
+    assert result.rule_coverage_gaps is not None
+    assert all(gap.state == "unavailable" for gap in result.rule_coverage_gaps)
     stats = rig.artifacts.rule_stats[run_id(rig)]
     assert all(op.rules == () for op in stats.operations)
     assert all(op.unavailable_reason == "resposta inesperada do ZAP" for op in stats.operations)
@@ -101,6 +104,20 @@ def scanned_with_rules(rules: tuple[RuleStat, ...] | None = None) -> ScanRig:
         rig.zap.rule_stats = rules
     rig.run_scan()
     return rig
+
+
+def test_relatorio_recupera_lacunas_de_estatisticas_antigas() -> None:
+    rig = scanned_with_rules((RuleStat(plugin_id=40026, name="DOM", state="skipped"),))
+    key = run_id(rig)
+    rig.artifacts.scans[key] = rig.artifacts.scans[key].model_copy(
+        update={"rule_coverage_gaps": None}
+    )
+
+    report = rig.report().execute(ReportRequest(product="agenda", run_id=key)).report
+
+    assert report.coverage.partial
+    assert report.coverage.rule_coverage_gaps is not None
+    assert all(gap.plugin_id == 40026 for gap in report.coverage.rule_coverage_gaps)
 
 
 def test_report_writes_metrics_json_with_the_report_time_and_returns_the_file_name() -> None:
@@ -247,3 +264,35 @@ def test_gaps_come_from_the_audit_rows_inside_the_scan_window() -> None:
     gaps = rig.artifacts.metrics[run_id(rig)].traffic.gaps
     assert gaps is not None
     assert (gaps.count, gaps.longest_seconds) == (1, 39.0)
+
+
+def test_recorder_measures_the_negative_stage_from_its_file_without_a_run_json() -> None:
+    rig = scanned_with_rules()
+    rig.artifacts.negative[run_id(rig)] = negative_result(product="agenda", run_id=run_id(rig))
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig))
+
+    assert rig.artifacts.metrics[run_id(rig)].stages_seconds.negative == 600.0
+
+
+def test_recorder_takes_the_negative_time_from_the_run_stage_records_when_given() -> None:
+    rig = scanned_with_rules()
+    rig.artifacts.negative[run_id(rig)] = negative_result(product="agenda", run_id=run_id(rig))
+    stages = (
+        StageRecord(name="negative", status="ok", duration_seconds=4.0),
+        StageRecord(name="authz", status="skipped"),
+    )
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig), stages=stages)
+
+    metrics = rig.artifacts.metrics[run_id(rig)]
+    assert metrics.stages_seconds.negative == 4.0
+    assert metrics.stages_seconds.authz is None
+
+
+def test_recorder_leaves_the_negative_time_empty_when_the_stage_never_ran() -> None:
+    rig = scanned_with_rules()
+
+    rig.metrics_recorder().refresh("agenda", run_id(rig))
+
+    assert rig.artifacts.metrics[run_id(rig)].stages_seconds.negative is None

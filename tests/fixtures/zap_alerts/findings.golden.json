@@ -1,4 +1,13 @@
 {
+  "internal_error_signals": {
+    "messages_examined": 3,
+    "truncated_messages": 0,
+    "counts": {
+      "http_5xx": 1,
+      "stack_trace": 0,
+      "sql_error": 0
+    }
+  },
   "schema_version": 1,
   "fingerprint_version": 1,
   "run_id": "2026-11-13T05-15-32Z-vampi-ab12",
@@ -9,13 +18,16 @@
     "operations_total": 10,
     "operations_sent": 8,
     "probe_successes": 8,
+    "probe_reached": 8,
     "reachability": 1.0,
     "reachability_all": 0.8,
-    "partial": false,
+    "partial": true,
     "probe_status": "completed",
     "scan_status": "completed",
     "scan_stop_message": null,
     "scans_run": 4,
+    "rule_coverage_gaps": null,
+    "oast_gap": null,
     "truncated_scans": [
       {
         "operation_id": "list_books",
@@ -29,44 +41,52 @@
         "method": "POST",
         "path": "/users/v1/register",
         "reason": "not_run",
-        "message": "A varredura parou antes de chegar a esta operação."
+        "message": "A varredura parou antes de chegar a esta operação.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "login",
         "method": "POST",
         "path": "/users/v1/login",
         "reason": "login",
-        "message": "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
+        "message": "O login não é varrido: senhas inválidas em massa bloqueariam a conta.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "debug",
         "method": "GET",
         "path": "/users/v1/_debug",
         "reason": "not_run",
-        "message": "A varredura parou antes de chegar a esta operação."
+        "message": "A varredura parou antes de chegar a esta operação.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "update_email",
         "method": "PUT",
         "path": "/users/v1/{username}/email",
         "reason": "mutating",
-        "message": "PUT só é varrido sobre recurso criado nesta execução (flows.yml) ou com scan.mutating_methods no perfil."
+        "message": "PUT só é varrido sobre recurso criado nesta execução (flows.yml) ou com scan.mutating_methods no perfil.",
+        "probe_outcome": "success"
       },
       {
         "operation_id": "delete_user",
         "method": "DELETE",
         "path": "/users/v1/{username}",
         "reason": "probe_skipped_destructive",
-        "message": "O probe terminou com skipped_destructive."
+        "message": "O probe terminou com skipped_destructive.",
+        "probe_outcome": "skipped_destructive"
       },
       {
         "operation_id": "createdb",
         "method": "GET",
         "path": "/createdb",
         "reason": "probe_skipped_denied",
-        "message": "O probe terminou com skipped_denied."
+        "message": "O probe terminou com skipped_denied.",
+        "probe_outcome": "skipped_denied"
       }
     ],
+    "include_outcomes": [],
+    "seeded_scans": [],
     "limits": {
       "requests_per_second": 5.0,
       "max_duration_minutes": 60,
@@ -92,7 +112,10 @@
         40043,
         40044,
         90034
-      ]
+      ],
+      "oast": false,
+      "oast_rules": [],
+      "experimental_rules": []
     },
     "traffic": {
       "enabled": false,
@@ -129,7 +152,10 @@
     },
     "occurrences": 12,
     "alerts_unreadable": 0,
-    "authz_by_severity": {}
+    "authz_by_severity": {},
+    "negative_by_severity": {},
+    "nuclei_by_severity": {},
+    "signal_by_severity": {}
   },
   "findings": [
     {
@@ -170,7 +196,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-ce1a5087",
@@ -210,7 +238,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-2f11bee2",
@@ -250,7 +280,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-2602e516",
@@ -290,7 +322,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-25f11dca",
@@ -330,7 +364,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-a1c30554",
@@ -370,7 +406,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-b1d6a451",
@@ -410,7 +448,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-b7bf6b8d",
@@ -450,7 +490,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-de30cb2b",
@@ -490,7 +532,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-275f10e3",
@@ -530,7 +574,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     },
     {
       "finding_id": "F-317171ee",
@@ -570,7 +616,9 @@
       "technique": "zap_active_scan",
       "status": "needs_triage",
       "comparison": null,
-      "triage": null
+      "triage": null,
+      "seed_outcome": null,
+      "experimental": false
     }
   ],
   "groups": [
@@ -595,14 +643,16 @@
           "method": "GET",
           "path_template": "/users/v1/{}",
           "operation_id": "get_user",
-          "occurrences": 2
+          "occurrences": 2,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-2f11bee2",
           "method": "GET",
           "path_template": "/users/v1",
           "operation_id": "list_users",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -627,7 +677,8 @@
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -652,7 +703,8 @@
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -680,28 +732,32 @@
           "method": "GET",
           "path_template": "/users/v1/{}",
           "operation_id": "get_user",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-b1d6a451",
           "method": "POST",
           "path_template": "/books/v1",
           "operation_id": "create_book",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-b7bf6b8d",
           "method": "GET",
           "path_template": "/users/v1",
           "operation_id": "list_users",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         },
         {
           "finding_id": "F-de30cb2b",
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": "Padrão conhecido: o cookie de XSRF/CSRF usa o esquema de duplo envio (double submit): o JavaScript do front-end precisa LER o cookie para devolvê-lo no cabeçalho X-XSRF-TOKEN. Por isso ele costuma não ter HttpOnly e isso costuma ser esperado. Confirme com o time que o cookie de SESSÃO (que não é este) tem HttpOnly. A severidade continua sendo a proposta pelo ZAP."
@@ -726,7 +782,8 @@
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -751,7 +808,8 @@
           "method": "GET",
           "path_template": "/books/v1",
           "operation_id": "list_books",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -776,7 +834,8 @@
           "method": "GET",
           "path_template": "/users/v1/_debug",
           "operation_id": "debug",
-          "occurrences": 1
+          "occurrences": 1,
+          "seed_outcome": null
         }
       ],
       "expected_note": null
@@ -785,5 +844,20 @@
   "not_observed": [],
   "comparison": null,
   "triage_orphans": [],
-  "authz": null
+  "authz": null,
+  "proxy_signals": {
+    "schema_version": 1,
+    "enabled": false,
+    "message": "a cerca não registrou respostas desta execução",
+    "window": null,
+    "responses_examined": 0,
+    "responses_skipped": {},
+    "responses_with_signal": 0,
+    "counts": {},
+    "findings": [],
+    "findings_omitted": 0,
+    "notice": "Achados de sinal vêm de reconhecer texto conhecido (erro de banco, rastreamento de exceção, página de depuração) em respostas que o proxy de escopo liberou; não são alertas do ZAP e não confirmam vulnerabilidade. Severidade proposta pelo catálogo do código; todo achado exige triagem humana. O ZAP pode ter o mesmo achado como alerta próprio (por exemplo 'Application Error Disclosure'): os dois pedem uma triagem só. Não entram em --compare. Contagem zero NÃO prova ausência de erros: veja as respostas não lidas."
+  },
+  "negative": null,
+  "nuclei": null
 }

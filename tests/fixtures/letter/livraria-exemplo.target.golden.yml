@@ -1,0 +1,62 @@
+# Gerado por: hdast init <produto> --from-letter <carta.yml> (ADR 0036).
+# Blocos gerados da carta (o agente não os escreve nem os altera): environment, openapi, scope, limits, auth, scan.strength.
+# Para mudar algum deles, a pessoa muda a carta e o perfil é gerado de novo.
+schema_version: 1
+product: "livraria-exemplo"
+environment:
+  name: "homologacao"
+  base_url: "http://livraria-lab:8080"
+openapi: "./openapi.json"
+scope:
+  allow:
+    - host: "livraria-lab"
+      scheme: "http"
+      port: 8080
+      allow_local: true
+      paths:
+        - "/loja/api/**"
+        - "/loja/docs"
+      methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+  deny_paths:
+    - "/loja/api/pagamentos/**"
+    - "/loja/api/conta/excluir"
+  authorization:
+    reference: "LIVRARIA-HML-2027-01"
+    valid_until: 2027-06-30
+  path_mode: "strict"
+  windows:
+    - "seg-sex 19:00-06:00 America/Sao_Paulo"
+limits:
+  requests_per_second: 20
+  max_duration_minutes: 45
+  zap_threads_per_host: 4
+auth:
+  type: "login_password"
+  token_path: "/loja/api/sessao"
+  request_encoding: "form"
+  login_limit:
+    max_per_minute: 3
+  accounts:
+    - alias: "gerente_a"
+      role: "gerente"
+      username:
+        secret_ref: "env:LIVRARIA_GERENTE_USERNAME"
+      password:
+        secret_ref: "env:LIVRARIA_GERENTE_PASSWORD"
+    - alias: "cliente_a"
+      role: "cliente"
+      username:
+        secret_ref: "env:LIVRARIA_CLIENTE_A_USERNAME"
+      password:
+        secret_ref: "env:LIVRARIA_CLIENTE_A_PASSWORD"
+    - alias: "cliente_b"
+      role: "cliente"
+      username:
+        secret_ref: "env:LIVRARIA_CLIENTE_B_USERNAME"
+      password:
+        secret_ref: "env:LIVRARIA_CLIENTE_B_PASSWORD"
+scan:
+  strength: "MEDIUM"

@@ -9,7 +9,7 @@ no escopo a guarda fica desligada e o resultado diz isso.
 
 from typing import Final
 
-from harness_dast.application.ports import Clock, Sleeper
+from harness_dast.application.common_ports import Clock, Sleeper
 from harness_dast.application.run_support import GuardedSender
 from harness_dast.domain.errors import TargetError, TargetTimeout, TargetUnreachable
 from harness_dast.domain.http_messages import HttpRequest

@@ -1,4 +1,4 @@
-# crAPI no lab (terceiro alvo, **fora** do `hdast stack up`)
+# crAPI no lab (terceiro alvo)
 
 O [OWASP crAPI](https://github.com/OWASP/crAPI) (Completely Ridiculous API) é uma API deliberadamente vulnerável, de código aberto, com
 microsserviços (identity em Java, community em Go, workshop em Python), MongoDB, PostgreSQL e um MailHog. Aqui ele serve de **terceiro
@@ -19,8 +19,8 @@ alvo** do lab e do caso de avaliação [`evals/cases/crapi`](../../evals/cases/c
 | [`product-profile/`](product-profile/target.yml) | Perfil do produto (`target.yml`, `data-rules.yml`, `flows.yml`) |
 
 **Licença e origem.** O repositório do crAPI é Apache-2.0 (confira `LICENSE.md` na tag), que permite redistribuir com o aviso de origem: por
-isso o OpenAPI está versionado aqui, em vez de baixado no setup. Copyright dos autores do crAPI (OWASP crAPI contributors). A licença do
-**harness-dast** continua indefinida (P-14); este diretório não declara licença para o projeto.
+isso o OpenAPI está versionado aqui, em vez de baixado no setup. Copyright dos autores do crAPI (OWASP crAPI contributors). O código do
+**harness-dast** usa a [licença MIT](../../LICENSE).
 
 **Alteração no OpenAPI.** A resposta `200` de `GET /workshop/api/shop/return_qr_code` tem a chave de tipo de mídia vazia (`"content": {"": {...}}`).
 O leitor de OpenAPI do `hdast` recusa isso com um ponteiro claro (`operação inválida (media_type)`); a cópia daqui troca a chave vazia por
@@ -28,45 +28,22 @@ O leitor de OpenAPI do `hdast` recusa isso com um ponteiro claro (`operação in
 
 **Imagens.** A tag `1.1.6-rc8` é a única que existe para **todas** as imagens do crAPI no Docker Hub (a pasta `VERSION` do repositório diz
 `1.1.5`, que não foi publicada; a `1.1.6` só existe para o identity). Digests lidos no `docker pull` de 2026-11-13. O `postgres:14` e o
-`mongo:4.4` também estão fixados por digest. O chatbot (`crapi-chatbot`) fica de pé sem chave de LLM, só porque o nginx do `crapi-web` o resolve
-ao iniciar.
+`mongo:4.4` também estão fixados por digest. O upstream do chatbot aponta ao identity já presente para que o nginx resolva o nome; as rotas do chatbot não são suportadas. A imagem grande do chatbot não é usada.
 
 ## Subir e parar
 
-O crAPI **não** entra no `hdast stack up` porque `application/lab_targets.py` só sabe subir o VAmPI e a Clínica Piloto, e acrescentar um alvo
-ali exigiria mudar o contrato (todo alvo traz variável de modo vulnerável e variáveis de credencial que a pilha sorteia; o crAPI não tem modo
-seguro e as contas precisam ser **cadastradas** pela API, com o e-mail do MailHog). A saída é usar a pilha do `hdast` **sem alvo** e ligar o
-crAPI à rede dela. A ordem importa: a rede `hdast_lab_net` é criada pela pilha.
+O `hdast stack up crapi` sobe a pilha principal e o projeto crAPI e cadastra duas contas e seus veículos usando o MailHog local. As credenciais geradas ficam no estado protegido e são usadas pelos `secret_ref`, sem serem exibidas. O crAPI não tem modo seguro: `--secure` é recusado antes de alterar serviços. As portas locais 28888 e 28025 precisam estar livres.
 
 ```bash
-# 1. Pasta de produtos com o perfil e o OpenAPI (fora do repositório)
-mkdir -p /tmp/produtos/crapi
-cp lab/crapi/product-profile/*.yml lab/crapi/openapi.json /tmp/produtos/crapi/
-export HDAST_PRODUCTS_DIR=/tmp/produtos
-
-# 2. Pilha do hdast SEM alvo (o host `crapi` não é um alvo conhecido: sobem só o ZAP e o proxy de escopo)
-uv run hdast --json stack up crapi                          # ~30 s; gera a política do proxy a partir do perfil
-
-# 3. crAPI na rede interna da pilha (qualquer valor serve de senha de banco; é do laboratório)
-export CRAPI_DB_PASSWORD="$(openssl rand -hex 12)"
-docker compose -p hdast-crapi -f lab/crapi/compose.yaml up -d --wait     # ~95 s
-
-# 4. Contas de teste (sintéticas, sorteadas) e variáveis do perfil
-python lab/crapi/seed.py --out /tmp/crapi-contas.json       # 2 contas, cada uma com veículo; não imprime os valores
-# exporte CRAPI_USER_A_EMAIL, CRAPI_USER_A_PASSWORD, CRAPI_USER_B_EMAIL e CRAPI_USER_B_PASSWORD a partir do arquivo
-
-# 5. Sondar e varrer
+uv run hdast --json stack up crapi
 uv run hdast --json preflight crapi
 uv run hdast --json probe crapi
-uv run hdast --json run crapi
-
-# 6. Parar (o crAPI primeiro; a pilha depois, senão a rede do lab fica em uso)
-docker compose -p hdast-crapi -f lab/crapi/compose.yaml down -v
 uv run hdast --json stack down
 ```
 
-`seed.py --use <json>` cadastra as contas com valores **já sorteados** (é o que a avaliação cega faz com `sealed/secrets.json`).
-O seed fala só com `127.0.0.1` e recusa qualquer outro endereço. Ele é de quem opera o lab; o agente nunca o roda.
+`stack down` derruba primeiro o crAPI e remove os volumes descartáveis. `HDAST_STACK_PROJECT_SUFFIX=-codex` isola os nomes dos projetos e da rede; sem a variável os nomes anteriores permanecem. A aprovação de escopo continua responsabilidade humana. A prova real depende do coordenador e da trava de laboratório.
+
+O `seed.py` permanece como suporte histórico para avaliações existentes; a pilha gerenciada usa o adaptador próprio. Ambos cadastram diretamente nas portas locais, fora da varredura.
 
 ## O perfil (`product-profile/`)
 
@@ -95,7 +72,8 @@ Máquina: Windows 11, Docker Desktop com 6,7 GiB, ZAP 2.17, proxy de escopo, `hd
 | `probe` | 44 operações; 30 tentadas; 18 com sucesso (0,60 das tentadas); 10 puladas por `deny_paths`; 2 `DELETE` fora do escopo |
 
 O que **não** chega a sucesso, e por quê: o `login` do OpenAPI usa credenciais geradas (recusa por desenho); as duas operações de envio de
-arquivo são `multipart/form-data`, que o `probe` não suporta; `add_vehicle` precisa do VIN e do PIN que só chegam por e-mail; `login-with-token`
+arquivo são `multipart/form-data`, que o `probe` alcança com um arquivo sintético quando o tipo é
+aceito (V1.5, ADR 0052; vídeo e imagem de verdade ficam de fora); estas medições são anteriores a isso; `add_vehicle` precisa do VIN e do PIN que só chegam por e-mail; `login-with-token`
 e `convert_video` e `users/all` pedem papel que as contas não têm; `get_post` e `post_comment` ficariam alcançáveis com o id de um post, mas o
 OpenAPI diz que a lista de posts é um array e o alvo devolve `{"posts": [...]}`, e o `flows.yml` é conferido contra o OpenAPI.
 
@@ -108,8 +86,7 @@ desafios do crAPI foi achado, nem o de SQL (`apply_coupon`), que o gabarito prev
 
 ## Limites e riscos
 
-- O `stack down` não derruba o crAPI nem a rede `hdast_lab_net` enquanto o `crapi-web` estiver ligado a ela: derrube o crAPI antes.
 - Tag de pré-lançamento (`rc8`). Trocar de versão exige refazer os digests e conferir o OpenAPI (o crAPI mudou de rotas entre versões).
-- O `mailhog` guarda os e-mails no MongoDB do lab: `down -v` apaga tudo.
+- O `mailhog` guarda os e-mails no MongoDB do lab: `stack down` apaga os volumes descartáveis.
 - Memória: com ZAP (até 1,6 GiB na configuração do lab) o conjunto passa de ~2,1 GiB e cabe nos 6,7 GiB do Docker, mas **não** em paralelo
   com o Oracle do piloto (2 GiB) e o ZAP: não suba os três juntos.

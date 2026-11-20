@@ -11,7 +11,11 @@ from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.errors import ExternalToolError
+from harness_dast.domain.extra_check_result import ExtraChecksSummary
+from harness_dast.domain.oast_ssrf import SsrfSummary
+from harness_dast.domain.oast_verification import OastVerification
 from harness_dast.domain.run import RunLimits
+from harness_dast.domain.scan_binding import ScanBinding
 from harness_dast.domain.scan_plan import LearnedRef, ScanSkip
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.traffic import TrafficSummary
@@ -33,6 +37,10 @@ SCAN_NOTICE: Final = (
 )
 
 _RUNNING_STATES: Final = frozenset({"NOT_STARTED", "RUNNING", "PAUSED"})
+
+
+class OastUnavailable(ExternalToolError):
+    """A configuração do serviço Callback do ZAP não está disponível."""
 
 
 class ScanRefused(ExternalToolError):
@@ -74,6 +82,14 @@ def interpret_finish(status: ScanStatus, *, stop_requested: bool) -> EntryOutcom
     return "completed" if status.progress >= 100 else "truncated"
 
 
+MUTATION_PENDING_NOTE: Final = "mutation_pending: mutação pendente de reconciliação."
+"""Nota exata que só a CLI grava numa entrada recusada por mutação pendente.
+
+Quem classifica a pendência compara por igualdade com esta constante, nunca por trecho de
+`note`, porque outras notas podem conter texto do ZAP ou do alvo.
+"""
+
+
 class ScanEntry(ApiModel):
     """Uma varredura executada (uma por requisição aprendida).
 
@@ -92,6 +108,8 @@ class ScanEntry(ApiModel):
         alert_count: Alertas novos atribuídos a esta varredura.
         alert_ids: Ids dos alertas atribuídos (para ligar achados à operação).
         note: Observação, quando há.
+        seed_outcome: Classe do `probe` quando a operação NÃO foi `success` (o ataque partiu de
+            uma resposta que não foi sucesso, ADR 0050); `None` nas demais.
     """
 
     operation_id: str
@@ -107,6 +125,8 @@ class ScanEntry(ApiModel):
     alert_count: int = 0
     alert_ids: tuple[str, ...] = ()
     note: str | None = None
+    seed_outcome: str | None = None
+    seed_binding: ScanBinding | None = None
 
 
 class PlannedScan(ApiModel):
@@ -116,11 +136,13 @@ class PlannedScan(ApiModel):
         operation_id: Operação.
         method: Método HTTP.
         path: Modelo de caminho.
+        seed_outcome: Classe do `probe` quando não foi `success` (ADR 0050), senão `None`.
     """
 
     operation_id: str
     method: str
     path: str
+    seed_outcome: str | None = None
 
 
 class AppliedPolicy(ApiModel):
@@ -133,6 +155,9 @@ class AppliedPolicy(ApiModel):
         url_path_injection: Injeção em caminho ligada.
         injectable_mask: Valor de `TargetParamsInjectable`.
         disabled_rules: Ids das regras desligadas.
+        oast: Retorno fora de banda ligado (ADR 0099).
+        oast_rules: Regras que dependem do retorno e ficaram ligadas.
+        experimental_rules: Regras alpha/beta selecionadas que ficaram ligadas (ADR 0103).
     """
 
     name: str
@@ -141,6 +166,9 @@ class AppliedPolicy(ApiModel):
     url_path_injection: bool
     injectable_mask: int
     disabled_rules: tuple[int, ...]
+    oast: bool = False
+    oast_rules: tuple[int, ...] = ()
+    experimental_rules: tuple[int, ...] = ()
 
     @classmethod
     def from_policy(cls, policy: ScanPolicy) -> "AppliedPolicy":
@@ -152,6 +180,9 @@ class AppliedPolicy(ApiModel):
             url_path_injection=policy.url_path_injection,
             injectable_mask=policy.injectable_mask,
             disabled_rules=policy.disabled_rules,
+            oast=policy.oast,
+            oast_rules=policy.oast_rules,
+            experimental_rules=policy.experimental_rules,
         )
 
 
@@ -201,6 +232,22 @@ class HealthSummary(ApiModel):
     failures: int = 0
 
 
+class RuleCoverageGap(ApiModel):
+    """Uma regra incompleta ou estatística indisponível para uma operação.
+
+    Attributes:
+        operation_id: Operação do plano, sem URL concreta.
+        plugin_id: ID da regra, ou `None` quando a estatística inteira está ausente.
+        state: Estado controlado da regra ou indisponibilidade da medição.
+        reason: Motivo controlado, sem texto externo.
+    """
+
+    operation_id: str
+    plugin_id: int | None = None
+    state: Literal["skipped", "interrupted", "pending", "unknown", "unavailable"]
+    reason: Literal["max_rule_time", "other", "incomplete", "stats_unavailable"]
+
+
 class ScanResult(ApiModel):
     """Resultado completo do `scan` (`scan.json` e `data` do envelope).
 
@@ -215,16 +262,27 @@ class ScanResult(ApiModel):
         finished_at: Fim (ISO 8601).
         policy: Política aplicada.
         limits: Limites aplicados.
+        include_outcomes: Classes além de `success` efetivamente aplicadas (ADR 0050).
         planned: Varreduras que o plano pediria, na ordem.
         entries: Varreduras executadas, na ordem.
+        rule_coverage_gaps: Lacunas das regras observadas; `None` em resultado antigo.
         skipped: Operações que não foram varridas, com o motivo.
         learned: Mensagem aprendida de cada operação enviada pelo `probe`.
         alerts_total: Alertas brutos coletados.
         alerts_by_risk: Contagem por risco proposto pelo ZAP.
         evidence_messages: Mensagens de evidência gravadas.
         health: Guarda de saúde do alvo.
+        ssrf: Resumo do SSRF guiado pelo contrato (ADR 0100); `None` sem `scan.oast`.
+        oast_verification: Estado da observabilidade do retorno; `None` em legado ou sem OAST.
+        rate_checks: Resumo do limite de consumo (ADR 0101); `None` sem `allow_rate_tests`.
+        inventory: Resumo do inventário (ADR 0102); `None` sem `extra_checks.inventory`.
         traffic: Tráfego visto pelo proxy de escopo durante o scan (negados = tentativas fora do
             escopo).
+        local_queue_seconds: Soma da espera de cada trabalho na fila serial; sobrepõe o scan.
+        authentication_seconds: Ativação, troca e renovação de identidade e Replacer.
+        zap_delay_seconds: Tempo real de atraso do ZAP, indisponível pela API.
+        process_cpu_seconds: CPU da CLI entre amostras; não inclui ZAP nem proxy.
+        process_peak_memory_bytes: Pico residente da CLI desde seu início, não apenas do scan.
         rules_removed: Se as regras do Replacer do harness foram removidas ao fim.
         notice: Aviso fixo.
     """
@@ -239,15 +297,26 @@ class ScanResult(ApiModel):
     finished_at: str
     policy: AppliedPolicy
     limits: AppliedLimits
+    include_outcomes: tuple[str, ...] = ()
     planned: tuple[PlannedScan, ...] = ()
     entries: tuple[ScanEntry, ...] = ()
+    rule_coverage_gaps: tuple[RuleCoverageGap, ...] | None = None
     skipped: tuple[ScanSkip, ...] = ()
     learned: tuple[LearnedRef, ...] = ()
     alerts_total: int = 0
     alerts_by_risk: dict[str, int] = Field(default_factory=dict)
     evidence_messages: int = 0
     health: HealthSummary
+    ssrf: SsrfSummary | None = None
+    oast_verification: OastVerification | None = None
+    rate_checks: ExtraChecksSummary | None = None
+    inventory: ExtraChecksSummary | None = None
     traffic: TrafficSummary = Field(default_factory=TrafficSummary)
+    local_queue_seconds: float | None = None
+    authentication_seconds: float | None = None
+    zap_delay_seconds: float | None = None
+    process_cpu_seconds: float | None = None
+    process_peak_memory_bytes: int | None = None
     rules_removed: bool = True
     notice: str = SCAN_NOTICE
 

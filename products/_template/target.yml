@@ -61,7 +61,7 @@ scope:
   # Caminhos proibidos mesmo dentro de `allow`: ações destrutivas, envio de
   # e-mail/SMS, integrações com terceiros, exclusão de conta.
   deny_paths:
-    - "/api/notificacoes/**"
+    - "/api/interno/**"
     - "/api/conta/excluir"
   authorization:
     # Identificador da autorização formal (ticket, e-mail de aprovação...).

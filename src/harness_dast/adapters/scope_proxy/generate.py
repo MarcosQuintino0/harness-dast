@@ -10,23 +10,35 @@ são locais.
 Também aciona a trava de emergência (arquivo `KILL` ao lado da política).
 """
 
+import hashlib
 import os
-from datetime import datetime
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 
+from pydantic import ValidationError
+
+from harness_dast.adapters.scope_proxy.approval_watch import file_signature
 from harness_dast.adapters.scope_proxy.policy import (
     KILL_FLAG_NAME,
     SCHEMA_VERSION,
+    ApprovalBinding,
     ProxyPolicy,
     parse_policy,
 )
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.nuclei_scope import NucleiScope
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.proxy_deadline import stack_validity_minutes
 from harness_dast.domain.run import RunId
+from harness_dast.domain.scope import Scope, ScopeRule
+from harness_dast.domain.scope_approval import ScopeApproval, check_approval
 
 POLICY_FILE_NAME = "policy.json"
 _WRITE_HINT = "Confira o espaço em disco e a permissão de escrita da pasta de estado."
+DENY_ALL_NOT_AFTER = datetime(2000, 1, 1, tzinfo=UTC)
+"""Prazo já vencido da política que nega tudo: o proxy nega pelo prazo mesmo se o escopo falhar."""
+_DENY_ALL_HOST = "deny-all.example"
 
 
 def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: datetime) -> ProxyPolicy:
@@ -53,8 +65,113 @@ def build_proxy_policy(profile: ProductProfile, run_id: RunId, not_after: dateti
     )
 
 
+def build_deny_all_policy(profile: ProductProfile, run_id: RunId) -> ProxyPolicy:
+    """Monta a política que nega tudo, da segunda cerca sem o Nuclei ligado.
+
+    Duas travas independentes: `deny_paths` com `/**` nega qualquer caminho de qualquer host, e o
+    prazo (`not_after`) já venceu. A regra de `allow` existe só porque o esquema exige uma; seu
+    host não é de nenhum produto. Os limites são os do perfil (nada a ampliar).
+    """
+    scope = Scope(
+        allow=(ScopeRule(host=_DENY_ALL_HOST, paths=("/**",), methods=("OPTIONS",)),),
+        deny_paths=("/**",),
+    )
+    return ProxyPolicy.model_validate(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": run_id.value,
+            "scope": scope,
+            "limits": profile.limits,
+            "path_mode": "strict",
+            "not_after": DENY_ALL_NOT_AFTER.isoformat(),
+            "stack_minutes": 1,
+        }
+    )
+
+
+def build_nuclei_policy(
+    profile: ProductProfile, run_id: RunId, not_after: datetime, nuclei: NucleiScope | None
+) -> ProxyPolicy:
+    """Monta a política da cerca do Nuclei: a derivada do perfil, ou a que nega tudo.
+
+    Com `nuclei=None` (motor desligado no perfil) devolve `build_deny_all_policy`. Com escopo, usa
+    o `scope`, o `path_mode` e os `limits` dele; o prazo e a validade da pilha são os da política
+    original, e a verificação de TLS segue a mesma regra dela.
+    """
+    if nuclei is None:
+        return build_deny_all_policy(profile, run_id)
+    relax_tls = not profile.environment.verify_tls and all(
+        rule.allow_local for rule in nuclei.scope.allow
+    )
+    return ProxyPolicy.model_validate(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": run_id.value,
+            "scope": nuclei.scope,
+            "limits": nuclei.limits,
+            "path_mode": nuclei.path_mode,
+            "not_after": not_after.isoformat(),
+            "stack_minutes": stack_validity_minutes(profile),
+            "tls_verify_upstream": not relax_tls,
+        }
+    )
+
+
 class FileProxyPolicyStore:
     """Grava a política e aciona a trava no sistema de arquivos (implementa `ProxyPolicyStore`)."""
+
+    def __init__(
+        self,
+        products_dir: Path | None = None,
+        approvals_dir: Path | None = None,
+        reload_profile: Callable[[str], ProductProfile] | None = None,
+    ) -> None:
+        """Recebe as fontes reais; os tres argumentos sao obrigatorios em pilha gerenciada."""
+        self._products_dir = products_dir
+        self._approvals_dir = approvals_dir
+        self._reload_profile = reload_profile
+        if any(
+            value is not None for value in (products_dir, approvals_dir, reload_profile)
+        ) and any(value is None for value in (products_dir, approvals_dir, reload_profile)):
+            raise ValueError("Fontes da politica gerenciada incompletas")
+
+    def _bind(self, profile: ProductProfile) -> ApprovalBinding:
+        if (
+            self._products_dir is None
+            or self._approvals_dir is None
+            or self._reload_profile is None
+        ):
+            raise ConfigError("Fontes da politica incompletas.", hint="Recrie a pilha.")
+        target = self._products_dir / profile.product / "target.yml"
+        approval_path = self._approvals_dir / f"{profile.product}.json"
+        target_raw, target_stat = _read_snapshot(target)
+        approval_raw, approval_stat = _read_snapshot(approval_path)
+        try:
+            approval = ScopeApproval.model_validate_json(approval_raw)
+        except ValidationError:
+            raise ConfigError(
+                "Aprovacao invalida ao vincular o proxy.", hint="Revise a aprovacao."
+            ) from None
+        check_approval(profile, approval).ensure_approved()
+        if self._reload_profile(profile.product) != profile:
+            raise ConfigError("Perfil mudou ao vincular o proxy.", hint="Reinicie a pilha.")
+        try:
+            if (
+                file_signature(target.stat()) != target_stat
+                or file_signature(approval_path.stat()) != approval_stat
+            ):
+                raise ConfigError("Fonte alterada ao vincular proxy.", hint="Reinicie a pilha.")
+        except OSError:
+            raise ConfigError(
+                "Fonte alterada ao vincular o proxy.", hint="Reinicie a pilha."
+            ) from None
+        return ApprovalBinding(
+            product=profile.product,
+            approval_sha256=hashlib.sha256(approval_raw).hexdigest(),
+            profile_sha256=hashlib.sha256(target_raw).hexdigest(),
+            authorization=profile.scope.authorization,
+            windows=profile.scope.windows,
+        )
 
     def publish(
         self, profile: ProductProfile, run_id: RunId, not_after: datetime, directory: Path
@@ -67,7 +184,30 @@ class FileProxyPolicyStore:
         Raises:
             ConfigError: A política gerada é inválida ou a gravação falhou.
         """
-        policy = build_proxy_policy(profile, run_id, not_after)
+        return self._write(build_proxy_policy(profile, run_id, not_after), profile, directory)
+
+    def publish_nuclei(
+        self,
+        profile: ProductProfile,
+        run_id: RunId,
+        not_after: datetime,
+        directory: Path,
+        nuclei: NucleiScope | None,
+    ) -> Path:
+        """Grava a política da cerca do Nuclei (derivada do perfil ou a que nega tudo).
+
+        Garante: as mesmas garantias de `publish` e, com `nuclei=None`, uma política que nega
+        todo pedido. Nunca há política padrão permissiva.
+
+        Raises:
+            ConfigError: A política gerada é inválida ou a gravação falhou.
+        """
+        policy = build_nuclei_policy(profile, run_id, not_after, nuclei)
+        return self._write(policy, profile, directory)
+
+    def _write(self, policy: ProxyPolicy, profile: ProductProfile, directory: Path) -> Path:
+        if self._products_dir is not None:
+            policy = policy.model_copy(update={"binding": self._bind(profile)})
         raw = (policy.model_dump_json(indent=2) + "\n").encode("utf-8")
         parse_policy(raw)
         target = directory / POLICY_FILE_NAME
@@ -107,3 +247,20 @@ class FileProxyPolicyStore:
     def kill_active(self, directory: Path) -> bool:
         """Diz se o arquivo `KILL` existe em `directory`."""
         return (directory / KILL_FLAG_NAME).exists()
+
+
+def _read_snapshot(path: Path) -> tuple[bytes, tuple[int, int, int, int, int]]:
+    try:
+        with path.open("rb") as handle:
+            before = file_signature(os.fstat(handle.fileno()))
+            raw = handle.read(1024 * 1024 + 1)
+            after = file_signature(os.fstat(handle.fileno()))
+        stable = before == after == file_signature(path.stat()) and len(raw) <= 1024 * 1024
+    except OSError:
+        raise ConfigError(
+            "Nao foi possivel vincular fonte local do proxy.",
+            hint="Confira as fontes e reinicie a pilha.",
+        ) from None
+    if not stable:
+        raise ConfigError("Fonte alterada ou grande demais.", hint="Reinicie a pilha.")
+    return raw, after

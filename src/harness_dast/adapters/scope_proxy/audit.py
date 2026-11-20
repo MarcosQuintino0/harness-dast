@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl
 
 from pydantic import BaseModel, ConfigDict
 
+from harness_dast.domain.error_signal_catalog import SignalCategory, SignalSkip
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.urlnorm import MAX_URL_LENGTH, normalize_request
 
@@ -45,6 +46,11 @@ class AuditRecord(BaseModel):
         bytes: Tamanho do corpo da resposta, se conhecido.
         duration_ms: Duração total no proxy.
         waited_ms: Tempo na fila da taxa.
+        signals: Só as CATEGORIAS de sinal de erro interno vistas na resposta liberada (ADR 0049);
+            nunca corpo, trecho, código de erro nem nome de classe. Fora da linha quando vazio.
+        signal_skip: Por que a resposta liberada não foi lida (`type`, `encoding`, `empty`,
+            `error`). Fora da linha quando ausente; resposta liberada com `status` e sem este
+            campo foi lida.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -64,6 +70,10 @@ class AuditRecord(BaseModel):
     bytes: int | None = None
     duration_ms: int | None = None
     waited_ms: int = 0
+    network_ms: int | None = None
+    grant_wait_ms: int | None = None
+    signals: tuple[SignalCategory, ...] = ()
+    signal_skip: SignalSkip | None = None
 
 
 def _clip(text: str, limit: int) -> str:
@@ -112,6 +122,14 @@ class AuditLog:
         data = record.model_dump()
         if data["detail"] is None:
             del data["detail"]  # linhas sem detalhe ficam idênticas às de antes do campo existir
+        if not data["signals"]:
+            del data["signals"]
+        if data["grant_wait_ms"] is None:
+            del data["grant_wait_ms"]
+        if data["network_ms"] is None:
+            del data["network_ms"]
+        if data["signal_skip"] is None:
+            del data["signal_skip"]
         line = json.dumps(data, ensure_ascii=True, separators=(",", ":")) + "\n"
         try:
             self._file.write(line)

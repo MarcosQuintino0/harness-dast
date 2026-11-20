@@ -17,6 +17,7 @@ import yaml
 
 from harness_dast.cli.app import build_app, run_app
 from harness_dast.domain.errors import ExitCode
+from tests.fakes.approvals import approve_product_on_disk
 from tests.fakes.local_server import LocalServer, Received, Reply, serve
 from tests.fakes.profile_data import valid_profile_data
 
@@ -129,6 +130,7 @@ def write_product(products: Path, server: LocalServer, **authz: Any) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "target.yml").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     (folder / "openapi.yml").write_text(yaml.safe_dump(OPENAPI), encoding="utf-8")
+    approve_product_on_disk(products, "demo")  # o que uma pessoa faria no terminal
 
 
 @contextmanager
@@ -170,7 +172,10 @@ AUTHZ_KEYS = {
     "started_at",
     "finished_at",
     "requests_sent",
+    "created_resources",
     "accounts",
+    "access_matrix",
+    "effects",
     "checks",
     "findings",
     "not_tested",
@@ -199,10 +204,15 @@ def test_authz_finds_bola_and_excessive_data_and_writes_authz_json(
     assert techniques == {"authz_horizontal", "authz_excessive_data"}
     assert {f["origin"] for f in data["findings"]} == {"authz"}
     assert [c["check"] for c in data["checks"]] == [
+        "cors",
         "horizontal",
         "excessive_data",
+        "anonymous_access",
+        "tampered_token",
         "vertical",
+        "access_matrix",
         "mass_assignment",
+        "horizontal_write",
     ]
     on_disk = json.loads((tmp_path / "runs" / run_id / "authz.json").read_text(encoding="utf-8"))
     assert on_disk == data
@@ -346,3 +356,163 @@ def test_authz_of_a_run_without_probe_json_is_refused(
 
     assert code == ExitCode.USAGE
     assert "probe.json" in json.dumps(envelope)
+
+
+def test_authz_check_mass_assignment_without_the_letter_is_not_tested_and_not_an_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "mass_assignment",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    assert envelope["ok"] is True
+    data = envelope["data"]
+    assert data["findings"] == []
+    assert data["requests_sent"] == 0
+    reasons = {(n["check"], n["reason"]) for n in data["not_tested"]}
+    assert ("mass_assignment", "writes_not_authorized") in reasons
+    mass = next(c for c in data["checks"] if c["check"] == "mass_assignment")
+    assert mass["status"] == "skipped"
+
+
+def test_authz_accepts_the_access_checks_by_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "anonymous_access",
+            "--check",
+            "tampered_token",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    statuses = {c["check"]: c["status"] for c in envelope["data"]["checks"]}
+    assert statuses["anonymous_access"] != "disabled"
+    assert statuses["tampered_token"] != "disabled"  # noqa: S105 - nome de verificação
+    assert statuses["horizontal"] == "disabled"
+
+
+def test_authz_check_with_an_unknown_name_still_lists_the_new_ones_in_the_hint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "token_forjado",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.USAGE
+    assert "anonymous_access" in json.dumps(envelope)
+    assert "tampered_token" in json.dumps(envelope)
+
+
+def test_authz_dry_run_lists_the_access_candidates_without_sending(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (server, products):
+        run_id = probe(capsys, products)
+        before = len(server.requests)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--dry-run",
+            "--check",
+            "anonymous_access",
+            "--check",
+            "tampered_token",
+            "--products-dir",
+            str(products),
+        )
+        after = len(server.requests)
+
+    assert code == ExitCode.OK
+    assert before == after
+    by_name = {c["check"]: c for c in envelope["data"]["checks"]}
+    assert by_name["anonymous_access"]["candidates"] >= 1
+    assert by_name["tampered_token"]["candidates"] >= 1
+
+
+def test_authz_check_horizontal_write_is_accepted_and_needs_the_letter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path) as (_, products):
+        run_id = probe(capsys, products)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--check",
+            "horizontal_write",
+            "--products-dir",
+            str(products),
+        )
+
+    assert code == ExitCode.OK
+    data = envelope["data"]
+    assert data["findings"] == []
+    assert data["requests_sent"] == 0
+    reasons = {(n["check"], n["reason"]) for n in data["not_tested"]}
+    assert ("horizontal_write", "writes_not_authorized") in reasons
+    write = next(c for c in data["checks"] if c["check"] == "horizontal_write")
+    assert write["status"] == "skipped"
+    assert "escrita não autorizada" in write["message"]
+
+
+def test_authz_dry_run_of_horizontal_write_sends_nothing_even_with_the_letter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with environment(monkeypatch, tmp_path, allow_writes=True) as (server, products):
+        run_id = probe(capsys, products)
+        before = len(server.requests)
+        code, envelope, _ = invoke_json(
+            capsys,
+            "authz",
+            "demo",
+            "--run",
+            run_id,
+            "--dry-run",
+            "--check",
+            "horizontal_write",
+            "--products-dir",
+            str(products),
+        )
+        after = len(server.requests)
+
+    assert code == ExitCode.OK
+    assert before == after
+    write = next(c for c in envelope["data"]["checks"] if c["check"] == "horizontal_write")
+    assert write["status"] == "skipped"
+    assert write["candidates"] == 0

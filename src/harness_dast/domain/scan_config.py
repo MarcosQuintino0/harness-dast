@@ -1,19 +1,31 @@
 """Bloco opcional `scan` do `target.yml`: política da varredura ativa dentro de um conjunto fechado.
 
-Tudo aqui só ESTREITA ou ajusta com valores de listas fechadas: não existe campo que reative
-uma regra desligada por padrão, amplie métodos varridos além do escopo, ou remova um limite.
-Limites de carga continuam em `limits` (com tetos absolutos). Este módulo é puro.
+Nenhum campo daqui amplia o escopo de rede (o `ScopeGuard` continua decidindo) nem reativa uma
+regra desligada por padrão. Mas vários mexem na carga (`strength`, `max_*_minutes`,
+`mutating_methods`) ou no que é relatado (`threshold`, `disable_rules`, `fail_on`): por isso o
+bloco inteiro entra na impressão digital da aprovação humana (ADR 0037) e mudá-lo exige nova
+aprovação. Limites de carga globais continuam em `limits`. Este módulo é puro.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal, get_args
 
-from pydantic import Field, StrictBool, StrictInt
+from pydantic import Field, StrictBool, StrictInt, field_validator
 
 from harness_dast.domain.secret_ref import ProfileModel
 
 Level = Literal["LOW", "MEDIUM", "HIGH"]
 FailOn = Literal["none", "low", "medium", "high"]
 MutatingMethod = Literal["PUT", "PATCH"]
+ExtraOutcome = Literal[
+    "logical_failure", "validation_error", "conflict", "not_found", "client_error"
+]
+EXTRA_OUTCOMES: Final = frozenset(get_args(ExtraOutcome))
+"""Classes do `probe` além de `success` que a varredura pode atacar (ADR 0050).
+
+Lista fechada: `auth_error`, `csrf_error`, `rate_limited`, `server_error`, `redirect`,
+`timeout` e as `skipped_*` nunca entram.
+"""
+
 _STRICTNESS: dict[str, int] = {"none": 0, "high": 1, "medium": 2, "low": 3}
 
 
@@ -39,6 +51,7 @@ class ScanConfig(ProfileModel):
     """Política da varredura ativa (ZAP) e do gate de severidade.
 
     Attributes:
+        pacing: Ritmo legado ou somente pelo proxy; alterar exige nova aprovação.
         strength: Força de ataque (`LOW` envia menos carga por parâmetro; padrão do spike).
         threshold: Limiar de alerta do ZAP: só alertas com pelo menos esta confiança entram.
         url_path_injection: Injeta também em segmentos de caminho. Ligado por padrão porque o
@@ -50,10 +63,24 @@ class ScanConfig(ProfileModel):
         max_scan_minutes: Teto de cada varredura individual (uma por requisição aprendida).
         max_rule_minutes: Teto de cada regra dentro de uma varredura.
         token_refresh_seconds: Idade máxima do token entregue ao ZAP antes de renovar.
+        include_outcomes: Classes do `probe` além de `success` cujas operações também são
+            atacadas (ADR 0050); lista fechada de `ExtraOutcome`, padrão vazio. Não amplia o
+            escopo, só quanto se ataca dentro dele; por isso a aprovação humana a mostra.
+        allow_upload_scan: A carta autoriza o ZAP a varrer operações de envio de arquivo
+            (`multipart/form-data`, ADR 0052)? Padrão `false`: o ZAP grava conteúdo de ataque no
+            armazenamento do alvo (nome e conteúdo de arquivo, campos de texto), então só a carta
+            o liga. Sem ele, a operação de upload é alcançada pelo `probe`, mas não varrida
+            (`upload_scan_not_authorized`). Ligá-lo muda a impressão digital da aprovação.
+        inject_headers: A carta autoriza injetar também em cabeçalhos e cookies (V1.12, ADR 0096)?
+            Padrão `false`; só a carta o liga e ligá-lo muda a impressão digital da aprovação. A
+            capacidade que o consome vem em passo posterior; hoje o campo só é guardado.
+        oast: A carta autoriza o retorno fora de banda (servidor de retorno do laboratório;
+            V1.12, ADR 0096)? Padrão `false`; mesma regra de `inject_headers`.
         fail_on: Severidade mínima (proposta pelo ZAP) que faz `report` sair com código 1;
             `none` desliga o gate.
     """
 
+    pacing: Literal["legacy", "proxy"] = "legacy"
     strength: Level = "LOW"
     threshold: Level = "MEDIUM"
     url_path_injection: StrictBool = True
@@ -65,3 +92,14 @@ class ScanConfig(ProfileModel):
     max_rule_minutes: StrictInt = Field(default=2, ge=1, le=10)
     token_refresh_seconds: StrictInt = Field(default=120, ge=10, le=3600)
     fail_on: FailOn = "none"
+    include_outcomes: tuple[ExtraOutcome, ...] = Field(default=(), max_length=5)
+    allow_upload_scan: StrictBool = False
+    inject_headers: StrictBool = False
+    oast: StrictBool = False
+
+    @field_validator("include_outcomes")
+    @classmethod
+    def _no_repeated_outcome(cls, value: tuple[ExtraOutcome, ...]) -> tuple[ExtraOutcome, ...]:
+        if len(set(value)) != len(value):
+            raise ValueError("classe repetida em scan.include_outcomes")
+        return value

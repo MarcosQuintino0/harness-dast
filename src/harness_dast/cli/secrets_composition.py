@@ -5,7 +5,7 @@ from keyring.backend import KeyringBackend
 
 from harness_dast.adapters.secrets.env_provider import EnvSecretProvider
 from harness_dast.adapters.secrets.keyring_store import KeyringCredentialStore
-from harness_dast.application.ports import CredentialStore
+from harness_dast.application.secret_ports import CredentialStore
 from harness_dast.application.secret_router import RoutingSecretProvider
 from harness_dast.cli.stack_composition import layered_environ
 

@@ -18,17 +18,19 @@ from typing import Protocol
 
 import structlog
 
-from harness_dast.application.ports import PanelFiles, ProfileRepository, SpecLoader
+from harness_dast.application.common_ports import ProfileRepository, SpecLoader
+from harness_dast.application.panel_ports import PanelFiles
+from harness_dast.application.report_presentation import PresentationBuilder
 from harness_dast.domain.api_model import Operation
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError, HarnessError
-from harness_dast.domain.panel_build import build_panel_view
-from harness_dast.domain.panel_format import RunStateKind
-from harness_dast.domain.panel_model import PANEL_DIR, PanelExplanation, PanelJournal
-from harness_dast.domain.panel_pages import PAGES, render_panel
-from harness_dast.domain.panel_sources import PanelSources
+from harness_dast.domain.panel.build import build_panel_view
+from harness_dast.domain.panel.format import RunStateKind
+from harness_dast.domain.panel.model import PANEL_DIR, PanelExplanation, PanelJournal
+from harness_dast.domain.panel.pages import PAGES, render_panel
+from harness_dast.domain.panel.sources import PanelSources
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 ENTRY_PAGE = PAGES[0].file
@@ -106,6 +108,7 @@ class Panel:
         files: PanelFiles,
         timezone: tzinfo,
         hooks: PanelHooks | None = None,
+        presentation: PresentationBuilder | None = None,
     ) -> None:
         """Cria o caso de uso com as portas de que precisa.
 
@@ -115,12 +118,14 @@ class Panel:
             files: Arquivos da execução que o painel lê e a gravação das páginas.
             timezone: Fuso das datas da página: o do computador que a gera.
             hooks: Diário de comandos e catálogo de explicação, quando existirem.
+            presentation: Montagem opcional da visão consultiva de verificação.
         """
         self._profiles = profiles
         self._specs = specs
         self._files = files
         self._zone = timezone
         self._hooks = hooks
+        self._presentation = presentation
 
     def execute(self, request: PanelRequest) -> PanelOutcome:
         """Gera as páginas do painel.
@@ -177,7 +182,13 @@ class Panel:
         probe = self._optional(run_id, "probe.json", read.read_probe)
         scan = self._optional(run_id, "scan.json", read.read_scan)
         findings = self._optional(run_id, "findings.json", read.read_findings)
+        if findings is not None and findings.run_id != run_id:
+            raise ConfigError(
+                "O relatório pertence a outra execução.",
+                hint="Confira o run_id e os arquivos da execução.",
+            )
         authz = self._optional(run_id, "authz.json", read.read_authz)
+        negative = self._optional(run_id, "negative.json", read.read_negative)
         metrics = self._optional(run_id, "metrics.json", self._files.read_metrics)
         agent_metrics = self._optional(run_id, "agent-metrics.json", read.read_agent_metrics)
         named = {
@@ -187,6 +198,7 @@ class Panel:
             "scan.json": scan,
             "findings.json": findings,
             "authz.json": authz,
+            "negative.json": negative,
             "metrics.json": metrics,
         }
         present = tuple(name for name, item in named.items() if item is not None)
@@ -203,6 +215,7 @@ class Panel:
             scan=scan,
             findings=findings,
             authz=authz,
+            negative=negative,
             metrics=metrics,
             agent_metrics=agent_metrics,
             operations=self._operations(product, run_id, profile),
@@ -212,6 +225,9 @@ class Panel:
             commands=journal.commands if journal else None,
             commands_skipped=journal.skipped_lines if journal else 0,
             explanations=self._hooks.explanations(findings, authz) if self._hooks else {},
+            presentation=self._presentation.build(findings)
+            if self._presentation and findings
+            else None,
         )
         return _Found(sources, present, tuple(name for name in named if name not in present))
 

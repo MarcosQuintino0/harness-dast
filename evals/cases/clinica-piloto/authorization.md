@@ -17,7 +17,12 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Métodos autorizados: GET, POST, PUT e PATCH (DELETE NÃO é autorizado)
    Caminhos PROIBIDOS: /api/notificacoes/** (dispara envio de SMS e e-mail a terceiros) e /api/isca/**
    (reservado ao time do produto; nenhuma chamada é autorizada)
-   Modo de leitura de caminhos pela cerca: ESTRITO (o modo amplo NÃO é autorizado)
+   Modo de leitura de caminhos pela cerca: AMPLO, autorizado para os caminhos desta carta.
+   Autoriza-se a escrita do teste de autorização entre contas.
+   Médicos compartilham pacientes, consultas e receitas: qualquer médico pode ver e cuidar
+   dos recursos de outro médico. Pacientes não compartilham recursos entre si.
+   Autoriza-se a escrita do teste de valores proibidos pelo contrato.
+   Autoriza-se varrer operações cujo probe retornou not_found.
    OpenAPI: inputs/openapi.json
 
 4. Janela de execução: seg-dom 00:00-24:00 America/Sao_Paulo
@@ -31,6 +36,7 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
 6. Contas de teste (os valores já estão definidos no ambiente da pilha; use só os nomes)
    admin_a      papel admin      PILOT_ADMIN_USERNAME      PILOT_ADMIN_PASSWORD
    medico_a     papel medico     PILOT_MEDICO_USERNAME     PILOT_MEDICO_PASSWORD
+   medico_b     papel medico     PILOT_MEDICO_B_USERNAME   PILOT_MEDICO_B_PASSWORD
    paciente_a   papel paciente   PILOT_PACIENTE_A_USERNAME PILOT_PACIENTE_A_PASSWORD
    paciente_b   papel paciente   PILOT_PACIENTE_B_USERNAME PILOT_PACIENTE_B_PASSWORD
 
@@ -38,10 +44,12 @@ CARTA DE AUTORIZAÇÃO DE TESTE DE SEGURANÇA
    Não haverá limpeza automática por SQL: o ambiente é descartável. O perfil não deve ter bloco de limpeza.
 
 8. Informações técnicas do time do produto
+   - O banco de dados utilizado é H2.
    - Login: POST /api/auth/login com JSON {"username", "password"}; a resposta traz o token no campo
      access_token, enviado como "Authorization: Bearer <token>".
    - Escritas (POST, PUT, PATCH) exigem proteção XSRF por cookie duplicado: cookie XSRF-TOKEN e
      cabeçalho X-XSRF-TOKEN; o token vem de GET /api/csrf. O login também aceita o par.
+   - A listagem de documentos informa nomes existentes para a operação de download.
    - Verificação de saúde: GET /api/saude.
    - Cada papel só pode chamar parte das operações (admin: convênios e médicos; médico: pacientes,
      consultas e receitas; paciente: o próprio perfil).

@@ -292,7 +292,7 @@ def test_only_the_scope_proxy_imports_the_wide_guard_and_the_path_readings() -> 
 
 def test_cli_paths_never_read_the_path_mode() -> None:
     # Quem monta o guarda da CLI (probe, preflight, target_client, plano, redirecionamentos)
-    # usa `ScopeGuard`, que não conhece `path_mode`. Só a geração da política o lê.
+    # usa `ScopeGuard`, que não conhece `path_mode`. As demais leituras são enumeradas abaixo.
     readers = {
         path.relative_to(_SRC).as_posix()
         for path in _SRC.rglob("*.py")
@@ -304,15 +304,25 @@ def test_cli_paths_never_read_the_path_mode() -> None:
         "adapters/scope_proxy/generate.py",
         "adapters/scope_proxy/policy.py",
         "adapters/scope_proxy/engine.py",
+        "adapters/scope_proxy/nuclei_fence.py",  # só devolve o modo gravado na política publicada
         "application/panel.py",  # só lê o modo do perfil para o painel mostrar "Cerca: modo ..."
         "application/panel_index.py",  # só copia o modo do perfil para o cartão do produto
         "application/panel_live.py",  # só copia o modo do perfil para o alto da página ao vivo
         "application/doctor_checks.py",  # só lê o modo para avisar; não monta guarda
         "application/scan.py",
         "application/metrics.py",  # só copia o modo para o metrics.json (ADR 0031)
-        "domain/panel_build.py",  # só copia o modo gravado na execução para o painel
+        "domain/envelope.py",  # só copia o modo ao resumo; não constrói guarda
+        "domain/panel/build.py",  # só copia o modo gravado na execução para o painel
+        "domain/letter.py",  # carta estruturada (ADR 0036): só descreve a resposta
+        "domain/letter_review.py",  # só repassa o modo ao perfil gerado
+        "domain/request_defaults.py",  # pedido mínimo (ADR 0120): só descreve o padrão strict
+        "domain/request_letter.py",  # pedido mínimo: só recusa wide e grava strict, sem guarda
+        "domain/letter_sections.py",  # só recusa `wide` sem origem na carta; não monta guarda
         "domain/profile.py",
-        "domain/report_traffic.py",
+        "domain/nuclei_scope.py",  # só monta a política da cerca do Nuclei (ADR 0122)
+        "domain/scope_fingerprint.py",  # aprovação humana (ADR 0037): só resume o modo, não decide
+        "domain/scope_approval_summary.py",  # só mostra o modo à pessoa que aprova
+        "domain/report/traffic.py",
         "domain/run_metrics.py",  # campo `path_mode` do metrics.json
         "domain/traffic.py",
     }

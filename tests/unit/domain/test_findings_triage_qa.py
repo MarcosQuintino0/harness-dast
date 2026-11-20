@@ -23,7 +23,7 @@ from harness_dast.domain.finding import (
     normalize_path_template,
 )
 from harness_dast.domain.finding_diff import COMPARISON_NOTICE, compare_findings, ensure_comparable
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.triage import NOTE_CAP, merge_triage, parse_triage
 from harness_dast.domain.zap_alert import parse_confidence, parse_severity
 
@@ -433,7 +433,7 @@ HOSTILE = [
 
 
 def _rendered(**changes: object) -> str:
-    from harness_dast.domain.report_markdown import render_markdown
+    from harness_dast.domain.report.markdown import render_markdown
 
     severity = str(changes.pop("severity", "high"))
     return render_markdown(report_with(finding(FP_A, severity, **changes)))
@@ -492,7 +492,7 @@ def test_render_markdown_states_that_severity_is_proposed_and_needs_triage() -> 
 
 
 def test_render_markdown_prints_the_not_observed_notice_and_never_says_fixed() -> None:
-    from harness_dast.domain.report_markdown import render_markdown
+    from harness_dast.domain.report.markdown import render_markdown
 
     old = report_with(finding(FP_B, operation_id="op-x"))
     marked, gone, info = compare_findings([], old, {"op-x"})

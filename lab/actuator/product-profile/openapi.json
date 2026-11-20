@@ -1,0 +1,35 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Alvo Actuator (laboratório do harness-dast)",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "inicio",
+        "summary": "Página inicial",
+        "responses": { "200": { "description": "Texto simples" } }
+      }
+    },
+    "/api/ping": {
+      "get": {
+        "operationId": "ping",
+        "summary": "Verificação de saúde",
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

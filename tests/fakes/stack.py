@@ -3,30 +3,54 @@
 from datetime import datetime
 from pathlib import Path
 
+from harness_dast import __version__
 from harness_dast.application.stack_models import (
     ComposeProject,
+    OneShotResult,
     ServiceStatus,
     StackDirectories,
     StackState,
 )
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from harness_dast.domain.nuclei_scope import NucleiScope
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.run import RunId
+from harness_dast.domain.stack_binding import StackDigests
+from tests.fakes.host import FakeHost
 
 
 class FakeCompose:
     """Registra o que foi subido; `fail_on` faz a chamada indicada falhar."""
 
-    def __init__(self) -> None:
+    def __init__(self, host: FakeHost) -> None:
+        self._host = host
         self.running: dict[str, ComposeProject] = {}
         self.envs: dict[str, dict[str, str]] = {}
+        self.builds: dict[str, bool | None] = {}
+        self.built_proxy_version = __version__
         self.calls: list[tuple[str, str]] = []
         self.fail_on: str | None = None
 
+    def build(
+        self, project: ComposeProject, env: dict[str, str], services: tuple[str, ...]
+    ) -> None:
+        self.calls.append(("build", project.name))
+        if self.fail_on == "build":
+            raise ExternalToolError("build falhou")
+        images = self._host.compose_images(services, env)
+        self._host.present.update(images.values())
+        self._host.versions[images["scope-proxy"]] = self.built_proxy_version
+
     def up(
-        self, project: ComposeProject, env: dict[str, str], *, build: bool, timeout_seconds: int
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        *,
+        build: bool | None,
+        timeout_seconds: int,
     ) -> None:
         self.calls.append(("up", project.name))
+        self.builds[project.name] = build
         if self.fail_on == "up":
             raise ExternalToolError("docker falhou", hint="tente de novo")
         self.running[project.name] = project
@@ -37,6 +61,25 @@ class FakeCompose:
         if self.fail_on == "down":
             raise ExternalToolError("docker falhou", hint="tente de novo")
         self.running.pop(project.name, None)
+
+    def run_once(
+        self,
+        project: ComposeProject,
+        env: dict[str, str],
+        service: str,
+        args: tuple[str, ...],
+        *,
+        container_name: str,
+        timeout_seconds: int,
+        mounts: tuple[str, ...] = (),
+    ) -> OneShotResult:
+        self.calls.append(("run_once", project.name))
+        return OneShotResult(exit_code=0, stdout="")
+
+    def kill_container(
+        self, project: ComposeProject, env: dict[str, str], container_name: str
+    ) -> None:
+        self.calls.append(("kill_container", container_name))
 
     def status(self, project: ComposeProject, env: dict[str, str]) -> tuple[ServiceStatus, ...]:
         if project.name not in self.running:
@@ -64,10 +107,18 @@ class InMemoryStackState:
         self.state = None
 
     def directories_for(self, run_id: str) -> StackDirectories:
-        policy, audit = self._base / run_id / "policy", self._base / run_id / "audit"
-        policy.mkdir(parents=True)
-        audit.mkdir(parents=True)
-        return StackDirectories(policy_dir=policy, audit_dir=audit)
+        folders = {
+            name: self._base / run_id / name
+            for name in ("policy", "audit", "policy-nuclei", "audit-nuclei")
+        }
+        for folder in folders.values():
+            folder.mkdir(parents=True)
+        return StackDirectories(
+            policy_dir=folders["policy"],
+            audit_dir=folders["audit"],
+            nuclei_policy_dir=folders["policy-nuclei"],
+            nuclei_audit_dir=folders["audit-nuclei"],
+        )
 
     def location(self) -> Path:
         return self._base / "stack.json"
@@ -78,11 +129,25 @@ class RecordingPolicyStore:
 
     def __init__(self) -> None:
         self.published: list[tuple[str, datetime, Path]] = []
+        self.published_nuclei: list[tuple[str, datetime, Path, NucleiScope | None]] = []
 
     def publish(
         self, profile: ProductProfile, run_id: RunId, not_after: datetime, directory: Path
     ) -> Path:
         self.published.append((run_id.value, not_after, directory))
+        path = directory / "policy.json"
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    def publish_nuclei(
+        self,
+        profile: ProductProfile,
+        run_id: RunId,
+        not_after: datetime,
+        directory: Path,
+        nuclei: NucleiScope | None,
+    ) -> Path:
+        self.published_nuclei.append((run_id.value, not_after, directory, nuclei))
         path = directory / "policy.json"
         path.write_text("{}", encoding="utf-8")
         return path
@@ -122,3 +187,22 @@ class FakeStopper:
         if not self._reachable:
             raise ExternalToolError("O ZAP não respondeu.", hint="suba o ZAP")
         return self._running
+
+
+class FakeBindingSource:
+    """Vínculo gravado e hashes de agora definidos pelo teste (implementa `StackBindingSource`)."""
+
+    def __init__(
+        self, recorded: StackDigests | None, current: StackDigests, *, unreadable: bool = False
+    ) -> None:
+        self.recorded_value = recorded
+        self.current_value = current
+        self.unreadable = unreadable
+
+    def recorded(self, policy_dir: Path) -> StackDigests | None:
+        if self.unreadable:
+            raise ConfigError("política ilegível", hint="recrie a pilha")
+        return self.recorded_value
+
+    def current(self, product: str) -> StackDigests:
+        return self.current_value

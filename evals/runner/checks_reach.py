@@ -22,12 +22,13 @@ class ProbeView:
     sent: int
     successes: int
     by_design: int
+    expected_auth_rejections: int = 0
 
     @property
     def effective(self) -> float:
         """Sucessos sobre as operacoes que podiam ser alcancadas (sem as puladas por desenho)."""
         reachable = max(1, self.total - self.by_design)
-        return self.successes / reachable
+        return (self.successes + self.expected_auth_rejections) / reachable
 
 
 def read_probes(trace: Path) -> list[ProbeView]:
@@ -47,6 +48,7 @@ def read_probes(trace: Path) -> list[ProbeView]:
                 sent=int(summary.get("operations_sent", 0)),
                 successes=int(summary.get("successes", 0)),
                 by_design=sum(int(outcomes.get(name, 0)) for name in BY_DESIGN),
+                expected_auth_rejections=int(outcomes.get("auth_rejected_expected", 0)),
             )
         )
     return views
@@ -79,7 +81,9 @@ def reach_component(trace: Path) -> Component:
         )
     score = min(1.0, chosen.effective / GOAL)
     detail = (
-        f"execucao {chosen.run}: {chosen.successes} sucessos de {chosen.total - chosen.by_design} "
+        f"execucao {chosen.run}: {chosen.successes} sucessos e "
+        f"{chosen.expected_auth_rejections} recusas esperadas de "
+        f"{chosen.total - chosen.by_design} "
         f"operacoes alcancaveis ({chosen.by_design} puladas por desenho); "
         f"efetiva {chosen.effective:.2f}"
     )

@@ -42,6 +42,7 @@ def _render(result: SpecInspection) -> str:
     lines.extend(f"  precisa de regra: {n.operation_id}: {n.message}" for n in result.needs_rule)
     lines.extend(f"  [{i.code}] {i.message}" for i in result.issues)
     lines.extend(_account_lines(result))
+    lines.extend(f"  sugestão: {hint.message}" for hint in result.hints)
     if result.suspicious_operations:
         lines.append(
             "Operações que parecem destrutivas (considere scope.deny_paths): "

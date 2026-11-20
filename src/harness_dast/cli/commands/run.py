@@ -1,13 +1,16 @@
-"""Comando `hdast run`: preflight, probe, scan, authz (opcional) e report em um só processo."""
+"""Comando `hdast run`: preflight, probe, scan, nuclei, authz, negative (opcionais) e report."""
 
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from harness_dast.adapters.reporting.wait_marker import FileWaitMarker
 from harness_dast.application.run import RunRequest, RunResult
 from harness_dast.cli.output import build_failure_with_data, build_success, emit, get_state
 from harness_dast.cli.scan_composition import build_run_pipeline, open_scan_network
+from harness_dast.cli.stack_lock_composition import hold_stack
+from harness_dast.config.settings import load_settings
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_config import FailOn
 
@@ -25,9 +28,20 @@ def _render(summary: RunSummary) -> str:
     if summary.findings_by_severity is not None:
         counts = ", ".join(f"{name}: {n}" for name, n in summary.findings_by_severity.items())
         lines.append(f"Achados (severidade PROPOSTA pelo ZAP): {counts or 'nenhum'}")
+    if summary.nuclei_findings_by_severity is not None:
+        own = ", ".join(f"{name}: {n}" for name, n in summary.nuclei_findings_by_severity.items())
+        excluded = sum((summary.nuclei_templates_excluded or {}).values())
+        lines.append(
+            f"Achados do Nuclei (modelos conhecidos; técnica própria): {own} "
+            f"({summary.nuclei_templates_selected} modelo(s) rodado(s), "
+            f"{excluded} exclusão(ões) por motivo)"
+        )
     if summary.authz_findings_by_severity is not None:
         own = ", ".join(f"{name}: {n}" for name, n in summary.authz_findings_by_severity.items())
         lines.append(f"Achados de autorização entre contas (técnica própria): {own}")
+    if summary.negative_findings_by_severity is not None:
+        own = ", ".join(f"{name}: {n}" for name, n in summary.negative_findings_by_severity.items())
+        lines.append(f"Achados de valores que o esquema proíbe (técnica própria): {own}")
     if summary.stop_requested:
         lines.append("A trava de emergência (hdast stop) estava acionada.")
     lines.append("Artefatos: " + (", ".join(sorted(summary.artifacts)) or "nenhum"))
@@ -66,15 +80,53 @@ def run_command(
     skip_scan: Annotated[
         bool, typer.Option("--skip-scan", help="Para depois do probe (laço de regras de dados).")
     ] = False,
+    nuclei: Annotated[
+        bool,
+        typer.Option(
+            "--nuclei/--no-nuclei",
+            help="O Nuclei (segundo motor, depois do scan) só roda se o perfil tem "
+            "extra_checks.nuclei, o que vem da carta. --no-nuclei o pula; --nuclei não o liga "
+            "num perfil sem a chave. --only e --skip-scan também o pulam.",
+        ),
+    ] = True,
     authz: Annotated[
         bool,
         typer.Option(
-            "--authz",
-            help="Inclui o teste de autorização entre contas (depois do scan): repete pedidos "
-            "do probe com outras contas. Manda requisições a mais e escreve no alvo. Não roda "
-            "com --skip-scan (o estágio vem depois do scan).",
+            "--authz/--no-authz",
+            help="O teste de autorização entre contas (depois do scan) vem LIGADO: repete "
+            "pedidos do probe com outras contas, só lendo (escrita exige authz.allow_writes no "
+            "perfil, que vem da carta). --no-authz o pula; --authz é aceito por compatibilidade "
+            "e não muda nada. Não roda com --skip-scan.",
         ),
-    ] = False,
+    ] = True,
+    negative: Annotated[
+        bool,
+        typer.Option(
+            "--negative/--no-negative",
+            help="O teste de valores que o esquema proíbe (depois do authz) vem LIGADO: repete "
+            "pedidos do probe com um valor proibido por vez, só lendo (escrita exige "
+            "negative.allow_writes no perfil, que vem da carta). --no-negative o pula; "
+            "--negative é aceito por compatibilidade e não muda nada. Não roda com --skip-scan.",
+        ),
+    ] = True,
+    include_outcomes: Annotated[
+        bool,
+        typer.Option(
+            "--include-outcomes/--no-include-outcomes",
+            help="O scan usa scan.include_outcomes do perfil (operações que o probe viu com "
+            "404, 400, 409 etc.). --no-include-outcomes o reduz a só operações com sucesso; "
+            "nenhuma flag amplia o que o perfil autoriza.",
+        ),
+    ] = True,
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Reduz o probe, o scan e o negative a esta operação (repetível, operation_id "
+            "do OpenAPI). Só reduz: nunca amplia. O authz roda inteiro, porque só lê. O nuclei "
+            "não roda com --only.",
+        ),
+    ] = None,
     fail_on: Annotated[
         FailOn | None,
         typer.Option(
@@ -100,23 +152,35 @@ def run_command(
         ),
     ] = None,
 ) -> int:
-    """Encadeia preflight, probe, scan e report; nunca roda a limpeza."""
+    """Encadeia preflight, probe, scan, nuclei, authz, negative e report; sem limpeza."""
     state = get_state(ctx)
-    net = open_scan_network(product, products_dir, state.secrets)
-    try:
-        pipeline = build_run_pipeline(product, products_dir, state.secrets, net)
-        result = pipeline.execute(
-            RunRequest(
-                product=product,
-                seed=seed,
-                skip_scan=skip_scan,
-                authz=authz,
-                fail_on=fail_on,
-                compare=compare,
-                max_minutes=max_minutes,
+    # Uma tomada só para a sequência inteira: as etapas usam os casos de uso direto, sem
+    # passar pelos comandos, então o `run` nunca se bloqueia a si mesmo (ADR 0035).
+    with hold_stack("run", product) as holder:
+        if holder is None:
+            raise RuntimeError("Trava da execução ausente.")
+        marker = FileWaitMarker(load_settings().runs_dir, holder.lock_id)
+        marker.write("starting", None)
+        net = open_scan_network(product, products_dir, state.secrets)
+        try:
+            pipeline = build_run_pipeline(product, products_dir, state.secrets, net, marker.write)
+            result = pipeline.execute(
+                RunRequest(
+                    product=product,
+                    seed=seed,
+                    skip_scan=skip_scan,
+                    nuclei=nuclei,
+                    authz=authz,
+                    negative=negative,
+                    fail_on=fail_on,
+                    compare=compare,
+                    max_minutes=max_minutes,
+                    include_outcomes=include_outcomes,
+                    only=tuple(only or ()),
+                )
             )
-        )
-    finally:
-        net.close()
+            marker.write("finished", result.summary.run_id)
+        finally:
+            net.close()
     state.result_emitted = True
     return _emit(result, json_mode=state.json_mode)

@@ -20,6 +20,7 @@ from harness_dast.domain.api_model import ApiSpec, Operation, safe_identifier
 from harness_dast.domain.api_schema import ApiModel, Schema, flatten_schema
 from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.synthetic_files import resolve_file
 from harness_dast.domain.versioned import validate_versioned
 
 RuleLocation = Literal["path", "query", "header", "cookie", "body"]
@@ -85,7 +86,10 @@ class DataRule(ApiModel):
         """Confere gerador, argumentos e se ele aceita `unique`."""
         try:
             definition = get_generator(self.generator)
-            validate_args(definition, self.args)
+            checked = validate_args(definition, self.args)
+            if definition.name == "synthetic_file":
+                name = checked.get("name")
+                resolve_file(str(checked.get("kind")), name if isinstance(name, str) else None)
         except ConfigError as error:
             raise ValueError(error.message) from None
         if self.unique and not definition.supports_unique:

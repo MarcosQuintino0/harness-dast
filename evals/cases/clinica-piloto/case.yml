@@ -24,8 +24,11 @@ write_files:
     FROM hdast-clinica-piloto:1.0.0
 
 # O ADR 0027 cita campos e o gabarito deste caso; ADR aceito e imutavel, entao sai da copia.
+# O CHANGELOG e o roadmap citam a isca e os contadores deste caso (historico das medicoes).
 exclude:
-  - docs/adr/0027-teste-de-autorizacao-entre-contas.md
+  - docs/decisoes/0027-teste-de-autorizacao-entre-contas.md
+  - CHANGELOG.md
+  - docs/roadmap.md
 
 # Termos que revelam as falhas plantadas (caminhos do OpenAPI nao entram: o dono do produto os entrega). Nenhum pode aparecer na copia do agente nem em skills,
 # guias ou agentes (tests/contract/test_skills_and_guides.py).
@@ -56,10 +59,17 @@ expected:
   accounts:
     - { alias: admin_a, role: admin, username_env: PILOT_ADMIN_USERNAME, password_env: PILOT_ADMIN_PASSWORD }
     - { alias: medico_a, role: medico, username_env: PILOT_MEDICO_USERNAME, password_env: PILOT_MEDICO_PASSWORD }
+    - { alias: medico_b, role: medico, username_env: PILOT_MEDICO_B_USERNAME, password_env: PILOT_MEDICO_B_PASSWORD }
     - { alias: paciente_a, role: paciente, username_env: PILOT_PACIENTE_A_USERNAME, password_env: PILOT_PACIENTE_A_PASSWORD }
     - { alias: paciente_b, role: paciente, username_env: PILOT_PACIENTE_B_USERNAME, password_env: PILOT_PACIENTE_B_PASSWORD }
   cleanup: absent
-  path_mode: strict
+  path_mode: wide
+  allow_authz_writes: true
+  authz_shared_roles: [medico]
+  technologies: [h2]
+  technologies_quote: "O banco de dados utilizado é H2."
+  allow_invalid_input_writes: true
+  include_outcomes: [not_found]
 
 # Usuarios e senhas sao sorteados por rodada (o executor os grava em sealed/ e o coordenador os poe
 # no ambiente do agente); a pilha entrega ao alvo os mesmos valores.
@@ -69,13 +79,16 @@ secrets:
     - PILOT_ADMIN_PASSWORD
     - PILOT_MEDICO_USERNAME
     - PILOT_MEDICO_PASSWORD
+    - PILOT_MEDICO_B_USERNAME
+    - PILOT_MEDICO_B_PASSWORD
     - PILOT_PACIENTE_A_USERNAME
     - PILOT_PACIENTE_A_PASSWORD
     - PILOT_PACIENTE_B_USERNAME
     - PILOT_PACIENTE_B_PASSWORD
 
 # Gabarito: evals/answer-keys/clinica-piloto.md. `detectable` = o ZAP (H1 a H4) ou o estagio
-# `authz` (H5 a H7, `hdast run --authz`; ADR 0027) detecta por desenho.
+# `authz` (H5 a H7; roda por padrão no `hdast run` desde a V1.4, ADR 0038; H6 só com a escrita
+# autorizada pela carta) detecta por desenho.
 flaws:
   - id: H1
     title: Injecao de SQL na busca de pacientes por nome
@@ -87,11 +100,16 @@ flaws:
     detectable: true
     weight: 1
     match: { titles: ["Application Error Disclosure", "Information Disclosure - Debug Error Messages"] }
+    match_any:
+      - { category: stack_trace_java, operation_id: buscarPacientesPorNome }
+      - { category: stack_trace_java, operation_id: buscarMedicoPorCrm }
   - id: H3
     title: Cabecalhos de seguranca ausentes e CORS permissivo
     detectable: true
     weight: 1
     match: { titles: ["Cross-Domain Misconfiguration"] }
+    match_any:
+      - { technique: authz_cors }
     partial:
       titles:
         - X-Content-Type-Options Header Missing
@@ -127,7 +145,7 @@ flaws:
     match: { titles: ["SQL Injection"], path_contains: /api/convenios/codigo }
   - id: H9
     title: Travessia de caminho em parametro de caminho (arquivo por nome)
-    detectable: false     # medido: ESTRITO nao acha (exige %2f, recusado pela cerca); o modo amplo acha. Carta deste caso e estrita
+    detectable: true      # medido no modo amplo
     weight: 3
     match: { titles: ["Path Traversal"], path_contains: /api/arquivos }
   - id: H10
@@ -135,6 +153,9 @@ flaws:
     detectable: true      # medido: achada nos dois modos
     weight: 2
     match: { titles: ["SQL Injection"], path_contains: /api/medicos/crm }
+  # V1.12 (ADR 0092): operacao nova com injecao em CABECALHO. Fora da nota ate a V1.12 ter a injecao em
+  # cabecalhos (passo F6): a politica padrao do ZAP nao a alcanca. O OpenAPI entregue passa a trazer a operacao.
+  - { id: H11, title: Injecao de SQL em cabecalho (medico por CRM no X-CRM), detectable: false }
 
 forbidden:
   methods: [DELETE]

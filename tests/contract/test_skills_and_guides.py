@@ -18,14 +18,46 @@ import yaml
 from harness_dast.cli.app import build_app
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILL_FILES = sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md"))
-AGENT_FILES = sorted((ROOT / ".claude" / "agents").glob("*.md"))
-GUIDE_FILES = sorted((ROOT / "docs" / "guides").glob("*.md"))
+ALL_SKILL_FILES = sorted(
+    [
+        *(ROOT / ".claude" / "skills").glob("*/SKILL.md"),
+        *(ROOT / "plugin" / "skills").glob("*/SKILL.md"),
+    ]
+)
+SKILLS_DIRS = {p.parent.name: p.parent for p in ALL_SKILL_FILES}
+SKILL_FILES = [p for p in ALL_SKILL_FILES if not p.parent.name.startswith("dev-")]
+DEV_SKILL_FILES = [p for p in ALL_SKILL_FILES if p.parent.name.startswith("dev-")]
+AGENT_FILES = sorted((ROOT / "plugin" / "agents").glob("*.md"))
+GUIDE_FILES = [
+    *sorted((ROOT / "docs" / "comecar").glob("*.md")),
+    *sorted((ROOT / "docs" / "usar").glob("*.md")),
+    ROOT / "docs" / "desenvolver" / "avaliacao-das-skills.md",
+]
 EXTRA_FILES = [ROOT / "evals" / "README.md", ROOT / "README.md"]
-CHECKED_FILES = [*SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
+CHECKED_FILES = [*ALL_SKILL_FILES, *AGENT_FILES, *GUIDE_FILES, *EXTRA_FILES]
 STAGE_SKILLS = ("onboard-product", "fix-reachability", "run-scan", "triage-findings")
-EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product"}
+EXPECTED_SKILLS = {*STAGE_SKILLS, "test-product", "preparar"}
+EXPECTED_DEV_SKILLS = {
+    "dev-test-change",
+    "dev-close-version",
+    "dev-write-adr",
+    "dev-lab-check",
+    "dev-blind-eval",
+}
 EXPECTED_AGENTS = {"spec-analyst", "findings-triager"}
+
+
+def test_wait_and_final_triage_are_required_by_skills() -> None:
+    for name in ("run-scan", "test-product"):
+        content = (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
+        assert "hdast" in content
+        assert "wait --product" in content
+        assert "não leia `scan-progress.json` em laço" in content.lower()
+    for name in ("triage-findings", "test-product"):
+        content = (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
+        assert "qualquer origem" in content
+        assert "fingerprint" in content
+
 
 _FENCE = re.compile(r"^```.*?\n(.*?)^```", re.DOTALL | re.MULTILINE)
 _INLINE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
@@ -79,7 +111,7 @@ def _check(tokens: list[str], commands: dict[tuple[str, ...], Any]) -> str | Non
     words = [item for item in tokens if item != "--json"]
     positional = [item for item in words if not item.startswith("-")]
     if not positional:
-        return None if not words or words[0] in {"--help"} else "sem comando"
+        return None if not words or words[0] in {"--help", "--version"} else "sem comando"
     first = positional[0]
     if not re.fullmatch(r"[a-z][a-z-]*", first):
         return None
@@ -103,6 +135,7 @@ def _check(tokens: list[str], commands: dict[tuple[str, ...], Any]) -> str | Non
 
 def test_checked_files_exist() -> None:
     assert {path.parent.name for path in SKILL_FILES} == EXPECTED_SKILLS
+    assert {path.parent.name for path in DEV_SKILL_FILES} == EXPECTED_DEV_SKILLS
     assert {path.stem for path in AGENT_FILES} == EXPECTED_AGENTS
     assert len(GUIDE_FILES) >= 6
 
@@ -255,7 +288,7 @@ def test_skills_guides_and_agents_do_not_leak_planted_flaw_terms() -> None:
 
 
 def _skill_text(name: str) -> str:
-    return (ROOT / ".claude" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    return (SKILLS_DIRS[name] / "SKILL.md").read_text(encoding="utf-8")
 
 
 def test_test_product_points_to_the_four_stage_skills_in_order() -> None:
@@ -268,7 +301,7 @@ def test_test_product_points_to_the_four_stage_skills_in_order() -> None:
     assert stage_order == sorted(stage_order)
 
 
-def test_test_product_stops_in_each_case_the_owner_asked_for() -> None:
+def test_test_product_distinguishes_partial_reachability_from_safety_stops() -> None:
     text = _skill_text("test-product").split("## Se der X")[1].split("## Diário")[0]
 
     for case in (
@@ -278,13 +311,31 @@ def test_test_product_stops_in_each_case_the_owner_asked_for() -> None:
         "dúvida de autorização, escopo ou janela",
     ):
         assert case in text
+    reachability = next(line for line in text.splitlines() if "Alcançabilidade abaixo" in line)
+    assert "varredura parcial" in reachability
+    assert "motivos do último `probe`" in reachability
+    assert "Pare;" not in reachability
+
+
+def test_reachability_local_failures_do_not_stop_the_whole_flow() -> None:
+    text = _skill_text("fix-reachability")
+    lines = text.splitlines()
+    auth = next(line for line in lines if line.startswith("| `auth_error`"))
+    server = next(line for line in lines if line.startswith("| `server_error`"))
+    for line in (auth, server):
+        assert "só essa operação" in line
+        assert "diário" in line
+        assert "lacunas" in line
+    assert "contas da carta" in auth
+    assert "auth_rejected_expected" in text
+    assert "bloqueia mais operações" in text
 
 
 def test_test_product_cites_every_part_b_lock_and_does_not_restate_stage_rules() -> None:
     text = _skill_text("test-product")
     never = text.split("## Nunca")[1]
 
-    assert "Parte B" in never
+    assert "Parte B do `AGENTS.md`" in never
     for lock in ("curl", ".env", "hdast cleanup", "escopo", "severidade", "dados sintéticos"):
         assert lock in never
     assert "0,9" not in text
@@ -298,15 +349,39 @@ def test_test_product_hands_over_the_html_report_and_groups() -> None:
     assert "groups" in text
 
 
-def test_test_product_starts_with_doctor_and_offers_authz_only_with_two_same_role_accounts() -> (
-    None
-):
+def test_test_product_starts_with_doctor_and_runs_authz_by_default_read_only() -> None:
     text = _skill_text("test-product")
 
     assert text.index("hdast doctor") < text.index("## Passos")
-    assert "run <produto> --authz" in text
+    assert "--no-authz" in text
+    assert "authz.allow_writes" in text
     assert "duas contas do mesmo papel" in text
     assert "--skip-scan" in text
+
+
+def test_onboard_product_asks_whether_the_letter_authorizes_authz_writes() -> None:
+    text = _skill_text("onboard-product")
+
+    assert "allow_authz_writes" in text
+    assert "AUTHZ_WRITES_AUTHORIZED" in text
+    assert "Não sei" in text
+
+
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_warn_and_discard_a_password_pasted_in_chat(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "senha foi compartilhada" in text
+    assert "Não use, grave nem repita o valor." in text
+    assert "trocar a senha da conta de teste" in text
+    assert "peça só o nome do segredo" in text
+
+
+def test_run_scan_says_authz_comes_on_and_never_turns_writes_on() -> None:
+    text = _skill_text("run-scan")
+
+    assert "--no-authz" in text
+    assert "authz.allow_writes" in text
 
 
 def test_test_product_never_turns_wide_path_mode_on_by_itself() -> None:
@@ -316,7 +391,7 @@ def test_test_product_never_turns_wide_path_mode_on_by_itself() -> None:
     assert "carta" in text.split("scope.path_mode: wide")[1][:200]
 
 
-@pytest.mark.parametrize("name", ["docs/guides/primeiro-uso.md", "README.md"])
+@pytest.mark.parametrize("name", ["docs/comecar/primeiro-uso.md", "README.md"])
 def test_guides_start_with_doctor_and_mention_authz_and_the_wide_mode_rule(name: str) -> None:
     text = (ROOT / name).read_text(encoding="utf-8")
 
@@ -337,3 +412,52 @@ def test_settings_cover_the_v1_1_commands_with_the_same_hdast_rules_and_no_new_d
     for rule in permissions["deny"]:
         if rule.startswith("Bash(") and rule.endswith(":*)"):
             assert not line.startswith(rule.removeprefix("Bash(").removesuffix(":*)"))
+
+
+@pytest.mark.parametrize("path", DEV_SKILL_FILES, ids=lambda p: p.parent.name)
+def test_development_skills_route_to_canonical_docs_and_exclude_product_operation(
+    path: Path,
+) -> None:
+    meta = _frontmatter(path)
+    text = path.read_text(encoding="utf-8")
+    assert meta["name"] == path.parent.name
+    assert str(meta["description"]).startswith("Use ao desenvolver o harness-dast")
+    assert "Não use para testar um produto" in str(meta["description"])
+    assert len(text.splitlines()) < 60
+    assert max(map(len, text.splitlines())) < 300
+    assert "../../../" in text
+
+
+def test_shared_rules_are_canonical_and_claude_imports_them_without_a_cycle() -> None:
+    rules = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "@AGENTS.md" in claude
+    assert "## Parte A." in rules
+    assert "## Parte B." in rules
+    assert "## Parte A." not in claude
+    assert "prevalece `CLAUDE.md`" not in rules
+    for path in ALL_SKILL_FILES:
+        assert path.relative_to(ROOT).as_posix() in rules
+
+
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_ask_the_person_to_run_setup_and_never_run_it(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "hdast setup <produto>` num terminal dela" in text
+    assert "nunca roda `setup`, `secret set` nem `profile approve`" in text.replace("Você ", "")
+
+
+@pytest.mark.parametrize("name", ["onboard-product", "test-product"])
+def test_skills_limit_the_minimum_default_to_the_table_fields(name: str) -> None:
+    text = _skill_text(name)
+
+    assert "mínimo da CLI" in text
+    assert "auth.login_max_per_minute" in text
+    assert "portões" in text
+
+
+def test_onboard_skill_keeps_deny_paths_as_a_gate() -> None:
+    text = _skill_text("onboard-product")
+
+    assert "`deny_paths` é **portão**" in text

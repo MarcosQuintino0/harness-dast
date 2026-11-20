@@ -90,3 +90,24 @@ def test_reserve_recusado_nao_consome_horario() -> None:
 def test_construtor_recusa_parametros_invalidos(rate: float, queue: int) -> None:
     with pytest.raises(ValueError, match="taxa"):
         RateLimiter(requests_per_second=rate, max_queued=queue, monotonic=lambda: 0.0)
+
+
+def test_concessao_real_apos_atraso_nao_cria_rajada() -> None:
+    limiter, clock = make()
+    limiter.grant()
+    clock.now += 5
+    assert limiter.delay_until_grant() == 0
+    limiter.grant()
+    assert limiter.delay_until_grant() == pytest.approx(0.1)
+
+
+def test_recuo_global_nao_reduz_recuo_anterior() -> None:
+    limiter, clock = make()
+    limiter.grant()
+    limiter.defer(10)
+    clock.now += 1
+    limiter.defer(1)
+    assert limiter.delay_until_grant() == pytest.approx(9)
+    clock.now += 9
+    limiter.grant()
+    assert limiter.delay_until_grant() == pytest.approx(0.1)

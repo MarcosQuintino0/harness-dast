@@ -2,7 +2,7 @@
 
 Histórico para o orquestrador. A primeira versão desta página listava o que o schema v1 não conseguia dizer sobre este alvo. Todos os
 itens abaixo foram atendidos por campos **opcionais e aditivos** (o schema continua na versão 1; decisão no
-[ADR 0021](../../../docs/adr/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md)) e o `target.yml`, o `flows.yml` e o
+[ADR 0021](../../../docs/decisoes/0021-esquema-aditivo-do-perfil-para-o-alvo-piloto.md)) e o `target.yml`, o `flows.yml` e o
 `data-rules.yml` desta pasta os usam. Verificado de ponta a ponta contra o alvo real, o ZAP 2.17 e o proxy de escopo
 (`uv run pytest -m integration tests/integration/test_lab_pilot.py`).
 
@@ -15,8 +15,8 @@ itens abaixo foram atendidos por campos **opcionais e aditivos** (o schema conti
 | 5 | Cadeia `convênio -> paciente -> consulta -> receita` | `flows.yml` com vários níveis (grafo sem ciclos, até 6 operações). Os ids de semente constantes deixaram de ser necessários |
 | 6 | CRM único `NNNNNNN-UF` | Gerador `br.crm` com `unique: true` e `digits: 7` (com 5 dígitos a chance de colisão entre duas execuções seguidas é de 10%) |
 | 7 | Papel por operação | `auth.default_account: admin_a` e `auth.account_map` (admin: convênio e médico; médico: paciente, consulta, status e receita; paciente A: `/api/me`) |
-| 9 | Falhas H5, H6 e H7 (autorização) que o ZAP não detecta | `authz.role_order` e `buscarConsulta` roteada ao paciente A (há dois pacientes, o mesmo papel); rode `hdast run clinica-piloto --authz` (ou `hdast authz` depois do `probe`). Resultado esperado: modo vulnerável acha H5 (`authz_horizontal` em `/api/consultas/{id}`), H6 (`authz_mass_assignment` em `PUT /api/me`) e H7 (`authz_excessive_data` em `GET /api/pacientes`); modo seguro, nenhum achado de autorização |
-| 8 | Limpeza: quais binds a CLI fornece | [`docs/reference/cleanup.md`](../../../docs/reference/cleanup.md): `:run_start`, `:run_id`, `:run_tag` e `:account_1..N` na ordem de `auth.accounts` (as quatro contas daqui) |
+| 9 | Falhas H5, H6 e H7 (autorização) que o ZAP não detecta | `authz.role_order` e `buscarConsulta` roteada ao paciente A (há dois pacientes, o mesmo papel); o `hdast run clinica-piloto` roda o `authz` por padrão desde a V1.4 (ou `hdast authz` depois do `probe`); H6 escreve no alvo e só é testada com `authz.allow_writes: true`, que só a carta liga (ADR 0038). Resultado esperado: modo vulnerável acha H5 (`authz_horizontal` em `/api/consultas/{id}`), H6 (`authz_mass_assignment` em `PUT /api/me`) e H7 (`authz_excessive_data` em `GET /api/pacientes`); modo seguro, nenhum achado de autorização |
+| 8 | Limpeza: quais binds a CLI fornece | [`docs/referencia/cleanup.md`](../../../docs/referencia/cleanup.md): `:run_start`, `:run_id`, `:run_tag` e `:account_1..N` na ordem de `auth.accounts` (as quatro contas daqui) |
 
 ## O que o `probe` mede aqui
 
@@ -29,7 +29,7 @@ com credenciais **geradas**, que o alvo recusa de propósito (`auth_error`, `CRE
 ## O que continua valendo
 
 - **Limpeza.** O `cleanup.sql` desta pasta (cópia de `lab/pilot/cleanup/cleanup.sql`) usa o contrato acima. `PILOT_ORACLE_CLEANUP_CONNECTION`
-  é o DSN de um usuário Oracle só com `DELETE` nas cinco tabelas (`allowed_tables`, `max_rows`: veja `docs/operations/cleanup.md`). Com o
+  é o DSN de um usuário Oracle só com `DELETE` nas cinco tabelas (`allowed_tables`, `max_rows`: veja `docs/como-funciona/operacao/cleanup.md`). Com o
   banco H2 padrão não há conexão externa: a limpeza se prova pelo `POST /internal/eval/reset` do avaliador.
 - **Logins seguidos.** O orçamento é por comando. `preflight` (4 logins) seguido de `probe` (3 contas mais a operação de login) passa
   de 5 em 60 s; o alvo responde 429 com `Retry-After` e o `probe` espera. Leva cerca de um minuto a mais, e o resultado é o mesmo.
@@ -37,5 +37,7 @@ com credenciais **geradas**, que o alvo recusa de propósito (`auth_error`, `CRE
   `servers_out_of_scope`. Está certo: a CLI usa a `base_url` do perfil.
 - `GET /api/documentos/download` responde `application/octet-stream`; o `probe` não exige JSON. O parâmetro `arquivo` usa um documento
   de semente (`data-rules.yml`).
+- `POST /api/documentos/enviar` (`enviarDocumento`) é `multipart/form-data` com o arquivo em `arquivo`; o `account_map` o atribui a `medico_a`.
+  Tipo fora dos quatro sintéticos dá 415 `TIPO_ARQUIVO_NAO_SUPORTADO` (mapeado como `validation_error`).
 - O alvo ignora corpo extra e exige `Content-Type: application/json` nas escritas (415 caso contrário).
 - O estado de avaliação (`/internal/eval/*`, porta 9091) está fora do OpenAPI e do escopo; só o avaliador e os testes de integração o usam.

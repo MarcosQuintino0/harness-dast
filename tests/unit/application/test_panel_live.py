@@ -4,11 +4,12 @@ from datetime import UTC, datetime
 
 from harness_dast.application.panel_index import PanelIndexer
 from harness_dast.application.panel_live import LiveBoard
+from harness_dast.application.panel_live import _outcome as live_outcome
 from harness_dast.application.preflight_report import PreflightReport
 from harness_dast.application.scan import ScanRequest
 from harness_dast.domain.api_model import Operation
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.run_summary import StageRecord
+from harness_dast.domain.run_summary import RunOptions, RunSummary, StageRecord
 from tests.fakes.panel_index_ports import BreakableFiles, FakeIndexFiles, RecordingLive
 from tests.fakes.panel_ports import FakeSpecLoader
 from tests.fakes.profile_data import valid_profile
@@ -16,7 +17,7 @@ from tests.fakes.profile_repository import InMemoryProfileRepository
 from tests.fakes.rig import agenda_flows
 from tests.fakes.scan_rig import ScanRig
 from tests.unit.application.test_run import RUN_ID, Kill, Rig, _outcome, _scan
-from tests.unit.domain.panel_helpers import XSS, sources
+from tests.unit.domain.panel.helpers import XSS, sources
 
 OPERATIONS = (
     Operation(operation_id="cadastrar", method="post", path="/p", summary="Cadastrar paciente"),
@@ -258,3 +259,34 @@ def test_the_scan_announces_each_function_and_the_end() -> None:
     assert [done for done, _, _ in live.progress] == list(range(total + 1))
     assert live.progress[0][2] is not None
     assert live.progress[-1] == (total, total, None)
+
+
+def test_the_live_page_lists_the_negative_stage_only_when_the_run_asked_for_it() -> None:
+    asked, skipped = Setup(), Setup()
+    started = datetime(2026, 11, 13, 10, tzinfo=UTC)
+
+    asked.board.stage_started("demo", RUN_ID, "negative", (), started=started, authz=True)
+    skipped.board.stage_started(
+        "demo", RUN_ID, "scan", (), started=started, authz=True, negative=False
+    )
+
+    assert "Valores proibidos" in asked.pages()[-1]
+    assert "Mandando valores que o contrato proíbe, um por vez" in asked.pages()[-1]
+    assert "Valores proibidos" not in skipped.pages()[-1]
+    assert "Entre contas" in skipped.pages()[-1]
+
+
+def test_a_failed_summary_without_stages_ends_as_partial_instead_of_raising() -> None:
+    summary = RunSummary(
+        product="demo",
+        run_id=RUN_ID,
+        status="failed",
+        exit_code=2,
+        started_at="2026-11-13T10:00:00+00:00",
+        finished_at="2026-11-13T10:00:01+00:00",
+        duration_seconds=1.0,
+        options=RunOptions(),
+        stages=(),
+    )
+
+    assert live_outcome(summary) == ("partial", None)

@@ -4,7 +4,8 @@ O `probe.json` só tem o modelo de caminho e a auditoria só tem o caminho sem c
 repetir "o mesmo pedido" com outra conta é preciso lembrar o alvo concreto (com o identificador
 do recurso). Este arquivo guarda, só de operações com sucesso: método, modelo de caminho, alvo
 concreto relativo à `base_url`, conta, status e, para `POST`, `PUT` e `PATCH` com corpo JSON, o
-corpo enviado.
+corpo enviado. Para `multipart/form-data` (ADR 0052) guarda só o resumo das partes (nome, tipo
+e tamanho), nunca o corpo, o arquivo, os valores dos campos nem a fronteira.
 
 Nunca entra segredo: o registro é descartado se um segredo registrado aparece no alvo ou no
 corpo, e campo de corpo com nome de segredo é removido (e listado em `omitted_fields`). O corpo
@@ -14,11 +15,16 @@ das RESPOSTAS nunca é gravado. Este módulo é puro.
 import json
 from typing import Final
 
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, StrictInt, ValidationError, field_validator
 
 from harness_dast.domain.api_schema import ApiModel, JsonValue
-from harness_dast.domain.authz_sensitive import classify_field_name
+from harness_dast.domain.authz.sensitive import classify_field_name
 from harness_dast.domain.http_messages import HttpRequest
+from harness_dast.domain.multipart_encoding import (
+    MULTIPART_MEDIA_TYPE,
+    MultipartSummary,
+    summarize_multipart,
+)
 from harness_dast.domain.redaction import Masker
 
 EXCHANGES_SCHEMA_VERSION: Final = 1
@@ -37,9 +43,13 @@ class ExchangeRecord(ApiModel):
         target: Caminho concreto e consulta, relativos à `base_url` (`/api/consultas/2`).
         account: Apelido da conta que enviou.
         status: Código HTTP recebido.
-        content_type: `Content-Type` do corpo enviado, ou `None` sem corpo.
+        content_type: `Content-Type` do corpo enviado, ou `None` sem corpo (em multipart, só
+            `multipart/form-data`, sem a fronteira).
         body: Corpo JSON enviado (só POST, PUT e PATCH), ou `None`.
         omitted_fields: Campos do corpo removidos por terem nome de segredo.
+        multipart: Resumo das partes de um corpo multipart (sem valores), ou `None`. Um registro
+            com `multipart` não é reexecutável: `authz` e `negative` o tratam como
+            `unsupported_body`.
     """
 
     operation_id: str
@@ -51,6 +61,7 @@ class ExchangeRecord(ApiModel):
     content_type: str | None = None
     body: str | None = Field(default=None, max_length=MAX_BODY_CHARS)
     omitted_fields: tuple[str, ...] = ()
+    multipart: MultipartSummary | None = None
 
     @field_validator("target")
     @classmethod
@@ -77,12 +88,14 @@ class ExchangeLog(ApiModel):
         run_id: Execução do `probe`.
         product: Produto.
         exchanges: Pedidos com sucesso, na ordem em que o `probe` os enviou.
+        next_unique_counter: Próxima posição de geração única; `None` em registros antigos.
     """
 
     schema_version: int = EXCHANGES_SCHEMA_VERSION
     run_id: str
     product: str
     exchanges: tuple[ExchangeRecord, ...] = ()
+    next_unique_counter: StrictInt | None = Field(default=None, ge=0, le=65536)
 
 
 def _drop_secret_fields(value: JsonValue, omitted: list[str], depth: int = 0) -> JsonValue:
@@ -127,6 +140,36 @@ def _body_of(request: HttpRequest, mask: Masker) -> tuple[str | None, tuple[str,
     return text, tuple(dict.fromkeys(omitted)), False
 
 
+def _multipart_of(
+    request: HttpRequest, mask: Masker
+) -> tuple[MultipartSummary | None, tuple[str, ...], bool]:
+    """Resumo do multipart, campos omitidos e se o registro deve ser descartado."""
+    content_type = _header(request, "content-type") or ""
+    if (
+        request.method not in BODY_METHODS
+        or not request.body
+        or content_type.split(";")[0].strip().lower() != MULTIPART_MEDIA_TYPE
+    ):
+        return None, (), False
+    text = request.body.decode("latin-1")
+    summary = summarize_multipart(content_type, request.body)
+    if summary is None or mask(text) != text:
+        return None, (), True
+    omitted = [
+        part.name
+        for part in summary.parts
+        if part.kind == "field" and classify_field_name(part.name) == "secret"
+    ]
+    kept = tuple(part for part in summary.parts if part.name not in omitted)
+    return summary.model_copy(update={"parts": kept}), tuple(omitted), False
+
+
+def _recorded_content_type(body: str | None, multipart: MultipartSummary | None) -> str | None:
+    if multipart is not None:
+        return MULTIPART_MEDIA_TYPE
+    return "application/json" if body is not None else None
+
+
 def build_exchange(
     *,
     request: HttpRequest,
@@ -148,7 +191,8 @@ def build_exchange(
     if not target.startswith("/") or mask(target) != target:
         return None
     body, omitted, discard = _body_of(request, mask)
-    if discard:
+    multipart, multipart_omitted, discard_multipart = _multipart_of(request, mask)
+    if discard or discard_multipart:
         return None
     try:
         return ExchangeRecord(
@@ -158,9 +202,10 @@ def build_exchange(
             target=target,
             account=request.account,
             status=status,
-            content_type="application/json" if body is not None else None,
+            content_type=_recorded_content_type(body, multipart),
             body=body,
-            omitted_fields=omitted,
+            omitted_fields=(*omitted, *multipart_omitted),
+            multipart=multipart,
         )
     except ValidationError:
         return None

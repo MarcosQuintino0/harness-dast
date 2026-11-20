@@ -6,7 +6,7 @@
 
 Verificação: as 7 falhas foram provadas por teste de integração (modo `1` explorável, modo `0` não) e por requisição real contra o
 contêiner, com H2 e com Oracle Free (2026-11-13). A coluna "ZAP detecta" é **previsão** a partir do spike M0
-(`docs/spikes/2026-11-13-m0-zap.md`) e das regras do ZAP; não foi medida com varredura neste alvo.
+(`docs/arquivo/spikes/2026-11-13-m0-zap.md`) e das regras do ZAP; não foi medida com varredura neste alvo.
 
 ## Falhas plantadas
 
@@ -25,7 +25,7 @@ contêiner, com H2 e com Oracle Free (2026-11-13). A coluna "ZAP detecta" é **p
 Plantadas para medir o que a cerca (proxy de escopo) tira da varredura. Cada uma está atrás do mesmo botão (`PILOT_VULNERABLE`) e no código é
 marcada por `Hardening.Item.Hn`. Nada executa comando de sistema nem lê arquivo: o H9 trabalha sobre um mapa de "arquivos" em memória e o H8 simula o atraso
 com `Thread.sleep` limitado a 16 s. A coluna "Achada?" é **medida** (`hdast run`, ZAP 2.17, 2026-11-13, limites de lab; números em
-`docs/reviews/2026-11-13-lab-v1-1-cerca.md`), não previsão.
+`docs/arquivo/reviews/2026-11-13-lab-v1-1-cerca.md`), não previsão.
 
 | Id | Endpoint e parâmetro | Classe / CWE | Como confirmar (modo `1`) | Achada? (estrito / amplo) | Modo `0` |
 | --- | --- | --- | --- | --- | --- |
@@ -52,9 +52,9 @@ Notas de leitura:
   alta: cookie `XSRF-TOKEN` sem `HttpOnly` (o padrão de duplo envio exige leitura pelo cliente), `/v3/api-docs` público, resposta sem
   `Cache-Control` em alguns casos. Falso alarme = achado **de classe plantada** no modo `0` (ex.: "SQLi em `nome`" quando o modo é `0`).
 
-## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/adr/0027-teste-de-autorizacao-entre-contas.md))
+## H5, H6 e H7 e o estágio `authz` ([ADR 0027](../../docs/decisoes/0027-teste-de-autorizacao-entre-contas.md))
 
-O ZAP não as detecta, mas o estágio `authz` (`hdast run --authz`, ou `hdast authz --run ID` depois do `probe`) é desenhado para
+O ZAP não as detecta, mas o estágio `authz` (roda por padrão no `hdast run` desde a V1.4, ADR 0038; ou `hdast authz --run ID` depois do `probe`) é desenhado para
 detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse estágio** (achado de `authz` em `findings.json`, campo
 `technique`). Previsão, **ainda não medida contra o alvo real**:
 
@@ -64,7 +64,10 @@ detectá-las, e o `case.yml` conta H5, H6 e H7 como detectáveis **por esse est�
 | H6 | `authz_mass_assignment` em `PUT /api/me` (campo enviado `role`, campo que muda `papel`) | o `probe` provou o `PUT /api/me`; o campo `role` do corpo do `probe` não pode já valer `admin` | nenhum achado |
 | H7 | `authz_excessive_data` em `GET /api/pacientes` (`items[].senhaHash`, `items[].notasInternas`; severidade alta) | o `probe` provou a listagem e o OpenAPI declara o esquema da resposta | nenhum achado |
 
-Um agente que não use `--authz` continua sem achar H5 a H7, e isso conta na nota.
+Desde a V1.4 o estágio roda por padrão, só lendo: H5 e H7 entram sem nada pedir. H6 escreve no alvo e só é testada com
+`authz.allow_writes: true`, que só a carta liga (`attack.allow_authz_writes` com `source: carta`); sem a carta do caso
+autorizar a escrita, H6 fica `not_tested` (`writes_not_authorized`). Um agente que desligue o estágio (`--no-authz`)
+continua sem achar H5 a H7, e isso conta na nota.
 
 ## Comportamentos que a avaliação mede (não são falhas)
 
@@ -82,3 +85,13 @@ Um agente que não use `--authz` continua sem achar H5 a H7, e isso conta na not
 
 Convênio 1 (`00000001`); médicos 1 e 2; pacientes 1 (A) e 2 (B); consultas 1 (paciente 1) e 2 (paciente 2); receitas 1 e 2; contas `admin`,
 `medico`, `paciente A` (paciente 1) e `paciente B` (paciente 2). `POST :19091/internal/eval/reset` restaura esse estado.
+
+## Extensão para a V1.12: H11 (injeção de SQL em cabeçalho)
+
+A V1.12 (ADR 0092) acrescenta uma operação nova, sem tocar nas dez falhas acima nem no comportamento delas. **H11 não entra na nota dos casos existentes** (`detectable: false`): os resultados e as rodadas já registradas continuam comparáveis. Só a trilha F da V1.12 (injeção em cabeçalhos, passo F6) vai poder detectá-la; até lá, não conte H11 como achada nem como perdida.
+
+| Id | Endpoint e parâmetro | Classe / CWE | Como confirmar (modo `1`) | ZAP detecta? | Modo `0` |
+| --- | --- | --- | --- | --- | --- |
+| **H11** | `GET /api/medicos/por-cabecalho`, cabeçalho `X-CRM` (operação `buscarMedicoPorCabecalho`). Exige token | Injeção de SQL em cabeçalho HTTP. CWE-89 | `X-CRM: inexistente' OR '1'='1` devolve os médicos da semente (lista não vazia) em vez de lista vazia; `X-CRM: '` devolve 500 com erro de SQL | **Não por padrão**: a política padrão do ZAP não injeta em cabeçalhos. Depende de `attack.inject_headers` (V1.12, F6), ainda não implementado | Consulta parametrizada: `200` com lista vazia nas duas entradas |
+
+Verificação: testes Java dos dois modos (`WeaknessesVulnerableModeTest` e `WeaknessesHardenedModeTest`, método `h11_cabecalhoComSqlSegueOModo`), executados no build da imagem, e os dois OpenAPI regenerados pelo próprio alvo (`OpenApiDriftTest`).

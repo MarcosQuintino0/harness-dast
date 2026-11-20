@@ -39,7 +39,7 @@ NO_PRODUCT_STEM: Final = "_sem-produto"
 """Nome (sem extensão) do arquivo que guarda os comandos que não têm produto."""
 
 CommandState = Literal["ok", "parcial", "erro"]
-"""Lista fechada do estado de um comando (`docs/design/execution-panel/system/formats.html`)."""
+"""Estados de comando de `docs/desenvolver/design/execution-panel/system/formats.html`."""
 
 VALUE_CAP: Final = 120
 SUMMARY_MAX_ITEMS: Final = 16

@@ -1,0 +1,4 @@
+services:
+  crapi-workshop:
+    labels:
+      io.hdast.oast.owner: ${HDAST_OAST_OWNER:?Identificador da prova obrigatório}

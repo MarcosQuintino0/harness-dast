@@ -3,7 +3,7 @@
 IMPORTANTE: este portão é defesa em profundidade, NÃO uma prova. Um analisador sintático
 conservador reduz o dano de um script errado, mas não substitui o que de fato protege o
 ambiente: o usuário de banco da limpeza, que só deve ter `DELETE` (e `SELECT`) nas tabelas de
-teste. Veja `docs/operations/cleanup.md` para o que o portão garante e o que não garante.
+teste. Veja `docs/como-funciona/operacao/cleanup.md` para as garantias e limites do portão.
 
 O que ele aceita, por comando (separados por `;`):
 
@@ -68,6 +68,23 @@ _REASON_BY_FIRST_WORD = {
     "CALL": "CALL não é aceito",
     "LOCK": "LOCK não é aceito",
     "SET": "SET não é aceito (a CLI configura a sessão)",
+}
+_RESERVED_ALIASES = frozenset(_REASON_BY_FIRST_WORD) | {
+    "AND",
+    "AS",
+    "BY",
+    "DELETE",
+    "FROM",
+    "GROUP",
+    "IN",
+    "INTO",
+    "NOT",
+    "OR",
+    "ORDER",
+    "RETURNING",
+    "UNION",
+    "USING",
+    "VALUES",
 }
 
 
@@ -165,7 +182,11 @@ def _parse_head(index: int, tokens: list[Token], policy: CleanupPolicy) -> _Head
             "(inclua-a só se a pessoa dona do produto concordar)",
         )
     if at < len(tokens) and tokens[at].kind is TokenKind.WORD and not tokens[at].is_word("WHERE"):
-        at += 1  # apelido da tabela
+        # Apelido da tabela. Palavra reservada nunca vale como apelido: falha fechada mesmo
+        # quando o Oracle recusaria o comando ao executar.
+        if tokens[at].upper in _RESERVED_ALIASES:
+            raise _fail(index, f"{tokens[at].upper} não vale como apelido da tabela")
+        at += 1
     if at >= len(tokens) or not tokens[at].is_word("WHERE"):
         raise _fail(index, "DELETE sem WHERE (ou WHERE escondido em comentário)")
     return _Head(table=table, where_at=at)

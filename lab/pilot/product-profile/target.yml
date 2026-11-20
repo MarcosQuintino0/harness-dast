@@ -1,5 +1,5 @@
 # Perfil de produto da Clinica Piloto (alvo de treino LOCAL do harness-dast).
-# Segue products/_template/target.yml e docs/reference/target-yml.md (schema v1).
+# Segue products/_template/target.yml e docs/referencia/target-yml.md (schema v1).
 # Usa os blocos opcionais do schema v1 (auth.csrf, auth.account_map, auth.login_limit, auth.token_expired,
 # probe.error_codes): cada um responde a um item de NOTES.md.
 # Valores de autorizacao sao do laboratorio local, nao de um ambiente de empresa.
@@ -18,7 +18,7 @@ scope:
     - host: clinica-piloto
       scheme: http
       port: 8080
-      allow_local: true          # nome de rotulo unico = host local (docs/reference/target-yml.md)
+      allow_local: true          # nome de rotulo unico = host local (docs/referencia/target-yml.md)
       paths: ["/api/**", "/v3/api-docs"]
       methods: [GET, POST, PUT, PATCH]   # DELETE fica de fora de proposito (sem autorizacao para apagar)
   deny_paths:
@@ -45,7 +45,7 @@ probe:
   error_codes:
     field: code
     outcomes:
-      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO]
+      validation_error: [VALIDACAO, CORPO_INVALIDO, PARAMETRO_INVALIDO, TIPO_ARQUIVO_NAO_SUPORTADO]
       conflict: [CONFLITO]
       not_found: [NAO_ENCONTRADO, REFERENCIA_INEXISTENTE]
       csrf_error: [XSRF_INVALIDO]
@@ -78,7 +78,7 @@ auth:
   default_account: admin_a
   account_map:
     - { account: admin_a, operations: [criarConvenio, atualizarConvenio, criarMedico] }
-    - { account: medico_a, operations: [criarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita] }
+    - { account: medico_a, operations: [criarPaciente, buscarPaciente, atualizarPaciente, criarConsulta, atualizarStatusConsulta, criarReceita, enviarDocumento] }
     # buscarConsulta e do paciente A de proposito: o teste de autorizacao entre contas (authz) repete esse pedido
     # com o paciente B (mesmo papel). No modo seguro o probe recebe 403 aqui (a consulta e de outro paciente).
     - { account: paciente_a, operations: [obterPerfil, atualizarPerfil, buscarConsulta] }
@@ -92,6 +92,10 @@ auth:
       role: medico
       username: { secret_ref: "env:PILOT_MEDICO_USERNAME" }
       password: { secret_ref: "env:PILOT_MEDICO_PASSWORD" }
+    - alias: medico_b
+      role: medico
+      username: { secret_ref: "env:PILOT_MEDICO_B_USERNAME" }
+      password: { secret_ref: "env:PILOT_MEDICO_B_PASSWORD" }
     - alias: paciente_a
       role: paciente
       username: { secret_ref: "env:PILOT_PACIENTE_A_USERNAME" }
@@ -101,7 +105,7 @@ auth:
       username: { secret_ref: "env:PILOT_PACIENTE_B_USERNAME" }
       password: { secret_ref: "env:PILOT_PACIENTE_B_PASSWORD" }
 
-# Teste de autorizacao entre contas (hdast authz / hdast run --authz; docs/reference/authz.md). Sem operacoes publicas
+# Teste de autorizacao entre contas (hdast authz / hdast run --authz; docs/referencia/authz.md). Sem operacoes publicas
 # neste alvo; os papeis do menor para o maior privilegio habilitam o acesso vertical.
 authz:
   role_order: [paciente, medico, admin]

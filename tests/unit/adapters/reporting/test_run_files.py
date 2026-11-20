@@ -14,12 +14,12 @@ from harness_dast.domain.rule_stats import OperationRules, RuleStat, RuleStatsFi
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.run_metrics import build_run_metrics
 from harness_dast.domain.scan_result import ScanProgress
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 
 @pytest.fixture
 def store(tmp_path: Path) -> FileRunArtifacts:
-    return FileRunArtifacts(tmp_path)
+    return FileRunArtifacts(tmp_path, sleep=lambda _s: None)
 
 
 def run_dir(tmp_path: Path) -> Path:
@@ -123,6 +123,16 @@ def test_optional_files_are_empty_or_none_when_absent(store: FileRunArtifacts) -
     assert store.read_triage(RUN_ID) is None
 
 
+def test_triage_with_utf8_bom_is_read_when_an_editor_wrote_the_mark(
+    tmp_path: Path, store: FileRunArtifacts
+) -> None:
+    triage = {"schema_version": 1, "annotations": []}
+    (run_dir(tmp_path) / "triage.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps(triage).encode("utf-8")
+    )
+    assert store.read_triage(RUN_ID) == triage
+
+
 @pytest.mark.parametrize(
     ("name", "content", "reader"),
     [
@@ -200,7 +210,6 @@ def test_write_survives_a_reader_holding_the_file_for_a_moment(
         real_replace(source, target)
 
     monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", flaky_replace)
-    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
 
     store.write_progress(
         RUN_ID,
@@ -220,7 +229,6 @@ def test_write_gives_up_with_a_config_error_when_the_file_stays_locked(
         raise PermissionError("arquivo em uso por outro processo")
 
     monkeypatch.setattr("harness_dast.adapters.reporting.run_files.os.replace", always_locked)
-    monkeypatch.setattr("harness_dast.adapters.reporting.run_files.time.sleep", lambda _s: None)
 
     with pytest.raises(ConfigError):
         store.write_alerts(RUN_ID, [])

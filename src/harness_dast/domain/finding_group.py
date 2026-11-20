@@ -31,6 +31,8 @@ class GroupLocation(ApiModel):
         path_template: Modelo de caminho da requisição aprendida.
         operation_id: Operação do probe, ou `None`.
         occurrences: Alertas do ZAP reunidos nesse achado.
+        seed_outcome: Classe da semente quando o ataque partiu de uma resposta que não foi
+            sucesso (ADR 0050), ou `None`.
     """
 
     finding_id: str
@@ -38,6 +40,7 @@ class GroupLocation(ApiModel):
     path_template: str
     operation_id: str | None = None
     occurrences: int
+    seed_outcome: str | None = None
 
 
 class FindingGroup(ApiModel):
@@ -136,6 +139,7 @@ def _build(key: tuple[str, ...], members: list[Finding]) -> FindingGroup:
                 path_template=item.path_template,
                 operation_id=item.operation_id,
                 occurrences=item.occurrences,
+                seed_outcome=item.seed_outcome,
             )
             for item in members
         ),

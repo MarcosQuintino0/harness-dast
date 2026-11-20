@@ -17,6 +17,7 @@ jobs:
   static:
     name: Análise estática
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
@@ -30,6 +31,7 @@ jobs:
   security:
     name: Segurança
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # O gitleaks lista os commits do pull request pela API; sem esta leitura ele falha com
     # "Resource not accessible by integration" em evento pull_request.
     permissions:
@@ -51,6 +53,7 @@ jobs:
   tests:
     name: Testes unitários e de contrato
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -68,20 +71,14 @@ jobs:
           uv run diff-cover coverage.xml
           --compare-branch=origin/${{ github.base_ref }} --fail-under=90
 
-  integration:
-    name: Integração
-    # Os testes de integração sobem ZAP, proxy e os alvos do laboratório e exigem as imagens já
-    # construídas; rodam na máquina de quem desenvolve (`-m lab_fast`, `-m lab_full`). No CI ficam
-    # só sob disparo manual, e a subida das imagens aqui ainda não foi provada (docs/roadmap.md).
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+  # O benchmark da cerca roda em .github/workflows/lab.yml.
+
+  windows:
+    name: Unitários e contratos no Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
-      # Código 5 do pytest = nenhum teste coletado; tolerado até haver testes de integração.
-      - run: |
-          set +e
-          uv run pytest -m integration
-          status=$?
-          if [ "$status" -ne 0 ] && [ "$status" -ne 5 ]; then exit "$status"; fi
+      - run: uv run pytest tests/unit tests/contract

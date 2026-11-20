@@ -19,6 +19,7 @@ Outcome = Literal[
     "validation_error",
     "conflict",
     "auth_error",
+    "auth_rejected_expected",
     "csrf_error",
     "not_found",
     "rate_limited",
@@ -30,17 +31,20 @@ Outcome = Literal[
     "skipped_denied",
     "skipped_destructive",
     "skipped_dependency",
+    "mutation_pending",
     "build_error",
     "dry_run",
 ]
 """Classes de resultado.
 
 - Enviadas: `success`, `logical_failure` (2xx mas a regra de corpo do perfil diz falha),
-  `validation_error` (400/422), `conflict` (409), `auth_error` (401/403), `csrf_error` (403 de
+  `validation_error` (400/422), `conflict` (409), `auth_error` (401/403),
+  `auth_rejected_expected` (recusa do login sintético), `csrf_error` (403 de
   CSRF), `not_found` (404/410), `rate_limited` (429), `server_error` (5xx), `client_error`
   (demais 4xx), `redirect` (3xx; nunca seguido) e `timeout`.
 - Não enviadas: `skipped_scope`, `skipped_denied`, `skipped_destructive`, `skipped_dependency`,
-  `build_error` e `dry_run`.
+  `mutation_pending` (mutação anterior de resultado desconhecido; a operação e a conta
+  ficam bloqueadas até uma pessoa liberar, ADR 0104), `build_error` e `dry_run`.
 """
 
 SENT_OUTCOMES: Final = frozenset(
@@ -50,6 +54,7 @@ SENT_OUTCOMES: Final = frozenset(
         "validation_error",
         "conflict",
         "auth_error",
+        "auth_rejected_expected",
         "csrf_error",
         "not_found",
         "rate_limited",
@@ -123,6 +128,7 @@ def classify_response(
     success_rule: JsonFieldRule | None,
     csrf: CsrfConfig | None,
     error_codes: ErrorCodes | None = None,
+    is_login: bool = False,
 ) -> Outcome:
     """Classifica uma resposta do alvo.
 
@@ -132,6 +138,7 @@ def classify_response(
         success_rule: Regra de corpo do perfil (`probe.success`), ou `None` (vale 2xx).
         csrf: Configuração de CSRF do perfil, ou `None`.
         error_codes: Mapa de códigos de erro do perfil (`probe.error_codes`), ou `None`.
+        is_login: Se método e caminho identificam o login do perfil.
     """
     status = response.status
     if _HTTP_OK_FIRST <= status <= _HTTP_OK_LAST:
@@ -141,9 +148,10 @@ def classify_response(
     if 300 <= status < 400:
         return "redirect"
     declared = declared_error_outcome(response, error_codes)
-    if declared is not None:
-        return declared
-    return _classify_error(response, method, csrf)
+    classified = declared if declared is not None else _classify_error(response, method, csrf)
+    if is_login and response.status in {401, 403} and classified != "csrf_error":
+        return "auth_rejected_expected"
+    return classified
 
 
 def _classify_error(response: HttpResponse, method: str, csrf: CsrfConfig | None) -> Outcome:

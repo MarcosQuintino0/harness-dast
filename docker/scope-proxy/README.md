@@ -1,7 +1,7 @@
 # Proxy de escopo (`scope-proxy`)
 
-Implementa a **camada 3** de AD-11 (ver [ADR 0008](../../docs/adr/0008-escopo-em-tres-camadas.md)) e substitui o Squid
-([ADR 0017](../../docs/adr/0017-proxy-de-escopo-com-scopeguard.md)). É um proxy de saída com interceptação de TLS
+Implementa a **camada 3** de AD-11 (ver [ADR 0008](../../docs/decisoes/0008-escopo-em-tres-camadas.md)) e substitui o Squid
+([ADR 0017](../../docs/decisoes/0017-proxy-de-escopo-com-scopeguard.md)). É um proxy de saída com interceptação de TLS
 (mitmproxy 12.3.1) que chama o **mesmo `ScopeGuard`** da CLI para **cada** requisição que sai da pilha, inclusive as que
 o ZAP inventa durante uma varredura (caminhos novos, troca de método). Uma única implementação de escopo governa tudo.
 
@@ -36,6 +36,25 @@ Para cada pedido, nesta ordem, e a primeira recusa encerra:
 - **Não inspecionável = recusado** (falha fechada): `rawtcp=false` (nada de TCP cru), `http2=false` (só HTTP/1.1),
   `Upgrade` recusado (WebSocket e h2c), `ignore_hosts`/`allow_hosts`/`tcp_hosts` vazios. O addon se recusa a iniciar se
   alguma dessas opções for mudada.
+
+## A segunda instância: `scope-proxy-nuclei`
+
+O Nuclei, o segundo motor ([ADR 0122](../../docs/decisoes/0122-nuclei-como-segundo-motor.md)), passa por uma **segunda instância** desta cerca. É a mesma imagem e o mesmo `ScopeGuard`, com **política e auditoria próprias**; só ela segue a política do Nuclei e o ZAP nunca a referencia.
+
+```text
+ZAP    --> scope-proxy        (política de hoje, auditoria em audit/)
+Nuclei --> scope-proxy-nuclei (política do Nuclei, auditoria em audit-nuclei/)
+```
+
+| Item | `scope-proxy` | `scope-proxy-nuclei` |
+| --- | --- | --- |
+| Política | `HDAST_SCOPE_POLICY_DIR` (`policy/`) | `HDAST_NUCLEI_POLICY_DIR` (`policy-nuclei/`) |
+| Auditoria | `HDAST_AUDIT_DIR` (`audit/`) | `HDAST_NUCLEI_AUDIT_DIR` (`audit-nuclei/`) |
+| Quem usa | ZAP e o login da CLI | Só o Nuclei (contêiner de uso único na `zap_net`) |
+| Caminhos | Estritos, como no perfil | Qualquer caminho das origens aprovadas só com `extra_checks.nuclei_wide_paths` (`path_mode: wide`) |
+| Métodos | Os do perfil | Leitura sempre; `POST`, `PUT` e `PATCH` só com a permissão de escrita; `DELETE` só a pedido explícito |
+
+A CLI deriva a política do Nuclei do perfil aprovado e a publica no `stack up`; a cerca não troca de política durante a execução. A origem (host, esquema e porta), os `deny_paths`, os limites e as janelas são os do perfil, nunca mais largos. Com `extra_checks.nuclei` desligado, a segunda cerca sobe com a política que **nega tudo** (`policy-nuclei/policy.json` deste repositório, vencida e sem origem real): nunca existe política padrão permissiva. A trava de emergência vale para as duas: o `hdast stop` cria o `KILL` em cada pasta de política. Tudo o que está abaixo (ordem das checagens, códigos de motivo, auditoria, TLS e limites) vale para as duas instâncias.
 
 ## Arquivos
 
@@ -131,14 +150,44 @@ Uma linha JSON por decisão em `audit/audit.jsonl` (pasta do host, sobrevive ao 
 ```
 
 - `ts`: instante em que o pedido foi liberado (depois da fila) ou recusado. `waited_ms`: tempo na fila da taxa.
+- `grant_wait_ms`: espera efetiva pela concessão, incluindo fila e atraso do escalonador; ausente
+  nas trilhas antigas. `network_ms`: tempo da concessão até resposta ou erro, incluindo DNS,
+  conexão e processamento remoto; não é uma medição isolada de rede. Tempos de pedidos distintos
+  podem se sobrepor. A resposta 429 remota atrasa concessões globais sem repetir o pedido; o recuo
+  é limitado e não estende o prazo da execução (ADR 0066).
 - `path`: caminho **normalizado** (decodificado). Se a URL for malformada, o caminho cru escapado e truncado.
 - `query_params`: **só os nomes**. Valores de consulta nunca são gravados. Cabeçalhos e corpos também não (o registro
   não tem campo para eles). O próprio mitmproxy roda com `flow_detail=0` para não imprimir URLs no log.
 - `CONNECT` aparece com `method: CONNECT` e `path: ""`; as requisições internas do túnel aparecem em linhas próprias.
 - `reason: upstream_error` com `decision: allow`: foi liberado, mas o destino falhou (ex.: certificado não confiável).
+- `signals` e `signal_skip` (ADR 0049): só nas linhas **liberadas** com `status`, e só quando existem. `signals` traz as
+  **categorias** de erro interno reconhecidas na resposta (`sql_error`, `stack_trace_java`, `stack_trace_python`,
+  `stack_trace_dotnet`, `stack_trace_node`, `stack_trace_php`, `debug_page`); nunca corpo, trecho, código de erro nem nome
+  de classe. `signal_skip` diz por que a resposta não foi lida (`type`, `encoding`, `empty`, `error`). Liberada com
+  `status` e sem `signal_skip` é "lida". Linhas negadas e do `CONNECT` não levam os campos. Linha antiga (sem os campos)
+  continua legível.
 - Se a trilha deixar de ser gravável (disco cheio), o proxy **trava** (`audit_failure`) em vez de operar sem registro.
 - Em Linux a pasta `audit/` precisa ser gravável pelo uid 10001 (`chown 10001 audit`); no Docker Desktop (Windows/macOS)
   isso não é necessário.
+
+## Sinais de erro interno (ADR 0049)
+
+No hook `response` o addon chama `harness_dast.adapters.scope_proxy.signals.read_response_signals` **antes** de gravar a
+linha de auditoria. A leitura reconhece um catálogo FIXO (`harness_dast/domain/error_signal_catalog.py`) de erro de banco,
+rastreamento de exceção e página de depuração, e entrega só os nomes das categorias.
+
+- **Só observa.** Nunca nega, atrasa de forma perceptível nem altera a resposta; a decisão de escopo não recebe o resultado
+  (há teste que prova isso). **É a única parte da cerca que falha aberta, de propósito:** uma falha da leitura vira
+  `signal_skip: error` e a resposta passa do mesmo jeito.
+- **Limite.** Lê no máximo 64 KiB do corpo. `gzip` e `deflate` são descomprimidos com entrada limitada a 256 KiB e saída
+  limitada a 64 KiB (uma bomba de descompressão não gasta memória); `br`, `zstd` e qualquer outra codificação, ou dado
+  corrompido, viram `signal_skip: encoding`. Só lê JSON, XML, `text/plain`, `text/html` ou resposta sem tipo; imagem,
+  script, estilo e binário viram `type`; `HEAD`, 1xx, 204 e 304 também viram `type`; corpo vazio vira `empty`.
+- **Limites da heurística.** Há falso positivo (documentação com exemplo de erro) e falso negativo (mensagem traduzida,
+  cortada ou depois dos primeiros 64 KiB). O relatório declara quantas respostas não foram lidas.
+- **Versão da imagem.** Depois de atualizar o pacote, baixe as imagens com `hdast stack pull`. Para provar mudanças locais
+  nos sinais, reconstrua com `hdast stack up --build`. [Build local](../../docs/comecar/docker.md#construir-a-partir-do-código-local)
+- Não há medida de custo desta leitura nesta versão (a prova com Docker é do degrau 3, ADR 0049, seção "Como provar").
 
 ## Proteção do endereço resolvido
 
@@ -195,6 +244,7 @@ entre conferir e conectar; em HTTPS o SNI e a verificação do certificado conti
   libera `;`, `%2f`, `%5c`, dupla codificação, `//` e ponto ou espaço finais pela leitura literal e nega se QUALQUER
   leitura do caminho casar com `deny_paths`. Risco aceito: uma leitura fora de `scope.allow` que não casa `deny_paths`
   é liberada (marcada em `detail: wide_reading_outside_allow`). A imagem precisa ser reconstruída para ler o campo.
+- **Sinais de erro interno**: reconhecer texto é heurística (ver a seção própria acima); só HTTP/1.1, como o resto do proxy.
 - **Caminho na auditoria** vai inteiro até 2048 caracteres (escapado em ASCII); acima disso é cortado com `...[cortado]`.
 - **A política só é lida ao iniciar.** Mudar `policy.json` com o proxy no ar não tem efeito até reiniciar.
 - **A trava não corta conexões em andamento** e depende de o arquivo `KILL` ser criado no diretório montado.

@@ -34,6 +34,7 @@ def build_registry() -> dict[str, Generator]:
         "choice": basic.gen_choice,
         "constant": basic.gen_constant,
         "sequence": basic.gen_sequence,
+        "synthetic_file": basic.gen_synthetic_file,
         "br.cpf": brazil.gen_cpf,
         "br.cnpj": brazil.gen_cnpj,
         "br.cns": brazil.gen_cns,

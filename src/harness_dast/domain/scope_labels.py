@@ -25,7 +25,9 @@ SCOPE_CODE_LABELS: Final[dict[str, str]] = {
     "upstream_error": "o alvo não respondeu ao proxy",
     "kill_switch": "parada de emergência acionada",
     "run_expired": "prazo da execução esgotado",
+    "approval_changed": "aprovação ou perfil alterado, ausente ou ilegível",
     "rate_queue_full": "fila de taxa cheia (varredor acima do limite de req/s)",
+    "rate_backoff": "recuo temporário solicitado pelo destino",
     "audit_failure": "falha ao gravar a trilha de auditoria",
     # Forma do método, da URL e da autoridade.
     "method_unknown": "método HTTP desconhecido",

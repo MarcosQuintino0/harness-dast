@@ -4,11 +4,11 @@ import re
 
 from harness_dast.domain import html_safe as h
 from harness_dast.domain.api_model import Operation
-from harness_dast.domain.panel_build import build_panel_view
-from harness_dast.domain.panel_build_content import function_names
-from harness_dast.domain.panel_model import PanelFunction
-from harness_dast.domain.panel_pages import render_panel
-from tests.unit.domain.panel_helpers import sources
+from harness_dast.domain.panel.build import build_panel_view
+from harness_dast.domain.panel.build_content import function_names
+from harness_dast.domain.panel.model import PanelFunction
+from harness_dast.domain.panel.pages import render_panel
+from tests.unit.domain.panel.helpers import sources
 
 
 def test_tagged_turns_backticked_code_into_a_grey_chip_and_keeps_the_rest_escaped() -> None:

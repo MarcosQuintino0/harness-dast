@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from harness_dast.application.scan import ScanRequest
 from harness_dast.application.scan_health import FAILURE_LIMIT, RECOVERY_WAIT_SECONDS
 from harness_dast.domain.errors import (
     ExternalToolError,
@@ -29,9 +30,10 @@ def profile_with(**changes: Any) -> ProductProfile:
     return ProductProfile.from_data(data)
 
 
-def test_window_closing_mid_scan_stops_the_scan_and_keeps_partial_results() -> None:
+@pytest.mark.parametrize("pacing", ["legacy", "proxy"])
+def test_window_closing_mid_scan_stops_the_scan_and_keeps_partial_results(pacing: str) -> None:
     scope = profile_data()["scope"] | {"windows": ["seg-dom 00:00-12:30 UTC"]}
-    rig = ready(profile_with(scope=scope))
+    rig = ready(profile_with(scope=scope, scan={"pacing": pacing}))
     rig.zap.script = [(10, "RUNNING"), (20, "RUNNING"), (100, "FINISHED")]
     first = {"done": False}
 
@@ -54,8 +56,9 @@ def test_window_closing_mid_scan_stops_the_scan_and_keeps_partial_results() -> N
     assert rig.zap.installed == {}
 
 
-def test_deadline_passing_mid_scan_stops_it_and_stores_the_partial_result() -> None:
-    rig = ready(profile_with(limits={"max_duration_minutes": 1}))
+@pytest.mark.parametrize("pacing", ["legacy", "proxy"])
+def test_deadline_passing_mid_scan_stops_it_and_stores_the_partial_result(pacing: str) -> None:
+    rig = ready(profile_with(limits={"max_duration_minutes": 1}, scan={"pacing": pacing}))
     rig.zap.script = [(10, "RUNNING")]
 
     result = rig.run_scan()
@@ -138,8 +141,9 @@ def test_failure_collecting_alerts_turns_a_completed_scan_into_stopped_zap() -> 
     assert "coletar" in (result.stop_message or "")
 
 
-def test_ctrl_c_stops_the_running_scan_and_removes_the_rules() -> None:
-    rig = ready()
+@pytest.mark.parametrize("pacing", ["legacy", "proxy"])
+def test_ctrl_c_stops_the_running_scan_and_removes_the_rules(pacing: str) -> None:
+    rig = ready(profile_with(scan={"pacing": pacing}))
 
     def interrupt(scan_id: str, poll: int) -> None:
         raise KeyboardInterrupt
@@ -153,6 +157,49 @@ def test_ctrl_c_stops_the_running_scan_and_removes_the_rules() -> None:
     assert rig.zap.was_stopped("0") is True
     last = rig.artifacts.progress[rig.probe_result.run_id][-1]
     assert last.status == "interrupted"
+
+
+@pytest.mark.parametrize("pacing", ["legacy", "proxy"])
+def test_paused_scan_is_stopped_when_window_closes(pacing: str) -> None:
+    scope = profile_data()["scope"] | {"windows": ["seg-dom 00:00-12:30 UTC"]}
+    rig = ready(profile_with(scope=scope, scan={"pacing": pacing}))
+    rig.zap.script = [(10, "PAUSED")]
+    rig.zap.on_status = lambda _scan, _poll: rig.clock.advance(31 * 60)
+
+    result = rig.run_scan()
+
+    assert result.status == "stopped_window"
+    assert result.entries[0].outcome == "stopped"
+    assert rig.zap.was_stopped("0")
+    assert rig.zap.installed == {}
+
+
+@pytest.mark.parametrize("pacing", ["legacy", "proxy"])
+def test_stop_request_interrupts_paused_scan_and_does_not_start_next(pacing: str) -> None:
+    class Switch:
+        active = False
+
+        def engaged(self) -> bool:
+            return self.active
+
+    rig = ready(profile_with(scan={"pacing": pacing}))
+    switch = Switch()
+    rig.zap.script = [(10, "PAUSED")]
+
+    def cancel(_scan: str, _poll: int) -> None:
+        rig.clock.advance(1)
+        switch.active = True
+
+    rig.zap.on_status = cancel
+    result = rig.scan(kill_switch=switch).execute(
+        ScanRequest(product="agenda", run_id=rig.probe_result.run_id)
+    )
+
+    assert result.status == "stopped_window"
+    assert result.entries[0].outcome == "stopped"
+    assert len(rig.zap.started) == 1
+    assert rig.zap.was_stopped("0")
+    assert rig.zap.installed == {}
 
 
 def test_failing_to_remove_the_rules_at_the_end_is_an_error_after_saving_the_result() -> None:

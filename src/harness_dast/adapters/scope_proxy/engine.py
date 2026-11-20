@@ -24,6 +24,7 @@ from harness_dast.adapters.scope_proxy.decision import (
 from harness_dast.adapters.scope_proxy.gate import RunGate
 from harness_dast.adapters.scope_proxy.policy import KILL_FLAG_NAME, ProxyPolicy, deadline_of
 from harness_dast.adapters.scope_proxy.ratelimit import RateLimiter
+from harness_dast.domain.error_signal_catalog import SignalCategory, SignalSkip
 from harness_dast.domain.errors import ScopeViolation
 from harness_dast.domain.host import parse_host
 from harness_dast.domain.urlnorm import default_port, split_request
@@ -41,6 +42,8 @@ class ScopeProxyEngine:
         stdout: TextIO,
         now: Callable[[], datetime],
         monotonic: Callable[[], float],
+        approval_dir: Path = Path("/approvals"),
+        profile_dir: Path = Path("/product"),
     ) -> None:
         """Monta o motor.
 
@@ -51,6 +54,8 @@ class ScopeProxyEngine:
             stdout: Saída padrão, que recebe as mesmas linhas.
             now: Relógio com fuso (injetado).
             monotonic: Relógio monotônico (injetado).
+            approval_dir: Diretorio da aprovacao.
+            profile_dir: Diretorio do perfil.
         """
         self._policy = policy
         self._now = now
@@ -59,6 +64,11 @@ class ScopeProxyEngine:
             kill_flag=policy_dir / KILL_FLAG_NAME,
             deadline=deadline_of(policy, now()),
             now=now,
+            binding=policy.binding,
+            approval_dir=approval_dir,
+            profile_dir=profile_dir,
+            monitored=policy.binding is not None,
+            monotonic_clock=monotonic,
         )
         self._limiter = RateLimiter(
             requests_per_second=policy.limits.requests_per_second,
@@ -68,6 +78,10 @@ class ScopeProxyEngine:
         self._audit = AuditLog(
             file=audit_file, stdout=stdout, on_failure=self._gate.mark_audit_failure
         )
+
+    def close(self) -> None:
+        """Fecha a vigia e impede novas concessoes."""
+        self._gate.close()
 
     def now(self) -> datetime:
         """Instante atual, para a cola carimbar o momento em que um pedido foi liberado."""
@@ -107,6 +121,27 @@ class ScopeProxyEngine:
         """Reserva horário de saída; `None` significa fila cheia (recusar com 429)."""
         return self._limiter.reserve()
 
+    @property
+    def max_queued_requests(self) -> int:
+        """Limite de pedidos em espera pela concessão."""
+        return self._policy.max_queued_requests
+
+    def grant_delay(self) -> float:
+        """Tempo restante até a concessão."""
+        return self._limiter.delay_until_grant()
+
+    def grant_slot(self) -> None:
+        """Registra uma concessão efetiva após a última verificação da trava."""
+        self._limiter.grant()
+
+    def defer_slots(self, seconds: float) -> None:
+        """Aplica recuo temporário a todas as concessões da execução."""
+        self._limiter.defer(seconds)
+
+    def backoff_remaining(self) -> float:
+        """Tempo restante do recuo solicitado pelo destino."""
+        return self._limiter.backoff_remaining()
+
     def check_destination(self, host: str, port: int, addresses: list[str]) -> Verdict:
         """Confere os endereços que o DNS devolveu para `host`, antes de conectar."""
         return check_addresses(addresses, allow_local=self._local_allowed(host, port))
@@ -127,8 +162,16 @@ class ScopeProxyEngine:
         size: int | None = None,
         duration_ms: int | None = None,
         waited_ms: int = 0,
+        network_ms: int | None = None,
+        grant_wait_ms: int | None = None,
+        signals: tuple[SignalCategory, ...] = (),
+        signal_skip: SignalSkip | None = None,
     ) -> None:
-        """Grava uma linha de auditoria (consulta reduzida aos nomes dos parâmetros)."""
+        """Grava uma linha de auditoria (consulta reduzida aos nomes dos parâmetros).
+
+        `signals` e `signal_skip` (ADR 0049) só descrevem o que a leitura da resposta viu:
+        entram na linha (só nas liberadas) e em mais nada; a decisão de escopo nunca os recebe.
+        """
         path, names = describe_target(method, url, raw_path, raw_query)
         self._audit.write(
             AuditRecord(
@@ -147,6 +190,10 @@ class ScopeProxyEngine:
                 bytes=size,
                 duration_ms=duration_ms,
                 waited_ms=waited_ms,
+                network_ms=network_ms,
+                grant_wait_ms=grant_wait_ms,
+                signals=signals if verdict.allowed else (),
+                signal_skip=signal_skip if verdict.allowed else None,
             )
         )
 

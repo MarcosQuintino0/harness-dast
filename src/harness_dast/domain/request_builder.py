@@ -13,14 +13,16 @@ sabe gerá-los; campos `readOnly` nunca são enviados. Este módulo é puro.
 """
 
 import json
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import quote
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from harness_dast.domain.api_model import Operation, Parameter, safe_identifier
 from harness_dast.domain.api_schema import (
+    MAX_STRING,
     ApiModel,
     JsonValue,
     Schema,
@@ -32,9 +34,18 @@ from harness_dast.domain.datagen_catalog import get_generator, validate_args
 from harness_dast.domain.errors import ConfigError
 from harness_dast.domain.flow import BoundValue, ResolvedBindings
 from harness_dast.domain.implicit_values import FieldNotGeneratable, implicit_draw
+from harness_dast.domain.knowledge_receipts import KnowledgeRuleUse
+from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE
+from harness_dast.domain.multipart_schema import PartPlan, plan_parts
 from harness_dast.domain.routing_headers import is_routing_header
 from harness_dast.domain.schema_check import violations
-from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, validate_run_tag
+from harness_dast.domain.synthetic_files import (
+    DEFAULT_KIND,
+    FileSpec,
+    default_filename,
+    parse_file_spec,
+)
+from harness_dast.domain.unique_values import MAX_UNIQUE_TOKENS, unique_token, validate_run_tag
 
 MAX_BUILD_DEPTH = 12
 MAX_ITEMS = 20
@@ -89,6 +100,8 @@ class BuiltRequest(ApiModel):
         cookies: Cookies de parâmetros.
         body: Corpo como valor JSON (também para mídias não JSON; quem envia codifica).
         body_media_type: Tipo de mídia do corpo, ou `None` se não há corpo.
+        files: Campos de arquivo sintético (só `multipart/form-data`); `body` leva os campos de
+            texto.
         skipped_fields: Campos opcionais omitidos por não terem gerador possível.
     """
 
@@ -100,7 +113,10 @@ class BuiltRequest(ApiModel):
     cookies: dict[str, str] = Field(default_factory=dict)
     body: JsonValue = None
     body_media_type: str | None = None
+    files: tuple[FileSpec, ...] = ()
     skipped_fields: tuple[str, ...] = ()
+    rule_uses: tuple[KnowledgeRuleUse, ...] = ()
+    bound_uses: tuple[tuple[str, str], ...] = ()
 
 
 class _Omitted:
@@ -154,6 +170,33 @@ def _coerce(value: JsonValue, schema_type: str | None) -> JsonValue:
     return value
 
 
+def _pagination_value(flat: Schema, ctx: _Ctx) -> int | None:
+    """Escolhe primeira página ou tamanho pequeno apenas com limites reconhecíveis."""
+    if ctx.location != "query" or effective_type(flat) != "integer" or flat.enum:
+        return None
+    name = ctx.segments[-1].lower()
+    candidates: tuple[int, ...]
+    if name in {"page", "pagina", "offset", "skip"}:
+        if flat.minimum not in (0, 1) or flat.exclusive_minimum:
+            return None
+        candidates = (int(flat.minimum),)
+    elif name in {"size", "limit", "per_page", "tamanho"} and flat.maximum is not None:
+        if not math.isfinite(flat.maximum) or (
+            flat.minimum is not None and not math.isfinite(flat.minimum)
+        ):
+            return None
+        low = max(1, math.ceil(flat.minimum)) if flat.minimum is not None else 1
+        if flat.exclusive_minimum and low == flat.minimum:
+            low += 1
+        high = math.floor(flat.maximum)
+        if flat.exclusive_maximum and high == flat.maximum:
+            high -= 1
+        candidates = (min(max(low, 10), high),) if low <= high else ()
+    else:
+        return None
+    return next((value for value in candidates if not violations(flat, value)), None)
+
+
 class RequestBuilder:
     """Monta requisições válidas; guarda só o estado da execução (contadores e únicos usados).
 
@@ -161,13 +204,24 @@ class RequestBuilder:
     valores `unique` da mesma instância nunca coincidem.
     """
 
-    def __init__(self, rules: DataRules, source: ValueSource, run_tag: str) -> None:
+    def __init__(
+        self,
+        rules: DataRules,
+        source: ValueSource,
+        run_tag: str,
+        *,
+        initial_counter: int = 0,
+        expected_rules: tuple[KnowledgeRuleUse, ...] = (),
+    ) -> None:
         """Cria o montador.
 
         Args:
             rules: Regras de dados já validadas.
             source: Fonte de valores (catálogo de geradores com semente e relógio injetados).
             run_tag: Etiqueta da execução, de `run_tag_from_run_id`.
+            initial_counter: Posição inicial do contador de valores únicos.
+
+            expected_rules: Receitas validadas para conferir regras reaplicadas.
 
         Raises:
             ConfigError: Etiqueta inválida.
@@ -175,9 +229,76 @@ class RequestBuilder:
         self._rules = rules
         self._source = source
         self._run_tag = validate_run_tag(run_tag)
-        self._unique_counter = 0
+        self._unique_counter = initial_counter
         self._draws: dict[str, int] = {}
         self._seen: dict[int, set[str]] = {}
+        self._rule_uses: list[KnowledgeRuleUse] = []
+        self._bound_uses: set[tuple[str, str]] = set()
+        self._expected_rules = expected_rules
+
+    @property
+    def next_unique_counter(self) -> int:
+        """Próxima posição do contador, para continuar a mesma execução."""
+        return self._unique_counter
+
+    def fresh_text(self, minimum: int, maximum: int | None) -> str:
+        """Gera marcador opaco com contador da execução dentro dos limites de tamanho.
+
+        Não garante ausência em recursos preexistentes; quem o usa deve observá-la.
+        """
+        if minimum < 0 or minimum > MAX_STRING or (maximum is not None and minimum > maximum):
+            raise ConfigError("Limites inválidos para marcador sintético.")
+        limit = min(maximum, MAX_STRING) if maximum is not None else MAX_STRING
+        token = unique_token(self._run_tag, self._next_counter(), limit)
+        return token.ljust(minimum, "x")
+
+    def body_rule_marker_eligible(self, operation_id: str, field: str) -> bool | None:
+        """Aceita regra única ou texto aleatório; `None` indica ausência de regra explícita."""
+        resolved = self._rules.resolve(operation_id, "body", (field,))
+        if resolved is None:
+            return None
+        return resolved.rule.unique or resolved.rule.generator == "alphanumeric"
+
+    def reuses_unique_body_value(
+        self,
+        operation_id: str,
+        before: JsonValue,
+        after: JsonValue,
+        *,
+        bound_fields: frozenset[str] = frozenset(),
+    ) -> bool:
+        """Diz se algum campo de corpo com regra única repetiu o valor provado."""
+        return self._same_unique(operation_id, before, after, (), bound_fields)
+
+    def _same_unique(
+        self,
+        operation_id: str,
+        before: JsonValue,
+        after: JsonValue,
+        path: tuple[str, ...],
+        bound_fields: frozenset[str],
+    ) -> bool:
+        if isinstance(before, dict) and isinstance(after, dict):
+            return any(
+                self._same_unique(operation_id, before[name], value, (*path, name), bound_fields)
+                for name, value in after.items()
+                if name in before
+            )
+        if isinstance(before, list) and isinstance(after, list):
+            return any(
+                self._same_unique(operation_id, left, right, path, bound_fields)
+                for left in before
+                for right in after
+            )
+        if not path or ".".join(path) in bound_fields:
+            return False
+        resolved = self._rules.resolve(operation_id, "body", path)
+        return (
+            resolved is not None
+            and resolved.rule.unique
+            and type(before) is type(after)
+            and before == after
+        )
 
     def build(self, operation: Operation, bindings: ResolvedBindings | None = None) -> BuiltRequest:
         """Monta a requisição da operação.
@@ -193,13 +314,15 @@ class RequestBuilder:
             ConfigError: Campo obrigatório sem como gerar valor (a dica pede uma regra),
                 valor de regra que viola o esquema, valor único repetido ou esgotado.
         """
+        self._rule_uses = []
+        self._bound_uses = set()
         bound = bindings or ResolvedBindings()
         skipped: list[str] = []
         values = {
             location: self._parameters(operation, location, bound, skipped)
             for location in _LOCATIONS
         }
-        media_type, body = self._body(operation, bound, skipped)
+        media_type, body, files = self._body(operation, bound, skipped)
         return BuiltRequest(
             operation_id=operation.operation_id,
             method=operation.method.upper(),
@@ -209,7 +332,10 @@ class RequestBuilder:
             cookies={name: _stringify(value) for name, value in values["cookie"]},
             body=body,
             body_media_type=media_type,
+            files=files,
             skipped_fields=tuple(skipped),
+            rule_uses=tuple(self._rule_uses),
+            bound_uses=tuple(sorted(self._bound_uses)),
         )
 
     def _parameters(
@@ -257,6 +383,7 @@ class RequestBuilder:
 
     def _parameter_value(self, parameter: Parameter, ctx: _Ctx) -> JsonValue | _Omitted:
         if parameter.name in ctx.bound.params:
+            self._bound_uses.add(("param", parameter.name))
             return self._bound(ctx.bound.params[parameter.name], parameter.value_schema)
         if parameter.required:
             return self._make(parameter.value_schema, ctx)
@@ -264,14 +391,65 @@ class RequestBuilder:
 
     def _body(
         self, operation: Operation, bound: ResolvedBindings, skipped: list[str]
-    ) -> tuple[str | None, JsonValue]:
+    ) -> tuple[str | None, JsonValue, tuple[FileSpec, ...]]:
         media = operation.request_body.preferred() if operation.request_body else None
         if media is None:
-            return None, None
-        if media.body_schema is None:
-            return media.media_type, None
+            return None, None, ()
         ctx = _Ctx(operation.operation_id, "body", (), "body", 0, skipped, bound)
-        return media.media_type, self._make(media.body_schema, ctx)
+        if media.media_type.split(";")[0].strip().lower() == MULTIPART_MEDIA_TYPE:
+            fields, files = self._multipart(media.body_schema, media.part_content_types, ctx)
+            return media.media_type, fields, files
+        if media.body_schema is None:
+            return media.media_type, None, ()
+        return media.media_type, self._make(media.body_schema, ctx), ()
+
+    def _multipart(
+        self, schema: Schema | None, part_types: Mapping[str, str], ctx: _Ctx
+    ) -> tuple[JsonValue, tuple[FileSpec, ...]]:
+        """Campos de texto (pelo caminho de sempre) e arquivos sintéticos do corpo multipart."""
+        fields: dict[str, JsonValue] = {}
+        files: list[FileSpec] = []
+        for plan in plan_parts(schema, part_types):
+            child = ctx.child(plan.name)
+            if plan.is_file:
+                files.append(self._file_spec(plan, child))
+                continue
+            value = (
+                self._make(plan.schema, child)
+                if plan.required
+                else self._make_optional(plan.schema, child)
+            )
+            if not isinstance(value, _Omitted):
+                fields[plan.name] = value
+        return fields, tuple(files)
+
+    def _file_spec(self, plan: PartPlan, ctx: _Ctx) -> FileSpec:
+        """Tipo e nome do arquivo: padrão, `encoding.contentType` ou regra `synthetic_file`."""
+        if plan.unsupported_declared is not None:
+            ctx.skipped.append(
+                f"{ctx.display} (tipo declarado {safe_identifier(plan.unsupported_declared)} sem "
+                "arquivo sintético: enviado como text/plain)"
+            )
+        resolved = self._rules.resolve(ctx.operation_id, "body", ctx.segments)
+        if resolved is None:
+            kind = plan.declared_kind or DEFAULT_KIND
+            return FileSpec(field=plan.name, kind=kind, filename=default_filename(kind))
+        rule = resolved.rule
+        if rule.generator != "synthetic_file":
+            raise ConfigError(
+                f"A regra {resolved.index + 1} de data-rules.yml cobre o campo de arquivo "
+                f"{safe_identifier(plan.name)}, mas o gerador não é synthetic_file.",
+                hint="Para campo de arquivo use generator: synthetic_file (kind e name em args).",
+            )
+        text = self._draw(
+            rule.generator, rule.args, plan.schema, ctx, resolved=resolved, unique=False
+        )
+        if not isinstance(text, str):
+            raise ConfigError(
+                "O gerador synthetic_file devolveu algo que não é texto.", hint="Erro interno."
+            )
+        kind, filename = parse_file_spec(text)
+        return FileSpec(field=plan.name, kind=kind, filename=filename)
 
     @staticmethod
     def _render_path(operation: Operation, values: dict[str, JsonValue]) -> str:
@@ -314,6 +492,7 @@ class RequestBuilder:
         flat = flatten_schema(schema)
         key = ".".join(ctx.segments)
         if ctx.location == "body" and key in ctx.bound.fields:
+            self._bound_uses.add(("field", key))
             return self._bound(ctx.bound.fields[key], flat)
         if ctx.depth > MAX_BUILD_DEPTH:
             raise FieldNotGeneratable(
@@ -371,6 +550,8 @@ class RequestBuilder:
             )
         elif flat.enum:
             value = next((option for option in flat.enum if option is not None), None)
+        elif (pagination := _pagination_value(flat, ctx)) is not None:
+            value = pagination
         else:
             generator, args = implicit_draw(flat, schema_type, ctx.display)
             value = self._draw(generator, args, flat, ctx, resolved=None, unique=False)
@@ -423,9 +604,33 @@ class RequestBuilder:
                 run_tag=self._run_tag,
             )
         )
+        if resolved is not None:
+            self._record_rule(ctx, resolved, generator)
         if unique:
             self._remember_unique(resolved.index if resolved else -1, value, ctx)
         return value
+
+    def _record_rule(self, ctx: _Ctx, resolved: ResolvedRule, generator: str) -> None:
+        try:
+            receipt = KnowledgeRuleUse(
+                operation=ctx.operation_id,
+                rule_index=resolved.index,
+                generator=generator,
+                field=".".join(ctx.segments),
+                location=ctx.location,
+            )
+        except ValidationError:
+            # Campos externos fora do formato seguro seguem executando, sem recibo reutilizável.
+            return
+        for expected in self._expected_rules:
+            if (expected.operation, expected.location, expected.field) == (
+                receipt.operation,
+                receipt.location,
+                receipt.field,
+            ) and expected != receipt:
+                raise ConfigError("Regra reutilizada diverge da receita validada.")
+        if receipt not in self._rule_uses:
+            self._rule_uses.append(receipt)
 
     def _next_counter(self) -> int:
         counter = self._unique_counter

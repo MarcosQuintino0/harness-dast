@@ -2,7 +2,7 @@
 # MODELO: flows.yml. Dependências entre operações (encadeamento de dados).
 #
 # Schema versão 1, validado por `domain/flow.py`. A referência campo a campo
-# está em docs/reference/flows-yml.md.
+# está em docs/referencia/flows-yml.md.
 #
 # Por que existe: muitas operações precisam de um identificador devolvido por
 # outra (criar paciente -> buscar paciente). Sem isso, o ZAP usaria ids

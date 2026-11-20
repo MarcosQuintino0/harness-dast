@@ -31,6 +31,11 @@ import httpx
 
 from harness_dast.domain.errors import ExternalToolError, TargetTimeout, TargetUnreachable
 from harness_dast.domain.http_messages import MAX_RESPONSE_BYTES, ApprovedRequest, HttpResponse
+from harness_dast.domain.stack_binding import (
+    PROXY_REASON_HEADER,
+    is_stale_refusal,
+    proxy_refusal_error,
+)
 
 USER_AGENT = "harness-dast"
 
@@ -113,6 +118,7 @@ class HttpxTargetClient:
             TargetTimeout: O alvo não respondeu a tempo.
             TargetUnreachable: Falha de conexão ou de protocolo com o alvo.
             ExternalToolError: O proxy do ZAP recusou ou não aceitou a conexão.
+            StackStale: O proxy de escopo recusou com `approval_changed` (ADR 0081).
         """
         request = approved.request
         via_zap = request.route == "zap"
@@ -129,6 +135,10 @@ class HttpxTargetClient:
                 content=request.body,
             ) as response:
                 body, truncated = self._read_capped(response)
+                if is_stale_refusal(
+                    response.status_code, response.headers.get(PROXY_REASON_HEADER), body
+                ):
+                    raise proxy_refusal_error()
                 self._store_cookies(request.account, _origin(request.url), response)
                 elapsed = int((perf_counter() - started) * 1000)
                 return self._to_response(response, body, truncated, elapsed)
@@ -196,6 +206,8 @@ class HttpxTargetClient:
             content_type=response.headers.get("content-type"),
             retry_after=response.headers.get("retry-after"),
             location=response.headers.get("location"),
+            cors_allow_origin=response.headers.get("access-control-allow-origin"),
+            cors_allow_credentials=response.headers.get("access-control-allow-credentials"),
             body=body,
             body_truncated=truncated,
             elapsed_ms=elapsed_ms,

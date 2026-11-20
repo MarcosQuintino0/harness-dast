@@ -1,7 +1,9 @@
 import pytest
 
+from harness_dast.adapters.openapi.refs import RefResolver
+from harness_dast.adapters.openapi.schema_mapper import SchemaMapper
 from harness_dast.domain.api_schema import JsonValue, Schema
-from harness_dast.domain.schema_check import violations
+from harness_dast.domain.schema_check import check_schema, violations
 
 
 def check(schema: Schema, value: JsonValue) -> tuple[str, ...]:
@@ -122,3 +124,52 @@ def test_violations_accepts_value_when_pattern_is_outside_the_safe_subset() -> N
 def test_violations_accepts_anything_when_schema_has_no_type() -> None:
     assert check(Schema(), "x") == ()
     assert check(Schema(), None) == ()
+
+
+@pytest.mark.parametrize(
+    ("schema", "value", "expected"),
+    [
+        (Schema(type="integer"), True, ("type",)),
+        (Schema(type="number", minimum=2, exclusive_minimum=True), 2, ("range",)),
+        (Schema(type="string", min_length=3), "ab", ("length",)),
+        (Schema(type="string", enum=("a",)), "segredo", ("enum",)),
+        (Schema(type="object", required=("id",)), {}, ("required",)),
+        (Schema(type="array", max_items=1), [1, 2], ("length",)),
+        (Schema(type="string", nullable=True), None, ()),
+        (Schema(type="integer", truncated=True), "qualquer", ()),
+    ],
+)
+def test_checks_restrictions_without_values(
+    schema: Schema, value: JsonValue, expected: tuple[str, ...]
+) -> None:
+    assert check_schema(schema, value) == expected
+
+
+def test_offline_check_null_still_obeys_enum() -> None:
+    assert check_schema(Schema(type="string", nullable=True, enum=("a",)), None) == ("enum",)
+    assert check_schema(Schema(type="string", nullable=True, enum=("a", None)), None) == ()
+    assert (
+        check_schema(Schema(type="string", nullable=True, enum=("a",), enum_allows_null=True), None)
+        == ()
+    )
+    assert check_schema(Schema(type="string", enum=(None,)), None) == ("type",)
+
+
+def test_offline_check_respects_declared_type_before_legacy_nullable_normalization() -> None:
+    schema = Schema(
+        type="string", nullable=True, enum=("a",), enum_allows_null=True, type_allows_null=False
+    )
+    assert check_schema(schema, None) == ("type",)
+    assert check(schema, None) == ()
+
+
+def test_offline_null_checks_follow_openapi_type_and_enum() -> None:
+    mapper = SchemaMapper(RefResolver({}))
+    only_type = mapper.convert({"type": ["string", "null"], "enum": ["a"]}, "#")
+    only_enum = mapper.convert({"type": "string", "enum": ["a", None]}, "#")
+    both = mapper.convert({"type": ["string", "null"], "enum": ["a", None]}, "#")
+
+    assert check_schema(only_type, None) == ("enum",)
+    assert check_schema(only_enum, None) == ("type",)
+    assert check_schema(both, None) == ()
+    assert check(only_enum, None) == ()

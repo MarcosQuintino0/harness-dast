@@ -11,18 +11,31 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from harness_dast.domain.audit import AuditEntry
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
+from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
+from harness_dast.domain.oast_ssrf import OastEvent
+from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.redaction import EvidenceMessage
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary, StageRecord
 from harness_dast.domain.scan_policy import ScanLimits, ScanPolicy
 from harness_dast.domain.scan_result import ScanProgress, ScanResult, ScanStatus
 from harness_dast.domain.scan_tokens import ReplacerRule
+from harness_dast.domain.signal_result import ProxySignals
 from harness_dast.domain.traffic import ProxyRow
 from harness_dast.domain.zap_messages import ZapMessage
+
+
+class ProcessSampler(Protocol):
+    """Amostra CPU e memória somente do processo da CLI, sem seus filhos."""
+
+    def sample(self) -> tuple[float, int | None]:
+        """Retorna CPU acumulada em segundos e pico residente, se disponível."""
+        ...
 
 
 class ScanStart(BaseModel):
@@ -262,6 +275,38 @@ class RunArtifacts(Protocol):
         """
         ...
 
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        """Lê `negative.json`; `None` quando o estágio de valores proibidos não rodou (ADR 0051).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_nuclei(self, run_id: str) -> NucleiResult | None:
+        """Lê `nuclei.json`; `None` quando o estágio do Nuclei não rodou (ADR 0122).
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def read_signals(self, run_id: str) -> ProxySignals | None:
+        """Lê `error-signals.json` (ADR 0049); `None` quando o `report` não o gravou.
+
+        Raises:
+            ConfigError: Arquivo ilegível ou inválido.
+        """
+        ...
+
+    def write_signals(self, run_id: str, signals: ProxySignals) -> None:
+        """Grava `error-signals.json` de forma atômica.
+
+        Raises:
+            ConfigError: Falha de escrita.
+        """
+        ...
+
     def write_rule_stats(self, run_id: str, stats: RuleStatsFile) -> None:
         """Grava `rule-stats.json` (medição por regra do ZAP, ADR 0031) de forma atômica.
 
@@ -372,5 +417,49 @@ class PanelRefresher(Protocol):
         Returns:
             O caminho da página de entrada, relativo à pasta da execução, ou `None` se o painel
             não pôde ser gerado.
+        """
+        ...
+
+
+class OastBridge(Protocol):
+    """Fronteira de inspeção da topologia e do Callback, sem tocar o alvo."""
+
+    def inspect(self) -> bool | None:
+        """Informa disponibilidade da topologia, ou `None` se desconhecida."""
+        ...
+
+    def callback(self) -> bool | None:
+        """Informa conectividade ao Callback, ou `None` se desconhecida."""
+        ...
+
+
+class OastEvents(Protocol):
+    """Eventos que o serviço de retorno (Callback do OAST do ZAP) recebeu (ADR 0100)."""
+
+    def oast_baseline(self) -> int:
+        """Marca o ponto a partir do qual os eventos novos contam.
+
+        Raises:
+            ExternalToolError: Falha da API do ZAP.
+        """
+        ...
+
+    def oast_events(self, since: int) -> tuple[OastEvent, ...]:
+        """Eventos recebidos depois do ponto devolvido por `oast_baseline`.
+
+        Raises:
+            ExternalToolError: Falha da API do ZAP ou resposta fora da forma conhecida.
+        """
+        ...
+
+
+class ExchangeSource(Protocol):
+    """Os pedidos que o `probe` provou (`exchanges.json`), para o SSRF guiado."""
+
+    def read_exchanges(self, run_id: str) -> ExchangeLog:
+        """Lê `exchanges.json`.
+
+        Raises:
+            ConfigError: Arquivo ausente, ilegível ou inválido.
         """
         ...

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from harness_dast.application.panel_hooks import CatalogPanelHooks
 from harness_dast.domain.command_journal import JournalEntry, JournalLoad
-from tests.unit.domain.panel_helpers import findings_report
+from tests.unit.domain.panel.helpers import findings_report
 
 RUN_1 = "2026-11-14T10-00-00Z-clinica-aaaa"
 RUN_2 = "2026-11-14T12-00-00Z-clinica-bbbb"

@@ -12,6 +12,8 @@ from typing import Final, Literal
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
+from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse, KnowledgeRuleUse
+from harness_dast.domain.multipart_encoding import MultipartPart
 from harness_dast.domain.outcome import SENT_OUTCOMES, Outcome
 from harness_dast.domain.run import RunLimits
 
@@ -49,12 +51,15 @@ class RequestPreview(ApiModel):
         header_names: Nomes dos cabeçalhos de parâmetro.
         fields: Campos de corpo, caminho e consulta com o gerador de cada um.
         uses_flow_values: Se o consumidor receberia valores de um produtor de `flows.yml`.
+        multipart_parts: Partes do corpo `multipart/form-data` (nome, tipo e tamanho), nunca os
+            bytes nem a fronteira (ADR 0052).
     """
 
     query_names: tuple[str, ...] = ()
     header_names: tuple[str, ...] = ()
     fields: tuple[FieldPlan, ...] = ()
     uses_flow_values: bool = False
+    multipart_parts: tuple[MultipartPart, ...] = ()
 
 
 class TargetData(ApiModel):
@@ -101,9 +106,13 @@ class OperationResult(ApiModel):
     attempts: int = 0
     message: str | None = None
     hint: str | None = None
+    conflict_fields: tuple[str, ...] = ()
+    blocked_dependencies: int = 0
     redirect_in_scope: bool | None = None
     preview: RequestPreview | None = None
     untrusted_target_data: TargetData | None = None
+    rule_uses: tuple[KnowledgeRuleUse, ...] = ()
+    flow_uses: tuple[KnowledgeFlowUse, ...] = ()
 
 
 class ProbeSummary(ApiModel):
@@ -113,17 +122,21 @@ class ProbeSummary(ApiModel):
         operations_total: Operações do OpenAPI.
         operations_sent: Operações que enviaram ao menos uma requisição ("tentadas").
         successes: Operações com `success`.
-        reachability: `successes / operations_sent`, ou `None` se nada foi enviado.
+        reached: Sucessos mais recusas esperadas de login.
+        reachability: `reached / operations_sent`, ou `None` se nada foi enviado.
         reachability_all: `successes / operations_total`, ou `None` sem operações.
         by_outcome: Contagem por classe de resultado.
+        blocked_producers: Identificadores com bloqueios, em ordem decrescente de contagem.
     """
 
     operations_total: int
     operations_sent: int
     successes: int
+    reached: int = 0
     reachability: float | None
     reachability_all: float | None
     by_outcome: dict[str, int]
+    blocked_producers: tuple[str, ...] = ()
 
 
 class ProbeResult(ApiModel):
@@ -168,15 +181,24 @@ def summarize_results(
     counts = Counter(result.outcome for result in results)
     sent = sum(count for outcome, count in counts.items() if outcome in SENT_OUTCOMES)
     successes = counts["success"]
+    reached = successes + counts["auth_rejected_expected"]
     return ProbeSummary(
         operations_total=operations_total,
         operations_sent=sent,
         successes=successes,
-        reachability=round(successes / sent, 4) if sent else None,
+        reached=reached,
+        reachability=round(reached / sent, 4) if sent else None,
         reachability_all=(
-            round(successes / operations_total, 4) if operations_total and not dry_run else None
+            round(reached / operations_total, 4) if operations_total and not dry_run else None
         ),
         by_outcome=dict(sorted(counts.items())),
+        blocked_producers=tuple(
+            r.operation_id
+            for r in sorted(
+                (item for item in results if item.blocked_dependencies),
+                key=lambda item: (-item.blocked_dependencies, item.operation_id),
+            )
+        ),
     )
 
 

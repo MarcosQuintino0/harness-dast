@@ -9,7 +9,7 @@ from harness_dast.domain.run_metrics import RunMetrics, build_run_metrics
 from harness_dast.domain.run_summary import StageRecord
 from harness_dast.domain.scan_result import ScanResult
 from harness_dast.domain.traffic import ProxyRow, TrafficSummary
-from tests.unit.domain.report_helpers import RUN_ID, entry, operation, probe_result, scan_result
+from tests.unit.domain.report.helpers import RUN_ID, entry, operation, probe_result, scan_result
 
 SCAN_START = datetime(2026, 11, 13, 5, 16, 10, tzinfo=UTC)  # igual a scan_result()
 
@@ -129,6 +129,15 @@ def test_the_run_stage_records_decide_when_present_including_the_preflight() -> 
     assert (seconds.preflight, seconds.probe, seconds.scan) == (4.2, 40.0, 12.5)
     assert seconds.authz is None
     assert seconds.report is None  # `not_run` não vira zero nem o valor derivado
+
+
+def test_the_nuclei_stage_time_comes_from_the_run_record_and_skipped_is_none() -> None:
+    ran = (StageRecord(name="nuclei", status="ok", duration_seconds=33.3),)
+    skipped = (StageRecord(name="nuclei", status="skipped"),)
+
+    assert build(stages=ran).stages_seconds.nuclei == 33.3
+    assert build(stages=skipped).stages_seconds.nuclei is None
+    assert build().stages_seconds.nuclei is None
 
 
 def test_window_is_the_run_window_or_the_manifest_start_and_the_last_finish() -> None:
@@ -274,3 +283,16 @@ def test_the_file_has_only_numbers_and_identifiers_no_path_url_or_message() -> N
     assert "/users/v1" not in text
     assert "http" not in text
     assert "message" not in text
+
+
+def test_tempos_do_proxy_excluem_negados_e_preservam_dado_ausente() -> None:
+    first = row(1).model_copy(update={"grant_wait_ms": 125, "network_ms": 250})
+    denied = row(2, "deny").model_copy(update={"grant_wait_ms": 900, "network_ms": None})
+    metrics = build(proxy_rows=[first, denied])
+    assert metrics.timing.proxy_grant_wait_seconds == 0.125
+    assert metrics.timing.proxy_network_seconds == 0.25
+    assert metrics.timing.cpu_seconds is None
+    old = row(3)
+    mixed = build(proxy_rows=[first, old])
+    assert mixed.timing.proxy_grant_wait_seconds is None
+    assert mixed.timing.proxy_network_seconds is None

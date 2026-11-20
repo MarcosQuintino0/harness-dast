@@ -28,6 +28,7 @@ class RateLimiter:
         self._max_queued = max_queued
         self._monotonic = monotonic
         self._next_free = 0.0
+        self._backoff_until = 0.0
 
     def reserve(self) -> float | None:
         """Reserva o próximo horário de saída.
@@ -45,3 +46,20 @@ class RateLimiter:
             return None
         self._next_free = slot + self._interval
         return delay
+
+    def delay_until_grant(self) -> float:
+        """Tempo restante até a próxima concessão efetiva."""
+        return max(0.0, self._next_free - self._monotonic())
+
+    def grant(self) -> None:
+        """Marca a concessão no instante real, sem acumular crédito por atraso."""
+        self._next_free = self._monotonic() + self._interval
+
+    def defer(self, seconds: float) -> None:
+        """Adia concessões sem aumentar a taxa nem diminuir um recuo existente."""
+        self._backoff_until = max(self._backoff_until, self._monotonic() + seconds)
+        self._next_free = max(self._next_free, self._backoff_until)
+
+    def backoff_remaining(self) -> float:
+        """Tempo restante do recuo remoto, independente do intervalo normal da taxa."""
+        return max(0.0, self._backoff_until - self._monotonic())

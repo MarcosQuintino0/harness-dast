@@ -6,7 +6,7 @@ import pytest
 
 from harness_dast.adapters.reporting.panel_files import FilePanelFiles
 from harness_dast.domain.errors import ConfigError
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.report.helpers import RUN_ID
 
 
 @pytest.fixture

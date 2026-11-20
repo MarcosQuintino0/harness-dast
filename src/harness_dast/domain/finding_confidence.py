@@ -10,11 +10,9 @@
   graves são prova forte e 1 (falha por demora, sem trecho na resposta) fica a confirmar;
 - `confirmada`: uma pessoa repetiu e registrou que viu. NUNCA sai do cálculo sozinho.
 
-LACUNA DO CONTRATO: o `triage.json` (ADR 0022, `domain/triage.py`) tem só `fingerprint`, `note`,
-`suspected_false_positive` e `reason`, todos escritos pelo AGENTE. Não existe campo que diga "uma
-pessoa confirmou" (quem confirmou e quando). Por isso o terceiro degrau só é alcançável quando o
-chamador informa `confirmed_by_person=True`, e hoje nada na CLI alimenta esse argumento. Fechar a
-lacuna pede um campo aditivo e escrito por uma pessoa, em ADR próprio; este módulo não o inventa.
+A confirmação humana é registrada em `human-confirmations.json` (ADR 0086), separada da
+triagem. O leitor valida produto e execução e consulta `HumanConfirmations.contains(fingerprint)`;
+então passa o resultado como `confirmed_by_person`. Sem registro, mantém o padrão False.
 
 A função não altera o achado: severidade e confiança propostas pelo ZAP continuam as mesmas.
 Este módulo é puro.
@@ -25,7 +23,7 @@ from typing import Final, Literal
 from harness_dast.domain.finding import Finding, TriageNote
 
 ConfidenceStep = Literal["a confirmar", "prova forte", "confirmada"]
-"""Lista fechada de `docs/design/execution-panel/system/formats.html`."""
+"""Lista fechada de `docs/desenvolver/design/execution-panel/system/formats.html`."""
 
 _ZAP_FALSE_POSITIVE: Final = "false_positive"
 
@@ -42,7 +40,7 @@ def confidence_step(
         finding: O achado (com a evidência da melhor ocorrência).
         triage: Anotação de triagem; sem ela, vale a que já veio mesclada em `finding.triage`.
         confirmed_by_person: `True` só quando uma pessoa registrou que repetiu e viu a falha.
-            Hoje o `triage.json` não tem esse dado (veja a lacuna no docstring do módulo).
+            Obtenha o valor do envelope validado da mesma execução, por fingerprint.
 
     Returns:
         `confirmada` se uma pessoa confirmou; `a confirmar` se o agente ou o ZAP indicam falso

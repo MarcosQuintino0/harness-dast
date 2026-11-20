@@ -4,11 +4,12 @@ from collections.abc import Mapping
 
 from harness_dast.domain.agent_metrics import AgentMetrics
 from harness_dast.domain.api_model import ApiSpec, Operation
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_metrics import RunMetrics
 from harness_dast.domain.run_summary import RunSummary
 from harness_dast.domain.scan_result import ScanResult
@@ -24,6 +25,7 @@ class FakePanelFiles:
         self.scan: dict[str, ScanResult] = {}
         self.findings: dict[str, FindingsReport] = {}
         self.authz: dict[str, AuthzResult] = {}
+        self.negative: dict[str, NegativeResult] = {}
         self.metrics: dict[str, RunMetrics] = {}
         self.agent_metrics: dict[str, AgentMetrics] = {}
         self.runs: list[str] = []
@@ -53,6 +55,9 @@ class FakePanelFiles:
 
     def read_authz(self, run_id: str) -> AuthzResult | None:
         return self._read(self.authz, "authz.json", run_id)
+
+    def read_negative(self, run_id: str) -> NegativeResult | None:
+        return self._read(self.negative, "negative.json", run_id)
 
     def read_metrics(self, run_id: str) -> RunMetrics | None:
         return self._read(self.metrics, "metrics.json", run_id)

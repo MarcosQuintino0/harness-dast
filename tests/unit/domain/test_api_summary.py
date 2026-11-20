@@ -1,6 +1,12 @@
+import json
+from pathlib import Path
+
 import pytest
 
+from harness_dast.adapters.openapi import load_spec
+from harness_dast.domain import api_summary
 from harness_dast.domain.api_model import (
+    MAX_MEDIA_TYPES,
     ApiSpec,
     MediaBody,
     Operation,
@@ -203,3 +209,152 @@ def test_summarize_enforces_a_minimum_budget() -> None:
 
 def test_summarize_is_deterministic() -> None:
     assert summarize(small_spec(50), 5_000) == summarize(small_spec(50), 5_000)
+
+
+def test_summary_detects_multipart_even_when_json_is_preferred() -> None:
+    operation = Operation(
+        operation_id="upload",
+        method="post",
+        path="/upload",
+        request_body=RequestBody(
+            media=(
+                MediaBody(media_type="application/json"),
+                MediaBody(media_type=" Multipart/Form-Data ; charset=utf-8"),
+            )
+        ),
+    )
+
+    result = summarize_operation(operation)
+
+    assert result.multipart_offline is True
+    assert result.model_dump()["multipart_offline"] is True
+
+
+def test_summary_marks_absent_multipart_as_none() -> None:
+    result = summarize_operation(create_patient())
+    assert result.multipart_offline is None
+    assert "multipart_offline" not in result.model_dump()
+    assert (
+        summarize_operation(Operation(operation_id="a", method="get", path="/a")).multipart_offline
+        is None
+    )
+
+
+def test_summary_runs_multipart_proof_once_for_multiple_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def verify() -> bool:
+        nonlocal calls
+        calls += 1
+        return False
+
+    monkeypatch.setattr(api_summary, "verify_synthetic_multipart", verify)
+    media = RequestBody(media=(MediaBody(media_type="multipart/form-data"),))
+    spec = ApiSpec(
+        title="A",
+        version="1",
+        operations=tuple(
+            Operation(operation_id=f"op{i}", method="post", path=f"/{i}", request_body=media)
+            for i in range(3)
+        ),
+    )
+
+    summary = summarize(spec)
+
+    assert calls == 1
+    assert [item.multipart_offline for item in summary.operations] == [False, False, False]
+    assert all(item.model_dump()["multipart_offline"] is False for item in summary.operations)
+
+
+def load_media_summary(
+    tmp_path: Path, media_types: list[str]
+) -> tuple[Operation, dict[str, object]]:
+    content: dict[str, dict[str, object]] = {name: {} for name in media_types}
+    document = {
+        "openapi": "3.0.0",
+        "info": {"title": "Teste", "version": "1"},
+        "paths": {
+            "/upload": {
+                "post": {
+                    "operationId": "upload",
+                    "requestBody": {"content": content},
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    path = tmp_path / "spec.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    operation = load_spec(path).operations[0]
+    return operation, summarize_operation(operation).model_dump()
+
+
+@pytest.mark.parametrize(
+    ("position", "detected", "incomplete"),
+    [(20, True, False), (21, True, False), (100, True, False), (101, False, True)],
+)
+def test_summary_inspects_bounded_media_keys_without_changing_preferred_media(
+    tmp_path: Path, position: int, detected: bool, incomplete: bool
+) -> None:
+    media = ["application/json", *(f"application/x-{i}" for i in range(1, position - 1))]
+    media.append("multipart/form-data")
+
+    operation, summary = load_media_summary(tmp_path, media)
+
+    assert "multipart/form-data" in media
+    assert operation.request_body is not None
+    assert len(operation.request_body.media) == MAX_MEDIA_TYPES
+    assert "multipart_declared" not in operation.request_body.model_dump()
+    assert "multipart_inspection_incomplete" not in operation.request_body.model_dump()
+    preferred = operation.request_body.preferred()
+    assert preferred is not None
+    assert preferred == operation.request_body.media[0]
+    assert preferred.media_type == "application/json"
+    assert summary.get("multipart_offline") is (True if detected else None)
+    assert summary.get("multipart_inspection_incomplete", False) is incomplete
+
+
+def test_summary_keeps_a_positive_multipart_result_when_some_keys_are_unchecked(
+    tmp_path: Path,
+) -> None:
+    media = ["multipart/form-data", *(f"application/x-{i}" for i in range(100))]
+
+    _, summary = load_media_summary(tmp_path, media)
+
+    assert summary["multipart_offline"] is True
+    assert summary["multipart_inspection_incomplete"] is True
+
+
+@pytest.mark.parametrize(
+    "name", [" " * 100 + "multipart/form-data", "multipart/form-data" + " " * 100 + "x"]
+)
+def test_summary_does_not_assert_multipart_for_an_unchecked_long_key(
+    tmp_path: Path, name: str
+) -> None:
+    _, summary = load_media_summary(tmp_path, [name])
+
+    assert "multipart_offline" not in summary
+    assert summary["multipart_inspection_incomplete"] is True
+
+
+def test_summary_reports_non_string_media_keys_as_incomplete(tmp_path: Path) -> None:
+    path = tmp_path / "spec.yaml"
+    path.write_text(
+        "openapi: 3.0.0\n"
+        "paths:\n"
+        "  /upload:\n"
+        "    post:\n"
+        "      requestBody:\n"
+        "        content:\n"
+        "          123: {}\n"
+        "      responses:\n"
+        "        '200': {description: ok}\n",
+        encoding="utf-8",
+    )
+
+    summary = summarize_operation(load_spec(path).operations[0]).model_dump()
+
+    assert "multipart_offline" not in summary
+    assert summary["multipart_inspection_incomplete"] is True

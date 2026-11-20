@@ -11,7 +11,7 @@ from harness_dast.application.panel_index import IndexedOutcome
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.panel_index_composition import build_indexed_panel
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.panel_format import RUN_STATE_WORDS
+from harness_dast.domain.panel.format import RUN_STATE_WORDS
 
 
 def _render(result: IndexedOutcome) -> str:

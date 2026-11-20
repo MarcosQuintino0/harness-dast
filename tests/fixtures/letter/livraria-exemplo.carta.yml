@@ -1,0 +1,88 @@
+schema_version: 1
+product: livraria-exemplo          # igual ao nome dado ao hdast init
+
+# 1. Portões: sem os quatro respondidos, nada é gerado.
+gates:
+  test_environment:
+    value: true                    # true = é ambiente de teste (não é produção)
+    source: carta
+    quote: "Ambiente de homologação isolado da loja."
+  synthetic_data:
+    value: true                    # true = dados sintéticos, sem pessoas reais
+    source: carta
+  authorization_in_force:
+    value: true                    # true = há autorização vigente do dono do produto
+    source: pessoa
+  product_owner:
+    value: "Equipe da loja fictícia (loja@livraria.local)"
+    source: carta
+
+# 2. Endereço do ambiente de teste e onde está o OpenAPI (relativo à pasta do produto).
+environment:
+  name: { value: homologacao, source: carta }
+  base_url: { value: "http://livraria-lab:8080", source: carta }
+  openapi: { value: ./openapi.json, source: pessoa }
+
+# 3. Escopo: uma regra por host; só o que a carta lista.
+scope:
+  allow:
+    value:
+      - host: livraria-lab
+        scheme: http
+        port: 8080
+        allow_local: true          # só para host de laboratório (nome de contêiner, localhost, IP)
+        paths: ["/loja/api/**", "/loja/docs"]
+        methods: [GET, POST, PUT]  # PATCH e DELETE ficam de fora: a carta não os autoriza
+    source: carta
+    quote: "GET, POST e PUT em /loja/api/** e /loja/docs; PATCH e DELETE não."
+  deny_paths:                      # proibidos mesmo dentro dos autorizados (lista vazia só se a pessoa disser "nenhum")
+    value: ["/loja/api/pagamentos/**", "/loja/api/conta/excluir"]
+    source: carta
+  path_mode: { value: strict, source: carta }   # opcional; wide só com source: carta e quote
+
+# 4. Referência, validade e janela(s).
+authorization:
+  reference: { value: "LIVRARIA-HML-2027-01", source: carta }
+  valid_until: { value: 2027-06-30, source: carta }
+  windows: { value: ["seg-sex 19:00-06:00 America/Sao_Paulo"], source: carta }
+
+# 5. Limites de carga.
+limits:
+  requests_per_second: { value: 20, source: carta }
+  max_duration_minutes: { value: 45, source: carta }
+  zap_threads_per_host: { value: 4, source: carta }
+
+# 6. Como entrar e com quais contas (só NOMES de segredo, nunca a senha).
+auth:
+  type: { value: login_password, source: pessoa }      # ou api_key (então use header_name)
+  token_path: { value: /loja/api/sessao, source: pessoa }
+  login_options:                                        # opcional
+    value: { request_encoding: form }
+    source: pessoa
+  login_max_per_minute: { value: 3, source: carta }     # opcional
+  accounts:
+    source: carta
+    value:
+      - alias: gerente_a
+        role: gerente
+        username: { secret_ref: "env:LIVRARIA_GERENTE_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_GERENTE_PASSWORD" }
+      - alias: cliente_a
+        role: cliente
+        username: { secret_ref: "env:LIVRARIA_CLIENTE_A_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_CLIENTE_A_PASSWORD" }
+      - alias: cliente_b
+        role: cliente
+        username: { secret_ref: "env:LIVRARIA_CLIENTE_B_USERNAME" }
+        password: { secret_ref: "env:LIVRARIA_CLIENTE_B_PASSWORD" }
+
+# 7. Intensidade do ataque (opcional): LOW, MEDIUM ou HIGH. Ausente = padrão do perfil.
+attack:
+  strength: { value: MEDIUM, source: pessoa }
+
+# 8. Dados que existem no ambiente (opcional): informação para o agente, não vira regra.
+example_data:
+  source: carta
+  value:
+    - { operation: buscarLivroPorIsbn, field: isbn, value: "9780000000001", note: "livro da semente" }
+    - { operation: baixarCapa, field: arquivo, value: capa-0001.png }

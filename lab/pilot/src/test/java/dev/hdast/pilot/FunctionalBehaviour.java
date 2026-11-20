@@ -13,6 +13,14 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 /** Comportamentos funcionais que valem nos dois modos (padrão e corrigido). As subclasses fixam o modo. */
 abstract class FunctionalBehaviour extends ApiTestBase {
 
+    @Test
+    void medicos_podem_atualizar_mesmo_paciente() throws Exception {
+        long id = id(post(login(MEDICO), "/api/pacientes", pacienteBody("39053344705", "par@example.test", 1)));
+        Reply updated = write("PUT", login(MEDICO_B), "/api/pacientes/" + id,
+                pacienteBody("39053344705", "par@example.test", 1));
+        assertThat(updated.status()).isEqualTo(200);
+    }
+
     private String adminToken() throws Exception { return login(ADMIN); }
 
     private long id(Reply r) { return r.body().get("id").asLong(); }

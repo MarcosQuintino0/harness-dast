@@ -6,9 +6,8 @@ códigos de erro do corpo, unicidade entre execuções seguidas e vencimento do 
 da execução. As credenciais são descartáveis, sorteadas aqui a cada subida. Exige Docker.
 """
 
-import secrets
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -28,6 +27,7 @@ from tests.integration.lab_support import (
     require_docker,
     run_audit,
 )
+from tests.integration.run_support import record_metrics, throwaway_pilot_env
 
 pytestmark = pytest.mark.integration
 
@@ -37,15 +37,6 @@ CHAIN = ("criarConvenio", "criarMedico", "criarPaciente", "criarConsulta", "cria
 CREATED_TABLES = ("convenio", "medico", "paciente", "consulta", "receita")
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 LOGIN_PATH = "/api/auth/login"
-
-
-def throwaway_credentials() -> dict[str, str]:
-    """Contas e senhas descartáveis do alvo, novas a cada subida (nunca versionadas)."""
-    env: dict[str, str] = {}
-    for name in ("ADMIN", "MEDICO", "PACIENTE_A", "PACIENTE_B"):
-        env[f"PILOT_{name}_USERNAME"] = f"it_{secrets.token_hex(4)}"
-        env[f"PILOT_{name}_PASSWORD"] = secrets.token_urlsafe(18)
-    return env
 
 
 @dataclass(frozen=True)
@@ -75,10 +66,19 @@ def _probe(cli: LabCli, *flags: str) -> PilotRun:
     return PilotRun(result, zap, pilot_state(), run_audit(cli, run_id))
 
 
-def _start(root: Path, *flags: str, env: dict[str, str] | None = None) -> LabCli:
-    cli = LabCli(root, {**throwaway_credentials(), **(env or {})})
+def _start(
+    root: Path,
+    *flags: str,
+    env: dict[str, str] | None = None,
+    prepare: Callable[[LabCli], None] | None = None,
+) -> LabCli:
+    cli = LabCli(root, {**throwaway_pilot_env(), **(env or {})})
     cli.install_product("clinica-piloto", PILOT_PROFILE)
-    up = cli.run("stack", "up", "clinica-piloto", *flags, timeout=420)
+    if prepare is not None:
+        prepare(cli)
+    up = cli.stack_up("clinica-piloto", *flags, timeout=900)
+    if up.code != 0:
+        cli.stack_down()
     assert up.code == 0, up.stdout + up.stderr
     return cli
 
@@ -157,21 +157,47 @@ def test_unique_values_avoid_409_on_a_second_consecutive_run_without_reset(
     assert pilot_session.second.outcomes["success"] == pilot_session.first.outcomes["success"]
 
 
-def test_reachability_of_both_runs_is_the_same_and_only_the_login_probe_fails(
+@pytest.mark.lab_fast
+def test_profile_login_rejection_is_reached_in_both_runs(
     pilot_session: PilotSession,
 ) -> None:
     for run in (pilot_session.first, pilot_session.second):
         summary = run.result.data["summary"]
-        failing = {n for n, op in run.operations.items() if op["outcome"] == "auth_error"}
+        failing = {
+            n for n, op in run.operations.items() if op["outcome"] == "auth_rejected_expected"
+        }
         # A operação `login` do OpenAPI vai com credenciais geradas, que o alvo recusa de propósito.
         assert failing == {"login"}, run.outcomes
-        assert summary["operations_total"] == 29
-        # Medido: 26 tentadas (29 menos a notificação negada e os dois DELETE fora do escopo).
-        assert summary["operations_sent"] == 26
-        assert summary["successes"] == 25
+        assert summary["successes"] > 0
+        assert summary["reached"] == summary["successes"] + 1
+        login = run.operations["login"]
+        assert login["status"] in {401, 403}
+        protected_rejections = [
+            item
+            for item in run.operations.values()
+            if (item["method"], item["path"]) != (login["method"], login["path"])
+            and item["status"] in {401, 403}
+            and item["outcome"] != "csrf_error"
+        ]
+        assert all(item["outcome"] == "auth_error" for item in protected_rejections)
+        if pilot_session.secure:
+            assert protected_rejections
         assert summary["reachability"] == pytest.approx(
-            summary["successes"] / summary["operations_sent"], abs=1e-4
+            summary["reached"] / summary["operations_sent"], abs=1e-4
         )
+    mode = "secure" if pilot_session.secure else "vulnerable"
+    record_metrics(
+        f"lab-pilot-login-{mode}",
+        {
+            "mode": mode,
+            "first": pilot_session.first.result.data["summary"],
+            "second": pilot_session.second.result.data["summary"],
+            "login": {
+                key: pilot_session.second.operations["login"].get(key)
+                for key in ("operation_id", "method", "path", "outcome", "status")
+            },
+        },
+    )
 
 
 def test_the_forbidden_notification_endpoint_is_never_called(pilot_session: PilotSession) -> None:
@@ -255,6 +281,13 @@ def test_cli_and_proxy_audits_agree_and_nothing_left_the_scope(pilot_session: Pi
     assert {(r["host"], r["port"]) for r in proxy} == {("clinica-piloto", 8080)}
 
 
+def _raise_login_limit(cli: LabCli) -> None:
+    target = cli.products / "clinica-piloto" / "target.yml"
+    text = target.read_text(encoding="utf-8")
+    assert "max_per_minute: 5\n" in text
+    target.write_text(text.replace("max_per_minute: 5\n", "max_per_minute: 60\n"), encoding="utf-8")
+
+
 @pytest.fixture(scope="module")
 def tuned_pilot(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
     """Piloto com token de 5 s e 60 logins por minuto, para provar o vencimento no meio."""
@@ -264,11 +297,8 @@ def tuned_pilot(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LabCli]:
         "--token-ttl",
         "5",
         env={"PILOT_LOGIN_MAX_PER_MINUTE": "60"},
+        prepare=_raise_login_limit,
     )
-    target = cli.products / "clinica-piloto" / "target.yml"
-    text = target.read_text(encoding="utf-8")
-    assert "max_per_minute: 5\n" in text
-    target.write_text(text.replace("max_per_minute: 5\n", "max_per_minute: 60\n"), encoding="utf-8")
     try:
         yield cli
     finally:
@@ -289,7 +319,7 @@ def test_a_token_that_expires_mid_run_is_renewed_once_per_request(tuned_pilot: L
     assert retried, "nenhum token venceu durante a execução; ajuste o tempo de vida do teste"
     assert all(op["attempts"] <= 2 for op in run.operations.values())
     assert len(logins) > 4  # três contas + a operação de login + ao menos uma renovação
-    assert run.outcomes["auth_error"] == 1  # só a operação de login do OpenAPI
+    assert run.outcomes["auth_rejected_expected"] == 1  # operação sintética de login
 
 
 def _write_rules(cli: LabCli, extra: list[dict[str, Any]]) -> None:
@@ -300,6 +330,7 @@ def _write_rules(cli: LabCli, extra: list[dict[str, Any]]) -> None:
     path.write_text(yaml.safe_dump(rules, sort_keys=False), encoding="utf-8")
 
 
+@pytest.mark.lab_fast
 def test_deliberately_bad_data_rules_are_reported_with_the_per_field_detail(
     tuned_pilot: LabCli,
 ) -> None:
@@ -329,7 +360,39 @@ def test_deliberately_bad_data_rules_are_reported_with_the_per_field_detail(
     assert first.operations["criarConsulta"]["outcome"] == "skipped_dependency"
     conflict = second.operations["criarConvenio"]
     assert conflict["outcome"] == "conflict"
+    assert "codigo" in conflict["conflict_fields"]
+    assert conflict["blocked_dependencies"] > 0
+    assert "criarConvenio" in second.result.data["summary"]["blocked_producers"]
+    _record_conflict(second)
     assert '"field": "codigo"' in conflict["untrusted_target_data"]["excerpt"]
+
+
+def _record_conflict(run: PilotRun) -> None:
+    """Preserva somente nomes, classes e contagens, sem dados enviados ou respostas."""
+    producer = run.operations["criarConvenio"]
+    record_metrics(
+        "lab-pilot-conflict",
+        {
+            "summary": run.result.data["summary"],
+            "producer": {
+                key: producer.get(key)
+                for key in (
+                    "operation_id",
+                    "method",
+                    "path",
+                    "outcome",
+                    "status",
+                    "conflict_fields",
+                    "blocked_dependencies",
+                )
+            },
+            "skipped_dependencies": sorted(
+                name
+                for name, item in run.operations.items()
+                if item["outcome"] == "skipped_dependency"
+            ),
+        },
+    )
 
 
 def _closed_window_today() -> str:

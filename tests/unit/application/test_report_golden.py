@@ -85,6 +85,8 @@ def test_golden_report_shows_the_honest_framing_and_escapes_hostile_content(tmp_
     prose = re.sub(r"(`+)[^`]*\1", "", outside_code_blocks(text))
 
     assert text.index("## O que este relatório não testou") < text.index("## Achados")
+    assert "Cobertura por regra indisponível" in text
+    assert "RELATÓRIO PARCIAL" in text
     assert "Varreduras truncadas ou paradas" in text
     assert "Operações sem varredura" in text
     assert "<script>" not in prose
@@ -115,3 +117,28 @@ def test_golden_html_is_one_page_with_groups_and_no_script_or_external_reference
     assert "Cookie No HttpOnly Flag" in page
     assert "4 achado(s)" in page
     assert "duplo envio" in page
+
+
+def test_sinais_passivos_aparecem_nos_tres_formatos(tmp_path: Path) -> None:
+    import json
+
+    directory = generate(tmp_path)
+    report = json.loads((directory / "findings.json").read_text(encoding="utf-8"))
+    signals = report["internal_error_signals"]
+    assert signals["messages_examined"] > 0
+    assert set(signals["counts"]) == {"http_5xx", "stack_trace", "sql_error"}
+    for name in ("report.md", "report.html"):
+        text = (directory / name).read_text(encoding="utf-8")
+        assert "Sinais passivos de erro interno" in text
+        assert "Ausência de sinal não prova ausência de erros" in text
+
+
+def test_relatorio_antigo_sem_sinais_continua_legivel(tmp_path: Path) -> None:
+    import json
+
+    from harness_dast.domain.report.model import FindingsReport
+
+    directory = generate(tmp_path)
+    data = json.loads((directory / "findings.json").read_text(encoding="utf-8"))
+    del data["internal_error_signals"]
+    assert FindingsReport.model_validate(data).internal_error_signals is None

@@ -252,6 +252,7 @@ def files_containing(root: Path, needles: list[str], extra_text: list[str]) -> l
 
 def popen_run(cli: LabCli, *args: str) -> subprocess.Popen[str]:
     """Inicia `hdast run` em segundo plano (para o teste da trava de emergência)."""
+    cli.approve_installed_products()
     return subprocess.Popen(  # noqa: S603 - interpretador atual e módulo do próprio projeto
         [sys.executable, "-m", "harness_dast", "--json", "run", *args],
         env=cli.env,
@@ -313,8 +314,8 @@ class Facts:
 
 
 def throwaway_pilot_env() -> dict[str, str]:
-    env: dict[str, str] = {}
-    for name in ("ADMIN", "MEDICO", "PACIENTE_A", "PACIENTE_B"):
+    env: dict[str, str] = {"HDAST_ZAP_API_KEY": secrets.token_hex(32)}
+    for name in ("ADMIN", "MEDICO", "MEDICO_B", "PACIENTE_A", "PACIENTE_B"):
         env[f"PILOT_{name}_USERNAME"] = f"it_{secrets.token_hex(4)}"
         env[f"PILOT_{name}_PASSWORD"] = secrets.token_urlsafe(18)
     return env

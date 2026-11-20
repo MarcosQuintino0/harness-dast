@@ -15,22 +15,34 @@ import typer
 from typer.exceptions import TyperException
 
 from harness_dast.adapters.system_clock import SystemClock
-from harness_dast.application.ports import Clock, CommandJournalStore
+from harness_dast.application.common_ports import Clock, CommandJournalStore
 from harness_dast.cli.commands.authz import authz_command
 from harness_dast.cli.commands.cleanup import cleanup_command
+from harness_dast.cli.commands.confirm import confirm_command
+from harness_dast.cli.commands.demo import demo_command
 from harness_dast.cli.commands.doctor import doctor_command
+from harness_dast.cli.commands.finding import build_finding_app
 from harness_dast.cli.commands.init import init_command
+from harness_dast.cli.commands.knowledge import build_knowledge_app
+from harness_dast.cli.commands.mutation import build_mutation_app
+from harness_dast.cli.commands.negative import negative_command
+from harness_dast.cli.commands.nuclei import nuclei_command
 from harness_dast.cli.commands.panel import panel_command
+from harness_dast.cli.commands.plan import plan_command
 from harness_dast.cli.commands.preflight import preflight_command
 from harness_dast.cli.commands.probe import probe_command
 from harness_dast.cli.commands.profile import build_profile_app
 from harness_dast.cli.commands.report import report_command
+from harness_dast.cli.commands.retestar import retestar_command
 from harness_dast.cli.commands.run import run_command
 from harness_dast.cli.commands.scan import scan_command
 from harness_dast.cli.commands.secret import build_secret_app
+from harness_dast.cli.commands.setup import setup_command
 from harness_dast.cli.commands.spec import build_spec_app
 from harness_dast.cli.commands.stack import build_stack_app, stop_command
-from harness_dast.cli.commands.version import version_command
+from harness_dast.cli.commands.strategy import build_strategy_app
+from harness_dast.cli.commands.version import emit_version, version_command
+from harness_dast.cli.commands.wait import wait_command
 from harness_dast.cli.journal_recording import record_invocation
 from harness_dast.cli.output import CliState, build_failure, capture_envelopes, emit, get_state
 from harness_dast.config.settings import load_settings
@@ -38,6 +50,48 @@ from harness_dast.domain.errors import ConfigError, ExitCode, HarnessError, User
 from harness_dast.observability.logging import configure_logging
 
 _log = structlog.get_logger()
+
+START_HERE_PANEL = "Comece por aqui"
+REGISTRATION_AND_SCOPE_PANEL = "Cadastro e escopo"
+TEST_STAGES_PANEL = "Etapas do teste"
+RESULTS_AND_RETEST_PANEL = "Resultados e reteste"
+ADVANCED_PANEL = "Avançado"
+
+
+def _register_commands(app: typer.Typer) -> None:
+    # O Typer exibe os painéis na ordem em que encontra seus primeiros comandos.
+    app.command("demo", rich_help_panel=START_HERE_PANEL)(demo_command)
+    app.command("doctor", rich_help_panel=START_HERE_PANEL)(doctor_command)
+    app.command("setup", rich_help_panel=START_HERE_PANEL)(setup_command)
+    app.command("run", rich_help_panel=START_HERE_PANEL)(run_command)
+    app.command("report", rich_help_panel=START_HERE_PANEL)(report_command)
+    app.command("stop", rich_help_panel=START_HERE_PANEL)(stop_command)
+
+    app.command("init", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)(init_command)
+    app.add_typer(build_profile_app(), name="profile", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+    app.add_typer(build_spec_app(), name="spec", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+    app.add_typer(build_secret_app(), name="secret", rich_help_panel=REGISTRATION_AND_SCOPE_PANEL)
+
+    app.command("preflight", rich_help_panel=TEST_STAGES_PANEL)(preflight_command)
+    app.command("probe", rich_help_panel=TEST_STAGES_PANEL)(probe_command)
+    app.command("scan", rich_help_panel=TEST_STAGES_PANEL)(scan_command)
+    app.command("authz", rich_help_panel=TEST_STAGES_PANEL)(authz_command)
+    app.command("negative", rich_help_panel=TEST_STAGES_PANEL)(negative_command)
+    app.command("nuclei", rich_help_panel=TEST_STAGES_PANEL)(nuclei_command)
+    app.command("confirm", rich_help_panel=TEST_STAGES_PANEL)(confirm_command)
+    app.command("wait", rich_help_panel=TEST_STAGES_PANEL)(wait_command)
+
+    app.command("retestar", rich_help_panel=RESULTS_AND_RETEST_PANEL)(retestar_command)
+    app.add_typer(build_finding_app(), name="finding", rich_help_panel=RESULTS_AND_RETEST_PANEL)
+    app.command("cleanup", rich_help_panel=RESULTS_AND_RETEST_PANEL)(cleanup_command)
+
+    app.command("plan", rich_help_panel=ADVANCED_PANEL)(plan_command)
+    app.command("panel", rich_help_panel=ADVANCED_PANEL)(panel_command)
+    app.add_typer(build_strategy_app(), name="strategy", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_knowledge_app(), name="knowledge", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_mutation_app(), name="mutation", rich_help_panel=ADVANCED_PANEL)
+    app.add_typer(build_stack_app(), name="stack", rich_help_panel=ADVANCED_PANEL)
+    app.command("version", rich_help_panel=ADVANCED_PANEL)(version_command)
 
 
 def build_app() -> typer.Typer:
@@ -66,25 +120,10 @@ def build_app() -> typer.Typer:
         # opção continua declarada para aparecer na ajuda e para o caso de uso direto.
         state = get_state(ctx)
         state.json_mode = state.json_mode or json_output
-        settings = load_settings()
-        configure_logging(settings.log_level, state.secrets)
+        if ctx.invoked_subcommand != "demo":
+            configure_logging(load_settings().log_level, state.secrets)
 
-    app.command("version")(version_command)
-    app.command("doctor")(doctor_command)
-    app.command("init")(init_command)
-    app.add_typer(build_profile_app(), name="profile")
-    app.add_typer(build_spec_app(), name="spec")
-    app.command("preflight")(preflight_command)
-    app.command("probe")(probe_command)
-    app.command("scan")(scan_command)
-    app.command("authz")(authz_command)
-    app.command("report")(report_command)
-    app.command("panel")(panel_command)
-    app.command("run")(run_command)
-    app.command("cleanup")(cleanup_command)
-    app.add_typer(build_stack_app(), name="stack")
-    app.add_typer(build_secret_app(), name="secret")
-    app.command("stop")(stop_command)
+    _register_commands(app)
     return app
 
 
@@ -119,6 +158,10 @@ def run_app(
     # removido aqui, e não declarado em cada comando, para valer também para os futuros e
     # para erros de uso, que acontecem antes de qualquer callback rodar.
     argv, json_mode = _extract_json_flag(raw)
+    # O hook de início consulta a versão sem abrir a configuração nem gravar no diário.
+    if argv == ["--version"]:
+        emit_version(json_mode=json_mode, plain=True)
+        return int(ExitCode.OK)
     state = CliState(json_mode=json_mode)
     # Antes de qualquer coisa: sem isso o structlog padrão escreveria no stdout.
     configure_logging("INFO", state.secrets)

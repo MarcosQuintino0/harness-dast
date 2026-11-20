@@ -18,7 +18,8 @@ deliver:
 
 write_files: {}
 # README do lab lista os desafios; o seed e coisa do coordenador.
-exclude: [lab/crapi/README.md, lab/crapi/seed.py]
+# O ADR 0027 cita o nome do gabarito (answer-keys); ADR aceito e imutavel, entao sai da copia.
+exclude: [lab/crapi/README.md, lab/crapi/seed.py, docs/decisoes/0027-teste-de-autorizacao-entre-contas.md]
 
 leak_terms:
   - answer-keys

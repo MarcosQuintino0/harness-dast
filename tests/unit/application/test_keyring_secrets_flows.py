@@ -10,6 +10,7 @@ from harness_dast.application.secret_router import RoutingSecretProvider
 from harness_dast.application.validate_profile import ValidateProfile
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.observability.logging import MASK, SecretRegistry
+from tests.fakes.approvals import InMemoryApprovalStore
 from tests.fakes.credential_store import InMemoryCredentialStore
 from tests.fakes.host import FakeHost
 from tests.fakes.probe_ports import DictSecretProvider
@@ -104,8 +105,9 @@ class DoctorSetup:
         clock = ManualClock()
         self.doctor = Doctor(
             host=host,
+            images=host.stack_images(),
             profiles=profiles,
-            validator=ValidateProfile(profiles, clock),
+            validator=ValidateProfile(profiles, clock, InMemoryApprovalStore()),
             secrets=RoutingSecretProvider(DictSecretProvider({"ACME_USER_A_LOGIN": LOGIN}), store),
             vault=SecretRegistry(),
             states=InMemoryStackState(tmp_path),

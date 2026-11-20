@@ -19,7 +19,8 @@ deliver:
 
 write_files: {}
 # Resultados reais de varredura do VAmPI guardados como fixture: diriam quais alertas o ZAP levanta nele.
-exclude: [tests/fixtures/zap_real, tests/fixtures/zap_alerts]
+# O ADR 0027 cita o nome do gabarito (answer-keys); ADR aceito e imutavel, entao sai da copia.
+exclude: [tests/fixtures/zap_real, tests/fixtures/zap_alerts, docs/decisoes/0027-teste-de-autorizacao-entre-contas.md]
 
 # O VAmPI e publico: o endpoint de depuracao esta no OpenAPI entregue e `ReDoS` aparece no codigo da
 # ferramenta, entao nao servem de termo. So o gabarito e o que o repositorio nao pode conter.
@@ -47,6 +48,7 @@ expected:
     - { alias: admin_a, role: admin, username_env: VAMPI_ADMIN_USERNAME, password_env: VAMPI_ADMIN_PASSWORD }
   cleanup: absent
   path_mode: strict
+  allow_authz_writes: true
 
 # Contas semeadas e publicas do VAmPI (README do projeto): nao sao segredos, entram no ambiente do agente.
 secrets:
@@ -71,7 +73,10 @@ flaws:
     detectable: false
   - id: V3
     title: Autorizacao quebrada em nivel de objeto
-    detectable: false
+    # Prova no laboratório da V1.5.5: leitura entre as duas contas user.
+    detectable: true
+    weight: 3
+    match: { technique: authz_horizontal, path_contains: /books/v1 }
   - id: V4
     title: Atribuicao em massa
     detectable: false

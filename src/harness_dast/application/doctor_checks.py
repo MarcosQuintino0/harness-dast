@@ -33,15 +33,16 @@ def authz_peer_checks(profile: ProductProfile) -> list[DoctorCheck]:
     """Avisa quando nenhum papel tem duas contas: o `authz` horizontal não poderá testar.
 
     O teste horizontal (BOLA) compara duas contas do MESMO papel. Sem elas, a verificação vai
-    para `not_tested`. Só é aviso: `run` sem `--authz` não precisa disso.
+    para `not_tested`. Só é aviso: o `run` roda o `authz` por padrão (ADR 0038), mas segue sem
+    ele (`--no-authz`) e sem conta par.
     """
     roles = Counter(account.role for account in profile.auth.accounts)
     if any(count >= 2 for count in roles.values()):
         return []
     detail = (
         "O perfil não tem duas contas do mesmo papel (auth.accounts): o teste de autorização "
-        "horizontal (hdast run --authz ou hdast authz) não poderá comparar contas e vai listar "
-        "a verificação como não testada. Se quiser esse teste, peça ao dono do produto uma "
-        "segunda conta do mesmo papel; sem ela, o run segue normalmente."
+        "horizontal (hdast run, que o roda por padrão, ou hdast authz) não poderá comparar "
+        "contas e vai listar a verificação como não testada. Se quiser esse teste, peça ao "
+        "dono do produto uma segunda conta do mesmo papel; sem ela, o run segue normalmente."
     )
     return [DoctorCheck(id="authz_peers", status="warn", detail=detail, kind="config")]

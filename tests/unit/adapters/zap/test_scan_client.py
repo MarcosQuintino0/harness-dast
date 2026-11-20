@@ -10,10 +10,10 @@ from harness_dast.domain.errors import ExternalToolError
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scan_policy import build_limits, build_policy
-from harness_dast.domain.scan_result import ScanRefused
+from harness_dast.domain.scan_result import OastUnavailable, ScanRefused
 from harness_dast.domain.scan_tokens import ReplacerRule
-from tests.fakes.local_server import Reply, serve
-from tests.fakes.zap_scan_server import API_KEY, FakeScanZapServer, ok
+from tests.fakes.local_server import Received, Reply, serve
+from tests.fakes.zap_scan_server import API_KEY, IMAGE_EXTRA_RULES, FakeScanZapServer, error, ok
 
 
 def client_for(url: str) -> ZapScanClient:
@@ -103,6 +103,18 @@ def test_malformed_message_listings_are_external_tool_errors(payload: dict[str, 
         client_for(server.base_url).list_messages("http://alvo")
 
 
+def test_policy_with_header_injection_sets_the_mask_and_scans_headers_of_all_requests() -> None:
+    zap = FakeScanZapServer()
+    policy, limits = policy_and_limits()
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(
+            policy.model_copy(update={"header_injection": True}), limits
+        )
+
+    assert zap.options["injectable"] == "63"
+    assert zap.options["scan_headers_all"] == "true"
+
+
 def test_policy_sets_limits_first_recreates_the_policy_and_disables_the_rules() -> None:
     zap = FakeScanZapServer()
     zap.policies.add("hdast-scan")
@@ -116,6 +128,7 @@ def test_policy_sets_limits_first_recreates_the_policy_and_disables_the_rules() 
     assert zap.options["max_rule"] == "2"
     assert zap.options["injectable"] == "51"
     assert zap.options["host_per_scan"] == "1"
+    assert zap.options["scan_headers_all"] == "false"
     assert (zap.options["strength"], zap.options["threshold"]) == ("LOW", "MEDIUM")
     assert zap.policies == {"hdast-scan"}
     assert {"40044", "10104"} <= zap.disabled
@@ -292,3 +305,180 @@ def test_a_server_error_without_json_is_an_external_tool_error() -> None:
         pytest.raises(ExternalToolError),
     ):
         client_for(server.base_url).scan_status("0")
+
+
+def test_policy_with_oast_points_the_callback_at_the_bridge_and_enables_the_rules() -> None:
+    zap = FakeScanZapServer()
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    zap.disabled.update({"40043", "40044"})
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+
+    assert zap.oast["callback"] == ("0.0.0.0", "oast-gateway", "8090")  # noqa: S104
+    assert zap.oast["service"] == "Callback"
+    assert "40043" not in zap.disabled
+    assert "40044" in zap.disabled
+
+
+def test_policy_without_oast_never_touches_the_oast_endpoints() -> None:
+    zap = FakeScanZapServer()
+    policy, limits = policy_and_limits()
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(policy, limits)
+
+    assert zap.oast == {}
+    assert not any(name.startswith("oast/") for name in zap.endpoints())
+    assert "ascan/action/enableScanners" not in zap.endpoints()
+
+
+def test_oast_rules_missing_from_the_image_are_skipped_not_fatal() -> None:
+    zap = FakeScanZapServer()
+    zap.known_rules = zap.known_rules - {"90036"}
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+
+    enable = [q for name, q in zap.calls if name == "ascan/action/enableScanners"]
+    assert len(enable) == 1
+    assert enable[0]["ids"] == "40043,90023"
+
+
+def oast_message(identifier: int, path: str, *, stamp: str = "1763391600000") -> dict[str, str]:
+    return {
+        "id": str(identifier),
+        "type": "22",
+        "timestamp": stamp,
+        "requestHeader": (
+            f"GET {path} HTTP/1.1\r\nHost: oast-gateway:8090\r\n"
+            "User-Agent: python-requests/2.31\r\n"
+        ),
+        "requestBody": "",
+        "responseHeader": "HTTP/1.1 200 OK\r\n",
+        "responseBody": "",
+    }
+
+
+def test_oast_baseline_counts_history_and_events_are_only_the_new_oast_messages() -> None:
+    zap = FakeScanZapServer()
+    zap.messages = [message(1), message(2)]
+    with serve(zap) as server:
+        client = client_for(server.base_url)
+        baseline = client.oast_baseline()
+        zap.messages += [message(3), oast_message(4, "/hdabc?x=1"), oast_message(5, "/hddef")]
+        events = client.oast_events(baseline)
+
+    assert baseline == 2
+    assert [(e.event_id, e.path, e.method, e.user_agent) for e in events] == [
+        (4, "/hdabc", "GET", "python-requests/2.31"),
+        (5, "/hddef", "GET", "python-requests/2.31"),
+    ]
+    assert events[0].at == "2025-11-17T15:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"numberOfMessages": 3}, {}, {"numberOfMessages": "x"}],
+)
+def test_malformed_message_counts_are_external_tool_errors(payload: dict[str, Any]) -> None:
+    with (
+        serve(lambda received: ok(payload)) as server,
+        pytest.raises(ExternalToolError, match="inesperada"),
+    ):
+        client_for(server.base_url).oast_baseline()
+
+
+@pytest.mark.parametrize(
+    "bad", [{"id": "x", "type": "22"}, {"id": "1", "type": "22", "requestHeader": ""}]
+)
+def test_malformed_oast_messages_are_external_tool_errors(bad: dict[str, str]) -> None:
+    with (
+        serve(lambda received: ok({"messages": [bad]})) as server,
+        pytest.raises(ExternalToolError, match="inesperada"),
+    ):
+        client_for(server.base_url).oast_events(0)
+
+
+def test_policy_without_the_key_disables_every_alpha_and_beta_rule_of_the_image() -> None:
+    zap = FakeScanZapServer()
+    policy, limits = policy_and_limits()
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(policy, limits)
+
+    assert set(IMAGE_EXTRA_RULES) <= zap.disabled
+    assert "ascan/action/enableScanners" not in zap.endpoints()
+
+
+def test_policy_with_the_key_enables_only_the_selected_experimental_rules() -> None:
+    zap = FakeScanZapServer()
+    config = ScanConfig()
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    policy = build_policy(config, experimental_rules=True)
+    with serve(zap) as server:
+        client_for(server.base_url).apply_policy(policy, build_limits(limits, config))
+
+    enable = [q for name, q in zap.calls if name == "ascan/action/enableScanners"]
+    assert [item["ids"] for item in enable] == ["40033,90039"]
+    assert {"40033", "90039"}.isdisjoint(zap.disabled)
+    assert (set(IMAGE_EXTRA_RULES) - {"40033", "90039"}) <= zap.disabled
+
+
+def test_the_key_on_an_image_without_the_experimental_rules_is_a_clear_error() -> None:
+    zap = FakeScanZapServer()
+    zap.known_rules = zap.known_rules - {"40033"}
+    config = ScanConfig(disable_rules=())
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    policy = build_policy(config, experimental_rules=True)
+    with (
+        serve(zap) as server,
+        pytest.raises(ExternalToolError, match="experimentais 40033") as caught,
+    ):
+        client_for(server.base_url).apply_policy(policy, build_limits(limits, config))
+
+    assert "docker/zap" in (caught.value.hint or "")
+
+
+def test_the_key_fails_when_an_experimental_rule_refuses_to_turn_on() -> None:
+    zap = FakeScanZapServer()
+    zap.stubborn_enable = frozenset({"90039"})
+    config = ScanConfig()
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    zap.disabled.add("90039")
+    with (
+        serve(zap) as server,
+        pytest.raises(ExternalToolError, match="continuam desligadas: 90039"),
+    ):
+        client_for(server.base_url).apply_policy(
+            build_policy(config, experimental_rules=True), build_limits(limits, config)
+        )
+
+
+@pytest.mark.parametrize("action", ["setCallbackOptions", "setActiveScanService"])
+def test_callback_configuration_failure_has_specific_error(action: str) -> None:
+    zap = FakeScanZapServer()
+
+    def handle(received: Received) -> Reply:
+        if received.path == f"/JSON/oast/action/{action}/":
+            return error("bad_action")
+        return zap(received)
+
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    with serve(handle) as server, pytest.raises(OastUnavailable):
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+
+
+def test_limits_failure_is_not_mistaken_for_callback_unavailability() -> None:
+    zap = FakeScanZapServer()
+
+    def handle(received: Received) -> Reply:
+        if received.path.endswith("/setOptionThreadPerHost/"):
+            return error("bad_action")
+        return zap(received)
+
+    config = ScanConfig(oast=True)
+    limits = RunLimits(requests_per_second=5, max_duration_minutes=60, zap_threads_per_host=2)
+    with serve(handle) as server, pytest.raises(ExternalToolError) as caught:
+        client_for(server.base_url).apply_policy(build_policy(config), build_limits(limits, config))
+    assert not isinstance(caught.value, OastUnavailable)

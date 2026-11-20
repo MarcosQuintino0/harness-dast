@@ -19,7 +19,14 @@ def read_findings(trace: Path) -> list[dict[str, Any]]:
     for file in sorted((trace / "runs").glob("*/findings.json")):
         data = json.loads(file.read_text(encoding="utf-8"))
         authz = data.get("authz") or {}
-        for finding in [*data.get("findings", []), *authz.get("findings", [])]:
+        signals = data.get("proxy_signals") or {}
+        negative = data.get("negative") or {}
+        for finding in [
+            *data.get("findings", []),
+            *authz.get("findings", []),
+            *signals.get("findings", []),
+            *negative.get("findings", []),
+        ]:
             seen.setdefault(str(finding.get("fingerprint", id(finding))), finding)
     return list(seen.values())
 
@@ -38,12 +45,23 @@ def matches(finding: dict[str, Any], matcher: Matcher) -> bool:
     method = str(finding.get("method", "")).upper()
     if matcher.method and matcher.method.upper() != method:
         return False
-    return not (matcher.technique and matcher.technique != finding.get("technique"))
+    return all(
+        expected is None or expected == finding.get(field)
+        for field, expected in (
+            ("technique", matcher.technique),
+            ("category", matcher.category),
+            ("operation_id", matcher.operation_id),
+        )
+    )
 
 
 def flaw_status(flaw: Flaw, findings: list[dict[str, Any]]) -> str:
     """`achada`, `em parte` ou `nao achada`."""
-    if flaw.match and any(matches(item, flaw.match) for item in findings):
+    if any(
+        matches(item, matcher)
+        for item in findings
+        for matcher in ((flaw.match,) if flaw.match else ()) + flaw.match_any
+    ):
         return ACHADA
     if flaw.partial and any(matches(item, flaw.partial) for item in findings):
         return PARCIAL
@@ -96,7 +114,12 @@ def found_component(case: Case, findings: list[dict[str, Any]]) -> Component:
 
 def false_alarms(case: Case, findings: list[dict[str, Any]]) -> list[str]:
     """Achados de classe plantada ou de severidade alta, que no modo seguro sao falso alarme."""
-    matchers = [m for flaw in case.flaws for m in (flaw.match, flaw.partial) if m is not None]
+    matchers = [
+        m
+        for flaw in case.flaws
+        for m in (flaw.match, flaw.partial, *flaw.match_any)
+        if m is not None
+    ]
     alarms: list[str] = []
     for item in findings:
         high = str(item.get("proposed_severity", "")) == "high"
@@ -108,8 +131,34 @@ def false_alarms(case: Case, findings: list[dict[str, Any]]) -> list[str]:
     return alarms
 
 
-def alarm_component(case: Case, findings: list[dict[str, Any]]) -> Component:
-    """(d) Modo seguro: 1 sem falso alarme; menos 0,25 por falso alarme, no minimo 0."""
+def has_report(trace: Path) -> bool:
+    """Diz se alguma execucao gravou `findings.json` (houve varredura e relatorio)."""
+    return any((trace / "runs").glob("*/findings.json"))
+
+
+def alarm_component(
+    case: Case, findings: list[dict[str, Any]], *, reported: bool = True
+) -> Component:
+    """(d) Modo seguro: 1 sem falso alarme; menos 0,25 por falso alarme, no minimo 0.
+
+    Sem relatorio (`reported` falso) o criterio nao se aplica: nada foi varrido, e "nenhum
+    falso alarme" nao pode valer nota cheia.
+    """
+    if not reported:
+        return Component(
+            id="alarms",
+            title="(d) Falsos alarmes (modo seguro)",
+            weight=WEIGHT,
+            score=None,
+            checks=(
+                Check(
+                    id="no_false_alarms",
+                    title="Nenhum achado alto nem de classe plantada no modo seguro",
+                    passed=False,
+                    detail="nao se aplica: nenhuma execucao gerou findings.json",
+                ),
+            ),
+        )
     alarms = false_alarms(case, findings)
     return Component(
         id="alarms",

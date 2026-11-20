@@ -10,22 +10,27 @@ varredor inventa caminhos). O plano usa só o que o `probe` da MESMA execução 
 - cada requisição é varrida com a CONTA que a enviou no `probe` (o token certo por varredura);
 - `PUT`/`PATCH` só sobre recurso criado nesta execução (a operação consome um valor de
   `flows.yml` cujo produtor teve sucesso) ou quando o perfil liga `scan.mutating_methods`;
+- operação de envio de arquivo (`multipart/form-data`, ADR 0052) só com `scan.allow_upload_scan`
+  (a carta o autoriza), e só com corpo ASCII (o `postData` do ZAP é texto);
 - sem mensagem aprendida no ZAP, nada a varrer.
 
 O ZAP não restringe método: a camada de rede (proxy de escopo, ADR 0017) é quem impõe o que o
 varredor gera; este plano só decide o que SE PEDE. Este módulo é puro.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Literal
 from urllib.parse import urlsplit
 
+from harness_dast.domain.api_model import Operation
 from harness_dast.domain.api_schema import ApiModel
 from harness_dast.domain.audit import AuditEntry
+from harness_dast.domain.errors import ConfigError
+from harness_dast.domain.multipart_encoding import MULTIPART_MEDIA_TYPE as MULTIPART
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.probe_result import OperationResult
-from harness_dast.domain.scan_config import ScanConfig
+from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scope import OutboundRequest, ScopeGuard
 from harness_dast.domain.zap_messages import LearnedRequest
 
@@ -40,12 +45,20 @@ SkipReason = Literal[
     "not_planned",
     "not_selected",
     "not_run",
+    "upload_scan_not_authorized",
+    "binary_body",
+    "multipart_not_scannable",
 ]
 
-EXTRA_OUTCOMES: Final = frozenset(
-    {"logical_failure", "validation_error", "conflict", "not_found", "client_error"}
-)
-"""Classes além de `success` que `--include-outcome` aceita (a requisição existe no ZAP)."""
+MULTIPART_SCANNABLE: Final = False
+"""Se o ZAP varre pedido `multipart` aprendido (ADR 0052, seção 4 e adendo da T52b).
+
+Medido no laboratório (ZAP 2.17, Clínica Piloto, nos dois modos): a API `ascan/action/scan`
+recebe `postData` como texto, sem `Content-Type`, e recusa a operação com `url_not_found`, sem
+nenhuma requisição do varredor. Por isso a decisão de antemão do ADR vale: toda operação de
+upload alcançada pelo `probe` é pulada com `multipart_not_scannable`. Só volta a `True` com
+nova prova no laboratório (por exemplo, a API passando a aceitar o cabeçalho do corpo).
+"""
 
 _METHOD_RANK: Final = {"PUT": 2, "PATCH": 2, "POST": 1}
 
@@ -103,6 +116,11 @@ class Candidate:
     result: OperationResult
     sent: SentRequest
 
+    @property
+    def seed_outcome(self) -> str | None:
+        """Classe do `probe` quando não foi `success` (a "semente" do ataque, ADR 0050)."""
+        return None if self.result.outcome == "success" else self.result.outcome
+
 
 @dataclass(frozen=True)
 class ScanTarget:
@@ -115,6 +133,7 @@ class ScanTarget:
     url: str = field(repr=False)
     body: str | None = field(repr=False)
     account: str | None = None
+    seed_outcome: str | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +156,42 @@ def last_sent(audit: Sequence[AuditEntry]) -> dict[str, SentRequest]:
     return found
 
 
+def resolve_include_outcomes(
+    from_profile: Sequence[str], requested: Sequence[str] | None
+) -> tuple[str, ...]:
+    """Classes além de `success` que valem: a flag só escolhe dentro do que o perfil lista.
+
+    Args:
+        from_profile: `scan.include_outcomes` do perfil (vem da carta e da aprovação).
+        requested: `--include-outcome` da linha de comando; `None` sem flag (vale o perfil) e
+            tupla vazia para `--no-include-outcomes` (só `success`).
+
+    Returns:
+        As classes aplicadas, na ordem do perfil.
+
+    Raises:
+        ConfigError: Classe fora da lista fechada ou que o perfil não lista. Flags só reduzem.
+    """
+    if requested is None:
+        return tuple(from_profile)
+    unknown = sorted(set(requested) - EXTRA_OUTCOMES)
+    if unknown:
+        raise ConfigError(
+            "--include-outcome aceita só: " + ", ".join(sorted(EXTRA_OUTCOMES)) + ".",
+            hint="success é sempre incluído; erros de servidor e de autenticação nunca.",
+        )
+    outside = sorted(set(requested) - set(from_profile))
+    if outside:
+        raise ConfigError(
+            "--include-outcome pede classe que o perfil não lista em scan.include_outcomes: "
+            + ", ".join(outside)
+            + ".",
+            hint="Flags só reduzem; só a carta pode autorizar essa classe (peça ao dono do "
+            "produto, a pessoa gera o perfil de novo e aprova). O agente não a liga.",
+        )
+    return tuple(item for item in from_profile if item in set(requested))
+
+
 def _skip(result: OperationResult, reason: SkipReason, message: str) -> ScanSkip:
     return ScanSkip(
         operation_id=result.operation_id,
@@ -145,6 +200,34 @@ def _skip(result: OperationResult, reason: SkipReason, message: str) -> ScanSkip
         reason=reason,
         message=message,
     )
+
+
+def multipart_operation_ids(operations: Iterable[Operation]) -> frozenset[str]:
+    """Operações cujo corpo preferido é `multipart/form-data` (as de envio de arquivo)."""
+    found: set[str] = set()
+    for operation in operations:
+        media = operation.request_body.preferred() if operation.request_body else None
+        if media is not None and media.media_type.split(";")[0].strip().lower() == MULTIPART:
+            found.add(operation.operation_id)
+    return frozenset(found)
+
+
+def _upload_verdict(config: ScanConfig) -> tuple[SkipReason, str] | None:
+    """Motivo de pular um envio de arquivo; a autorização vem antes (é a mais acionável)."""
+    if not config.allow_upload_scan:
+        return (
+            "upload_scan_not_authorized",
+            "Operação de envio de arquivo alcançada pelo probe, mas não varrida: o ZAP grava "
+            "conteúdo de ataque no armazenamento do alvo e a carta não autoriza "
+            "(attack.allow_upload_scan, que vira scan.allow_upload_scan).",
+        )
+    if not MULTIPART_SCANNABLE:
+        return (
+            "multipart_not_scannable",
+            "O ZAP não recebe o cabeçalho do corpo multipart por esta API; a operação foi "
+            "alcançada, mas não varrida.",
+        )
+    return None
 
 
 def _created_by_run(planned: PlannedOperation, outcomes: Mapping[str, str]) -> bool:
@@ -161,25 +244,29 @@ def _decide(
     login_path: str | None,
     config: ScanConfig,
     allowed_outcomes: frozenset[str],
+    uploads: frozenset[str] = frozenset(),
 ) -> tuple[SkipReason, str] | None:
+    method = result.method.upper()
     if planned is None:
         return "not_planned", "A operação não existe mais no OpenAPI atual; refaça o probe."
+    if login_path is not None and method == "POST" and result.path == login_path:
+        return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
     if result.outcome not in allowed_outcomes:
         return "not_success", "O probe não teve sucesso nesta operação; não há requisição válida."
-    if result.method == "DELETE":
+    if method == "DELETE":
         return "delete", "DELETE nunca é varrido: o varredor apagaria dados de verdade."
-    if login_path is not None and result.method == "POST" and result.path == login_path:
-        return "login", "O login não é varrido: senhas inválidas em massa bloqueariam a conta."
     if planned.decision == "skipped_denied":
         return "denied", "O caminho está em scope.deny_paths."
     if planned.decision != "send":
         return "scope", "A operação está fora de scope.allow."
-    if result.method in {"PUT", "PATCH"} and not _may_mutate(result, planned, outcomes, config):
+    if method in {"PUT", "PATCH"} and not _may_mutate(result, planned, outcomes, config):
         return (
             "mutating",
-            f"{result.method} só é varrido sobre recurso criado nesta execução "
+            f"{method} só é varrido sobre recurso criado nesta execução "
             "(flows.yml) ou com scan.mutating_methods no perfil.",
         )
+    if result.operation_id in uploads:
+        return _upload_verdict(config)
     return None
 
 
@@ -189,7 +276,7 @@ def _may_mutate(
     outcomes: Mapping[str, str],
     config: ScanConfig,
 ) -> bool:
-    return result.method in config.mutating_methods or _created_by_run(planned, outcomes)
+    return result.method.upper() in config.mutating_methods or _created_by_run(planned, outcomes)
 
 
 def select_candidates(
@@ -201,8 +288,20 @@ def select_candidates(
     config: ScanConfig,
     include_outcomes: frozenset[str] = frozenset(),
     only: tuple[str, ...] = (),
+    uploads: frozenset[str] = frozenset(),
 ) -> tuple[tuple[Candidate, ...], tuple[ScanSkip, ...]]:
     """Aplica as regras que não dependem do ZAP.
+
+    Args:
+        probe_operations: Resultado do `probe` da execução.
+        planned: Plano do `probe` por operação.
+        sent: Última requisição de cada operação pela rota do ZAP.
+        login_path: Caminho do login, nunca varrido.
+        config: Política de varredura do perfil.
+        include_outcomes: Classes extras já resolvidas (ADR 0050).
+        only: Seleção de `--only`.
+        uploads: Operações de envio de arquivo (`multipart_operation_ids`); só são candidatas com
+            `config.allow_upload_scan`.
 
     Returns:
         Os candidatos (por conta; em cada conta, leituras e escritas intercaladas, ver `_ordered`)
@@ -223,6 +322,7 @@ def select_candidates(
             login_path=login_path,
             config=config,
             allowed_outcomes=allowed,
+            uploads=uploads,
         )
         request = sent.get(result.operation_id)
         if verdict is None and request is None:
@@ -276,6 +376,10 @@ def _interleave(reads: list[Candidate], writes: list[Candidate]) -> list[Candida
     return result
 
 
+def _is_ascii(body: str | None) -> bool:
+    return body is None or body.isascii()
+
+
 def _pick(sent: SentRequest, learned: Sequence[LearnedRequest]) -> LearnedRequest | None:
     matches = [
         item
@@ -307,8 +411,13 @@ def resolve_targets(
     sent: Mapping[str, SentRequest],
     learned: Sequence[LearnedRequest],
     guard: ScopeGuard,
+    uploads: frozenset[str] = frozenset(),
 ) -> ScanPlan:
-    """Liga cada candidato à mensagem aprendida e confere o escopo da URL concreta."""
+    """Liga cada candidato à mensagem aprendida e confere o escopo da URL concreta.
+
+    Operação de envio de arquivo (`uploads`) com corpo aprendido fora de ASCII (o tipo `png`) é
+    alcançada mas não varrida (`binary_body`): o `postData` do ZAP é texto e perderia bytes.
+    """
     targets: list[ScanTarget] = []
     skipped: list[ScanSkip] = []
     for candidate in candidates:
@@ -324,6 +433,17 @@ def resolve_targets(
             reason: SkipReason = "denied" if decision.verdict == "denied_path" else "scope"
             skipped.append(_skip(result, reason, "A URL concreta aprendida está fora do escopo."))
             continue
+        if result.operation_id in uploads and not _is_ascii(found.body):
+            skipped.append(
+                _skip(
+                    result,
+                    "binary_body",
+                    "O corpo do envio de arquivo tem bytes fora de ASCII (por exemplo png) e o "
+                    "ZAP recebe o corpo como texto: a operação foi alcançada, mas não varrida. "
+                    "Use synthetic_file com um tipo de texto para varrer, se o alvo aceitar.",
+                )
+            )
+            continue
         targets.append(
             ScanTarget(
                 operation_id=result.operation_id,
@@ -333,6 +453,7 @@ def resolve_targets(
                 url=found.url,
                 body=found.body,
                 account=candidate.sent.account,
+                seed_outcome=candidate.seed_outcome,
             )
         )
     return ScanPlan(tuple(targets), tuple(skipped), learned_refs(sent, learned))

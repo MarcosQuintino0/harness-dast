@@ -3,30 +3,46 @@
 import subprocess
 from pathlib import Path
 
-from evals.runner.cases import EvalError
+from evals.runner.cases import EvalError, RoundDirs
 
 _IDENTITY = ["-c", "user.name=eval-runner", "-c", "user.email=eval-runner@localhost"]
 _QUIET = ["-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
 PROTECTED = (
     "src/",
     ".claude/",
+    "plugin/",
     "docker/",
     "compose.yaml",
     "lab/",
     "CLAUDE.md",
+    "AGENTS.md",
     "pyproject.toml",
     "uv.lock",
     "products/_template/",
 )
 
 
-def git(workspace: Path, *args: str) -> str:
+def _sealed_git_dir(workspace: Path) -> Path:
+    return RoundDirs(workspace.parent).sealed / "workspace.git"
+
+
+def git(workspace: Path, *args: str, git_dir: Path | None = None) -> str:
     """Roda `git` no workspace e devolve a saida padrao.
 
     Raises:
         EvalError: Git ausente ou comando com falha.
     """
-    command = ["git", *_IDENTITY, *_QUIET, *args]
+    workspace = workspace.resolve()
+    sealed_git = _sealed_git_dir(workspace)
+    git_dir = git_dir or (sealed_git if sealed_git.is_dir() else workspace / ".git")
+    command = [
+        "git",
+        f"--git-dir={git_dir.resolve()}",
+        f"--work-tree={workspace}",
+        *_IDENTITY,
+        *_QUIET,
+        *args,
+    ]
     try:
         done = subprocess.run(  # noqa: S603 - argumentos fixos, sem shell
             command, cwd=workspace, capture_output=True, text=True, encoding="utf-8", check=False
@@ -38,17 +54,23 @@ def git(workspace: Path, *args: str) -> str:
     return done.stdout
 
 
-def init_baseline(workspace: Path) -> str:
-    """Inicia o git do workspace e commita a base. Devolve o hash."""
-    git(workspace, "init", "-q", "-b", "main")
+def init_baseline(workspace: Path, *, separate_git: bool = False) -> str:
+    """Inicia a base Git da rodada, guardando-a no lacre quando solicitado."""
+    git_dir = _sealed_git_dir(workspace) if separate_git else None
+    git(workspace, "init", "-q", "-b", "main", git_dir=git_dir)
     git(workspace, "add", "-A")
     git(workspace, "commit", "-q", "-m", "base da rodada", "--allow-empty")
     return git(workspace, "rev-parse", "HEAD").strip()
 
 
 def snapshot(workspace: Path, label: str) -> str:
-    """Commita o estado do perfil (`products/`, forcado porque o .gitignore o ignora)."""
-    git(workspace, "add", "-A", "-f", "--", "products")
+    """Commita o estado do perfil (`products/`, forcado porque o .gitignore o ignora).
+
+    Com `products/` ainda vazia (layout `plugin`, antes do cadastro) nao ha o que adicionar: o
+    git recusa uma pasta vazia como caminho.
+    """
+    if any(path.is_file() for path in (workspace / "products").rglob("*")):
+        git(workspace, "add", "-A", "-f", "--", "products")
     git(workspace, "commit", "-q", "-m", f"instantaneo: {label}", "--allow-empty")
     return git(workspace, "rev-parse", "HEAD").strip()
 

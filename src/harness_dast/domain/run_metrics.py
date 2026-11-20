@@ -14,7 +14,13 @@ from typing import Final, Literal
 from pydantic import Field
 
 from harness_dast.domain.api_schema import ApiModel
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
+from harness_dast.domain.experimental_rules import (
+    EXPERIMENTAL_RULES,
+    REASON_NEEDS_PERMISSION,
+    REASON_NOT_SELECTED,
+)
+from harness_dast.domain.negative_result import NegativeResult
 from harness_dast.domain.probe_result import ProbeResult, RunManifest
 from harness_dast.domain.rule_stats import RuleStat, RuleStatsFile, RuleTotal, total_rules
 from harness_dast.domain.run_summary import StageName, StageRecord
@@ -36,7 +42,9 @@ class StageSeconds(ApiModel):
     preflight: float | None = None
     probe: float | None = None
     scan: float | None = None
+    nuclei: float | None = None
     authz: float | None = None
+    negative: float | None = None
     report: float | None = None
 
 
@@ -112,6 +120,41 @@ class DisabledRuleMetric(ApiModel):
     source: Literal["default", "profile"]
 
 
+class TimingMetrics(ApiModel):
+    """Tempos somados, que podem se sobrepor; ausência significa não medido."""
+
+    local_queue_seconds: float | None = None
+    authentication_seconds: float | None = None
+    zap_delay_seconds: float | None = None
+    proxy_grant_wait_seconds: float | None = None
+    proxy_network_seconds: float | None = None
+    cpu_seconds: float | None = None
+    memory_peak_bytes: int | None = None
+
+
+def _timing(scan: ScanResult | None, rows: Sequence[ProxyRow] | None) -> TimingMetrics:
+    selected: list[ProxyRow] = []
+    if scan is not None and rows is not None:
+        start, end = _moment(scan.started_at), _moment(scan.finished_at)
+        if start is not None and end is not None:
+            selected = [r for r in rows if start <= r.at <= end and r.decision == "allow"]
+    waits = [r.grant_wait_ms for r in selected]
+    network = [r.network_ms for r in selected]
+    return TimingMetrics(
+        local_queue_seconds=scan.local_queue_seconds if scan else None,
+        authentication_seconds=scan.authentication_seconds if scan else None,
+        zap_delay_seconds=scan.zap_delay_seconds if scan else None,
+        cpu_seconds=scan.process_cpu_seconds if scan else None,
+        memory_peak_bytes=scan.process_peak_memory_bytes if scan else None,
+        proxy_grant_wait_seconds=round(sum(x for x in waits if x is not None) / 1000, 3)
+        if waits and all(x is not None for x in waits)
+        else None,
+        proxy_network_seconds=round(sum(x for x in network if x is not None) / 1000, 3)
+        if network and all(x is not None for x in network)
+        else None,
+    )
+
+
 class RunMetrics(ApiModel):
     """Conteúdo de `metrics.json`.
 
@@ -147,6 +190,7 @@ class RunMetrics(ApiModel):
     operations: tuple[OperationMetric, ...] = ()
     rules: RuleMetrics = Field(default_factory=RuleMetrics)
     traffic: TrafficMetrics = Field(default_factory=TrafficMetrics)
+    timing: TimingMetrics = Field(default_factory=TimingMetrics)
     disabled_rules: tuple[DisabledRuleMetric, ...] = ()
 
 
@@ -179,6 +223,7 @@ def stage_seconds(
     authz: AuthzResult | None,
     report_seconds: float | None,
     stages: Sequence[StageRecord] | None,
+    negative: NegativeResult | None = None,
 ) -> StageSeconds:
     """Duração por etapa: o registro do `run` manda (inclui o preparo); senão, os arquivos.
 
@@ -192,7 +237,10 @@ def stage_seconds(
         if probe is None or probe.dry_run
         else _span(probe.started_at, probe.finished_at),
         "scan": None if scan is None or scan.dry_run else _span(scan.started_at, scan.finished_at),
+        # O `nuclei.json` não entra aqui: a duração vem do registro do `run` (abaixo).
+        "nuclei": None,
         "authz": None if authz is None else _span(authz.started_at, authz.finished_at),
+        "negative": None if negative is None else _span(negative.started_at, negative.finished_at),
         "report": report_seconds,
     }
     return StageSeconds(
@@ -241,11 +289,18 @@ def _rule_metrics(operations: Sequence[OperationMetric]) -> RuleMetrics:
 def _disabled(scan: ScanResult | None) -> tuple[DisabledRuleMetric, ...]:
     if scan is None:
         return ()
-    known = {rule.plugin_id: rule for rule in DEFAULT_DISABLED_RULES}
+    known = {rule.plugin_id: (rule.name, rule.reason) for rule in DEFAULT_DISABLED_RULES}
+    known.update(
+        {
+            rule.plugin_id: (
+                rule.name,
+                REASON_NEEDS_PERMISSION if rule.selected else REASON_NOT_SELECTED,
+            )
+            for rule in EXPERIMENTAL_RULES
+        }
+    )
     return tuple(
-        DisabledRuleMetric(
-            plugin_id=plugin_id, name=rule.name, reason=rule.reason, source="default"
-        )
+        DisabledRuleMetric(plugin_id=plugin_id, name=rule[0], reason=rule[1], source="default")
         if (rule := known.get(plugin_id)) is not None
         else DisabledRuleMetric(
             plugin_id=plugin_id,
@@ -299,6 +354,7 @@ def build_run_metrics(
     probe: ProbeResult | None,
     scan: ScanResult | None,
     authz: AuthzResult | None,
+    negative: NegativeResult | None = None,
     rule_stats: RuleStatsFile | None,
     proxy_rows: Sequence[ProxyRow] | None,
     stages: Sequence[StageRecord] | None,
@@ -315,6 +371,7 @@ def build_run_metrics(
         probe: `probe.json`, se existe.
         scan: `scan.json`, se existe.
         authz: `authz.json`, se o estágio rodou.
+        negative: `negative.json`, se o estágio rodou.
         rule_stats: `rule-stats.json`, se existe.
         proxy_rows: Linhas da auditoria do proxy; `None` sem pilha gerenciada.
         stages: Registro dos estágios do `hdast run`, quando o chamador o tem.
@@ -331,6 +388,7 @@ def build_run_metrics(
             probe.finished_at if probe else None,
             scan.finished_at if scan else None,
             authz.finished_at if authz else None,
+            negative.finished_at if negative else None,
         ],
     )
     operations = tuple(_operation(entry, rule_stats) for entry in scan.entries) if scan else ()
@@ -344,11 +402,17 @@ def build_run_metrics(
         finished_at=finished,
         generated_at=generated_at,
         stages_seconds=stage_seconds(
-            probe=probe, scan=scan, authz=authz, report_seconds=report_seconds, stages=stages
+            probe=probe,
+            scan=scan,
+            authz=authz,
+            negative=negative,
+            report_seconds=report_seconds,
+            stages=stages,
         ),
         scan_status=scan.status if scan and not scan.dry_run else None,
         operations=operations,
         rules=_rule_metrics(operations),
         traffic=_traffic(scan, proxy_rows),
+        timing=_timing(scan, proxy_rows),
         disabled_rules=_disabled(scan),
     )

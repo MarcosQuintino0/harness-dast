@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 
 import structlog
 
-from harness_dast.application.ports import Clock, ProfileRepository
+from harness_dast.application.common_ports import Clock, ProfileRepository
 from harness_dast.application.scan_ports import ProxyAudit, RunArtifacts
 from harness_dast.domain.errors import HarnessError
 from harness_dast.domain.run_metrics import build_run_metrics
@@ -72,6 +72,7 @@ class MetricsRecorder:
                 probe=self._optional(run_id, "probe.json", self._artifacts.read_probe),
                 scan=self._optional(run_id, "scan.json", self._artifacts.read_scan),
                 authz=self._optional(run_id, "authz.json", self._artifacts.read_authz),
+                negative=self._optional(run_id, "negative.json", self._artifacts.read_negative),
                 rule_stats=self._optional(
                     run_id, "rule-stats.json", self._artifacts.read_rule_stats
                 ),

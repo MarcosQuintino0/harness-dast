@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from harness_dast.domain.authz_findings import TECHNIQUE_LABEL
+from harness_dast.domain.authz.findings import TECHNIQUE_LABEL
 from harness_dast.domain.finding import Classification, Finding, FindingEvidence
 from harness_dast.domain.finding_explain import (
     GENERIC_KEY,

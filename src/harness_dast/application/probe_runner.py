@@ -8,6 +8,8 @@ antecipadas (janela, prazo, ZAP, alvo sem resposta) interrompem o laço e voltam
 
 from dataclasses import dataclass, field
 
+from pydantic import ValidationError
+
 from harness_dast.application.account_session import AccountSession
 from harness_dast.application.dispatcher import OperationDispatcher, SendOutcome
 from harness_dast.application.preview import build_preview
@@ -24,7 +26,10 @@ from harness_dast.domain.errors import (
 from harness_dast.domain.excerpt import sanitize_excerpt
 from harness_dast.domain.flow import ResolvedBindings
 from harness_dast.domain.http_messages import HttpRequest, HttpResponse
+from harness_dast.domain.knowledge_mutation import MutationPending
+from harness_dast.domain.knowledge_receipts import KnowledgeFlowUse
 from harness_dast.domain.outcome import Outcome, classify_response, parse_json_body
+from harness_dast.domain.probe_conflict import annotate_blocked, conflict_fields
 from harness_dast.domain.probe_exchange import ExchangeRecord, build_exchange
 from harness_dast.domain.probe_plan import PlannedOperation
 from harness_dast.domain.probe_policy import TRANSPORT_FAILURE_STATUSES, UNRESPONSIVE_THRESHOLD
@@ -39,6 +44,8 @@ class _Prepared:
     built: BuiltRequest
     request: HttpRequest
     uses_flow_values: bool
+    generators: dict[str, str]
+    unique: dict[str, bool]
 
 
 @dataclass
@@ -74,21 +81,32 @@ class ProbeRunner:
                 self._state.results.append(self._run_one(planned))
                 if self._state.transport_failures >= UNRESPONSIVE_THRESHOLD:
                     return self._stopped(
+                        plan,
                         "stopped_target_unresponsive",
                         "O alvo ficou sem resposta em várias requisições seguidas; o probe parou.",
                     )
         except WindowClosed as error:
-            return self._stopped("stopped_window", error.message)
+            return self._stopped(plan, "stopped_window", error.message)
         except DeadlineReached as error:
-            return self._stopped("stopped_deadline", error.message)
+            return self._stopped(plan, "stopped_deadline", error.message)
         except ExternalToolError as error:
-            return self._stopped("stopped_zap", error.message)
+            return self._stopped(plan, "stopped_zap", error.message)
         return RunOutcome(
-            tuple(self._state.results), "completed", None, tuple(self._state.exchanges)
+            annotate_blocked(self._state.results, plan),
+            "completed",
+            None,
+            tuple(self._state.exchanges),
         )
 
-    def _stopped(self, status: ProbeStatus, message: str) -> RunOutcome:
-        return RunOutcome(tuple(self._state.results), status, message, tuple(self._state.exchanges))
+    def _stopped(
+        self, plan: tuple[PlannedOperation, ...], status: ProbeStatus, message: str
+    ) -> RunOutcome:
+        return RunOutcome(
+            annotate_blocked(self._state.results, plan),
+            status,
+            message,
+            tuple(self._state.exchanges),
+        )
 
     def _run_one(self, planned: PlannedOperation) -> OperationResult:
         if planned.decision != "send":
@@ -111,6 +129,8 @@ class ProbeRunner:
 
     def _prepare(self, planned: PlannedOperation) -> _Prepared | OperationResult:
         operation = self._s.operations[planned.operation_id]
+        self._s.recorder.take()
+        self._s.recorder.take_unique()
         try:
             bindings = self._bindings(planned)
             built = self._s.builder.build(operation, bindings)
@@ -123,7 +143,13 @@ class ProbeRunner:
             )
         except ConfigError as error:
             return self._result(planned, "build_error", message=error.message, hint=error.hint)
-        return _Prepared(built, request, bool(planned.depends_on))
+        return _Prepared(
+            built,
+            request,
+            bool(planned.depends_on),
+            self._s.recorder.take(),
+            self._s.recorder.take_unique(),
+        )
 
     def _bindings(self, planned: PlannedOperation) -> ResolvedBindings:
         if self._s.flows is None or not planned.depends_on or self._s.dispatcher is None:
@@ -139,7 +165,7 @@ class ProbeRunner:
         preview = build_preview(
             self._s.operations[planned.operation_id],
             prepared.built,
-            self._s.recorder.take(),
+            prepared.generators,
             uses_flow_values=prepared.uses_flow_values,
         )
         return self._result(planned, "dry_run", preview=preview)
@@ -158,6 +184,13 @@ class ProbeRunner:
             sent = dispatcher.send(request, None if anonymous else self._session_for(request))
         except (WindowClosed, DeadlineReached):
             raise
+        except MutationPending:
+            return self._result(
+                planned,
+                "mutation_pending",
+                account=request.account,
+                message="Mutação pendente; reconcilie o estado antes de repetir.",
+            )
         except ScopeViolation as error:
             denied = (
                 self._s.guard.evaluate(
@@ -169,7 +202,7 @@ class ProbeRunner:
         except PreflightError as error:
             return self._result(planned, "auth_error", message=error.message, hint=error.hint)
         elapsed = int((self._s.clock.now() - started).total_seconds() * 1000)
-        return self._classified(planned, request, sent, elapsed)
+        return self._classified(planned, request, sent, elapsed, prepared)
 
     def _session_for(self, request: HttpRequest) -> AccountSession | None:
         pool = self._s.sessions
@@ -178,7 +211,12 @@ class ProbeRunner:
         return pool.get(request.account)
 
     def _classified(
-        self, planned: PlannedOperation, request: HttpRequest, sent: SendOutcome, elapsed: int
+        self,
+        planned: PlannedOperation,
+        request: HttpRequest,
+        sent: SendOutcome,
+        elapsed: int,
+        prepared: _Prepared,
     ) -> OperationResult:
         response = sent.response
         failed_transport = response is None or response.status in TRANSPORT_FAILURE_STATUSES
@@ -201,6 +239,7 @@ class ProbeRunner:
             success_rule=self._s.success_rule,
             csrf=self._s.csrf,
             error_codes=self._s.error_codes,
+            is_login=self._is_login(planned),
         )
         if outcome == "success" and planned.is_producer:
             self._state.producer_bodies[planned.operation_id] = parse_json_body(response)
@@ -210,12 +249,58 @@ class ProbeRunner:
             planned,
             outcome,
             status=response.status,
+            rule_uses=prepared.built.rule_uses if outcome == "success" else (),
+            flow_uses=self._flow_uses(planned, prepared.built) if outcome == "success" else (),
+            conflict_fields=tuple(
+                name
+                for name in conflict_fields(
+                    response,
+                    self._s.operations[planned.operation_id],
+                    prepared.built.body,
+                    prepared.unique,
+                )
+                if self._s.vault.mask(name) == name
+            )
+            if outcome == "conflict"
+            else (),
             untrusted_target_data=None if outcome == "success" else self._excerpt(response),
             redirect_in_scope=self._redirect_in_scope(request, response)
             if outcome == "redirect"
             else None,
             **common,
         )
+
+    def _flow_uses(
+        self, planned: PlannedOperation, built: BuiltRequest
+    ) -> tuple[KnowledgeFlowUse, ...]:
+        if self._s.flows is None:
+            return ()
+        receipts: list[KnowledgeFlowUse] = []
+        for binding in self._s.flows.bindings:
+            if binding.produces.operation not in planned.depends_on:
+                continue
+            for consumer in binding.consumed_by:
+                if (
+                    consumer.operation != planned.operation_id
+                    or consumer.target not in built.bound_uses
+                ):
+                    continue
+                kind, name = consumer.target
+                try:
+                    receipts.append(
+                        KnowledgeFlowUse.model_validate(
+                            {
+                                "producer": binding.produces.operation,
+                                "consumer": consumer.operation,
+                                "source_field": binding.produces.field,
+                                "target_kind": kind,
+                                "target_field": name,
+                            }
+                        )
+                    )
+                except ValidationError:
+                    continue
+        return tuple(receipts)
 
     def _remember(
         self, planned: PlannedOperation, request: HttpRequest, response: HttpResponse

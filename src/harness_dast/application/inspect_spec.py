@@ -12,6 +12,13 @@ Perfil e OpenAPI inválidos são erro (`ConfigError`). Problemas em `data-rules.
 
 from collections.abc import Callable
 
+from harness_dast.application.common_ports import (
+    Clock,
+    ProductDocuments,
+    ProfileRepository,
+    SpecLoader,
+    ValueSourceFactory,
+)
 from harness_dast.application.inspect_report import (
     DocumentInfo,
     InspectIssue,
@@ -20,13 +27,6 @@ from harness_dast.application.inspect_report import (
     OperationAccount,
     SpecInspection,
     UnusedRule,
-)
-from harness_dast.application.ports import (
-    Clock,
-    ProductDocuments,
-    ProfileRepository,
-    SpecLoader,
-    ValueSourceFactory,
 )
 from harness_dast.domain.api_model import ApiSpec, safe_identifier
 from harness_dast.domain.api_summary import DEFAULT_BUDGET_CHARS, summarize
@@ -37,6 +37,8 @@ from harness_dast.domain.probe_plan import PlannedOperation, looks_destructive, 
 from harness_dast.domain.profile import ProductProfile
 from harness_dast.domain.request_builder import RequestBuilder
 from harness_dast.domain.scope import ScopeGuard
+from harness_dast.domain.spec_examples import inspect_examples
+from harness_dast.domain.spec_hints import suggest_spec_hints
 
 _BUILD_CHECK_SEED = 0
 _BUILD_CHECK_TAG = "0000"
@@ -134,6 +136,12 @@ class InspectSpec:
             "ACCOUNT_MAP_MISMATCH",
             issues,
         )
+        issues.extend(
+            InspectIssue(
+                code="EXAMPLE_" + code.upper(), message=f"{where}: exemplo incompatível ({code})."
+            )
+            for where, code in inspect_examples(spec)
+        )
         return SpecInspection(
             product=product,
             summary=summarize(spec, budget_chars),
@@ -159,6 +167,7 @@ class InspectSpec:
             needs_rule_unchecked=unchecked,
             issues=tuple(issues),
             operation_accounts=_operation_accounts(profile, plan),
+            hints=suggest_spec_hints(profile, spec.operations, plan),
         )
 
     def _rules(

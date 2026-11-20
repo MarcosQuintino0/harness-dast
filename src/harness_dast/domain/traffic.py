@@ -27,6 +27,11 @@ class ProxyRow(ApiModel):
         method: Método HTTP.
         detail: Código granular da recusa por forma, ou a marca de leitura fora de `allow` do
             modo amplo; `None` em linhas antigas ou sem detalhe.
+        path: Caminho decodificado do pedido (vazio em linha antiga).
+        status: Status devolvido ao cliente, se houve.
+        query_params: Só os nomes dos parâmetros de consulta.
+        signals: Categorias de sinal de erro interno vistas na resposta (ADR 0049).
+        signal_skip: Por que a resposta liberada não foi lida, ou `None`.
     """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
@@ -36,6 +41,15 @@ class ProxyRow(ApiModel):
     reason: str
     method: str
     detail: str | None = None
+    path: str = ""
+    status: int | None = None
+    query_params: tuple[str, ...] = ()
+    signals: tuple[str, ...] = ()
+    signal_skip: str | None = None
+    waited_ms: int | None = Field(default=None, ge=0)
+    duration_ms: int | None = Field(default=None, ge=0)
+    network_ms: int | None = Field(default=None, ge=0)
+    grant_wait_ms: int | None = Field(default=None, ge=0)
 
 
 class TrafficSummary(ApiModel):

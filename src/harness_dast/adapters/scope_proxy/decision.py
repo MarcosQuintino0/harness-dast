@@ -32,7 +32,9 @@ class Reason(StrEnum):
     UPSTREAM_ERROR = "upstream_error"
     KILL_SWITCH = "kill_switch"
     RUN_EXPIRED = "run_expired"
+    APPROVAL_CHANGED = "approval_changed"
     RATE_QUEUE_FULL = "rate_queue_full"
+    RATE_BACKOFF = "rate_backoff"
     AUDIT_FAILURE = "audit_failure"
 
 
@@ -47,11 +49,13 @@ class Verdict:
         detail: Código granular (`ScopeReason`) da recusa por forma, por exemplo
             `path_encoded_slash`; `WIDE_READING_OUTSIDE_ALLOW` numa liberação do modo amplo em que
             alguma leitura do caminho sai de `scope.allow`. `None` nos demais casos.
+        retry_after: Segundos restantes, arredondados para cima, na recusa de recuo.
     """
 
     allowed: bool
     reason: Reason
     detail: str | None = None
+    retry_after: int | None = None
 
 
 ALLOW = Verdict(allowed=True, reason=Reason.ALLOWED)

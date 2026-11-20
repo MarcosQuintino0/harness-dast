@@ -8,10 +8,10 @@ from hypothesis import strategies as st
 
 from harness_dast.domain.audit import AuditEntry
 from harness_dast.domain.auth import CsrfConfig
+from harness_dast.domain.experimental_rules import EXPERIMENTAL_RULES
 from harness_dast.domain.run import RunLimits
-from harness_dast.domain.scan_config import ScanConfig
+from harness_dast.domain.scan_config import EXTRA_OUTCOMES, ScanConfig
 from harness_dast.domain.scan_plan import (
-    EXTRA_OUTCOMES,
     last_sent,
     resolve_targets,
     select_candidates,
@@ -34,7 +34,7 @@ from harness_dast.domain.scan_tokens import (
 from harness_dast.domain.scope import Scope, ScopeGuard
 from harness_dast.domain.zap_messages import LearnedRequest, ZapMessage, parse_learned_request
 from harness_dast.domain.zap_scope import REPLACER_RULE_PREFIX
-from tests.unit.domain.report_helpers import operation
+from tests.unit.domain.report.helpers import operation
 
 NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 
@@ -52,7 +52,10 @@ def test_default_policy_is_low_strength_medium_threshold_with_path_injection() -
 
     assert (policy.strength, policy.threshold) == ("LOW", "MEDIUM")
     assert policy.injectable_mask == 35 + 16
-    assert set(policy.disabled_rules) == {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    # As regras alpha/beta da imagem do harness ficam sempre desligadas (ADR 0103).
+    expected = {rule.plugin_id for rule in DEFAULT_DISABLED_RULES}
+    expected |= {rule.plugin_id for rule in EXPERIMENTAL_RULES}
+    assert set(policy.disabled_rules) == expected
 
 
 def test_default_disabled_rules_each_have_a_reason_and_no_duplicates() -> None:
@@ -67,12 +70,24 @@ def test_profile_rules_only_add_to_the_disabled_set() -> None:
     policy = build_policy(ScanConfig(disable_rules=(90001, 40044)))
 
     assert 90001 in policy.disabled_rules
-    assert len(policy.disabled_rules) == len(DEFAULT_DISABLED_RULES) + 1
+    assert len(policy.disabled_rules) == len(DEFAULT_DISABLED_RULES) + len(EXPERIMENTAL_RULES) + 1
     assert list(policy.disabled_rules) == sorted(policy.disabled_rules)
 
 
 def test_path_injection_off_uses_the_zap_default_mask() -> None:
     assert build_policy(ScanConfig(url_path_injection=False)).injectable_mask == 35
+
+
+def test_header_injection_is_off_by_default_and_keeps_the_previous_mask() -> None:
+    assert build_policy(ScanConfig()).header_injection is False
+    assert build_policy(ScanConfig()).injectable_mask == 51
+    assert build_policy(ScanConfig(url_path_injection=False)).injectable_mask == 35
+
+
+def test_inject_headers_adds_the_cookie_and_header_bits_to_the_mask() -> None:
+    assert build_policy(ScanConfig(inject_headers=True)).injectable_mask == 35 + 16 + 4 + 8
+    off_path = build_policy(ScanConfig(inject_headers=True, url_path_injection=False))
+    assert off_path.injectable_mask == 35 + 4 + 8
 
 
 @pytest.mark.parametrize(("rps", "delay"), [(50, 20), (5, 200), (1, 1000), (0.5, 2000), (3, 334)])
@@ -111,6 +126,7 @@ def test_total_cap_is_never_above_the_total_duration() -> None:
 
 def test_scan_config_rejects_values_outside_closed_sets() -> None:
     for bad in (
+        {"pacing": "fast"},
         {"strength": "INSANE"},
         {"threshold": "OFF"},
         {"mutating_methods": ["DELETE"]},
@@ -238,6 +254,13 @@ def test_extra_outcomes_are_a_closed_list_without_server_or_auth_errors() -> Non
     assert "server_error" not in EXTRA_OUTCOMES
     assert "auth_error" not in EXTRA_OUTCOMES
     assert "success" not in EXTRA_OUTCOMES
+    assert {
+        "logical_failure",
+        "validation_error",
+        "conflict",
+        "not_found",
+        "client_error",
+    } == EXTRA_OUTCOMES
 
 
 def test_unplanned_operations_and_missing_audit_are_skipped_with_reasons() -> None:
@@ -521,3 +544,14 @@ def test_interleaving_is_deterministic_and_keeps_accounts_grouped() -> None:
 
     assert _candidates(spec) == _candidates(list(spec))
     assert _candidates(spec) == ["r1", "w2", "r2", "w1"]
+
+
+def test_proxy_pacing_changes_only_zap_delay() -> None:
+    profile_limits = limits(zap_threads_per_host=3)
+    legacy = ScanConfig(pacing="legacy", strength="HIGH", disable_rules=(90001,))
+    proxy = legacy.model_copy(update={"pacing": "proxy"})
+
+    assert build_policy(legacy) == build_policy(proxy)
+    assert build_limits(profile_limits, proxy) == build_limits(profile_limits, legacy).model_copy(
+        update={"delay_ms": 0}
+    )

@@ -16,26 +16,24 @@ from datetime import datetime, tzinfo
 
 import structlog
 
+from harness_dast.application.common_ports import Clock, KillSwitch, ProfileRepository, SpecLoader
 from harness_dast.application.panel_index import PanelIndexer
-from harness_dast.application.ports import (
-    Clock,
-    KillSwitch,
-    PanelFiles,
-    ProfileRepository,
-    SpecLoader,
-)
+from harness_dast.application.panel_ports import PanelFiles
 from harness_dast.domain.errors import HarnessError
-from harness_dast.domain.panel_build_content import function_names
-from harness_dast.domain.panel_build_stages import STAGE_LABELS
-from harness_dast.domain.panel_format import RunStateKind, product_title
-from harness_dast.domain.panel_live import LIVE_FILE, render_live
-from harness_dast.domain.panel_live_model import LivePhase, LiveStage, LiveStageState, LiveView
-from harness_dast.domain.panel_model import PanelLinks, panel_links
+from harness_dast.domain.panel.build_content import function_names
+from harness_dast.domain.panel.build_stages import STAGE_LABELS
+from harness_dast.domain.panel.format import RunStateKind, product_title
+from harness_dast.domain.panel.live import LIVE_FILE, render_live
+from harness_dast.domain.panel.live_model import LivePhase, LiveStage, LiveStageState, LiveView
+from harness_dast.domain.panel.model import PanelLinks, StageKey, panel_links
 from harness_dast.domain.profile import ProductProfile
-from harness_dast.domain.run_summary import STAGES, RunSummary, StageName, StageRecord
+from harness_dast.domain.run_summary import RunSummary, StageName, StageRecord
 from harness_dast.domain.traffic import TrafficSummary
 
 _log = structlog.get_logger()
+# O painel é congelado (ADR 0110) e ainda não conhece o Nuclei; a seção própria dele vem com o
+# relatório (pacote P5).
+_PANEL_STAGES: tuple[StageKey, ...] = ("preflight", "probe", "scan", "authz", "negative", "report")
 _RECORD_STATE: dict[str, LiveStageState] = {
     "ok": "done",
     "failed": "cut",
@@ -52,6 +50,7 @@ class _State:
     run_id: str
     started: datetime
     authz: bool
+    negative: bool
     stage: StageName = "preflight"
     stage_began: datetime | None = None
     records: tuple[StageRecord, ...] = ()
@@ -109,16 +108,19 @@ class LiveBoard:
         *,
         started: datetime,
         authz: bool,
+        negative: bool = True,
     ) -> None:
         """A etapa começou: regrava a página (a partir do `probe`, quando a pasta já existe)."""
         now = self._clock.now()
         state = self._state
         if state is None or state.run_id != run_id:
-            state = _State(product=product, run_id=run_id, started=started, authz=authz)
+            state = _State(
+                product=product, run_id=run_id, started=started, authz=authz, negative=negative
+            )
             state.links = self._first_links(product)
             self._state = state
         state.stage, state.stage_began, state.records = stage, now, tuple(records)
-        if stage in ("scan", "authz", "report"):
+        if stage in ("scan", "authz", "negative", "report"):
             self._read_probe(state)
         self._write(state, "running")
 
@@ -169,7 +171,9 @@ class LiveBoard:
             return
         if probe is not None and not probe.dry_run:
             state.tried = probe.summary.operations_sent
-            state.reached = probe.summary.successes
+            state.reached = probe.summary.successes + probe.summary.by_outcome.get(
+                "auth_rejected_expected", 0
+            )
 
     def _write(self, state: _State, phase: LivePhase, *, summary: RunSummary | None = None) -> None:
         try:
@@ -234,8 +238,8 @@ class LiveBoard:
     def _stages(self, state: _State, phase: LivePhase, now: datetime) -> tuple[LiveStage, ...]:
         records = {item.name: item for item in state.records}
         built: list[LiveStage] = []
-        for key in STAGES:
-            if key == "authz" and not state.authz:
+        for key in _PANEL_STAGES:
+            if (key == "authz" and not state.authz) or (key == "negative" and not state.negative):
                 continue
             record = records.get(key)
             status: LiveStageState = (
@@ -262,5 +266,7 @@ def _outcome(summary: RunSummary | None) -> tuple[RunStateKind | None, str | Non
     )
     if summary.status in ("completed", "findings"):
         return "finished", None
+    if not summary.stages:
+        return "partial", reason
     first = summary.stages[0]
     return ("error" if first.status in ("failed", "interrupted") else "partial"), reason

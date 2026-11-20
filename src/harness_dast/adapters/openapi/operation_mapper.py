@@ -6,13 +6,15 @@ sintetizado de forma determinística (com sufixo numérico se colidir com outro)
 
 import re
 from collections.abc import Mapping
+from itertools import islice
 
 from pydantic import ValidationError
 
 from harness_dast.adapters.openapi.refs import Raw, RefResolver, escape_pointer
-from harness_dast.adapters.openapi.schema_mapper import SchemaMapper
+from harness_dast.adapters.openapi.schema_mapper import SchemaMapper, read_schema_examples
 from harness_dast.domain.api_model import (
     MAX_MEDIA_TYPES,
+    MAX_PART_TYPES,
     HttpMethod,
     MediaBody,
     Operation,
@@ -33,7 +35,12 @@ HTTP_METHODS: tuple[HttpMethod, ...] = (
 _LOCATIONS: tuple[ParamLocation, ...] = ("path", "query", "header", "cookie")
 _MAX_TAGS = 20
 _MAX_SUMMARY = 200
+_MAX_MULTIPART_MEDIA_KEYS = 100
+_MAX_MULTIPART_KEY_LENGTH = 100
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+_MAX_PART_NAME = 64
+_MAX_PART_TYPE = 100
+_PART_TYPE = re.compile(r"[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+*-]*\Z")
 
 
 class OperationMapper:
@@ -174,7 +181,9 @@ class OperationMapper:
         content = node.get("content")
         if schema is None and isinstance(content, Mapping):
             schema = _first_media_schema(content)
-        converted = self._schemas.convert(schema, f"{where}/schema")
+        converted = self._with_examples(
+            self._schemas.convert(schema, f"{where}/schema"), node, where
+        )
         try:
             return Parameter(
                 name=name,
@@ -191,7 +200,7 @@ class OperationMapper:
         if not isinstance(content, Mapping):
             raise ConfigError(f"{where}/content: deve ser um objeto.")
         media: list[MediaBody] = []
-        for media_type, entry in list(content.items())[:MAX_MEDIA_TYPES]:
+        for media_type, entry in islice(content.items(), MAX_MEDIA_TYPES):
             media_where = f"{where}/content/{escape_pointer(str(media_type))}"
             body = self._object(entry, media_where) if entry is not None else {}
             schema = (
@@ -199,15 +208,51 @@ class OperationMapper:
                 if "schema" in body
                 else None
             )
-            media.append(MediaBody(media_type=str(media_type)[:100], body_schema=schema))
+            if schema is not None:
+                schema = self._with_examples(schema, body, media_where)
+            media.append(
+                MediaBody(
+                    media_type=str(media_type)[:100],
+                    body_schema=schema,
+                    part_content_types=_part_content_types(str(media_type), body),
+                )
+            )
         return tuple(media)
+
+    def _with_examples(self, schema: Schema, node: Mapping[str, Raw], where: str) -> Schema:
+        examples = list(
+            read_schema_examples({"example": node["example"]}) if "example" in node else ()
+        )
+        named = node.get("examples")
+        if isinstance(named, Mapping):
+            for entry in list(named.values())[:100]:
+                if isinstance(entry, Mapping) and "$ref" in entry:
+                    ref = entry["$ref"]
+                    if not isinstance(ref, str) or not ref.startswith("#/"):
+                        continue
+                    try:
+                        _, entry = self._resolver.resolve(ref, where)
+                    except ConfigError:
+                        # Exemplos são metadados opcionais e antes não bloqueavam a carga.
+                        continue
+                if isinstance(entry, Mapping) and "value" in entry:
+                    examples.extend(read_schema_examples({"example": entry["value"]}))
+        return schema.model_copy(
+            update={"declared_examples": (*schema.declared_examples, *examples)}
+        )
 
     def _request_body(self, raw: Raw, where: str) -> RequestBody | None:
         if raw is None:
             return None
         node = self._object(raw, where)
+        content = node.get("content")
+        media = self._media(content, where)
+        declared, incomplete = _inspect_multipart_keys(content)
         return RequestBody(
-            required=node.get("required") is True, media=self._media(node.get("content"), where)
+            required=node.get("required") is True,
+            media=media,
+            multipart_declared=declared,
+            multipart_inspection_incomplete=incomplete,
         )
 
     def _responses(self, raw: Raw, where: str) -> tuple[SuccessResponse, ...]:
@@ -229,6 +274,54 @@ class OperationMapper:
         if "security" not in node:
             return self._default_security
         return parse_security(node["security"], f"{where}/security")
+
+
+def _inspect_multipart_keys(content: Raw) -> tuple[bool, bool]:
+    if not isinstance(content, Mapping):
+        return False, False
+    declared = False
+    incomplete = len(content) > _MAX_MULTIPART_MEDIA_KEYS
+    for key in islice(content, _MAX_MULTIPART_MEDIA_KEYS):
+        if not isinstance(key, str):
+            incomplete = True
+            continue
+        if len(key) > _MAX_MULTIPART_KEY_LENGTH:
+            incomplete = True
+        elif key.split(";", 1)[0].strip().lower() == "multipart/form-data":
+            declared = True
+    return declared, incomplete
+
+
+def _part_content_types(media_type: str, body: Mapping[str, Raw]) -> dict[str, str]:
+    """`encoding.<campo>.contentType` de um corpo multipart, limitado e sem texto hostil.
+
+    Só vale para `multipart/form-data`. Guarda no máximo 50 campos, nome com até 64 e tipo com
+    até 100 caracteres; só o primeiro tipo de uma lista separada por vírgula, em minúsculas e
+    sem parâmetros. Entrada que não é texto, tem controle ou não parece `tipo/subtipo` é
+    ignorada (o campo volta ao arquivo padrão).
+    """
+    encoding = body.get("encoding")
+    if media_type.split(";", 1)[0].strip().lower() != "multipart/form-data":
+        return {}
+    if not isinstance(encoding, Mapping):
+        return {}
+    found: dict[str, str] = {}
+    for name, entry in islice(encoding.items(), _MAX_MULTIPART_MEDIA_KEYS):
+        declared = entry.get("contentType") if isinstance(entry, Mapping) else None
+        if not isinstance(name, str) or not isinstance(declared, str):
+            continue
+        first = declared.split(",", 1)[0].split(";", 1)[0].strip().lower()
+        if (
+            len(name) > _MAX_PART_NAME
+            or len(first) > _MAX_PART_TYPE
+            or _CONTROL_CHARS.search(name)
+            or not _PART_TYPE.match(first)
+        ):
+            continue
+        found[name] = first
+        if len(found) >= MAX_PART_TYPES:
+            break
+    return found
 
 
 def parse_security(raw: Raw, where: str) -> tuple[SecurityRequirement, ...]:

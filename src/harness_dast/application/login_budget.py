@@ -12,7 +12,7 @@ from collections import deque
 from typing import Final
 from urllib.parse import urlsplit
 
-from harness_dast.application.ports import Clock, Sleeper
+from harness_dast.application.common_ports import Clock, Sleeper
 from harness_dast.domain.auth import LoginLimit
 from harness_dast.domain.http_messages import HttpRequest
 

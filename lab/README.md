@@ -21,6 +21,8 @@ sem que nada real seja alvo. Definido em [`compose.yaml`](../compose.yaml).
 | `zap-gateway` | Ponte TCP mínima que publica o ZAP em `127.0.0.1:8080` | Loopback do host |
 | `proxy-gateway` | Ponte TCP mínima (socat, destino fixo `scope-proxy:3128`) que publica o proxy de escopo em `127.0.0.1:3128`; é por onde o `hdast` envia login e token CSRF sem passar pelo ZAP | Loopback do host |
 | `scope-proxy` | Proxy de escopo (mitmproxy + `ScopeGuard`); decide cada requisição por host, porta, caminho e método; único com rota externa | Rede interna |
+| `scope-proxy-nuclei` | Segunda instância do proxy de escopo ([ADR 0122](../docs/decisoes/0122-nuclei-como-segundo-motor.md)): mesma imagem, política e auditoria próprias, só para o Nuclei. Sem o Nuclei ligado no perfil, sobe com a política que nega tudo | Rede interna |
+| `nuclei` (perfil `nuclei`) | O segundo motor, em contêiner de uso único (`docker compose run --rm`); não sobe com o `stack up`, só quando o `run` ou o `hdast nuclei` o chamam. Sem rota para fora: o único destino é o `scope-proxy-nuclei` | Só da `zap_net` |
 | `vampi` (perfil `lab`) | Alvo vulnerável, porta 5000 | Só do `scope-proxy` |
 | `vampi-tls` (perfil `lab`) | Frente TLS do VAmPI (certificado autoassinado gerado ao iniciar), porta 8443, só para provar HTTPS | Só do `scope-proxy` |
 
@@ -30,7 +32,9 @@ o teste de ponta a ponta precisa exercitar) e para não deixar uma aplicação
 vulnerável escutando na máquina. Para inspeção manual use `docker compose exec`
 (veja abaixo).
 
-O OWASP crAPI é o terceiro alvo do lab, **fora** do `hdast stack up`: veja
+**Limite de prova do Nuclei.** No spike do ADR 0122, o Nuclei não teve achado exclusivo na Clínica Piloto, no VAmPI nem no crAPI: são APIs de estudo, sem os produtos que os modelos conhecem. O ganho só apareceu num alvo Spring Boot com o Actuator aberto (13 exposições), que não faz parte deste lab. As provas de ponta a ponta do pacote no laboratório e em produto real ainda não existem.
+
+O OWASP crAPI é o terceiro alvo do lab, integrado ao `hdast stack up`: veja
 [`crapi/README.md`](crapi/README.md).
 
 ## Subir e parar
@@ -39,8 +43,9 @@ O OWASP crAPI é o terceiro alvo do lab, **fora** do `hdast stack up`: veja
 # 1. Chave da API do ZAP (obrigatória; sem valor padrão). Não grave em arquivo versionado.
 export HDAST_ZAP_API_KEY="$(openssl rand -hex 24)"      # PowerShell: $env:HDAST_ZAP_API_KEY = -join ((48..57+97..102) | Get-Random -Count 48 | % {[char]$_})
 
-# 2. Subir com o alvo do lab
-docker compose --profile lab up -d --build --wait
+# 2. Preparar as imagens próprias e subir com o alvo do lab
+uv run hdast stack pull
+docker compose --profile lab up -d --no-build --wait
 
 # 3. Verificar
 docker compose --profile lab ps
@@ -58,10 +63,11 @@ porta do host) e exige o parâmetro `apikey`.
 `hdast stack up <produto>` faz, num comando, o que a seção anterior faz à mão: gera a política do proxy **a partir do perfil**
 (nunca mais larga), sorteia a chave do ZAP, sobe tudo recriando os contêineres e grava o estado (chave, endereços, senhas
 descartáveis) em `HDAST_STATE_DIR` (`%LOCALAPPDATA%/hdast` no Windows, `~/.local/state/hdast` no Linux), fora do repositório.
-Os comandos seguintes (`preflight`, `probe`, `scan`, `report`, `run`, `stop`) leem esse arquivo para o que o ambiente não define. Decisão: [ADR 0019](../docs/adr/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md).
+Os comandos seguintes (`preflight`, `probe`, `scan`, `report`, `run`, `stop`) leem esse arquivo para o que o ambiente não define. Decisão: [ADR 0019](../docs/decisoes/0019-pilha-gerenciada-politica-por-execucao-e-login-pelo-proxy.md).
 
 O perfil do produto fica numa pasta de produtos (`HDAST_PRODUCTS_DIR` ou `--products-dir`), com o nome da pasta igual ao campo
 `product`. O alvo anexado é reconhecido pelo host de `environment.base_url` (`vampi` ou `clinica-piloto`).
+Prepare as imagens antes da primeira subida. [Download e build local](../docs/comecar/docker.md)
 
 **VAmPI** (perfil em [`lab/vampi/product-profile`](vampi/product-profile/target.yml), `base_url: http://vampi:5000`). Sequência exata,
 verificada com o ZAP 2.17 e o proxy de escopo reais (a pasta do produto leva o nome do produto e o OpenAPI vem de `lab/vampi`):
@@ -96,7 +102,7 @@ tudo, `user_b` (dono de `name2`) os `PUT` de e-mail e senha, e `admin_a` o `DELE
 pedidos ao scope-proxy; ele nega por padrão tudo que a política da execução não autoriza (host, porta, caminho, método, taxa, prazo e
 `KILL`), então o alcance é o mesmo do ZAP. Não dá acesso ao ZAP, à rede do lab nem ao Docker.
 
-**Testes de integração do lab** (exigem Docker): `uv run pytest -m lab_fast` (nível rápido, poucos endpoints) e `uv run pytest -m lab_full` (todos os endpoints, vulnerável e seguro, com comparação ao gabarito); detalhes em [../docs/testing.md](../docs/testing.md#dois-níveis-de-integração-contra-o-lab). Os perfis de lab rodam no teto da ferramenta (50 req/s, 8 threads), com autorização do dono, porque os alvos são locais; o teste do limitador reduz a própria cópia para 5 req/s. O modelo em `products/_template` continua conservador.
+**Testes de integração do lab** (exigem Docker): `uv run pytest -m lab_fast` (nível rápido, poucos endpoints) e `uv run pytest -m lab_full` (todos os endpoints, vulnerável e seguro, com comparação ao gabarito); detalhes em [../docs/desenvolver/testing.md](../docs/desenvolver/testing.md#dois-níveis-de-integração-contra-o-lab). Os perfis de lab rodam no teto da ferramenta (50 req/s, 8 threads), com autorização do dono, porque os alvos são locais; o teste do limitador reduz a própria cópia para 5 req/s. O modelo em `products/_template` continua conservador.
 
 **Parada de emergência**: `uv run hdast stop` (de outro terminal) lê o que estava rodando, cria o `KILL` da pilha e para as varreduras do ZAP (funciona com o ZAP fora do ar); um `hdast run` ou `scan` em andamento percebe a trava em até 2 s, remove as regras do Replacer e sai (130 no `run`). Depois disso o proxy nega todo pedido novo até `hdast stack up` recriar a pilha.
 
@@ -394,3 +400,102 @@ Não garante:
 Limites de recursos (medidos com `docker stats` no lab ocioso após as provas):
 `zap` 1,14 GiB de 2,5 GiB (JVM com `-Xmx1536m`), `scope-proxy` 62 MiB de 512 MiB,
 `vampi` 136 MiB de 256 MiB, `vampi-tls` 67 MiB de 256 MiB, `zap-gateway` 4 MiB de 64 MiB.
+
+## Inventário de imagens (V1.12)
+
+Os digests abaixo são declarados nos arquivos; imagens locais de build têm ID variável. Os tamanhos são da captura `images-before.jsonl` do coordenador em 2026-11-17, não uma consulta atual. O manifesto verificável [protected-images.json](scripts/protected-images.json) protege as imagens desta tabela, exceto `scratch`, que é estágio vazio e não uma imagem local removível.
+
+| Imagem e digest declarado | Uso | Tamanho instalado |
+| --- | --- | --- |
+| `zaproxy/zap-stable:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af` | Base / VAmPI: zap | 3.75GB (captura inicial) |
+| `hdast/zap:2.17.0-alpha54-beta64` | Base / VAmPI: zap (derivada da `zap-stable` acima, ADR 0103) | 3.77GB (medido em 2026-11-17; só 12MB próprios, o resto são camadas da `zap-stable`) |
+| `hdast/zap:local` | ZAP construído pelo modo local | A medir |
+| `ghcr.io/marcosquintino0/hdast-zap:1.12.2` | ZAP preparado para publicação no GHCR | A medir |
+| `ghcr.io/marcosquintino0/hdast-scope-proxy:1.12.2` | Proxy de escopo preparado para publicação no GHCR | A medir |
+| `ghcr.io/marcosquintino0/hdast-nuclei:1.12.2` | Nuclei (ADR 0122) preparado para publicação no GHCR | A medir |
+| `hdast/nuclei:local` | Nuclei construído pelo modo local | A medir |
+| `alpine/socat:1.8.1.3@sha256:e8a6e8868a8e6e01d9c2c321a8f8d4474d2d741d962462e5c5a124a8e66a0055` | Base / VAmPI: zap-gateway, Base / VAmPI: proxy-gateway, OAST: oast-gateway | 15MB (captura inicial) |
+| `hdast/scope-proxy:local` | Base / VAmPI: scope-proxy, Base / VAmPI: vampi-tls | 339MB (captura inicial) |
+| `erev0s/vampi:latest@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12` | Base / VAmPI: vampi | 186MB (captura inicial) |
+| `hdast-alvo-actuator:1.0.0` | Alvo Spring com Actuator aberto (ADR 0122): actuator | A medir |
+| `hdast-clinica-piloto:1.0.0` | Clínica Piloto: pilot | 365MB (captura inicial) |
+| `gvenzl/oracle-free:23-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093` | Clínica Piloto: oracle | 6.46GB (captura inicial) |
+| `crapi/crapi-identity:1.1.6-rc8@sha256:5152eaa8b25d8585068ec478c9a2ee886ce1658d8289fd047f83325737490f78` | crAPI: crapi-identity | 809MB (captura inicial) |
+| `crapi/crapi-community:1.1.6-rc8@sha256:ff62181b9089df60379c1cecdcfceb0f54ea6d6c4d7c407bb2f5fd55208f2be0` | crAPI: crapi-community | 47.9MB (captura inicial) |
+| `crapi/crapi-workshop:1.1.6-rc8@sha256:b73a2e4aed1a62ba9c626214eca6b66289f2f5cced7169dbd791837edf263de6` | crAPI: crapi-workshop | 307MB (captura inicial) |
+| `crapi/crapi-web:1.1.6-rc8@sha256:6cbafa5085cc38199c5f16f71ad11579168e08ca25c22e9b89f55e423caa8746` | crAPI: crapi-web | 182MB (captura inicial) |
+| `postgres:14@sha256:980b7cb415aa0f812f65bdec8f6f599be408d8ed9c83ffcaa12650eac397b264` | crAPI: postgresdb | 654MB (captura inicial) |
+| `mongo:4.4@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef` | crAPI: mongodb | 594MB (captura inicial) |
+| `crapi/mailhog:1.1.6-rc8@sha256:c3a74b1f63673996aec82f175ad4dd49cc3152637f68dc3dfc9f765e06c0f5e9` | crAPI: mailhog | 31.9MB (captura inicial) |
+| `crapi/gateway-service:1.1.6-rc8@sha256:111a996957c1e9f78fe401b4d9a16bb99e6d6a3aa836792382a52c9ecbd39c8c` | crAPI: api.mypremiumdealership.com | 131MB (captura inicial) |
+| `python:3.13-slim-bookworm@sha256:a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72` | Build do proxy | 183MB (captura inicial) |
+| `maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237` | Build da Clínica | 801MB (captura inicial) |
+| `eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474` | Base da Clínica | 287MB (captura inicial) |
+| `scratch` | Estágio de exportação da Clínica (imagem vazia) | Não aplicável |
+
+A imagem antiga `crapi/crapi-chatbot:1.1.6-rc8@sha256:82a2b54f13a378952ea0d40925c3229c7cc9876e3699dd29340c7392b4bd909f` (1,5 GB na captura inicial) já existia e não foi removida. Ela deixou de fazer parte da pilha do crAPI; permanece protegida como imagem anterior à trilha, inclusive no manifesto.
+
+Medição posterior: `docker image inspect --format "{{.Id}} {{.Size}}" <referência>` para cada referência existente; registre ausência e não baixe imagens para medir. Não use `prune` ou `dangling` como prova de propriedade.
+
+## Retorno OAST isolado (proposto)
+
+Os overlays `lab/oast/compose.yaml` e `lab/crapi/compose.oast.yaml` preparam a ponte interna de Callback descrita no [ADR 0095](../docs/decisoes/0095-retorno-oast-isolado.md). Não ligam varredura. Em 2026-11-17, a prova dirigida confirmou o complemento na imagem fixada e recebeu um evento real do workshop. A operação exige coordenação sob a trava do laboratório.
+
+### Simular a seleção de imagens
+
+O registro explícito, criado quando a trilha cria uma imagem temporária, tem o formato `{"images":[{"image_id":"sha256:<64 hex>","reference":"hdast/v1-12-oast-temp:<tag>"}]}`. Não invente registros para imagens existentes. Sob a trava do laboratório, execute:
+
+```powershell
+uv run python lab/scripts/plan_image_cleanup.py registro.json C:\harness-dast-artefatos\v1-12-lab\images-before.jsonl
+```
+
+O roteiro consulta apenas IDs, tags e digests do Docker, sem ler variáveis de ambiente nem remover imagens. Ele recusa IDs incompletos, duplicatas, imagens da captura inicial, referências remapeadas, imagens em uso por qualquer contêiner, tags extras e imagens protegidas pelo manifesto. Também exige conseguir resolver todos os IDs da captura inicial para impedir divergência entre ID local e digest; se algum não estiver disponível, recusa o plano. Com registro vazio, gera plano vazio sem consultar o Docker. Gera comandos estritos com o **ID completo validado**, sem `--force`, para revisão humana; mudança posterior da tag não direciona o comando para outra imagem. O registro declara a origem e deve ser comprovado pelos logs da criação: nome ou tag não provam propriedade. Como o estado pode mudar após a consulta, mantenha a trava, execute novamente a validação imediatamente antes de executar cada comando e confira o registro; não use `prune` ou `dangling`.
+
+A captura inicial é vinculada pelo SHA-256 `e7aa7746b87f428e0f928a855c4947cf6389e25954f22398982feebf6130747e`: arquivo ausente, alterado ou malformado recusa o plano inteiro.
+
+### Prova dirigida de Callback
+
+Após obter a trava exclusiva do laboratório e confirmar que o projeto `hdast-codex` está livre, o coordenador executa na raiz:
+
+```powershell
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\oast-proof'
+uv run pytest -v -m integration tests/integration/test_lab_oast.py::test_callback_e_isolamento_a_partir_do_workshop_crapi
+```
+
+O teste sobe a pilha crAPI via `LabCli`, liga a ponte sem recriar o ZAP e aplica o overlay ao workshop. Configura o Callback pela API de controle e executa Python no workshop para enviar um único pedido ao retorno. Confere a mensagem OAST no histórico do ZAP, o contador, as redes internas e a falha por falta de rota para `192.0.2.1`. O arquivo `oast-crapi-callback-<run_id>.json` contém somente ID da pilha, marcador e resultados sanitizados. Esta é uma prova de infraestrutura: não envia HTTP direto à API do alvo, não demonstra SSRF e não contorna `STACK_STALE`. O teste sintético anterior permanece como controle separado. A execução real de 2026-11-17 passou em 238,91 s na pilha `2026-11-17T08-00-17Z-crapi-4538`: contador de 0 para 1 e limpeza sem erros. Evidências externas em `C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\metrics-oast-fixed\`.
+
+### Inventário de imagens em ensaio
+
+Na raiz do repositório, o coordenador pode gerar um relatório externo sem modificar imagens:
+
+```powershell
+uv run python lab/scripts/inventory_images.py --output C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\images-inventory.json
+```
+
+O comando lê os arquivos versionados cujo nome contém `compose` e termina em `.yaml` ou `.yml`. Para as imagens próprias lê o valor padrão declarado no Compose, sem consultar o ambiente ou `.env`. Consulta do Docker somente os campos ID, tags, digests, tamanho e data das imagens e o ID da imagem de cada contêiner, inclusive parado. Não remove, baixa, cria ou altera imagens. O relatório distingue imagens próprias usadas por Compose ou contêiner, imagens próprias fora de ambos e imagens sem proveniência atribuível. Tamanhos aparecem em bytes e em unidades legíveis. Imagens alheias com identificação não são listadas.
+
+O nome gerado para um serviço com `build` sem `image` usa o nome de projeto do arquivo ou o diretório e a tag `latest`. Nomes de projeto fornecidos em execução, arquivos não versionados, builds externos e referências dinâmicas não podem ser comprovados por este inventário. Interpolações sem padrão reconhecido, `include`/`extends`, arquivos inválidos e falhas de consulta causam recusa. O relatório é uma fotografia sujeita a mudanças e não é autorização nem plano de remoção.
+
+### Ciclos crAPI descartáveis
+
+Sob a trava exclusiva, com os projetos `hdast-codex` e `hdast-crapi-codex` livres:
+
+```powershell
+$env:HDAST_IT_METRICS_DIR = 'C:\harness-dast-artefatos\v1-12-lab\nova-prova'
+uv run pytest -m integration tests/integration/test_crapi_cli_cycle.py tests/integration/test_crapi_focus_dryrun.py
+```
+
+Os testes usam somente produtos e estado temporários, aprovação do suporte/runner e
+sufixo `-codex`. Recusam projetos ocupados, registram identidades após a subida e
+conferem propriedade antes da descida e ausência depois. Uma subida parcial sem
+inventário confiável recusa a derrubada e exige intervenção humana. Essa conferência
+não é atômica: a trava externa continua obrigatória.
+
+Em 2026-11-17, os dois testes finais passaram em 566,37 s. O controle levou 254,098 s;
+o foco, 310,344 s desde antes do preparo até depois da descida. O foco tentou nove
+operações, varreu duas e registrou exclusões em authz/negative: conclusão operacional
+no prazo não significa cobertura completa. A medição do `evals.runner` usa uma
+representação de compatibilidade dos comandos, sem agente, modelo ou tokens; o tempo
+fim a fim usa medição monotônica separada. A ocorrência anterior de `STACK_STALE`
+continua sem causa estabelecida. Evidências em
+`C:\harness-dast-artefatos\v1-12-lab\retomada-20261117\final-proofs.log` e `metrics-final-proofs/`.

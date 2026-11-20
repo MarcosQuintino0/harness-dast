@@ -14,16 +14,24 @@ from datetime import datetime
 
 import structlog
 
-from harness_dast.application.ports import Clock, Sleeper
+from harness_dast.application.common_ports import Clock, MutationJournal, Sleeper
+from harness_dast.application.mutation_guard import begin_mutation
 from harness_dast.application.run_support import DeadlineReached, RunGate, WindowClosed
 from harness_dast.application.scan_health import ScanTargetDown, TargetHealth
 from harness_dast.application.scan_ports import RunArtifacts, ScanControl, ScanStart
 from harness_dast.application.scan_tokens import AccountTokens
 from harness_dast.domain.errors import ExternalToolError, PreflightError
+from harness_dast.domain.knowledge_mutation import (
+    MutationPending,
+    mutation_key,
+    safe_mutation_metadata,
+)
 from harness_dast.domain.rule_stats import MAX_REASON, OperationRules
+from harness_dast.domain.scan_binding import bind_scan_seed
 from harness_dast.domain.scan_plan import ScanTarget
 from harness_dast.domain.scan_policy import POLL_SECONDS, ScanLimits, ScanPolicy, scan_cap_minutes
 from harness_dast.domain.scan_result import (
+    MUTATION_PENDING_NOTE,
     EntryOutcome,
     Phase,
     ScanEntry,
@@ -80,6 +88,8 @@ class RunnerDeps:
     deadline: datetime
     base_url: str
     on_progress: Callable[[int, int, str | None], None] | None = None
+    product: str = ""
+    mutation_journal: MutationJournal | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +100,9 @@ class RunOutcome:
     status: ScanStatusName
     message: str | None
     rule_stats: tuple[OperationRules, ...] = ()
+    local_queue_seconds: float = 0.0
+    authentication_seconds: float = 0.0
+    finished_mutations: tuple[str, ...] = ()
 
 
 @dataclass
@@ -99,6 +112,9 @@ class _State:
     seen_alerts: set[str] = field(default_factory=set)
     last: ScanStatus | None = None
     index: int = 0
+    local_queue_seconds: float = 0.0
+    authentication_seconds: float = 0.0
+    finished_mutations: list[str] = field(default_factory=list)
 
 
 class ScanRunner:
@@ -120,10 +136,27 @@ class ScanRunner:
         Raises:
             KeyboardInterrupt: Depois de parar a varredura em curso.
         """
+        queued_at = self._d.clock.now()
         try:
             for index, target in enumerate(targets, start=1):
+                self._state.local_queue_seconds += max(
+                    0.0, (self._d.clock.now() - queued_at).total_seconds()
+                )
                 self._state.index = index
-                self._scan_one(target, len(targets))
+                try:
+                    self._scan_one(target, len(targets))
+                except MutationPending:
+                    self._state.entries.append(
+                        ScanEntry(
+                            operation_id=target.operation_id,
+                            method=target.method,
+                            path=target.path,
+                            message_id=target.message_id,
+                            seed_outcome=target.seed_outcome,
+                            outcome="refused",
+                            note=MUTATION_PENDING_NOTE,
+                        )
+                    )
         except WindowClosed as error:
             return self._stopped("stopped_window", error.message)
         except DeadlineReached as error:
@@ -139,7 +172,13 @@ class ScanRunner:
 
     def _stopped(self, status: ScanStatusName, message: str | None) -> RunOutcome:
         return RunOutcome(
-            tuple(self._state.entries), status, message, tuple(self._state.rule_stats)
+            tuple(self._state.entries),
+            status,
+            message,
+            tuple(self._state.rule_stats),
+            round(self._state.local_queue_seconds, 3),
+            round(self._state.authentication_seconds, 3),
+            tuple(self._state.finished_mutations),
         )
 
     def _notify(self, done: int, total: int, operation_id: str | None) -> None:
@@ -152,8 +191,7 @@ class ScanRunner:
         self._notify(self._state.index - 1, total, target.operation_id)
         d.gate.check()
         d.health.ensure_alive()
-        d.tokens.activate(target.account or d.default_account)
-        d.tokens.refresh_if_due()
+        self._authenticate(target.account or d.default_account)
         remaining = (d.deadline - d.clock.now()).total_seconds()
         request = ScanStart(
             url=target.url,
@@ -163,6 +201,19 @@ class ScanRunner:
             policy_name=d.policy.name,
             max_scan_minutes=scan_cap_minutes(d.limits, remaining),
         )
+        key: str | None = None
+        if d.mutation_journal is not None and target.method.upper() in {"POST", "PUT", "PATCH"}:
+            key = mutation_key(
+                d.product, target.operation_id, target.account or d.default_account, target.method
+            )
+            metadata = safe_mutation_metadata(
+                target.operation_id,
+                target.account or d.default_account,
+                target.method.upper(),
+                d.run_id,
+                d.clock.now(),
+            )
+            begin_mutation(d.mutation_journal, key, metadata=metadata)
         try:
             scan_id = d.scanner.start_scan(request)
         except ScanRefused as error:
@@ -179,13 +230,39 @@ class ScanRunner:
             self._interrupt(target, scan_id, total)
             raise
         self._record(target, scan_id, status, started, stop_requested=False)
+        entry = self._state.entries[-1]
+        if (
+            key is not None
+            and status.state.upper() == "FINISHED"
+            and status.progress == 100
+            and entry.outcome == "completed"
+            and not entry.truncated
+        ):
+            self._state.finished_mutations.append(key)
+        elif key is not None:
+            prior = entry.note or "O lote não teve conclusão integral confirmada."
+            self._state.entries[-1] = entry.model_copy(
+                update={"note": prior + " Diário pendente; reconcilie antes de repetir."}
+            )
+
+    def _authenticate(self, account: str | None = None) -> None:
+        """Mede login, renovação e troca das regras de identidade, inclusive em falha."""
+        started = self._d.clock.now()
+        try:
+            if account is not None:
+                self._d.tokens.activate(account)
+            self._d.tokens.refresh_if_due()
+        finally:
+            self._state.authentication_seconds += max(
+                0.0, (self._d.clock.now() - started).total_seconds()
+            )
 
     def _wait(self, scan_id: str, target: ScanTarget, total: int) -> ScanStatus:
         d = self._d
         while True:
             d.sleeper.sleep(POLL_SECONDS)
             d.gate.check()
-            d.tokens.refresh_if_due()
+            self._authenticate()
             d.health.tick()
             status = d.scanner.scan_status(scan_id)
             self._state.last = status
@@ -195,14 +272,22 @@ class ScanRunner:
 
     def _record_refused(self, target: ScanTarget, error: ScanRefused) -> None:
         _log.warning("scan_refused", operation_id=target.operation_id, reason=error.message)
+        note = f"O ZAP recusou iniciar a varredura: {error.message}"
+        if self._d.mutation_journal is not None and target.method.upper() in {
+            "POST",
+            "PUT",
+            "PATCH",
+        }:
+            note += " O diário mantém a intenção pendente; reconcilie antes de repetir."
         self._state.entries.append(
             ScanEntry(
                 operation_id=target.operation_id,
                 method=target.method,
                 path=target.path,
                 message_id=target.message_id,
+                seed_outcome=target.seed_outcome,
                 outcome="refused",
-                note=f"O ZAP recusou iniciar a varredura: {error.message}",
+                note=note,
             )
         )
 
@@ -251,6 +336,17 @@ class ScanRunner:
                 alert_count=len(alert_ids),
                 alert_ids=alert_ids,
                 note=note,
+                seed_outcome=target.seed_outcome,
+                seed_binding=(
+                    bind_scan_seed(
+                        target.operation_id,
+                        target.method,
+                        target.url,
+                        target.account or d.default_account,
+                    )
+                    if target.account or d.default_account
+                    else None
+                ),
             )
         )
 

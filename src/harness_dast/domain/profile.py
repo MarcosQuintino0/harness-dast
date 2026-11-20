@@ -16,14 +16,17 @@ from typing import Literal, Self
 from pydantic import Field, StrictBool, StrictInt, ValidationError, field_validator, model_validator
 
 from harness_dast.domain.auth import Account, AuthConfig, LoginLimit, PasswordLoginAuth
-from harness_dast.domain.authz_config import AuthzConfig
+from harness_dast.domain.authz.config import AuthzConfig
 from harness_dast.domain.errors import ConfigError, ScopeViolation
+from harness_dast.domain.extra_checks_config import ExtraChecksConfig
+from harness_dast.domain.negative_config import NegativeConfig
 from harness_dast.domain.probe_config import JsonFieldRule, ProbeConfig
 from harness_dast.domain.profile_errors import to_config_error
 from harness_dast.domain.run import SLUG_PATTERN, RunLimits
 from harness_dast.domain.scan_config import ScanConfig
 from harness_dast.domain.scope import OutboundRequest, PathMode, Scope, ScopeGuard
 from harness_dast.domain.secret_ref import ProfileModel, SecretRef
+from harness_dast.domain.technology import TechnologyDeclaration
 from harness_dast.domain.urlnorm import normalize_request
 from harness_dast.domain.window import (
     Authorization,
@@ -237,6 +240,9 @@ class ProductProfile(ProfileModel):
         probe: Critério de sucesso e caminho de saúde, opcional (aditivo na schema v1).
         scan: Política da varredura ativa e gate de severidade, opcional (aditivo na schema v1).
         authz: Teste de autorização entre contas (ADR 0027), opcional (aditivo na schema v1).
+        technologies: Declaração consultiva da carta, sem efeito na cobertura.
+        negative: Teste de valores que o esquema proíbe (ADR 0051), opcional (aditivo na schema v1).
+        extra_checks: Capacidades extras da V1.12 que só a carta liga (ADR 0096), opcional.
     """
 
     schema_version: Literal[1]
@@ -250,6 +256,9 @@ class ProductProfile(ProfileModel):
     probe: ProbeConfig = ProbeConfig()
     scan: ScanConfig = ScanConfig()
     authz: AuthzConfig = AuthzConfig()
+    negative: NegativeConfig = NegativeConfig()
+    extra_checks: ExtraChecksConfig = ExtraChecksConfig()
+    technologies: TechnologyDeclaration | None = None
 
     @field_validator("product")
     @classmethod
@@ -268,6 +277,8 @@ class ProductProfile(ProfileModel):
     @model_validator(mode="after")
     def validate_consistency(self) -> Self:
         """Confere que ambiente, login, CSRF, saúde e TLS são coerentes com o escopo."""
+        if set(self.authz.shared_roles) - {account.role for account in self.auth.accounts}:
+            raise ValueError("authz.shared_roles deve citar apenas papéis de auth.accounts")
         guard = self.guard()
         try:
             guard.ensure_origin_allowed(self.environment.base_url)
@@ -341,6 +352,15 @@ class ProductProfile(ProfileModel):
     def login_path(self) -> str | None:
         """Caminho do login, ou `None` quando a autenticação é por chave de API."""
         return self.auth.token_path if isinstance(self.auth, PasswordLoginAuth) else None
+
+    @property
+    def infrastructure_paths(self) -> frozenset[str]:
+        """Caminhos de login, saúde e preparação: existem para o ambiente, não são negócio."""
+        return frozenset(
+            path
+            for path in (self.login_path, self.probe.health_path, self.probe.setup_path)
+            if path is not None
+        )
 
     @property
     def login_limit(self) -> LoginLimit | None:

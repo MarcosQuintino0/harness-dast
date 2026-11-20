@@ -11,19 +11,29 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping
+import time
+import warnings
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from unittest.mock import patch
 
 import httpx
 import pytest
+from pydantic import BaseModel, Field, ValidationError
 
+from harness_dast.adapters.storage.approval_store import FileApprovalStore
+from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.adapters.storage.stack_state import default_state_dir
 from harness_dast.application.cleanup import CleanupReport, CleanupRequest
 from harness_dast.cli.composition import build_cleanup
 from harness_dast.domain.cleanup_plan import CleanupPlan
+from harness_dast.domain.errors import ConfigError
 from harness_dast.observability.logging import SecretRegistry
+from tests.fakes.approvals import approval_for
+from tests.integration.lab_images import IMAGE_ENV_KEYS, PREBUILT_MODE
+from tests.integration.proxy_watch_log import WatchResult, read_docker_latch_categories
 
 REPO = Path(__file__).resolve().parents[2]
 PILOT_PROFILE = REPO / "lab" / "pilot" / "product-profile"
@@ -93,15 +103,45 @@ class TypedName:
         return self.typed.strip() == plan.product
 
 
+class StackCommand(Protocol):
+    """Executa um comando da CLI de gerenciamento da pilha."""
+
+    def __call__(self, *args: str, timeout: int) -> CliResult: ...
+
+
+class WatchStackProject(BaseModel):
+    """Nome do projeto Compose usado para localizar o proxy."""
+
+    name: str = Field(min_length=1)
+
+
+class WatchStackState(BaseModel):
+    """Campos de stack.json necessários para coletar a causa da trava."""
+
+    run_id: str = Field(min_length=1)
+    projects: tuple[WatchStackProject, ...] = Field(min_length=1)
+
+
 class LabCli:
     """Chama `python -m harness_dast --json ...` num ambiente isolado em pastas temporárias."""
 
-    def __init__(self, root: Path, extra_env: Mapping[str, str]) -> None:
+    def __init__(
+        self,
+        root: Path,
+        extra_env: Mapping[str, str],
+        *,
+        watch_reader: Callable[
+            [Mapping[str, str], str], WatchResult
+        ] = read_docker_latch_categories,
+        stack_command: StackCommand | None = None,
+    ) -> None:
         """Cria o ambiente.
 
         Args:
             root: Pasta temporária da sessão (estado, execuções e produtos ficam dentro).
             extra_env: Variáveis adicionais (credenciais descartáveis dos alvos).
+            watch_reader: Leitor das categorias da vigia.
+            stack_command: Executor de descida e recriação, por padrão a CLI real.
         """
         self.root = root
         self.products = root / "products"
@@ -123,7 +163,49 @@ class LabCli:
             }
         )
         env.update(extra_env)
+        self._prebuilt = os.environ.get(PREBUILT_MODE) == "1"
+        if self._prebuilt:
+            for key in IMAGE_ENV_KEYS:
+                image = os.environ.get(key)
+                if not image:
+                    raise ConfigError(f"Imagem de sessão ausente em {key}. Rode pelo pytest.")
+                env[key] = image
+            env["HDAST_STACK_BUILD"] = "reuse"
+            env["COMPOSE_DISABLE_ENV_FILE"] = "1"
+        else:
+            # A prova de desenvolvimento precisa exercitar a cerca deste checkout.
+            env.setdefault("HDAST_STACK_BUILD", "1")
+        # Fonte única do sufixo: o `oast_support`, o `oast_cleanup` e o `crapi_support` leem o
+        # mesmo valor, para procurar os contêineres no projeto que a CLI realmente subiu.
+        if suffix := stack_suffix():
+            env["HDAST_STACK_PROJECT_SUFFIX"] = suffix
         self.env = env
+        self.freeze_approvals = False
+        self._watch_reader = watch_reader
+        self._stack_command = stack_command if stack_command is not None else self._run
+
+    def approve_installed_products(self) -> None:
+        """Faz o que a PESSOA faria no terminal: aprova o escopo de cada produto instalado.
+
+        O laboratório de integração prova o ZAP, o proxy e o alvo, não a aprovação (ela tem os
+        próprios testes de contrato). É chamado antes de cada comando; uma aprovação igual
+        não é regravada, preservando a identidade do arquivo observada pelo proxy. O teste
+        que edita o perfil depois de instalar não precisa lembrar de aprovar de novo.
+        """
+        if self.freeze_approvals:
+            return
+        store = FileApprovalStore(default_state_dir(self.env))
+        repository = FileProfileRepository(self.products)
+        for folder in sorted(self.products.iterdir()):
+            if not (folder / "target.yml").is_file():
+                continue
+            try:
+                profile = repository.load(folder.name)
+            except ConfigError:
+                continue  # perfil inválido de propósito: a CLI o recusa pelo próprio erro
+            approval = approval_for(profile)
+            if store.read(folder.name) != approval:
+                store.write(approval)
 
     def confirm_cleanup_as_person(self, product: str, run_id: str, typed: str) -> CleanupReport:
         """Roda o caso de uso `cleanup` EM PROCESSO com a pessoa (dublê) num terminal interativo.
@@ -131,6 +213,7 @@ class LabCli:
         A confirmação real exige terminal, que o subprocesso do teste não tem; por isso este
         caminho usa o mesmo caso de uso e o mesmo executor da CLI, com o ambiente do laboratório.
         """
+        self.approve_installed_products()
         with patch.dict(os.environ, self.env):
             use_case = build_cleanup(self.products, SecretRegistry(), TypedName(typed))
             return use_case.execute(
@@ -144,7 +227,13 @@ class LabCli:
             )
 
     def run(self, *args: str, timeout: int = CLI_TIMEOUT) -> CliResult:
-        """Executa a CLI e devolve código, envelope e saídas."""
+        """Executa a CLI e devolve código, envelope e saídas (antes, aprova os produtos)."""
+        if args[:2] == ("stack", "up") and len(args) >= 3:
+            return self.stack_up(args[2], *args[3:], timeout=timeout)
+        return self._run(*args, timeout=timeout)
+
+    def _run(self, *args: str, timeout: int) -> CliResult:
+        self.approve_installed_products()
         done = subprocess.run(  # noqa: S603 - interpretador atual e módulo do próprio projeto
             [sys.executable, "-m", "harness_dast", "--json", *args],
             env=self.env,
@@ -164,6 +253,24 @@ class LabCli:
             done.returncode, parsed if isinstance(parsed, dict) else {}, done.stdout, done.stderr
         )
 
+    def start(self, *args: str) -> "subprocess.Popen[str]":
+        """Inicia a CLI em segundo plano (antes, aprova os produtos); quem chama espera o fim.
+
+        Serve para provar o que acontece ENQUANTO um comando roda (a trava da pilha). A saída
+        é lida com `communicate()`, que também espera o término.
+        """
+        self.approve_installed_products()
+        return subprocess.Popen(  # noqa: S603 - interpretador atual e módulo do próprio projeto
+            [sys.executable, "-m", "harness_dast", "--json", *args],
+            env=self.env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            cwd=REPO,
+        )
+
     def install_product(self, name: str, source: Path, extra_files: tuple[Path, ...] = ()) -> Path:
         """Copia um perfil para `products/<name>/` (a pasta leva o nome do produto)."""
         target = self.products / name
@@ -181,8 +288,78 @@ class LabCli:
         return loaded
 
     def stack_down(self) -> None:
-        """Derruba a pilha, sem falhar se ela já não existe."""
-        self.run("stack", "down", timeout=240)
+        """Guarda a causa de uma trava da vigia e derruba a pilha, sem falhar se ela não existe.
+
+        A causa (`gate_watch_latch`) só existe na saída do contêiner do proxy, que some no
+        `down`. Ela vai, sanitizada, para `proxy-watch.jsonl` na pasta do teste e, quando há
+        trava, vira um aviso do pytest, para a próxima trava falsa chegar com a causa.
+        """
+        try:
+            self._record_watch_latch()
+        finally:
+            self._stack_command("stack", "down", timeout=240)
+
+    def stack_up(self, product: str, *flags: str, timeout: int = STACK_UP_TIMEOUT) -> CliResult:
+        """Sobe a pilha do checkout e, se configurado, registra o tempo da subida."""
+        flags = tuple(flag for flag in flags if flag != "--build")
+        build = () if self._prebuilt else ("--build",)
+        started = time.monotonic()
+        result = None
+        try:
+            result = self._stack_command("stack", "up", product, *build, *flags, timeout=timeout)
+            return result
+        finally:
+            self._record_stack_up(product, time.monotonic() - started, result)
+
+    def _record_stack_up(self, product: str, seconds: float, result: CliResult | None) -> None:
+        metrics = os.environ.get("HDAST_IT_METRICS_DIR")
+        if metrics:
+            destination = Path(metrics)
+            destination.mkdir(parents=True, exist_ok=True)
+            row = {
+                "product": product,
+                "seconds": round(seconds, 3),
+                "prebuilt": self._prebuilt,
+                "exit_code": None if result is None else result.code,
+            }
+            with (destination / "stack-up.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(row) + "\n")
+
+    def restack(self, product: str, *flags: str, timeout: int = 900) -> CliResult:
+        """Derruba e sobe de novo a pilha, depois de o teste editar o perfil (ADR 0081).
+
+        A pilha fica presa ao `target.yml` e à aprovação do `stack up`; editar um deles depois
+        faz a CLI e o proxy recusarem tudo com `STACK_STALE`. É o que a mensagem da CLI manda
+        fazer. O alvo também é recriado, então quem chama refaz o `probe`.
+        """
+        self.stack_down()
+        return self.stack_up(product, *flags, timeout=timeout)
+
+    def _record_watch_latch(self) -> None:
+        state_path = self.state / "stack.json"
+        try:
+            state = WatchStackState.model_validate_json(state_path.read_bytes())
+        except (OSError, ValidationError):
+            return
+        run_id = state.run_id
+        found = self._watch_reader(self.env, state.projects[0].name)
+        with (self.root / "proxy-watch.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"stack_run_id": run_id, **found}) + "\n")
+        if found["categories"]:
+            warnings.warn(
+                f"A vigia do proxy travou na pilha {run_id}: {', '.join(found['categories'])}.",
+                ProxyWatchLatch,
+                stacklevel=2,
+            )
+
+
+class ProxyWatchLatch(UserWarning):
+    """Aviso com as categorias coletadas de uma trava da vigia na pilha do teste."""
+
+
+def stack_suffix() -> str:
+    """Sufixo dos projetos Compose do laboratório (`HDAST_IT_STACK_SUFFIX`; vazio por padrão)."""
+    return os.environ.get("HDAST_IT_STACK_SUFFIX", "")
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

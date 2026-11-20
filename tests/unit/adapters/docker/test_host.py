@@ -2,24 +2,32 @@
 
 import socket
 import subprocess
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
-from harness_dast.adapters.docker.compose import CommandResult
-from harness_dast.adapters.docker.host import DOCKER_TIMEOUT_SECONDS, SystemHost
+from harness_dast.adapters.docker.compose import CommandResult, default_repo_root
+from harness_dast.adapters.docker.host import (
+    DOCKER_TIMEOUT_SECONDS,
+    PULL_TIMEOUT_SECONDS,
+    SystemHost,
+)
+from harness_dast.application.stack_images import ImageInfo, StackImages
 from harness_dast.domain.errors import ConfigError, ExternalToolError
+from tests.fakes.host import published_images
 
-COMPOSE = """\
+BASE_ZAP = "zaproxy/zap-stable:2.17.0@sha256:" + "a" * 64
+COMPOSE = f"""\
 services:
   zap:
-    image: zaproxy/zap-stable:2.17.0@sha256:aaa
+    image: {BASE_ZAP}
   scope-proxy:
     build: ./docker/scope-proxy
-    image: hdast/scope-proxy:local
+    image: ${{HDAST_SCOPE_PROXY_IMAGE:-hdast/scope-proxy:local}}
   vampi:
-    image: erev0s/vampi:latest@sha256:bbb
+    image: erev0s/vampi:latest@sha256:{"b" * 64}
   sem-imagem:
     build: ./x
 """
@@ -95,25 +103,58 @@ def test_docker_version_raises_when_the_process_cannot_start() -> None:
         host(Recorder(OSError("boom"))).docker_version()
 
 
-def test_image_present_is_true_when_inspect_succeeds() -> None:
-    runner = Recorder(CommandResult(0, "sha256:abc\n", ""))
+def test_inspect_image_returns_the_oci_version_when_present() -> None:
+    runner = Recorder(CommandResult(0, '"1.12.2"\n', ""))
 
-    assert host(runner).image_present("zap:1@sha256:aaa") is True
+    assert host(runner).inspect_image("zap:1@sha256:aaa") == ImageInfo(version="1.12.2")
     assert runner.calls[0][0][:3] == ["docker", "image", "inspect"]
     assert runner.calls[0][0][-1] == "zap:1@sha256:aaa"
 
 
-def test_image_present_is_false_when_docker_says_no_such_image() -> None:
+@pytest.mark.parametrize("label", ['""', "null"])
+def test_inspect_image_reports_a_missing_label(label: str) -> None:
+    runner = Recorder(CommandResult(0, label, ""))
+
+    assert host(runner).inspect_image("zap:1") == ImageInfo()
+
+
+@pytest.mark.parametrize("label", ["quebrado", "30", '"rótulo com quebra\\n"'])
+def test_inspect_image_refuses_malformed_metadata(label: str) -> None:
+    runner = Recorder(CommandResult(0, label, ""))
+
+    with pytest.raises(ExternalToolError, match="metadados inválidos"):
+        host(runner).inspect_image("zap:1")
+
+
+def test_inspect_image_returns_none_when_docker_says_no_such_image() -> None:
     runner = Recorder(CommandResult(1, "", "Error response from daemon: No such image: zap:1"))
 
-    assert host(runner).image_present("zap:1") is False
+    assert host(runner).inspect_image("zap:1") is None
 
 
-def test_image_present_raises_when_the_daemon_is_down() -> None:
+def test_inspect_image_raises_when_the_daemon_is_down() -> None:
     runner = Recorder(CommandResult(1, "", "Cannot connect to the Docker daemon"))
 
     with pytest.raises(ExternalToolError, match="não conseguiu consultar"):
-        host(runner).image_present("zap:1")
+        host(runner).inspect_image("zap:1")
+
+
+def test_pull_image_downloads_the_reference_with_a_timeout() -> None:
+    runner = Recorder(CommandResult(0, "", ""))
+
+    host(runner).pull_image("zap:1")
+
+    assert runner.calls == [(["docker", "image", "pull", "zap:1"], PULL_TIMEOUT_SECONDS)]
+
+
+def test_pull_image_explains_registry_failure_without_repeating_process_output() -> None:
+    runner = Recorder(CommandResult(1, "", "texto bruto do Docker"))
+
+    with pytest.raises(ExternalToolError, match="baixar a imagem zap:1") as caught:
+        host(runner).pull_image("zap:1")
+
+    assert "texto bruto" not in caught.value.message
+    assert "registro" in (caught.value.hint or "")
 
 
 # ----------------------------------------------------------------------- compose
@@ -125,19 +166,62 @@ def test_compose_images_lists_only_the_requested_services_that_have_an_image(
     (tmp_path / "compose.yaml").write_text(COMPOSE, encoding="utf-8")
 
     images = host(Recorder(CommandResult(0, "", "")), tmp_path).compose_images(
-        ("zap", "scope-proxy", "sem-imagem", "inexistente", "zap")
+        ("zap", "scope-proxy", "sem-imagem", "inexistente", "zap"), {}
     )
 
-    assert images == ("zaproxy/zap-stable:2.17.0@sha256:aaa", "hdast/scope-proxy:local")
+    assert images == {
+        "zap": BASE_ZAP,
+        "scope-proxy": "hdast/scope-proxy:local",
+    }
 
 
-def test_compose_images_reads_the_real_repository_compose_file() -> None:
-    images = host(Recorder(CommandResult(0, "", ""))).compose_images(
-        ("zap", "zap-gateway", "scope-proxy", "proxy-gateway")
+@pytest.mark.parametrize("override", [None, "", "registry.example/proxy:teste@sha256:" + "a" * 64])
+def test_compose_images_shares_the_versioned_proxy_reference_with_vampi_tls(
+    override: str | None,
+) -> None:
+    env = {"HDAST_SCOPE_PROXY_IMAGE": override} if override is not None else {}
+    images = SystemHost(env).compose_images(("zap", "scope-proxy", "vampi-tls"), {})
+    package = tomllib.loads((default_repo_root() / "pyproject.toml").read_text(encoding="utf-8"))
+    version = package["project"]["version"]
+    expected = override or f"ghcr.io/marcosquintino0/hdast-scope-proxy:{version}"
+
+    assert images == {
+        "zap": f"ghcr.io/marcosquintino0/hdast-zap:{version}",
+        "scope-proxy": expected,
+        "vampi-tls": expected,
+    }
+
+
+def test_published_digests_override_image_environment_when_lock_is_loaded() -> None:
+    lock = published_images()
+    host_with_overrides = SystemHost(
+        {"HDAST_ZAP_IMAGE": "zap:local", "HDAST_SCOPE_PROXY_IMAGE": "scope-proxy:local"}
     )
+    images = StackImages(
+        host_with_overrides,
+        lock.version,
+        load_lock=lambda: lock,
+        has_build_contexts=lambda: False,
+    ).references(("zap", "scope-proxy", "vampi-tls"), local=False)
 
-    assert any(image.startswith("zaproxy/zap-stable") for image in images)
-    assert "hdast/scope-proxy:local" in images
+    assert images == {
+        "zap": lock.images.zap.reference(),
+        "scope-proxy": lock.images.scope_proxy.reference(),
+        "vampi-tls": lock.images.scope_proxy.reference(),
+    }
+
+
+@pytest.mark.parametrize(
+    "ref",
+    ["--help", "https://person:fake@host/image", "https://host/image?q=secret", "imagem ou outra"],
+)
+def test_compose_refuses_invalid_image_overrides_without_echoing_them(ref: str) -> None:
+    system = SystemHost({"HDAST_SCOPE_PROXY_IMAGE": ref})
+
+    with pytest.raises(ConfigError, match="do serviço scope-proxy é inválida") as caught:
+        system.compose_images(("scope-proxy",), {})
+
+    assert ref not in caught.value.message
 
 
 @pytest.mark.parametrize(
@@ -157,14 +241,14 @@ def test_compose_images_raises_config_error_when_compose_is_unusable(
         (tmp_path / "compose.yaml").write_text(content, encoding="utf-8")
 
     with pytest.raises(ConfigError):
-        host(Recorder(CommandResult(0, "", "")), tmp_path).compose_images(("zap",))
+        host(Recorder(CommandResult(0, "", "")), tmp_path).compose_images(("zap",), {})
 
 
 def test_compose_images_refuses_an_oversized_compose_file(tmp_path: Path) -> None:
     (tmp_path / "compose.yaml").write_text("services: {}\n" + "# x\n" * 100_000, encoding="utf-8")
 
     with pytest.raises(ConfigError, match="grande demais"):
-        host(Recorder(CommandResult(0, "", "")), tmp_path).compose_images(("zap",))
+        host(Recorder(CommandResult(0, "", "")), tmp_path).compose_images(("zap",), {})
 
 
 # ------------------------------------------------------------------------- portas

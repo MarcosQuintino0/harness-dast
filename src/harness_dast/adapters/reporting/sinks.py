@@ -8,10 +8,11 @@ import os
 from pathlib import Path
 from typing import Final
 
+from harness_dast.application.report_presentation import PresentationBuilder
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.report_html import render_html
-from harness_dast.domain.report_markdown import render_markdown
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.html import render_html
+from harness_dast.domain.report.markdown import render_markdown
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.run_ref import require_run_id
 
 FINDINGS_FILE: Final = "findings.json"
@@ -35,7 +36,7 @@ def _write_atomic(runs_dir: Path, run_id: str, name: str, text: str) -> str:
 
 
 class JsonFindingsSink:
-    """Grava `findings.json` (esquema versionado em `docs/reference/finding-schema.md`)."""
+    """Grava `findings.json` (esquema versionado em `docs/referencia/finding-schema.md`)."""
 
     def __init__(self, runs_dir: Path) -> None:
         """Cria o destino.
@@ -54,30 +55,38 @@ class JsonFindingsSink:
 class MarkdownReportSink:
     """Grava `report.md` (português, seguro para renderizar)."""
 
-    def __init__(self, runs_dir: Path) -> None:
+    def __init__(self, runs_dir: Path, presentation: PresentationBuilder | None = None) -> None:
         """Cria o destino.
 
         Args:
             runs_dir: Pasta das execuções.
+            presentation: Montagem opcional de dados consultivos.
         """
         self._runs_dir = runs_dir
+        self._presentation = presentation
 
     def write(self, run_id: str, report: FindingsReport) -> str:
         """Grava o relatório em Markdown e devolve o nome do arquivo."""
-        return _write_atomic(self._runs_dir, run_id, REPORT_FILE, render_markdown(report))
+        view = self._presentation.build(report) if self._presentation is not None else None
+        text = render_markdown(report, view)
+        return _write_atomic(self._runs_dir, run_id, REPORT_FILE, text)
 
 
 class HtmlReportSink:
     """Grava `report.html` (página única e autocontida, sem JavaScript)."""
 
-    def __init__(self, runs_dir: Path) -> None:
+    def __init__(self, runs_dir: Path, presentation: PresentationBuilder | None = None) -> None:
         """Cria o destino.
 
         Args:
             runs_dir: Pasta das execuções.
+            presentation: Montagem opcional de dados consultivos.
         """
         self._runs_dir = runs_dir
+        self._presentation = presentation
 
     def write(self, run_id: str, report: FindingsReport) -> str:
         """Grava o relatório em HTML e devolve o nome do arquivo."""
-        return _write_atomic(self._runs_dir, run_id, HTML_FILE, render_html(report))
+        view = self._presentation.build(report) if self._presentation is not None else None
+        text = render_html(report, view)
+        return _write_atomic(self._runs_dir, run_id, HTML_FILE, text)

@@ -11,22 +11,45 @@ from pathlib import Path
 
 from pydantic import SecretStr
 
-from harness_dast.adapters.docker.compose import DockerComposeCli, default_repo_root
+from harness_dast import __version__
+from harness_dast.adapters.docker.compose import DockerComposeCli, default_compose_root
+from harness_dast.adapters.docker.crapi_accounts import CrapiAccountProvisioner
+from harness_dast.adapters.docker.host import SystemHost
+from harness_dast.adapters.docker.images_lock import has_build_contexts, load_images_lock
+from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
 from harness_dast.adapters.reporting.run_files import FileRunArtifacts
 from harness_dast.adapters.scope_proxy.audit_reader import FileProxyAudit
 from harness_dast.adapters.scope_proxy.generate import FileProxyPolicyStore
 from harness_dast.adapters.scope_proxy.kill_switch import FileKillSwitch
-from harness_dast.adapters.storage.profile_repository import FileProfileRepository
+from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.stack_state import FileStackStateStore, default_state_dir
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_random import SystemRandom
 from harness_dast.adapters.system_runtime import SystemEntropy
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.stack import POLICY_DIR_ENV, StackManager
+from harness_dast.application.stack_images import ImageStore, StackImages
 from harness_dast.application.stack_models import StackState
+from harness_dast.cli.approval_composition import (
+    formal_profiles,
+    open_approval_store,
+    open_stack_freshness,
+)
+from harness_dast.cli.stack_lock_composition import open_stack_lock
 from harness_dast.config.settings import Settings, load_settings
+from harness_dast.domain.errors import ConfigError
 
 STOP_ZAP_TIMEOUT_SECONDS = 5.0
+
+
+def build_stack_images(host: ImageStore | None = None) -> StackImages:
+    """Monta a seleção e a conferência das imagens próprias do Compose."""
+    return StackImages(
+        SystemHost(os.environ) if host is None else host,
+        __version__,
+        load_lock=load_images_lock,
+        has_build_contexts=lambda: has_build_contexts(default_compose_root()),
+    )
 
 
 def open_state_store(environ: Mapping[str, str] | None = None) -> FileStackStateStore:
@@ -75,22 +98,60 @@ def build_stack_manager(products_dir: Path | None) -> StackManager:
     """Monta o caso de uso da pilha.
 
     Raises:
-        ConfigError: Configuração inválida ou repositório sem `compose.yaml`.
+        ConfigError: Configuração inválida.
     """
     settings = load_settings()
     root = products_dir if products_dir is not None else settings.products_dir
+    profiles = formal_profiles(root)
+    approval_dir = open_approval_store().location("demo").parent
     return StackManager(
-        profiles=FileProfileRepository(root),
+        profiles=profiles,
         clock=SystemClock(),
         entropy=SystemEntropy(),
         random=SystemRandom(),
-        policies=FileProxyPolicyStore(),
+        policies=FileProxyPolicyStore(root, approval_dir, profiles.load),
         compose=DockerComposeCli(os.environ),
+        images=build_stack_images(),
         states=open_state_store(),
         environ=os.environ,
-        repo_root=default_repo_root(),
+        repo_root=default_compose_root(),
         running_scans=FileRunArtifacts(settings.runs_dir),
+        locks=open_stack_lock(),
+        proxy_env=lambda product: _proxy_mount_env(root, approval_dir, product),
+        freshness=open_stack_freshness(root),
+        crapi_accounts=CrapiAccountProvisioner(),
+        specs=FileSpecLoader(
+            lambda product, relative: resolve_product_file(root, product, relative)
+        ),
     )
+
+
+def _proxy_mount_env(products_dir: Path, approvals_dir: Path, product: str) -> dict[str, str]:
+    """Monta fontes inteiras em leitura e mantem a identidade nao privilegiada no POSIX."""
+    try:
+        approval = approvals_dir / f"{product}.json"
+        owner = approval.stat()
+        if os.name == "nt":
+            uid, gid = 10001, 10001
+        else:
+            uid, gid = owner.st_uid, owner.st_gid
+            if uid == 0:
+                raise ConfigError(
+                    "A aprovacao pertence ao root; o proxy nao pode usar essa identidade.",
+                    hint="Use uma conta sem privilegios para a pilha.",
+                )
+        return {
+            "HDAST_APPROVAL_DIR": approvals_dir.resolve(strict=True).as_posix(),
+            "HDAST_PRODUCT_DIR": (products_dir / product).resolve(strict=True).as_posix(),
+            "HDAST_PROXY_UID": str(uid),
+            "HDAST_PROXY_GID": str(gid),
+            "HDAST_MANAGED_POLICY": "1",
+        }
+    except OSError:
+        raise ConfigError(
+            "Nao foi possivel montar as fontes da aprovacao do proxy.",
+            hint="Confira as pastas e tente novamente.",
+        ) from None
 
 
 def open_zap_stopper() -> ZapApiClient:

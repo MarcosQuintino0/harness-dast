@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from harness_dast.domain.api_summary import ApiSummary
+from harness_dast.domain.spec_hints import SpecHint
 
 
 class NotSentOperation(BaseModel):
@@ -123,6 +124,7 @@ class SpecInspection(BaseModel):
             de outra operação e não foi simulada.
         issues: Problemas nos arquivos de regras e no roteamento de contas.
         operation_accounts: Conta que enviará cada operação que o `probe` envia, no plano.
+        hints: Hipóteses de encadeamento e de uso de contas pares; não alteram o perfil.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -139,3 +141,4 @@ class SpecInspection(BaseModel):
     needs_rule_unchecked: tuple[str, ...]
     issues: tuple[InspectIssue, ...]
     operation_accounts: tuple[OperationAccount, ...] = ()
+    hints: tuple[SpecHint, ...] = ()

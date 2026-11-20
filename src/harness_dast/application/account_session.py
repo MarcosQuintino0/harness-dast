@@ -7,8 +7,11 @@ gravado. Os passos `resolve_secrets`, `login` e `fetch_csrf` são públicos para
 `preflight` reporte cada um separadamente; `open` os encadeia para o `probe`.
 """
 
+from dataclasses import dataclass, field
+from typing import Literal
+
+from harness_dast.application.common_ports import SecretProvider, SecretVault, TargetClient
 from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.ports import SecretProvider, SecretVault, TargetClient
 from harness_dast.domain.api_schema import JsonValue
 from harness_dast.domain.auth import (
     Account,
@@ -22,6 +25,7 @@ from harness_dast.domain.auth import (
 from harness_dast.domain.errors import PreflightError, TargetError
 from harness_dast.domain.flow import extract_value
 from harness_dast.domain.http_messages import HttpResponse
+from harness_dast.domain.login_hint import login_refused_hint
 from harness_dast.domain.outcome import parse_json_body
 from harness_dast.domain.request_encoding import (
     CSRF_OPERATION_ID,
@@ -38,6 +42,28 @@ def account_secret_fields(account: Account) -> tuple[tuple[str, SecretRef], ...]
     if isinstance(account, ApiKeyAccount):
         return (("api_key", account.api_key),)
     return ()
+
+
+@dataclass(frozen=True)
+class AuthCredential:
+    """Credencial que a sessão envia: onde vai e o valor (sensível).
+
+    Attributes:
+        header: Nome do cabeçalho (`Authorization`, `X-API-Key`...).
+        scheme: Esquema (`Bearer`); vazio em chave de API.
+        value: Token ou chave. Fica fora do `repr`: só o teste "token adulterado" o lê.
+        kind: `token` (veio do login) ou `api_key`.
+    """
+
+    header: str
+    scheme: str
+    value: str = field(repr=False)
+    kind: Literal["token", "api_key"] = "token"
+
+    def header_value(self, value: str | None = None) -> str:
+        """Texto do cabeçalho com `value` (ou o valor real), no formato que a sessão envia."""
+        text = self.value if value is None else value
+        return f"{self.scheme} {text}".strip() if self.scheme else text
 
 
 class TokenCache:
@@ -104,6 +130,15 @@ class AccountSession:
     def uses_login(self) -> bool:
         """Se a conta obtém token por login (`login_password`); chave de API não faz login."""
         return isinstance(self._auth, PasswordLoginAuth)
+
+    @property
+    def username(self) -> str | None:
+        """Identificador (usuário) da conta de teste, ou `None` sem login por senha.
+
+        Só serve ao identificador das tentativas sintéticas do limite de consumo (ADR 0101): é o
+        da conta de teste da carta, já registrado para mascaramento, e nunca a senha.
+        """
+        return self._values.get("username")
 
     @property
     def csrf(self) -> CsrfConfig | None:
@@ -231,14 +266,22 @@ class AccountSession:
         """Cabeçalhos de autenticação e, se o método exigir, o de CSRF."""
         return self._auth_headers() + self._csrf_headers(method)
 
-    def _auth_headers(self) -> tuple[tuple[str, str], ...]:
+    def credential(self) -> AuthCredential | None:
+        """Credencial já obtida (nenhum login novo), ou `None` se a conta ainda não tem uma.
+
+        É o único ponto que entrega o VALOR do token ou da chave a outro código (o teste
+        "token adulterado"); quem o recebe não pode gravá-lo nem imprimi-lo.
+        """
         auth = self._auth
         if isinstance(auth, ApiKeyAuth):
-            return ((auth.header_name, self._values["api_key"]),)
+            return AuthCredential(auth.header_name, "", self._values["api_key"], "api_key")
         if self._token is None:
-            return ()
-        value = f"{auth.token_scheme} {self._token}".strip()
-        return ((auth.token_header, value),)
+            return None
+        return AuthCredential(auth.token_header, auth.token_scheme, self._token)
+
+    def _auth_headers(self) -> tuple[tuple[str, str], ...]:
+        credential = self.credential()
+        return () if credential is None else ((credential.header, credential.header_value()),)
 
     def _csrf_headers(self, method: str) -> tuple[tuple[str, str], ...]:
         csrf = self.csrf
@@ -251,8 +294,11 @@ class AccountSession:
         auth = self._auth
         if not isinstance(auth, PasswordLoginAuth) or response.status >= 400:
             raise PreflightError(
-                f"O login da conta {self.alias} foi recusado pelo alvo.",
-                hint="Confira usuário e senha da conta e auth.token_path no target.yml.",
+                f"O login da conta {self.alias} foi recusado pelo alvo (HTTP {response.status}).",
+                hint=login_refused_hint(
+                    response.status,
+                    auth.request_encoding if isinstance(auth, PasswordLoginAuth) else None,
+                ),
             )
         body: JsonValue = parse_json_body(response)
         try:

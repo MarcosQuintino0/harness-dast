@@ -82,11 +82,94 @@ def test_scaffold_refuses_to_overwrite_existing_product(products: Path) -> None:
     assert [p.name for p in existing.iterdir()] == ["target.yml"]
 
 
-def test_scaffold_refuses_existing_product_even_when_folder_is_empty(products: Path) -> None:
-    (products / "demo").mkdir()
+@pytest.mark.parametrize("profile_entry", ["target.yml", "data-rules.yml", "flows.yml"])
+def test_scaffold_refuses_folder_when_any_profile_file_exists(
+    products: Path, profile_entry: str
+) -> None:
+    existing = products / "demo"
+    existing.mkdir()
+    (existing / "decision-log.md").write_text("diário", encoding="utf-8")
+    (existing / profile_entry).write_text("meu trabalho", encoding="utf-8")
+
+    with pytest.raises(ConfigError) as caught:
+        _scaffolder(products).scaffold("demo")
+
+    assert "já existe" in caught.value.message
+    assert sorted(p.name for p in existing.iterdir()) == sorted(["decision-log.md", profile_entry])
+    assert (existing / profile_entry).read_text(encoding="utf-8") == "meu trabalho"
+
+
+def test_scaffold_refuses_folder_when_cleanup_folder_exists(products: Path) -> None:
+    (products / "demo" / "cleanup").mkdir(parents=True)
 
     with pytest.raises(ConfigError):
         _scaffolder(products).scaffold("demo")
+
+    assert [p.name for p in (products / "demo").iterdir()] == ["cleanup"]
+
+
+def test_scaffold_refuses_when_product_path_is_a_file(products: Path) -> None:
+    (products / "demo").write_text("arquivo", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        _scaffolder(products).scaffold("demo")
+
+    assert (products / "demo").read_text(encoding="utf-8") == "arquivo"
+
+
+def test_scaffold_accepts_empty_existing_folder(products: Path) -> None:
+    (products / "demo").mkdir()
+
+    result = _scaffolder(products).scaffold("demo")
+
+    assert result.files == DEFAULT_FILES
+    assert (products / "demo" / "target.yml").is_file()
+
+
+def test_scaffold_keeps_agent_files_when_folder_has_no_profile_file(products: Path) -> None:
+    existing = products / "demo"
+    existing.mkdir()
+    (existing / "decision-log.md").write_text("diário do agente", encoding="utf-8")
+    (existing / "notas.txt").write_text("arquivo desconhecido", encoding="utf-8")
+
+    result = _scaffolder(products).scaffold("demo", target_text="x: 1\n")
+
+    assert (existing / "decision-log.md").read_text(encoding="utf-8") == "diário do agente"
+    assert (existing / "notas.txt").read_text(encoding="utf-8") == "arquivo desconhecido"
+    assert (existing / "target.yml").read_text(encoding="utf-8") == "x: 1\n"
+    assert result.files == DEFAULT_FILES
+    assert "decision-log.md" not in result.files
+
+
+def test_scaffold_keeps_existing_readme_when_template_also_has_one(products: Path) -> None:
+    existing = products / "demo"
+    existing.mkdir()
+    (existing / "README.md").write_text("meu README", encoding="utf-8")
+
+    result = _scaffolder(products).scaffold("demo")
+
+    assert (existing / "README.md").read_text(encoding="utf-8") == "meu README"
+    assert "README.md" not in result.files
+    assert (existing / "target.yml").is_file()
+
+
+def test_scaffold_removes_only_what_it_created_when_copy_fails_in_existing_folder(
+    products: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    existing = products / "demo"
+    existing.mkdir()
+    (existing / "decision-log.md").write_text("diário", encoding="utf-8")
+
+    def broken_copy(*args: object, **kwargs: object) -> None:
+        raise OSError("disco cheio")
+
+    monkeypatch.setattr(shutil, "copyfile", broken_copy)
+
+    with pytest.raises(ConfigError):
+        _scaffolder(products).scaffold("demo")
+
+    assert [p.name for p in existing.iterdir()] == ["decision-log.md"]
+    assert (existing / "decision-log.md").read_text(encoding="utf-8") == "diário"
 
 
 @pytest.mark.parametrize("name", ["../fora", "a/b", "..", "/abs", "C:\\x", "Demo", ""])
@@ -168,3 +251,50 @@ def test_scaffolded_template_is_structurally_valid_for_the_loader(products: Path
     profile = FileProfileRepository(products).load("demo")
 
     assert profile.product == "demo"
+
+
+def test_scaffold_writes_the_generated_target_text_instead_of_the_template_profile(
+    products: Path,
+) -> None:
+    text = 'schema_version: 1\nproduct: "demo"\n# ação\n'
+
+    result = _scaffolder(products).scaffold("demo", target_text=text)
+
+    written = (products / "demo" / "target.yml").read_bytes()
+    assert written == text.encode("utf-8")
+    assert result.files == DEFAULT_FILES
+    assert b"meu-produto" not in written
+
+
+def test_scaffold_with_target_text_still_copies_the_other_template_files(products: Path) -> None:
+    _scaffolder(products).scaffold("demo", target_text="x: 1\n")
+
+    for name in ("README.md", "data-rules.yml", "flows.yml"):
+        assert (products / "demo" / name).is_file()
+
+
+def test_scaffold_with_target_text_refuses_to_overwrite_an_existing_product(
+    products: Path,
+) -> None:
+    (products / "demo").mkdir()
+    (products / "demo" / "target.yml").write_text("meu trabalho", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        _scaffolder(products).scaffold("demo", target_text="x: 1\n")
+
+    assert (products / "demo" / "target.yml").read_text(encoding="utf-8") == "meu trabalho"
+
+
+def test_default_template_dir_uses_the_packaged_copy_outside_the_clone(tmp_path: Path) -> None:
+    package = tmp_path / "site-packages" / "harness_dast"
+    (package / "product_template").mkdir(parents=True)
+
+    assert default_template_dir(package) == package / "product_template"
+
+
+def test_default_template_dir_prefers_the_clone_template(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "harness_dast"
+    package.mkdir(parents=True)
+    (tmp_path / "products" / "_template").mkdir(parents=True)
+
+    assert default_template_dir(package) == tmp_path / "products" / "_template"

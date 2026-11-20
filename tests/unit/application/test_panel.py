@@ -6,17 +6,17 @@ from datetime import UTC
 import pytest
 
 from harness_dast.application.panel import Panel, PanelRequest
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import ConfigError
-from harness_dast.domain.panel_model import PanelCommand, PanelExplanation, PanelJournal
+from harness_dast.domain.panel.model import PanelCommand, PanelExplanation, PanelJournal
 from harness_dast.domain.probe_result import RunManifest
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from tests.fakes.panel_ports import FakePanelFiles, FakeSpecLoader
 from tests.fakes.profile_data import valid_profile
 from tests.fakes.profile_repository import InMemoryProfileRepository
-from tests.unit.domain.panel_helpers import PRODUCT, sources, spec_operations
-from tests.unit.domain.panel_measure_helpers import agent_metrics
-from tests.unit.domain.report_helpers import RUN_ID
+from tests.unit.domain.panel.helpers import PRODUCT, sources, spec_operations
+from tests.unit.domain.panel.measure_helpers import agent_metrics
+from tests.unit.domain.report.helpers import RUN_ID
 
 OTHER_RUN = "2026-11-12T05-15-32Z-vampi-cd34"
 
@@ -77,16 +77,16 @@ def test_execute_writes_the_six_pages_and_reports_what_it_read_and_what_is_missi
     outcome = panel(files).execute(PanelRequest(product=PRODUCT, run_id=RUN_ID))
 
     assert tuple(files.written[RUN_ID]) == (
-        "summary.html", "stages.html", "findings.html", "coverage.html", "terminal.html",
-        "time-and-tokens.html",
+        "summary.html", "stages.html", "findings.html", "coverage.html", "authorization.html",
+        "terminal.html", "time-and-tokens.html",
     )  # fmt: skip
     assert outcome.entry == "panel/summary.html"
     assert outcome.directory == "panel"
-    assert len(outcome.files) == 6
+    assert len(outcome.files) == 7
     assert outcome.verdict == "finished"
     assert outcome.severe_findings == 1
     assert outcome.sources == ("run.json", "probe.json", "scan.json", "findings.json")
-    assert outcome.missing == ("manifest.json", "authz.json", "metrics.json")
+    assert outcome.missing == ("manifest.json", "authz.json", "negative.json", "metrics.json")
 
 
 def test_the_openapi_summary_and_the_profile_mode_reach_the_page() -> None:

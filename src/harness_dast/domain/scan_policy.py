@@ -14,6 +14,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
+from harness_dast.domain.experimental_rules import EXPERIMENTAL_RULES, enabled_experimental_ids
 from harness_dast.domain.run import RunLimits
 from harness_dast.domain.scan_config import Level, ScanConfig
 
@@ -26,6 +27,18 @@ BASE_INJECTABLE_MASK: Final = 35
 
 URL_PATH_INJECTABLE_BIT: Final = 16
 """Bit que liga a injeção em segmentos de caminho (spike: 35 + 16 = 51)."""
+
+COOKIE_INJECTABLE_BIT: Final = 4
+"""Bit que liga a injeção em cookies (ADR 0097; `ScannerParam.TARGET_COOKIE` do ZAP)."""
+
+HEADER_INJECTABLE_BIT: Final = 8
+"""Bit que liga a injeção em cabeçalhos HTTP (ADR 0097; `ScannerParam.TARGET_HTTPHEADERS`)."""
+
+OAST_CALLBACK_HOST: Final = "oast-gateway"
+"""Nome, na rede interna de retorno, da ponte que leva o retorno ao Callback do ZAP (ADR 0095)."""
+
+OAST_CALLBACK_PORT: Final = 8090
+"""Porta do serviço Callback do OAST no ZAP e da ponte (ADR 0095)."""
 
 POLL_SECONDS: Final = 2.0
 """Intervalo entre consultas ao andamento de uma varredura."""
@@ -71,7 +84,7 @@ DEFAULT_DISABLED_RULES: Final[tuple[DisabledRule, ...]] = (
     DisabledRule(
         plugin_id=40043,
         name="Log4Shell",
-        reason="Depende de retorno externo (OAST), que o proxy de escopo nega; só gera carga.",
+        reason="Depende de retorno fora de banda: só liga com scan.oast (ADR 0099).",
     ),
     DisabledRule(
         plugin_id=90034,
@@ -96,6 +109,34 @@ DEFAULT_DISABLED_RULES: Final[tuple[DisabledRule, ...]] = (
 )
 
 
+class OastRule(BaseModel):
+    """Regra de varredura ativa que só funciona com retorno fora de banda.
+
+    Attributes:
+        plugin_id: Identificador da regra no ZAP.
+        name: Nome da regra.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    plugin_id: int
+    name: str
+
+
+OAST_RULES: Final[tuple[OastRule, ...]] = (
+    OastRule(plugin_id=40043, name="Log4Shell"),
+    OastRule(plugin_id=90023, name="XML External Entity Attack"),
+    OastRule(plugin_id=90036, name="Server Side Template Injection (Blind)"),
+)
+"""Regras estáveis da imagem fixada (`ascanrules` 84, ZAP 2.17.0) que usam o OAST (ADR 0099).
+
+A regra de SSRF (40046) mora no `ascanrulesBeta`, que a imagem `hdast/zap` do ADR 0103 agora traz:
+ela é uma regra experimental (`domain/experimental_rules.py`) e só liga com a chave
+`extra_checks.experimental_rules` somada a `scan.oast`, não por esta lista. Injeção de comando
+cega não tem regra com OAST em nenhuma das imagens. Esses dois casos seguem cobertos pelo
+`scan.oast` guiado pelo contrato (ADR 0100)."""
+
+
 class ScanPolicy(BaseModel):
     """Política aplicada à varredura.
 
@@ -104,6 +145,11 @@ class ScanPolicy(BaseModel):
         strength: Força de ataque.
         threshold: Limiar de alerta.
         url_path_injection: Se a injeção em segmentos de caminho está ligada.
+        header_injection: Se a injeção em cabeçalhos e cookies está ligada (só a carta liga).
+        oast: Se o retorno fora de banda está ligado (só a carta liga; ADR 0099).
+        oast_rules: Ids das regras que dependem do retorno e ficam ligadas; vazio sem `oast`.
+        experimental_rules: Ids das regras alpha/beta selecionadas que ficam ligadas; vazio sem
+            `extra_checks.experimental_rules` (só a carta liga; ADR 0103).
         disabled_rules: Ids das regras desligadas (padrão do harness mais as do perfil).
     """
 
@@ -114,11 +160,17 @@ class ScanPolicy(BaseModel):
     threshold: Level
     url_path_injection: bool
     disabled_rules: tuple[int, ...]
+    header_injection: bool = False
+    oast: bool = False
+    oast_rules: tuple[int, ...] = ()
+    experimental_rules: tuple[int, ...] = ()
 
     @property
     def injectable_mask(self) -> int:
         """Valor de `TargetParamsInjectable` que o ZAP recebe."""
         extra = URL_PATH_INJECTABLE_BIT if self.url_path_injection else 0
+        if self.header_injection:
+            extra += COOKIE_INJECTABLE_BIT + HEADER_INJECTABLE_BIT
         return BASE_INJECTABLE_MASK + extra
 
 
@@ -140,15 +192,54 @@ class ScanLimits(BaseModel):
     max_rule_minutes: int
 
 
-def build_policy(config: ScanConfig) -> ScanPolicy:
-    """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam)."""
-    disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES]
+def without_oast(policy: ScanPolicy) -> ScanPolicy:
+    """Reduz a política efetiva preservando restrições e demais escolhas já aplicadas."""
+    dependent = {rule.plugin_id for rule in OAST_RULES}
+    dependent.update(rule.plugin_id for rule in EXPERIMENTAL_RULES if rule.needs_oast)
+    return policy.model_copy(
+        update={
+            "oast": False,
+            "oast_rules": (),
+            "experimental_rules": tuple(
+                rule for rule in policy.experimental_rules if rule not in dependent
+            ),
+            "disabled_rules": tuple(sorted(set(policy.disabled_rules) | dependent)),
+        }
+    )
+
+
+def build_policy(config: ScanConfig, *, experimental_rules: bool = False) -> ScanPolicy:
+    """Monta a política: a do perfil mais as regras desligadas (as do perfil só acrescentam).
+
+    Args:
+        config: Bloco `scan` do perfil.
+        experimental_rules: `extra_checks.experimental_rules` do perfil (só a carta liga). As
+            regras alpha/beta que a imagem traz ficam SEMPRE desligadas, menos as selecionadas
+            quando esta chave está ligada (ADR 0103); desligada, a política ligada é a de antes.
+    """
+    declined = set(config.disable_rules)
+    oast_ids = tuple(
+        rule.plugin_id for rule in OAST_RULES if config.oast and rule.plugin_id not in declined
+    )
+    experimental_ids = tuple(
+        plugin_id
+        for plugin_id in enabled_experimental_ids(experimental=experimental_rules, oast=config.oast)
+        if plugin_id not in declined
+    )
+    disabled = [rule.plugin_id for rule in DEFAULT_DISABLED_RULES if rule.plugin_id not in oast_ids]
+    disabled.extend(
+        rule.plugin_id for rule in EXPERIMENTAL_RULES if rule.plugin_id not in experimental_ids
+    )
     disabled.extend(config.disable_rules)
     return ScanPolicy(
         name=POLICY_NAME,
         strength=config.strength,
         threshold=config.threshold,
         url_path_injection=config.url_path_injection,
+        header_injection=config.inject_headers,
+        oast=config.oast,
+        oast_rules=oast_ids,
+        experimental_rules=experimental_ids,
         disabled_rules=tuple(sorted(dict.fromkeys(disabled))),
     )
 
@@ -162,7 +253,7 @@ def build_limits(limits: RunLimits, config: ScanConfig) -> ScanLimits:
     """Traduz os limites do perfil em opções do ZAP."""
     return ScanLimits(
         threads_per_host=limits.zap_threads_per_host,
-        delay_ms=delay_ms_for(limits.requests_per_second),
+        delay_ms=delay_ms_for(limits.requests_per_second) if config.pacing == "legacy" else 0,
         max_scan_minutes=min(config.max_scan_minutes, limits.max_duration_minutes),
         max_rule_minutes=min(
             config.max_rule_minutes, config.max_scan_minutes, limits.max_duration_minutes

@@ -3,16 +3,32 @@ alvo, e o ZAP falso "aprende" as requisições dele."""
 
 from typing import Any
 
+from harness_dast.application.common_ports import KillSwitch
 from harness_dast.application.metrics import MetricsRecorder
 from harness_dast.application.panel_index_ports import ScanLive
 from harness_dast.application.probe import ProbeRequest
 from harness_dast.application.report import Report
 from harness_dast.application.scan import Scan, ScanRequest
+from harness_dast.application.scan_ports import OastBridge, OastEvents, ProcessSampler
 from harness_dast.domain.probe_result import ProbeResult
-from harness_dast.domain.report_model import FindingsReport
+from harness_dast.domain.report.model import FindingsReport
 from harness_dast.domain.scan_result import ScanResult
 from tests.fakes.rig import Rig
 from tests.fakes.scan_ports import FakeProxyAudit, FakeScanZap, InMemoryRunArtifacts
+
+
+class FakeOastBridge:
+    """Ponte com fatos configuráveis para cada cenário."""
+
+    def __init__(self, available: bool | None = True, callback: bool | None = True) -> None:
+        self.available = available
+        self.callback_available = callback
+
+    def inspect(self) -> bool | None:
+        return self.available
+
+    def callback(self) -> bool | None:
+        return self.callback_available
 
 
 class ListSink:
@@ -54,7 +70,14 @@ class ScanRig(Rig):
         assert self._probe_result is not None
         return self._probe_result
 
-    def scan(self, live: ScanLive | None = None) -> Scan:
+    def scan(
+        self,
+        live: ScanLive | None = None,
+        process_sampler: ProcessSampler | None = None,
+        kill_switch: KillSwitch | None = None,
+        oast: OastEvents | None = None,
+        bridge: OastBridge | None = None,
+    ) -> Scan:
         return Scan(
             profiles=self.profiles,
             specs=self._specs(),
@@ -69,6 +92,12 @@ class ScanRig(Rig):
             clock=self.clock,
             sleeper=self.clock,
             live=live,
+            process_sampler=process_sampler,
+            kill_switch=kill_switch,
+            oast=oast,
+            bridge=bridge or FakeOastBridge(),
+            exchanges=self.artifacts,
+            entropy=self.entropy,
         )
 
     def metrics_recorder(self, audit: FakeProxyAudit | None = None) -> MetricsRecorder:
@@ -80,7 +109,9 @@ class ScanRig(Rig):
             harness_version="0.0-test",
         )
 
-    def report(self, *, with_metrics: bool = False) -> Report:
+    def report(
+        self, *, with_metrics: bool = False, proxy_audit: FakeProxyAudit | None = None
+    ) -> Report:
         return Report(
             profiles=self.profiles,
             artifacts=self.artifacts,
@@ -88,6 +119,7 @@ class ScanRig(Rig):
             clock=self.clock,
             harness_version="0.0-test",
             metrics=self.metrics_recorder() if with_metrics else None,
+            proxy_audit=proxy_audit,
         )
 
     def run_scan(self, **changes: Any) -> ScanResult:

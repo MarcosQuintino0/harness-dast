@@ -1,6 +1,6 @@
 """Resultado do `doctor`: as conferências do ambiente como dado."""
 
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,6 +30,19 @@ class DoctorCheck(BaseModel):
     detail: str
     kind: DoctorKind = "environment"
     operator_detail: str | None = Field(default=None, exclude=True)
+
+
+def make_check(
+    check_id: str,
+    status: DoctorStatus,
+    detail: str,
+    kind: DoctorKind = "environment",
+    operator_detail: str | None = None,
+) -> DoctorCheck:
+    """Monta uma conferência com a categoria de ambiente por padrão."""
+    return DoctorCheck(
+        id=check_id, status=status, detail=detail, kind=kind, operator_detail=operator_detail
+    )
 
 
 class DoctorSummary(BaseModel):
@@ -64,6 +77,16 @@ class DoctorReport(BaseModel):
     ready: bool
     checks: tuple[DoctorCheck, ...]
     summary: DoctorSummary
+
+    @classmethod
+    def from_checks(cls, checks: tuple[DoctorCheck, ...], *, product: str | None = None) -> Self:
+        """Monta o relatório e determina a prontidão a partir das conferências."""
+        summary = DoctorSummary(
+            ok=sum(check.status == "ok" for check in checks),
+            warn=sum(check.status == "warn" for check in checks),
+            fail=sum(check.status == "fail" for check in checks),
+        )
+        return cls(product=product, ready=summary.fail == 0, checks=checks, summary=summary)
 
     def first_failure(self) -> DoctorCheck | None:
         """Primeira reprovação, priorizando escopo, depois configuração."""

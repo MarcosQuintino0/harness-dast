@@ -1,4 +1,4 @@
-"""Comandos `hdast stack up|status|down` e `hdast stop` (pilha de contêineres e trava)."""
+"""Comandos `hdast stack pull|up|status|down` e `hdast stop`."""
 
 from pathlib import Path
 from typing import Annotated
@@ -9,15 +9,18 @@ from harness_dast.application.stack import DEFAULT_UP_TIMEOUT_SECONDS, StackUpRe
 from harness_dast.application.stack_models import StackReport, StopReport
 from harness_dast.cli.output import build_success, emit, get_state
 from harness_dast.cli.stack_composition import (
+    build_stack_images,
     build_stack_manager,
     open_zap_stopper,
     policy_dir_from_environment,
 )
+from harness_dast.cli.stack_lock_composition import hold_stack
 
 
 def _render(report: StackReport) -> str:
+    lock = f"\nTrava da pilha: {report.lock.message}" if report.lock else ""
     if not report.managed:
-        return f"Nenhuma pilha gerenciada (estado em {report.state_file})."
+        return f"Nenhuma pilha gerenciada (estado em {report.state_file}).{lock}"
     lines = [
         f"Pilha {report.run_id} (produto {report.product}, alvo {report.lab_target or 'externo'})",
         f"Em execução: {'sim' if report.running else 'NÃO'}; trava KILL: "
@@ -33,8 +36,12 @@ def _render(report: StackReport) -> str:
         f"  {s.project}/{s.service}: {s.state} {s.health}".rstrip() for s in report.services
     )
     lines.extend(f"  alvo {name}: {url}" for name, url in report.target_urls.items())
+    if report.stale_message:
+        lines.append(f"PILHA DESATUALIZADA: {report.stale_message}")
+    elif report.binding == "fresh":
+        lines.append("Perfil e aprovação: iguais aos do stack up.")
     lines.extend(f"Aviso: {warning}" for warning in report.warnings)
-    return "\n".join(lines)
+    return "\n".join(lines) + lock
 
 
 def _render_stop(report: StopReport) -> str:
@@ -49,9 +56,15 @@ def _render_stop(report: StopReport) -> str:
         f"execução {item.run_id}"
         for item in report.scans_running
     )
+    nuclei = (
+        f"\nTrava da cerca do Nuclei: {report.nuclei_kill_file} "
+        f"({'criada agora' if report.nuclei_kill_created else 'já existia'})."
+        if report.nuclei_kill_file
+        else ""
+    )
     return (
-        f"Trava de emergência acionada: {report.kill_file} ({created}). {zap}.\n"
-        "O proxy nega todo pedido novo até ser recriado (hdast stack up)." + running
+        f"Trava de emergência acionada: {report.kill_file} ({created}). {zap}.{nuclei}\n"
+        "Os proxies negam todo pedido novo até serem recriados (hdast stack up)." + running
     )
 
 
@@ -71,7 +84,7 @@ def up_command(
         typer.Option("--token-ttl", min=5, max=86400, help="Vida do token do alvo, em segundos."),
     ] = None,
     build: Annotated[
-        bool, typer.Option("--build", help="Reconstrói as imagens locais antes de subir.")
+        bool, typer.Option("--build", help="Reconstrói as imagens em um clone de desenvolvimento.")
     ] = False,
     oracle: Annotated[
         bool,
@@ -105,7 +118,9 @@ def up_command(
         timeout_seconds=timeout,
         oracle=oracle,
     )
-    report = build_stack_manager(products_dir).up(request)
+    # Subir recria os contêineres: não pode acontecer debaixo de uma execução (ADR 0035).
+    with hold_stack("stack up", product):
+        report = build_stack_manager(products_dir).up(request)
     state = get_state(ctx)
     emit(
         build_success(report.model_dump(mode="json"), report.run_id),
@@ -124,9 +139,22 @@ def status_command(ctx: typer.Context) -> None:
     )
 
 
+def pull_command(ctx: typer.Context) -> None:
+    """Baixa as imagens próprias do ZAP e do proxy de escopo sem subir a pilha."""
+    with hold_stack("stack pull", "-"):
+        images = build_stack_images().pull()
+    emit(
+        build_success({"images": list(images)}),
+        json_mode=get_state(ctx).json_mode,
+        human="Imagens baixadas.\n" + "\n".join(images),
+    )
+
+
 def down_command(ctx: typer.Context) -> None:
     """Derruba o que `stack up` subiu e esquece o estado (a auditoria é mantida)."""
-    report = build_stack_manager(None).down()
+    # Derrubar com uma execução em andamento a destruiria: use `hdast stop` antes.
+    with hold_stack("stack down", "-"):
+        report = build_stack_manager(None).down()
     human = (
         "Nada a derrubar: não há pilha gerenciada."
         if not report.managed
@@ -159,6 +187,7 @@ def build_stack_app() -> typer.Typer:
         help="Pilha de contêineres do laboratório (ZAP, proxy de escopo, alvo)."
     )
     stack_app.command("up")(up_command)
+    stack_app.command("pull")(pull_command)
     stack_app.command("status")(status_command)
     stack_app.command("down")(down_command)
     return stack_app

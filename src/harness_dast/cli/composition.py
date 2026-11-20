@@ -6,9 +6,11 @@ aos adaptadores reais.
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from harness_dast.adapters.cleanup.oracle_executor import OracleCleanupExecutor
 from harness_dast.adapters.cleanup.run_files import FileCleanupRuns
@@ -18,6 +20,10 @@ from harness_dast.adapters.datagen import GeneratorCatalogue
 from harness_dast.adapters.docker.host import SystemHost
 from harness_dast.adapters.http.target_client import HttpxTargetClient, TargetClientSettings
 from harness_dast.adapters.openapi.spec_loader import FileSpecLoader
+from harness_dast.adapters.openapi.spec_paths import FileSpecPaths
+from harness_dast.adapters.storage.knowledge_journal import FileMutationJournal
+from harness_dast.adapters.storage.knowledge_repository import FileKnowledgeStore
+from harness_dast.adapters.storage.letter_reader import FileLetterReader
 from harness_dast.adapters.storage.product_documents import FileProductDocuments
 from harness_dast.adapters.storage.product_paths import resolve_product_file
 from harness_dast.adapters.storage.product_scaffolder import (
@@ -26,28 +32,41 @@ from harness_dast.adapters.storage.product_scaffolder import (
 )
 from harness_dast.adapters.storage.profile_repository import FileProfileRepository
 from harness_dast.adapters.storage.run_store import FileRunStore
+from harness_dast.adapters.storage.stack_state import default_state_dir
+from harness_dast.adapters.storage.strategy_repository import FileStrategyRepository
 from harness_dast.adapters.system_clock import SystemClock
 from harness_dast.adapters.system_runtime import SystemEntropy, SystemSleeper
 from harness_dast.adapters.zap.api_client import ZapApiClient
 from harness_dast.application.account_session import TokenCache
 from harness_dast.application.cleanup import Cleanup
+from harness_dast.application.cleanup_ports import OperatorPrompt
+from harness_dast.application.common_ports import KillSwitch
 from harness_dast.application.doctor import Doctor
+from harness_dast.application.init_from_letter import InitFromLetter
 from harness_dast.application.init_product import InitProduct
 from harness_dast.application.inspect_spec import InspectSpec
+from harness_dast.application.knowledge import ExecutableKnowledge
 from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import KillSwitch, OperatorPrompt, SecretPrompt
 from harness_dast.application.preflight import Preflight
 from harness_dast.application.probe import Probe
 from harness_dast.application.secret_admin import SecretAdmin
+from harness_dast.application.secret_ports import SecretPrompt
 from harness_dast.application.validate_profile import ValidateProfile
+from harness_dast.cli.approval_composition import (
+    checked_profiles,
+    formal_profiles,
+    open_approval_store,
+)
 from harness_dast.cli.secrets_composition import build_credential_store, build_secret_provider
 from harness_dast.cli.stack_composition import (
+    build_stack_images,
     load_effective_settings,
     open_kill_switch,
     open_state_store,
 )
 from harness_dast.config.settings import Settings, load_settings
 from harness_dast.domain.probe_policy import REQUEST_TIMEOUT_SECONDS
+from harness_dast.domain.request_defaults import DEFAULT_TIMEZONE
 from harness_dast.observability.logging import SecretRegistry
 
 
@@ -68,6 +87,35 @@ def build_init_product(products_dir: Path | None) -> InitProduct:
     return InitProduct(scaffolder)
 
 
+def local_timezone_name(env: Mapping[str, str]) -> str:
+    """Fuso da janela padrão do pedido mínimo: `TZ`, se for um nome IANA válido.
+
+    O Python não informa o nome IANA do fuso da máquina (só o deslocamento), então a CLI usa
+    a variável `TZ` e, sem ela ou com valor inválido, `America/Sao_Paulo` (ADR 0120).
+    """
+    name = env.get("TZ", "").strip()
+    try:
+        return ZoneInfo(name).key if name else DEFAULT_TIMEZONE
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return DEFAULT_TIMEZONE
+
+
+def build_init_from_letter(products_dir: Path | None) -> InitFromLetter:
+    """Monta o caso de uso `hdast init --from-letter`.
+
+    Args:
+        products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
+    """
+    root = products_dir_or_default(products_dir)
+    return InitFromLetter(
+        FileLetterReader(),
+        FileProductScaffolder(root, default_template_dir()),
+        SystemClock(),
+        FileSpecPaths(),
+        local_timezone_name(os.environ),
+    )
+
+
 def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
     """Monta o caso de uso `hdast profile validate`.
 
@@ -75,7 +123,7 @@ def build_validate_profile(products_dir: Path | None) -> ValidateProfile:
         products_dir: Valor de `--products-dir`, ou `None` para usar `HDAST_PRODUCTS_DIR`.
     """
     repository = FileProfileRepository(products_dir_or_default(products_dir))
-    return ValidateProfile(repository, SystemClock())
+    return ValidateProfile(repository, SystemClock(), open_approval_store())
 
 
 def harness_version() -> str:
@@ -134,6 +182,7 @@ class NetworkHandle:
             verify_tls: Se o certificado do alvo é verificado (vem do perfil).
         """
         api_key = settings.zap_api_key.get_secret_value() if settings.zap_api_key else None
+        self.settings = settings
         if api_key:
             secrets.register(api_key)
         self.zap = ZapApiClient(settings.zap_base_url, api_key)
@@ -162,7 +211,7 @@ def open_network(product: str, products_dir: Path | None, secrets: SecretRegistr
         ConfigError: Perfil inválido ou configuração `HDAST_*` inválida.
     """
     root = products_dir_or_default(products_dir)
-    profile = FileProfileRepository(root).load(product)
+    profile = formal_profiles(root).load(product)
     settings = load_effective_settings()
     return NetworkHandle(settings, secrets, verify_tls=profile.environment.verify_tls)
 
@@ -177,7 +226,7 @@ def build_preflight(
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Preflight(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root, network.zap),
         secrets=build_secret_provider(),
         vault=secrets,
         client=network.client,
@@ -198,12 +247,14 @@ def build_probe(
     secrets: SecretRegistry,
     network: NetworkHandle,
     shared: SharedServices | None = None,
+    *,
+    dry_run: bool = False,
 ) -> Probe:
     """Monta o caso de uso `hdast probe` sobre a rede já aberta."""
     root = products_dir_or_default(products_dir)
     services = shared or SharedServices(kill_switch=open_kill_switch())
     return Probe(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root, None if dry_run else network.zap, fresh_stack=not dry_run),
         specs=build_spec_loader(root),
         documents=FileProductDocuments(root),
         secrets=build_secret_provider(),
@@ -216,6 +267,13 @@ def build_probe(
         entropy=SystemEntropy(),
         value_sources=GeneratorCatalogue,
         harness_version=harness_version(),
+        mutation_journal=FileMutationJournal(default_state_dir(os.environ) / "mutations"),
+        knowledge_recipes=ExecutableKnowledge(
+            FileKnowledgeStore(root),
+            FileStrategyRepository(root),
+            SystemClock(),
+            None if dry_run else network.zap,
+        ),
         token_cache=network.token_cache,
         login_budget=services.login_budget,
         kill_switch=services.kill_switch,
@@ -228,7 +286,7 @@ def build_cleanup(
     """Monta o caso de uso `hdast cleanup` (sem rede: só o banco de testes e arquivos)."""
     root = products_dir_or_default(products_dir)
     return Cleanup(
-        profiles=FileProfileRepository(root),
+        profiles=checked_profiles(root, with_knowledge=False, fresh_stack=False),
         scripts=FileCleanupScripts(
             lambda product, relative: resolve_product_file(root, product, relative)
         ),
@@ -263,10 +321,12 @@ def build_doctor(products_dir: Path | None, secrets: SecretRegistry) -> Doctor:
     root = products_dir_or_default(products_dir)
     clock = SystemClock()
     profiles = FileProfileRepository(root)
+    host = SystemHost(os.environ)
     return Doctor(
-        host=SystemHost(os.environ),
+        host=host,
+        images=build_stack_images(host),
         profiles=profiles,
-        validator=ValidateProfile(profiles, clock),
+        validator=ValidateProfile(profiles, clock, open_approval_store()),
         secrets=build_secret_provider(),
         vault=secrets,
         states=open_state_store(),

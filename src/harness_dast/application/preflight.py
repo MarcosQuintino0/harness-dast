@@ -18,9 +18,7 @@ execução própria do preflight.
 from dataclasses import dataclass
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     KillSwitch,
@@ -32,6 +30,8 @@ from harness_dast.application.ports import (
     TargetClient,
     ZapControl,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.preflight_checks import (
     authorization_window_checks,
     failure_check,

@@ -1,0 +1,381 @@
+"""Orquestra confirmação conservadora com o emissor protegido e persistência incremental.
+
+O arquivo reúne portas e montagem do caso de uso porque as travas e a ordem de persistência
+precisam ser revisadas em conjunto.
+"""
+
+from collections.abc import Callable
+from copy import copy
+from dataclasses import dataclass
+from datetime import datetime
+
+from harness_dast.application.account_session import AccountSession, TokenCache
+from harness_dast.application.common_ports import (
+    Clock,
+    KillSwitch,
+    ProfileRepository,
+    RunStore,
+    SecretProvider,
+    SecretVault,
+    Sleeper,
+    TargetClient,
+)
+from harness_dast.application.confirmation_ports import (
+    ConfirmationArtifacts,
+    ConfirmationStore,
+    NucleiReproducer,
+)
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
+from harness_dast.application.nuclei import NucleiRequest
+from harness_dast.application.run_support import AuditTrail, GuardedSender, RateLimiter, RunGate
+from harness_dast.application.session_pool import SessionPool
+from harness_dast.domain.authz.result import AuthzFinding
+from harness_dast.domain.confirmation import (
+    ConfirmationPlan,
+    judge_confirmation,
+    merge_confirmation_entries,
+    plan_confirmation,
+    recipe_targets,
+    select_confirmation_findings,
+)
+from harness_dast.domain.confirmation_nuclei import judge_nuclei_reproduction, nuclei_not_verifiable
+from harness_dast.domain.confirmation_observations import (
+    classify_authz_confirmation,
+    classify_recorded_finding,
+)
+from harness_dast.domain.errors import (
+    ConfigError,
+    HarnessError,
+    TargetError,
+)
+from harness_dast.domain.finding import Finding
+from harness_dast.domain.http_messages import HttpRequest, HttpResponse, approve
+from harness_dast.domain.negative_result import NegativeFinding
+from harness_dast.domain.nuclei_findings import NucleiFinding
+from harness_dast.domain.profile import ProductProfile
+from harness_dast.domain.report.model import FindingsReport
+from harness_dast.domain.request_encoding import join_url
+from harness_dast.domain.run_ref import require_run_id
+from harness_dast.domain.signal_result import SignalFinding
+from harness_dast.domain.verification import VerificationEntry, VerificationFile, parse_verification
+
+
+@dataclass(frozen=True)
+class ConfirmationRequest:
+    """Parâmetros informados ao comando; limite e identidade são validados na execução."""
+
+    product: str
+    run_id: str
+    finding: str | None = None
+    maximum: int = 30
+
+
+@dataclass(frozen=True)
+class ConfirmationDependencies:
+    """Portas necessárias para controle de rede, sessão e artefatos."""
+
+    profiles: ProfileRepository
+    artifacts: ConfirmationArtifacts
+    verification: ConfirmationStore
+    existing: bool
+    store: RunStore
+    client: TargetClient
+    secrets: SecretProvider
+    vault: SecretVault
+    clock: Clock
+    sleeper: Sleeper
+    kill_switch: KillSwitch
+    token_cache: TokenCache
+    marker: Callable[[], str]
+    nuclei: NucleiReproducer | None = None
+
+
+class Confirmation:
+    """Executa receitas com controles somente após conferir autorização e procedência."""
+
+    def __init__(self, dependencies: ConfirmationDependencies) -> None:
+        """Recebe portas reais ou falsos em memória."""
+        self._d = dependencies
+        self._recipe_requests = 0
+        self._session_requests = 0
+        self._finding_start = 0
+
+    @property
+    def traffic(self) -> tuple[int, int]:
+        """Retorna pedidos da receita e da sessão, contabilizados separadamente."""
+        return self._recipe_requests, self._session_requests
+
+    def _count_request(self, request: HttpRequest, reason: str | None) -> None:
+        if reason is None:
+            if request.operation_id.startswith("confirm:"):
+                self._recipe_requests += 1
+            else:
+                self._session_requests += 1
+
+    def execute(self, request: ConfirmationRequest) -> VerificationFile:
+        """Confirma achados e persiste cada resultado sem alterar o relatório original."""
+        run_id = require_run_id(request.run_id)
+        started = self._d.clock.now()
+        profile = self._d.profiles.load(request.product)
+        profile.ensure_runnable(started)
+        probe = self._d.artifacts.read_probe(run_id)
+        scan = self._d.artifacts.read_scan(run_id)
+        exchanges = self._d.artifacts.read_exchanges(run_id)
+        report = self._d.artifacts.read_findings(run_id)
+        for artifact in (probe, scan, exchanges, report):
+            if artifact.product != request.product or artifact.run_id != run_id:
+                raise ConfigError("Artefatos pertencem a outra execução ou produto.")
+        if probe.dry_run or scan.dry_run:
+            raise ConfigError("Probe ou scan foi simulado; não há varredura comprovada.")
+        candidates = self._candidates(report, request.product, run_id)
+        selected = select_confirmation_findings(candidates, request.maximum, request.finding)
+        current = self._load(request)
+        dispatcher, sessions, gate = self._network(profile, request, started)
+        for finding in selected:
+            self._finding_start = sum(self.traffic)
+            if not isinstance(finding, Finding):
+                direct, interrupted = self._direct_entry(finding, profile, run_id)
+                current = self._save(request, current, direct)
+                if interrupted:
+                    raise interrupted
+                continue
+            recorded = classify_recorded_finding(finding)
+            if recorded is not None:
+                current = self._save(request, current, recorded)
+                continue
+            planned = plan_confirmation(
+                finding,
+                exchanges.exchanges,
+                scan.entries,
+                self._d.marker(),
+                profile.environment.base_url,
+            )
+            if isinstance(planned, VerificationEntry):
+                entry = planned
+                stopped = None
+            else:
+                entry, stopped = self._run(
+                    planned, finding.fingerprint, dispatcher, sessions, profile, gate
+                )
+            current = self._save(request, current, entry)
+            if stopped:
+                raise stopped
+        return current
+
+    def _direct_entry(
+        self,
+        finding: AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding,
+        profile: ProductProfile,
+        run_id: str,
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
+        """Resultado dos achados que não passam pela receita do ZAP."""
+        if isinstance(finding, AuthzFinding):
+            return classify_authz_confirmation(finding), None
+        if isinstance(finding, NucleiFinding):
+            return self._reproduce_nuclei(finding, profile, run_id)
+        return VerificationEntry(
+            fingerprint=finding.fingerprint,
+            level="not_verifiable",
+            reason="Não há receita segura para esta origem de achado.",
+        ), None
+
+    def _candidates(
+        self, report: FindingsReport, product: str, run_id: str
+    ) -> tuple[Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...]:
+        candidates: tuple[
+            Finding | AuthzFinding | NegativeFinding | SignalFinding | NucleiFinding, ...
+        ] = report.findings
+        if report.authz is not None:
+            authz = report.authz
+            if authz.run_id != run_id or authz.product != product or authz.dry_run:
+                raise ConfigError("Resultado de autorização não corresponde à execução.")
+            candidates += authz.findings
+        if report.negative is not None:
+            candidates += report.negative.findings
+        if report.nuclei is not None:
+            nuclei = report.nuclei
+            if nuclei.run_id != run_id or nuclei.product != product:
+                raise ConfigError("Resultado do Nuclei não corresponde à execução.")
+            candidates += nuclei.findings
+        if report.proxy_signals is not None:
+            candidates += report.proxy_signals.findings
+        return candidates
+
+    def _reproduce_nuclei(
+        self, finding: NucleiFinding, profile: ProductProfile, run_id: str
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
+        """Repete o MESMO modelo do achado; reprodução, não confirmação independente."""
+        nuclei = self._d.nuclei
+        if nuclei is None or not profile.extra_checks.nuclei:
+            return nuclei_not_verifiable(
+                finding,
+                "O Nuclei não está autorizado neste perfil (extra_checks.nuclei, que só a carta "
+                "liga) ou não foi montado; o modelo não foi repetido.",
+            ), None
+        request = NucleiRequest(
+            product=profile.product,
+            run_id=run_id,
+            only_templates=(finding.record.template_path,),
+            persist=False,
+        )
+        try:
+            result = nuclei.execute(request)
+        except ConfigError as error:
+            return nuclei_not_verifiable(
+                finding,
+                f"O Nuclei não pôde repetir este modelo ({error.code}): confira a pilha, a "
+                "imagem e as permissões do perfil.",
+            ), None
+        except (HarnessError, KeyboardInterrupt) as error:
+            stopped = _safe_error(error) if isinstance(error, HarnessError) else error
+            return VerificationEntry(
+                fingerprint=finding.fingerprint,
+                level="inconclusive",
+                reason="Reprodução interrompida por escopo, pilha, prazo, janela ou motor.",
+                recipe="nuclei_template",
+            ), stopped
+        return judge_nuclei_reproduction(finding, result), None
+
+    def _save(
+        self, request: ConfirmationRequest, current: VerificationFile, entry: VerificationEntry
+    ) -> VerificationFile:
+        result = parse_verification(
+            {
+                "schema_version": 1,
+                "product": request.product,
+                "run_id": request.run_id,
+                "entries": merge_confirmation_entries(current.entries, (entry,)),
+            }
+        )
+        self._d.verification.write(result)
+        return result
+
+    def _load(self, request: ConfirmationRequest) -> VerificationFile:
+        if self._d.existing:
+            current = self._d.verification.read()
+            if current.product != request.product or current.run_id != request.run_id:
+                raise ConfigError("Verificação pertence a outra execução ou produto.")
+            return current
+        return parse_verification(
+            {
+                "schema_version": 1,
+                "product": request.product,
+                "run_id": request.run_id,
+                "entries": [],
+            }
+        )
+
+    def _network(
+        self, profile: ProductProfile, request: ConfirmationRequest, started: datetime
+    ) -> tuple[OperationDispatcher, SessionPool, RunGate]:
+
+        def revalidate() -> None:
+            if sum(self.traffic) - self._finding_start >= 12:
+                raise ConfigError("Teto de 12 pedidos por achado atingido.")
+            if self._d.profiles.load(request.product) != profile:
+                raise ConfigError("Perfil mudou durante a confirmação; reinicie a etapa.")
+
+        sequence = max(
+            (entry.seq for entry in self._d.artifacts.read_audit(request.run_id)), default=0
+        )
+        trail = AuditTrail(
+            self._d.store,
+            request.run_id,
+            self._d.clock,
+            sequence=sequence,
+            on_decision=self._count_request,
+        )
+        gate = RunGate(profile, self._d.clock, started, self._d.kill_switch, revalidate=revalidate)
+        sender = GuardedSender(
+            guard=profile.guard(),
+            client=self._d.client,
+            gate=gate,
+            limiter=RateLimiter(profile.limits.requests_per_second, self._d.clock, self._d.sleeper),
+            trail=trail,
+            clock=self._d.clock,
+        )
+        dispatcher = OperationDispatcher(
+            sender,
+            self._d.sleeper,
+            profile.auth.csrf,
+            login_budget=LoginBudget(profile.login_limit, self._d.clock, self._d.sleeper),
+            login_path=profile.login_path,
+            token_expired=profile.token_expired_signal,
+            error_codes=profile.probe.error_codes,
+        )
+        pool = SessionPool(
+            lambda alias: AccountSession(
+                account=profile.select_account(alias),
+                auth=profile.auth,
+                base_url=profile.environment.base_url,
+                secrets=self._d.secrets,
+                vault=self._d.vault,
+                client=self._d.client,
+                dispatcher=dispatcher,
+                token_cache=self._d.token_cache,
+            )
+        )
+        return dispatcher, pool, gate
+
+    def _run(
+        self,
+        plan: ConfirmationPlan,
+        fingerprint: str,
+        dispatcher: OperationDispatcher,
+        sessions: SessionPool,
+        profile: ProductProfile,
+        gate: RunGate,
+    ) -> tuple[VerificationEntry, HarnessError | KeyboardInterrupt | None]:
+        responses: list[HttpResponse | None] = []
+        try:
+            profile.select_account(plan.exchange.account)
+        except ConfigError:
+            return VerificationEntry(
+                fingerprint=fingerprint,
+                level="not_verifiable",
+                reason="A conta comprovada pelo scan não existe no perfil atual.",
+            ), None
+        try:
+            requests = tuple(
+                HttpRequest(
+                    method="GET",
+                    url=join_url(profile.environment.base_url, target),
+                    operation_id=f"confirm:{plan.exchange.operation_id}",
+                    account=plan.exchange.account,
+                )
+                for target in recipe_targets(plan)
+            )
+            for request in requests:
+                approve(profile.guard(), request)
+            gate.check()
+            session = sessions.get(plan.exchange.account)
+            for request in requests:
+                outcome = dispatcher.send(request, session, max_attempts=1, allow_reauth=False)
+                responses.append(outcome.response)
+                if outcome.response is None:
+                    error = outcome.transport_error or TargetError("Alvo não respondeu.")
+                    return judge_confirmation(plan, tuple(responses), fingerprint), _safe_error(
+                        error
+                    )
+        except (HarnessError, KeyboardInterrupt) as error:
+            partial = judge_confirmation(plan, tuple(responses), fingerprint)
+            stopped = _safe_error(error) if isinstance(error, HarnessError) else error
+            return partial.model_copy(
+                update={
+                    "reason": "Confirmação interrompida por escopo, pilha, prazo, janela ou sessão."
+                }
+            ), stopped
+        return judge_confirmation(plan, tuple(responses), fingerprint), None
+
+
+def _safe_error(error: HarnessError) -> HarnessError:
+    """Preserva tipo e código sem expor texto proveniente de sistemas externos."""
+    safe = copy(error)
+    safe.message = (
+        f"Confirmação interrompida ({type(error).__name__}, {error.code}); "
+        "prova parcial em verification.json."
+    )
+    safe.hint = "Confira a causa da interrupção antes de tentar novamente."
+    safe.args = (safe.message,)
+    return safe

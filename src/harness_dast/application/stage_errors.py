@@ -7,7 +7,8 @@ escopo (3); falha da ferramenta externa é 5; alvo sem resposta é 6; login recu
 
 from harness_dast.application.doctor_report import DoctorReport
 from harness_dast.application.preflight_report import PreflightReport
-from harness_dast.domain.authz_result import AuthzResult
+from harness_dast.application.run_support import KILL_SWITCH_MESSAGE
+from harness_dast.domain.authz.result import AuthzResult
 from harness_dast.domain.errors import (
     ConfigError,
     ExternalToolError,
@@ -16,6 +17,8 @@ from harness_dast.domain.errors import (
     ScopeViolation,
     TargetError,
 )
+from harness_dast.domain.negative_result import NegativeResult
+from harness_dast.domain.nuclei_result import NucleiResult
 from harness_dast.domain.probe_result import ProbeResult
 from harness_dast.domain.scan_result import ScanResult
 
@@ -90,4 +93,36 @@ def authz_stop_error(result: AuthzResult) -> HarnessError | None:
         return ExternalToolError(message, hint="Confira o ZAP e rode o authz de novo.")
     if result.status == "stopped_target_unresponsive":
         return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o authz.")
+    return None
+
+
+def negative_stop_error(result: NegativeResult) -> HarnessError | None:
+    """Erro correspondente à parada antecipada do `negative`, ou `None` se completou.
+
+    Achado do teste negativo NÃO é erro: é dado (o `report` é o dono do código 1).
+    """
+    message = result.stop_message or "O negative parou antes do fim."
+    hint = "O resultado parcial está em data e em negative.json."
+    if result.status in {"stopped_window", "stopped_deadline"}:
+        return ScopeViolation(message, hint=hint)
+    if result.status == "stopped_zap":
+        return ExternalToolError(message, hint="Confira o ZAP e rode o negative de novo.")
+    if result.status == "stopped_target_unresponsive":
+        return TargetError(message, hint="Aguarde o alvo se recuperar antes de repetir o negative.")
+    return None
+
+
+def nuclei_stop_error(result: NucleiResult) -> HarnessError | None:
+    """Erro correspondente à parada antecipada do `nuclei`, ou `None` se completou.
+
+    Janela fechada, prazo esgotado e a trava de emergência (`hdast stop`) são escopo (3), como no
+    `scan` solto; dentro do `run` a trava vira 130. Achado do Nuclei NÃO é erro: é dado (o gate
+    de severidade do `run` e do `report` é o dono do código 1).
+    """
+    hint = "O resultado parcial está em data e em nuclei.json."
+    if result.status == "stopped_kill":
+        return ScopeViolation(KILL_SWITCH_MESSAGE, hint=hint)
+    message = result.stop_message or "O nuclei parou antes do fim."
+    if result.status in {"stopped_window", "stopped_deadline"}:
+        return ScopeViolation(message, hint=hint)
     return None

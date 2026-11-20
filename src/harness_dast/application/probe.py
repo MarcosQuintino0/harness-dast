@@ -13,12 +13,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from harness_dast.application.account_session import AccountSession, TokenCache
-from harness_dast.application.dispatcher import OperationDispatcher
-from harness_dast.application.login_budget import LoginBudget
-from harness_dast.application.ports import (
+from harness_dast.application.common_ports import (
     Clock,
     EntropySource,
     KillSwitch,
+    MutationJournal,
     ProductDocuments,
     ProfileRepository,
     RunStore,
@@ -30,7 +29,10 @@ from harness_dast.application.ports import (
     ValueSourceFactory,
     ZapControl,
 )
+from harness_dast.application.dispatcher import OperationDispatcher
+from harness_dast.application.login_budget import LoginBudget
 from harness_dast.application.preview import RecordingSource
+from harness_dast.application.probe_ports import KnowledgeRecipeReader
 from harness_dast.application.probe_runner import ProbeRunner
 from harness_dast.application.run_support import (
     AuditTrail,
@@ -42,7 +44,7 @@ from harness_dast.application.runner_settings import RunnerSettings, RunOutcome
 from harness_dast.application.session_pool import SessionPool
 from harness_dast.domain.api_model import ApiSpec
 from harness_dast.domain.datagen import DataRules
-from harness_dast.domain.errors import ExternalToolError, HarnessError, PreflightError
+from harness_dast.domain.errors import ConfigError, ExternalToolError, HarnessError, PreflightError
 from harness_dast.domain.flow import FlowSpec
 from harness_dast.domain.probe_exchange import ExchangeLog
 from harness_dast.domain.probe_plan import PlannedOperation, plan_probe
@@ -121,6 +123,8 @@ class Probe:
         token_cache: TokenCache | None = None,
         login_budget: LoginBudget | None = None,
         kill_switch: KillSwitch | None = None,
+        mutation_journal: MutationJournal | None = None,
+        knowledge_recipes: KnowledgeRecipeReader | None = None,
     ) -> None:
         """Cria o caso de uso com todas as portas de que precisa.
 
@@ -142,6 +146,8 @@ class Probe:
         self._token_cache = token_cache
         self._login_budget = login_budget
         self._kill_switch = kill_switch
+        self._mutation_journal = mutation_journal
+        self._knowledge_recipes = knowledge_recipes
 
     def execute(self, request: ProbeRequest) -> ProbeResult:
         """Executa o `probe`.
@@ -176,6 +182,14 @@ class Probe:
         rules.validate_against(spec)
         if flows is not None:
             flows.validate_against(spec)
+        expected_rules = (
+            self._knowledge_recipes.validate(request.product, profile, spec, rules, flows)
+            if self._knowledge_recipes is not None
+            else ()
+        )
+        # A segunda leitura revalida as fontes depois de materializar os modelos usados.
+        if self._profiles.load(request.product) != profile:
+            raise ConfigError("Perfil mudou durante a preparacao do probe.")
         pinned = profile.select_account(request.account).alias if request.account else None
         profile.auth.ensure_operations_exist([op.operation_id for op in spec.operations])
         plan = plan_probe(
@@ -191,7 +205,9 @@ class Probe:
             started_at=started, product=profile.product, suffix=self._entropy.hex_suffix()
         )
         recorder = RecordingSource(self._value_sources(seed, started))
-        builder = RequestBuilder(rules, recorder, run_tag_from_run_id(run_id.value))
+        builder = RequestBuilder(
+            rules, recorder, run_tag_from_run_id(run_id.value), expected_rules=expected_rules
+        )
         accounts = _accounts_used(profile, plan, pinned)
         return _Run(
             request,
@@ -248,6 +264,9 @@ class Probe:
             limiter=RateLimiter(profile.limits.requests_per_second, self._clock, self._sleeper),
             trail=trail,
             clock=self._clock,
+            journal=self._mutation_journal,
+            journal_product=profile.product,
+            journal_run_id=run.run_id.value,
         )
         budget = self._login_budget or LoginBudget(profile.login_limit, self._clock, self._sleeper)
         dispatcher = OperationDispatcher(
@@ -278,6 +297,7 @@ class Probe:
                 run_id=run.run_id.value,
                 product=run.profile.product,
                 exchanges=outcome.exchanges,
+                next_unique_counter=run.builder.next_unique_counter,
             ),
         )
         self._finish_manifest(run, manifest, result.status)

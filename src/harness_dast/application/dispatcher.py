@@ -10,8 +10,8 @@ envio passa pelo `GuardedSender` (escopo, ritmo, janela, auditoria).
 from dataclasses import dataclass
 from typing import Protocol
 
+from harness_dast.application.common_ports import Sleeper
 from harness_dast.application.login_budget import LoginBudget, is_login_request
-from harness_dast.application.ports import Sleeper
 from harness_dast.application.run_support import GuardedSender
 from harness_dast.domain.auth import CsrfConfig
 from harness_dast.domain.errors import TargetTimeout, TargetUnreachable
@@ -85,8 +85,23 @@ class OperationDispatcher:
         self._token_expired = token_expired
         self._error_codes = error_codes
 
-    def send(self, request: HttpRequest, session: SessionHooks | None) -> SendOutcome:
+    def send(
+        self,
+        request: HttpRequest,
+        session: SessionHooks | None,
+        *,
+        allow_reauth: bool = True,
+        max_attempts: int | None = None,
+    ) -> SendOutcome:
         """Envia `request`, acrescentando os cabeçalhos da sessão a cada tentativa.
+
+        Args:
+            request: Requisição.
+            session: Sessão da conta, ou `None` (sem credencial e sem novo login).
+            allow_reauth: Falso nos pedidos com credencial adulterada de propósito: um 401 não
+                pode refazer o login (esgotaria o orçamento) nem reenviar o pedido.
+            max_attempts: Teto de requisições deste envio (orçamento de quem chama); atingido, a
+                última resposta volta sem repetir nem esperar. `None` não limita.
 
         Raises:
             ScopeViolation: Requisição fora do escopo, janela fechada ou prazo esgotado.
@@ -108,12 +123,12 @@ class OperationDispatcher:
                 response,
                 request.method,
                 csrf=self._csrf,
-                can_reauth=session is not None,
+                can_reauth=session is not None and allow_reauth,
                 state=state,
                 token_expired=self._token_expired,
                 error_codes=self._error_codes,
             )
-            if action == "done":
+            if action == "done" or (max_attempts is not None and attempts >= max_attempts):
                 return SendOutcome(response, None, attempts)
             self._apply(action, response, session)
             state = state.after(action)
