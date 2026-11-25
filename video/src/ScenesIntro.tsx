@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import {
   Caption,
   COLORS,
@@ -24,13 +24,27 @@ const METHOD_COLOR: Record<string, string> = {
   POST: COLORS.green,
 };
 
+// Quadros suficientes para todas as entradas da cena 1 já terem terminado.
+const HOOK_SETTLED = 90;
+
 /** Cena 1: o Swagger e a pergunta. */
 export const HookScene: React.FC = () => {
-  const frame = useCurrentFrame();
+  const realFrame = useCurrentFrame();
+  // O quadro 0 é a miniatura do vídeo: tudo já aparece pronto desde o começo
+  // e o movimento da cena fica por conta de um zoom lento.
+  const frame = realFrame + HOOK_SETTLED;
+  const zoom = interpolate(realFrame, [0, 120], [1, 1.04], {
+    extrapolateRight: "clamp",
+  });
   return (
-    <Scene>
+    <Scene fade={false}>
       <AbsoluteFill
-        style={{ flexDirection: "row", alignItems: "center", padding: "0 110px" }}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          padding: "0 110px",
+          transform: `scale(${zoom})`,
+        }}
       >
         <div style={{ width: 780, fontFamily: FONT_MONO }}>
           <div
