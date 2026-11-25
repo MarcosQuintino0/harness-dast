@@ -58,10 +58,14 @@ export const riseIn = (
   };
 };
 
-/** Fundo da cena, com um corte suave no começo. */
-export const Scene: React.FC<{ readonly children: React.ReactNode }> = ({
-  children,
-}) => {
+/**
+ * Fundo da cena, com um corte suave no começo. A primeira cena usa
+ * `fade={false}` para o quadro inicial do vídeo (a miniatura) não sair preto.
+ */
+export const Scene: React.FC<{
+  readonly fade?: boolean;
+  readonly children: React.ReactNode;
+}> = ({ fade = true, children }) => {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill
@@ -69,7 +73,7 @@ export const Scene: React.FC<{ readonly children: React.ReactNode }> = ({
         backgroundColor: COLORS.background,
         color: COLORS.text,
         fontFamily: FONT_SANS,
-        opacity: enter(frame, 0, 10),
+        opacity: fade ? enter(frame, 0, 10) : 1,
       }}
     >
       {children}
